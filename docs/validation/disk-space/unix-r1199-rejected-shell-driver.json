@@ -1,0 +1,15 @@
+{
+  "mac": {
+    "exitCode": 1,
+    "chunk": "9bbbde",
+    "terminal": true
+  },
+  "linux": {
+    "exitCode": 1,
+    "chunk": "10fb5f",
+    "terminal": true
+  },
+  "reason": "Generated shell runner had CRLF; failed at first line before extraction or tests",
+  "nextRevision": "r1200",
+  "productUnchanged": true
+}

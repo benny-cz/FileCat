@@ -175,6 +175,7 @@ public partial class LzmaStream
         CancellationToken cancellationToken
     )
     {
+        if (_strict) { cancellationToken.ThrowIfCancellationRequested(); return ReadStrict(buffer, offset, count); }
         if (_endReached)
         {
             return 0;
@@ -289,6 +290,7 @@ public partial class LzmaStream
         CancellationToken cancellationToken = default
     )
     {
+        if (_strict) { cancellationToken.ThrowIfCancellationRequested(); return ReadStrictMemory(buffer); }
         if (_endReached)
         {
             return 0;
@@ -462,6 +464,7 @@ public partial class LzmaStream
             }
         }
         await _outWindow.DisposeAsync().ConfigureAwait(false);
+        if (_strictByte is not null) { System.Security.Cryptography.CryptographicOperations.ZeroMemory(_strictByte); _strictByte = null; }
         ReturnAsyncHeaderBuffer();
 
 #if !LEGACY_DOTNET || NETSTANDARD2_1

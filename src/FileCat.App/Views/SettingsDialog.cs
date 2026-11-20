@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.LogicalTree;
+using Avalonia.VisualTree;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -14,6 +15,7 @@ using FileCat.App.Services;
 using FileCat.App.Controls;
 using FileCat.App.ViewModels;
 using FileCat.Core.Commands;
+using FileCat.Core.Jobs;
 using FileCat.Core.State;
 
 namespace FileCat.App.Views;
@@ -21,11 +23,28 @@ namespace FileCat.App.Views;
 /// <summary>Settings grouped by task; every change is applied immediately after OK and saved to settings.json.</summary>
 public static class SettingsDialog
 {
-    public static async Task ShowAsync(MainViewModel vm)
+    /// <summary>The Columns page's name, as its tab shows it (the file list's header menu opens Settings on it).</summary>
+    internal const string ColumnsPage = "Columns";
+
+    /// <param name="startPage">The tab to open on, by its name (<see cref="ColumnsPage"/>); null for the first.</param>
+    /// <param name="columnProfile">The column profile the Columns page selects (a panel's own); null for the first.</param>
+    public static async Task ShowAsync(MainViewModel vm, string? startPage = null, int? columnProfile = null)
     {
         var s = vm.Services.Settings;
         // The shared modal owns vertical scrolling. Tabs wrap with the available client width.
         var tabs = new TabControl { ItemsPanel = new FuncTemplate<Panel?>(() => new WrapPanel()) };
+        tabs.SelectionChanged += (_, change) =>
+        {
+            if (!ReferenceEquals(change.Source, tabs)) return;
+            Dispatcher.UIThread.Post(() =>
+            {
+                // A long page can leave the next page halfway down in the shared modal scroller.
+                // Return to the tab strip; a search jump reveals its target afterward.
+                if (tabs.GetVisualAncestors().OfType<ScrollViewer>()
+                    .FirstOrDefault(view => view.Name == "DialogBodyScroll") is { } scroll)
+                    scroll.Offset = new Vector(scroll.Offset.X, 0);
+            }, DispatcherPriority.Loaded);
+        };
 
         // ---- Appearance
         // Choosing a theme shows it at once; Cancel goes back to the one in use.
@@ -56,7 +75,7 @@ public static class SettingsDialog
         var cmdLine = new CheckBox { Content = "Show the command line", IsChecked = s.ShowCommandLine };
         // With seconds first; the shorter forms stay for those who chose them, and a format typed into the settings file
         // is offered as it is, so saving never replaces it.
-        var dateFormats = new List<string> { "Culture", "yyyy-MM-dd HH:mm:ss", "dd.MM.yyyy HH:mm:ss", "MM/dd/yyyy h:mm:ss tt", "yyyy-MM-dd HH:mm", "dd.MM.yyyy HH:mm", "MM/dd/yyyy h:mm tt" };
+        var dateFormats = AppearanceTransferV1.DateFormats.ToList();
         if (!dateFormats.Contains(s.DateFormat)) dateFormats.Add(s.DateFormat);
         var dateFormat = new ComboBox { ItemsSource = dateFormats, SelectedItem = s.DateFormat, MinWidth = 220 };
         tabs.Items.Add(new TabItem { Header = "Appearance", Content = Form(("Theme", theme), ("", themeDescription), ("", animations), ("Interface density", density), ("List font size", fontSize), ("Text, hex and comparison size", contentFontSize), ("", Note("Content size starts new viewers and comparisons at this value; Ctrl+plus/minus and the visible size controls adjust the open view.")), ("Date format", dateFormat), ("", keyBar), ("", toolbar), ("", classicToolbar), ("", toolbarNote), ("", driveButtons), ("", allPlaces), ("", placesNote), ("", cmdLine),
@@ -66,13 +85,13 @@ public static class SettingsDialog
         var hidden = new CheckBox { Content = "Show hidden and system items (dimmed)", IsChecked = s.ShowHidden };
         var natural = new CheckBox { Content = "Natural sort (file2 before file10)", IsChecked = s.NaturalSort };
         var dirsFirst = new CheckBox { Content = "Folders before files", IsChecked = s.DirectoriesFirst };
-        var confirmRecycle = new CheckBox { Content = "Ask before moving items to the Recycle Bin", IsChecked = s.ConfirmRecycle };
+        var confirmRecycle = new CheckBox { Content = $"Ask before moving items to {RecycleText.Destination}", IsChecked = s.ConfirmRecycle };
         var sizeOnSpace = new CheckBox { Content = "Space computes the size of a marked folder", IsChecked = s.SizeFolderOnSpace };
         var sizeSlow = new CheckBox { Content = "…also on network, removable, and cloud locations", IsChecked = s.SizeFolderOnSlowLocations };
         BindDependentOption(sizeOnSpace, sizeSlow, supported: true,
             "Turn on folder sizing with Space to use this option.");
         var anywhere = new CheckBox { Content = "Quick search matches anywhere in the name (instead of the beginning)", IsChecked = s.QuickSearchMatchAnywhere };
-        var filtersEditor = new SavedFiltersEditor(s.SavedFilters);
+        var filtersEditor = new SavedFiltersEditor(s.SavedFilters, readOnly: vm.Services.SettingsReadOnly);
         var single = new CheckBox { Content = "One FileCat window per profile (a new launch opens its paths in the running window)", IsChecked = s.SingleInstance };
         var awake = new CheckBox { Content = "Keep the computer awake while operations run", IsChecked = s.KeepAwakeDuringJobs };
         // Named as the copy dialog names them (stored as Native and ReadBack).
@@ -82,7 +101,7 @@ public static class SettingsDialog
         tabs.Items.Add(new TabItem { Header = "Behavior", Content = Form(("", hidden), ("", natural), ("", dirsFirst), ("", confirmRecycle), ("", sizeOnSpace), ("", sizeSlow), ("", anywhere), ("", single), ("", awake), ("Default copy verification", verify),
             ("Verify automatically up to", verifyUpTo),
             ("", Note("Files next to a checksum file or signature (SHA256SUMS, name.sha256, .minisig, .asc…) are checked when shown up to this size; larger ones, and files on the network, on request: File → Verify checksums and signatures. 0 checks only on request.")),
-            ("Saved filters", filtersEditor.View),
+            ("", filtersEditor.View),
             ("", Note("Use filters as @name in any mask: select (Num+), quick filter, copy filters, Find, and compare."))) });
 
         // ---- Tools
@@ -219,8 +238,9 @@ public static class SettingsDialog
         };
         // "auto": Windows Terminal when installed, else PowerShell 7, else Windows PowerShell.
         var shell = new ComboBox { ItemsSource = OperatingSystem.IsWindows() ? new[] { "auto", "cmd", "powershell", "pwsh", "wt" } : new[] { "posix" }, SelectedItem = s.Terminal.Shell, MinWidth = 220 };
-        var userCommandsEditor = new UserCommandsEditor(s.UserCommands, previewFolder);
-        var associationsEditor = new AssociationsEditor(s.Associations, filtersEditor.Snapshot, previewFolder);
+        var userCommandsEditor = new UserCommandsEditor(s.UserCommands, previewFolder, readOnly: vm.Services.SettingsReadOnly);
+        var associationsEditor = new AssociationsEditor(s.Associations, filtersEditor.Snapshot, previewFolder,
+            readOnly: vm.Services.SettingsReadOnly);
         tabs.Items.Add(new TabItem
         {
             Header = "Tools",
@@ -230,28 +250,28 @@ public static class SettingsDialog
                 ("Preview file (sample only)", previewFile), ("", previewButton), ("", previewResult),
                 ("", editorShellMode),
                 ("", Note("Batch programs normally reject selected names with shell characters such as &, | or >. Enable this only if you trust both the batch program and the names it receives; a normal executable is safer.")),
-                ("", Note("Arguments stay separate: quote an argument containing spaces or pipes; doubled quotes represent a literal quote, and backslashes stay literal. \"\" is one empty argument. An empty field means no arguments. The @json: array form preserves embedded line breaks.")), ("Command line shell", shell), ("User commands (F9)", userCommandsEditor.View),
-                ("", Note("One command per line: Name | program | arguments | options. Group > Name puts a command in a submenu. Quote arguments that contain spaces. Options: key=HOTKEY, dir=FOLDER, shell. Complex saved definitions use an @tools: JSON array to preserve their complete structure. Tokens: {file} {files} {listfile} {dir} {target} {name} {prompt}. Programs must be real executables; batch files are refused when an argument contains shell metacharacters unless the command has the shell option.")),
-                ("Associations", associationsEditor.View),
+                ("", Note("Arguments stay separate: quote an argument containing spaces or pipes; doubled quotes represent a literal quote, and backslashes stay literal. \"\" is one empty argument. An empty field means no arguments. The @json: array form preserves embedded line breaks.")), ("Command line shell", shell), ("", userCommandsEditor.View),
+                ("", associationsEditor.View),
                 ("", Note("F3, F4, and Enter use the first matching association for that action; Alt+F3 always opens the internal viewer."))),
         });
 
         // ---- Columns
-        var columnsEditor = new ColumnProfilesEditor(vm.Services.Columns);
-        tabs.Items.Add(new TabItem { Header = "Columns", Content = columnsEditor.View });
+        var columnsEditor = new ColumnProfilesEditor(vm.Services.Columns, readOnly: vm.Services.SettingsReadOnly);
+        if (columnProfile is { } profile) columnsEditor.SelectProfile(profile);
+        tabs.Items.Add(new TabItem { Header = ColumnsPage, Content = columnsEditor.View });
 
         // ---- Keyboard
         var bindings = new TextBox
         {
             AcceptsReturn = true,
-            MinHeight = 260,
+            MinHeight = 160,
             FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"),
             Text = string.Join(Environment.NewLine, s.KeyBindings.Select(kv => $"{kv.Key} = {string.Join(", ", kv.Value)}")),
             PlaceholderText = "command.id = Ctrl+Shift+X, F12",
         };
-        var reference = new TextBlock { Text = "One binding per line; an empty box keeps the defaults. Easier: in the keyboard reference (F1), select a command and press F2, then the new keys. Command ids are listed there.", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap };
+        var reference = new TextBlock { Text = "Choose a command and press its new shortcut above, or edit the bindings directly below. Use one command id per line; an empty box keeps the defaults. The keyboard reference (F1) also opens the shortcut chooser.", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap };
         var chooseShortcut = new Button { Content = "Find and change a shortcut…" };
-        var shortcutStatus = Note("Changes here stay in this Settings draft until OK.");
+        var shortcutStatus = Note("Shortcut changes are saved with OK.");
         var contextPreview = new TextBlock { Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 620 };
         Avalonia.Automation.AutomationProperties.SetName(contextPreview, "Find shortcut context preview");
         void UpdateContextPreview()
@@ -292,7 +312,7 @@ public static class SettingsDialog
             {
                 var keymap = new Keymap(vm.Services.Commands, draft);
                 var entries = vm.Services.Commands.All
-                    .Where(def => !def.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
+                    .Where(def => vm.AdvertisesEfsCommand(def.Id) && !def.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
                         && !def.Id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal)
                         && !def.Id.StartsWith(CommandIds.BookmarkTargetPrefix, StringComparison.Ordinal)
                         && !def.Id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal))
@@ -311,12 +331,12 @@ public static class SettingsDialog
                 shortcutStatus.Text = result.Message + " Save Settings to keep this change.";
             }
         };
-        tabs.Items.Add(new TabItem { Header = "Keyboard", Content = Form(("Custom bindings", bindings), ("", chooseShortcut), ("", shortcutStatus), ("", contextPreview), ("", reference)) });
+        tabs.Items.Add(new TabItem { Header = "Keyboard", Content = Form(("", chooseShortcut), ("", shortcutStatus), ("", reference), ("Custom bindings", bindings), ("", contextPreview)) });
 
         // ---- Privacy
         var diag = new CheckBox { Content = "Diagnostic mode: include file paths in the local log (off by default)", IsChecked = s.DiagnosticMode };
         var updates = new CheckBox { Content = "Automatically check for updates", IsChecked = s.CheckForUpdates };
-        var updateNote = Note("At most once a day at startup, FileCat checks for a newer release and notifies you. It does not download or install update packages. Help → Check for updates and network locations still connect when you request them.");
+        var updateNote = Note("On by default for new profiles. At most once a day at startup, FileCat checks for a newer release and offers its release page. You can skip one version or turn this off. It does not download or install update packages. Help → Check for updates and network locations still connect when you request them.");
         Avalonia.Automation.AutomationProperties.SetHelpText(updates, updateNote.Text);
         bool helper = vm.Services.ShellPictures is not null;
         var shellPictures = new CheckBox
@@ -345,9 +365,15 @@ public static class SettingsDialog
         var paths = new SelectableTextBlock { Text = $"Settings: {vm.Services.Paths.SettingsDirectory}\nLocal data: {vm.Services.Paths.LocalDirectory}{(vm.Services.Paths.IsPortable ? "\n(portable mode)" : string.Empty)}", TextWrapping = TextWrapping.Wrap };
         tabs.Items.Add(new TabItem { Header = "Privacy", Content = Form(("", diag), ("", updates), ("", updateNote), ("", shellPictures), ("", shellSlow), ("", shellNote), ("Storage", paths)) });
 
+        var historyEditor = new AnalysisHistorySettingsEditor(vm.Services.AnalysisHistory.Policy, vm.Services.Paths.AnalysisHistoryDirectory,
+            () => AnalysisHistoryBrowser.ShowAsync(vm.Services, vm.Dialogs));
+        int historyTab = tabs.Items.Count;
+        tabs.Items.Add(new TabItem { Header = "Analysis history", Content = historyEditor.View });
+
         var error = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(error, Avalonia.Automation.AutomationLiveSetting.Assertive);
         // Search the actual labels and explanations in every tab, including tabs not yet selected.
-        var search = new TextBox { PlaceholderText = "Search settings", MinWidth = 220 };
+        var search = new TextBox { PlaceholderText = "Search settings", MinWidth = 220, Classes = { "dialogSearch" } };
         Avalonia.Automation.AutomationProperties.SetName(search, "Search settings");
         var results = new ListBox { MaxHeight = 190, IsVisible = false };
         Avalonia.Automation.AutomationProperties.SetName(results, "Matching settings");
@@ -366,26 +392,48 @@ public static class SettingsDialog
                 .Where(entry => !string.IsNullOrWhiteSpace(entry.Text))
                 .Select(entry => (entry.Tab, entry.Control, Text: entry.Text!, TabName: tab.Header as string ?? "Settings"))
             ?? []).ToList();
+        searchEntries.InsertRange(0, tabs.Items.OfType<TabItem>().Select((tab, index) =>
+            (Tab: index, Control: (Control)tab, Text: tab.Header as string ?? "Settings",
+                TabName: tab.Header as string ?? "Settings")));
         List<(int Tab, Control Control, string Text, string TabName)> matches = [];
+        // Logical descendants include the controls in collapsed advanced editors. A result that
+        // points into one of those editors cannot be brought into view until its mode is enabled.
+        // Keep the mode switch searchable, then index its fields when the user opens it.
+        static bool IsSearchable(Control control) => control.IsVisible &&
+            control.GetLogicalAncestors().OfType<Control>().TakeWhile(ancestor => ancestor is not TabItem)
+                .All(ancestor => ancestor.IsVisible);
         void UpdateSearch()
         {
             var terms = (search.Text ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             results.IsVisible = resultHint.IsVisible = goToResult.IsVisible = terms.Length > 0;
             matches = terms.Length == 0 ? [] : searchEntries
-                .Where(entry => terms.All(term => entry.Text.Contains(term, StringComparison.CurrentCultureIgnoreCase)))
+                .Where(entry => IsSearchable(entry.Control) &&
+                    terms.All(term => entry.Text.Contains(term, StringComparison.CurrentCultureIgnoreCase)))
                 .Take(40).ToList();
-            results.ItemsSource = matches.Select(entry => entry.TabName + " · " +
+            results.ItemsSource = matches.Select(entry => entry.Control is TabItem ?
+                "Open " + entry.TabName + " tab" : entry.TabName + " · " +
                 (entry.Text.Length <= 110 ? entry.Text : entry.Text[..107] + "…")).ToArray();
             results.SelectedIndex = matches.Count > 0 ? 0 : -1;
             resultHint.Text = matches.Count == 0 ? "No settings match." :
                 matches.Count == 40 ? "Showing the first 40 matches." : $"{matches.Count} matching settings.";
             goToResult.IsEnabled = matches.Count > 0;
         }
+        // Switching a structured/advanced editor changes which search hits can actually be
+        // reached. Refresh an active query as soon as those panes change visibility.
+        foreach (var control in searchEntries.SelectMany(entry =>
+                     new[] { entry.Control }.Concat(entry.Control.GetLogicalAncestors().OfType<Control>()
+                         .TakeWhile(ancestor => ancestor is not TabItem))).Distinct())
+            control.PropertyChanged += (_, change) =>
+            {
+                if (change.Property == Control.IsVisibleProperty && !string.IsNullOrWhiteSpace(search.Text))
+                    UpdateSearch();
+            };
         void GoToSetting()
         {
             int index = results.SelectedIndex;
             if (index < 0 || index >= matches.Count) return;
             var entry = matches[index];
+            if (!IsSearchable(entry.Control)) { UpdateSearch(); return; }
             tabs.SelectedIndex = entry.Tab;
             Dispatcher.UIThread.Post(() =>
             {
@@ -397,11 +445,34 @@ public static class SettingsDialog
         search.TextChanged += (_, _) => UpdateSearch();
         search.KeyDown += (_, e) =>
         {
-            if (e.Key == Key.Enter && matches.Count > 0) { e.Handled = true; GoToSetting(); }
+            if (e.Key != Key.Enter) return;
+            // Search never silently activates Settings' default OK button, even for no matches.
+            e.Handled = true;
+            if (matches.Count > 0) GoToSetting();
         };
         results.DoubleTapped += (_, _) => GoToSetting();
         goToResult.Click += (_, _) => GoToSetting();
-        var body = new StackPanel { Spacing = 6, Children = { search, results, resultHint, goToResult, tabs, error } };
+        var body = new StackPanel { Spacing = 6, Children = { search, results, resultHint, goToResult, tabs } };
+        // Opened for one page (the file list's header menu: Columns): that tab, and the keyboard in it.
+        Control initialFocus = search;
+        if (startPage is not null && tabs.Items.OfType<TabItem>().FirstOrDefault(tab =>
+                string.Equals(tab.Header as string, startPage, StringComparison.OrdinalIgnoreCase)) is { } start)
+        {
+            tabs.SelectedItem = start;
+            if (ReferenceEquals(start.Content, columnsEditor.View)) initialFocus = columnsEditor.InitialFocus;
+        }
+        var closer = new DialogCloser();
+        Func<bool>? hasDraftChanges = null;
+        if (OperatingSystem.IsWindows())
+        {
+            var transfer = new Button { Content = AppearanceTransferDialog.ActionLabel };
+            transfer.Click += async (_, _) =>
+            {
+                if (await AppearanceTransferDialog.ShowAsync(vm, hasDraftChanges?.Invoke() == true))
+                    closer.Close("appearance transferred");
+            };
+            body.Children.Insert(0, transfer);
+        }
         if (vm.Services.SettingsReadOnly)
         {
             // Keep tabs, scrolling and text selection usable while preventing edits and preview side effects.
@@ -410,7 +481,9 @@ public static class SettingsDialog
                     foreach (var control in page.GetLogicalDescendants().OfType<Control>())
                         if (control is TextBox textBox) textBox.IsReadOnly = true;
                         else if (control is Button or ComboBox or CheckBox or NumericUpDown) control.IsEnabled = false;
-            string reason = vm.Services.SettingsStatus switch
+            string reason = WindowsTokenAuthority.IsHighIntegrity
+                ? "Administrator Settings are read-only. You can copy appearance and open folders from a normal window."
+                : vm.Services.SettingsStatus switch
             {
                 StateLoadStatus.NewerSchemaReadOnly => "These settings were written by a newer FileCat. They can be inspected here, but this version cannot change them.",
                 StateLoadStatus.OversizedReadOnly => "The settings exceed the safe input limit. A backup or defaults are shown for inspection; the original file is preserved.",
@@ -418,7 +491,9 @@ public static class SettingsDialog
             };
             body.Children.Insert(0, new TextBlock { Text = reason, Classes = { "warning" }, TextWrapping = TextWrapping.Wrap });
             await vm.Dialogs.ShowCustomAsync("Settings — read-only", body,
-                [new DialogButton("Close", "close", IsDefault: true, IsCancel: true)]);
+                [new DialogButton("Close", "close", IsDefault: true, IsCancel: true)],
+                initialFocus: initialFocus, closer: closer,
+                behavior: new DialogBehavior { DismissOnBackdrop = false, AlignTop = true });
             return;
         }
 
@@ -429,7 +504,7 @@ public static class SettingsDialog
         var parsedAssociations = s.Associations;
         var parsedArguments = s.Editor?.Arguments ?? ["{files}"];
         string parsedExecutable = s.Editor?.Executable ?? "";
-        bool Fail(string fieldName, string message, TextBox field, int page)
+        bool Fail(string fieldName, string message, Control field, int page)
         {
             error.Text = fieldName + ": " + message;
             error.IsVisible = true;
@@ -452,6 +527,7 @@ public static class SettingsDialog
             parsedArguments = s.Editor?.Arguments ?? ["{files}"];
             parsedExecutable = s.Editor?.Executable ?? "";
             error.IsVisible = false;
+            if (!historyEditor.TryGet(out _, out var historyError, out var historyField)) return Fail("Analysis history", historyError!, historyField, historyTab);
             foreach (var field in new[] { bindings, editorExe, editorArgs })
                 Avalonia.Automation.AutomationProperties.SetHelpText(field, null);
             parsedBindings = ParseBindings(bindings.Text, vm.Services.Commands, out var bindingError);
@@ -470,12 +546,97 @@ public static class SettingsDialog
                 return Fail("Associations", associationError!, associationField, 2);
             return true;
         }
+        bool reviewingDismissal = false;
+        bool HasDraftChanges()
+        {
+            if (!historyEditor.TryGet(out var proposedHistory, out _, out _) || proposedHistory != vm.Services.AnalysisHistory.Policy) return true;
+            // Compare values that OK would save, not navigation, search, or sample preview fields.
+            if ((theme.SelectedIndex >= 0 ? themeNames[theme.SelectedIndex] : "System") != s.Theme ||
+                (animations.IsChecked == true) != s.ThemeAnimations ||
+                (double)(fontSize.Value ?? 13) != s.FontSize ||
+                ReadabilityPolicy.ContentSize((double)(contentFontSize.Value ?? 13)) != ReadabilityPolicy.ContentSize(s.ContentFontSize) ||
+                (density.SelectedIndex == 1 ? "Comfortable" : "Compact") != s.RowDensity ||
+                (dateFormat.SelectedItem as string ?? "Culture") != s.DateFormat ||
+                (keyBar.IsChecked == true) != s.ShowFunctionKeyBar ||
+                (toolbar.IsChecked == true) != s.ShowToolbar ||
+                (classicToolbar.IsChecked == true) != s.ClassicToolbar ||
+                (allPlaces.IsChecked != true) != s.CompactPlaces ||
+                (driveButtons.IsChecked == true) != s.ShowDriveButtons ||
+                (cmdLine.IsChecked == true) != s.ShowCommandLine ||
+                (hidden.IsChecked == true) != s.ShowHidden ||
+                (natural.IsChecked == true) != s.NaturalSort ||
+                (dirsFirst.IsChecked == true) != s.DirectoriesFirst ||
+                (confirmRecycle.IsChecked == true) != s.ConfirmRecycle ||
+                (sizeOnSpace.IsChecked == true) != s.SizeFolderOnSpace ||
+                (sizeSlow.IsChecked == true) != s.SizeFolderOnSlowLocations ||
+                (anywhere.IsChecked == true) != s.QuickSearchMatchAnywhere ||
+                (single.IsChecked == true) != s.SingleInstance ||
+                (awake.IsChecked == true) != s.KeepAwakeDuringJobs ||
+                (verify.SelectedIndex == 1 ? "ReadBack" : "Native") != s.DefaultVerify ||
+                (int)(verifyUpTo.Value ?? 256) != s.VerifyAutomaticallyUpToMiB ||
+                (editorExe.Text ?? "") != originalExecutable ||
+                (editorArgs.Text ?? "") != originalArguments ||
+                (editorShellMode.IsChecked == true) != (s.Editor?.ShellMode ?? false) ||
+                (shell.SelectedItem as string ?? s.Terminal.Shell) != s.Terminal.Shell ||
+                bindings.Text != string.Join(Environment.NewLine, s.KeyBindings.Select(kv => $"{kv.Key} = {string.Join(", ", kv.Value)}")) ||
+                (diag.IsChecked == true) != s.DiagnosticMode ||
+                (updates.IsChecked == true) != s.CheckForUpdates ||
+                (shellPictures.IsChecked == true) != s.ShellPictures ||
+                (shellSlow.IsChecked == true) != s.ShellPicturesOnNetworkAndRemovable ||
+                columnsEditor.HasChanges()) return true;
+
+            // Invalid edits are still draft changes; a valid edit is compared to the saved model.
+            return !filtersEditor.TryGet(out var filters, out _, out _) ||
+                JsonSerializer.Serialize(filters) != JsonSerializer.Serialize(s.SavedFilters) ||
+                !userCommandsEditor.TryGet(out var commands, out _, out _) ||
+                JsonSerializer.Serialize(commands) != JsonSerializer.Serialize(s.UserCommands) ||
+                !associationsEditor.TryGet(out var associations, out _, out _) ||
+                JsonSerializer.Serialize(associations) != JsonSerializer.Serialize(s.Associations);
+        }
+        hasDraftChanges = HasDraftChanges;
+        async void ReviewImplicitDismissal()
+        {
+            if (reviewingDismissal) return;
+            if (!HasDraftChanges())
+            {
+                closer.Close("cancel");
+                return;
+            }
+            reviewingDismissal = true;
+            try
+            {
+                if (await vm.Dialogs.ConfirmAsync("Close Settings?",
+                    "Settings changes are saved only with OK. Close this draft without saving?",
+                    confirmText: "Discard draft", danger: true, cancelText: "Keep editing"))
+                    closer.Close("cancel");
+            }
+            finally { reviewingDismissal = false; }
+        }
         var r = await vm.Dialogs.ShowCustomAsync("Settings", body,
-            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("OK", "ok", IsDefault: true) { Validate = Validate }]);
+            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("OK", "ok", IsDefault: true) { Validate = Validate }],
+            initialFocus: initialFocus,
+            closer: closer, pinnedReview: error, behavior: new DialogBehavior
+            {
+                DismissOnBackdrop = false,
+                AlignTop = true,
+                OnImplicitDismiss = ReviewImplicitDismissal,
+            });
         if (r as string != "ok")
         {
             ThemeManager.Apply(s.Theme);
             return;
+        }
+
+        if (historyEditor.TryGet(out var historyPolicy, out _, out _) && historyPolicy != vm.Services.AnalysisHistory.Policy)
+        {
+            try { await vm.Services.AnalysisHistory.ReviewAndApplyAsync(vm.Dialogs, historyPolicy); }
+            catch (Exception historyError) when (historyError is IOException or InvalidOperationException or ArgumentException)
+            {
+                ThemeManager.Apply(s.Theme);
+                await vm.Dialogs.ShowCustomAsync("History policy was kept", new TextBlock { Text = Core.Analysis.AnalysisNames.Display(historyError.Message, 400), TextWrapping = TextWrapping.Wrap },
+                    [new DialogButton("Close", false, IsDefault: true, IsCancel: true)]);
+                return;
+            }
         }
 
         s.Theme = theme.SelectedIndex >= 0 ? themeNames[theme.SelectedIndex] : "System";

@@ -1,6 +1,6 @@
 # ADR-07: Archive engines and update semantics
 
-**Status:** Decided for ZIP (P5, 2026-09-28) and for the read-only formats approved for P8 (2026-09-28): TAR family, 7z, RAR, xz, bzip2, zstd, ISO 9660, and UDF. Writing any format other than ZIP stays out of scope.
+**Status:** Decided for ZIP (P5, 2026-09-28) and for the read-only formats approved for P8 (2026-09-28): TAR family, 7z, RAR, xz, bzip2, zstd, ISO 9660, and UDF. Writing any format other than ZIP stays out of scope in released builds. A proposed amendment for writing other formats through bounded workers is at the end; it is not decided, and no other writer is enabled (facts corrected 2026-11-10).
 
 ## Decision
 
@@ -17,7 +17,7 @@ These are the same limits as v1 extraction. Managed parsing under these limits s
 1. Opens the original deny-write.
 2. Writes a complete new archive beside it (`.filecat-zip-*.tmp`). Untouched members keep their order, names, duplicates, times, attributes, and comments, and the archive comment is kept. Every copied member's CRC is compared with its header, so a damaged member stops the update instead of spreading.
 3. Re-reads the new file: the planned members in order, and every written member's CRC.
-4. Checks that the original is still the version the plan saw (length and write time).
+4. Checks that the original is still the version the plan saw (length, write time and content SHA-256).
 5. Replaces it with `ReplaceFile`, which keeps the original's ACL, attributes, and creation time. A lost Mark-of-the-Web is re-applied.
 
 **Parent-version tracking.** Plans carry the archive's baseline, and a changed archive refuses the update.
@@ -39,8 +39,8 @@ third-party packages. All engines are managed code, so they run in-process under
 | `.tar.gz`, `.tgz` | .NET `TarReader` over `GZipStream` | Forward cursor |
 | `.tar.bz2`, `.tar.xz`, `.tar.zst` | .NET `TarReader` over SharpCompress decompressors | Forward cursor |
 | Single `.gz`, `.bz2`, `.xz`, `.zst` | Same decompressors | One member named after the file |
-| 7z | SharpCompress 0.50.4 (MIT) | Forward cursor |
-| RAR 4/5, solid, multi-volume sets | SharpCompress | Direct, or cursor for solid archives |
+| 7z | SharpCompress 0.50.5 (MIT), a trimmed source build (`FileCat.SharpCompress`) | Forward cursor |
+| RAR 2.x–5, solid, multi-volume sets | FileCat's own header reader with decoders ported from rardecode (BSD-2-Clause); RAR 1.5 in the separate LGPL `FileCat.Archives.Rar15` assembly (a port of XADMaster) | Direct, or cursor for solid archives |
 | ISO 9660 with Joliet names, UDF | LTRData.DiscUtils 1.0.89 (MIT) | Random access |
 
 A forward cursor restarts only when asked for an earlier member, so extracting in archive order decompresses once.
@@ -97,3 +97,33 @@ Read-only formats (Core tests on all platforms, `ArchiveFormatTests`):
   exception types (LZMA data errors, invalid format, zstd) become a damage report; a partial listing is kept.
 
 TV-07's remaining work is fuzzing the new engines and adding a native-engine worker if one is ever adopted.
+
+## Proposed amendment: writing other formats (not decided)
+
+Recorded 2026-11-10 from the [archive writing plan](../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md) and its
+[implementation status](../validation/archive-writing/IMPLEMENTATION_STATUS.md). This section describes code that exists on
+the archive-writing branch, where the routes of the owner's
+[route decision](../validation/archive-writing/RELEASE_ROUTE_DECISION.md) of 12 November 2026 are listed; released builds
+keep the decision above until the user decides this amendment for each qualified route.
+
+- **Typed profiles.** New TAR (PAX, or the source's USTAR), TAR.GZ, TAR.BZ2, TAR.ZST, 7z, RAR5, standalone `.gz`, `.bz2` and
+  `.zst`, and a worker ZIP profile are explicit format/option records. A request without a profile still means the ZIP
+  route above.
+- **Strict admission.** An existing archive is writable only after a complete strict catalog in a worker: framing,
+  checksums, every payload decoded, and only metadata the profile can write back exactly. Anything else is read-only with
+  a reason, never silently dropped (for example a gzip header with a stored name, unknown ZIP extra fields, encrypted ZIP
+  members, sparse or linked TAR entries).
+- **Bounded workers.** Assessment, transformation and fresh verification run in separate worker processes with
+  parent-enforced CPU, wall, idle, IO, frame and memory budgets; the transform receives numeric grants for the captured
+  inputs and the stage, never paths. ADR-06's proposed amendment describes the process boundaries.
+- **Publication.** The rebuilt archive is published only after a fresh worker verifies it against the parent's complete
+  expected manifest; Windows uses a transacted NTFS replacement and Unix an atomic exchange from a creator-private folder,
+  with the original retained until the journal records the outcome. Interrupted transactions appear in Interrupted
+  operations with exact recovery or discard actions.
+- **Availability.** Only format/runtime/file-system routes listed as qualified are composed in ordinary startup: all ten
+  formats on win-x64 (NTFS), linux-x64 (ext4) and osx-arm64 (APFS). A place the writer cannot write (on Windows a folder reached through a link or
+  cloud sync, or a drive without NTFS transactions for an update; on Linux and macOS a folder another user can change, or
+  an archive its update admission refuses; anywhere an archive with another hard link, or an elevated process) is not covered: a ZIP there keeps the route above, and the other formats say why before anything starts.
+- **Limits that stay.** Every change rewrites the whole archive; there is no undo; this route does not change an archive
+  with another hard link (a ZIP keeps the route above, where the other link keeps the old content); retained files after an uncertain outcome are kept and shown, never deleted on a guess.
+

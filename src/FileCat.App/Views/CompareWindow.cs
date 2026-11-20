@@ -7,6 +7,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
@@ -63,7 +64,9 @@ public sealed class CompareWindow : Window
     private readonly Button _copyDifference = new() { Content = "Copy difference" };
     private readonly TextBlock _textActionStatus = new() { Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _findToggle = new() { Content = "Find…" };
-    private readonly TextBox _findText = new() { Width = 210, PlaceholderText = "Find in comparison" };
+    private readonly Button _closeFind = new() { Content = "Close Find" };
+    private readonly TextBox _findText = new() { Width = 210, PlaceholderText = "Find in comparison",
+        Classes = { "searchPending" } };
     private readonly ComboBox _findSide = new() { ItemsSource = new[] { "Both shown sides", "Left shown side", "Right shown side" }, SelectedIndex = 0, MinWidth = 150 };
     private readonly CheckBox _findChanged = new() { Content = "Changed rows only", VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _findPrevious = new() { Content = "Previous match" };
@@ -200,6 +203,9 @@ public sealed class CompareWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(_copySide, "Source side for copying a line");
         Avalonia.Automation.AutomationProperties.SetName(_findText, "Find text in comparison (Ctrl+F)");
         Avalonia.Automation.AutomationProperties.SetName(_findToggle, "Show or hide comparison Find bar");
+        Avalonia.Automation.AutomationProperties.SetName(_closeFind, "Close comparison Find bar");
+        ToolTip.SetTip(_closeFind, "Close Find (Esc); the query stays for next time");
+        _closeFind.Click += (_, _) => { SetFindOpen(false); _rows.Focus(); };
         Avalonia.Automation.AutomationProperties.SetName(_findSide, "Comparison search source scope");
         Avalonia.Automation.AutomationProperties.SetAutomationId(_findStatus, "Comparison match status");
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_findStatus, Avalonia.Automation.AutomationLiveSetting.Polite);
@@ -236,7 +242,7 @@ public sealed class CompareWindow : Window
         var root = new DockPanel();
         DockPanel.SetDock(bar, Dock.Top);
         DockPanel.SetDock(_textTools, Dock.Top);
-        foreach (var control in new Control[] { _findText, _findSide, _findChanged, _findPrevious, _findNext, _findStatus })
+        foreach (var control in new Control[] { _findText, _closeFind, _findSide, _findChanged, _findPrevious, _findNext, _findStatus })
         {
             control.Margin = new Thickness(0, 0, 8, 4);
             _findBar.Children.Add(control);
@@ -427,7 +433,8 @@ public sealed class CompareWindow : Window
     {
         if (_dialogs.IsOpen) return;
         if (e.Key != Key.Escape || e.KeyModifiers != KeyModifiers.None) return;
-        if (_findOpen && _findText.IsFocused)
+        if (_findOpen && FocusManager?.GetFocusedElement() is Visual findControl &&
+            _findBar.IsVisualAncestorOf(findControl))
         {
             SetFindOpen(false);
             _rows.Focus();
@@ -818,6 +825,7 @@ public sealed class CompareWindow : Window
         _matchesTruncated = false;
         _matchIndex = -1;
         _findPrevious.IsEnabled = _findNext.IsEnabled = false;
+        ViewerSearchFeedback.Set(_findText, null);
         if (_closed || _shown != Shown.Text || _rows.ItemsSource is not IReadOnlyList<object> rows) return;
         string term = _findText.Text ?? "";
         if (term.Length == 0)
@@ -854,6 +862,7 @@ public sealed class CompareWindow : Window
             _matches = result.Matches;
             _matchesTruncated = result.Truncated;
             _findPrevious.IsEnabled = _findNext.IsEnabled = _matches.Count > 0;
+            ViewerSearchFeedback.Set(_findText, _matches.Count > 0);
             _findStatus.Text = _matches.Count == 0
                 ? $"No matches in {FindScope(scope, changedOnly)}."
                 : $"{_matches.Count:N0}{(_matchesTruncated ? "+" : "")} matches in {FindScope(scope, changedOnly)}. F3/Shift+F3 moves between matches.";
@@ -861,7 +870,11 @@ public sealed class CompareWindow : Window
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
-            if (!_closed && request == _findRequest) _findStatus.Text = "Search failed: " + ex.Message;
+            if (!_closed && request == _findRequest)
+            {
+                ViewerSearchFeedback.Set(_findText, null);
+                _findStatus.Text = "Search failed: " + ex.Message;
+            }
         }
     }
 
@@ -872,6 +885,8 @@ public sealed class CompareWindow : Window
     private void MoveMatch(int direction)
     {
         if (_closed || _shown != Shown.Text || _matches.Count == 0) return;
+        bool wrapped = _matchIndex >= 0 && (direction > 0 && _matchIndex == _matches.Count - 1 ||
+            direction < 0 && _matchIndex == 0);
         _matchIndex = _matchIndex < 0 ? (direction > 0 ? 0 : _matches.Count - 1) :
             (_matchIndex + direction + _matches.Count) % _matches.Count;
         var match = _matches[_matchIndex];
@@ -882,7 +897,8 @@ public sealed class CompareWindow : Window
         if (_rows.SelectedIndex != match.Row) _rows.SelectedIndex = match.Row;
         else _textView.RevealSelected();
         _rows.ScrollIntoView(match.Row);
-        _findStatus.Text = $"Match {_matchIndex + 1:N0} of {_matches.Count:N0}{(_matchesTruncated ? "+" : "")} in " +
+        _findStatus.Text = (wrapped ? $"Wrapped to {(direction > 0 ? "the beginning" : "the end")}. " : "") +
+            $"Match {_matchIndex + 1:N0} of {_matches.Count:N0}{(_matchesTruncated ? "+" : "")} in " +
             FindScope(_findSide.SelectedIndex, _findChanged.IsChecked == true) + ".";
     }
 

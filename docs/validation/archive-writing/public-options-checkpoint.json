@@ -1,0 +1,221 @@
+{
+  "date": "2026-11-07",
+  "source_packet": {
+    "files": 4123,
+    "bytes": 30290810,
+    "sha256": "c6b35afb4d5ccd1f2ad073451ea11baadfaa1c38aa19756943df7dec1abf6c2f"
+  },
+  "new_profile_registered": false,
+  "public_contract_and_adapter_component_only": true,
+  "container_preservation_transform_and_workflow_qualification": false,
+  "canonical_profile_bytes": {
+    "1": 16,
+    "2": 52
+  },
+  "new_contract_cases": 82,
+  "host_scope": "Edits, builds and static frozen-artifact verification only. Application tests and independent readers execute on authorized Mac/VMs.",
+  "platforms": {
+    "mac": {
+      "archive": "mac-profile-v2-evidence-v1.tar.gz",
+      "bytes": 48841249,
+      "sha256": "445ad1ca90af7a20f8d284e2dc9b86caa6fb910afc7c07fd4d1f066b05508a5e",
+      "manifest_rows": 2267,
+      "combined_cases": {
+        "Passed": 2442,
+        "NotExecuted": 55
+      },
+      "new_contract_cases": {
+        "Passed": 82
+      },
+      "public_adapter_encrypted_archive_cases": {
+        "Passed": 56
+      },
+      "independent_contract_vectors": 60,
+      "independent_contracts_equal_on_all_three_platforms": true,
+      "independent_archives": {
+        "official_successful_archives": 52,
+        "official_exact_payloads": 194,
+        "official_unsupported_zstandard_archives": 4,
+        "py7zr_successful_archives": 29,
+        "py7zr_metadata_records": 196,
+        "py7zr_exact_payloads": 140,
+        "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb"
+      },
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Writing/ArchiveWriterProfileAdapter.cs",
+        "src/FileCat.Core/Archives/ArchiveAssessmentWire.cs",
+        "src/FileCat.Core/Archives/ArchiveCreationMetadata.cs",
+        "src/FileCat.Core/Archives/ArchiveManifestDigestBuilder.cs",
+        "src/FileCat.Core/Archives/ArchiveManifestSidecar.cs",
+        "src/FileCat.Core/Archives/ArchiveOriginEvidence.cs",
+        "src/FileCat.Core/Archives/ArchiveTransactionFacts.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformWire.cs",
+        "src/FileCat.Core/Archives/ArchiveWriteContracts.cs",
+        "src/FileCat.Core/Archives/ArchiveWriteOptions.cs",
+        "src/FileCat.Core/Archives/ArchiveWriteProfileEncoding.cs",
+        "tests/FileCat.Core.Tests/ArchiveManifestSidecarTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveOriginEvidenceTests.cs",
+        "tests/FileCat.Core.Tests/ArchivePasswordWritingTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveWriteProfileV2Tests.cs"
+      ],
+      "compiler_source_documents": 1360,
+      "compiler_source_bytes": 12934564,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.12",
+        "runtime_directory": "/Users/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.12/",
+        "os": "macOS 27.0.1",
+        "architecture": "Arm64"
+      },
+      "writing_closure": {
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ],
+        "Rar15_or_DiscUtils_present": false
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      }
+    },
+    "ubuntu": {
+      "archive": "ubuntu-profile-v2-evidence-v1.tar.gz",
+      "bytes": 48850321,
+      "sha256": "56cb378e583e5082fb1280c3329086b9856643fe4f3ce527b0e5cc7e9a40d457",
+      "manifest_rows": 2267,
+      "combined_cases": {
+        "Passed": 2455,
+        "NotExecuted": 42
+      },
+      "new_contract_cases": {
+        "Passed": 82
+      },
+      "public_adapter_encrypted_archive_cases": {
+        "Passed": 56
+      },
+      "independent_contract_vectors": 60,
+      "independent_contracts_equal_on_all_three_platforms": true,
+      "independent_archives": {
+        "official_successful_archives": 52,
+        "official_exact_payloads": 194,
+        "official_unsupported_zstandard_archives": 4,
+        "py7zr_successful_archives": 29,
+        "py7zr_metadata_records": 196,
+        "py7zr_exact_payloads": 140,
+        "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886"
+      },
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Writing/ArchiveWriterProfileAdapter.cs",
+        "src/FileCat.Core/Archives/ArchiveAssessmentWire.cs",
+        "src/FileCat.Core/Archives/ArchiveCreationMetadata.cs",
+        "src/FileCat.Core/Archives/ArchiveManifestDigestBuilder.cs",
+        "src/FileCat.Core/Archives/ArchiveManifestSidecar.cs",
+        "src/FileCat.Core/Archives/ArchiveOriginEvidence.cs",
+        "src/FileCat.Core/Archives/ArchiveTransactionFacts.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformWire.cs",
+        "src/FileCat.Core/Archives/ArchiveWriteContracts.cs",
+        "src/FileCat.Core/Archives/ArchiveWriteOptions.cs",
+        "src/FileCat.Core/Archives/ArchiveWriteProfileEncoding.cs",
+        "tests/FileCat.Core.Tests/ArchiveManifestSidecarTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveOriginEvidenceTests.cs",
+        "tests/FileCat.Core.Tests/ArchivePasswordWritingTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveWriteProfileV2Tests.cs"
+      ],
+      "compiler_source_documents": 1360,
+      "compiler_source_bytes": 12934564,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.14",
+        "runtime_directory": "/home/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.14/",
+        "os": "Ubuntu 24.04.5 LTS",
+        "architecture": "X64"
+      },
+      "writing_closure": {
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ],
+        "Rar15_or_DiscUtils_present": false
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      }
+    },
+    "windows": {
+      "archive": "windows-profile-v2-evidence-v1.tar.gz",
+      "bytes": 48853203,
+      "sha256": "7f95fac73cc2dbe450d973607a822c05264ba90c6a02a5cdde16e989388d501e",
+      "manifest_rows": 2194,
+      "combined_cases": {
+        "Passed": 2277,
+        "NotExecuted": 220
+      },
+      "new_contract_cases": {
+        "Passed": 82
+      },
+      "public_adapter_encrypted_archive_cases": {
+        "Passed": 56
+      },
+      "independent_contract_vectors": 60,
+      "independent_contracts_equal_on_all_three_platforms": true,
+      "independent_archives": {
+        "official_successful_archives": 52,
+        "official_exact_payloads": 194,
+        "official_unsupported_zstandard_archives": 4,
+        "py7zr_successful_archives": 29,
+        "py7zr_metadata_records": 196,
+        "py7zr_exact_payloads": 140,
+        "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e"
+      },
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Writing/ArchiveWriterProfileAdapter.cs",
+        "src/FileCat.Core/Archives/ArchiveAssessmentWire.cs",
+        "src/FileCat.Core/Archives/ArchiveCreationMetadata.cs",
+        "src/FileCat.Core/Archives/ArchiveManifestDigestBuilder.cs",
+        "src/FileCat.Core/Archives/ArchiveManifestSidecar.cs",
+        "src/FileCat.Core/Archives/ArchiveOriginEvidence.cs",
+        "src/FileCat.Core/Archives/ArchiveTransactionFacts.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformWire.cs",
+        "src/FileCat.Core/Archives/ArchiveWriteContracts.cs",
+        "src/FileCat.Core/Archives/ArchiveWriteOptions.cs",
+        "src/FileCat.Core/Archives/ArchiveWriteProfileEncoding.cs",
+        "tests/FileCat.Core.Tests/ArchiveManifestSidecarTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveOriginEvidenceTests.cs",
+        "tests/FileCat.Core.Tests/ArchivePasswordWritingTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveWriteProfileV2Tests.cs"
+      ],
+      "compiler_source_documents": 1360,
+      "compiler_source_bytes": 12949265,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.14",
+        "runtime_directory": "C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\10.0.14\\",
+        "os": "Microsoft Windows 10.0.26340",
+        "architecture": "X64"
+      },
+      "writing_closure": {
+        "Rar15_or_DiscUtils_present": false,
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ]
+      },
+      "final_census": {
+        "Processes": [],
+        "CollectedUtc": "2026-11-07T09:57:47.6353270Z"
+      },
+      "standard_test_account": {
+        "Sid": "S-1-5-21-1278333194-2778939646-3566894036-1003",
+        "AdministratorsMember": false,
+        "Name": "DESKTOP-A60F1NE\\fcarchive42829297",
+        "HiveLoaded": true
+      }
+    }
+  }
+}

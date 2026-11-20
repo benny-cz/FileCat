@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Early native guard feasibility, not operation or release qualification",
+  "state": "tested-primitives-have-insufficient-proof",
+  "windows": {
+    "filesystem": "NTFS",
+    "user": "filecatdsa_r2",
+    "laterAudit": "Earlier PID5084 ended; another FileCat.App.Tests PID2480 appeared. No test or FileCat instance was stopped; further Windows tests postponed.",
+    "processAudit": "windows-vm-audit-r36.json",
+    "counterexamples": [
+      "Attribute-only mutation bypasses ordinary write/delete sharing guards.",
+      "Actually granted R/RH/RW/RWH oplocks allow LastWriteTime mutation without a break event."
+    ],
+    "positiveControls": [
+      "Primary ReadData ACL denial with metadata-only selected-alias removal and other-alias byte preservation.",
+      "Ordinary writer, alias rename and ancestor movement refused while guards are held.",
+      "Existing writer prevents guard admission."
+    ],
+    "evidence": "windows-vm-native-r36e.xml",
+    "passed": 21
+  },
+  "mac": {
+    "passed": 274,
+    "user": "benny",
+    "ownedFileCatGuiStarted": false,
+    "filesystem": "APFS",
+    "evidence": "mac-core-r36c.xml",
+    "finalProcessGate": "CLEAR"
+  },
+  "ubuntu": {
+    "passed": 273,
+    "user": "benny",
+    "ownedFileCatGuiStarted": false,
+    "filesystem": "ext4",
+    "evidence": "ubuntu-core-r36c.xml",
+    "finalProcessGate": "CLEAR",
+    "skipped": 1
+  },
+  "unixCounterexamples": [
+    "Held child/parent descriptors do not prevent child rename/replacement; unlinkat removes replacement.",
+    "Held parent descriptor does not pin the approved ancestor binding after rename."
+  ],
+  "limitations": [
+    "Generated-fixture probes do not exhaust native alternatives or qualify a platform-wide unsupported disposition.",
+    "No action adapter, review token, submission, protected-object policy, queue/journal/outcome or filesystem matrix is qualified.",
+    "Initial Linux O_PATH managed-seek probing and parallel capacity fixtures failed. Final metadata probes use native stat; capacity exhaustion controls are isolated and final full targeted suites pass.",
+    "A single-element PowerShell spec array was corrected before the Windows fixtures actually ran."
+  ],
+  "design": "../../design/FILECAT_DISK_SPACE_OPERATION_FEASIBILITY.md"
+}

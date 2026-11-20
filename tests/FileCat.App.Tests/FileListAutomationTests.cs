@@ -6,12 +6,14 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using System.Reflection;
 using FileCat.App.Controls;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
+using FileCat.Core.Jobs;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
 using FileCat.Core.Search;
@@ -112,6 +114,78 @@ public sealed class FileListAutomationTests
         var native = method.Invoke(row, [typeof(ISelectionItemProvider)]);
         Assert.Equal(!OperatingSystem.IsMacOS(), native is not null);
         Assert.Contains("not marked", row.GetHelpText());
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task F2_asks_before_replacing_an_existing_item(bool folders, bool replace)
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(nativeWindowsOriginMarks: true,
+            realTemporaryPath: true, prepareFiles: folder =>
+            {
+                if (!folders) return;
+                File.WriteAllText(Path.Combine(Directory.CreateDirectory(Path.Combine(folder, "a")).FullName, "incoming.txt"), "alpha");
+                File.WriteAllText(Path.Combine(Directory.CreateDirectory(Path.Combine(folder, "b")).FullName, "existing.txt"), "beta");
+            });
+        try
+        {
+            var listing = vm.ActiveTab!.Listing;
+            await WaitFor(() => listing.State == ListingState.Complete);
+            string originalName = folders ? "a" : "a.txt", newName = folders ? "b" : "b.txt";
+            Assert.True(listing.FocusName(originalName));
+            window.FocusActivePanel();
+            window.KeyPress(Key.F2, RawInputModifiers.None, PhysicalKey.F2, null);
+            var editor = Assert.Single(window.GetVisualDescendants().OfType<TextBox>(),
+                box => box.IsEffectivelyVisible && AutomationProperties.GetName(box) == "Rename selected item");
+            editor.Text = newName;
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+
+            Button? FindButton(string label) => window.GetVisualDescendants().OfType<Button>()
+                .SingleOrDefault(button => button.IsEffectivelyVisible && Equals(button.Content, label));
+            await WaitFor(() => FindButton("Replace") is not null);
+            var job = Assert.Single(services.Jobs.Jobs, j => j.Kind == JobKind.Rename);
+            var conflict = Assert.IsType<ConflictRequest>(job.Decision!.Request);
+            Assert.True(FindButton("Skip")!.IsDefault);
+            Assert.Contains("danger", FindButton("Replace")!.Classes);
+
+            string folder = Path.Combine(root, "files");
+            string source = Path.Combine(folder, originalName), target = Path.Combine(folder, newName);
+            string Incoming(string path) => folders ? Path.Combine(path, "incoming.txt") : path;
+            string Existing(string path) => folders ? Path.Combine(path, "existing.txt") : path;
+            Assert.Equal("alpha", File.ReadAllText(Incoming(source)));
+            Assert.Equal("beta", File.ReadAllText(Existing(target)));
+            FindButton(replace ? "Replace" : "Skip")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitFor(() => job.State.IsFinished());
+
+            if (replace)
+            {
+                Assert.True(job.State == JobState.Completed, string.Join(Environment.NewLine, job.Issues.Select(issue => issue.Message)));
+                Assert.False(Path.Exists(source));
+                Assert.Equal("alpha", File.ReadAllText(Incoming(target)));
+                if (folders || !OperatingSystem.IsWindows())
+                {
+                    Assert.NotNull(conflict.RenameBackupName);
+                    Assert.Equal("beta", File.ReadAllText(Existing(Path.Combine(folder, conflict.RenameBackupName))));
+                }
+            }
+            else
+            {
+                Assert.Equal(1, job.ItemsSkipped);
+                Assert.Equal("alpha", File.ReadAllText(Incoming(source)));
+                Assert.Equal("beta", File.ReadAllText(Existing(target)));
+            }
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+
+        static async Task WaitFor(Func<bool> ready)
+        {
+            for (int i = 0; i < 300 && !ready(); i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.True(ready(), "Expected rename state did not arrive.");
+        }
     }
 
     [AvaloniaFact]
@@ -461,6 +535,10 @@ public sealed class FileListAutomationTests
         f.Tab.Listing.MarkAll(true);
         f.Tab.Listing.Filter = Mask.Parse("item-00*");
         await FileListFixture.Wait(() => f.Tab.Listing.VisibleCount == 10);
+        // Detaching the listing saves its top row for navigation history before the review opens.
+        f.Window.Content = null;
+        Dispatcher.UIThread.RunJobs();
+        int references = f.Provider.ItemReferencesRequested;
         using var review = new MarkedItemsReview(f.Tab);
         f.Window.Content = review;
         Dispatcher.UIThread.RunJobs();
@@ -488,7 +566,7 @@ public sealed class FileListAutomationTests
         f.Window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
         Assert.Equal("item-064", review.CurrentItems[0].Name);
         Assert.Equal(130, f.Tab.Listing.MarkedCount);
-        Assert.Equal(0, f.Provider.ItemReferencesRequested);
+        Assert.Equal(references, f.Provider.ItemReferencesRequested);
 
         var store = f.Tab.Listing.Store;
         f.Tab.Refresh();

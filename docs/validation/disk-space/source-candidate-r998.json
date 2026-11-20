@@ -1,0 +1,18 @@
+[
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisRollingHistory.cs",
+    "sha256": "167c048b82d4a1c185a640fdb696faa6106c390947d2408396810686b2a05452"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisHistoryTests.cs",
+    "sha256": "5b34bfea2554cb07fa39c58baccee83eb47d57a64c02ada4d8d5d26b3ff34ed2"
+  },
+  {
+    "path": "src/FileCat.App/Views/AnalysisRollingHistoryPolicyDialog.cs",
+    "sha256": "4bdb9dc9394dd1bfff9ac374ce86db5d1d5ed8623dad8b073f4c176c5d06c446"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.HistoryReview.cs",
+    "sha256": "35de99d913e337c315a7097b489582cb05e0b6d5b923343fb2118a854e1733f4"
+  }
+]

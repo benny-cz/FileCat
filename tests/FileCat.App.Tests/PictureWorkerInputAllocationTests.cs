@@ -12,7 +12,7 @@ public sealed class PictureWorkerInputAllocationTests(ITestOutputHelper output)
         using var input = new ZeroStream(size);
         var read = typeof(PictureWorker).GetMethod("ReadAll", BindingFlags.NonPublic | BindingFlags.Static)!;
         long before = GC.GetAllocatedBytesForCurrentThread();
-        object? result = read.Invoke(null, [input]);
+        object? result = read.Invoke(null, [input, PictureWorker.MaxInputBytes]);
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         output.WriteLine($"Picture worker input: {size} bytes read, {allocated} thread-allocated bytes.");
 

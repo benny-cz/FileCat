@@ -61,12 +61,15 @@ public sealed class ListingModel : IDisposable
     private int _appliedCount;
     private Pipeline? _pipeline;
     private Pipeline? _pendingRefresh;
+    private StagedNavigation? _stagedNavigation;
     /// <summary>A refresh was asked for while one was under way: it runs when that one has finished.</summary>
     private bool _refreshAgain;
     /// <summary>The pipeline that began as a refresh and has not finished yet (it becomes the main one when it swaps in).</summary>
     private Pipeline? _refreshing;
     private int _generation;
     private int _specVersion;
+    private int _orderingVersion;
+    private long _metadataCaptures, _metadataCapturedRows;
     private SortSpec _sort = new();
     private Mask? _filter;
     private bool _showHidden = true;
@@ -76,7 +79,12 @@ public sealed class ListingModel : IDisposable
     private bool _focusAnchored;
     private string? _pendingFocusName;
     private EntryKind? _pendingFocusKind;
+    private ItemRef? _pendingVisitFocus;
+    private ItemRef? _pendingVisitTop;
+    public int VisitTopStoreIndex { get; private set; } = -1;
     private Dictionary<EntryKind, HashSet<string>>? _pendingMarks;
+    private (HashSet<ItemRef> Items, HashSet<string> Names)? _pendingIdentityMarks;
+    private ItemRef? _pendingIdentityFocus;
     /// <summary>
     /// Folder sizes computed here (Space), by name, with the folder's own time then. A refresh (a change the folder
     /// watcher saw, Ctrl+R) carries each over while that time is unchanged; a change in the folder makes it stale.
@@ -99,10 +107,15 @@ public sealed class ListingModel : IDisposable
         _ui = ui;
         _scratchDirectory = scratchDirectory;
         _listingMemoryBudgetBytes = listingMemoryBudgetBytes;
-        _indexBudget = indexBudget ?? new IndexMemoryBudget();
+        _indexBudget = indexBudget ?? IndexMemoryBudget.Shared;
     }
 
     public event EventHandler<ListingChange>? Changed;
+
+    /// <summary>The current navigation's provider read. Callers can hold a path lease until this read ends.</summary>
+    public Task CurrentEnumeration => _pipeline?.LoadTask ?? Task.CompletedTask;
+    /// <summary>UI-thread transition before enumeration or ordering of a new store starts, including refreshes.</summary>
+    public event Action<Location, EntryStore>? PreparingStore;
 
     public Location? Location { get; private set; }
     public ResourceProvider? Provider { get; private set; }
@@ -112,6 +125,15 @@ public sealed class ListingModel : IDisposable
     /// <summary>Why the location could not be listed (<see cref="Error"/> says it in words), or null.</summary>
     public Exception? LoadError { get; private set; }
     public IReadOnlyList<string> Issues => _issues;
+    public HiddenData.HiddenInventory? SupplementaryInventory { get; private set; }
+    public bool IncludeSupplementaryEaValues { get; private set; }
+
+    public void AdmitSupplementaryEaQuery()
+    {
+        if (Location?.Scheme != Schemes.HiddenData || _disposed) return;
+        IncludeSupplementaryEaValues = true;
+        Refresh();
+    }
 
     /// <summary>Only part of the location is shown: its listing broke off on an error or was stopped (<see cref="Issues"/> says which).</summary>
     public bool IsPartial { get; private set; }
@@ -126,10 +148,15 @@ public sealed class ListingModel : IDisposable
     public Exception? LastRefreshError { get; private set; }
     public bool HasParentRow { get; private set; }
     public int Generation => _generation;
+    /// <summary>Explicit mark edits. Automatic restoration during a same-location refresh does not advance it.</summary>
+    public long MarkRevision { get; private set; }
     /// <summary>The newest requested view revision, including sorts, filters, and visibility changes.</summary>
     public int ViewSpecVersion => _specVersion;
     /// <summary>The view revision whose rows are currently shown.</summary>
     public int AppliedViewSpecVersion { get; private set; }
+    public MetadataOrderCoverage? AppliedMetadataCoverage { get; private set; }
+    public long MetadataCaptures => Interlocked.Read(ref _metadataCaptures);
+    public long MetadataCapturedRows => Interlocked.Read(ref _metadataCapturedRows);
     public EntryStore Store => _store;
     public int VisibleCount => _diskView?.Count ?? _visible.Length;
     public bool HasExternalIndex => _diskView is not null;
@@ -147,9 +174,10 @@ public sealed class ListingModel : IDisposable
 
     /// <summary>Metadata sort keys (set by the view layer); used only when sorting by a metadata field.</summary>
     public MetadataKeyProvider? MetadataKeys { get; set; }
+    public Func<EntryStore, int, string, CancellationToken, MetadataOrderSnapshot>? CaptureMetadataOrder { get; set; }
 
     /// <summary>Re-sorts with current keys, e.g. after an explicit metadata analysis completed.</summary>
-    public void Resort() => PushSpec();
+    public void Resort() { _orderingVersion++; PushSpec(); }
 
     /// <summary>Selections with more items than this are captured as a <see cref="SelectionSnapshot"/>.</summary>
     public int SnapshotThreshold { get; set; } = 4096;
@@ -168,6 +196,7 @@ public sealed class ListingModel : IDisposable
         {
             if (_sort == value) return;
             _sort = value;
+            _orderingVersion++;
             PushSpec();
         }
     }
@@ -364,6 +393,8 @@ public sealed class ListingModel : IDisposable
         int store = VisibleAt(visibleIndex);
         _pendingFocusName = null;
         _pendingFocusKind = null;
+        _pendingIdentityFocus = null;
+        CancelVisitViewport();
         _focusAnchored = true;
         if (store == _focusStore) return;
         _focusStore = store;
@@ -379,25 +410,78 @@ public sealed class ListingModel : IDisposable
         return true;
     }
 
+    /// <summary>A user scroll takes precedence over the pending history viewport.</summary>
+    public void CancelVisitViewport()
+    {
+        _pendingVisitFocus = null;
+        _pendingVisitTop = null;
+        VisitTopStoreIndex = -1;
+    }
+
     // ---- Loading -----------------------------------------------------------------------------------------
 
     /// <summary>Navigates to a location. Marks are cleared; <paramref name="focusName"/> is focused when it arrives.</summary>
-    public void Load(Location location, string? focusName = null)
+    public void Load(Location location, string? focusName = null) => Load(location, focusName, null, null, null);
+
+    /// <summary>Starts a history read while leaving the current listing usable. The caller owns admission and cancellation.</summary>
+    public (Task Ready, Task Enumeration) StageNavigation(Location location)
+    {
+        CancelStagedNavigation();
+        var provider = _providers.For(location);
+        bool hasParent = provider.GetParent(location) is not null;
+        var store = CreateStore(location);
+        try
+        {
+            if (hasParent) store.Append(new EntryData("..", EntryKind.Parent));
+            var pipeline = StartPipeline(location, provider, store, isRefresh: false);
+            var stage = _stagedNavigation = new StagedNavigation(pipeline, hasParent);
+            return (stage.Ready.Task, pipeline.LoadTask!);
+        }
+        catch
+        {
+            store.Dispose();
+            throw;
+        }
+    }
+
+    public void CancelStagedNavigation()
+    {
+        if (_stagedNavigation is not { } stage) return;
+        _stagedNavigation = null;
+        stage.Latest?.External?.Dispose();
+        stage.Pipeline.Retire();
+        stage.Ready.TrySetCanceled();
+    }
+
+    public void LoadStagedNavigation(Location location, ItemRef? focus, ItemRef? top)
+    {
+        if (_stagedNavigation is not { Latest: { } result } stage || stage.Pipeline.Location != location)
+            throw new InvalidOperationException("The requested navigation listing is not ready.");
+        _stagedNavigation = null;
+        Load(location, null, stage, focus, top);
+        if (ReferenceEquals(_pipeline, stage.Pipeline))
+            ApplyResult(stage.Pipeline, result with { Completion = result.Done });
+        else
+            result.External?.Dispose();
+    }
+
+    private void Load(Location location, string? focusName, StagedNavigation? stage, ItemRef? visitFocus, ItemRef? visitTop)
     {
         // A closed tab's listing stays closed: work that finishes after it (a connection, a search) must not start reading
         // a folder for nobody (release issue I88's kind).
         if (_disposed) return;
         // First: a location nothing can list leaves the listing as it was, not its store released under it.
         var provider = _providers.For(location);
+        if (Location != location) { IncludeSupplementaryEaValues = false; SupplementaryInventory = null; }
         CancelPipelines();
         Location = location;
         Provider = provider;
-        _store = CreateStore(location);
-        HasParentRow = provider.GetParent(location) is not null;
-        if (HasParentRow) _store.Append(new EntryData("..", EntryKind.Parent));
+        _store = stage?.Pipeline.Store ?? CreateStore(location);
+        HasParentRow = stage?.HasParent ?? provider.GetParent(location) is not null;
+        if (stage is null && HasParentRow) _store.Append(new EntryData("..", EntryKind.Parent));
         _visible = HasParentRow ? [0] : [];
         _positions = HasParentRow ? [0] : [];
-        _appliedCount = _store.Count;
+        _appliedCount = HasParentRow ? 1 : 0;
         _marks = new MarkSet();
         _statsCache = null;
         _issues.Clear();
@@ -405,10 +489,15 @@ public sealed class ListingModel : IDisposable
         LastRefreshError = null;
         _focusStore = HasParentRow ? 0 : -1;
         _focusVisibleHint = 0;
-        _focusAnchored = false;
+        _focusAnchored = HasParentRow && visitFocus?.Kind == EntryKind.Parent;
         _pendingFocusName = focusName;
         _pendingFocusKind = null;
+        _pendingVisitFocus = visitFocus?.Kind == EntryKind.Parent ? null : visitFocus;
+        _pendingVisitTop = visitTop?.Kind == EntryKind.Parent ? null : visitTop;
+        VisitTopStoreIndex = HasParentRow && visitTop?.Kind == EntryKind.Parent ? 0 : -1;
         _pendingMarks = null;
+        _pendingIdentityMarks = null;
+        _pendingIdentityFocus = null;
         _computedSizes = new(StringComparer.Ordinal);
         _pendingSizes = null;
         _awaitingEntries = true;
@@ -417,13 +506,13 @@ public sealed class ListingModel : IDisposable
         LoadError = null;
         State = ListingState.Loading;
         CompletedAtUtc = null;
-        _pipeline = StartPipeline(location, provider, _store, isRefresh: false);
+        _pipeline = stage?.Pipeline ?? StartPipeline(location, provider, _store, isRefresh: false);
         Raise(ListingChange.Reset | ListingChange.State);
     }
 
     /// <summary>
     /// Re-enumerates the current location. The old rows stay visible until the new enumeration finishes
-    /// (or briefly stalls); marks and focus then transfer by name. Vanished items are not substituted.
+    /// (or briefly stalls); marks and focus transfer to equivalent entries in the new listing.
     /// </summary>
     public void Refresh()
     {
@@ -437,6 +526,13 @@ public sealed class ListingModel : IDisposable
         }
         if (State == ListingState.Loading && _pendingRefresh is null)
         {
+            if (RefreshUsesItemIdentity)
+            {
+                var selection = CaptureIdentitySelection();
+                Load(Location);
+                SetPendingIdentitySelection(selection);
+                return;
+            }
             // Loading again keeps the name still awaited (going up focuses the folder just left), or the row the user moved to.
             Load(Location, _pendingFocusName ?? (_focusAnchored && TryGetFocused(out var f) && f.Kind != EntryKind.Parent ? f.Name : null));
             return;
@@ -486,12 +582,19 @@ public sealed class ListingModel : IDisposable
 
     private Pipeline StartPipeline(Location location, ResourceProvider provider, EntryStore store, bool isRefresh)
     {
+        PreparingStore?.Invoke(location, store);
         var p = new Pipeline(++_generation, location, provider, store, isRefresh, CurrentSpec(), _ui, this);
         var device = provider.GetDeviceKey(location);
-        p.LoadTask = _io.Run(device, IoPriority.Interactive, ct =>
+        void Enumerate(CancellationToken ct)
         {
             provider.EnumerateAsync(location, p.Sink, ct).GetAwaiter().GetResult();
-        }, p.Cts.Token);
+        }
+        p.LoadTask = location.Scheme == Schemes.HiddenData ? ReadSupplementaryAsync() : _io.Run(device, IoPriority.Interactive, Enumerate, p.Cts.Token);
+        async Task ReadSupplementaryAsync()
+        {
+            await Records.FileObservationRequests.RunOwned(_io, device, IoPriority.Interactive,
+                ct => { Enumerate(ct); return true; }, p.Cts.Token).ConfigureAwait(false);
+        }
         p.LoadTask.ContinueWith(t =>
         {
             p.LoadError = t.IsFaulted ? t.Exception!.GetBaseException() : null;
@@ -505,6 +608,7 @@ public sealed class ListingModel : IDisposable
 
     private void CancelPipelines()
     {
+        CancelStagedNavigation();
         if (_pipeline is null) _store.Dispose();
         _diskView?.Dispose();
         _diskView = null;
@@ -517,7 +621,7 @@ public sealed class ListingModel : IDisposable
         _refreshAgain = false;
     }
 
-    private ViewSpec CurrentSpec() => new(_sort, _filter, _showHidden, _specVersion);
+    private ViewSpec CurrentSpec() => new(_sort, _filter, _showHidden, _specVersion, _orderingVersion);
 
     private void PushSpec()
     {
@@ -525,6 +629,7 @@ public sealed class ListingModel : IDisposable
         var spec = CurrentSpec();
         _pipeline?.UpdateSpec(spec);
         _pendingRefresh?.UpdateSpec(spec);
+        _stagedNavigation?.Pipeline.UpdateSpec(spec);
     }
 
     // ---- Pipeline results (UI thread) --------------------------------------------------------------------
@@ -532,9 +637,30 @@ public sealed class ListingModel : IDisposable
     private void OnPipelineResult(Pipeline p, PipelineResult r)
     {
         if (_disposed) { r.External?.Dispose(); return; }
+        if (!r.ProgressOnly && !r.PreserveCurrent && r.SpecVersion != _specVersion)
+        { r.External?.Dispose(); return; }
         if (r.ProgressOnly)
         {
             if (ReferenceEquals(p, _pipeline) || ReferenceEquals(p, _pendingRefresh)) Raise(ListingChange.State);
+            return;
+        }
+        if (_stagedNavigation is { } stage && ReferenceEquals(p, stage.Pipeline))
+        {
+            if (stage.Latest is null && (r.PreserveCurrent || r.Canceled || r.Done && r.Error is not null &&
+                    r.Count <= (stage.HasParent ? 1 : 0)))
+            {
+                stage.Ready.TrySetException(r.Error ?? new OperationCanceledException());
+                r.External?.Dispose();
+                CancelStagedNavigation();
+            }
+            else if (r.PreserveCurrent || !r.Done && r.Count <= (stage.HasParent ? 1 : 0))
+                r.External?.Dispose();
+            else
+            {
+                stage.Latest?.External?.Dispose();
+                stage.Latest = r;
+                stage.Ready.TrySetResult();
+            }
             return;
         }
         if (ReferenceEquals(p, _pendingRefresh))
@@ -580,10 +706,15 @@ public sealed class ListingModel : IDisposable
 
     private void SwapToRefresh(Pipeline p)
     {
-        // Carry marks and focus by exact name into the new generation.
-        var marked = new Dictionary<EntryKind, HashSet<string>>();
-        using (var scan = new EntryStore.Scan(_store, _appliedCount, _marks.Count))
+        CancelVisitViewport();
+        bool useItemIdentity = RefreshUsesItemIdentity;
+        var identitySelection = useItemIdentity ? CaptureIdentitySelection() : default;
+        Dictionary<EntryKind, HashSet<string>>? marked = null;
+        if (!useItemIdentity && _marks.Count > 0)
         {
+            // A name and kind are sufficient when entries share the listing's parent.
+            marked = new();
+            using var scan = new EntryStore.Scan(_store, _appliedCount, _marks.Count);
             foreach (int i in _marks.Enumerate())
             {
                 if (i < _appliedCount)
@@ -596,7 +727,7 @@ public sealed class ListingModel : IDisposable
         }
         string? focusName = null;
         EntryKind? focusKind = null;
-        if (_focusAnchored && _focusStore >= 0 && _focusStore < _appliedCount)
+        if (!useItemIdentity && _focusAnchored && _focusStore >= 0 && _focusStore < _appliedCount)
         {
             var focused = _store[_focusStore];
             focusName = focused.Name;
@@ -616,7 +747,8 @@ public sealed class ListingModel : IDisposable
         _issues.Clear();
         IsPartial = false;
         LastRefreshError = null;
-        _pendingMarks = marked.Count > 0 ? marked : null;
+        _pendingMarks = marked;
+        SetPendingIdentitySelection(identitySelection);
         _pendingSizes = _computedSizes.Count > 0 ? _computedSizes : null;
         _computedSizes = new(StringComparer.Ordinal);
         _awaitingEntries = true;
@@ -625,8 +757,32 @@ public sealed class ListingModel : IDisposable
         _focusStore = -1;
     }
 
+    private bool RefreshUsesItemIdentity => Location?.Scheme is Schemes.HiddenData or Schemes.ResultSet;
+
+    private (HashSet<ItemRef>? Marks, ItemRef? Focus) CaptureIdentitySelection()
+    {
+        var marked = _pendingIdentityMarks is { } pending ? new HashSet<ItemRef>(pending.Items) : [];
+        foreach (int i in _marks.Enumerate())
+            if (i < _appliedCount && _store[i].Kind != EntryKind.Parent) marked.Add(GetItemRef(i));
+        var focused = _pendingIdentityFocus;
+        if (focused is null && _focusAnchored && _focusStore >= 0 && _focusStore < _appliedCount)
+        {
+            var entry = _store[_focusStore];
+            focused = entry.Kind == EntryKind.Parent ? new ItemRef(Location!, entry.Name, EntryKind.Parent) : GetItemRef(_focusStore);
+        }
+        return (marked.Count > 0 ? marked : null, focused);
+    }
+
+    private void SetPendingIdentitySelection((HashSet<ItemRef>? Marks, ItemRef? Focus) selection)
+    {
+        _pendingIdentityMarks = selection.Marks is { } marks
+            ? (marks, marks.Select(item => item.Name).ToHashSet(StringComparer.Ordinal)) : null;
+        _pendingIdentityFocus = selection.Focus;
+    }
+
     private void ApplyResult(Pipeline p, PipelineResult r)
     {
+        SupplementaryInventory = p.SupplementaryInventory;
         int oldFocusVisible = FocusedIndex >= 0 ? FocusedIndex : _focusVisibleHint;
         int previousCount = _appliedCount;
         _diskView?.Dispose();
@@ -634,6 +790,7 @@ public sealed class ListingModel : IDisposable
         _visible = r.Visible;
         _appliedCount = r.Count;
         AppliedViewSpecVersion = r.SpecVersion;
+        AppliedMetadataCoverage = r.MetadataCoverage;
         _positions = r.External is null && _visible.Length > 0 ? BuildPositions(_visible, r.Count) : [];
         if (r.External is not null) p.ReleaseIndexReservation();
         var change = ListingChange.Rows;
@@ -645,13 +802,57 @@ public sealed class ListingModel : IDisposable
 
         // Resolve names that were waiting for their entry to arrive.
         List<(int Index, long Size, bool LowerBound)>? sized = null;
-        if (_pendingMarks is not null || _pendingFocusName is not null || _pendingSizes is not null)
+        if (_pendingMarks is not null || _pendingFocusName is not null || _pendingSizes is not null ||
+            _pendingIdentityMarks is not null || _pendingIdentityFocus is not null ||
+            _pendingVisitFocus is not null || _pendingVisitTop is not null)
         {
             using var scan = new EntryStore.Scan(_store, r.Count, r.Count - previousCount);
             for (int i = previousCount; i < r.Count; i++)
             {
                 var e = scan[i];
-                if (e.Kind == EntryKind.Parent) continue;
+                if (e.Kind == EntryKind.Parent)
+                {
+                    if (_pendingIdentityFocus?.Kind == EntryKind.Parent)
+                    {
+                        _focusStore = i;
+                        _pendingIdentityFocus = null;
+                        _focusAnchored = true;
+                        change |= ListingChange.Focus;
+                    }
+                    continue;
+                }
+                // Compare names before materializing an original reference for a candidate row.
+                bool mayRestoreMark = _pendingIdentityMarks is { } marks && marks.Names.GetAlternateLookup<ReadOnlySpan<char>>().Contains(e.Name);
+                bool mayRestoreFocus = _pendingIdentityFocus is { } focus && focus.Kind == e.Kind && e.Name.SequenceEqual(focus.Name);
+                if (mayRestoreMark || mayRestoreFocus)
+                {
+                    var reference = GetItemRef(i);
+                    if (mayRestoreMark && _pendingIdentityMarks is { } pending && pending.Items.Remove(reference))
+                    {
+                        _marks.Set(i, true);
+                        if (pending.Items.Count == 0) _pendingIdentityMarks = null;
+                        change |= ListingChange.Marks;
+                    }
+                    if (mayRestoreFocus && _pendingIdentityFocus!.Equals(reference))
+                    {
+                        _focusStore = i;
+                        _pendingIdentityFocus = null;
+                        _focusAnchored = true;
+                        change |= ListingChange.Focus;
+                    }
+                }
+                if (_pendingVisitFocus is not null && VisitItemMatches(_pendingVisitFocus, i, e) && GetVisibleIndex(i) >= 0)
+                {
+                    _focusStore = i;
+                    _pendingVisitFocus = null;
+                    _focusAnchored = true;
+                    change |= ListingChange.Focus;
+                }
+                if (_pendingVisitTop is not null && VisitItemMatches(_pendingVisitTop, i, e))
+                {
+                    VisitTopStoreIndex = i;
+                    _pendingVisitTop = null;
+                }
                 // A folder whose own time is unchanged keeps the size computed for it before the refresh.
                 if (_pendingSizes is not null && e.Kind == EntryKind.Directory && _pendingSizes.GetAlternateLookup<ReadOnlySpan<char>>().Remove(e.Name, out _, out var kept))
                 {
@@ -686,7 +887,7 @@ public sealed class ListingModel : IDisposable
             change |= ListingChange.Rows;
         }
 
-        if (!_focusAnchored && _pendingFocusName is null)
+        if (!_focusAnchored && _pendingFocusName is null && _pendingIdentityFocus is null)
         {
             // Entries stream in and re-sort: an untouched cursor stays on the first row, not on whichever entry
             // happened to be first in the first batch.
@@ -711,7 +912,20 @@ public sealed class ListingModel : IDisposable
 
         if (r.Completion)
         {
+            if (_pendingIdentityFocus is not null)
+            {
+                // The focused reference disappeared. A same-name row can refer to a different item.
+                _focusStore = HasParentRow ? 0 : -1;
+                _focusVisibleHint = 0;
+                _focusAnchored = true;
+                change |= ListingChange.Focus;
+            }
+            p.CompletionApplied = true;
             _pendingMarks = null;
+            _pendingIdentityMarks = null;
+            _pendingIdentityFocus = null;
+            _pendingVisitFocus = null;
+            _pendingVisitTop = null;
             _pendingSizes = null;
             _awaitingEntries = false;
             _pendingFocusName = null;
@@ -742,6 +956,11 @@ public sealed class ListingModel : IDisposable
         }
         Raise(change);
     }
+
+    private bool VisitItemMatches(ItemRef anchor, int index, in EntryView entry) =>
+        Location is { IsFileSystem: true } && anchor.Parent == Location
+            ? anchor.Kind == entry.Kind && entry.Name.SequenceEqual(anchor.Name)
+            : anchor.Equals(GetItemRef(index));
 
     private bool RemovePendingMark(EntryKind kind, ReadOnlySpan<char> name) =>
         _pendingMarks is not null && _pendingMarks.TryGetValue(kind, out var names) &&
@@ -1001,6 +1220,7 @@ public sealed class ListingModel : IDisposable
 
     private void MarksChanged()
     {
+        MarkRevision++;
         _statsCache = null;
         Raise(ListingChange.Marks);
     }
@@ -1148,9 +1368,12 @@ public sealed class ListingModel : IDisposable
         _marks = new MarkSet();
         _computedSizes = new(StringComparer.Ordinal);
         _pendingMarks = null;
+        _pendingIdentityMarks = null;
+        _pendingIdentityFocus = null;
         _pendingSizes = null;
         _pendingFocusName = null;
         _pendingFocusKind = null;
+        CancelVisitViewport();
         _lastOperation = null; // Borrowed selection: drop our reference without releasing another owner's lease.
         _statsCache = null;
         _nameIndex.Clear();
@@ -1167,10 +1390,18 @@ public sealed class ListingModel : IDisposable
 
     // ---- Background pipeline -------------------------------------------------------------------------------
 
-    private sealed record ViewSpec(SortSpec Sort, Mask? Filter, bool ShowHidden, int Version);
+    private sealed record ViewSpec(SortSpec Sort, Mask? Filter, bool ShowHidden, int Version, int OrderingVersion);
 
     /// <param name="Completion">True exactly once per pipeline: the first result after enumeration ended.</param>
-    private sealed record PipelineResult(int[] Visible, int Count, bool Done, Exception? Error, bool Canceled, bool Completion = false, DiskView? External = null, bool PreserveCurrent = false, bool ProgressOnly = false, int SpecVersion = 0);
+    private sealed record PipelineResult(int[] Visible, int Count, bool Done, Exception? Error, bool Canceled, bool Completion = false, DiskView? External = null, bool PreserveCurrent = false, bool ProgressOnly = false, int SpecVersion = 0, MetadataOrderCoverage? MetadataCoverage = null);
+
+    private sealed class StagedNavigation(Pipeline pipeline, bool hasParent)
+    {
+        public Pipeline Pipeline { get; } = pipeline;
+        public bool HasParent { get; } = hasParent;
+        public TaskCompletionSource Ready { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public PipelineResult? Latest { get; set; }
+    }
 
     private sealed class Pipeline
     {
@@ -1197,6 +1428,7 @@ public sealed class ListingModel : IDisposable
             _ui = ui;
             _owner = owner;
             Sink = new StoreSink(this);
+            IncludeEaValues = owner.IncludeSupplementaryEaValues;
             StartedTimestamp = Stopwatch.GetTimestamp();
         }
 
@@ -1207,11 +1439,14 @@ public sealed class ListingModel : IDisposable
         public bool IsRefresh { get; }
         public CancellationTokenSource Cts { get; } = new();
         public IEnumerationSink Sink { get; }
+        public bool IncludeEaValues { get; }
+        public volatile HiddenData.HiddenInventory? SupplementaryInventory;
         public long StartedTimestamp { get; }
         public Task? LoadTask { get; set; }
         public Task? WorkTask { get; private set; }
         public volatile bool LoadDone;
         public volatile bool LoadCanceled;
+        public volatile bool CompletionApplied;
         public Exception? LoadError;
         public long ExternalSortBytes => Interlocked.Read(ref _externalSortBytes);
 
@@ -1283,6 +1518,8 @@ public sealed class ListingModel : IDisposable
             bool externalMode = false;
             DiskIntIndex? externalSorted = null;
             SortSpec? externalSort = null;
+            MetadataOrderSnapshot? metadataOrder = null;
+            int metadataVersion = -1;
             int lastProgressCount = sortedCount;
             try
             {
@@ -1301,6 +1538,21 @@ public sealed class ListingModel : IDisposable
                     var spec = _spec;
                     bool done = LoadDone;
                     int n = Store.Count;
+                    bool newOrder = metadataVersion != spec.OrderingVersion;
+                    if (newOrder)
+                    {
+                        metadataOrder?.Dispose();
+                        metadataOrder = null;
+                        if (spec.Sort.Field == SortField.Metadata && spec.Sort.MetadataId is { } id)
+                        {
+                            metadataOrder = _owner.CaptureMetadataOrder?.Invoke(Store, n, id, ct)
+                                ?? MetadataOrderSnapshot.Capture(Store, n, id, _owner.MetadataKeys, _owner._indexBudget, ct);
+                            Interlocked.Increment(ref _owner._metadataCaptures);
+                            Interlocked.Add(ref _owner._metadataCapturedRows, metadataOrder.Count);
+                        }
+                        metadataVersion = spec.OrderingVersion;
+                    }
+                    var metadataKeys = metadataOrder?.Keys;
                     if (!externalMode && !_owner._indexBudget.TryReserve(this, 40L * n))
                     {
                         if (_owner._scratchDirectory is null)
@@ -1326,12 +1578,12 @@ public sealed class ListingModel : IDisposable
                             Publish(new PipelineResult([], n, false, null, false, ProgressOnly: true));
                         }
                         if (externalSorted is null || externalSort != spec.Sort ||
-                            (spec.Sort.Field is SortField.Size or SortField.Metadata) && applied?.Version != spec.Version)
+                            (spec.Sort.Field == SortField.Size && applied?.Version != spec.Version) || newOrder)
                         {
                             externalSorted?.Dispose();
                             Interlocked.Exchange(ref _externalSortBytes, 0);
                             externalSorted = ExternalViewBuilder.Sort(Store, n, spec.Sort,
-                                _owner.MetadataKeys, _owner._scratchDirectory!, ct);
+                                metadataKeys, _owner._scratchDirectory!, ct, metadataFrozen: true);
                             externalSort = spec.Sort;
                             Interlocked.Exchange(ref _externalSortBytes, externalSorted.Bytes);
                         }
@@ -1342,21 +1594,21 @@ public sealed class ListingModel : IDisposable
                             external.Dispose();
                             continue;
                         }
-                        bool completion = !doneAnnounced;
+                        bool completion = !CompletionApplied;
                         sortedCount = n;
                         applied = spec;
                         doneAnnounced = true;
-                        Publish(new PipelineResult([], n, true, LoadError, LoadCanceled, completion, external, SpecVersion: spec.Version));
+                        Publish(new PipelineResult([], n, true, LoadError, LoadCanceled, completion, external, SpecVersion: spec.Version, MetadataCoverage: metadataOrder?.Coverage));
                         continue;
                     }
                     // Geometric batches keep streaming merges and position rebuilds near O(n log n). The first
                     // real rows must appear even when an empty/parent-only view was published before they arrived.
                     if (!done && applied is not null && applied.Version == spec.Version &&
                         (n == sortedCount || sortedCount > firstIndex && n - sortedCount < Math.Max(64, sortedCount / 2))) continue;
-                    using var comparer = EntrySorter.CreateComparer(Store, spec.Sort, _owner.MetadataKeys, n);
+                    using var comparer = EntrySorter.CreateComparer(Store, spec.Sort, metadataKeys, n, metadataFrozen: true);
                     var cmp = comparer.Comparison;
                     bool changed = false;
-                    if (applied is null || applied.Sort != spec.Sort)
+                    if (applied is null || applied.Sort != spec.Sort || newOrder)
                     {
                         sorted = Range(firstIndex, n);
                         if (spec.Sort.Field != SortField.None) StableSort.Sort(sorted, cmp);
@@ -1380,18 +1632,19 @@ public sealed class ListingModel : IDisposable
                     {
                         changed = true;
                         // A size re-sort request arrives as a version bump with the same sort.
-                        if (spec.Sort.Field is SortField.Size or SortField.Metadata)
+                        if (spec.Sort.Field == SortField.Size)
                         {
                             sorted = (int[])sorted.Clone(); // UI may still hold the previous array.
                             StableSort.Sort(sorted, cmp);
                         }
                     }
                     sortedCount = n;
-                    bool announceDone = done && !doneAnnounced;
+                    bool announceDone = done && !CompletionApplied;
                     if (!changed && !announceDone) continue;
 
+                    if (_spec.Version != spec.Version) { applied = spec; continue; }
                     var visible = BuildVisible(sorted, spec, firstIndex == 1);
-                    var result = new PipelineResult(visible, n, done, done ? LoadError : null, done && LoadCanceled, announceDone, SpecVersion: spec.Version);
+                    var result = new PipelineResult(visible, n, done, done ? LoadError : null, done && LoadCanceled, announceDone, SpecVersion: spec.Version, MetadataCoverage: metadataOrder?.Coverage);
                     applied = spec;
                     if (announceDone) doneAnnounced = true;
                     Publish(result);
@@ -1402,12 +1655,13 @@ public sealed class ListingModel : IDisposable
             }
             catch (Exception ex)
             {
-                Publish(new PipelineResult([], sortedCount, true, ex, false, !doneAnnounced,
-                    PreserveCurrent: doneAnnounced));
+                Publish(new PipelineResult([], sortedCount, true, ex, false, !CompletionApplied,
+                    PreserveCurrent: doneAnnounced, SpecVersion: _spec.Version));
             }
             finally
             {
                 externalSorted?.Dispose();
+                metadataOrder?.Dispose();
                 Interlocked.Exchange(ref _externalSortBytes, 0);
             }
         }
@@ -1472,6 +1726,22 @@ public sealed class ListingModel : IDisposable
 
         private sealed class StoreSink(Pipeline owner) : IEnumerationSink
         {
+            public bool IncludeSupplementaryEaValues => owner.IncludeEaValues;
+            public void ReportSupplementaryInventory(HiddenData.HiddenInventory inventory)
+            {
+                owner.Cts.Token.ThrowIfCancellationRequested();
+                owner.SupplementaryInventory = inventory;
+                owner.Signal();
+            }
+            public bool Shown => true;
+
+            // Until this pipeline retires (another location, a refresh that replaced it, the tab closing): retiring cancels it.
+            public void WhileShown(IDisposable work)
+            {
+                try { owner.Cts.Token.Register(work.Dispose); }
+                catch (ObjectDisposedException) { work.Dispose(); }
+            }
+
             public void AddBatch(ReadOnlySpan<EntryData> entries)
             {
                 owner.Cts.Token.ThrowIfCancellationRequested();

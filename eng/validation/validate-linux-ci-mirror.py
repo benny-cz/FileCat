@@ -23,8 +23,10 @@ def main():
         ('already-canonical', 'sources.list.d/ubuntu.sources', b'URIs: https://archive.ubuntu.com/ubuntu/\nSuites: noble\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n', 0),
         ('unrelated', 'sources.list', b'deb https://azure.archive.ubuntu.com.evil/ubuntu noble main\ndeb https://azure.archive.ubuntu.com/ubuntu-other noble main\ndeb https://packages.microsoft.com/repos/code stable main\n', 0),
         ('mirror-list', 'apt-mirrors.txt', b'# Hosted mirror priorities\r\nhttp://azure.archive.ubuntu.com/ubuntu/\tpriority:1\r\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\r\n', 1),
+        ('ec2-mirror-list', 'apt-mirrors.txt', b'# Hosted mirror priorities\r\nhttp://us-east-2.ec2.archive.ubuntu.com/ubuntu/\tpriority:1\r\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\r\n', 1),
+        ('ec2-deb822', 'sources.list.d/ubuntu.sources', b'Types: deb\nURIs: https://eu-central-1.ec2.archive.ubuntu.com/ubuntu\nSuites: noble noble-updates\nComponents: main universe\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n', 1),
         ('mirror-list-already-canonical', 'apt-mirrors.txt', b'https://archive.ubuntu.com/ubuntu/\tpriority:1\n', 0),
-        ('mirror-list-unrelated', 'apt-mirrors.txt', b'https://azure.archive.ubuntu.com.evil/ubuntu/\nhttps://azure.archive.ubuntu.com/ubuntu-other/\nhttps://security.ubuntu.com/ubuntu/\n', 0),
+        ('mirror-list-unrelated', 'apt-mirrors.txt', b'https://azure.archive.ubuntu.com.evil/ubuntu/\nhttps://azure.archive.ubuntu.com/ubuntu-other/\nhttps://security.ubuntu.com/ubuntu/\nhttps://us-east-2.ec2.archive.ubuntu.com.evil/ubuntu/\nhttps://us-east-2.ec2.archive.ubuntu.com/ubuntu-other/\nhttps://example.com/?source=https://us-east-2.ec2.archive.ubuntu.com/ubuntu\n', 0),
     ]
     with tempfile.TemporaryDirectory(prefix='filecat-owned-ci-mirror-') as folder:
         root = Path(folder)
@@ -42,7 +44,11 @@ def main():
             assert result.returncode == 0, (name, result.stderr)
             report = json.loads((args.evidence_dir / (name + '.json')).read_text())
             after = target.read_bytes()
-            expected = before.replace(b'http://azure.archive.ubuntu.com/ubuntu', b'https://archive.ubuntu.com/ubuntu').replace(b'https://azure.archive.ubuntu.com/ubuntu', b'https://archive.ubuntu.com/ubuntu') if count else before
+            expected = before
+            if count:
+                for mirror in (b'http://azure.archive.ubuntu.com', b'https://azure.archive.ubuntu.com',
+                               b'http://us-east-2.ec2.archive.ubuntu.com', b'https://eu-central-1.ec2.archive.ubuntu.com'):
+                    expected = expected.replace(mirror + b'/ubuntu', b'https://archive.ubuntu.com/ubuntu')
             assert after == expected and sum(r['Replacements'] for r in report['Records']) == count
             assert ignored.read_bytes() == b'deb https://azure.archive.ubuntu.com/ubuntu noble main\n'
             assert not list(source.rglob('.filecat-ci-*'))

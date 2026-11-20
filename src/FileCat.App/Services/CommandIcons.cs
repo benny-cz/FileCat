@@ -59,6 +59,7 @@ public static class CommandIcons
     {
         // File
         [CommandIds.Open] = [new(Box, "TextMuted"), new("M4.5,8 L11.5,8 M9,5.5 L11.5,8 L9,10.5", "ActiveAccent")],
+        [CommandIds.ContextMenu] = [new(Box, "TextMuted"), new("M4.5,5.5 L11.5,5.5 M4.5,8 L11.5,8 M4.5,10.5 L9,10.5", "ActiveAccent")],
         [CommandIds.View] = [new(Eye), new(Pupil, "ActiveAccent", Fill: true)],
         [CommandIds.ViewAlternate] = [new(Eye), new(Pupil, "TextMuted", Fill: true)],
         [CommandIds.Edit] = [new("M2.5,13.5 L3,10.5 L10.5,3 L13,5.5 L5.5,13 Z M9.5,4 L12,6.5"), new("M2.5,13.5 L5.5,13", "ActiveAccent")],
@@ -77,6 +78,7 @@ public static class CommandIcons
         [CommandIds.Checksum] = [new("M6.5,2 L5,14 M11.5,2 L10,14 M2.5,5.5 L14,5.5 M2,10.5 L13.5,10.5")],
         [CommandIds.VerifyChecksums] = [new("M5.5,2 L4.5,10 M10,2 L9,10 M2.5,4.5 L11.5,4.5 M2,8 L11,8", "TextMuted"), new("M8.5,12 L10.5,14 L14.5,9.5", "Success")],
         [CommandIds.Attributes] = [new("M2.5,4 L13.5,4 M2.5,8 L13.5,8 M2.5,12 L13.5,12"), new("M6,2.5 L6,5.5 M10.5,6.5 L10.5,9.5 M4.5,10.5 L4.5,13.5", "ActiveAccent")],
+        [CommandIds.StorageAttributes] = [new("M3,2 L10,2 L13,5 L13,14 L3,14 Z", "TextMuted"), new("M1,8 L6,8 M4,6 L6,8 L4,10 M15,8 L10,8 M12,6 L10,8 L12,10", "ActiveAccent")],
         [CommandIds.CreateLink] = [new(Box, "TextMuted"), new("M5,11 L11,5 M7,5 L11,5 L11,9", "TextLink")],
         [CommandIds.BulkRename] = [new("M1.5,3 L10.5,3 M1.5,7 L10.5,7 M1.5,11 L10.5,11", "TextMuted"), new("M13,2 L13,14 M11.5,2 L14.5,2 M11.5,14 L14.5,14", "ActiveAccent")],
         [CommandIds.ApplyCommand] = [new(Box, "TextMuted"), new("M4.5,5.5 L7,8 L4.5,10.5 M8.5,10.5 L11.5,10.5", "ActiveAccent")],
@@ -119,6 +121,7 @@ public static class CommandIcons
         [CommandIds.CopyNames] = [new(Clipboard), new("M6,8.5 L10,8.5", "ActiveAccent")],
         [CommandIds.CopyPaths] = [new(Clipboard), new("M5.5,10.5 L7,6.5 M8,8.5 L10.5,8.5", "ActiveAccent")],
         [CommandIds.CopyUncPaths] = [new(Clipboard), new("M5,10.5 L6.5,6.5 M7.5,10.5 L9,6.5", "ActiveAccent")],
+        [CommandIds.MarkAllComplete] = [new("M2,4 L3.5,5.5 L5.5,3.5 M7,4.5 L13.5,4.5 M2,9 L3.5,10.5 L5.5,8.5 M7,9.5 L11,9.5", "TextMarked"), new("M12.5,11 L12.5,14 M11,12.5 L14,12.5", "ActiveAccent")],
         [CommandIds.MarkNone] = [new("M2,2 L5,2 L5,5 L2,5 Z M2,7 L5,7 L5,10 L2,10 Z M2,12 L5,12 L5,15 L2,15 Z", "TextMuted"), new("M8,3.5 L14.5,3.5 M8,8.5 L14.5,8.5 M8,13.5 L14.5,13.5")],
         // Navigate
         [CommandIds.Parent] = [new("M8,13.5 L8,3 M3.5,7.5 L8,3 L12.5,7.5")],
@@ -140,11 +143,14 @@ public static class CommandIcons
         [CommandIds.ToggleHidden] = [new(Page, "TextMuted", Dashed: true), new("M6,9.5 C7.2,7.8 9.3,7.8 10.5,9.5 C9.3,11.2 7.2,11.2 6,9.5 Z", "ActiveAccent")],
         // Commands
         [CommandIds.FindFiles] = [new(Magnifier)],
+        [CommandIds.CreateFileList] = [new(Page, "TextMuted"), new("M5.5,7 L10.5,7 M5.5,9.5 L10.5,9.5 M5.5,12 L9,12", "ActiveAccent")],
         [CommandIds.CompareDirectories] = [new(Panes, "FolderIcon"), new("M3,6 L5.5,6 M3,9 L5.5,9 M10.5,6 L13,6 M10.5,9 L13,9", "Text")],
         [CommandIds.CompareFiles] = [new("M1.5,2 L6.5,2 L6.5,14 L1.5,14 Z M9.5,2 L14.5,2 L14.5,14 L9.5,14 Z", "TextMuted"), new("M3,5 L5,5 M3,8 L5,8 M11,5 L13,5 M11,8 L13,8", "Text"), new("M3,11 L5,11 M11,11 L13,11", "Warning")],
         [CommandIds.FlatView] = [new("M1.5,3 L14.5,3 M1.5,6.3 L14.5,6.3 M1.5,9.6 L14.5,9.6 M1.5,13 L14.5,13")],
         [CommandIds.QuickFilter] = [new("M2,3 L14,3 L9.5,8.5 L9.5,13 L6.5,14.5 L6.5,8.5 Z")],
+        [CommandIds.FocusPanelFilter] = [new(Box, "TextMuted"), new("M4,5 L12,5 L9,8.5 L9,12 L7,13 L7,8.5 Z", "ActiveAccent")],
         [CommandIds.CommandLineFocus] = [new("M1.5,10.5 L14.5,10.5 L14.5,14 L1.5,14 Z", "TextMuted"), new("M3.5,12.2 L6,12.2", "ActiveAccent")],
+        [CommandIds.CommandHistory] = [new(Clock, "TextMuted"), new("M8,4.5 L8,8 L10.5,9.5", "ActiveAccent")],
         [CommandIds.OpenTerminal] = [new("M1.5,2.5 L14.5,2.5 L14.5,13.5 L1.5,13.5 Z"), new("M4,6 L6.5,8 L4,10 M8,10 L11.5,10", "ActiveAccent")],
         [CommandIds.InsertName] = [new(CommandLine, "TextMuted"), new("M8,2 L8,8 M6,6 L8,8 L10,6", "ActiveAccent")],
         [CommandIds.InsertPath] = [new(CommandLine, "TextMuted"), new("M8,2 L8,8 M6,6 L8,8 L10,6 M11.5,4.5 L13,1.5", "ActiveAccent")],
@@ -192,6 +198,7 @@ public static class CommandIcons
         [CommandIds.OpenInNewTargetTab] = [new(Tab, "TextMuted"), new("M6,12 L10.5,7.5 M7.5,7.5 L10.5,7.5 L10.5,10.5", "TargetAccent")],
         [CommandIds.TabList] = [new(Tab, "TextMuted"), new("M5,8 L11,8 M5,10.5 L11,10.5", "Text")],
         // View
+        [CommandIds.PictureView] = [new(Box, "TextMuted"), new("M3.5,11.5 L6.5,8 L8.5,10 L11,6.5 L13,11.5 Z", "ActiveAccent"), new("M4.5,5 C5.2,5 5.7,5.5 5.7,6.2 C5.7,6.9 5.2,7.4 4.5,7.4 C3.8,7.4 3.3,6.9 3.3,6.2 C3.3,5.5 3.8,5 4.5,5 Z", "Warning", Fill: true)],
         [CommandIds.SortName] = [new("M2,12 L4.5,4 L7,12 M2.9,9.5 L6.1,9.5"), new("M11.5,3 L11.5,13 M9.5,11 L11.5,13 L13.5,11", "ActiveAccent")],
         [CommandIds.SortExtension] = [new("M2.5,7.5 L2.5,8 M5,4 L5,12 M5,4 L8,4 M5,8 L7.5,8 M5,12 L8,12"), new("M11.5,3 L11.5,13 M9.5,11 L11.5,13 L13.5,11", "ActiveAccent")],
         [CommandIds.SortTime] = [new("M5.5,3.5 C7.7,3.5 9.5,5.3 9.5,7.5 C9.5,9.7 7.7,11.5 5.5,11.5 C3.3,11.5 1.5,9.7 1.5,7.5 C1.5,5.3 3.3,3.5 5.5,3.5 Z M5.5,5.5 L5.5,7.5 L7,8.5"), new("M12.5,3 L12.5,13 M10.5,11 L12.5,13 L14.5,11", "ActiveAccent")],
@@ -200,6 +207,7 @@ public static class CommandIcons
         [CommandIds.ToggleDriveButtons] = [new("M1.5,4.5 L7,4.5 L7,9.5 L1.5,9.5 Z M9,4.5 L14.5,4.5 L14.5,9.5 L9,9.5 Z"), new("M3,7 L4,7 M10.5,7 L11.5,7", "ActiveAccent"), new("M1.5,12.5 L14.5,12.5", "TextMuted")],
         [CommandIds.ToggleToolbar] = [new("M1.5,3 L14.5,3 L14.5,7.5 L1.5,7.5 Z"), new("M4,5.25 L5,5.25 M7.5,5.25 L8.5,5.25 M11,5.25 L12,5.25", "ActiveAccent"), new("M1.5,10.5 L14.5,10.5 M1.5,13.5 L10,13.5", "TextMuted")],
         [CommandIds.AnalyzeFolder] = [new(Circle), new("M8,8 L8,1.5 M8,8 L13.6,11.2", "ActiveAccent")],
+        [CommandIds.DiskSpace] = [new(Box), new("M6.5,2.5 L6.5,13.5 M6.5,7 L13.5,7 M10,7 L10,13.5", "ActiveAccent")],
         [CommandIds.ThemePick] = [new(PaletteShape),
             new("M4.5,7 L4.6,7 M6.5,4.5 L6.6,4.5 M9.8,4.5 L9.9,4.5 M11.8,6.8 L11.9,6.8", "ActiveAccent")],
         // Next and previous: the palette muted, an arrow across it (as Next tab and Previous tab draw theirs).
@@ -207,11 +215,16 @@ public static class CommandIcons
         [CommandIds.ThemePrevious] = [new(PaletteShape, "TextMuted"), new("M10.5,6.5 L4,6.5 M6.25,4.25 L4,6.5 L6.25,8.75", "ActiveAccent")],
         // Tools
         [CommandIds.FindDeleted] = [new(Trash, "TextMuted"), new("M8,12.5 L8,7 M6,9 L8,7 L10,9", "Success")],
+        [CommandIds.OpenAdministratorWindow] = [new("M8,1.5 L14,4 L13.5,8 C13,11 11,13 8,14.5 C5,13 3,11 2.5,8 L2,4 Z"),
+            new("M8,11 L8,5 M5.5,7.5 L8,5 L10.5,7.5", "ActiveAccent")],
         [CommandIds.Operations] = [new("M1.5,3.5 L14.5,3.5 M1.5,8 L14.5,8 M1.5,12.5 L14.5,12.5", "TextMuted"), new("M1.5,3.5 L10,3.5 M1.5,8 L5.5,8", "Progress")],
         [CommandIds.RecentNotifications] = [new("M3,11.5 L4.5,9.5 L4.5,6.5 C4.5,4.4 5.8,3 8,3 C10.2,3 11.5,4.4 11.5,6.5 L11.5,9.5 L13,11.5 Z M6.5,13 L9.5,13", "TextMuted")],
         [CommandIds.Palette] = [new(Magnifier, "TextMuted"), new("M4.5,5 L6.5,6.5 L4.5,8", "ActiveAccent")],
         [CommandIds.Settings] = [new("M8,5 C9.7,5 11,6.3 11,8 C11,9.7 9.7,11 8,11 C6.3,11 5,9.7 5,8 C5,6.3 6.3,5 8,5 Z"),
             new("M8,1.5 L8,3.5 M8,12.5 L8,14.5 M1.5,8 L3.5,8 M12.5,8 L14.5,8 M3.4,3.4 L4.8,4.8 M11.2,11.2 L12.6,12.6 M3.4,12.6 L4.8,11.2 M11.2,4.8 L12.6,3.4", "ActiveAccent")],
+        [CommandIds.ChangeShortcut] = [new("M2,4 L14,4 L14,12 L2,12 Z M4,7 L5,7 M7,7 L8,7 M10,7 L11,7 M5,10 L11,10", "TextMuted"), new("M12.5,1.5 L12.5,4", "ActiveAccent")],
+        [CommandIds.ViewerWindows] = [new("M1.5,3 L10.5,3 L10.5,11 L1.5,11 Z", "TextMuted"), new("M5,6 L14.5,6 L14.5,14 L5,14 Z", "ActiveAccent")],
+        [CommandIds.ClearHistory] = [new(Clock, "TextMuted"), new("M10,10 L14,14 M14,10 L10,14", "Error")],
         [CommandIds.SaveWorkspace] = [new("M2.5,2.5 L11.5,2.5 L13.5,4.5 L13.5,13.5 L2.5,13.5 Z M5,2.5 L5,6 L10.5,6 L10.5,2.5"), new("M4.5,13.5 L4.5,9.5 L11.5,9.5 L11.5,13.5", "ActiveAccent")],
         [CommandIds.LoadWorkspace] = [new(Folder, "FolderIcon"), new("M8,11.5 L8,7 M6,9 L8,7 L10,9", "OnAccent")],
         [CommandIds.RestorePreviousWorkspace] = [new(Folder, "FolderIcon"), new("M9,6 L6,8 L9,10 M6,8 L12,8", "OnAccent")],

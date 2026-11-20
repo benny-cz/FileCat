@@ -1,0 +1,9 @@
+  Determining projects to restore...
+  Restored E:\FileCat\.tmp\worktrees\disk-space-analysis\.tmp\csv-pinned-r1101\PinnedCsv.csproj (in 185 ms).
+  PinnedCsv -> E:\FileCat\.tmp\worktrees\disk-space-analysis\.tmp\csv-pinned-r1101\bin\Debug\net10.0\FileCat.CoreCrashHarness.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:05.10

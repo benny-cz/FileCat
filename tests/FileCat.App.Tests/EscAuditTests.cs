@@ -6,7 +6,7 @@ using FileCat.Core.Commands;
 
 namespace FileCat.App.Tests;
 
-/// <summary>Esc closes every dialog and secondary window (UX-011), wherever the keyboard is.</summary>
+/// <summary>Esc closes ordinary dialogs and secondary windows (UX-011), wherever the keyboard is.</summary>
 public sealed class EscAuditTests
 {
     /// <summary>
@@ -16,7 +16,8 @@ public sealed class EscAuditTests
     private static readonly string[] DialogCommands =
     [
         CommandIds.Help, CommandIds.LocationMenuSource, CommandIds.Bookmarks, CommandIds.TabList,
-        CommandIds.ThemePick, CommandIds.Settings, CommandIds.About, CommandIds.Copy, CommandIds.Move, CommandIds.MakeDirectory,
+        // Settings deliberately reviews an implicit dismissal; SettingsDialogTests covers that policy.
+        CommandIds.ThemePick, CommandIds.About, CommandIds.Copy, CommandIds.Move, CommandIds.MakeDirectory,
         CommandIds.EditNew, CommandIds.MarkSelectMask, CommandIds.BulkRename, CommandIds.CreateLink,
         CommandIds.Checksum, CommandIds.ApplyCommand, CommandIds.SftpConnect, CommandIds.Attributes, CommandIds.CompareDirectories,
         CommandIds.Pack, CommandIds.DeletePermanent,

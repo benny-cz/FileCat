@@ -1,0 +1,335 @@
+{
+  "purpose": "Memory grouping accounting, typed missing-charge provenance and pre-filter full-alias attribution",
+  "observedUtc": "2026-11-07T02:54:45.973536+00:00",
+  "gitBase": "d025973aaf377681b1f79e336930b82150568004",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisAggregate.cs",
+      "sha256": "a9d31a78b26446b7673e102d37eb30cdf81e219c0dc8addc3ef1f1de4b9bd16d"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisGrouping.cs",
+      "sha256": "e1baad26a57522edf64f7e05c1aa99a2618a88aab495f46b5563e061b6a6374f"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisModel.cs",
+      "sha256": "dde5a14a0de246e6e7c7d2dc9590e0b873988f0ae2010105917a612d5fb5ce95"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisGroupingTests.cs",
+      "sha256": "6745399f7f64ddbf0923329c8534f6fab8f066a089d95c1df2e2710263f63efc"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r597.txt",
+      "sha256": "521dd3700eb2de4d817596cbc07e946fc52fae0e691e0ade8318530d00ff645f"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r598-core-r598.xml",
+      "sha256": "48fce58cf1d16934c529398e2efe2431ede848efe949655a41ae4a5c86aaaa0b"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r598-core-r598.log",
+      "sha256": "719eb82d3b8389ebdcac9c8c0369a4500315cb9e2ec614877dd3f033104c8399"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r598-render-r598.xml",
+      "sha256": "d5f76ae3db4d6a841e5d33819182cb80d12e8427b53596fc163e1ffc705b9627"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r598-render-r598.log",
+      "sha256": "cdf35c2de1426eccff1221417b0c486ad503a6c77af9969c1d10da25a7c62bb3"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r598-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r598-post.json",
+      "sha256": "10007de2cb3909a982752cbc846632068ace633c58b283f7ba20d07e87db5d6b"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r598-core-r598.xml",
+      "sha256": "e1207e098d198c350d2c9a9ff3bf702b1f93b13e867cad9493e75d3e02a8bab4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r598-core-r598.log",
+      "sha256": "6b5c5dcaeb07ca18f850e6954b1fcf8d7702cc19c3bb198fa3c3b2ca25ce3cd6"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r598-render-r598.xml",
+      "sha256": "64546bad3c3c05f82b8c0c85f3bfa714c2b38e6e54ffb0cc40703d71f8ec9ee9"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r598-render-r598.log",
+      "sha256": "9d5d825631b6ff14be857635fc83bb7c318a1a0c205e789fb32fd9a98ddc5c9f"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r598-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r598-post.json",
+      "sha256": "8c000cec333d9be6f6956b02e803bfda40030c402a8cdd4195ac0fad5b4679ea"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r598-core-r598.xml",
+      "sha256": "433f2a95bf1a98dbccb4a509777bdeacb808adfa964935cab64d7db586c366ae"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r598-core-r598.log",
+      "sha256": "0cdf267d17a45cff329846c94b8ce1674a3aa0e3a7d377837099539294efde32"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r598-native-r598.xml",
+      "sha256": "72725b16c8963d4ada0250388c05447084d94afd7a720d768cd084fca778cb01"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r598-native-r598.log",
+      "sha256": "3084c998d530f07c212d7959800072a9ef2381ac5f40ecfd08a1ad07494cf5a7"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r598-render-r598.xml",
+      "sha256": "7a9a9bf93b3042f520302571a57e185779848a524b518267cca7f8dbaa089a56"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r598-render-r598.log",
+      "sha256": "2f232852a8b87c1a4260dce816c3f0ee58ff33004dbe62a1484225fc71940cfd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r598-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r598-post.json",
+      "sha256": "1e19e1ae748d15c459c902272c028aa28d1d58d71109437f7a9def480c188ad2"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r598.sh",
+      "sha256": "6a36dd1be1e26d5d2ca85f9c6392e52fc35ee4fe35acb2accdc12019c3ab5483"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r598.sh",
+      "sha256": "5d2f4750648bc54248291f77f23e6b932a5a575d0208ff8cde894232b95925e9"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r598.ps1",
+      "sha256": "cc6ac20d0049caf07cf44abc076622daf870484ac641ddf0206e59a45715df95"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r598.tgz",
+      "sha256": "ce264e4247646b55b436c8e1c7703b9749cb06c09d212dbd716f434af5dafa53"
+    },
+    {
+      "name": "dsa-batch-linux-r598.tgz",
+      "sha256": "42c968ab95aebd2413e997743b395875062e02929542ba913995bafba31b2cc2"
+    },
+    {
+      "name": "dsa-batch-windows-r598.tgz",
+      "sha256": "2bd1c24cdb55b0ab119e90cca81a97f94e271dbd12163c65a9e0c77b13a70607"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r598": "05875481adb8a9d3331f82e706928020b8d4c5c11c35177a5607e5448c1c3997",
+    "native-r598": "05875481adb8a9d3331f82e706928020b8d4c5c11c35177a5607e5448c1c3997",
+    "render-r599-mac": "05875481adb8a9d3331f82e706928020b8d4c5c11c35177a5607e5448c1c3997",
+    "render-r599-linux": "05875481adb8a9d3331f82e706928020b8d4c5c11c35177a5607e5448c1c3997",
+    "render-r599-windows": "05875481adb8a9d3331f82e706928020b8d4c5c11c35177a5607e5448c1c3997"
+  },
+  "productionAppHashes": {
+    "render-r599-mac": "d8248363d6834188886e1db68ffbf83f0a4bfd886c34fd278cc6d5c48478a6e6",
+    "render-r599-linux": "d8248363d6834188886e1db68ffbf83f0a4bfd886c34fd278cc6d5c48478a6e6",
+    "render-r599-windows": "d8248363d6834188886e1db68ffbf83f0a4bfd886c34fd278cc6d5c48478a6e6"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r598": "5c834dc5cf79963e26391831550117372614e74d728120e09198c283489b1c81",
+    "render-r599-mac": "5c834dc5cf79963e26391831550117372614e74d728120e09198c283489b1c81",
+    "render-r599-linux": "5c834dc5cf79963e26391831550117372614e74d728120e09198c283489b1c81",
+    "render-r599-windows": "5c834dc5cf79963e26391831550117372614e74d728120e09198c283489b1c81"
+  },
+  "matrix": {
+    "mac-batch-r598-core-r598.xml": {
+      "total": "764",
+      "passed": "760",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "22.307"
+    },
+    "mac-batch-r598-render-r598.xml": {
+      "total": "114",
+      "passed": "114",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "36.745"
+    },
+    "ubuntu-batch-r598-core-r598.xml": {
+      "total": "764",
+      "passed": "760",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "49.330"
+    },
+    "ubuntu-batch-r598-render-r598.xml": {
+      "total": "114",
+      "passed": "114",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "46.799"
+    },
+    "windows-batch-r598-core-r598.xml": {
+      "total": "782",
+      "passed": "734",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "16.873"
+    },
+    "windows-batch-r598-native-r598.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "31.193"
+    },
+    "windows-batch-r598-render-r598.xml": {
+      "total": "114",
+      "passed": "113",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "49.871"
+    }
+  },
+  "targetedControls": {
+    "mac": [
+      "FileCat.Core.Tests.AnalysisGroupingTests.ConflictingTotalsAndAnInvalidAliasAfterACrossGroupPairAreRejected",
+      "FileCat.Core.Tests.AnalysisGroupingTests.ClassificationMakesRawNamesAbsentExtensionsAndUncertainAgesExplicitWithoutInventingAnObjectTime",
+      "FileCat.Core.Tests.AnalysisGroupingTests.ProjectionRejectsAStaleRevisionAndHonorsCancellation",
+      "FileCat.Core.Tests.AnalysisGroupingTests.AFilterCannotPullACrossGroupObjectIntoTheOnlyVisibleAliasGroup(dimension: FileType)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.AFilterCannotPullACrossGroupObjectIntoTheOnlyVisibleAliasGroup(dimension: Extension)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.AFilterCannotPullACrossGroupObjectIntoTheOnlyVisibleAliasGroup(dimension: ModifiedAge)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.AFilterCannotPullACrossGroupObjectIntoTheOnlyVisibleAliasGroup(dimension: CapturedLocation)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: FileType, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: FileType, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: FileType, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: FileType, metric: Files)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: Extension, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: Extension, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: Extension, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: Extension, metric: Files)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: ModifiedAge, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: ModifiedAge, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: ModifiedAge, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: ModifiedAge, metric: Files)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: CapturedLocation, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: CapturedLocation, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: CapturedLocation, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: CapturedLocation, metric: Files)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.GroupingCannotStripSensitiveImportedOrPrivilegedProvenance",
+      "FileCat.Core.Tests.AnalysisGroupingTests.UnverifiedUniqueEvidenceNeverBecomesChartAreaOrVerifiedSharedIdentity",
+      "FileCat.Core.Tests.AnalysisGroupingTests.MissingSharedMeasurementsAreCountedOnceAndDirectoryUnknownsRemainSeparate",
+      "FileCat.Core.Tests.AnalysisGroupingTests.SameTypeAliasesShareOneGroupChargeAndKeepTheirExactFilteredMembers(filtered: False)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.SameTypeAliasesShareOneGroupChargeAndKeepTheirExactFilteredMembers(filtered: True)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.IncompatibleCapturedBasesCannotBecomeACombinedGroupedAmount"
+    ],
+    "ubuntu": [
+      "FileCat.Core.Tests.AnalysisGroupingTests.IncompatibleCapturedBasesCannotBecomeACombinedGroupedAmount",
+      "FileCat.Core.Tests.AnalysisGroupingTests.SameTypeAliasesShareOneGroupChargeAndKeepTheirExactFilteredMembers(filtered: False)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.SameTypeAliasesShareOneGroupChargeAndKeepTheirExactFilteredMembers(filtered: True)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.ClassificationMakesRawNamesAbsentExtensionsAndUncertainAgesExplicitWithoutInventingAnObjectTime",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: FileType, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: FileType, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: FileType, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: FileType, metric: Files)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: Extension, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: Extension, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: Extension, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: Extension, metric: Files)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: ModifiedAge, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: ModifiedAge, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: ModifiedAge, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: ModifiedAge, metric: Files)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: CapturedLocation, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: CapturedLocation, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: CapturedLocation, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: CapturedLocation, metric: Files)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.ConflictingTotalsAndAnInvalidAliasAfterACrossGroupPairAreRejected",
+      "FileCat.Core.Tests.AnalysisGroupingTests.MissingSharedMeasurementsAreCountedOnceAndDirectoryUnknownsRemainSeparate",
+      "FileCat.Core.Tests.AnalysisGroupingTests.GroupingCannotStripSensitiveImportedOrPrivilegedProvenance",
+      "FileCat.Core.Tests.AnalysisGroupingTests.AFilterCannotPullACrossGroupObjectIntoTheOnlyVisibleAliasGroup(dimension: FileType)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.AFilterCannotPullACrossGroupObjectIntoTheOnlyVisibleAliasGroup(dimension: Extension)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.AFilterCannotPullACrossGroupObjectIntoTheOnlyVisibleAliasGroup(dimension: ModifiedAge)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.AFilterCannotPullACrossGroupObjectIntoTheOnlyVisibleAliasGroup(dimension: CapturedLocation)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.UnverifiedUniqueEvidenceNeverBecomesChartAreaOrVerifiedSharedIdentity",
+      "FileCat.Core.Tests.AnalysisGroupingTests.ProjectionRejectsAStaleRevisionAndHonorsCancellation"
+    ],
+    "windows": [
+      "FileCat.Core.Tests.AnalysisGroupingTests.GroupingCannotStripSensitiveImportedOrPrivilegedProvenance",
+      "FileCat.Core.Tests.AnalysisGroupingTests.ProjectionRejectsAStaleRevisionAndHonorsCancellation",
+      "FileCat.Core.Tests.AnalysisGroupingTests.ClassificationMakesRawNamesAbsentExtensionsAndUncertainAgesExplicitWithoutInventingAnObjectTime",
+      "FileCat.Core.Tests.AnalysisGroupingTests.AFilterCannotPullACrossGroupObjectIntoTheOnlyVisibleAliasGroup(dimension: FileType)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.AFilterCannotPullACrossGroupObjectIntoTheOnlyVisibleAliasGroup(dimension: Extension)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.AFilterCannotPullACrossGroupObjectIntoTheOnlyVisibleAliasGroup(dimension: ModifiedAge)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.AFilterCannotPullACrossGroupObjectIntoTheOnlyVisibleAliasGroup(dimension: CapturedLocation)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.IncompatibleCapturedBasesCannotBecomeACombinedGroupedAmount",
+      "FileCat.Core.Tests.AnalysisGroupingTests.UnverifiedUniqueEvidenceNeverBecomesChartAreaOrVerifiedSharedIdentity",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: FileType, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: FileType, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: FileType, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: FileType, metric: Files)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: Extension, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: Extension, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: Extension, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: Extension, metric: Files)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: ModifiedAge, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: ModifiedAge, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: ModifiedAge, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: ModifiedAge, metric: Files)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: CapturedLocation, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: CapturedLocation, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: CapturedLocation, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.EveryGroupingPreservesKnownUnverifiedMissingAndLogicalPathTotals(dimension: CapturedLocation, metric: Files)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.SameTypeAliasesShareOneGroupChargeAndKeepTheirExactFilteredMembers(filtered: False)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.SameTypeAliasesShareOneGroupChargeAndKeepTheirExactFilteredMembers(filtered: True)",
+      "FileCat.Core.Tests.AnalysisGroupingTests.ConflictingTotalsAndAnInvalidAliasAfterACrossGroupPairAreRejected",
+      "FileCat.Core.Tests.AnalysisGroupingTests.MissingSharedMeasurementsAreCountedOnceAndDirectoryUnknownsRemainSeparate"
+    ]
+  },
+  "newCoreControls": 29,
+  "finalBuild": "build-r597.txt: full solution zero warnings/errors",
+  "excludedAttempts": [
+    "r592: target-typed numeric conditional in a new test did not compile",
+    "r593: superseded before packaging by safe-label and privacy-provenance controls"
+  ],
+  "testScope": "Captured-data fixtures exercising grouping accounting on actual runtimes, plus complete existing regression suites. No grouped indexed store or grouped UI exists yet; existing UI checks are headless and do not qualify native grouping input/accessibility/DPI or full memory/resource limits.",
+  "batchWorkflow": "One immutable bundle per platform; sequential applicable suites with integrity/per-phase occupancy gates and one evidence collection. Independent phases continue after assertions; occupation postpones the run.",
+  "processExitEvidence": "All original runners terminal, guest states FINISHED exit=0 and final authoritative inventories empty all3. No host app/input tests or other tester termination.",
+  "qualification": {
+    "memoryGroupingAccountingImplemented": true,
+    "allFourMetricConservationControlsPassedAllThree": true,
+    "preFilterAliasGroupingControlsPassedAllThree": true,
+    "groupingTaintJoinControlsPassedAllThree": true,
+    "groupedExplorerImplemented": false,
+    "indexedGroupingStoreImplemented": false,
+    "ownerComparisonVolumeGroupingComplete": false,
+    "groupedViewPersistenceImplemented": false,
+    "nativeDesktopGroupingQualified": false,
+    "fullResourceGateQualified": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

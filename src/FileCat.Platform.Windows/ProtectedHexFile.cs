@@ -14,11 +14,11 @@ namespace FileCat.Platform.Windows;
 /// may read and write the file, and every save first checks that the path still names this file and that each byte being
 /// replaced still holds the value the editor showed.
 /// </summary>
-public sealed partial class ProtectedHexFile : IContentSource
+public sealed partial class ProtectedHexFile : IContentSource, IHexContentOrigin
 {
     private const uint GenericRead = 0x80000000, GenericWrite = 0x40000000, FileShareRead = 1, OpenExisting = 3;
     private const uint FlagOpenReparsePoint = 0x00200000, FlagRandomAccess = 0x10000000;
-    private const uint AttributeReadOnly = 0x1, AttributeDirectory = 0x10, AttributeSparse = 0x200, AttributeReparsePoint = 0x400;
+    private const uint AttributeReadOnly = 0x1, AttributeDirectory = 0x10, AttributeSparse = 0x200, AttributeReparsePoint = 0x400, AttributeEncrypted = 0x4000;
     private const string LinkRefused = "This path is a link. Editing through it could change an unexpected file; open the file it points to instead.";
     private readonly SafeFileHandle _handle;
     private readonly string _path;
@@ -98,6 +98,21 @@ public sealed partial class ProtectedHexFile : IContentSource
     public FileIdentity FileIdentity => _identity;
     internal SafeFileHandle Handle => _handle;
 
+    public HexContentContributor CaptureHexOrigin() => CaptureHexOrigin(_handle, _path);
+
+    internal static HexContentContributor CaptureHexOrigin(SafeFileHandle handle, string inputPath)
+    {
+        try
+        {
+            var state = OperatingSystem.IsWindows() && (Attributes(handle) & AttributeEncrypted) != 0 ? HexEfsOriginState.Efs : HexEfsOriginState.NotEfs;
+            return new(inputPath, Identity(handle).ToString(), state);
+        }
+        catch (Exception error) when (error is Win32Exception or IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return new(inputPath, null, HexEfsOriginState.Unknown);
+        }
+    }
+
     /// <summary>
     /// Whether other programs cannot write the file while it is open (Windows). Elsewhere they can, and saving checks
     /// the bytes being replaced first.
@@ -130,6 +145,29 @@ public sealed partial class ProtectedHexFile : IContentSource
         }
     }
 
+    // The recovery journal stores original/replacement bytes without an EFS-preservation protocol.
+    // This is a fresh held-target check at persistence admission, not a cached opening attribute.
+    // Save As and patch export have separate output-admission requirements.
+    internal void RequireUnencryptedJournalTarget()
+    {
+        if (JournalProtectionProblem(_handle) is { } problem) throw new IOException(problem);
+    }
+
+    internal static string? JournalProtectionProblem(SafeFileHandle handle)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        try
+        {
+            return (Attributes(handle) & AttributeEncrypted) != 0
+                ? "EFS files cannot be saved in place because this recovery journal is not yet protected. Existing recovery journals are retained."
+                : null;
+        }
+        catch (Win32Exception)
+        {
+            return "The file's current EFS protection could not be established. In-place saving and recovery are blocked because the recovery journal is not protected.";
+        }
+    }
+
     /// <summary>
     /// What the path names now. Windows opens it (sharing everything, as the protected handle allows); Linux and macOS
     /// read the entry without opening it (a link there reads as no file).
@@ -141,7 +179,11 @@ public sealed partial class ProtectedHexFile : IContentSource
         return Identity(handle);
     }
 
-    internal void Write(long offset, ReadOnlySpan<byte> bytes) => RandomAccess.Write(_handle, bytes, offset);
+    internal void Write(long offset, ReadOnlySpan<byte> bytes)
+    {
+        RequireUnencryptedJournalTarget();
+        RandomAccess.Write(_handle, bytes, offset);
+    }
     internal void Flush() => UnixFiles.FullSync(_handle);
     public void Dispose() => _handle.Dispose();
 

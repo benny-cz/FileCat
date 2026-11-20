@@ -19,9 +19,6 @@ namespace FileCat.App.ViewModels;
 /// </summary>
 public sealed partial class TabViewModel : ObservableObject, IDisposable
 {
-    private const int MaxHistory = 50;
-    private readonly List<Location> _back = [];
-    private readonly List<Location> _forward = [];
     private int _columnProfile;
     private long _freeBytes = -1;
     private Location? _freeBytesLocation;
@@ -40,6 +37,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private bool _disposed;
     private CancellationTokenSource? _pendingNavigation;
     private string? _bannerBeforePendingNavigation;
+    private PreparedLocation? _preparedLocation;
 
     public TabViewModel(AppServices services, PanelViewModel panel)
     {
@@ -53,6 +51,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             Sort = new SortSpec(SortField.Name, false, !services.Settings.DirectoriesFirst, !services.Settings.NaturalSort),
         };
         Listing.Changed += OnListingChanged;
+        Listing.CaptureMetadataOrder = CaptureMetadataOrder;
+        Listing.PreparingStore += PreparingMetadataStore;
         services.Columns.Changed += OnProfilesChanged;
         services.Metadata.ValuesChanged += OnMetadataValuesChanged;
         RefreshSortDescription();
@@ -61,6 +61,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     /// <summary>New values (a pool thread): the folder's checksum sum may have moved.</summary>
     private void OnMetadataValuesChanged()
     {
+        Services.Ui.Post(() => { if (!_disposed) CheckMetadataAnalysis(); });
         if (_hasSidecars) Services.Ui.Post(() => { if (!_disposed) RefreshVerificationSummary(); });
     }
 
@@ -73,8 +74,6 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public Location? Location => Listing.Location;
     /// <summary>Changes at navigation intent, before any provider/connection await; delayed path Paste checks it.</summary>
     internal long NavigationGeneration { get; private set; }
-    public IReadOnlyList<Location> BackHistory => _back;
-    public IReadOnlyList<Location> ForwardHistory => _forward;
 
     [ObservableProperty] private string _title = string.Empty;
     [ObservableProperty] private string _displayPath = string.Empty;
@@ -98,12 +97,15 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _quickSearchNoMatch;
     [ObservableProperty] private string? _comparisonLabel;
     [ObservableProperty] private string? _banner;
+    [ObservableProperty] private string? _deniedFolderVolume;
+    [ObservableProperty] private bool _canReopenDeniedRegistry;
     /// <summary>The filter's mask as typed, or null when every item shows (the panel's filter box shows it).</summary>
     [ObservableProperty] private string? _filterText;
     /// <summary>Validation for the filter field only; location and listing warnings keep their own banner.</summary>
     [ObservableProperty] private string? _filterValidationError;
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private bool _isActiveTab;
+    [ObservableProperty] private bool _pictureView;
 
     /// <summary>Saved root of a locked tab (the "return to root" variant).</summary>
     private Location? _lockedRoot;
@@ -123,7 +125,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public bool IsQuickSearchActive => QuickSearch is not null;
 
-    public event EventHandler? ColumnsChanged;
+    /// <summary>
+    /// Raised when the columns this tab shows may have changed: another location, another profile, an edited one.
+    /// <see cref="ColumnsChangedEventArgs.WidthsOnly"/> when they are the same columns at other widths.
+    /// </summary>
+    public event EventHandler<ColumnsChangedEventArgs>? ColumnsChanged;
 
     private string _sortDescription = string.Empty;
 
@@ -136,7 +142,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var column = Columns.FirstOrDefault(c => c.SortField == sort.Field &&
             (sort.Field != SortField.Metadata || c.MetadataId == sort.MetadataId));
         string field = sort.Field == SortField.None ? "Unsorted" :
-            column is not null ? Formatters.SafeName(column.Header) : sort.Field.ToString();
+            column is not null ? Formatters.SafeName(column.DisplayHeader) : sort.Field == SortField.Metadata && sort.MetadataId is { } id
+                ? Formatters.SafeName(Services.Metadata.Field(id)?.Title ?? id) : sort.Field.ToString();
         string next = sort.Field == SortField.None ? "Sort files: Unsorted" :
             $"Sort files: {field}, {(sort.Descending ? "descending" : "ascending")}";
         if (_sortDescription == next) return;
@@ -150,7 +157,10 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         set
         {
             _columnProfile = Math.Clamp(value, 0, Services.Columns.Count - 1);
-            ColumnsChanged?.Invoke(this, EventArgs.Empty);
+            // The columns shown already (the same profile again, or a view with columns of its own, which keeps them until
+            // the tab shows a folder): nothing to announce, so the list stays where it is scrolled, with its widths.
+            if (ReferenceEquals(_shownColumns, Columns)) return;
+            AnnounceColumns();
             RefreshSortDescription();
         }
     }
@@ -161,10 +171,16 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             ? ColumnProfiles.Duplicates
             : Services.Columns.Get(_columnProfile, Location?.Scheme ?? Schemes.FileSystem);
 
+    /// <summary>
+    /// Whether the column profiles (Alt+0–9, Settings → Columns) set this view's columns: not in a view with a dedicated
+    /// layout of its own (results, the Recycle Bin, the registry, recovery, hidden data, the change journal).
+    /// </summary>
+    public bool UsesColumnProfiles => !ColumnProfileSet.HasFixedLayout(Location?.Scheme ?? Schemes.FileSystem);
+
     /// <summary>Stores a dragged column width in the active profile (dedicated layouts keep it for this view only).</summary>
     public bool SetColumnWidth(int column, double width)
     {
-        if (ColumnProfileSet.HasFixedLayout(Location?.Scheme ?? Schemes.FileSystem)) return false;
+        if (!UsesColumnProfiles) return false;
         Services.Columns.SetWidth(_columnProfile, column, width);
         return true;
     }
@@ -172,8 +188,24 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private void OnProfilesChanged()
     {
         _columnProfile = Math.Clamp(_columnProfile, 0, Services.Columns.Count - 1);
-        ColumnsChanged?.Invoke(this, EventArgs.Empty);
+        // Only a view whose own columns changed is told: one with columns of its own is not drawn from the profiles, and
+        // an edit to another profile (or a border dragged in a panel on one) leaves this one where it is scrolled, with
+        // the widths dragged in it.
+        var columns = Columns;
+        if (!UsesColumnProfiles || _shownColumns is { } shown && ColumnProfileSet.SameColumns(shown, columns)) return;
+        // The same columns at other widths (a border dragged in this list or another one on the profile, a width set in
+        // Settings) leave the list where it is scrolled; other columns start it from the first.
+        AnnounceColumns(widthsOnly: _shownColumns is { } before && ColumnProfileSet.SameFields(before, columns));
         RefreshSortDescription();
+    }
+
+    /// <summary>The columns last announced (<see cref="ColumnsChanged"/>): what the list of this tab shows.</summary>
+    private ColumnSpec[]? _shownColumns;
+
+    private void AnnounceColumns(bool widthsOnly = false)
+    {
+        _shownColumns = Columns;
+        ColumnsChanged?.Invoke(this, widthsOnly ? ColumnsChangedEventArgs.Widths : ColumnsChangedEventArgs.Other);
     }
 
     private string _tabQualifier = string.Empty;
@@ -254,6 +286,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         if (value)
         {
+            Services.Metadata.ExpireRefreshable();
             StartWatching();
             RefreshIfFolderChanged();
             _freeSpaceTimer.Start();
@@ -342,6 +375,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     private void OnLoadCompleted()
     {
+        if (Location is { Scheme: Schemes.AnalysisFolder } analysisFolder && Banner is null)
+            Banner = LocationBanner(analysisFolder);
         if (_registryDirty && Location?.Scheme == Schemes.Registry)
         {
             _registryDirty = false;
@@ -399,11 +434,22 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     /// Navigates this tab. A locked tab keeps its location: navigating away opens a new tab instead
     /// (Total Commander's locked tabs, plan §4.1).
     /// </summary>
-    public void Navigate(Location location, string? focusName = null, bool record = true)
+    public void Navigate(Location location, string? focusName = null, bool record = true, bool refresh = false) =>
+        Navigate(location, focusName, record, refresh, null);
+
+    private void Navigate(Location location, string? focusName, bool record, bool refresh, HistoryJump? jump)
     {
         if (_disposed) return;
         long intent = BeginNavigationIntent();
         if (!OwnsNavigation(intent)) return;
+        _loadingHistory = jump;
+        // The destination's new tab must own preparation too (including its one password question).
+        if (IsLocked && Location is not null && !ReturnToRoot && Services.Providers.IsRegistered(location.Scheme) &&
+            !Services.Providers.For(location).IsSameLocation(location, Location))
+        {
+            Panel.OpenTab(location, focusName, activate: true);
+            return;
+        }
         // An SFTP home folder ("~") becomes its absolute path, so the tab, its history, and ".." know where they are.
         if (location.Scheme == Schemes.Sftp && location.Path.StartsWith('~'))
         {
@@ -418,7 +464,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                 if (!OwnsNavigation(intent)) return;
                 var connection = new CancellationTokenSource();
                 BeginPendingNavigation(connection, $"Connecting to {Formatters.SafeName(Services.Providers.Display(location))}…");
-                _ = ConnectThenNavigateAsync(location, focusName, record, intent, connection);
+                _ = ConnectThenNavigateAsync(location, focusName, record, intent, connection, jump);
                 return;
             }
         }
@@ -426,10 +472,17 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (Services.Providers.IsRegistered(location.Scheme))
         {
             var preparation = new CancellationTokenSource();
-            Task<Location>? preparing;
-            try { preparing = Services.Providers.For(location).PrepareAsync(location, preparation.Token); }
+            Task<PreparedLocation>? preparing;
+            NavigationReads? reads = null;
+            try
+            {
+                reads = CaptureContainerReads(location);
+                preparing = Services.Providers.For(location).PrepareNavigationAsync(location, preparation.Token);
+                if (preparing is not null && reads is not null) { preparing = KeepContainerReadsAsync(preparing, reads); reads = null; }
+            }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
+                reads?.Dispose();
                 preparation.Dispose();
                 if (OwnsNavigation(intent))
                     Banner = $"{Formatters.SafeName(Services.Providers.Display(location))} could not be opened: {Formatters.SafeName(ex.Message)}";
@@ -440,26 +493,78 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                 if (!OwnsNavigation(intent))
                 {
                     preparation.Cancel();
-                    _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation);
+                    _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation, refresh, jump);
                     return;
                 }
                 BeginPendingNavigation(preparation, $"Opening {Formatters.SafeName(Services.Providers.Display(location))}…");
-                _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation);
+                _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation, refresh, jump);
                 return;
             }
             preparation.Dispose();
+            if (reads is not null)
+            {
+                var ready = new PreparedLocation(location, reads);
+                bool retained = false;
+                try { retained = NavigatePreparedLocation(location, focusName, record, intent, ready, refresh, jump); }
+                finally { if (!retained) ready.Dispose(); }
+                return;
+            }
         }
-        CommitNavigation(location, focusName, record, intent);
+        NavigatePreparedLocation(location, focusName, record, intent, null, refresh, jump);
+    }
+
+    private sealed class NavigationReads : IDisposable
+    {
+        internal List<IDisposable> Leases { get; } = [];
+        public void Dispose()
+        {
+            foreach (var lease in Leases)
+                try { lease.Dispose(); }
+                catch (Exception error) { Core.Diagnostics.AppLog.Warn("Navigation read cleanup failed: " + error.GetType().Name); }
+            Leases.Clear();
+        }
+    }
+
+    private NavigationReads? CaptureContainerReads(Location location)
+    {
+        var reads = new NavigationReads();
+        try
+        {
+            if (location.Container is { IsFileSystem: false } member && ProviderReadLease.Capture(Services.Providers, [member]) is { } lease)
+                reads.Leases.Add(lease);
+            return reads.Leases.Count == 0 ? null : reads;
+        }
+        catch { reads.Dispose(); throw; }
+    }
+
+    private static async Task<PreparedLocation> KeepContainerReadsAsync(Task<PreparedLocation> pending, NavigationReads reads)
+    {
+        try
+        {
+            var prepared = await pending;
+            reads.Leases.Add(prepared);
+            return new(prepared.Location, reads);
+        }
+        catch { reads.Dispose(); throw; }
     }
 
     private long BeginNavigationIntent()
     {
-        NavigationGeneration++;
+        RetireMetadataAnalysis();
+        long intent = ++NavigationGeneration;
+        Listing.CancelStagedNavigation();
+        _loadingHistory = null;
         var old = _pendingNavigation;
+        string? previousBanner = _bannerBeforePendingNavigation;
         _pendingNavigation = null;
         _bannerBeforePendingNavigation = null;
         old?.Cancel();
-        return NavigationGeneration;
+        if (OwnsNavigation(intent))
+        {
+            if (old is not null) Banner = previousBanner;
+            OnPropertyChanged(nameof(NavigationGeneration));
+        }
+        return intent;
     }
 
     private bool OwnsNavigation(long intent, CancellationTokenSource? pending = null) =>
@@ -479,6 +584,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         {
             _pendingNavigation = null;
             _bannerBeforePendingNavigation = null;
+            _loadingHistory = null;
         }
         pending.Dispose();
     }
@@ -487,30 +593,51 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public bool CancelPendingNavigation()
     {
         if (_disposed || _pendingNavigation is null) return false;
-        string? previousBanner = _bannerBeforePendingNavigation;
-        long intent = BeginNavigationIntent();
-        if (OwnsNavigation(intent)) Banner = previousBanner;
+        BeginNavigationIntent();
         return true;
     }
 
-    private void CommitNavigation(Location location, string? focusName, bool record, long intent)
+    private bool NavigatePreparedLocation(Location location, string? focusName, bool record, long intent,
+        PreparedLocation? prepared, bool refresh, HistoryJump? jump)
     {
-        if (!OwnsNavigation(intent)) return;
+        if (jump is null) return CommitNavigation(location, focusName, record, intent, prepared, refresh);
+        if (!OwnsNavigation(intent) || jump.Revision != HistoryRevision) return false;
+        var pending = new CancellationTokenSource();
+        if (_pendingNavigation is null)
+            BeginPendingNavigation(pending, $"Opening {Formatters.SafeName(Services.Providers.Display(location))}…");
+        else
+            _pendingNavigation = pending; // hand off from provider preparation, keeping the original banner
+        _loadingHistory = jump;
+        _ = LoadHistoryAsync(location, jump, intent, pending, prepared);
+        return true;
+    }
+
+    private bool CommitNavigation(Location location, string? focusName, bool record, long intent,
+        PreparedLocation? prepared = null, bool refresh = false, HistoryJump? jump = null, string? fallback = null)
+    {
+        if (!OwnsNavigation(intent)) return false;
         if (IsLocked && Location is not null && !ReturnToRoot && !Services.Providers.For(location).IsSameLocation(location, Location))
         {
-            Panel.OpenTab(location, focusName, activate: true);
-            return;
+            if (jump is null) Panel.OpenTab(location, focusName, activate: true);
+            return false;
         }
-        if (record && Location is not null && Location != location)
+        // The provider's equivalence may be conservative for safety checks. A visit keeps the exact address opened.
+        bool historyChanged = jump is not null || record && Location is not null && Location != location;
+        if (jump is not null)
+            MoveHistory(jump);
+        else if (historyChanged)
         {
-            _back.Add(Location);
-            if (_back.Count > MaxHistory) _back.RemoveAt(0);
+            if (Location is { Scheme: not Schemes.AnalysisFolder })
+            {
+                _back.Add(CaptureVisit());
+                int excess = _back.Count - HistoryLimit;
+                if (excess > 0) _back.RemoveRange(0, excess);
+            }
             _forward.Clear();
-            NotifyHistoryChanged();
         }
         EndQuickSearch();
         ComparisonLabel = null;
-        Banner = LocationBanner(location);
+        Banner = fallback ?? LocationBanner(location);
         FilterValidationError = null;
         // A change journal reads newest first, times mixed with folders; the tab's own order returns when it leaves.
         if (location.Scheme == Schemes.Journal && Location?.Scheme != Schemes.Journal)
@@ -524,11 +651,23 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             _sortOutsideJournal = null;
         }
         _navigatedFocus = (location, focusName);
-        Listing.Load(location, focusName);
+        _historyDetachedTop = null;
+        if (jump is not null)
+        {
+            var visit = location == jump.Visit.Location ? jump.Visit : null;
+            Listing.LoadStagedNavigation(location, visit?.Focus, visit?.Top);
+        }
+        else if (refresh && Location == location && Listing.State != Core.Listing.ListingState.Failed) Listing.Refresh();
+        else Listing.Load(location, focusName);
+        var previousPreparation = _preparedLocation;
+        _preparedLocation = prepared;
+        previousPreparation?.Dispose();
         if (IsActiveTab) StartWatching();
-        Services.RecordFolder(location);
+        if (jump is null) Services.RecordFolder(location);
         UpdateTitle();
-        ColumnsChanged?.Invoke(this, EventArgs.Empty);
+        AnnounceColumns();
+        if (historyChanged) NotifyHistoryChanged();
+        return true;
     }
 
     /// <summary>The name the last navigation was to put the cursor on, and where: a link shown by its target keeps it.</summary>
@@ -555,21 +694,27 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             if (IsActiveTab) StartWatching();
             Services.RecordFolder(refused.Target);
             UpdateTitle();
-            ColumnsChanged?.Invoke(this, EventArgs.Empty);
+            AnnounceColumns();
             string name = Path.GetFileName(Path.TrimEndingDirectorySeparator(refused.Link));
             Banner = $"“{name}” is a link that refuses to be listed itself, as Windows' compatibility junctions do. This is the folder it leads to.";
         });
     }
 
     /// <summary>Connects in the background (the server's key and password prompts appear meanwhile) to learn the home folder.</summary>
-    private async Task PrepareThenNavigateAsync(Location requested, Task<Location> preparing, string? focusName, bool record,
-        long intent, CancellationTokenSource pending)
+    private async Task PrepareThenNavigateAsync(Location requested, Task<PreparedLocation> preparing, string? focusName, bool record,
+        long intent, CancellationTokenSource pending, bool refresh, HistoryJump? jump)
     {
         string what = Formatters.SafeName(Services.Providers.Display(requested));
         try
         {
-            Location ready = await preparing;
-            if (OwnsNavigation(intent, pending)) CommitNavigation(ready, focusName, record, intent);
+            var ready = await preparing;
+            bool retained = false;
+            try
+            {
+                if (OwnsNavigation(intent, pending))
+                    retained = NavigatePreparedLocation(ready.Location, focusName, record, intent, ready, refresh, jump);
+            }
+            finally { if (!retained) ready.Dispose(); }
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -580,7 +725,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     }
 
     private async Task ConnectThenNavigateAsync(Location location, string? focusName, bool record,
-        long intent, CancellationTokenSource pending)
+        long intent, CancellationTokenSource pending, HistoryJump? jump)
     {
         try
         {
@@ -591,7 +736,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             if (!OwnsNavigation(intent, pending)) return;
             string resolved = Services.SftpProvider.Resolve(location);
             if (OwnsNavigation(intent, pending) && !resolved.StartsWith('~'))
-                CommitNavigation(location.WithPath(resolved), focusName, record, intent);
+                NavigatePreparedLocation(location.WithPath(resolved), focusName, record, intent, null, false, jump);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -604,53 +749,6 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         finally { FinishPendingNavigation(pending); }
     }
 
-    public bool CanGoBack => _back.Count > 0;
-    public bool CanGoForward => _forward.Count > 0;
-
-    private void NotifyHistoryChanged()
-    {
-        OnPropertyChanged(nameof(CanGoBack));
-        OnPropertyChanged(nameof(CanGoForward));
-    }
-
-    public void GoBack()
-    {
-        if (_back.Count == 0 || Location is null) { CancelPendingNavigation(); return; }
-        long intent = BeginNavigationIntent();
-        if (!OwnsNavigation(intent)) return;
-        var target = _back[^1];
-        _back.RemoveAt(_back.Count - 1);
-        _forward.Add(Location);
-        NotifyHistoryChanged();
-        NavigateHistory(target, intent);
-    }
-
-    public void GoForward()
-    {
-        if (_forward.Count == 0 || Location is null) { CancelPendingNavigation(); return; }
-        long intent = BeginNavigationIntent();
-        if (!OwnsNavigation(intent)) return;
-        var target = _forward[^1];
-        _forward.RemoveAt(_forward.Count - 1);
-        _back.Add(Location);
-        NotifyHistoryChanged();
-        NavigateHistory(target, intent);
-    }
-
-    private void NavigateHistory(Location target, long intent)
-    {
-        if (!OwnsNavigation(intent)) return;
-        EndQuickSearch();
-        ComparisonLabel = null;
-        Banner = LocationBanner(target);
-        FilterValidationError = null;
-        _navigatedFocus = (target, null);
-        Listing.Load(target);
-        if (IsActiveTab) StartWatching();
-        UpdateTitle();
-        ColumnsChanged?.Invoke(this, EventArgs.Empty);
-    }
-
     /// <summary>What a location is and how its keys differ, for places whose rules are not a folder's.</summary>
     private string? LocationBanner(Location location)
     {
@@ -661,6 +759,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (Core.Search.ResultSetProvider.IsWorkingSet(location))
             return $"Working set: references to items in other places · F5 from another panel adds · {Key(CommandIds.RemoveFromSet, "Remove from set")} removes " +
                    $"from the set (never deletes) · {Key(CommandIds.Delete, "F8")} deletes the originals";
+        if (location.Scheme == Schemes.AnalysisFolder)
+            return Services.AnalysisPanelFolders.GetBanner(location);
         return null;
     }
 
@@ -695,6 +795,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public void Refresh()
     {
         if (_disposed) return;
+        if (Location is { Scheme: Schemes.Archive } archive && Services.Archives.HasPasswordPreparation(archive))
+        {
+            Navigate(archive, record: false, refresh: true);
+            return;
+        }
         ComparisonLabel = null;
         if (Location is { IsFileSystem: true }) _forceFreeSpaceOnListingComplete = true;
         if (Listing.State == ListingState.Failed && Location is not null) Listing.Load(Location);
@@ -738,6 +843,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private void ApplyExplicitSort(SortSpec sort)
     {
         if (Listing.Sort == sort) return;
+        if (sort.Field != SortField.Metadata || Listing.Sort.MetadataId != sort.MetadataId) RetireMetadataAnalysis(reportPartial: false);
         ExplicitSortRequested?.Invoke(Listing.ViewSpecVersion + 1);
         Listing.Sort = sort;
         RefreshSortDescription();
@@ -781,6 +887,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     private void OnListingChanged(object? sender, ListingChange change)
     {
+        if (!Listing.IsRefreshing && Listing.State != ListingState.Loading && !ReferenceEquals(_ownershipDemandStore, Listing.Store))
+            _ownershipDemandStore = Listing.Store; // A failed/canceled refresh kept its old store.
+        CheckMetadataAnalysis();
         RefreshSortDescription();
         if ((change & ListingChange.State) != 0 || (change & ListingChange.Reset) != 0)
         {
@@ -797,6 +906,14 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                 _freeSpaceUnavailable = false;
             }
             IsLoading = Listing.State == ListingState.Loading || Listing.IsRefreshing;
+            DeniedFolderVolume = !IsLoading && Location is { IsFileSystem: true } folder &&
+                (Listing.LoadError is UnauthorizedAccessException || Listing.LastRefreshError is UnauthorizedAccessException) &&
+                !Services.Shell.IsElevated ? AdministratorWindow.LocalVolume(folder.Path) : null;
+            CanReopenDeniedRegistry = OperatingSystem.IsWindows() && !Services.Shell.IsElevated && !IsLoading &&
+                Location is { Scheme: Schemes.Registry, Path.Length: > 0 } key &&
+                key.Path.Split('\\')[0] is "HKCU" or "HKLM" or "HKU" or "HKCC" &&
+                (Listing.LoadError ?? Listing.LastRefreshError) is { } registryError &&
+                MainViewModel.AdministratorAccessDenied(registryError);
             if (Listing.Issues.Count > 0) Banner = Listing.Issues[^1];
             if (Listing.State == ListingState.Complete)
             {
@@ -814,6 +931,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
         // The focused item is described with items marked too (the marked ones are summed on the left).
         if ((change & (ListingChange.Rows | ListingChange.Marks | ListingChange.State | ListingChange.Reset | ListingChange.Focus)) != 0) UpdateStatus();
+        if ((change & (ListingChange.Rows | ListingChange.State | ListingChange.Reset)) != 0) NotifySupplementaryInventory();
+        else if (IsSupplementaryData && (change & ListingChange.Focus) != 0) OnPropertyChanged(nameof(CanReadSupplementaryReport));
     }
 
     public void UpdateTitle()
@@ -901,6 +1020,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (l.State == ListingState.Loading) rest.Add(l.LoadingProgress ?? "loading…");
         else if (l.IsRefreshing) rest.Add(l.LoadingProgress ?? "refreshing…");
         if (l.Filter is not null) rest.Add($"filter \"{l.Filter.Text}\" shows {Math.Max(0, l.VisibleCount - (l.HasParentRow ? 1 : 0))}");
+        else if (!l.ShowHidden && l.State == ListingState.Complete)
+        {
+            // The leading totals count the whole folder. Explain why fewer rows are visible
+            // after hiding dotfiles, Finder-hidden files or Windows hidden/system items.
+            int hidden = l.TotalCount - Math.Max(0, l.VisibleCount - (l.HasParentRow ? 1 : 0));
+            if (hidden > 0) rest.Add($"{Formatters.Plural(hidden, "hidden or system item", "hidden or system items")} not shown");
+        }
         // Checksums remain in the status; free space has a stable place beside the mask above.
         if (_verificationSummary is { } verified && fileSystem) rest.Add(verified);
         // Free space belongs to folders on disk, not to archives, servers, or lists (the last value would linger there).
@@ -960,6 +1086,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             StatusLeft = rest.Count > 0 ? " · " + string.Join(" · ", rest) : string.Empty;
             CanCountMarked = (unsized > 0 || lowerBound) && SizingFolders == 0 && fileSystem;
         }
+        if (IsSupplementaryData) StatusLeft = l.SupplementaryInventory?.Description ?? "Inventory pending / not inspected";
         StatusRight = l.TryGetFocused(out var f) && f.Kind != EntryKind.Parent ? DescribeFocused(f) + FocusedVerification(f, l.FocusedStoreIndex) : string.Empty;
     }
 
@@ -989,7 +1116,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         _ => string.Empty,
     };
 
-    public string GetKindText(in EntryData e) => e.Tag is IDisplayDetails d ? d.KindText : string.Empty;
+    public string GetKindText(in EntryData e) => EntryPresentation.Kind(e, Location);
 
     // ---- Metadata columns (plan §10) --------------------------------------------------------------------
 
@@ -1004,145 +1131,21 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public string GetMetadataText(in EntryData e, int storeIndex, string fieldId, out bool pending)
     {
-        pending = false;
-        var field = Services.Metadata.Field(fieldId);
-        if (field is null || Location is null) return string.Empty;
-        // A folder without checksum files or signatures has nothing to verify (search results are asked file by file).
-        if (fieldId == Core.Metadata.BuiltInFields.Verified.Id && Location.IsFileSystem && !_hasSidecars) return string.Empty;
-        // Elevated, FileCat checks no file by itself: a file its folder's checksums or signatures may cover says so.
-        if (fieldId == Core.Metadata.BuiltInFields.Verified.Id && Location.IsFileSystem && e.Kind == EntryKind.File &&
-            Core.State.WindowsTokenAuthority.IsHighIntegrity)
-            return Elevated.Text;
-        var item = Services.Providers.For(Location).GetItemRef(Location, e);
-        if (item.FileSystemPath is not { } path) return string.Empty;
-        var store = Listing.Store;
-        var device = Services.Providers.For(item.Parent).GetDeviceKey(item.Parent);
-        var value = Services.Metadata.Get(fieldId, path, e, device, IsSlowLocation, () => ReferenceEquals(store, Listing.Store) && VisibleStoreIndices.Contains(storeIndex));
-        switch (value.State)
-        {
-            case Core.Metadata.MetadataState.Available:
-                return field.Format(value.Value);
-            case Core.Metadata.MetadataState.Pending:
-                pending = true;
-                return "…";
-            case Core.Metadata.MetadataState.Failed:
-                return "error";
-            case Core.Metadata.MetadataState.Unsupported:
-                return "—";
-            default:
-                return string.Empty;
-        }
+        var cell = MetadataPresentation(e, storeIndex, fieldId, null, demand: true);
+        pending = cell.State == Core.Metadata.MetadataState.Pending;
+        return cell.Text;
     }
 
     /// <param name="analyzing">Every value is about to be computed (Analyze folder): no note that the order is partial.</param>
     public void SortByMetadata(string fieldId, bool analyzing = false)
     {
+        if (analyzing && !CanAnalyzeMetadata(fieldId)) return;
         var s = Listing.Sort;
         bool same = s.Field == SortField.Metadata && s.MetadataId == fieldId;
-        Listing.MetadataKeys ??= MetadataKey;
         ApplyExplicitSort(s with { Field = SortField.Metadata, MetadataId = fieldId, Descending = same && !s.Descending });
         if (fieldId == ColumnSpec.FolderSortKey || analyzing) return; // every item's folder is known at once
         var field = Services.Metadata.Field(fieldId);
-        Banner = $"Sorted by {field?.Title ?? fieldId} using the values computed so far; items without a value are listed last. Choose View → Analyze folder to compute every value.";
-    }
-
-    private IComparable? MetadataKey(EntryStore store, int storeIndex, string fieldId)
-    {
-        var loc = Location;
-        if (loc is null || storeIndex >= store.Count) return null;
-        var e = store[storeIndex];
-        if (fieldId == ColumnSpec.FolderSortKey) return GetFolderText(e);
-        var field = Services.Metadata.Field(fieldId);
-        if (field is null || Services.Providers.For(loc).GetItemRef(loc, e).FileSystemPath is not { } path) return null;
-        var v = Services.Metadata.Get(fieldId, path, e, Services.Providers.For(loc).GetDeviceKey(loc), IsSlowLocation, () => false);
-        return v.State == Core.Metadata.MetadataState.Available ? field.SortKey?.Invoke(v.Value) ?? v.Value as IComparable : null;
-    }
-
-    /// <summary>
-    /// Explicit analysis (plan §10): computes a metadata field for every item with visible progress and
-    /// cancellation, then re-sorts. Until it completes the order is labeled partial.
-    /// </summary>
-    public async Task AnalyzeAsync(string fieldId)
-    {
-        if (Location is null) return;
-        _analysis?.Cancel();
-        var cts = _analysis = new CancellationTokenSource();
-        var loc = Location;
-        var provider = Services.Providers.For(loc);
-        var store = Listing.Store;
-        int count = store.Count;
-        var field = Services.Metadata.Field(fieldId);
-        AnalysisStatus = $"Analyzing {field?.Title}: 0 of {count:N0}…";
-        int done = 0;
-        // The analysis is of this folder: leaving it or closing the tab stops it, and nothing it finds, says or sorts lands
-        // on the next folder (V12; it read the folder's listing after the tab had let it go, release issue I91).
-        bool left = false;
-        void Moved(object? sender, ListingChange change)
-        {
-            if (Equals(Listing.Location, loc)) return;
-            left = true;
-            cts.Cancel();
-        }
-        void Gone()
-        {
-            left = true;
-            cts.Cancel();
-        }
-        Listing.Changed += Moved;
-        Closed += Gone;
-        try
-        {
-            await Services.Io.Run(provider.GetDeviceKey(loc), Core.Threading.IoPriority.Background, ct =>
-            {
-                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, cts.Token);
-                var last = DateTime.UtcNow;
-                for (int i = 0; i < count; i++)
-                {
-                    linked.Token.ThrowIfCancellationRequested();
-                    EntryData e;
-                    try { e = store[i]; }
-                    catch (ObjectDisposedException) { throw new OperationCanceledException(); } // the folder was let go meanwhile
-                    if (!e.IsContainer && provider.GetItemRef(loc, e).FileSystemPath is { } path) Services.Metadata.Compute(fieldId, path, e, linked.Token);
-                    done = i + 1;
-                    if (DateTime.UtcNow - last > TimeSpan.FromMilliseconds(200))
-                    {
-                        last = DateTime.UtcNow;
-                        int d = done;
-                        Services.Ui.Post(() =>
-                        {
-                            if (!left && ReferenceEquals(_analysis, cts)) AnalysisStatus = $"Analyzing {field?.Title}: {d:N0} of {count:N0}… (Esc cancels)";
-                        });
-                    }
-                }
-            }, cts.Token);
-            if (!left && ReferenceEquals(_analysis, cts))
-            {
-                AnalysisStatus = null;
-                Banner = $"Sorted by {field?.Title} with every value computed ({count:N0} items).";
-                ExplicitSortRequested?.Invoke(Listing.ViewSpecVersion + 1);
-                Listing.Resort();
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            if (ReferenceEquals(_analysis, cts))
-            {
-                AnalysisStatus = null;
-                if (!left) Banner = $"Analysis canceled after {done:N0} of {count:N0} items; the order remains partial.";
-            }
-        }
-        finally
-        {
-            Listing.Changed -= Moved;
-            Closed -= Gone;
-        }
-    }
-
-    public bool CancelAnalysis()
-    {
-        if (_analysis is null || AnalysisStatus is null) return false;
-        _analysis.Cancel();
-        return true;
+        Banner = PartialMetadataOrder(field?.Title ?? fieldId);
     }
 
     public string GetDetailsText(in EntryData e) => e.Tag is IDisplayDetails d ? d.DetailsText : string.Empty;
@@ -1156,17 +1159,20 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         {
             // Working sets outlive the session; search results and other result sets do not. A drive's deleted items are
             // not reopened at startup either: that would ask for administrator approval before anyone asked to scan.
-            Location = Location is { Scheme: Schemes.ResultSet } && !Core.Search.ResultSetProvider.IsPersistent(Location) ||
+            Location = Location is { Scheme: Schemes.AnalysisFolder } ||
+                       Location is { Scheme: Schemes.ResultSet } && !Core.Search.ResultSetProvider.IsPersistent(Location) ||
                        Location is { Scheme: Schemes.Recovery } && FileCat.Recovery.RecoveryProvider.IsDevice(Location) ? null : Location,
             Locked = IsLocked,
             ReturnToRoot = ReturnToRoot,
-            LockedRoot = LockedRoot,
+            LockedRoot = LockedRoot is { Scheme: Schemes.AnalysisFolder } ? null : LockedRoot,
             SortField = Listing.Sort.Field,
             SortDescending = Listing.Sort.Descending,
             Filter = Listing.Filter?.Text,
             ColumnProfile = ColumnProfile,
-            FocusName = focus,
-            BackHistory = _back.TakeLast(10).Where(l => (l.Scheme != Schemes.ResultSet || Core.Search.ResultSetProvider.IsPersistent(l)) &&
+            PictureView = PictureView,
+            FocusName = Location is { Scheme: Schemes.AnalysisFolder } ? null : focus,
+            BackHistory = _back.TakeLast(10).Select(visit => visit.Location).Where(l => l.Scheme != Schemes.AnalysisFolder &&
+                                                         (l.Scheme != Schemes.ResultSet || Core.Search.ResultSetProvider.IsPersistent(l)) &&
                                                          !(l.Scheme == Schemes.Recovery && FileCat.Recovery.RecoveryProvider.IsDevice(l))).ToList(),
         };
     }
@@ -1176,11 +1182,16 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         IsLocked = s.Locked;
         ReturnToRoot = s.ReturnToRoot;
         LockedRoot = s.LockedRoot;
-        _columnProfile = s.ColumnProfile;
+        // Through the setter: a profile removed since the state was saved (or a damaged number) becomes the last one there
+        // is, and a list already showing this tab (a reopened or duplicated tab) takes its columns.
+        ColumnProfile = s.ColumnProfile;
+        PictureView = s.PictureView;
         Listing.Sort = Listing.Sort with { Field = s.SortField, Descending = s.SortDescending };
         if (!string.IsNullOrEmpty(s.Filter)) SetFilter(s.Filter);
         _back.Clear();
-        _back.AddRange(s.BackHistory);
+        _back.AddRange(s.BackHistory.Where(location => location.Scheme != Schemes.AnalysisFolder)
+            .TakeLast(HistoryLimit).Select(location => new HistoryVisit(location, null, null)));
+        _forward.Clear();
         NotifyHistoryChanged();
     }
 
@@ -1197,15 +1208,34 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         _pendingNavigation = null;
         _bannerBeforePendingNavigation = null;
         Closed?.Invoke();
+        RetireMetadataAnalysis();
         Closed = null;
         StopWatching();
         Listing.Changed -= OnListingChanged;
+        Listing.PreparingStore -= PreparingMetadataStore;
         Services.Columns.Changed -= OnProfilesChanged;
         Services.Metadata.ValuesChanged -= OnMetadataValuesChanged;
         Listing.Dispose();
+        _preparedLocation?.Dispose();
+        _preparedLocation = null;
     }
 
     public override string ToString() => Title;
 
     internal static string Invariant(FormattableString s) => s.ToString(CultureInfo.InvariantCulture);
+}
+
+/// <summary>How the columns a tab shows changed (<see cref="TabViewModel.ColumnsChanged"/>).</summary>
+public sealed class ColumnsChangedEventArgs : EventArgs
+{
+    private ColumnsChangedEventArgs(bool widthsOnly) => WidthsOnly = widthsOnly;
+
+    /// <summary>Other columns: another location or profile, or columns added, removed or moved.</summary>
+    public static ColumnsChangedEventArgs Other { get; } = new(false);
+
+    /// <summary>The same columns at other widths: a border dragged, a width set in Settings.</summary>
+    public static ColumnsChangedEventArgs Widths { get; } = new(true);
+
+    /// <summary>Only widths changed: a list stays where it is scrolled.</summary>
+    public bool WidthsOnly { get; }
 }

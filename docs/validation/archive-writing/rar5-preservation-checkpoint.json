@@ -1,0 +1,188 @@
+{
+  "date": "2026-11-07",
+  "source_packet": {
+    "files": 4135,
+    "bytes": 30313024,
+    "sha256": "057658b8ef2cff02e49d079abf8335c09a08f8a5932bb34102b7566b00c71465"
+  },
+  "new_profile_registered": false,
+  "rar_metadata_and_stream_assembly_component_only": true,
+  "production_backend_qualified": false,
+  "transform_worker_native_publication_and_ui_qualification": false,
+  "new_cases": 115,
+  "host_scope": "Edits, builds and static frozen-artifact verification only. All application tests and independent readers execute on the authorized Mac/VMs.",
+  "platforms": {
+    "mac": {
+      "archive": "mac-rar-preservation-evidence-v1.tar.gz",
+      "bytes": 38843225,
+      "sha256": "9d23ffd3cc5706f6672ef764371fac8b55b3d1448869357d2eb7c2a00e8c630d",
+      "manifest_rows": 2644,
+      "combined_cases": {
+        "Passed": 2557,
+        "NotExecuted": 55
+      },
+      "new_assembly_cases": {
+        "Passed": 115
+      },
+      "independent": {
+        "cases": 106,
+        "official_archives": 212,
+        "exact_payloads": 212,
+        "independent_metadata_records": 212,
+        "exact_retained_packed_streams": 106,
+        "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb"
+      },
+      "metadata_and_features_equal_on_all_three_platforms": true,
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Writing/Rar5ArchiveAssembler.cs",
+        "src/FileCat.Archives/Writing/Rar5ArchiveWriter.cs",
+        "src/FileCat.Archives/Writing/Rar5EncryptionSession.cs",
+        "src/FileCat.Archives/Writing/Rar5SemanticCatalog.cs",
+        "src/FileCat.Archives/Writing/Rar5WireHeaderWriter.cs",
+        "src/FileCat.Archives/Writing/StrictRar5Catalog.cs",
+        "src/FileCat.Archives/Writing/StrictRar5Framing.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5Features.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5Metadata.cs",
+        "tests/FileCat.Core.Tests/Rar5AssemblyTests.cs"
+      ],
+      "compiler_source_documents": 1369,
+      "compiler_source_bytes": 13019388,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.12",
+        "runtime_directory": "/Users/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.12/",
+        "os": "macOS 27.0.1",
+        "architecture": "Arm64"
+      },
+      "writing_closure": {
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ],
+        "Rar15_or_DiscUtils_present": false
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      }
+    },
+    "ubuntu": {
+      "archive": "ubuntu-rar-preservation-evidence-v1.tar.gz",
+      "bytes": 38842170,
+      "sha256": "61e3098d1450d22a7dc648430cefeb1dde288bea7691fd47abeabedb5f76e5b0",
+      "manifest_rows": 2644,
+      "combined_cases": {
+        "Passed": 2570,
+        "NotExecuted": 42
+      },
+      "new_assembly_cases": {
+        "Passed": 115
+      },
+      "independent": {
+        "cases": 106,
+        "official_archives": 212,
+        "exact_payloads": 212,
+        "independent_metadata_records": 212,
+        "exact_retained_packed_streams": 106,
+        "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886"
+      },
+      "metadata_and_features_equal_on_all_three_platforms": true,
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Writing/Rar5ArchiveAssembler.cs",
+        "src/FileCat.Archives/Writing/Rar5ArchiveWriter.cs",
+        "src/FileCat.Archives/Writing/Rar5EncryptionSession.cs",
+        "src/FileCat.Archives/Writing/Rar5SemanticCatalog.cs",
+        "src/FileCat.Archives/Writing/Rar5WireHeaderWriter.cs",
+        "src/FileCat.Archives/Writing/StrictRar5Catalog.cs",
+        "src/FileCat.Archives/Writing/StrictRar5Framing.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5Features.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5Metadata.cs",
+        "tests/FileCat.Core.Tests/Rar5AssemblyTests.cs"
+      ],
+      "compiler_source_documents": 1369,
+      "compiler_source_bytes": 13019388,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.14",
+        "runtime_directory": "/home/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.14/",
+        "os": "Ubuntu 24.04.5 LTS",
+        "architecture": "X64"
+      },
+      "writing_closure": {
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ],
+        "Rar15_or_DiscUtils_present": false
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      }
+    },
+    "windows": {
+      "archive": "windows-rar-preservation-evidence-v1.tar.gz",
+      "bytes": 38854654,
+      "sha256": "330413115c9146bf9001919236a9ba554c283fe1a96f1b21f8c5f53a9f0efc7a",
+      "manifest_rows": 2571,
+      "combined_cases": {
+        "Passed": 2392,
+        "NotExecuted": 220
+      },
+      "new_assembly_cases": {
+        "Passed": 115
+      },
+      "independent": {
+        "cases": 106,
+        "official_archives": 212,
+        "exact_payloads": 212,
+        "independent_metadata_records": 212,
+        "exact_retained_packed_streams": 106,
+        "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e"
+      },
+      "metadata_and_features_equal_on_all_three_platforms": true,
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Writing/Rar5ArchiveAssembler.cs",
+        "src/FileCat.Archives/Writing/Rar5ArchiveWriter.cs",
+        "src/FileCat.Archives/Writing/Rar5EncryptionSession.cs",
+        "src/FileCat.Archives/Writing/Rar5SemanticCatalog.cs",
+        "src/FileCat.Archives/Writing/Rar5WireHeaderWriter.cs",
+        "src/FileCat.Archives/Writing/StrictRar5Catalog.cs",
+        "src/FileCat.Archives/Writing/StrictRar5Framing.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5Features.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5Metadata.cs",
+        "tests/FileCat.Core.Tests/Rar5AssemblyTests.cs"
+      ],
+      "compiler_source_documents": 1369,
+      "compiler_source_bytes": 13034089,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.14",
+        "runtime_directory": "C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\10.0.14\\",
+        "os": "Microsoft Windows 10.0.26340",
+        "architecture": "X64"
+      },
+      "writing_closure": {
+        "Rar15_or_DiscUtils_present": false,
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ]
+      },
+      "final_census": {
+        "Processes": [],
+        "CollectedUtc": "2026-11-07T11:02:32.6339967Z"
+      },
+      "standard_test_account": {
+        "Sid": "S-1-5-21-1278333194-2778939646-3566894036-1003",
+        "AdministratorsMember": false,
+        "Name": "DESKTOP-A60F1NE\\fcarchive42829297",
+        "HiveLoaded": true
+      }
+    }
+  }
+}

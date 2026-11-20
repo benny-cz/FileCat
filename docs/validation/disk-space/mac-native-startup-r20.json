@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native desktop development validation; no capability qualification",
+  "state": "closed",
+  "sourceUnchanged": true,
+  "deadlineClosed": false,
+  "processId": 9237,
+  "platform": "macOS 27.0.1",
+  "architecture": "Arm64",
+  "run": "/Users/benny/FileCatValidation/dsa-native-desktop-r20/native-validation/dsa-a08c01108671414f8831d5d07021fadf",
+  "fixture": "/Users/benny/FileCatValidation/dsa-native-desktop-r20/native-validation/dsa-a08c01108671414f8831d5d07021fadf/fixture",
+  "fixtureRegularPaths": 509,
+  "fixtureLimitations": [],
+  "nativeWindowVisible": false,
+  "lastVisibleWidth": 1180,
+  "lastVisibleHeight": 763,
+  "lastVisibleScale": 2,
+  "sessions": 0,
+  "createdSessions": 1,
+  "lastObservation": null,
+  "appSha256": "9cfe8d3e5f8fbe54c83c91106cbbb92ddc90f59e4c81aa8edf00c68c8111c8c9",
+  "harnessSha256": "ebc72b35f9e1a0a4ad378e5c885dbc3d3b24b789b0e01af3af591232230e0dfd"
+}

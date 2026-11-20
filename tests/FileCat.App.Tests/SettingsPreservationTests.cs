@@ -4,6 +4,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Services;
@@ -87,7 +88,11 @@ public sealed class SettingsPreservationTests
             var previewButton = window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Preview invocation"));
             Assert.Same(window, TopLevel.GetTopLevel(previewButton));
             previewButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Contains("Checking invocation", preview.Text);
+            // The preview says it is checking while it resolves the program, and says what it found when that returns.
+            // A resolve that finishes inline (a fast or a loaded machine) replaces the first text before the click
+            // returns, so either is this click's own work; the result itself is awaited below.
+            Assert.True(preview.Text!.Contains("Checking invocation", StringComparison.Ordinal) ||
+                preview.Text.Contains("Sample invocation", StringComparison.Ordinal), preview.Text);
             for (int i = 0; i < 100 && !preview.Text!.Contains("Program:", StringComparison.Ordinal); i++)
             {
                 await Task.Delay(20, TestContext.Current.CancellationToken);
@@ -277,6 +282,7 @@ public sealed class SettingsPreservationTests
             Assert.Equal(1, list.SelectedIndex);
             BodyButton(window, "Duplicate command or menu").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(5, list.ItemCount);
+            Assert.Equal("Second copy", Field<TextBox>(window, "Selected command or menu name").SelectedText);
             BodyButton(window, "Remove command or menu").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(4, list.ItemCount);
             Click(window, "OK");
@@ -393,7 +399,7 @@ public sealed class SettingsPreservationTests
                 var search = Field<TextBox>(window, "Search keyboard reference");
                 search.Text = "file.copy";
                 Dispatcher.UIThread.RunJobs();
-                BodyButton(window, "Change shortcut…").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                BodyButton(window, "Next: set shortcut…").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 for (int i = 0; i < 20 && !window.GetVisualDescendants().OfType<Button>().Any(b => Equals(b.Content, "No shortcut")); i++)
                 {
                     await Task.Delay(10, TestContext.Current.CancellationToken);
@@ -685,6 +691,67 @@ public sealed class SettingsPreservationTests
             Assert.Equal(before, JsonSerializer.Serialize(services.Settings));
             if (original is not null) Assert.Equal(original, File.ReadAllBytes(paths.SettingsFile));
             else Assert.False(UnixFiles.Stat(paths.SettingsFile)!.Value.IsRegular);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    /// <summary>
+    /// Protected settings can be looked through on every page: choosing rows in the lists (filters, commands, associations,
+    /// column profiles and their columns) turns none of the editing actions, switches or choices back on.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task Protected_settings_can_be_looked_through_without_turning_an_edit_action_on()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-settings-protected", Guid.NewGuid().ToString("N"));
+        var paths = AppPaths.Resolve(overrideRoot: root);
+        Directory.CreateDirectory(paths.SettingsDirectory);
+        var newer = new AppSettings
+        {
+            SchemaVersion = AppSettings.CurrentSchema + 1,
+            SavedFilters = [new() { Name = "Text", Mask = "*.txt" }, new() { Name = "Logs", Mask = "*.log" }],
+            UserCommands = [new() { Name = "Build", Executable = "build", Arguments = ["{files}"] }, new() { Name = "Check", Executable = "check", Arguments = [""] }],
+            Associations =
+            [
+                new() { Name = "Text", Intent = Associations.View, Mask = "*.txt", Executable = "viewer", Arguments = ["{file}"] },
+                new() { Name = "Logs", Intent = Associations.Edit, Mask = "*.log", Executable = "editor", Arguments = ["{file}"], ShellMode = true },
+            ],
+        };
+        File.WriteAllText(paths.SettingsFile, JsonSerializer.Serialize(newer, StateJsonContext.Default.AppSettings));
+        var services = AppServices.CreateForPaths(paths);
+        var vm = new MainViewModel(services);
+        var window = new MainWindow(vm, null) { Width = 1200, Height = 800 };
+        try
+        {
+            vm.Initialize(null);
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(StateLoadStatus.NewerSchemaReadOnly, services.SettingsStatus);
+            var showing = SettingsDialog.ShowAsync(vm);
+            Dispatcher.UIThread.RunJobs();
+            var tabs = window.GetVisualDescendants().OfType<FileCat.App.Controls.DialogCard>().Single().GetVisualDescendants().OfType<TabControl>().Single();
+            var looked = new List<string>();
+            foreach (var page in tabs.Items.OfType<TabItem>().ToList())
+            {
+                tabs.SelectedItem = page;
+                Dispatcher.UIThread.RunJobs();
+                var content = Assert.IsAssignableFrom<Control>(page.Content);
+                var actions = content.GetLogicalDescendants().OfType<Control>().Where(c => c is Button or ComboBox or CheckBox or NumericUpDown).ToList();
+                foreach (var list in content.GetLogicalDescendants().OfType<ListBox>().Where(l => l.ItemCount > 1).ToList())
+                {
+                    looked.Add(AutomationProperties.GetName(list) ?? "(unnamed list)");
+                    for (int row = 0; row < list.ItemCount; row++)
+                    {
+                        list.SelectedIndex = row;
+                        Dispatcher.UIThread.RunJobs();
+                        foreach (var action in actions)
+                            Assert.False(action.IsEnabled, $"{page.Header}: {action.GetType().Name} " +
+                                $"\"{AutomationProperties.GetName(action) ?? (action as ContentControl)?.Content}\" is on after row {row} of {AutomationProperties.GetName(list)}");
+                    }
+                }
+            }
+            Assert.Superset(new HashSet<string> { "Saved filter list", "User command and menu list", "Association priority list", "Column profiles", "Columns of the selected profile" }, looked.ToHashSet());
+            Click(window, "Close");
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }

@@ -115,6 +115,8 @@ public struct EntryData
     public long Created;
     /// <summary>Provider-native attribute bits (Windows FILE_ATTRIBUTE_*, POSIX mode...).</summary>
     public uint Attributes;
+    /// <summary>Observed Windows enumeration tag; zero means unavailable. Never operation authority.</summary>
+    public uint NativeReparseTag;
     /// <summary>Provider-specific typed payload (result provenance, Registry value info...).</summary>
     public object? Tag;
 
@@ -127,6 +129,7 @@ public struct EntryData
         Flags = EntryFlags.None;
         Created = 0;
         Attributes = 0;
+        NativeReparseTag = 0;
         Tag = null;
     }
 
@@ -171,9 +174,24 @@ public sealed class ItemRef : IEquatable<ItemRef>
 
     /// <summary>Captured presentation/safety flags; not part of identity.</summary>
     public EntryFlags Flags { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public uint NativeReparseTag { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public uint NativeAttributes { get; init; }
+
+    // A refresh may retain the captured presentation hint when the metadata still agrees.
+    internal uint RetainReparseTag(EntryKind kind, uint attributes, long size, long modified) =>
+        NativeReparseTag != 0 && Parent.IsFileSystem && Kind == kind && NativeAttributes == attributes &&
+        (attributes & (uint)FileAttributes.ReparsePoint) != 0 && Size == size && Modified == modified && modified > 0
+            ? NativeReparseTag : 0;
 
     /// <summary>Distinguishes items that share a name in one container (duplicate archive entries).</summary>
     public int Ordinal { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? ArchiveRevision { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? ArchiveMutationProblem { get; init; }
 
     /// <summary>Folder relative to a result set's search root (keep-relative-paths copies). Not identity.</summary>
     public string? RelativeFolder { get; init; }
@@ -183,7 +201,14 @@ public sealed class ItemRef : IEquatable<ItemRef>
     /// <summary>Full file-system path when the parent is a file-system location, otherwise null.</summary>
     public string? FileSystemPath => Parent.IsFileSystem ? System.IO.Path.Join(Parent.Path, Name) : null;
 
-    public static ItemRef FromEntry(Location parent, in EntryData e) => new(parent, e.Name, e.Kind, e.Size, e.Modified) { Flags = e.Flags };
+    public static ItemRef FromEntry(Location parent, in EntryData e) => new(parent, e.Name, e.Kind, e.Size, e.Modified)
+    {
+        Flags = e.Flags,
+        NativeReparseTag = e.NativeReparseTag,
+        NativeAttributes = e.Attributes,
+        ArchiveRevision = (e.Tag as FileCat.Core.Archives.IArchiveMemberRevision)?.ArchiveRevision,
+        ArchiveMutationProblem = (e.Tag as FileCat.Core.Archives.IArchiveMemberRevision)?.ArchiveMutationProblem,
+    };
 
     public static ItemRef ForFileSystemPath(string fullPath, EntryKind kind)
     {

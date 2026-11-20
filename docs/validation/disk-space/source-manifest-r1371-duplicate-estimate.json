@@ -1,0 +1,133 @@
+{
+  "sourceBase": "6715331f5e1a614db42da494cbf23c562d2a265c",
+  "sources": {
+    "src/FileCat.App/Views/DiskSpaceWindow.DuplicateReview.cs": "64703888eb59903b340ab281fe5093c9151beb8e529d335d175d5c5540940342",
+    "src/FileCat.App/Views/DiskSpaceWindow.IndexedSelection.cs": "942c8e02353d57df423be33af2bc979e006b8384bb4ad93d239b87e568e024ac",
+    "src/FileCat.App/Views/DiskSpaceWindow.MemoryMarks.cs": "94f63cf2d304b6c9c02978dedaf4cacf93f5b170502dba293cb986c3c7d4bff6",
+    "src/FileCat.Core/Analysis/AnalysisDuplicateEstimate.cs": "3a9dedc2db7f79e9c6ee43224d1a1896b655d70c31a93235bd294ffa8696b6f0",
+    "src/FileCat.Core/Analysis/AnalysisRecipePreview.cs": "52c521a1ca82af1139df498bbc4c8e0646429c269cd023aa9917018070d7c981",
+    "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.DuplicateReview.cs": "2f1a69791fc27a4398a5df6cb4d9f60e8d1fe33455b33b5844212056218b6c14",
+    "tests/FileCat.NativeAcceptance/DiskSpaceHarness/DuplicateReview.cs": "747898ae5f1057a1ebe024f6486f8aed46e5c70b25056ba36fa7fb25b66c6fac",
+    "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Program.cs": "463bd7459dd5233d3fb99d74b624230439fe08584a0bf8fb4663ba935485dc7b"
+  },
+  "nativeResults": {
+    "windows": {
+      "finished": true,
+      "passed": true,
+      "sessions": 2,
+      "candidateObjects": 2,
+      "knownReadBytes": 8,
+      "capturedMarks": 4,
+      "additionalHardLinkNames": 1,
+      "preservingDefault": true,
+      "retainedHiddenMarksAndBasket": true
+    },
+    "mac": {
+      "finished": true,
+      "passed": true,
+      "sessions": 2,
+      "candidateObjects": 2,
+      "knownReadBytes": 8,
+      "capturedMarks": 4,
+      "additionalHardLinkNames": 1,
+      "preservingDefault": true,
+      "retainedHiddenMarksAndBasket": true
+    },
+    "ubuntu": {
+      "finished": true,
+      "passed": true,
+      "sessions": 2,
+      "candidateObjects": 2,
+      "knownReadBytes": 8,
+      "capturedMarks": 4,
+      "additionalHardLinkNames": 1,
+      "preservingDefault": true,
+      "retainedHiddenMarksAndBasket": true
+    }
+  },
+  "retained": {
+    "batch-linux-r1366.sh": "becec7a4ac701f4fae207c7f8c25a947469a6d736dc3ebff49023950973a3bdc",
+    "batch-linux-r1368.sh": "919ff70d11089d10315413bfcec1dd35aede1d93e3b861dc811964f81de55a18",
+    "batch-linux-r1370.sh": "68a1b05660e0d61e06e65586912ef5bd01b09e2b7a2e23f0b80ccbd3a6a4b092",
+    "batch-mac-r1366.sh": "091f941114d828090f12751d07b8ab0546d97a9ccbb90a481f3ddf7ba798d43f",
+    "batch-mac-r1368.sh": "73706e257bd7f4fd191612153957f4681b353bbaf4fa05cd6b40385797956af7",
+    "batch-mac-r1370.sh": "703c0101f7c2941902d87dd8685f7c6db17678d963c6a7558c8008edfd74df79",
+    "batch-r1368-linux/plan.json": "4dfb66b936d6ebb2c8b11f04a178753dc4bde49278137c2714917233bc882c73",
+    "batch-r1368-mac/plan.json": "1dbc069a86a413b679f357e1b29705d946e17ec6ac598cb3f490f39c27bfbfe2",
+    "batch-r1368-windows/plan.json": "7f39e0b25d25b714a13a472a327b9ad7b48e8506e9dd722dc05c369ca02a298e",
+    "batch-r1370-linux/plan.json": "19566b226a348df76f6e04868d9e13258724860404cecaa1ce39b6b959e12e25",
+    "batch-r1370-mac/plan.json": "1fe8d3769957adc95dd4a760abef3937e69ca73cc6fa05d588ab6aa789173abb",
+    "batch-r1370-windows/plan.json": "b8e7c538f7371cb738e5463832f9763fe9bc4acb59b2b6613ab79c6a55a07b8f",
+    "batch-windows-r1366.ps1": "72ada1a58d7471b323f33972caefc37fca056f1fedb60a346bab1ab043e24905",
+    "batch-windows-r1368.ps1": "8776f70d062f5536e2aa006cd2ccd3ce4a6c9e8a63efd34d86795375719105e4",
+    "batch-windows-r1370.ps1": "0f38e59591b893ca9e784f5a4a1c34e4ae76cb3c85ac783f9c6ca58aa1809815",
+    "duplicate-estimate-native-build-r1367.txt": "71b3565f83ab91ea28076afeb7141fa7cb53dff16f74816ca0e7e9435b35a799",
+    "duplicate-estimate-native-build-r1368.txt": "97362a9df20ff71c061348a8a88a66f5eb82c8c2599234a615508a6f6d7f9139",
+    "duplicate-estimate-native-build-r1370.txt": "a53670cfe62ad733ae61e671b5471496e4f83c3bb546a3997b8e3676f46e6334",
+    "duplicate-estimate-native-proof-r1368.json": "d967267fff0bca5c2dcef9cd074b73785e5f96052b35941b03406145112792f6",
+    "duplicate-estimate-native-proof-r1370.json": "4511641a043ee5a951fa8e8401ff2c2d5596d6d107e37a6bce7361305a200630",
+    "duplicate-estimate-render-build-r1366-serial.txt": "6e0fbcbcd21e1a0470055a2cd2e288defdad95ff3890f6e4118252fa5e7d8433",
+    "duplicate-estimate-render-build-r1366.txt": "cbf173c51e29250f821250ba108b6705e9870ff514180fbd0cc8cc54c7393960",
+    "duplicate-estimate-source-proof-r1366.json": "bfee2bb5f6e391dee22e0bf146d41808089fc08d709a7a41b1f068dce3a5d9f5",
+    "duplicate-review-harness-source-r1368.cs": "1df22d5dc7151ad54b751224ff5ec45bcd785ba2095458f7bf1cd8fb9c085e76",
+    "mac-batch-r1366-post.json": "67c90cfb2ab4535cefc88f527092db6aa6ef9c0cca5337de551b701d22ca8613",
+    "mac-batch-r1366-results.tgz": "9fac5a4c88538be73e4d2a2857bb50ba464150fb959a99916ce8191c813f8861",
+    "mac-native-r1368-post.json": "6cf58398b4c4e7893d717f99f7d30af946b0342a58c7b3e1a3d83fdc93b77e9e",
+    "mac-native-r1368-results.tgz": "0969212d2f1d727a80625cc655a59b4a5a638447f1aa80c7ef64c6a6cf82a19f",
+    "mac-native-r1370-post.json": "27833a6845093a94f2dcd7437caf22eb0ee378e5690651975a3847ca19014504",
+    "recipe-rendering-proof-r1366.json": "9c82b49304fd97e3db80d9b30fc983a54df8ef3a7de0452ea2023e8e6619cfd6",
+    "ubuntu-batch-r1366-post.json": "41c99c3c1e0aeea513ef1767a785677e42eee879a71a39efc5265c60c838c53c",
+    "ubuntu-batch-r1366-results.tgz": "ed35e3d875e8b65eb7f70bf2c0d06c4b3fb12b00e856a2c1dc147965003a45ec",
+    "ubuntu-native-r1368-post.json": "99c9a079c12779f3f77c88667dce3a408d7235c4ef32a4634c0330c23a839563",
+    "ubuntu-native-r1368-results.tgz": "ab8fd90e962a5bba900917a77df57b8c77f1ce919a058ac627003060852ab01f",
+    "ubuntu-native-r1370-post.json": "ef4a096bf227a5f78de6f05b650307b7b55faabfcaaf954e03964fb61551d068",
+    "ubuntu-native-r1370-results.tgz": "eb2096d29677de5b9734f6be7ef5d0ece802111865498d238c33c71829ac9c07",
+    "windows-batch-r1366-post.json": "fb07c846bf3c4ed588c292f30a8b188b29653c9e2e8b0941d1fbcd58c763a567",
+    "windows-batch-r1366-results.tgz": "2ba1f122890f5035a025472c7e5ddaf501b8c0999bdb5ae868663e1bb0e28f83",
+    "windows-batch-r1366-task-outcome.json": "f2f7fcd0471537abc1eb60c0bf7aea63764d647fd892d5d72af6473bbbdaf239",
+    "windows-native-r1368-post.json": "f30eeb693f61696c0a458b8dbb0c2cd5e6f808a6593bb4ff3bc320ab27a1d874",
+    "windows-native-r1368-results.tgz": "ca5ab47b9f3222669a573c910a74c7ad7dc5dd14c7972f2c1445df6c360d505b",
+    "windows-native-r1368-task-outcome.json": "f94d4d8e6a920018c13a2425bf018142feeaf77fd8fd7978a76c9b3092dabb77",
+    "windows-native-r1370-post.json": "3b2ce89ec4fe66892a29d5fc16b8c7c6653976162c21e1fc0e125d502d78b6c3",
+    "windows-native-r1370-results.tgz": "c456968a904e2673a5f796d9e0cffa6e5cbaa525bc0181f81949cb47219b3c60",
+    "windows-native-r1370-task-outcome.json": "c343063bb4b94b05a310778b9b1b68a5b2cdf3bd0daed6ea5b8b8ca8476ec713",
+    "mac-native-r1370-results-without-desktop.tgz": "d0e61229d52728733943ec6bdaf1ad66ff7517065eddfd5c766fe3ed4e8391b5"
+  },
+  "archives": {
+    "exact-source-deltas-r1371-duplicate-estimate.tgz": "461ff4f17e468296a8d6e579932f592401dcc6af7bcd85100796fada57eff85a",
+    "exact-receipts-r1371-duplicate-estimate.tgz": "21d9d97396324caa91b7de820385f00472dfb3ab92f7249d753da3fd1c087029"
+  },
+  "localMacDesktopCapture": {
+    "capture": {
+      "frame": "duplicate-review-estimate.png",
+      "ownedWindow": {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 791,
+          "Width": 1180,
+          "X": 130,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowNumber": 391,
+        "kCGWindowOwnerName": "FileCat",
+        "kCGWindowOwnerPID": 94197,
+        "kCGWindowSharingState": 0,
+        "kCGWindowStoreType": 1
+      },
+      "width": 2880,
+      "height": 1800,
+      "sha256": "88cab796abd15a782c6f95cafc1eaf6312fe9506af1e2f2386559bbe814c416c",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper"
+    },
+    "archiveSha256": "70fcec6400670a6ef1f746debd43497310861a7957838df40eb24969356c3aba"
+  },
+  "contentReadsEnabled": false,
+  "stableHashQualified": false,
+  "publicEntryEnabled": false,
+  "physicalInputQualified": false,
+  "fullGoalComplete": false,
+  "finalIndependentReviewPerformed": false
+}

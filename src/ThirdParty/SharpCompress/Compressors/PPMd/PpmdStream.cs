@@ -20,6 +20,10 @@ public class PpmdStream : Stream, IAsyncDisposable
     private Decoder _decoder;
     private long _position;
     private bool _isDisposed;
+    private long _strictLength = -1;
+    private CancellationToken _strictCt;
+    private bool _strictFailed;
+    internal bool HasValidatedKnownSizeEnd { get; private set; }
 
     private PpmdStream(Stream stream, PpmdModelH7z model)
     {
@@ -43,9 +47,23 @@ public class PpmdStream : Stream, IAsyncDisposable
     {
         ThrowHelper.ThrowIfNull(stream);
         var instance = new PpmdStream(stream, NewModel(properties, compress));
-        instance._decoder = new Decoder();
-        instance._decoder.Init(stream);
-        return instance;
+        try { instance._decoder = new Decoder(); instance._decoder.Init(stream); return instance; }
+        catch { instance.Dispose(); throw; }
+    }
+
+    /// <summary>7z known-size PPMd7: no synthetic EOF input and no attempt to decode another end-marker symbol.</summary>
+    internal static PpmdStream CreateStrict(PpmdProperties properties, Stream stream, long length, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (length < 0 || properties.AllocatorSize > 32 << 20) throw new InvalidDataException("The strict PPMd extent or model exceeds its profile.");
+        var instance = new PpmdStream(stream, NewModel(properties, false)) { _strictLength = length, _strictCt = ct };
+        try
+        {
+            instance._decoder = new Decoder { RequireValidInput = true }; instance._decoder.Init(stream);
+            if (instance._decoder._code == uint.MaxValue) throw new InvalidDataException("The PPMd range prefix is invalid.");
+            return instance;
+        }
+        catch { instance.Dispose(); throw; }
     }
 
     public static async ValueTask<PpmdStream> CreateAsync(
@@ -89,6 +107,7 @@ public class PpmdStream : Stream, IAsyncDisposable
         {
             _modelH?.Dispose();
             _modelH = null;
+            _decoder?.ReleaseStream();
         }
         base.Dispose(disposing);
     }
@@ -102,6 +121,7 @@ public class PpmdStream : Stream, IAsyncDisposable
         _isDisposed = true;
         _modelH?.Dispose();
         _modelH = null;
+        _decoder?.ReleaseStream();
         await base.DisposeAsync().ConfigureAwait(false);
     }
 
@@ -118,6 +138,7 @@ public class PpmdStream : Stream, IAsyncDisposable
     public override int Read(Span<byte> buffer)
     {
         ObjectDisposedException.ThrowIf(_isDisposed, this);
+        if (_strictLength >= 0) return ReadStrict(buffer);
         var size = 0;
         int c;
         while (size < buffer.Length && (c = _modelH.DecodeChar(_decoder)) >= 0)
@@ -126,6 +147,31 @@ public class PpmdStream : Stream, IAsyncDisposable
         }
         _position += size;
         return size;
+    }
+
+    private int ReadStrict(Span<byte> buffer)
+    {
+        _strictCt.ThrowIfCancellationRequested();
+        if (_strictFailed) throw new InvalidDataException("The strict PPMd decoder has failed.");
+        if (buffer.IsEmpty || HasValidatedKnownSizeEnd) return 0;
+        try
+        {
+            if (_position == _strictLength)
+            {
+                if (_decoder._code != 0) throw new InvalidDataException("The PPMd range coder has not finished.");
+                HasValidatedKnownSizeEnd = true; return 0;
+            }
+            int wanted = (int)Math.Min(buffer.Length, _strictLength - _position);
+            for (int i = 0; i < wanted; i++)
+            {
+                if ((i & 255) == 0) _strictCt.ThrowIfCancellationRequested();
+                int symbol = _modelH.DecodeChar(_decoder);
+                if (symbol < 0) throw new InvalidDataException("The PPMd stream ends before its declared output size.");
+                buffer[i] = (byte)symbol;
+            }
+            _position += wanted; return wanted;
+        }
+        catch { _strictFailed = true; throw; }
     }
 
     public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)

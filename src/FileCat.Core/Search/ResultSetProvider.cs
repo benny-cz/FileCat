@@ -255,6 +255,8 @@ public sealed class ResultSetProvider(ProviderRegistry providers, IFileSystemOpe
                 Flags = info is null && item.FileSystemPath is not null ? EntryFlags.Unavailable : info is null ? item.Flags : LocalFileSystemProvider.MapFlags(info.Attributes),
             };
             if (info is not null && info.IsDirectory) e.Size = -1;
+            if (info is not null)
+                e.NativeReparseTag = item.RetainReparseTag(info.IsDirectory ? EntryKind.Directory : EntryKind.File, e.Attributes, e.Size, e.Modified);
             batch.Add(e);
             if (batch.Count == 256)
             {
@@ -268,7 +270,7 @@ public sealed class ResultSetProvider(ProviderRegistry providers, IFileSystemOpe
 
     public override ItemRef GetItemRef(Location listing, in EntryData entry) =>
         entry.Tag is ResultTag r
-            ? new ItemRef(r.Parent, entry.Name, entry.Kind, entry.Size, entry.Modified) { RelativeFolder = r.RelativeFolder, Flags = entry.Flags, Ordinal = r.Ordinal }
+            ? new ItemRef(r.Parent, entry.Name, entry.Kind, entry.Size, entry.Modified) { RelativeFolder = r.RelativeFolder, Flags = entry.Flags, Ordinal = r.Ordinal, NativeReparseTag = entry.NativeReparseTag, NativeAttributes = entry.Attributes }
             : base.GetItemRef(listing, entry);
 
     public override bool ItemsShareListingParent => false;

@@ -1,0 +1,7 @@
+{
+  "nonce": "r433",
+  "hostObservedAtUtc": "2026-11-06T17:26:15.3413406+00:00",
+  "source": "VMware Tools direct process inventory",
+  "otherFilecatOrDotnet": [],
+  "decision": "clear-for-next-gate"
+}

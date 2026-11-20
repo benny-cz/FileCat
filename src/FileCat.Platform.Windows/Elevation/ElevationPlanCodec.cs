@@ -4,7 +4,9 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FileCat.Core.Jobs;
+using FileCat.Core.Analysis;
 using FileCat.Core.Resources;
+using FileCat.Platform.Windows.Analysis;
 using FileCat.Platform.Windows.Recovery;
 
 namespace FileCat.Platform.Windows.Elevation;
@@ -18,6 +20,8 @@ public static class ElevationPlanCodec
     public const int MaxPlanBytes = 32 * 1024 * 1024;
     public const int MaxSteps = 10_000;
     public static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(15);
+    internal const string MetadataTitle = "Read whole-volume NTFS metadata";
+    internal const string MetadataFields = "NameUtf16,ObjectId,ParentId,Attributes";
 
     private static readonly JsonSerializerOptions Options = new()
     {
@@ -32,7 +36,14 @@ public static class ElevationPlanCodec
     public static ElevationPlan Parse(ReadOnlySpan<byte> json)
     {
         if (json.Length > MaxPlanBytes) throw new InvalidDataException("The plan is too large.");
-        try { return JsonSerializer.Deserialize<ElevationPlan>(json, Options) ?? throw new InvalidDataException("The plan is empty."); }
+        try
+        {
+            var plan = JsonSerializer.Deserialize<ElevationPlan>(json, Options) ?? throw new InvalidDataException("The plan is empty.");
+            if (plan.Steps?.Any(step => step?.Verb == ElevatedVerb.EnumerateNtfsMetadata) == true &&
+                !json.SequenceEqual(Serialize(plan)))
+                throw new InvalidDataException("The NTFS metadata plan must use the fixed plan format.");
+            return plan;
+        }
         catch (JsonException ex) { throw new InvalidDataException("The plan is not valid: " + ex.Message, ex); }
     }
 
@@ -71,16 +82,22 @@ public static class ElevationPlanCodec
     {
         var problems = new List<string>();
         if (plan.Version != ElevationPlan.CurrentVersion) problems.Add($"Unsupported plan version {plan.Version}.");
-        if (plan.Nonce.Length != 32 || !plan.Nonce.All(Uri.IsHexDigit)) problems.Add("The plan has no valid identifier.");
-        if (plan.CreatedUtc.Kind != DateTimeKind.Utc || plan.CreatedUtc < nowUtc - MaxAge || plan.CreatedUtc > nowUtc + TimeSpan.FromMinutes(2))
+        if (plan.Steps is not { Count: > 0 and <= MaxSteps } || plan.Steps.Any(step => step is null))
+            return [$"A plan has 1 to {MaxSteps:N0} valid steps."];
+        bool metadata = plan.Steps.Any(step => step.Verb == ElevatedVerb.EnumerateNtfsMetadata);
+        if (metadata ? !NtfsMetadataProtocol.ValidNonce(plan.Nonce) : plan.Nonce is not { Length: 32 } || !plan.Nonce.All(Uri.IsHexDigit))
+            problems.Add("The plan has no valid identifier.");
+        TimeSpan allowedLead = metadata ? TimeSpan.Zero : TimeSpan.FromMinutes(2);
+        if (plan.CreatedUtc.Kind != DateTimeKind.Utc || plan.CreatedUtc < nowUtc - MaxAge || plan.CreatedUtc > nowUtc + allowedLead)
             problems.Add("The plan is too old or dated in the future; ask FileCat again.");
         try { _ = new SecurityIdentifier(plan.UserSid); }
         catch (ArgumentException) { problems.Add("The plan does not name a valid requesting user."); }
-        if (plan.Title.Length is 0 or > 300) problems.Add("The plan has no valid title.");
-        if (plan.Steps.Count is 0 or > MaxSteps) problems.Add($"A plan has 1 to {MaxSteps:N0} steps.");
+        if (plan.Title is not { Length: > 0 and <= 300 }) problems.Add("The plan has no valid title.");
+        if (metadata && (plan.Title != MetadataTitle || plan.UserName != "" || plan.RequesterProcessId <= 0))
+            problems.Add("The NTFS metadata plan has invalid requester fields.");
         for (int i = 0; i < plan.Steps.Count && problems.Count < 20; i++)
             if (StepProblem(plan.Steps[i]) is { } problem) problems.Add($"Step {i + 1}: {problem}");
-        if (plan.Steps.Count > 1 && plan.Steps.Any(s => s.Verb == ElevatedVerb.ReadDevice))
+        if (plan.Steps.Count > 1 && (metadata || plan.Steps.Any(s => s.Verb == ElevatedVerb.ReadDevice)))
             problems.Add("A read session is a plan of its own: it cannot be combined with other steps.");
         return problems;
     }
@@ -99,6 +116,8 @@ public static class ElevationPlanCodec
             catch (ArgumentException ex) { return $"the {what} is not acceptable: {ex.Message}"; }
             return null;
         }
+        if (s.Verb == ElevatedVerb.EnumerateNtfsMetadata) return MetadataStepProblem(s);
+        if (s.NtfsMetadata is not null) return "NTFS metadata fields require their own read-only step.";
         bool fileVerb = s.Verb != ElevatedVerb.Registry;
         if (!fileVerb && (s.Path ?? s.Destination ?? s.Name) is not null || fileVerb && s.Registry is not null)
             return "it mixes Registry and file fields.";
@@ -133,6 +152,33 @@ public static class ElevationPlanCodec
                 return "unknown step.";
         }
     }
+
+    internal static string? MetadataStepProblem(ElevatedStep step)
+    {
+        if (step is not { Verb: ElevatedVerb.EnumerateNtfsMetadata, NtfsMetadata: { } scope } ||
+            step.Path is not null || step.Name is not null || step.Destination is not null || step.Registry is not null ||
+            step.ReplaceExisting || step.SetAttributes != 0 || step.ClearAttributes != 0)
+            return "A metadata request takes only its fixed whole-volume scope.";
+        if (NtfsMetadataVolume.CanonicalGuid(scope.Volume) is not { } canonical || canonical != scope.Volume)
+            return "The request must name a canonical whole local volume.";
+        if (!NonzeroHex(scope.VolumeSerial, 16) || !NonzeroHex(scope.RootFileId, 32) ||
+            !NonzeroHex(scope.RequesterImageId, 48) || scope.RequesterCreatedFileTime <= 0 ||
+            !ValidLogonText(scope.RequesterLogonSid))
+            return "The volume or requesting process evidence is invalid.";
+        if (scope.ProtocolVersion != NtfsMetadataProtocol.Version || scope.MaximumRecords != AnalysisLimits.Observations ||
+            scope.Fields != MetadataFields)
+            return "The metadata protocol, limits, or field selection is unsupported.";
+        return null;
+    }
+
+    private static bool NonzeroHex(string? value, int length) =>
+        value is not null && value.Length == length && value.Any(c => c != '0') &&
+        value.All(c => c is >= '0' and <= '9' or >= 'A' and <= 'F');
+
+    private static bool ValidLogonText(string? value) =>
+        value is { Length: >= 11 and <= 30 } && value.StartsWith("S-1-5-5-", StringComparison.Ordinal) &&
+        value[8..].Split('-') is [var high, var low] && uint.TryParse(high, out uint a) && uint.TryParse(low, out uint b) &&
+        value == FormattableString.Invariant($"S-1-5-5-{a}-{b}");
 
     private static string? NameProblem(string? name) =>
         name is null || name.Length is 0 or > 255 || name is "." or ".." || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || name.Contains(':')
@@ -209,6 +255,7 @@ public static class ElevationPlanCodec
             ElevatedVerb.CreateDirectory => $"Create folder \"{s.Name}\" in {P(s.Destination)}",
             ElevatedVerb.SetAttributes => $"Attributes of {P(s.Path)}: set {A(s.SetAttributes)}; clear {A(s.ClearAttributes)}",
             ElevatedVerb.ReadDevice => $"Read {Device(s.Path)} to find deleted files. The helper can only read it: nothing on it, or anywhere else, is written. It stops when FileCat ends the session.",
+            ElevatedVerb.EnumerateNtfsMetadata => $"Read names and metadata from the whole volume {Device(s.NtfsMetadata!.Volume.TrimEnd('\\'))}.",
             _ => s.Verb.ToString(),
         };
     }

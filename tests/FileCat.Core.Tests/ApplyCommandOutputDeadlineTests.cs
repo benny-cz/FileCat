@@ -16,6 +16,7 @@ public sealed class ApplyCommandOutputDeadlineTests(ITestOutputHelper output)
         Assert.Equal("early error", tail.Snapshot());
         tail.Append(new string('x', 3_000).AsSpan());
         Assert.Equal(new string('x', 2_000), tail.Snapshot());
+        Assert.True(tail.Truncated);
         tail.Append("last error".AsSpan());
         Assert.Equal(new string('x', 1_990) + "last error", tail.Snapshot());
     }
@@ -63,6 +64,10 @@ public sealed class ApplyCommandOutputDeadlineTests(ITestOutputHelper output)
                 "The command job waited for its descendant-held output pipe instead of finishing while the descendant was alive.");
             Assert.Equal(JobState.Failed, job.State);
             Assert.Contains(job.Issues, issue => issue.Message.Contains("owned helper error", StringComparison.Ordinal));
+            var result = Assert.Single(job.ReadCommandResults(0, 1));
+            Assert.Equal(7, result.ExitCode);
+            Assert.True(result.OutputIncomplete);
+            Assert.Contains("owned helper error", result.StandardErrorTail, StringComparison.Ordinal);
         }
         finally
         {

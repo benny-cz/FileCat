@@ -1,0 +1,79 @@
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.VisualTree;
+using FileCat.App.Controls.DiskSpace;
+using FileCat.Core.Analysis;
+
+namespace DiskSpaceHarness;
+
+internal sealed partial class HarnessApp
+{
+    private async Task CaptureComprehensionStudyAsync()
+    {
+        if (!OperatingSystem.IsMacOS()) throw new PlatformNotSupportedException();
+        var window = _window!;
+        var model = _models.Single();
+        var token = _indexedLifetime.Token;
+        const string unreadableName = "Projects";
+        Add(unreadableName + "/hidden.bin", 4096);
+        var unreadable = Path.Combine(_fixture, unreadableName);
+        var permission = File.GetUnixFileMode(unreadable);
+        try
+        {
+            File.SetUnixFileMode(unreadable, UnixFileMode.None);
+            await ReadyAsync(() => FindButton("Start analysis") is { IsEnabled: true });
+            Click("Start analysis");
+            await ReadyAsync(() => model.Tree?.Snapshot.Phase == AnalysisPhase.Finished);
+            var tree = model.Tree!;
+            var shared = tree.Items.Values.Single(item => item.Synthetic && item.Family == "shared" && item.Members.Length == 2);
+            var gap = tree.Items.Values.Single(item => item.Name == unreadableName);
+            var original = tree.Snapshot.Nodes.Single(node => node.Name == "large.bin");
+            if (tree.Snapshot.Coverage != NamespaceCoverage.Partial || shared.Value == 0 || !gap.Unknown)
+                throw new InvalidDataException("The study needs a nonzero shared charge and a real unreadable group.");
+            await CheckResultControlsAsync(window, "Recorded partial results");
+
+            model.Focus(shared.Key);
+            await ReadyAsync(() => window.GetVisualDescendants().OfType<TreemapControl>().Any(chart => chart.IsEffectivelyVisible && chart.Bounds.Height > 0));
+            await ReadyAsync(() => VisibleReadingText(window, text => text.Contains("counted once here", StringComparison.Ordinal)) &&
+                VisibleReadingText(window, text => text.Contains("File size across 2 matching paths", StringComparison.Ordinal)));
+            var resultThemes = await CheckResultThemesAsync(window, model, warning: true, "wide-partial");
+            await RecipeFrameAsync("comprehension-treemap.png", true, token);
+            var chartMode = window.GetVisualDescendants().OfType<ComboBox>().Single(box => AutomationProperties.GetName(box) == "Chart view");
+            chartMode.SelectedIndex = 1;
+            await ReadyAsync(() => window.GetVisualDescendants().OfType<SunburstControl>().Any(chart => chart.IsEffectivelyVisible && chart.Bounds.Height > 0));
+            await RecipeFrameAsync("comprehension-sunburst.png", true, token);
+
+            model.Focus(gap.Key);
+            if (FindButton("Inspect selection") is { IsEnabled: true }) Click("Inspect selection");
+            await ReadyAsync(() => VisibleReadingText(window, text => text.Contains("File paths: 0 observed (coverage partial)", StringComparison.Ordinal)) &&
+                VisibleReadingText(window, text => text.Contains("Its size is unknown", StringComparison.Ordinal)));
+            await RecipeFrameAsync("comprehension-unknown.png", true, token);
+            await CheckNativeVolumeCapacityAsync(window, model, "comprehension-capacity.png");
+
+            model.Focus(AnalysisTree.Key(original.Id));
+            await ReadyAsync(() => FindButton("Review cleanup") is { IsEnabled: true });
+            Click("Review cleanup");
+            await ReadyAsync(() => FindButton("Cancel / Keep files") is { IsDefault: true, IsCancel: true }
+                && FindButton("Recycle included entries") is { IsEnabled: false });
+            await RecipeFrameAsync("comprehension-trash.png", true, token);
+            Click("Cancel / Keep files");
+            await ReadyAsync(() => FindButton("Cancel / Keep files") is null);
+            _indexedProbe = new { kind = "comprehension", sharedBytes = shared.Value, sharedNames = shared.Members.Length,
+                unknownObserved = gap.Unknown, captured = true, resultThemes };
+            _indexedProbeFinished = true;
+        }
+        catch (Exception error) { _indexedProbeError = error.ToString(); }
+        finally
+        {
+            File.SetUnixFileMode(unreadable, permission);
+            WriteReport("comprehension-capture-complete");
+        }
+
+        Button? FindButton(string name) => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
+            button.IsEffectivelyVisible && Equals(button.Content, name));
+
+        void Click(string name) => (FindButton(name) ?? throw new InvalidOperationException($"Missing button {name}."))
+            .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    }
+}

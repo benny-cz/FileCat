@@ -72,7 +72,7 @@ public static class OperationDialogs
         if (input.RecoveryReviewNotice is { } recoveryNotice) body.Children.Add(Text(recoveryNotice));
         // The title is the verb; the body says what (one item by name, several counted and then named).
         var single = input.Items.Count == 1 ? input.Items[0] : null;
-        string what = single is null ? input.Summary
+        string what = single is null || single.Name.Length == 0 ? input.Summary
             : (single.IsContainer ? "the folder " : string.Empty) + $"\"{Formatters.SafeName(single.Name)}\"" +
               (single is { IsContainer: false, Size: >= 0 } ? $" ({Formatters.SizeWithUnit(single.Size)})" : string.Empty);
         body.Children.Add(Text($"{verb} {what}", bold: true));
@@ -381,7 +381,7 @@ public static class OperationDialogs
         string what = input.Items.Count == 1 ? $"\"{Formatters.SafeName(input.Items[0].Name)}\"" : input.Summary;
         body.Children.Add(Text(input.Permanent
             ? $"Delete {what} permanently? This cannot be undone."
-            : $"Move {what} to the Recycle Bin?", bold: true));
+            : $"Move {what} to {RecycleText.Destination}?", bold: true));
         if (input.Items.Count > 1) body.Children.Add(Muted(NameList(input.Items, 8)));
         if (input.FromResultSet) body.Children.Add(Text("These are the original items at their locations, not just entries of the result set. To only drop them from the set, use \"Remove from result set\"."));
         CheckBox? includeHidden = null;
@@ -395,7 +395,7 @@ public static class OperationDialogs
         if (unrecyclableCount > 0)
         {
             var warn = new StackPanel { Spacing = 4, Margin = new Thickness(0, 6, 0, 0) };
-            warn.Children.Add(new TextBlock { Text = $"{Formatters.Plural(unrecyclableCount, "item", "items")} cannot go to the Recycle Bin:", Classes = { "warning" }, FontWeight = FontWeight.SemiBold });
+            warn.Children.Add(new TextBlock { Text = $"{Formatters.Plural(unrecyclableCount, "item", "items")} cannot go to {RecycleText.Destination}:", Classes = { "warning" }, FontWeight = FontWeight.SemiBold });
             foreach (var (name, why) in input.Unrecyclable.Take(6)) warn.Children.Add(Muted($"• {Formatters.SafeName(name)} — {why}"));
             var skip = new RadioButton { Content = "Leave those items untouched", IsChecked = true, GroupName = "unrecyclable" };
             deletePermanently = new RadioButton { Content = "Delete those items permanently", GroupName = "unrecyclable" };
@@ -421,6 +421,7 @@ public static class OperationDialogs
             ConflictRequest c => ConflictAsync(vm, job, c, closer),
             ErrorRequest e => ErrorAsync(vm, job, e, closer),
             ConfirmRequest cr => ConfirmAsync(vm, job, cr, closer),
+            StorageEfsRecoveryDecision efs => EfsRecoveryAsync(vm, efs, closer),
             _ => Task.FromResult(new Decision(DecisionAction.CancelJob)),
         };
         using var stopped = new CancellationTokenSource();
@@ -439,8 +440,89 @@ public static class OperationDialogs
         finally { stopped.Cancel(); await observation; }
     }
 
+    private static async Task<Decision> EfsRecoveryAsync(MainViewModel vm, StorageEfsRecoveryDecision request, DialogCloser closer)
+    {
+        if (request.Keys.IsDefaultOrEmpty) return new(DecisionAction.CancelJob);
+        var body = new StackPanel { Spacing = 8, MinWidth = 460, MaxWidth = 620 };
+        body.Children.Add(Text("Windows account " + Formatters.SafeName(request.Invoker) + " (" + request.InvokerSid + ")"));
+        int selectedIndex = 0;
+        for (int i = 0; i < request.Keys.Length; i++)
+            if (request.Keys[i].CertificateSha1 == request.SelectedCertificateSha1) { selectedIndex = i; break; }
+        var candidates = new ComboBox
+        {
+            ItemsSource = request.Keys.Select(key => key.Subject is { Length: > 0 } subject
+                ? Formatters.SafeName(subject) + " · " + key.CertificateSha1 : key.CertificateSha1).ToArray(),
+            SelectedIndex = selectedIndex,
+        };
+        AutomationProperties.SetName(candidates, "Reviewed EFS certificate");
+        body.Children.Add(candidates);
+        body.Children.Add(Text("Keep the backup somewhere you can access without this Windows account or EFS key, and keep its password separately."));
+        body.Children.Add(Text("Use an existing recovery arrangement if you have a backup or an organization or hardware recovery arrangement for this key."));
+        body.Children.Add(Text("Windows chooses the key for each file. A key change can require another recovery review after the current file is encrypted."));
+        if (request.PreviousResult is { } previous) body.Children.Add(Text(previous));
+        if (request.CleanupProblem is { } cleanup)
+        {
+            body.Children.Add(Text(cleanup.Message));
+            if (request.RetainedSetupPath is { } path) body.Children.Add(Muted(Formatters.SafeName(path)));
+        }
+
+        nint owner = vm.View.TopLevel?.TryGetPlatformHandle() is { HandleDescriptor: "HWND", Handle: not 0 } hwnd ? hwnd.Handle : 0;
+        StorageEfsRecoveryKeyOption? Selected() =>
+            (uint)candidates.SelectedIndex < (uint)request.Keys.Length ? request.Keys[candidates.SelectedIndex] : null;
+        bool CanAccess() => owner != 0 && Selected() is { RequiresProviderAccess: true };
+        bool CanDeclare() => Selected() is { RequiresProviderAccess: false };
+        bool CanBackUp() => owner != 0 && Selected() is { RequiresProviderAccess: false, BackupProblem: null };
+
+        var buttons = new List<DialogButton>();
+        var access = new DialogButtonPresentation(new("Access EFS key…"));
+        var backup = new DialogButtonPresentation(new("Back up EFS key…"));
+        var declare = new DialogButtonPresentation(new("Use existing recovery"));
+        bool offersAccess = request.Keys.Any(key => key.RequiresProviderAccess);
+        if (offersAccess || request.Keys.Any(key => key.BackupProblem is not null))
+        {
+            var accessHint = Text("");
+            AutomationProperties.SetAutomationId(accessHint, "EFS recovery key availability");
+            AutomationProperties.SetLiveSetting(accessHint, AutomationLiveSetting.Polite);
+            void UpdateAccessHint()
+            {
+                var selected = Selected();
+                accessHint.Text = selected is { RequiresProviderAccess: true }
+                    ? owner != 0 ? "Windows may ask for credentials to access this key. Verify access before choosing how to recover it."
+                        : "Open this review from a visible FileCat window to request access to this key."
+                    : selected?.BackupProblem?.Message ?? "";
+                accessHint.IsVisible = accessHint.Text.Length != 0;
+                AutomationProperties.SetHelpText(candidates, accessHint.Text);
+                access.Update(access.Snapshot);
+                backup.Update(backup.Snapshot);
+                declare.Update(declare.Snapshot);
+            }
+            candidates.SelectionChanged += (_, _) => UpdateAccessHint();
+            UpdateAccessHint();
+            body.Children.Insert(2, accessHint);
+            if (owner != 0 && offersAccess) buttons.Add(new("Access EFS key…", DecisionAction.AccessEfsKey)
+                { IsAvailable = CanAccess, Validate = CanAccess, Presentation = access });
+        }
+        if (owner != 0) buttons.Add(new("Back up EFS key…", DecisionAction.BackUpEfsKey)
+            { IsAvailable = CanBackUp, Validate = CanBackUp, Presentation = backup });
+        buttons.Add(new("Use existing recovery", DecisionAction.DeclareEfsRecovery)
+            { IsAvailable = CanDeclare, Validate = CanDeclare, Presentation = declare });
+        buttons.Add(new("Cancel operation", DecisionAction.CancelJob, IsDefault: true, IsCancel: true));
+        var answer = await vm.Dialogs.ShowCustomAsync(request.Title, body, buttons, closer: closer);
+        bool approved = answer switch
+        {
+            DecisionAction.AccessEfsKey => CanAccess(),
+            DecisionAction.BackUpEfsKey => CanBackUp(),
+            DecisionAction.DeclareEfsRecovery => CanDeclare(),
+            _ => false,
+        };
+        return approved && Selected() is { } selected
+            ? new((DecisionAction)answer!) { EfsRecovery = new(selected.CertificateSha1, owner) }
+            : new(DecisionAction.CancelJob);
+    }
+
     private static async Task<Decision> ConflictAsync(MainViewModel vm, Job job, ConflictRequest c, DialogCloser closer)
     {
+        bool rename = job.Kind == JobKind.Rename;
         var body = new StackPanel { Spacing = 8 };
         body.Children.Add(Muted(job.Title));
         // The title above usually names the destination already: the folder is repeated only when it says more.
@@ -480,7 +562,9 @@ public static class OperationDialogs
             body.Children.Add(remoteReplacementWarning);
         }
         if (c.TypeMismatch) body.Children.Add(new TextBlock { Text = "A file and a folder cannot replace each other.", TextWrapping = TextWrapping.Wrap, Classes = { "warning" } });
-        if (c.SameItem) body.Children.Add(new TextBlock { Text = "Source and destination are the same item: only a renamed copy is possible.", TextWrapping = TextWrapping.Wrap, Classes = { "warning" } });
+        if (c.SameItem) body.Children.Add(new TextBlock { Text = rename ? "Both names refer to the same item." : "Source and destination are the same item: only a renamed copy is possible.", TextWrapping = TextWrapping.Wrap, Classes = { "warning" } });
+        if (c.RenameBackupName is { } backup)
+            body.Children.Add(Text($"The existing item will be kept in this folder as “{Formatters.SafeName(backup)}”."));
         void SuggestedName(string label, string? name)
         {
             if (name is null) return;
@@ -539,16 +623,16 @@ public static class OperationDialogs
         body.Children.Add(tools);
         body.Children.Add(compareResult);
         var applyAll = new CheckBox { Content = "Do the same for other conflicts in this operation" };
-        body.Children.Add(applyAll);
+        if (!rename) body.Children.Add(applyAll);
 
         var buttons = new List<DialogButton>();
         if (c.CanReplace)
         {
             buttons.Add(new DialogButton("Replace", DecisionAction.Replace, IsDanger: true));
-            buttons.Add(new DialogButton("Replace if newer", DecisionAction.ReplaceIfNewer, IsDanger: true));
+            if (!rename) buttons.Add(new DialogButton("Replace if newer", DecisionAction.ReplaceIfNewer, IsDanger: true));
         }
         buttons.Add(new DialogButton("Skip", DecisionAction.Skip, IsDefault: true));
-        buttons.Add(new DialogButton("Keep both", DecisionAction.KeepBothRenameIncoming));
+        if (!rename) buttons.Add(new DialogButton("Keep both", DecisionAction.KeepBothRenameIncoming));
         if (c.SuggestedExistingName is not null && !c.TypeMismatch)
             buttons.Add(new DialogButton("Rename existing", DecisionAction.KeepBothRenameExisting));
         buttons.Add(new DialogButton("Cancel operation", DecisionAction.CancelJob, IsCancel: true));
@@ -595,7 +679,11 @@ public static class OperationDialogs
         var applyAll = new CheckBox { Content = "Skip similar problems in this operation automatically" };
         body.Children.Add(applyAll);
         bool isAuth = e.ErrorClass == "access" && PathUtil.IsUncPath(e.Path);
-        if (e.ErrorClass == "access" && !isAuth && OperatingSystem.IsWindows() &&
+        bool canDeferAdministrator = vm.CanDeferAdministratorFileRetry(job, e);
+        if (canDeferAdministrator)
+            body.Children.Add(Muted("FileCat will continue the ordinary operation and offer one review of the access-denied items when it finishes."));
+        else if (e.ErrorClass == "access" && !isAuth && vm.CanRequestAdministratorTask && job.Kind != JobKind.Recycle &&
+            !AdministratorFileRetry.IsSupportedKind(job.Kind) &&
             Platform.Windows.Elevation.ElevationBroker.Locate(vm.Services.Paths.IsPortable, out _) is not null)
             body.Children.Add(Muted("To retry as administrator, choose Skip (with the checkbox for similar problems); when the operation ends, use Retry as administrator in the operations pane (Ctrl+J). One approval then covers every skipped item."));
         var buttons = new List<DialogButton>
@@ -604,11 +692,17 @@ public static class OperationDialogs
             new("Skip", DecisionAction.Skip),
             new("Cancel operation", DecisionAction.CancelJob, IsCancel: true),
         };
+        if (canDeferAdministrator) buttons.Insert(1, new DialogButton("Review denied items as administrator…", "administrator"));
         if (isAuth) buttons.Insert(0, new DialogButton("Sign in…", "signin"));
         while (true)
         {
             if (job.Token.IsCancellationRequested) return new Decision(DecisionAction.CancelJob);
             var r = await vm.Dialogs.ShowCustomAsync(e.Title, body, buttons, closer: closer);
+            if (r as string == "administrator")
+            {
+                vm.DeferAdministratorFileRetry(job);
+                return new Decision(DecisionAction.Skip, ApplyToAll: true);
+            }
             if (r as string == "signin")
             {
                 await vm.SignInToServerAsync(PathUtil.GetUncServer(e.Path)!);
@@ -625,8 +719,11 @@ public static class OperationDialogs
         body.Children.Add(Muted(job.Title));
         body.Children.Add(Text(c.Message));
         var applyAll = new CheckBox { Content = "Do the same for similar items in this operation" };
-        body.Children.Add(applyAll);
+        if (c.OffersApplyToAll) body.Children.Add(applyAll);
         var initial = c.Actions.Contains(c.InitialAction) ? c.InitialAction : DecisionAction.CancelJob;
+        // Plan §11.8: the choice focused first also speaks the counts and the first example, which a screen reader
+        // otherwise reads only when the user explores the dialog (it reads the focused button, not the message).
+        string spoken = SpokenSummary(c.Message);
         var buttons = c.Actions.Select(a => new DialogButton(a switch
         {
             DecisionAction.Proceed => c.ProceedLabel ?? "Delete anyway",
@@ -636,9 +733,34 @@ public static class OperationDialogs
             DecisionAction.CreateJunction => "Create a junction",
             DecisionAction.CancelJob => "Cancel operation",
             _ => a.ToString(),
-        }, a, IsDefault: a == initial, IsCancel: a == DecisionAction.CancelJob, IsDanger: a == DecisionAction.Proceed)).ToList();
+        }, a, IsDefault: a == initial, IsCancel: a == DecisionAction.CancelJob, IsDanger: a == DecisionAction.Proceed)
+        { HelpText = a == initial && spoken.Length > 0 ? spoken : null }).ToList();
         var r = await vm.Dialogs.ShowCustomAsync(c.Title, body, buttons, closer: closer);
         return r is DecisionAction act ? new Decision(act, applyAll.IsChecked == true) : new Decision(DecisionAction.CancelJob);
+    }
+
+    /// <summary>
+    /// A question's message as one spoken line: its sentences without list bullets, then the first quoted example name
+    /// (archive reviews list their examples one per line after the counts). Bounded, as screen readers read it whole.
+    /// </summary>
+    internal static string SpokenSummary(string message)
+    {
+        const int Limit = 600;
+        var sentences = new List<string>(); string? example = null;
+        foreach (string raw in message.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
+        {
+            string line = raw.Trim().TrimStart('•').Trim();
+            if (line.Length == 0) continue;
+            if (line.StartsWith('"')) { example ??= line; continue; }
+            if (line.StartsWith('…')) continue;
+            sentences.Add(line);
+        }
+        string summary = string.Join(" ", sentences);
+        if (example is not null) summary += (summary.Length == 0 ? "" : " ") + "Example: " + example;
+        if (summary.Length <= Limit) return summary;
+        int cut = Limit - 1;
+        if (char.IsHighSurrogate(summary[cut - 1])) cut--;
+        return summary[..cut].TrimEnd() + "…";
     }
 
     private static string FormatTime(DateTime utc) => utc <= DateTime.MinValue.AddDays(1) ? "unknown" : Formatters.DateWithSeconds(utc.Ticks);
@@ -675,10 +797,11 @@ public static class OperationDialogs
 
     // ---- Checksums ----------------------------------------------------------------------------------------
 
-    public static async Task ShowChecksumsAsync(MainViewModel vm, IReadOnlyList<string> files)
+    public static async Task ShowChecksumsAsync(MainViewModel vm, IReadOnlyList<string> files, string? initialKind = null, string? initialExpected = null)
     {
         ChecksumKind[] kinds = [ChecksumKind.Sha256, ChecksumKind.Sha512, ChecksumKind.Sha384, ChecksumKind.Sha1, ChecksumKind.Md5, ChecksumKind.Crc32];
-        var algorithm = new ComboBox { ItemsSource = new[] { "SHA-256", "SHA-512", "SHA-384", "SHA-1 (compatibility)", "MD5 (compatibility)", "CRC-32 (compatibility)" }, SelectedIndex = 0 };
+        int initialIndex = Enum.TryParse<ChecksumKind>(initialKind, out var requested) ? Array.IndexOf(kinds, requested) : 0;
+        var algorithm = new ComboBox { ItemsSource = new[] { "SHA-256", "SHA-512", "SHA-384", "SHA-1 (compatibility)", "MD5 (compatibility)", "CRC-32 (compatibility)" }, SelectedIndex = Math.Max(0, initialIndex) };
         Avalonia.Automation.AutomationProperties.SetName(algorithm, "Checksum algorithm");
         // One line for one file (and room for a scroll bar under a long SHA-512 line); more for more.
         var output = new TextBox { IsReadOnly = true, AcceptsReturn = true, FontFamily = new FontFamily("Cascadia Mono,Consolas,Menlo,monospace"), MinHeight = files.Count == 1 ? 56 : 160, MaxHeight = 360, TextWrapping = TextWrapping.NoWrap };
@@ -686,7 +809,7 @@ public static class OperationDialogs
         var progress = new ProgressBar { Minimum = 0, Maximum = 100, IsVisible = false };
         var save = new Button { Content = "Save as manifest…", IsEnabled = false };
         // The value a download page gives, pasted: compared with what the file has (the algorithm follows from its length).
-        var expected = new TextBox { PlaceholderText = "Paste a checksum to compare with, such as the one on the download page" };
+        var expected = new TextBox { PlaceholderText = "Paste a checksum to compare with, such as the one on the download page", Text = initialExpected };
         Avalonia.Automation.AutomationProperties.SetName(expected, "Compare with");
         var verdict = new TextBlock { TextWrapping = TextWrapping.Wrap, IsVisible = false };
         var body = new StackPanel { Spacing = 6 };
@@ -697,6 +820,11 @@ public static class OperationDialogs
         body.Children.Add(expected);
         body.Children.Add(verdict);
         body.Children.Add(save);
+        var retry = new Button { Content = "Checksum access-denied files as administrator…", IsVisible = false };
+        body.Children.Add(retry);
+        var denied = new List<string>();
+        var closer = new DialogCloser();
+        retry.Click += (_, _) => closer.Close("administrator");
         var results = new List<(string Path, string Hash)>();
         var computedKind = ChecksumKind.Sha256;
         bool computing = false, dialogOpen = true, computationStarted = false;
@@ -742,6 +870,8 @@ public static class OperationDialogs
             var token = demand.Token;
             bool Current() => dialogOpen && ReferenceEquals(cts, demand) && !token.IsCancellationRequested;
             save.IsEnabled = false;
+            retry.IsVisible = false;
+            denied.Clear();
             results.Clear();
             progress.IsVisible = true;
             output.Text = string.Empty;
@@ -752,29 +882,43 @@ public static class OperationDialogs
             var lines = new List<string>();
             try
             {
-                total = files.Sum(f => new FileInfo(f).Length);
+                total = await Task.Run(() => files.Sum(f =>
+                {
+                    try { return new FileInfo(f).Length; }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return 0; }
+                }), token);
                 foreach (var f in files)
                 {
-                    var hash = await Task.Run(() =>
+                    try
                     {
-                        var before = Core.Verification.VerificationService.Stamp(f);
-                        string value = Checksums.Compute(f, kind, token, n =>
+                        var hash = await Task.Run(() =>
                         {
-                            long now = Interlocked.Add(ref done, n);
-                            Dispatcher.UIThread.Post(() => { if (Current()) progress.Value = total > 0 ? 100.0 * now / total : 0; });
-                        });
-                        token.ThrowIfCancellationRequested();
-                        // Kept for the checks beside files (D-57): a checksum file added later need not read it again.
-                        if (before is { } stamp) Core.Verification.VerificationService.Current?.Remember(f, stamp, new Dictionary<ChecksumKind, string> { [kind] = value });
-                        return value;
-                    }, token);
-                    if (!Current()) return;
-                    results.Add((f, hash));
-                    lines.Add($"{hash}  {Path.GetFileName(f)}");
+                            var before = Core.Verification.VerificationService.Stamp(f);
+                            string value = Checksums.Compute(f, kind, token, n =>
+                            {
+                                long now = Interlocked.Add(ref done, n);
+                                Dispatcher.UIThread.Post(() => { if (Current()) progress.Value = total > 0 ? 100.0 * now / total : 0; });
+                            });
+                            token.ThrowIfCancellationRequested();
+                            if (before is { } stamp) Core.Verification.VerificationService.Current?.Remember(f, stamp, new Dictionary<ChecksumKind, string> { [kind] = value });
+                            return value;
+                        }, token);
+                        if (!Current()) return;
+                        results.Add((f, hash));
+                        lines.Add($"{hash}  {Path.GetFileName(f)}");
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        if (!Current()) return;
+                        lines.Add($"{Path.GetFileName(f)}  {ErrorText.Describe(ex)}");
+                        if (vm.CanRequestAdministratorTask && ErrorText.Classify(ex) == "access" &&
+                            AdministratorWindow.LocalVolume(f) is not null) denied.Add(f);
+                    }
                     output.Text = string.Join(Environment.NewLine, lines);
                 }
                 computedKind = kind;
                 save.IsEnabled = results.Count > 0;
+                retry.IsVisible = denied.Count != 0;
             }
             catch (OperationCanceledException) { }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -803,7 +947,7 @@ public static class OperationDialogs
             else Compare();
         };
         // A checksum on the clipboard is most likely the one to compare with: it is filled in (and picks the algorithm).
-        if (vm.View.TopLevel?.Clipboard is { } clipboard)
+        if (initialExpected is null && vm.View.TopLevel?.Clipboard is { } clipboard)
         {
             try
             {
@@ -817,7 +961,7 @@ public static class OperationDialogs
         try
         {
             r = await vm.Dialogs.ShowCustomAsync($"Checksums of {Formatters.Plural(files.Count, "file", "files")}", body,
-                [new DialogButton("Copy", "copy"), new DialogButton("Close", "close", IsDefault: true, IsCancel: true)]);
+                [new DialogButton("Copy", "copy"), new DialogButton("Close", "close", IsDefault: true, IsCancel: true)], closer: closer);
         }
         finally
         {
@@ -825,6 +969,11 @@ public static class OperationDialogs
             cts?.Cancel();
         }
         if (r as string == "copy" && output.Text is { Length: > 0 } text) vm.CopyTextToClipboard(text);
+        if (r is "administrator" && denied.Count > 0)
+            await vm.RequestAdministratorTaskAsync(new(AdministratorTaskKind.Checksums)
+            {
+                Paths = denied.ToArray(), Detail = computedKind.ToString(), Context = expected.Text,
+            }, "Calculate checksums as administrator", "Read the selected access-denied files using the same checksum algorithm.");
     }
 
     /// <summary>

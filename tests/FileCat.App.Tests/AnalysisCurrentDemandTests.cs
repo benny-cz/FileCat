@@ -44,7 +44,7 @@ public sealed class AnalysisCurrentDemandTests(ITestOutputHelper output)
             await Wait(() => first.Returned.IsCompleted && current.Returned.IsCompleted);
             Assert.True(newWork.IsCompletedSuccessfully);
             Assert.Null(scope.Tab.AnalysisStatus);
-            if (outcome == "complete") Assert.Contains("Sorted by Current demand", scope.Tab.Banner);
+            if (outcome == "complete") Assert.Contains("Read Current demand for 2 items: 2 current values.", scope.Tab.Banner);
             else Assert.StartsWith("Analysis canceled after ", scope.Tab.Banner);
         }
         finally
@@ -67,7 +67,7 @@ public sealed class AnalysisCurrentDemandTests(ITestOutputHelper output)
         await Wait(() => scope.Tab.Listing.State == ListingState.Complete);
         await scope.Tab.AnalyzeAsync("single").WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         Assert.Null(scope.Tab.AnalysisStatus);
-        Assert.Contains("Sorted by Single demand", scope.Tab.Banner);
+        Assert.Contains("Read Single demand for 2 items: 2 current values.", scope.Tab.Banner);
         Assert.Equal("owned first", File.ReadAllText(Path.Join(scope.Folder, "first.txt")));
         Assert.Equal("owned second", File.ReadAllText(Path.Join(scope.Folder, "second.txt")));
     }

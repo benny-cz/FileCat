@@ -16,6 +16,7 @@ public static class Schemes
     public const string Archive = "arc";
     public const string Registry = "reg";
     public const string ResultSet = "results";
+    public const string AnalysisFolder = "analysis-folder";
     public const string Sftp = "sftp";
     public const string Ftp = "ftp";
     public const string Recovery = "recovery";

@@ -1,0 +1,13 @@
+# EFS protection for recovered disk-image content
+
+Recovery now records EFS protection through the actual open image handle when it opens and scans the image. The scan retains this observation while its bytes are in use. Before an output reader is issued and around each read, including reads from cached or resident content, Recovery checks the same image handle. EFS or unknown protection prevents an unprotected copy, drag stage or nested disk cache. Preview retains its existing read-only path. Direct device recovery retains its separate native admission, and NTFS recovery continues to list encrypted on-image records without providing their contents.
+
+On Windows 11 x64, FileCat previewed the expected deleted file from an EFS-encrypted FAT16 image stored on NTFS. The actual recovery job, drag stage and nested cache each refused to write it. The destination remained empty and the image remained encrypted. A clear copy of the same image supported recovery, drag and the cache admission reader, with byte equality. The expanded archive and Recovery run passed 237 cases with five fixture skips. Its result is in `.tmp/filecat-efs-recovery-rerun-tests.xml`.
+
+Ubuntu and macOS each passed 139 cases with 12 fixture skips. The clear image used the ordinary recovery and drag routes on both. These results cover the tested disk-image routes of E-OUT10, E-OUT12 and E-OUT13. Broader native architectures and protection changes occurring entirely between observations remain outside this evidence.
+
+## Protection change after opening an output reader
+
+On the Windows 11 x64 VM at medium integrity, an output reader returned the expected first 512 bytes from a clear FAT16 image on NTFS. Windows then encrypted the same open image. The next read refused with the disk-image EFS reason, left the caller's buffer unchanged, and retained the original contributor in the encrypted provenance receipt. The earlier encrypted and clear copy, drag, and spool cases also passed. All three cases executed. The result is `.tmp/filecat-efs-live-166b6897-r1/recovery-efs-d3916b89/recovery-efs-output-windows.xml`, SHA-256 `D75BDF47D4637417B06E5A8D93D7B7BDD689A88C34EFF3FBE5AFA68A29E51FD2`. The clear control also passed on Apple silicon, where both Windows-only cases were skipped.
+
+Native Windows 11 Enterprise ARM64 build 26200 ran the same three fixtures at medium integrity on 4 KiB NTFS. All executed and passed, including refusal and retained provenance after encrypting the open image. The `native-efs-recovery-output.trx` SHA-256 was `D1AAB76594D2F05E4395755A36F9E7840258B07676A8B8334FC8D4B7208FD43B`. [Native ARM64 qualification run](https://github.com/benny-cz/FileCat/actions/runs/44582510202)

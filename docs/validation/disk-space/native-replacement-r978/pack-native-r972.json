@@ -1,0 +1,40 @@
+{
+  "revision": "r972",
+  "baseline": "r970",
+  "elapsedSeconds": 28.508449500004645,
+  "platforms": [
+    {
+      "platform": "mac",
+      "archive": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\desktop-r972-mac.tgz",
+      "sha256": "b2a3fa75bd63c0a445569eb24af2863e2c52e42cc60b342135347092c2268112",
+      "bytes": 100164,
+      "guestReuse": true,
+      "changed": [
+        "DiskSpaceHarness.dll",
+        "DiskSpaceHarness.pdb"
+      ]
+    },
+    {
+      "platform": "linux",
+      "archive": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\desktop-r972-linux.tgz",
+      "sha256": "8b19edea7f6f3f8bfe73cee635810884d53cd290b836246b5f47cdedd81ba3eb",
+      "bytes": 100107,
+      "guestReuse": true,
+      "changed": [
+        "DiskSpaceHarness.dll",
+        "DiskSpaceHarness.pdb"
+      ]
+    },
+    {
+      "platform": "windows",
+      "archive": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\desktop-r972-windows.tgz",
+      "sha256": "9a762f1d36153c06b363070c2876d47bf586e44fa8fdef0156f331f86a998c1b",
+      "bytes": 50389634,
+      "guestReuse": false,
+      "changed": [
+        "DiskSpaceHarness.dll",
+        "DiskSpaceHarness.pdb"
+      ]
+    }
+  ]
+}

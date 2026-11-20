@@ -5,12 +5,15 @@ using FileCat.Core.Content;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
+using FileCat.Core.Threading;
 
 namespace FileCat.Core.Search;
 
 public sealed class SearchQuery
 {
     public required IReadOnlyList<string> Roots { get; init; }
+    /// <summary>Explicitly selected retries retain the original root and depth for matching and exclusions.</summary>
+    public IReadOnlyList<SearchRetryFolder>? RetryFolders { get; init; }
     public Mask? Names { get; init; }
     public string? Text { get; init; }
     public bool MatchCase { get; init; }
@@ -83,7 +86,7 @@ public sealed class SearchQuery
         if (ModifiedAfterUtc is not null || ModifiedBeforeUtc is not null) parts.Add("date filter");
         if (CreatedAfterUtc is not null || CreatedBeforeUtc is not null) parts.Add("creation date filter");
         if ((AttributesSet | AttributesClear) != 0) parts.Add("attribute filter");
-        if (CarriesHiddenData is not null) parts.Add("carrying streams or attributes");
+        if (CarriesHiddenData is not null) parts.Add(HiddenData.HiddenSearch.Label);
         var what = parts.Count == 0 ? "all items" : string.Join(", ", parts);
         if (WithinResults is { } within) return $"{what} within {within.Count:N0} earlier results";
         return $"{what} in {string.Join("; ", Roots)}{(Recursive ? "" : " (top level only)")}{(Archives is not null && !HasContent ? ", inside archives too" : "")}";
@@ -103,6 +106,8 @@ public enum SearchLogKind
     /// <summary>A provider reported a partial listing or another warning while earlier results were rechecked.</summary>
     Warning,
 }
+
+public sealed record SearchRetryFolder(string Root, string Folder, int Depth);
 
 /// <summary>A line of a search's log (plan §11): skipped scope, provider warnings, and their original locations.</summary>
 public sealed record SearchLogEntry(SearchLogKind Kind, string Path, string? Detail = null, Location? Parent = null, string? Name = null)
@@ -140,11 +145,20 @@ public sealed class SearchSession
     private volatile string? _skip;
     private readonly object _logLock = new();
     private readonly List<SearchLogEntry> _log = [];
+    private readonly List<SearchRetryFolder> _deniedFolders = [];
+    public IReadOnlyList<SearchRetryFolder> DeniedFolders
+    {
+        get { lock (_logLock) return _deniedFolders.ToArray(); }
+    }
+    private DeviceIoScheduler? _observations;
+    private readonly bool _ownsObservations;
 
-    public SearchSession(SearchQuery query, ResultSet results)
+    public SearchSession(SearchQuery query, ResultSet results, DeviceIoScheduler? observations = null)
     {
         _query = query;
         _results = results;
+        _observations = observations;
+        _ownsObservations = observations is null;
         if (query.Bytes is not { Length: > 0 } && !string.IsNullOrEmpty(query.Text) && (query.Regex || query.WholeWords))
             _regex = new Regex(Pattern(query), RegexOptions.CultureInvariant | RegexOptions.Multiline | (query.MatchCase ? 0 : RegexOptions.IgnoreCase), TimeSpan.FromSeconds(1));
         _plainAsciiText = query.Text is { Length: > 0 } t && IsPlainAscii(t);
@@ -168,6 +182,8 @@ public sealed class SearchSession
     public long FoldersVisited;
     public long FilesExamined;
     public long Matches;
+    public long ExtraDataUnexamined;
+    public long NativePredicateUnexamined;
     public volatile string? CurrentFolder;
     public volatile bool Finished;
     public volatile bool RegexTimedOut;
@@ -221,14 +237,38 @@ public sealed class SearchSession
             error = "An attribute cannot be both required and excluded.";
             return false;
         }
-        return true;
+        return NativeSearchPredicates.Validate(q, out error);
     }
 
     public void Run(CancellationToken ct)
     {
         try
         {
-            if (_query.WithinResults is { } within)
+            if (!TryValidate(_query, out var admissionError))
+            {
+                _truncated = true;
+                AddLog(SearchLogKind.Warning, "Query admission", admissionError);
+                _results.IsComplete = false;
+                return;
+            }
+            if (_query.RetryFolders is { } retry)
+            {
+                foreach (var folder in retry)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (folder.Depth < 0 || folder.Depth > _query.MaxDepth ||
+                        !PathUtil.IsSameOrUnder(folder.Folder, folder.Root)) continue;
+                    try
+                    {
+                        if (HasLinkInPath(folder.Folder))
+                            AddLog(SearchLogKind.Skipped, folder.Folder, "The folder became a link.");
+                        else Walk(folder.Root, folder.Folder, folder.Depth, ct);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    { AddLog(SearchLogKind.Inaccessible, folder.Folder, ex.Message); }
+                }
+            }
+            else if (_query.WithinResults is { } within)
             {
                 Narrow(within, ct);
             }
@@ -243,7 +283,7 @@ public sealed class SearchSession
                     Walk(root, root, 0, ct);
                 }
             }
-            _results.IsComplete = !_truncated;
+            _results.IsComplete = !_truncated && ExtraDataUnexamined == 0 && NativePredicateUnexamined == 0;
         }
         catch (OperationCanceledException)
         {
@@ -255,10 +295,24 @@ public sealed class SearchSession
             lock (_logLock)
             {
                 _results.Issues.Clear();
+                if (ExtraDataUnexamined > 0) _results.Issues.Add($"Extra-data predicate: {ExtraDataUnexamined:N0} candidates unexamined; inventory coverage is incomplete.");
+                if (NativePredicateUnexamined > 0) _results.Issues.Add($"Native attribute predicates: {NativePredicateUnexamined:N0} archive/provider candidates unexamined; coverage is incomplete.");
                 _results.Issues.AddRange(_log.Take(100).Select(e => e.Describe()));
             }
+            if (_ownsObservations) _observations?.Dispose();
             _results.NotifyChanged();
         }
+    }
+
+    private static bool HasLinkInPath(string path)
+    {
+        string? component = Path.TrimEndingDirectorySeparator(path);
+        while (component is not null)
+        {
+            if ((File.GetAttributes(component) & FileAttributes.ReparsePoint) != 0) return true;
+            component = Path.GetDirectoryName(component);
+        }
+        return false;
     }
 
     private void AddLog(SearchLogKind kind, string path, string? detail = null, Location? parent = null, string? name = null)
@@ -283,7 +337,7 @@ public sealed class SearchSession
                 continue;
             }
             if ((info.Attributes & FileAttributes.Hidden) != 0 && !_query.IncludeHidden) continue;
-            if (IsMatch(info, item.IsContainer, ct)) AddResult(info, item.IsContainer, relative);
+            if (IsMatch(info, item.IsContainer, ct)) AddResult(info, item.IsContainer, relative, item);
         }
         // Batch each archive parent once. Only that parent's requested identities and current metadata are retained;
         // neither sibling folders nor members that were absent from the original result set become search results.
@@ -292,6 +346,11 @@ public sealed class SearchSession
             ct.ThrowIfCancellationRequested();
             var parent = group.Key;
             CurrentFolder = parent.ToString();
+            if (NativeSearchPredicates.HasNativeMask(_query.AttributesSet, _query.AttributesClear) || _query.CarriesHiddenData is not null)
+            {
+                foreach (var (item, _) in group) UnexaminedMember(item);
+                continue; // no archive listing is needed to establish that its native filesystem predicate is unavailable
+            }
             string? unavailable = parent.Scheme is not (Schemes.Zip or Schemes.Archive)
                 ? "This result cannot be searched within: only local files and archive members are supported."
                 : _query.HasContent ? "Archive member contents are not searched."
@@ -370,18 +429,35 @@ public sealed class SearchSession
             List<FileSystemInfo> children;
             try
             {
+                PathUtil.RefuseAmbiguousUnixName(frame.Dir);
                 children = new DirectoryInfo(frame.Dir).EnumerateFileSystemInfos("*", Options).ToList();
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
             {
+                if (ex is AmbiguousUnixNameException) _truncated = true;
+                if (ex is UnauthorizedAccessException)
+                    lock (_logLock)
+                        if (_deniedFolders.Count < MaxLog) _deniedFolders.Add(new(root, frame.Dir, frame.Depth));
                 AddLog(SearchLogKind.Inaccessible, frame.Dir, ex.Message);
                 continue;
             }
             var subdirs = new List<string>();
             bool skipCurrent = false;
+            bool warnedAmbiguousName = false;
             foreach (var info in children)
             {
                 ct.ThrowIfCancellationRequested();
+                if (PathUtil.HasAmbiguousUnixName(info.FullName))
+                {
+                    _truncated = true;
+                    if (!warnedAmbiguousName)
+                    {
+                        AddLog(SearchLogKind.Warning, frame.Dir,
+                            "A local filename contains U+FFFD and may alias invalid UTF-8 bytes. Ambiguous entries in this folder were skipped; rename them with a byte-preserving tool before searching them in FileCat.");
+                        warnedAmbiguousName = true;
+                    }
+                    continue;
+                }
                 if (_skip is { } skip && PathUtil.IsSameOrUnder(frame.Dir, skip))
                 {
                     if (string.Equals(skip, frame.Dir, StringComparison.OrdinalIgnoreCase))
@@ -456,11 +532,10 @@ public sealed class SearchSession
 
     private bool MemberMatches(ItemRef member)
     {
-        // An archive's members carry no streams or attributes of their own.
-        if (_query.CarriesHiddenData is not null) return false;
         bool isDir = member.IsContainer;
         if (isDir && !_query.IncludeDirectories) return false;
-        if ((_query.AttributesSet & ~FileAttributes.Directory) != 0) return false;
+        if (NativeSearchPredicates.HasNativeMask(_query.AttributesSet, _query.AttributesClear) || _query.CarriesHiddenData is not null)
+        { UnexaminedMember(member); return false; }
         if ((_query.AttributesSet & FileAttributes.Directory) != 0 && !isDir) return false;
         if ((_query.AttributesClear & FileAttributes.Directory) != 0 && isDir) return false;
         if (_query.CreatedAfterUtc is not null || _query.CreatedBeforeUtc is not null) return false;
@@ -488,6 +563,13 @@ public sealed class SearchSession
             if (_query.ModifiedBeforeUtc is { } before && modified > before) return false;
         }
         return true;
+    }
+
+    private void UnexaminedMember(ItemRef member)
+    {
+        if (_query.CarriesHiddenData is not null) Interlocked.Increment(ref ExtraDataUnexamined);
+        if (NativeSearchPredicates.HasNativeMask(_query.AttributesSet, _query.AttributesClear)) Interlocked.Increment(ref NativePredicateUnexamined);
+        AddLog(SearchLogKind.Warning, member.ToString(), "Native filesystem attributes/supplementary data are unavailable for this archive/provider member; it is unexamined, not a negative match.", member.Parent, member.Name);
     }
 
     /// <summary>A member found in an archive: its folder is the archive's, then its folder inside the archive.</summary>
@@ -534,19 +616,29 @@ public sealed class SearchSession
             if ((attributes & (FileAttributes.Offline | (FileAttributes)0x440000)) != 0) return false; // never recall cloud files for a search
             if (!ContainsContent(info.FullName, ct)) return false;
         }
-        return _query.CarriesHiddenData is not { } hidden || CarriesHiddenData(hidden, info.FullName);
+        return _query.CarriesHiddenData is not { } hidden || CarriesHiddenData(hidden, info.FullName, ct);
     }
 
-    private static bool CarriesHiddenData(HiddenData.IHiddenData hidden, string path)
+    private bool CarriesHiddenData(HiddenData.IHiddenData hidden, string path, CancellationToken ct)
     {
+        string? reason = null;
         try
         {
-            return hidden.List(path).Any(i => !HiddenData.DownloadMarks.IsDownloadMark(i.Name));
+            var inventory = Records.FileObservationRequests.RunOwned(_observations ??= new DeviceIoScheduler(), PathUtil.GetDeviceKey(path), IoPriority.Background,
+                token => hidden.ReadInventory(path, new(ShowCompressionBacking: false), token), ct).GetAwaiter().GetResult();
+            if (inventory.Items.Any(i => HiddenData.HiddenSearch.Includes(i.Kind) && i.Role is HiddenData.HiddenMetadataRole.Ordinary &&
+                !HiddenData.DownloadMarks.IsDownloadMark(i, OperatingSystem.IsWindows(), OperatingSystem.IsMacOS()))) return true;
+            var scope = inventory.Categories.Where(c => HiddenData.HiddenSearch.Includes(c.Kind)).ToArray();
+            if (scope.Length > 0 && scope.All(c => c.State == HiddenData.HiddenInventoryState.Complete)) return false;
+            reason = inventory.Description;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
-            return false;
+            reason = ex.Message;
         }
+        Interlocked.Increment(ref ExtraDataUnexamined);
+        AddLog(SearchLogKind.Warning, path, "Extra-data predicate unexamined: " + reason);
+        return false;
     }
 
     private bool ContainsContent(string path, CancellationToken ct)
@@ -731,11 +823,17 @@ public sealed class SearchSession
         AddResult(info, isDir, rel);
     }
 
-    private void AddResult(FileSystemInfo info, bool isDir, string relativeFolder)
+    private void AddResult(FileSystemInfo info, bool isDir, string relativeFolder, ItemRef? earlier = null)
     {
         var parentPath = Path.GetDirectoryName(info.FullName) ?? info.FullName;
-        var item = new ItemRef(Location.FileSystem(parentPath), info.Name, isDir ? EntryKind.Directory : EntryKind.File,
-            isDir ? -1 : ((FileInfo)info).Length, info.LastWriteTimeUtc.Ticks);
+        var kind = isDir ? EntryKind.Directory : EntryKind.File;
+        long size = isDir ? -1 : ((FileInfo)info).Length, modified = info.LastWriteTimeUtc.Ticks;
+        uint refreshedAttributes = earlier is { NativeReparseTag: not 0 } ? (uint)info.Attributes : 0;
+        var item = new ItemRef(Location.FileSystem(parentPath), info.Name, kind, size, modified)
+        {
+            NativeAttributes = refreshedAttributes,
+            NativeReparseTag = earlier?.RetainReparseTag(kind, refreshedAttributes, size, modified) ?? 0,
+        };
         _results.Add(item, relativeFolder);
         long m = Interlocked.Increment(ref Matches);
         if (m < 50 || m % 200 == 0) _results.NotifyChanged();

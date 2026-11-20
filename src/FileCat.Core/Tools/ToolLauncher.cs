@@ -48,12 +48,19 @@ public static class ToolLauncher
             }
             return new ToolDefinition { Name = "Notepad", Executable = Path.Combine(Environment.SystemDirectory, "notepad.exe"), Arguments = ["{file}"] };
         }
-        foreach (var name in new[] { "code", "gnome-text-editor", "gedit", "kate", "xed" })
+        return DetectUnixEditor(OperatingSystem.IsMacOS(), Environment.GetEnvironmentVariable("PATH"));
+    }
+
+    internal static ToolDefinition DetectUnixEditor(bool mac, string? path)
+    {
+        // macOS's /usr/bin/xed is Xcode's launcher, not the Linux text editor. It can exist without Xcode.app
+        // and exit after FileCat has already reported that the new file was created.
+        foreach (var name in mac ? new[] { "code" } : new[] { "code", "gnome-text-editor", "gedit", "kate", "xed" })
         {
-            var p = FindOnPath(name);
+            var p = FindOnPath(name, path);
             if (p is not null) return new ToolDefinition { Name = name, Executable = p, Arguments = ["{files}"] };
         }
-        return OperatingSystem.IsMacOS()
+        return mac
             ? new ToolDefinition { Name = "TextEdit", Executable = "/usr/bin/open", Arguments = ["-e", "{files}"] }
             : new ToolDefinition { Name = "xdg-open", Executable = "/usr/bin/xdg-open", Arguments = ["{file}"] };
     }

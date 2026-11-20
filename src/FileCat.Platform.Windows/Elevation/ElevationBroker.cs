@@ -17,6 +17,7 @@ public static partial class ElevationBroker
 {
     public const string ExecutableName = "FileCat.PrivilegedHost.exe";
     public const string RequesterExecutableName = "FileCat.exe";
+    internal const int ConsentDeclinedExitCode = 1;
     private const string NonceKey = @"SOFTWARE\FileCat\PrivilegedHost\UsedPlans";
 
     /// <summary>The installed broker, or null and why administrator retry is unavailable here.</summary>
@@ -164,6 +165,13 @@ public static partial class ElevationBroker
 /// <summary>The running broker process; it is elevated, so FileCat can only wait for it and ask it to stop.</summary>
 public sealed partial class ElevatedProcess(SafeProcessHandle handle) : IDisposable
 {
+    internal Analysis.NtfsMetadataPeer HoldMetadataServer(string installedImage, uint session)
+    {
+        var peer = Analysis.NtfsMetadataPeer.HoldLaunched(handle);
+        try { peer.RequireIdentity(installedImage, session, elevated: true); return peer; }
+        catch { peer.Dispose(); throw; }
+    }
+
     public bool WaitForExit(int milliseconds) => WaitForSingleObject(handle, (uint)milliseconds) == 0;
 
     public int ExitCode => GetExitCodeProcess(handle, out uint code) ? unchecked((int)code) : -1;

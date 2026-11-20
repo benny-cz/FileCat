@@ -16,16 +16,25 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\FileCat.App\FileCat.App.csproj" />
+    <ProjectReference Include="..\FileCat.CoreCrashHarness\FileCat.CoreCrashHarness.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\FileCat.WorkerProbe\FileCat.WorkerProbe.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\LiveUsbGuard.cs" Link="LiveUsbGuard.cs" />
+    <Compile Include="..\ArchivePasswordReadFixture.cs" Link="ArchivePasswordReadFixture.cs" />
+    <Compile Include="..\ArchiveEditDiscardCases.cs" Link="ArchiveEditDiscardCases.cs" />
+    <Compile Include="..\TestCleanup.cs" Link="TestCleanup.cs" />
+    <Compile Include="..\SettledJournals.cs" Link="SettledJournals.cs" />
     <!-- The in-memory SFTP server of the remote tests, for UI tests of connecting and browsing. -->
     <Compile Include="..\FileCat.Remote.Tests\FakeSftp.cs" Link="Sftp\FakeSftp.cs" />
     <Compile Include="..\FileCat.Remote.Tests\TestSshd.cs" Link="Sftp\TestSshd.cs" />
     <!-- A disk image with deleted files, for the recovery UI (see the Core tests' TestData/Recovery/README.md). -->
     <None Include="..\FileCat.Core.Tests\TestData\Recovery\fat16.img.gz" Link="TestData\fat16.img.gz" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="TestData\Viewer\owned-two-page.pdf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="TestData\Viewer\owned-encrypted.pdf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="TestData\Viewer\owned-one-page.pdf" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -264,6 +264,78 @@ public sealed class ArchiveFormatTests : IDisposable
         Assert.Equal(outerTar + Path.DirectorySeparatorChar + "packed.zip", zip.GetDisplayPath(zipRoot));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Alternating_zip_and_tar_enforce_one_nesting_limit_before_spooling(bool zipOuter)
+    {
+        var (registry, archives, zip) = Providers();
+        const string payloadName = "payload.bin";
+        byte[] payload = [17, 52, 68];
+        int firstRefusedDepth = ZipProvider.MaxNestingDepth + 1;
+        bool IsZip(int depth) => zipOuter == (depth % 2 == 0);
+        string Name(int depth) => IsZip(depth) ? "inner.zip" : "inner.tar";
+        byte[]? nested = null;
+        for (int depth = firstRefusedDepth; depth >= 0; depth--)
+        {
+            using var file = new MemoryStream();
+            if (IsZip(depth))
+            {
+                using var writer = new ZipArchive(file, ZipArchiveMode.Create, leaveOpen: true);
+                using (var member = writer.CreateEntry(payloadName).Open()) member.Write(payload);
+                if (nested is not null)
+                {
+                    using var member = writer.CreateEntry(Name(depth + 1)).Open();
+                    member.Write(nested);
+                }
+            }
+            else
+            {
+                using var writer = new TarWriter(file, TarEntryFormat.Ustar, leaveOpen: true);
+                WriteMember(payloadName, payload);
+                if (nested is not null) WriteMember(Name(depth + 1), nested);
+
+                void WriteMember(string name, byte[] bytes)
+                {
+                    using var content = new MemoryStream(bytes);
+                    writer.WriteEntry(new UstarTarEntry(TarEntryType.RegularFile, name) { DataStream = content });
+                }
+            }
+            nested = file.ToArray();
+        }
+
+        string path = Path.Combine(_dir.Path, Name(0));
+        File.WriteAllBytes(path, nested!);
+        var withinLimit = zipOuter ? ZipProvider.ForFile(path) : ArchiveProvider.ForFile(path);
+        for (int depth = 1; depth < firstRefusedDepth; depth++)
+            withinLimit = new Location(IsZip(depth) ? Schemes.Zip : Schemes.Archive, "", withinLimit.WithPath(Name(depth)));
+        var tooDeep = new Location(IsZip(firstRefusedDepth) ? Schemes.Zip : Schemes.Archive, "", withinLimit.WithPath(Name(firstRefusedDepth)));
+        try
+        {
+            var rejected = Assert.Throws<InvalidDataException>(() => registry.For(tooDeep).OpenContent(new(tooDeep, payloadName, EntryKind.File)));
+            Assert.Contains($"{ZipProvider.MaxNestingDepth} levels", rejected.Message);
+            Assert.Throws<InvalidDataException>(() => archives.OpenSpool(tooDeep.Container!));
+            Assert.False(Directory.Exists(Path.Combine(_dir.Path, "tmp")));
+            Assert.Equal(payload, Read(registry.For(withinLimit), withinLimit, payloadName));
+            if (OperatingSystem.IsWindows())
+            {
+                var initial = new OutputEfsObservation();
+                using (var outer = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                    initial.ObserveOpened(outer);
+                using var spool = archives.OpenSpool(withinLimit.Container!);
+                var origin = Assert.IsType<OutputEfsObservation.Receipt>(spool.Origin);
+                Assert.Equal(OutputEfsObservation.State.Clear, origin.Protection);
+                Assert.Equal(ZipProvider.MaxNestingDepth, origin.Contributors.Length);
+                Assert.Contains(Assert.Single(initial.Freeze().Contributors), origin.Contributors);
+            }
+        }
+        finally
+        {
+            zip.Release(path);
+            archives.Release(path);
+        }
+    }
+
     /// <summary>Where each header of a TAR starts (the data of each follows it, padded to 512 bytes).</summary>
     private static IEnumerable<int> TarHeaders(byte[] tar)
     {

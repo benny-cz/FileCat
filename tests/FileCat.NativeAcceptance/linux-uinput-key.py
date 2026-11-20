@@ -28,12 +28,12 @@ KEYS = {"enter": (28,), "escape": (1,), "insert": (110,), "home": (102,), "up": 
         "ctrl+l": (29, 38),
         "ctrl+a": (29, 30), "ctrl+f": (29, 33), "ctrl+i": (29, 23), "ctrl+t": (29, 20),
         "ctrl+tab": (29, 15), "ctrl+shift+l": (29, 42, 38),
-        "ctrl+r": (29, 19), "ctrl+s": (29, 31), "ctrl+m": (29, 50), "ctrl+k": (29, 37), "ctrl+home": (29, 102), "slash": (53,), "a": (30,), "c": (46,), "h": (35,), "r": (19,), "backspace": (14,), "ctrl+shift+p": (29, 42, 25), "ctrl+shift+f": (29, 42, 33),
+        "ctrl+j": (29, 36), "ctrl+r": (29, 19), "ctrl+s": (29, 31), "ctrl+m": (29, 50), "ctrl+k": (29, 37), "ctrl+home": (29, 102), "slash": (53,), "a": (30,), "c": (46,), "h": (35,), "r": (19,), "backspace": (14,), "ctrl+shift+p": (29, 42, 25), "ctrl+shift+f": (29, 42, 33),
         "s": (31,), "p": (25,), "l": (38,), "i": (23,), "t": (20,), "e": (18,),
         "ctrl+c": (29, 46), "ctrl+x": (29, 45), "ctrl+v": (29, 47), "ctrl+q": (29, 16), "alt+f7": (56, 65),
         "shift+f10": (42, 68), "f1": (59,), "f9": (67,), "f10": (68,), "delete": (111,), "alt+2": (56, 3), "alt+3": (56, 4),
         "alt+shift+enter": (56, 42, 28), "insert+a": (110, 30), "alt+shift+right": (56, 42, 106),
-        "shift+tab": (42, 15), "ctrl+shift+i": (29, 42, 23)}
+        "shift+tab": (42, 15), "ctrl+shift+i": (29, 42, 23), "alt+f5": (56, 63), "ctrl+kpminus": (29, 74)}
 # "type:find files" types lowercase letters and spaces with one device (US layout).
 LETTERS = dict(zip("abcdefghijklmnopqrstuvwxyz ", (30, 48, 46, 32, 18, 33, 34, 35, 23, 36, 37, 38, 50, 49, 24, 25, 16, 19,
                                                      31, 20, 22, 47, 17, 45, 21, 44, 57)))

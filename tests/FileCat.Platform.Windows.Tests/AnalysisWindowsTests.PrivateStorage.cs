@@ -1,0 +1,147 @@
+using System.Security.AccessControl;
+using System.Security.Principal;
+using FileCat.Core.Analysis;
+using FileCat.Core.Threading;
+using FileCat.Platform.Windows.Analysis;
+using FileCat.Platform.Windows.Shell;
+
+namespace FileCat.Platform.Windows.Tests;
+
+public sealed partial class AnalysisWindowsTests
+{
+    [Fact]
+    public async Task NativeBackendChildCloseFailureStopsNewWorkAndRemainsVisibleAtFinalClosure()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows native fixtures.");
+        await FileCat.Tests.AnalysisNativeHandleCases.BackendCloseFault();
+    }
+    [Fact]
+    public void RepeatedWindowsPrivateCatalogCursorsReturnTheirNativeReservations()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows native fixtures.");
+        using var fixture = new PrivateFixture(); int baseline = AnalysisNativeHandles.Count;
+        using (var directory = new WindowsAnalysisPrivateDirectory(fixture.Path, "saved"))
+        {
+            int held = AnalysisNativeHandles.Count;
+            for (int i = 0; i <= AnalysisLimits.NativeHandles; i++)
+            { Assert.Empty(directory.Entries(TestContext.Current.CancellationToken)); Assert.Equal(held, AnalysisNativeHandles.Count); }
+        }
+        Assert.Equal(baseline, AnalysisNativeHandles.Count);
+    }
+    private static AnalysisSnapshot StorageSample() => new(new(Guid.NewGuid(), 1, 1, "fixture", DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch),
+        [new("r", "file", "Root", "Root", "device", IdentityAssurance.Verified, "Root")],
+        [new(1, "r", 0, "Root", AnalysisKind.Directory)], [], [], [], new(), AnalysisPhase.Finished, NamespaceCoverage.CompleteUnderPolicy);
+
+    [Fact]
+    public async Task NativeInventoriesCompareActualFileGrowthAndAddedPaths()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows native fixtures.");
+        using var fixture = new PrivateFixture(); string file = Path.Combine(fixture.Path, "data.bin"); File.WriteAllBytes(file, new byte[16]);
+        using var io = new DeviceIoScheduler();
+        async Task<AnalysisSnapshot> Scan()
+        {
+            using var session = new AnalysisCoordinator(io, "native-comparison-fixture").Start([new WindowsAnalysisBackend(fixture.Path)]);
+            await session.Completion.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken); return session.Snapshot();
+        }
+        var old = await Scan();
+        using (var wire = new MemoryStream())
+        {
+            AnalysisInventoryFormat.Write(wire, old, Guid.NewGuid(), TestContext.Current.CancellationToken); wire.Position = 0;
+            using var saved = AnalysisInventoryFormat.Read(wire, TestContext.Current.CancellationToken);
+            using var same = AnalysisComparison.Build(saved.Snapshot, old, AnalysisMetric.OnDisk, cancellation: TestContext.Current.CancellationToken);
+            Assert.All(same.Rows, row => Assert.Equal(AnalysisChange.NoObservedMetadataChange, row.Change));
+        }
+        File.WriteAllBytes(file, new byte[32]); File.WriteAllBytes(Path.Combine(fixture.Path, "new.bin"), new byte[5]); var current = await Scan();
+        Assert.Throws<InvalidOperationException>(() => AnalysisComparison.SuggestRootMapping(old, current));
+        using var result = AnalysisComparison.Build(old, current, AnalysisMetric.FileSize,
+            new Dictionary<string, string> { [old.Roots[0].Id] = current.Roots[0].Id }, TestContext.Current.CancellationToken);
+        Assert.Equal(new AnalysisDelta(false, 21), result.NetChange);
+        Assert.Contains(result.Rows, r => r.Change == AnalysisChange.Growing); Assert.Contains(result.Rows, r => r.Change == AnalysisChange.Added);
+    }
+
+    [Fact]
+    public void PrivateNativeCatalogEnumeratesAgainAndReopensWithSavedView()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows process.");
+        using var fixture = new PrivateFixture(); var view = AnalysisSavedView.Default with { Chart = "Table", Query = "name:*.txt" };
+        Guid id;
+        using (var store = new AnalysisPrivateInventoryStore(new WindowsAnalysisPrivateDirectory(fixture.Path, "saved")))
+        {
+            var catalog = new AnalysisSavedCatalog(store);
+            id = catalog.SaveNew("catalog 😀.fcdsa", StorageSample(), Guid.NewGuid(), view, TestContext.Current.CancellationToken).InventoryId;
+            for (int i = 0; i < 1000; i++) File.WriteAllBytes(Path.Combine(fixture.Path, "saved", $"unindexed-{i:D4}.bin"), []);
+            using var first = catalog.Read(TestContext.Current.CancellationToken); Assert.Equal(id, Assert.Single(first.Entries).InventoryId);
+            using var second = catalog.Read(TestContext.Current.CancellationToken); Assert.Single(second.Entries); // RestartScan resets held cursor
+        }
+        using var reopened = new AnalysisPrivateInventoryStore(new WindowsAnalysisPrivateDirectory(fixture.Path, "saved"));
+        var fresh = new AnalysisSavedCatalog(reopened); using var result = fresh.Read(TestContext.Current.CancellationToken);
+        var entry = Assert.Single(result.Entries); Assert.Equal(view, entry.View);
+        using var loaded = fresh.Load(entry, TestContext.Current.CancellationToken); Assert.Equal(id, loaded.InventoryId);
+        string metadata = Directory.GetFiles(Path.Combine(fixture.Path, "saved"), "catalog-*.json").Single(), alias = Path.Combine(fixture.Path, "metadata-alias");
+        Assert.True(HardLink(alias, metadata, 0));
+        Assert.Throws<IOException>(() => fresh.Read(TestContext.Current.CancellationToken)); File.Delete(alias);
+    }
+
+    [Fact]
+    public void PrivateNativePublicationKeepsConflictsAndClosesUnpublishedStaging()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows process.");
+        using var fixture = new PrivateFixture(); string saved = Path.Combine(fixture.Path, "saved"), target = Path.Combine(saved, "one.fcdsa");
+        var id = Guid.NewGuid();
+        using var directory = new WindowsAnalysisPrivateDirectory(fixture.Path, "saved");
+        var space = directory.Space();
+        Assert.Equal((UInt128)(ulong)new DriveInfo(fixture.Path).TotalSize, space.Capacity);
+        Assert.InRange(space.Available, (UInt128)0, space.Capacity);
+        using (var store = new AnalysisPrivateInventoryStore(directory))
+        {
+            var receipt = store.SaveNew("one.fcdsa", StorageSample(), id, TestContext.Current.CancellationToken);
+            Assert.Equal(new FileInfo(target).Length, receipt.Bytes);
+            byte[] original = File.ReadAllBytes(target);
+            using (var loaded = store.Load("one.fcdsa", TestContext.Current.CancellationToken))
+            { Assert.Equal(id, loaded.InventoryId); Assert.Equal(AnalysisOrigin.ImportedInventory, loaded.Snapshot.Origin); }
+            Assert.Throws<IOException>(() => store.SaveNew("one.fcdsa", StorageSample(), Guid.NewGuid(), TestContext.Current.CancellationToken));
+            Assert.Equal(original, File.ReadAllBytes(target));
+            Assert.Throws<InvalidDataException>(() => store.SaveNew("invalid.fcdsa", StorageSample() with { Roots = [] }, id, TestContext.Current.CancellationToken));
+            using var cancel = new CancellationTokenSource(); cancel.Cancel();
+            Assert.Throws<OperationCanceledException>(() => store.SaveNew("cancel.fcdsa", StorageSample(), id, cancel.Token));
+            Assert.Equal(new[] { "one.fcdsa" }, Directory.GetFiles(saved).Select(Path.GetFileName));
+            Assert.Throws<IOException>(() => Directory.Move(fixture.Path, fixture.Path + "-moved"));
+        }
+        using var reopened = new AnalysisPrivateInventoryStore(new WindowsAnalysisPrivateDirectory(fixture.Path, "saved"));
+        using var reloaded = reopened.Load("one.fcdsa", TestContext.Current.CancellationToken); Assert.Equal(id, reloaded.InventoryId);
+        var unicode = reopened.SaveNew("地图😀.fcdsa", StorageSample(), Guid.NewGuid(), TestContext.Current.CancellationToken);
+        using var unicodeReloaded = reopened.Load(unicode.Name, TestContext.Current.CancellationToken); Assert.Equal(unicode.InventoryId, unicodeReloaded.InventoryId);
+    }
+
+    [Fact]
+    public void PrivateNativeRefusesHardlinksBroadAclAndReparseParents()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows process.");
+        using var fixture = new PrivateFixture(); string saved = Path.Combine(fixture.Path, "saved");
+        using (var store = new AnalysisPrivateInventoryStore(new WindowsAnalysisPrivateDirectory(fixture.Path, "saved")))
+        {
+            store.SaveNew("one.fcdsa", StorageSample(), Guid.NewGuid(), TestContext.Current.CancellationToken);
+            string target = Path.Combine(saved, "one.fcdsa"), alias = Path.Combine(fixture.Path, "alias");
+            Assert.True(HardLink(alias, target, 0));
+            Assert.Throws<IOException>(() => store.Load("one.fcdsa", TestContext.Current.CancellationToken)); File.Delete(alias);
+            var info = new FileInfo(target); var security = info.GetAccessControl();
+            security.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null), FileSystemRights.Read, AccessControlType.Allow));
+            info.SetAccessControl(security);
+            Assert.Throws<IOException>(() => store.Load("one.fcdsa", TestContext.Current.CancellationToken));
+        }
+        string junction = Path.Combine(fixture.Path, "redirect");
+        Junction.Create(junction, saved);
+        try { Assert.Throws<IOException>(() => new WindowsAnalysisPrivateDirectory(junction, "new")); }
+        finally { Assert.True(RemoveDirectory(junction)); }
+        string broad = Path.Combine(fixture.Path, "broad"); Directory.CreateDirectory(broad);
+        Assert.Throws<IOException>(() => new WindowsAnalysisPrivateDirectory(fixture.Path, "broad"));
+        Assert.Empty(Directory.GetFileSystemEntries(broad));
+    }
+
+    private sealed class PrivateFixture : IDisposable
+    {
+        public string Path { get; } = System.IO.Path.Combine(Environment.CurrentDirectory, ".tmp", "analysis-private-" + Guid.NewGuid().ToString("N"));
+        public PrivateFixture() => Directory.CreateDirectory(Path);
+        public void Dispose() => Directory.Delete(Path, recursive: true);
+    }
+}

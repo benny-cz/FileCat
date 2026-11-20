@@ -62,6 +62,9 @@ public sealed class ThemeBackdrop : Control
     /// <summary>Where the menu bar ends and the lower control strip begins.</summary>
     public (double Top, double Bottom) GlassBands { get; set; }
 
+    /// <summary>The free horizontal space between the menu and command search; other windows use the full width.</summary>
+    public (double Left, double Right) GlassSpan { get; set; } = (0, double.MaxValue);
+
     private void OnFrame()
     {
         if (ThemeManager.Current.Effect == ThemeEffect.Psychedelic) InvalidateVisual();
@@ -71,20 +74,23 @@ public sealed class ThemeBackdrop : Control
     {
         var effect = ThemeManager.Current.Effect;
         if (effect == ThemeEffect.None || Bounds.Width < 1 || Bounds.Height < 1) return;
-        context.Custom(new Backdrop(new Rect(Bounds.Size), effect, ThemeAnimation.Seconds, GlassBands));
+        context.Custom(new Backdrop(new Rect(Bounds.Size), effect, ThemeAnimation.Seconds, GlassBands, GlassSpan));
     }
 
-    private sealed class Backdrop(Rect bounds, ThemeEffect effect, double seconds, (double Top, double Bottom) glass) : ICustomDrawOperation
+    private sealed class Backdrop(Rect bounds, ThemeEffect effect, double seconds, (double Top, double Bottom) glass,
+        (double Left, double Right) span) : ICustomDrawOperation
     {
         public Rect Bounds => bounds;
         public bool HitTest(Point p) => false;
         public bool Equals(ICustomDrawOperation? other) =>
-            other is Backdrop b && b.Bounds == bounds && b.Effect == effect && b.Glass == glass && (effect is ThemeEffect.Steampunk or ThemeEffect.Cyberpunk || b.Seconds == seconds);
+            other is Backdrop b && b.Bounds == bounds && b.Effect == effect && b.Glass == glass && b.Span == span &&
+            (effect is ThemeEffect.Steampunk or ThemeEffect.Cyberpunk || b.Seconds == seconds);
         public void Dispose() { }
 
         private ThemeEffect Effect => effect;
         private double Seconds => seconds;
         private (double Top, double Bottom) Glass => glass;
+        private (double Left, double Right) Span => span;
 
         public void Render(ImmediateDrawingContext context)
         {
@@ -103,7 +109,8 @@ public sealed class ThemeBackdrop : Control
                     EffectArt.Psychedelic(canvas, rect, seconds);
                     break;
                 case ThemeEffect.Steampunk:
-                    EffectArt.Steampunk(canvas, rect, (float)glass.Top, (float)glass.Bottom);
+                    EffectArt.Steampunk(canvas, rect, (float)glass.Top, (float)glass.Bottom,
+                        (float)span.Left, (float)Math.Min(span.Right, rect.Right));
                     break;
             }
             canvas.Restore();
@@ -208,24 +215,24 @@ internal static class EffectArt
 
     // ---- Steampunk: drawn once per size -------------------------------------------------------------------
 
-    private static (SKSize Size, float Top, float Bottom, SKPicture Picture)? _steampunk;
+    private static (SKSize Size, float Top, float Bottom, float Left, float Right, SKPicture Picture)? _steampunk;
 
-    public static void Steampunk(SKCanvas canvas, SKRect r, float glassTop, float glassBottom)
+    public static void Steampunk(SKCanvas canvas, SKRect r, float glassTop, float glassBottom, float glassLeft, float glassRight)
     {
         var cached = _steampunk;
-        if (cached is not { } c || c.Size != r.Size || c.Top != glassTop || c.Bottom != glassBottom)
+        if (cached is not { } c || c.Size != r.Size || c.Top != glassTop || c.Bottom != glassBottom || c.Left != glassLeft || c.Right != glassRight)
         {
             using var recorder = new SKPictureRecorder();
             var target = recorder.BeginRecording(r);
-            DrawSteampunk(target, r, glassTop, glassBottom);
-            cached = (r.Size, glassTop, glassBottom, recorder.EndRecording());
+            DrawSteampunk(target, r, glassTop, glassBottom, glassLeft, glassRight);
+            cached = (r.Size, glassTop, glassBottom, glassLeft, glassRight, recorder.EndRecording());
             _steampunk?.Picture.Dispose();
             _steampunk = cached;
         }
         canvas.DrawPicture(cached.Value.Picture);
     }
 
-    private static void DrawSteampunk(SKCanvas canvas, SKRect r, float glassTop, float glassBottom)
+    private static void DrawSteampunk(SKCanvas canvas, SKRect r, float glassTop, float glassBottom, float glassLeft, float glassRight)
     {
         var random = new Random(1887);
         using var paint = new SKPaint { IsAntialias = true };
@@ -258,7 +265,8 @@ internal static class EffectArt
         Gear(canvas, new SKPoint(r.Left + 60, r.Bottom - 40), 170, 18, new SKColor(0xC8, 0x96, 0x3E, 60));
         Gear(canvas, new SKPoint(r.Right - 90, r.Top + 120), 120, 14, new SKColor(0xB8, 0x73, 0x33, 50));
         // Keep the glass in the canopy. The command line and F-key bar need a quiet, opaque surface.
-        if (glassTop > 2) StainedGlass(canvas, new SKRect(r.Left, r.Top, r.Right, glassTop), random);
+        if (glassTop > 2 && glassRight > glassLeft)
+            StainedGlass(canvas, new SKRect(Math.Max(r.Left, glassLeft), r.Top, Math.Min(r.Right, glassRight), glassTop), random);
         // A fine brass rail distinguishes the work area from the controls below it.
         paint.Color = new SKColor(0xC8, 0x96, 0x3E, 130);
         paint.StrokeWidth = 1;
@@ -300,45 +308,84 @@ internal static class EffectArt
         new(0xB8, 0x56, 0x12), new(0x14, 0x7A, 0x80), new(0xC2, 0x2A, 0x5A),
     ];
 
-    /// <summary>Panes of colored glass in irregular cells, lit from behind, held by dark lead.</summary>
+    /// <summary>
+    /// Connected, irregular leaded-glass fragments fill the shallow menu canopy. Their color fades
+    /// into the iron at all four edges instead of ending as isolated tiles or clipped window panes.
+    /// </summary>
     private static void StainedGlass(SKCanvas canvas, SKRect band, Random random)
     {
-        float cellW = 46, rowsH = Math.Max(10, band.Height / Math.Max(1, (int)(band.Height / 22)));
-        int cols = (int)(band.Width / cellW) + 2, rows = (int)Math.Ceiling(band.Height / rowsH) + 1;
-        var points = new SKPoint[cols + 1, rows + 1];
-        for (int i = 0; i <= cols; i++)
-            for (int j = 0; j <= rows; j++)
-            {
-                float jx = i == 0 || i == cols ? 0 : (float)(random.NextDouble() - 0.5) * cellW * 0.6f;
-                float jy = j == 0 || j == rows ? 0 : (float)(random.NextDouble() - 0.5) * rowsH * 0.5f;
-                points[i, j] = new SKPoint(band.Left + i * cellW + jx, band.Top + j * rowsH + jy);
-            }
+        if (band.Height < 12 || band.Width < 32) return;
+        int count = Math.Max(1, (int)Math.Round(band.Width / 42f));
+        float step = band.Width / count;
+        var upper = new float[count + 1];
+        var lower = new float[count + 1];
+        for (int i = 0; i <= count; i++)
+        {
+            float baseX = band.Left + i * step;
+            upper[i] = baseX + (i == 0 || i == count ? 0 : ((float)random.NextDouble() - 0.5f) * step * 0.24f);
+            lower[i] = baseX + (i == 0 || i == count ? 0 : ((float)random.NextDouble() - 0.5f) * step * 0.24f);
+        }
         using var fill = new SKPaint { IsAntialias = true };
-        using var lead = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 2.8f, Color = new SKColor(0x10, 0x0C, 0x08, 240) };
+        using var lead = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 1.5f, Color = new SKColor(0x10, 0x0B, 0x08, 230) };
         canvas.Save();
         canvas.ClipRect(band);
-        for (int i = 0; i < cols; i++)
-            for (int j = 0; j < rows; j++)
+        for (int i = 0; i < count; i++)
+        {
+            var topLeft = new SKPoint(upper[i], band.Top);
+            var topRight = new SKPoint(upper[i + 1], band.Top);
+            var bottomLeft = new SKPoint(lower[i], band.Bottom);
+            var bottomRight = new SKPoint(lower[i + 1], band.Bottom);
+            using var first = new SKPath();
+            using var second = new SKPath();
+            first.MoveTo(topLeft);
+            first.LineTo(topRight);
+            if (i % 2 == 0)
             {
-                using var cell = new SKPath();
-                cell.MoveTo(points[i, j]);
-                cell.LineTo(points[i + 1, j]);
-                cell.LineTo(points[i + 1, j + 1]);
-                cell.LineTo(points[i, j + 1]);
-                cell.Close();
-                var jewel = Jewels[random.Next(Jewels.Length)];
-                var deep = new SKColor((byte)(jewel.Red * 0.55), (byte)(jewel.Green * 0.55), (byte)(jewel.Blue * 0.55));
-                var center = new SKPoint((points[i, j].X + points[i + 1, j + 1].X) / 2, (points[i, j].Y + points[i + 1, j + 1].Y) / 2);
-                using var light = SKShader.CreateRadialGradient(center, cellW * 0.8f,
-                    [new SKColor((byte)Math.Min(255, jewel.Red * 0.85 + 20), (byte)Math.Min(255, jewel.Green * 0.85 + 20), (byte)Math.Min(255, jewel.Blue * 0.85 + 20), 230), deep.WithAlpha(235)],
-                    SKShaderTileMode.Clamp);
-                fill.Shader = light;
-                canvas.DrawPath(cell, fill);
-                canvas.DrawPath(cell, lead);
+                first.LineTo(bottomRight);
+                second.MoveTo(topLeft);
+                second.LineTo(bottomRight);
+                second.LineTo(bottomLeft);
             }
+            else
+            {
+                first.LineTo(bottomLeft);
+                second.MoveTo(topRight);
+                second.LineTo(bottomRight);
+                second.LineTo(bottomLeft);
+            }
+            first.Close();
+            second.Close();
+            foreach (var fragment in new[] { first, second })
+            {
+                var jewel = Jewels[random.Next(Jewels.Length)];
+                var lit = new SKColor((byte)(jewel.Red * 0.77f + 25), (byte)(jewel.Green * 0.77f + 25), (byte)(jewel.Blue * 0.77f + 25), 220);
+                var deep = new SKColor((byte)(jewel.Red * 0.49f), (byte)(jewel.Green * 0.49f), (byte)(jewel.Blue * 0.49f), 230);
+                using var light = SKShader.CreateLinearGradient(new SKPoint(0, band.Top), new SKPoint(0, band.Bottom), [lit, deep], SKShaderTileMode.Clamp);
+                fill.Shader = light;
+                canvas.DrawPath(fragment, fill);
+            }
+            canvas.DrawLine(topLeft, bottomLeft, lead);
+            canvas.DrawLine(i % 2 == 0 ? topLeft : topRight, i % 2 == 0 ? bottomRight : bottomLeft, lead);
+        }
+        fill.Shader = null;
+        canvas.DrawLine(new SKPoint(band.Right, band.Top), new SKPoint(band.Right, band.Bottom), lead);
+        using (var edgeFade = SKShader.CreateLinearGradient(new SKPoint(0, band.Top), new SKPoint(0, band.Bottom),
+                   [new SKColor(0x1B, 0x13, 0x0D, 255), new SKColor(0x1B, 0x13, 0x0D, 190),
+                    new SKColor(0x1B, 0x13, 0x0D, 100), new SKColor(0x1B, 0x13, 0x0D, 30),
+                    new SKColor(0x1B, 0x13, 0x0D, 0), new SKColor(0x1B, 0x13, 0x0D, 30),
+                    new SKColor(0x1B, 0x13, 0x0D, 100), new SKColor(0x1B, 0x13, 0x0D, 190),
+                    new SKColor(0x1B, 0x13, 0x0D, 255)],
+                   [0f, 0.09f, 0.20f, 0.32f, 0.5f, 0.68f, 0.80f, 0.91f, 1f], SKShaderTileMode.Clamp))
+        using (var veil = new SKPaint { Shader = edgeFade })
+            canvas.DrawRect(band, veil);
+        float side = Math.Min(20f, band.Width * 0.2f) / band.Width;
+        using (var sideFade = SKShader.CreateLinearGradient(new SKPoint(band.Left, 0), new SKPoint(band.Right, 0),
+                   [new SKColor(0x1B, 0x13, 0x0D, 255), new SKColor(0x1B, 0x13, 0x0D, 0),
+                    new SKColor(0x1B, 0x13, 0x0D, 0), new SKColor(0x1B, 0x13, 0x0D, 255)],
+                   [0f, side, 1f - side, 1f], SKShaderTileMode.Clamp))
+        using (var veil = new SKPaint { Shader = sideFade })
+            canvas.DrawRect(band, veil);
         canvas.Restore();
-        using var edge = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 3, Color = new SKColor(0xC8, 0x96, 0x3E, 200) };
-        canvas.DrawLine(band.Left, band.Top == 0 ? band.Bottom - 1.5f : band.Top + 1.5f, band.Right, band.Top == 0 ? band.Bottom - 1.5f : band.Top + 1.5f, edge);
     }
 
     private static void Rivet(SKCanvas canvas, float x, float y)

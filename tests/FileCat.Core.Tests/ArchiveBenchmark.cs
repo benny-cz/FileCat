@@ -32,7 +32,9 @@ public sealed class ArchiveBenchmark : IDisposable
         _providers.Register(archives);
         zip.OtherArchives = archives;
         zip.SpoolForeignMember = archives.Spool;
-        _jobs = new JobManager(new PortableFileOperations(), _providers, Path.Combine(_dir.Path, "journal"));
+        // The adapter the application composes on this system (Linux and macOS: UnixFileOperations; Windows here: the
+        // portable one, as Core tests cannot reference the Windows adapter).
+        _jobs = new JobManager(new FileCat.Core.Platform.PortablePlatform().FileOperations, _providers, Path.Combine(_dir.Path, "journal"));
     }
 
     public void Dispose() => _dir.Dispose();

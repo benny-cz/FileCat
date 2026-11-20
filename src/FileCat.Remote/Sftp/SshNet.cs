@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Sockets;
 using System.Reflection;
 using FileCat.Core.State;
@@ -14,11 +15,33 @@ namespace FileCat.Remote.Sftp;
 /// </summary>
 /// <param name="agentAddress">The SSH agent to use for agent sign-in; null for this user's own (SSH_AUTH_SOCK, or on
 /// Windows the OpenSSH agent service's pipe).</param>
-public sealed class SshNetConnector(string? agentAddress = null) : ISftpConnector
+public sealed class SshNetConnector(string? agentAddress = null, TimeSpan? connectTimeout = null) : ISftpConnector
 {
     public static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(20);
+    private readonly TimeSpan _connectTimeout = connectTimeout ?? ConnectTimeout;
+
+    private sealed class ReviewedKey
+    {
+        public byte[]? Approved { get; set; }
+        public bool OutlastedConnectTimeout { get; set; }
+    }
+
+    private sealed class ReviewTimedOutException(string message, Exception inner) : IOException(message, inner);
 
     public ISftpChannel Connect(RemoteProfile profile, ConnectContext context, CancellationToken ct)
+    {
+        var reviewed = new ReviewedKey();
+        try { return ConnectOnce(profile, context, reviewed, ct); }
+        catch (ReviewTimedOutException) when (!ct.IsCancellationRequested)
+        {
+            // SSH.NET's connection clock also runs while FileCat waits for a person's host-key decision.
+            // Give the approved *exact* key one fresh bounded handshake; never extend a silent server or
+            // repeat the review for a different key, and never retry after cancellation.
+            return ConnectOnce(profile, context, reviewed, ct);
+        }
+    }
+
+    private ISftpChannel ConnectOnce(RemoteProfile profile, ConnectContext context, ReviewedKey reviewed, CancellationToken ct)
     {
         var methods = new List<AuthenticationMethod>();
         PrivateKeyFile? key = null;
@@ -50,9 +73,23 @@ public sealed class SshNetConnector(string? agentAddress = null) : ISftpConnecto
                     methods.Add(Interactive(profile, context));
                     break;
             }
-            var info = new ConnectionInfo(profile.Host, profile.Port, profile.User, methods.ToArray()) { Timeout = ConnectTimeout };
+            var info = new ConnectionInfo(profile.Host, profile.Port, profile.User, methods.ToArray()) { Timeout = _connectTimeout };
             client = new SftpClient(info) { KeepAliveInterval = TimeSpan.FromSeconds(30), OperationTimeout = TimeSpan.FromMinutes(2) };
-            client.HostKeyReceived += (_, e) => e.CanTrust = context.ApproveHostKey(e.HostKey);
+            client.HostKeyReceived += (_, e) =>
+            {
+                if (reviewed.Approved is { } approved && e.HostKey.AsSpan().SequenceEqual(approved))
+                {
+                    e.CanTrust = true;
+                    return;
+                }
+                var watch = Stopwatch.StartNew();
+                e.CanTrust = context.ApproveHostKey(e.HostKey);
+                if (e.CanTrust)
+                {
+                    reviewed.Approved = e.HostKey.ToArray();
+                    reviewed.OutlastedConnectTimeout |= watch.Elapsed >= _connectTimeout;
+                }
+            };
             client.ConnectAsync(ct).GetAwaiter().GetResult();
             var channel = new SshNetChannel(client, key) { SocketBuffer = WidenSocketBuffers(client) };
             client = null;
@@ -74,9 +111,13 @@ public sealed class SshNetConnector(string? agentAddress = null) : ISftpConnecto
         {
             throw new IOException($"Could not connect to {profile.Display}: {RemoteErrorText.Reason(ex)}", ex);
         }
+        catch (SshOperationTimeoutException ex) when (reviewed.OutlastedConnectTimeout && reviewed.Approved is not null)
+        {
+            throw new ReviewTimedOutException($"{profile.Display} did not answer within {_connectTimeout.TotalSeconds:0} seconds after its server key was reviewed.", ex);
+        }
         catch (SshOperationTimeoutException ex)
         {
-            throw new IOException($"{profile.Display} did not answer within {ConnectTimeout.TotalSeconds:0} seconds.", ex);
+            throw new IOException($"{profile.Display} did not answer within {_connectTimeout.TotalSeconds:0} seconds.", ex);
         }
         catch (SocketException ex)
         {

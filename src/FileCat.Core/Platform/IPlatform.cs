@@ -18,8 +18,12 @@ public interface IPlatform : IDisposable
     /// <summary>The data files carry beside their contents: streams and attributes (D-55).</summary>
     HiddenData.IHiddenData HiddenData { get; }
 
+    /// <summary>Entry ownership and account naming, kept separate so names never block device I/O queues.</summary>
+    IOwnership Ownership { get; }
+
     /// <summary>What the file system itself records about an item: IDs, exact times, journals, raw records (D-56).</summary>
     Records.IFileRecords FileRecords { get; }
+    IStorageTransforms StorageTransforms { get; }
 
     /// <summary>Registers the file-system, computer, network, and OS-specific providers.</summary>
     void RegisterProviders(ProviderRegistry registry);
@@ -44,6 +48,9 @@ public class PortablePlatform : IPlatform
         OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new HiddenData.UnixHiddenData() : new HiddenData.NoHiddenData();
     public Records.IFileRecords FileRecords { get; protected init; } =
         OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new Records.UnixFileRecords() : new Records.NoFileRecords();
+    public IStorageTransforms StorageTransforms { get; protected init; } = new NoStorageTransforms();
+    public IOwnership Ownership { get; protected init; } =
+        OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new UnixOwnership() : new NoOwnership();
     public LocalFileSystemProvider? FileSystemProvider { get; private set; }
 
     public virtual void RegisterProviders(ProviderRegistry registry)

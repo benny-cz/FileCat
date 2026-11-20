@@ -22,6 +22,8 @@ public enum ElevatedVerb
     /// <see cref="ElevatedStep.Path"/> is the device (\\?\Volume{…} or \\.\PhysicalDriveN), <see cref="ElevatedStep.Name"/> the pipe.
     /// </summary>
     ReadDevice,
+    /// <summary>Enumerate metadata on one approved whole local NTFS volume.</summary>
+    EnumerateNtfsMetadata,
 }
 
 /// <summary>A Registry change in wire form: explicit HKLM or HKU paths, the view, and exact bytes (base64).</summary>
@@ -37,6 +39,8 @@ public sealed record ElevatedRegistryChange(
 /// </summary>
 public sealed record ElevatedStep(ElevatedVerb Verb)
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public ElevatedNtfsMetadataScope? NtfsMetadata { get; init; }
     public ElevatedRegistryChange? Registry { get; init; }
     /// <summary>The item acted on, or the copy/move source.</summary>
     public string? Path { get; init; }
@@ -49,6 +53,12 @@ public sealed record ElevatedStep(ElevatedVerb Verb)
     public FileAttributes SetAttributes { get; init; }
     public FileAttributes ClearAttributes { get; init; }
 }
+
+/// <summary>Evidence captured by the ordinary installed requester and independently checked by the broker.</summary>
+public sealed record ElevatedNtfsMetadataScope(
+    string Volume, string VolumeSerial, string RootFileId,
+    long RequesterCreatedFileTime, uint RequesterSession, string RequesterLogonSid, string RequesterImageId,
+    int ProtocolVersion, int MaximumRecords, string Fields);
 
 /// <summary>
 /// The immutable plan one administrator consent covers (AI-13): who asked, when, and exactly which steps run.

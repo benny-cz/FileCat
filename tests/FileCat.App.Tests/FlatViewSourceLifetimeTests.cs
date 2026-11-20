@@ -8,11 +8,37 @@ using FileCat.Core.Commands;
 using FileCat.Core.Resources;
 using FileCat.Core.Search;
 using FileCat.Core.State;
+using FileCat.Core.Listing;
 
 namespace FileCat.App.Tests;
 
 public sealed class FlatViewSourceLifetimeTests
 {
+    [AvaloniaFact]
+    public async Task Completed_flat_view_shows_nested_same_named_files_without_manual_reread()
+    {
+        using var scope = new Scope();
+        foreach (var subfolder in new[] { "a", "b" })
+        {
+            var folder = Directory.CreateDirectory(Path.Join(scope.Folder, subfolder)).FullName;
+            File.WriteAllText(Path.Join(folder, "report.txt"), subfolder + " provenance");
+        }
+        scope.Vm.ExecuteAsync(CommandIds.FlatView).GetAwaiter().GetResult();
+        var tab = scope.Vm.ActiveTab!;
+        var set = scope.Services.ResultSets.Get(tab.Location!)!;
+        for (int i = 0; i < 200 && (set.Count != 4 || tab.Listing.TotalCount != 4); i++)
+        {
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.True(set.IsComplete);
+        Assert.Equal(4, set.Count);
+        Assert.Equal(4, tab.Listing.TotalCount);
+        Assert.Equal(2, set.Snapshot().Count(i => i.Item.Name == "report.txt" && i.Relative is "a" or "b"));
+        Assert.Equal(2, Enumerable.Range(0, tab.Listing.VisibleCount)
+            .Count(i => tab.Listing.GetVisible(i).Name == "report.txt"));
+    }
+
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]

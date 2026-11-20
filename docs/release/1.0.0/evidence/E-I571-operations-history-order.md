@@ -1,0 +1,9 @@
+# I571: Operations history keeps newest jobs first
+
+2026-10-30. Preliminary source correction at `1ffaf8f559f9e7feef92ba970bf876832d76ae2b`. The owner requested newest operations at the top of the Jobs list and oldest at the bottom, with focus on the newest preserved.
+
+The history view binds directly to `OperationCenterViewModel.Jobs`. It already inserted each arriving `JobAdded` notification at index zero. `JobManager` admits jobs under a lock but invokes notifications outside that lock; an older notification can therefore reach the UI after a newer one. The old unconditional insertion would put that older job above the newer one. The correction inserts a row according to the manager's retained admission order. It does not alter job queue order, run order, or the selected row.
+
+A headless regression deliberately holds the first admission's notification, admits a second job, then releases the first notification. It verifies the visible collection order is newest then oldest and that opening the drawer selects the newest; the late older row does not steal selection. The complete `OperationCenterTests` class passes **8/8**, including the existing reopen, deliberate-selection, queue-control and history-retirement checks. This is source-level evidence, not a native visual check of the installed candidate.
+
+**Stopping rule:** In the exact installed Windows 1.0.0 candidate, perform several short operations and one overlapping pair. The Jobs history must display the newest admitted operation at the top and the oldest retained operation at the bottom. Opening the drawer should focus the newest relevant operation; a later history update must not move a deliberate selection. Reconcile producer and all four platform CI lanes at the latest product source, including any new skips. Public preview.3 predates this correction; stable 1.0.0 remains NO-GO until separate candidate and signing gates pass.

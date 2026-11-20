@@ -1,0 +1,19 @@
+  FileCat.Core -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\bin\Debug\net10.0\FileCat.Core.dll
+  FileCat.Recovery -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Recovery\bin\Debug\net10.0\FileCat.Recovery.dll
+  FileCat.Platform.Windows -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Platform.Windows\bin\Debug\net10.0\FileCat.Platform.Windows.dll
+  FileCat.Remote -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Remote\bin\Debug\net10.0\FileCat.Remote.dll
+  FileCat.Archives.Rar15 -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives.Rar15\bin\Debug\net10.0\FileCat.Archives.Rar15.dll
+  FileCat.SharpCompress -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\ThirdParty\SharpCompress\bin\Debug\net10.0\FileCat.SharpCompress.dll
+  FileCat.Archives -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives\bin\Debug\net10.0\FileCat.Archives.dll
+  FileCat.ShellHost -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.ShellHost\bin\Debug\net10.0\FileCat.ShellHost.dll
+  FileCat.App -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\bin\Debug\net10.0\FileCat.dll
+  FileCat.CoreCrashHarness -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.CoreCrashHarness\bin\Debug\net10.0\FileCat.CoreCrashHarness.dll
+E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.HistoryReview.cs(40,33): error CS1061: 'Button' does not contain a definition for 'TranslatePoint' and no accessible extension method 'TranslatePoint' accepting a first argument of type 'Button' could be found (are you missing a using directive or an assembly reference?) [E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\FileCat.Rendering.Tests.csproj]
+
+Build FAILED.
+
+E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.HistoryReview.cs(40,33): error CS1061: 'Button' does not contain a definition for 'TranslatePoint' and no accessible extension method 'TranslatePoint' accepting a first argument of type 'Button' could be found (are you missing a using directive or an assembly reference?) [E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\FileCat.Rendering.Tests.csproj]
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:26.81

@@ -1,0 +1,16 @@
+﻿{
+    "schemaVersion":  1,
+    "user":  "DESKTOP-A60F1NE\\filecatdsa_r2",
+    "filesystem":  "NTFS",
+    "fileCatProcesses":  [
+                             {
+                                 "Id":  5084,
+                                 "ProcessName":  "FileCat.Core.Tests"
+                             }
+                         ],
+    "testProcesses":  [
+
+                      ],
+    "nativeState":  "FINISHED exit=0",
+    "coreState":  "FINISHED exit=0"
+}

@@ -1,0 +1,20 @@
+{
+    "purpose":  "Native acquisition lifetime subset; no physical-input qualification",
+    "processId":  868,
+    "finished":  true,
+    "acquisitionProbe":  {
+                             "repeatedStartPreservedIdentity":  true,
+                             "marksAndBasketPreserved":  true,
+                             "importedStayedInert":  true,
+                             "comparisonStayedInert":  true,
+                             "sourcePaths":  518
+                         },
+    "fixtureRegularPaths":  509,
+    "appSha256":  "e0fa51226aab15c7eaf35b0bba1bb052458420e09581cfffab774f2ad0ac5809",
+    "harnessSha256":  "336b2d987739fca7445c0511ff39655372a873ea8f436191bf8593c011e07174",
+    "ownedProcessExited":  true,
+    "state":  "closed",
+    "sourceUnchanged":  true,
+    "deadlineClosed":  false,
+    "passed":  true
+}

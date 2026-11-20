@@ -18,7 +18,7 @@ public static class ContextMenuFactory
         var caps = provider.GetCapabilities(location);
         string? unavailable = MainViewModel.LocationWriteBlockReason(tab, location);
         bool canPaste = unavailable is null && location.IsFileSystem && (caps & LocationCapabilities.TransferTarget) != 0;
-        bool canCreate = location.Scheme is Schemes.FileSystem or Schemes.Zip or Schemes.Sftp or Schemes.Mtp &&
+        bool canCreate = location.Scheme is Schemes.FileSystem or Schemes.Zip or Schemes.Archive or Schemes.Sftp or Schemes.Mtp &&
                          (caps & LocationCapabilities.CreateDirectory) != 0 && unavailable is null;
         var items = new List<Control>();
         void Add(string id, bool enabled, string? reason = null)
@@ -43,7 +43,7 @@ public static class ContextMenuFactory
         Add(CommandIds.MakeDirectory, canCreate,
             unavailable ?? ((caps & LocationCapabilities.CreateDirectory) == 0
                 ? provider.ExplainUnavailable(location, LocationCapabilities.CreateDirectory)
-                : "Create a folder in a file-system, ZIP, SFTP, or device location."));
+                : "Create a folder in a file-system, archive, SFTP, or device location."));
         items.Add(new Separator());
         Add(CommandIds.Refresh, true);
         if (location.IsFileSystem) Add(CommandIds.OpenTerminal, true);
@@ -69,12 +69,28 @@ public static class ContextMenuFactory
     private static readonly string[] MoreItems =
     [
         CommandIds.Duplicate, CommandIds.DeletePermanent, "-",
-        CommandIds.CopyNames, CommandIds.OpenInNewTab, CommandIds.OpenTerminal, CommandIds.Checksum, CommandIds.VerifyChecksums,
+        CommandIds.CopyNames, CommandIds.OpenInNewTab, CommandIds.OpenTerminal, CommandIds.Checksum, CommandIds.VerifyChecksums, CommandIds.StorageAttributes,
     ];
 
-    public static ContextMenu Build(MainViewModel vm)
+    public static ContextMenu Build(MainViewModel vm, string? invokedAnalysisRoot = null, IReadOnlyList<string>? markedAnalysisRoots = null)
     {
         var items = BuildItems(vm, Items);
+        if (invokedAnalysisRoot is not null || markedAnalysisRoots is { Count: > 0 })
+        {
+            var analysis = new List<Control>();
+            if (invokedAnalysisRoot is not null) analysis.Add(Analyze(vm, MainViewModel.AnalyzeDiskSpaceTitle, [invokedAnalysisRoot]));
+            if (markedAnalysisRoots is { Count: > 0 }) analysis.Add(Analyze(vm, MainViewModel.AnalyzeSelectedFoldersTitle, markedAnalysisRoots));
+            analysis.Add(new Separator());
+            string? properties = vm.Services.Commands.Get(CommandIds.Properties)?.Title;
+            int at = items.FindIndex(c => c is MenuItem { Header: string h } && h == properties);
+            if (at < 0)
+            {
+                analysis.RemoveAt(analysis.Count - 1);
+                if (items.Count > 0) items.Add(new Separator());
+                items.AddRange(analysis);
+            }
+            else items.InsertRange(at, analysis);
+        }
         // A drive or a disk image: its deleted files, straight from here (plan §17), above Properties.
         if (vm.RecoveryOfferForFocus() is { } recovery)
         {
@@ -95,6 +111,13 @@ public static class ContextMenuFactory
             else items.Insert(at, verify);
         }
         return new ContextMenu { ItemsSource = items };
+    }
+
+    internal static MenuItem Analyze(MainViewModel vm, string title, IReadOnlyList<string> roots)
+    {
+        var item = new MenuItem { Header = title, Icon = MenuIconFactory.Create(CommandIds.DiskSpace) };
+        item.Click += (_, _) => vm.OpenDiskSpace(roots);
+        return item;
     }
 
     private static List<Control> BuildItems(MainViewModel vm, IReadOnlyList<string> items)

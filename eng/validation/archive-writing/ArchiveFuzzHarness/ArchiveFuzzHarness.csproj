@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>FileCat.ArchiveFuzzHarness</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <RuntimeIdentifiers></RuntimeIdentifiers>
+    <FileCatFuzzProductDirectory Condition="'$(FileCatFuzzProductDirectory)' == ''">$(MSBuildThisFileDirectory)../../../../src/FileCat.Core/bin/$(Configuration)/net10.0</FileCatFuzzProductDirectory>
+    <FileCatFuzzArchiveDirectory Condition="'$(FileCatFuzzArchiveDirectory)' == ''">$(MSBuildThisFileDirectory)../../../../src/FileCat.Archives/bin/$(Configuration)/net10.0</FileCatFuzzArchiveDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Test tooling only. Nothing in the application or its release graph references this project. -->
+    <Reference Include="FileCat.Core"><HintPath>$(FileCatFuzzProductDirectory)/FileCat.Core.dll</HintPath></Reference>
+    <Reference Include="FileCat.Archives"><HintPath>$(FileCatFuzzArchiveDirectory)/FileCat.Archives.dll</HintPath></Reference>
+    <!-- The application's own reader for .bz2/.zst files: the standalone-streams oracle decodes admitted streams with it. -->
+    <Reference Include="FileCat.SharpCompress"><HintPath>$(FileCatFuzzArchiveDirectory)/FileCat.SharpCompress.dll</HintPath></Reference>
+    <PackageReference Include="SharpFuzz" Version="[2.3.0]" PrivateAssets="All" />
+  </ItemGroup>
+</Project>

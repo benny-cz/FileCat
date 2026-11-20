@@ -9,6 +9,31 @@ namespace FileCat.Core.Tests;
 /// <summary>Cancellation and opening/reading errors keep their meaning when owned content cleanup also fails.</summary>
 public sealed class ComparisonContentRetirementTests(ITestOutputHelper output)
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Deferred_comparisons_return_close_failures_through_their_task(bool sameDevice,bool both)
+    {
+        for(int iteration=0;iteration<32;iteration++)
+        {
+            using var rig=new Rig("equal",both?"both":"left-io",sameDevice,deferOpen:true);
+            var pending=rig.Comparison.ContentEqualAsync(rig.Left,rig.Right,rig.Stop.Token);
+            try
+            {
+                Assert.True(await Task.Run(()=>rig.OpenEntered.Wait(TimeSpan.FromSeconds(5)),TestContext.Current.CancellationToken));
+                Assert.False(pending.IsCompleted);rig.OpenRelease.Set();
+                var error=await Record.ExceptionAsync(()=>pending.WaitAsync(TimeSpan.FromSeconds(5),TestContext.Current.CancellationToken));
+                var expected=rig.Provider.Sources.AsEnumerable().Reverse().Select(source=>source.CloseFailure).First(failure=>failure is not null);
+                Assert.Same(expected,error);Assert.Equal(2,rig.Provider.Sources.Count);
+                Assert.All(rig.Provider.Sources,source=>{Assert.Equal(1,source.Closes);Assert.True(Exclusive(source.Path));});
+                Assert.Equal(rig.LeftBefore,Hash(rig.LeftPath));Assert.Equal(rig.RightBefore,Hash(rig.RightPath));
+            }
+            finally{rig.OpenRelease.Set();}
+        }
+    }
+
     public static TheoryData<string, string, bool> Cases
     {
         get
@@ -67,6 +92,9 @@ public sealed class ComparisonContentRetirementTests(ITestOutputHelper output)
     {
         private readonly string root = Directory.CreateTempSubdirectory("fc-comparison-retirement-").FullName;
         public CancellationTokenSource Stop { get; } = new();
+        public ManualResetEventSlim OpenEntered { get; }=new();
+        public ManualResetEventSlim OpenRelease { get; }=new();
+        public bool DeferOpen { get; }
         public DeviceIoScheduler Io { get; } = new(hangThreshold: TimeSpan.FromMinutes(1), threadsPerDevice: 1);
         public Provider Provider { get; }
         public ComparisonIo Comparison { get; }
@@ -76,8 +104,9 @@ public sealed class ComparisonContentRetirementTests(ITestOutputHelper output)
         public string RightBefore { get; }
         public ItemRef Left => new(new Location(Provider.Scheme, "left"), "one.dat", EntryKind.File);
         public ItemRef Right => new(new Location(Provider.Scheme, "right"), "one.dat", EntryKind.File);
-        public Rig(string scenario, string cleanup, bool sameDevice)
+        public Rig(string scenario, string cleanup, bool sameDevice,bool deferOpen=false)
         {
+            DeferOpen=deferOpen;
             LeftPath = Path.Combine(root, "left.dat");RightPath = Path.Combine(root, "right.dat");
             File.WriteAllText(LeftPath, "owned comparison bytes\n");File.WriteAllText(RightPath, scenario == "different" ? "owned comparison other\n" : "owned comparison bytes\n");
             LeftBefore = Hash(LeftPath);RightBefore = Hash(RightPath);
@@ -86,10 +115,12 @@ public sealed class ComparisonContentRetirementTests(ITestOutputHelper output)
         }
         public void Dispose()
         {
+            OpenRelease.Set();
             Io.Dispose();
             foreach (var source in Provider.Sources) source.Cleanup();
             Assert.All(Provider.Sources, source => Assert.True(Exclusive(source.Path)));
             Stop.Dispose();
+            OpenEntered.Dispose();OpenRelease.Dispose();
             string parent = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath())) + Path.DirectorySeparatorChar;
             Assert.StartsWith(parent, Path.GetFullPath(root));Directory.Delete(root, recursive: true);Assert.False(Directory.Exists(root));
         }
@@ -123,6 +154,8 @@ public sealed class ComparisonContentRetirementTests(ITestOutputHelper output)
         public override IContentSource OpenContent(ItemRef item)
         {
             string side = item.Parent.Path;
+            if(rig.DeferOpen&&side=="left")
+            {rig.OpenEntered.Set();if(!rig.OpenRelease.Wait(TimeSpan.FromSeconds(10)))throw new TimeoutException("The deferred comparison test did not release its owned opener.");}
             if (scenario is "right-open-io" or "right-open-denied" or "right-open-invalid" && side == "right") { Boundary(side, "open");throw new InvalidOperationException("Unreachable owned error path"); }
             Exception? close = side == "left" && cleanup is "left-io" or "both" ? new IOException("Owned left close failure")
                 : side == "right" && cleanup is "right-denied" or "both" ? new UnauthorizedAccessException("Owned right close failure") : null;

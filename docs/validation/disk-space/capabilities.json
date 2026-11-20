@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "branch": "codex/disk-space-analysis",
+  "baseline": "4282929753f062f5bb2cc130e8316b133e5c8e03",
+  "releaseQualified": false,
+  "availabilityScope": "Development application and tested native adapters. A conditional verb also requires live source and operation admission. Release package qualification is tracked separately.",
+  "packets": {
+    "W0": "in-progress",
+    "W1": "in-progress",
+    "W2": "in-progress",
+    "W3": "in-progress",
+    "W4": "in-progress",
+    "W5": "in-progress",
+    "W6": "in-progress",
+    "W7": "in-progress",
+    "W8": "pending"
+  },
+  "securityGates": {
+    "SG01": "UNQUALIFIED/OFF",
+    "SG02": "UNQUALIFIED/OFF",
+    "SG03": "UNQUALIFIED/OFF",
+    "SG04": "UNQUALIFIED/OFF",
+    "SG05": "UNQUALIFIED/OFF",
+    "SG06": "UNQUALIFIED/OFF"
+  },
+  "backends": [
+    {
+      "id": "windows-primary-allocation-v1",
+      "platform": "Windows",
+      "filesystem": "Local NTFS",
+      "packageTier": "Ordinary application",
+      "method": "Reported primary allocation through held NTFS metadata handles",
+      "enabledInProduct": true,
+      "assurance": "ObservedMetadata",
+      "tests": [
+        "AnalysisWindowsTests.NativeAccountingUsesIdentityAndNeverTraversesJunctions",
+        "AnalysisWindowsTests.QueuedDirectoryCannotIgnoreRenamedAncestors",
+        "AnalysisWindowsTests.ExplicitHardLinkedFileRootsUseMetadataRightsAndCountOneObject",
+        "AnalysisWindowsTests.NestedRootsAreCoveredOnceInEitherSelectionOrder"
+      ],
+      "evidence": "windows-vm-native-r18.xml",
+      "lastQualifiedBuild": "r1770 on 6e19902c exercised Standard linked NTFS acquisition and its scratch-budget fallback",
+      "scaleEvidence": "NATIVE_MILLION_SCALE_QUALIFICATION.md",
+      "limitations": [
+        "Read-only regression fixtures pass on the ordinary host and guest users; sparse/compressed/resident/preallocation/cloud/filter and filesystem matrices remain unqualified.",
+        "Explicit file-root fixture denies primary content reads and permits metadata observations."
+      ]
+    },
+    {
+      "id": "darwin-stat-total-blocks-v1",
+      "platform": "macOS arm64",
+      "filesystem": "Local APFS",
+      "packageTier": "Ordinary application",
+      "method": "Reported block allocation from the held observation",
+      "enabledInProduct": true,
+      "assurance": "ObservedMetadata",
+      "tests": [
+        "AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink",
+        "AnalysisScanningTests.UnixQueuedDirectoryRetainsItsAncestorBinding",
+        "AnalysisScanningTests.UnixExplicitHardLinkedFileRootsAreTwoPathsAndOneObject",
+        "AnalysisScanningTests.UnixNestedRootsAreCoveredOnceInEitherSelectionOrder"
+      ],
+      "evidence": "mac-core-r26.xml",
+      "lastQualifiedBuild": "r1710 native APFS scale and r1778 on c4a4a928 Core analysis and APFS clone-sharing regression",
+      "scaleEvidence": "NATIVE_MILLION_SCALE_QUALIFICATION.md",
+      "limitations": [
+        "Total reported block allocation; not exclusive ownership or primary-fork-only allocation.",
+        "Basic fixture only; clones, forks, mounts, cloud and substitution matrix remain unqualified.",
+        "Raw non-UTF-8 names have no qualified recursive macOS route."
+      ]
+    },
+    {
+      "id": "linux-statx-blocks-v1",
+      "platform": "Linux",
+      "filesystem": "Qualified local Linux mounts including tested ext4",
+      "packageTier": "Ordinary application",
+      "method": "Reported statx blocks with native mount identity",
+      "enabledInProduct": true,
+      "assurance": "ObservedMetadata",
+      "tests": [
+        "AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink"
+      ],
+      "evidence": "ubuntu-core-r26.xml",
+      "lastQualifiedBuild": "r1620 native ext4 scale and r1778 on c4a4a928 Core analysis regression",
+      "scaleEvidence": "NATIVE_MILLION_SCALE_QUALIFICATION.md",
+      "limitations": [
+        "Requires statx mount identity and openat2 containment; btrfs object uniqueness is not asserted without subvolume identity.",
+        "Initial ext4 regressions and native desktop subsets pass; broader filesystem, cloud, race and resource matrices remain unqualified."
+      ]
+    }
+  ],
+  "verbs": [
+    {
+      "id": "bind-current-source",
+      "enabled": true,
+      "platform": "Windows, macOS and Linux",
+      "filesystem": "Explicit local regular file or folder accepted by Standard analysis",
+      "packageTier": "Ordinary application",
+      "method": "Held native source and separate approved Standard analysis",
+      "assurance": "ObservedMetadata",
+      "qualificationTests": [
+        "AnalysisRenderingTests.CurrentSourceBindingScansOnlyTheExplicitlyChosenItemAfterReview",
+        "AnalysisRenderingTests.CurrentSourceBindingRefusesAChangedItemType",
+        "AnalysisRenderingTests.CurrentSourceBindingKeepsTheReviewedTargetWhenTheChosenAliasChanges"
+      ],
+      "evidence": "README.md",
+      "lastQualifiedBuild": "r1508, r1509 and r1512–r1514 development",
+      "reason": "Choose a current local file or folder explicitly. Saved locations stay offline."
+    },
+    {
+      "id": "reveal-in-panel",
+      "enabled": true,
+      "platform": "Windows, macOS and Linux",
+      "filesystem": "Verified live local folder or a regular file with a verified recorded parent",
+      "packageTier": "Ordinary application",
+      "method": "Read through the held folder, then publish metadata to a temporary read-only workspace tab",
+      "assurance": "Revalidated live folder and recorded ancestors",
+      "qualificationTests": [
+        "AnalysisRenderingTests.NativeAnalysisPanelRevealDisplaysBoundMetadataWithoutOpeningThePathAgain",
+        "AnalysisRenderingTests.NativeAnalysisPanelRevealRefusesAnOversizedCurrentFolderWithoutPublishingPartOfIt",
+        "AnalysisRenderingTests.NativeBranchRefreshRefusesAReplacedAncestorEvenWhenTheSelectedDirectoryMovedBack",
+        "AnalysisRenderingTests.NativeAnalysisPanelRevealRefusesAReplacedSelectedFile"
+      ],
+      "evidence": "README.md",
+      "lastQualifiedBuild": "r1519 and r1520 folder workflows. r1524–r1527 file focus workflows on all three platforms.",
+      "reason": "Select a verified live folder or a file in a verified recorded parent. The read-only tab is limited to 4,096 entries and 2 MiB of displayed names."
+    },
+    {
+      "id": "read-only-result-set-handoff",
+      "enabled": true,
+      "platform": "Windows, macOS and Linux",
+      "filesystem": "Captured memory or indexed observations",
+      "packageTier": "Ordinary application",
+      "method": "Publish the exact captured marks or focused entry to a temporary read-only results panel",
+      "assurance": "ObservedMetadata",
+      "qualificationTests": [
+        "AnalysisRenderingTests.NativeAnalysisPanelResultsKeepExactMarksWhenTheSourceMovesAndTheFilterHidesOne",
+        "AnalysisRenderingTests.NativeAnalysisPanelResultsRefuseAnOversizedSelectionBeforeReadingEntries",
+        "AnalysisRenderingTests.NativeAnalysisPanelResultsRetainImportedAndPrivilegedProvenance"
+      ],
+      "evidence": "README.md",
+      "lastQualifiedBuild": "r1528–r1530 development",
+      "reason": "Mark or focus captured entries. Refine selections beyond 4,096 entries or 2 MiB of displayed paths."
+    },
+    {
+      "id": "working-set-handoff",
+      "enabled": false,
+      "lastQualifiedBuild": null,
+      "reason": "Persistent working sets need qualified current source references. Open selected observations in read-only results."
+    },
+    {
+      "id": "preview",
+      "enabled": true,
+      "platform": "Windows",
+      "filesystem": "Local NTFS",
+      "packageTier": "Ordinary application with a finished live acquisition",
+      "method": "Held primary file read, first 16 KiB",
+      "assurance": "Revalidated live object and recorded version",
+      "qualificationTests": ["AnalysisRenderingTests.NativePrimaryPreviewUsesBoundBytesAndRefusesChangedContent"],
+      "evidence": "NTFS_PRIMARY_CONTENT_QUALIFICATION.md",
+      "lastQualifiedBuild": "r1462 development",
+      "reason": "Preview requires a finished live local NTFS analysis. Historical or imported paths require an explicit current-source binding."
+    },
+    {
+      "id": "copy",
+      "enabled": true,
+      "platform": "Windows",
+      "filesystem": "Local NTFS source with a qualified local destination",
+      "packageTier": "Ordinary application with a finished live acquisition",
+      "method": "Held source and streams, reviewed create-new output and guarded publication",
+      "assurance": "ReviewedObject",
+      "qualificationTests": [
+        "AnalysisRenderingTests.NativeReviewedCopyQueuesOnlyApprovedEntriesAndKeepsLateCollisions",
+        "AnalysisRenderingTests.NativeReviewedCopyPreservesStreamsAndKeepsExistingFiles"
+      ],
+      "evidence": "REVIEWED_FILE_ACTIONS_QUALIFICATION.md",
+      "lastQualifiedBuild": "r1462 development",
+      "reason": "Reviewed copy requires a verified source and a destination that supports publishing a new file safely."
+    },
+    {
+      "id": "replace",
+      "enabled": false,
+      "lastQualifiedBuild": null,
+      "reason": "Reviewed replacement of a source file requires a qualified expected-destination binding. Private inventory replacement has its own guarded store capability."
+    },
+    {
+      "id": "move",
+      "enabled": false,
+      "lastQualifiedBuild": null,
+      "evidence": "REVIEWED_FILE_ACTIONS_QUALIFICATION.md",
+      "reason": "Reviewed move requires proof of the full approved file version through removal of the source name."
+    },
+    {
+      "id": "recycle",
+      "enabled": false,
+      "lastQualifiedBuild": null,
+      "reason": "Reviewed recycling is unavailable here; exact-entry and outcome proof are unqualified."
+    },
+    {
+      "id": "permanent-delete",
+      "enabled": false,
+      "lastQualifiedBuild": null,
+      "reason": "No qualified exact-entry mutation adapter."
+    },
+    {
+      "id": "fast-ntfs",
+      "enabled": false,
+      "platform": "Windows",
+      "filesystem": "One whole local NTFS volume",
+      "packageTier": "Opt-in installed development candidate",
+      "assurance": "Privileged-derived metadata with partial alias coverage",
+      "evidence": "FAST_NTFS_BROKER_QUALIFICATION.md",
+      "lastQualifiedBuild": "r1448 installed development consent and cancellation",
+      "reason": "Signed installed packages still require qualification. Standard analysis is available."
+    },
+    {
+      "id": "archive-contents",
+      "enabled": false,
+      "lastQualifiedBuild": null,
+      "reason": "Producer-side resource isolation is unqualified."
+    },
+    {
+      "id": "stable-hash",
+      "enabled": true,
+      "platform": "Windows",
+      "filesystem": "Local NTFS",
+      "packageTier": "Ordinary application with a finished live acquisition",
+      "method": "Explicit duplicate review with a held primary-data reader",
+      "assurance": "StableContentProof for a successful bound read",
+      "qualificationTests": [
+        "AnalysisRenderingTests.NativeDuplicateReadConsentChecksBoundScopeAndLeavesSelectionsIntact",
+        "AnalysisRenderingTests.NativeDuplicateReadConsentRejectsCapturedDataWithoutItsRuntimeOwner"
+      ],
+      "evidence": "DUPLICATE_CONTENT_QUALIFICATION.md",
+      "lastQualifiedBuild": "r1462 development",
+      "reason": "Stable content evidence requires explicit review and a qualified ordinary live file binding."
+    }
+  ],
+  "operationFeasibility": {
+    "design": "../../design/FILECAT_DISK_SPACE_OPERATION_FEASIBILITY.md",
+    "status": "tested-candidates-have-insufficient-proof",
+    "evidence": "operation-feasibility-r36.json",
+    "platformWideUnsupportedQualified": false,
+    "destructiveCapabilitiesEnabled": false
+  }
+}

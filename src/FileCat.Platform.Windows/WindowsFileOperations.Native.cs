@@ -18,10 +18,12 @@ public partial class WindowsFileOperations
     private const uint COPY_FILE_COPY_SYMLINK = 0x00000800;
     private const uint COPY_FILE_NO_BUFFERING = 0x00001000;
     private const uint COPY_FILE_ALLOW_DECRYPTED_DESTINATION = 0x00000008;
+    private const uint COPY_FILE_NO_OFFLOAD = 0x00040000;
     private const uint COPY_FILE_DISABLE_PRE_ALLOCATION = 0x04000000;
     private const uint COPY_FILE_ENABLE_SPARSE_COPY = 0x20000000; // Windows 11 22H2+
     private const int E_INVALIDARG = unchecked((int)0x80070057);
     private const int COPYFILE2_CALLBACK_CHUNK_FINISHED = 2;
+    private const int COPYFILE2_CALLBACK_STREAM_STARTED = 3;
     private const int COPYFILE2_CALLBACK_STREAM_FINISHED = 4;
     private const int COPYFILE2_PROGRESS_CONTINUE = 0;
     private const int COPYFILE2_PROGRESS_CANCEL = 1;
@@ -75,7 +77,12 @@ public partial class WindowsFileOperations
     public override unsafe IReadOnlyList<string> GetAlternateStreams(string path)
     {
         nint handle = FindFirstStream(Long(path), 0, out var data, 0);
-        if (handle == -1) return [];
+        if (handle == -1)
+        {
+            int error = Marshal.GetLastPInvokeError();
+            if (error == 38 /* HANDLE_EOF */ || error is 1 or 50 or 87 && !GetVolumeInfo(path).SupportsNamedStreams) return [];
+            throw new IOException("The file's additional streams could not be inspected.", new System.ComponentModel.Win32Exception(error));
+        }
         var list = new List<string>();
         try
         {
@@ -83,10 +90,16 @@ public partial class WindowsFileOperations
             {
                 var name = new string(data.StreamName);
                 const string suffix = ":$DATA";
-                if (name.Length > suffix.Length + 1 && name[0] == ':' && name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                if (!name.Equals("::$DATA", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (name.Length <= suffix.Length + 1 || name[0] != ':' || !name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) || list.Count >= 1024)
+                        throw new IOException("The file's additional stream inventory is unsupported or too large.");
                     list.Add(name[1..^suffix.Length]);
+                }
             }
             while (FindNextStream(handle, out data));
+            int error = Marshal.GetLastPInvokeError();
+            if (error != 38 /* HANDLE_EOF */) throw new IOException("The complete additional stream inventory could not be read.", new System.ComponentModel.Win32Exception(error));
         }
         finally
         {
@@ -106,12 +119,14 @@ public partial class WindowsFileOperations
         return PathUtil.IsUncPath(path) ? @"\\?\UNC\" + path[2..] : @"\\?\" + path;
     }
 
-    private sealed class CopyContext(CopyProgressCallback? progress, string destination, bool flush, CancellationToken ct)
+    private sealed class CopyContext(CopyProgressCallback? progress, string destination, bool flush, CancellationToken ct, DecryptedCopyReview? review)
     {
         public readonly CopyProgressCallback? Progress = progress;
         public readonly string Destination = destination;
         public readonly bool Flush = flush;
         public readonly CancellationToken Token = ct;
+        public readonly DecryptedCopyReview? Review = review;
+        public bool StreamReviewed;
         public Exception? CallbackError;
     }
 
@@ -127,7 +142,13 @@ public partial class WindowsFileOperations
             var ctx = (CopyContext)GCHandle.FromIntPtr(context).Target!;
             if (ctx.Token.IsCancellationRequested) return COPYFILE2_PROGRESS_CANCEL;
             int type = *(int*)message;
-            if (type == COPYFILE2_CALLBACK_CHUNK_FINISHED && ctx.Progress is { } p)
+            if (type == COPYFILE2_CALLBACK_STREAM_STARTED && ctx.Review is { } review)
+            {
+                // Both handles are open, and Windows has not begun to copy this stream.
+                review.CheckStream(*(nint*)(message + 16), *(nint*)(message + 24));
+                ctx.StreamReviewed = true;
+            }
+            else if (type == COPYFILE2_CALLBACK_CHUNK_FINISHED && ctx.Progress is { } p)
             {
                 // ChunkFinished: uliTotalFileSize at +64, uliTotalBytesTransferred at +72 (x64 and ARM64 layout).
                 long total = *(long*)(message + 64);
@@ -155,8 +176,14 @@ public partial class WindowsFileOperations
     }
 
     public override unsafe void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct)
+        => CopyFileCore(source, destination, options, progress, ct, null);
+
+    private unsafe void CopyFileCore(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct,
+        DecryptedCopyReview? review)
     {
-        var ctx = new CopyContext(progress, destination, options.FlushDestination, ct);
+        if (options.AllowDecryptedDestination && review is null)
+            throw new IOException("A decrypted copy requires approval for the held source and destination.");
+        var ctx = new CopyContext(progress, destination, options.FlushDestination, ct, review);
         var handle = GCHandle.Alloc(ctx);
         int* cancel = (int*)NativeMemory.AllocZeroed(sizeof(int));
         try
@@ -165,7 +192,7 @@ public partial class WindowsFileOperations
                 | (options.CopyLinkAsLink ? COPY_FILE_COPY_SYMLINK : 0)
                 | (options.NoBuffering ? COPY_FILE_NO_BUFFERING : 0)
                 | (options.DisablePreallocation ? COPY_FILE_DISABLE_PRE_ALLOCATION : 0)
-                | (options.AllowDecryptedDestination ? COPY_FILE_ALLOW_DECRYPTED_DESTINATION : 0);
+                | (review is not null ? COPY_FILE_ALLOW_DECRYPTED_DESTINATION | COPY_FILE_NO_OFFLOAD : 0);
             var p = new COPYFILE2_EXTENDED_PARAMETERS
             {
                 dwSize = (uint)sizeof(COPYFILE2_EXTENDED_PARAMETERS),
@@ -177,13 +204,19 @@ public partial class WindowsFileOperations
             nint cancelAddress = (nint)cancel;
             using var reg = ct.Register(() => Volatile.Write(ref *(int*)cancelAddress, 1));
             int hr = CopyFile2(Long(source), Long(destination), ref p);
-            if (hr == E_INVALIDARG)
+            if (hr == E_INVALIDARG && review is null)
             {
-                // A Windows build that predates sparse-copy or pre-allocation control: copy with the classic flags.
+                // A Windows build that predates sparse-copy or pre-allocation control can retry ordinary copies
+                // with the classic flags. A decrypted copy's approval is consumed by its first native attempt.
                 p.dwCopyFlags = flags & ~(COPY_FILE_ENABLE_SPARSE_COPY | COPY_FILE_DISABLE_PRE_ALLOCATION);
                 hr = CopyFile2(Long(source), Long(destination), ref p);
             }
-            if (hr >= 0) return;
+            if (hr >= 0)
+            {
+                if (review is not null && !ctx.StreamReviewed)
+                    throw new IOException("Windows did not confirm the handles of the decrypted copy. Review the destination before continuing.");
+                return;
+            }
             // A failure inside the callback (a flush error) ends the copy as "aborted": report the failure, not a cancel.
             if (ctx.CallbackError is { } error and not OperationCanceledException) throw error;
             if (ctx.CallbackError is OperationCanceledException || ct.IsCancellationRequested || (hr & 0xFFFF) == 1235)
@@ -434,10 +467,14 @@ public partial class WindowsFileOperations
         using var handle = CreateFileForIdentity(Long(path), FILE_READ_ATTRIBUTES, SHARE_ALL, 0, OPEN_EXISTING,
             FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, 0);
         if (handle.IsInvalid) return null;
+        return GetOpenedFileIdentity(handle);
+    }
+
+    public override string? GetOpenedFileIdentity(SafeFileHandle file)
+    {
         try
         {
-            var id = ProtectedHexFile.Identity(handle);
-            return $"{id.VolumeSerial:X16}:{id.FileId}";
+            return ProtectedHexFile.Identity(file).ToString();
         }
         catch (Win32Exception)
         {

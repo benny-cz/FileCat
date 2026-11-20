@@ -1,0 +1,12 @@
+{
+  "observedUtc": "2026-11-06T20:57:11.596795+00:00",
+  "exitCode": 0,
+  "processCommands": [
+    "79068 79054 dotnet test tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --disable-build-servers -p:NuGetAudit=false --filter FullyQualifiedName~ArchiveCapturedInputsTests|FullyQualifiedName~ArchiveDirectoryWireTests|FullyQualifiedName~ArchiveTransform|FullyQualifiedName~ArchiveCreationOriginTests|FullyQualifiedName~UnixArchiveStorageTests --logger trx;LogFileName=directory-workflow-v2.trx --results-directory results",
+    "79097 79072 dotnet exec /Users/benny/.dotnet/sdk/10.0.101/vstest.console.dll --framework:.NETCoreApp,Version=v10.0 --testCaseFilter:FullyQualifiedName~ArchiveCapturedInputsTests|FullyQualifiedName~ArchiveDirectoryWireTests|FullyQualifiedName~ArchiveTransform|FullyQualifiedName~ArchiveCreationOriginTests|FullyQualifiedName~UnixArchiveStorageTests --logger:trx;LogFileName=directory-workflow-v2.trx --resultsDirectory:/Users/benny/FileCatValidation/archive-writing-42829297/captured-inputs-v1/results /Users/benny/FileCatValidation/archive-writing-42829297/captured-inputs-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll --logger:Console;Verbosity=minimal --artifactsProcessingMode-collect --testSessionCorrelationId:79068_1f857aef-baf5-4c16-9295-ae0bbca73a76",
+    "79098 79097 /Users/benny/.dotnet/dotnet exec --runtimeconfig /Users/benny/FileCatValidation/archive-writing-42829297/captured-inputs-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.runtimeconfig.json --depsfile /Users/benny/FileCatValidation/archive-writing-42829297/captured-inputs-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.deps.json /Users/benny/FileCatValidation/archive-writing-42829297/captured-inputs-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/testhost.dll --port 50153 --endpoint 127.0.0.1:050153 --role client --parentprocessid 79097 --telemetryoptedin false",
+    "79101 79098 /Users/benny/FileCatValidation/archive-writing-42829297/captured-inputs-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests @@ /var/folders/zy/bsrr65210bj1s85fr6g0l0dr0000gn/T/tmpzRibUZ.tmp"
+  ],
+  "ownedCoreOrRenderCommands": [],
+  "otherProcessesPreserved": true
+}

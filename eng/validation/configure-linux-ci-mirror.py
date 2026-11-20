@@ -1,4 +1,4 @@
-"""Replace only the hosted Ubuntu Azure mirror in a disposable CI runner's existing source files."""
+"""Use the canonical Ubuntu archive for Azure and EC2 mirrors on disposable CI runners."""
 import argparse
 import hashlib
 import json
@@ -9,7 +9,7 @@ import stat
 import sys
 import tempfile
 
-AZURE = re.compile(rb'https?://azure\.archive\.ubuntu\.com/ubuntu(?=[/\s]|$)')
+HOSTED_MIRROR = re.compile(rb'(?<!\S)https?://(?:azure|[a-z0-9-]+\.ec2)\.archive\.ubuntu\.com/ubuntu(?=[/\s]|$)')
 ARCHIVE = b'https://archive.ubuntu.com/ubuntu'
 
 
@@ -25,7 +25,7 @@ def configure(root):
         if not path.exists():
             continue
         before = path.read_bytes()
-        after, count = AZURE.subn(ARCHIVE, before)
+        after, count = HOSTED_MIRROR.subn(ARCHIVE, before)
         if count:
             mode = stat.S_IMODE(path.stat().st_mode)
             temporary = None
@@ -43,7 +43,7 @@ def configure(root):
         assert path.read_bytes() == after
         records.append(dict(Path=str(path), Replacements=count,
                             BeforeSHA256=hashlib.sha256(before).hexdigest(), AfterSHA256=hashlib.sha256(after).hexdigest(),
-                            NonMirrorBytesSHA256=hashlib.sha256(AZURE.sub(b'<mirror>', before)).hexdigest(),
+                            NonMirrorBytesSHA256=hashlib.sha256(HOSTED_MIRROR.sub(b'<mirror>', before)).hexdigest(),
                             SourceFieldsAndSigningConfigurationPreserved=True))
     return records
 
@@ -56,7 +56,7 @@ def main():
     if args.sources_root == Path('/etc/apt'):
         if sys.platform != 'linux' or os.environ.get('GITHUB_ACTIONS') != 'true' or os.geteuid() != 0:
             parser.error('Default system sources may be changed only by root in the disposable Linux Actions runner')
-    proof = dict(Records=configure(args.sources_root), OnlyAzureUbuntuMirrorReplaced=True,
+    proof = dict(Records=configure(args.sources_root), OnlyHostedUbuntuMirrorsReplaced=True,
                  NewMirror=ARCHIVE.decode(), RequiredPackageOrTestScopeReduced=False)
     args.evidence_file.parent.mkdir(parents=True, exist_ok=True)
     with args.evidence_file.open('x', encoding='utf-8') as stream:

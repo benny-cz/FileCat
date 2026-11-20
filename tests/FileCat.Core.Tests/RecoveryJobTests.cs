@@ -1,6 +1,8 @@
 using System.Buffers.Binary;
+using FileCat.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
+using FileCat.Core.Operations;
 using FileCat.Core.Resources;
 using FileCat.Recovery;
 
@@ -21,7 +23,11 @@ public sealed class RecoveryJobTests : IDisposable
         _jobs = new JobManager(new IdentityAwareTestFiles(), _providers, Path.Combine(_dir.Path, "journal"));
     }
 
-    public void Dispose() => _dir.Dispose();
+    public void Dispose()
+    {
+        _recovery.CloseAll();
+        _dir.Dispose();
+    }
 
     private sealed class Sink : IEnumerationSink
     {
@@ -49,6 +55,110 @@ public sealed class RecoveryJobTests : IDisposable
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
         return job;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Disk_image_efs_protection_controls_recovery_drag_and_spool(bool encrypted)
+    {
+        if (encrypted && (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") != "1"))
+            Assert.Skip("Requires the Windows EFS qualification fixture.");
+        string image = Path.Combine(_dir.Path, "source.img");
+        File.Copy(RecoveryFixtures.Image("fat16"), image);
+        if (encrypted && OperatingSystem.IsWindows()) File.Encrypt(image);
+        var files = new IdentityAwareTestFiles();
+        _recovery.GetSourceIdentity = files.GetFileIdentity;
+        _recovery.GetOpenedSourceIdentity = files.GetHandleIdentity;
+        var location = RecoveryProvider.ForImage(image, 1).WithPath("docs");
+        var row = (await ListAsync(location)).Entries.Single(e => e.Name == "report.txt");
+        var item = _recovery.GetItemRef(location, row);
+        var expected = RecoveryFixtures.Content("report.txt", 10000);
+        using (var preview = _recovery.OpenContent(item)!)
+        {
+            var bytes = new byte[expected.Length];
+            Assert.Equal(bytes.Length, preview.Read(0, bytes));
+            Assert.Equal(expected, bytes);
+        }
+
+        string cache = Path.Combine(_dir.Path, "cache");
+        string drag = Path.Combine(_dir.Path, "drag-root");
+        string destination = _dir.Dir("destination");
+        var archives = new ArchiveProvider(cache, _providers);
+        var member = location.WithPath("docs/report.txt");
+        var copied = await WaitAsync(_jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Copy, Sources = [item], Destination = Location.FileSystem(destination),
+        }));
+
+        if (encrypted)
+        {
+            Assert.Equal(JobState.Failed, copied.State);
+            Assert.Contains("disk image uses Windows EFS", Assert.Single(copied.Issues).Message, StringComparison.Ordinal);
+            Assert.Empty(Directory.EnumerateFileSystemEntries(destination));
+            var staged = DragStaging.Stage([item], _providers, files, drag, TestContext.Current.CancellationToken);
+            Assert.Null(staged.Paths);
+            Assert.Contains("disk image uses Windows EFS", staged.Refusal, StringComparison.Ordinal);
+            Assert.Empty(Directory.EnumerateFiles(drag, "*", SearchOption.AllDirectories));
+            Assert.Contains("disk image uses Windows EFS", Assert.Throws<IOException>(() => archives.OpenSpool(member)).Message, StringComparison.Ordinal);
+            Assert.False(Directory.Exists(cache));
+            Assert.True(File.GetAttributes(image).HasFlag(FileAttributes.Encrypted));
+        }
+        else
+        {
+            Assert.Equal(JobState.Completed, copied.State);
+            Assert.Equal(expected, File.ReadAllBytes(Path.Combine(destination, item.Name)));
+            if (!FileCat.Core.State.WindowsTokenAuthority.IsHighIntegrity)
+            {
+                var staged = DragStaging.Stage([item], _providers, files, drag, TestContext.Current.CancellationToken);
+                Assert.Null(staged.Refusal);
+                var paths = Assert.IsAssignableFrom<IReadOnlyList<string>>(staged.Paths);
+                Assert.Equal(expected, File.ReadAllBytes(Assert.Single(paths)));
+                DragStaging.Discard(paths, drag);
+                IUnprotectedContentOutput output = _recovery;
+                output.RequireClearOutputSource(location, ContentOutputKind.DiskCache);
+                using var source = output.OpenUnprotectedOutput(item, ContentOutputKind.DiskCache)!;
+                var bytes = new byte[expected.Length];
+                Assert.Equal(bytes.Length, source.Read(0, bytes));
+                Assert.Equal(expected, bytes);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task A_recovery_output_reader_stops_when_its_open_disk_image_becomes_encrypted()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") != "1",
+            "Requires the Windows EFS qualification fixture.");
+        string image = Path.Combine(_dir.Path, "source.img");
+        File.Copy(RecoveryFixtures.Image("fat16"), image);
+        var files = new IdentityAwareTestFiles();
+        _recovery.GetSourceIdentity = files.GetFileIdentity;
+        _recovery.GetOpenedSourceIdentity = files.GetHandleIdentity;
+        var location = RecoveryProvider.ForImage(image, 1).WithPath("docs");
+        var row = Assert.Single((await ListAsync(location)).Entries, entry => entry.Name == "report.txt");
+        var item = _recovery.GetItemRef(location, row);
+        IUnprotectedContentOutput output = _recovery;
+        using var reader = Assert.IsAssignableFrom<IContentSource>(
+            output.OpenUnprotectedOutput(item, ContentOutputKind.Extraction, out var provenance));
+        var observed = Assert.IsType<OutputEfsObservation>(provenance);
+        var before = observed.Freeze();
+        Assert.Equal(OutputEfsObservation.State.Clear, before.Protection);
+        var contributor = Assert.Single(before.Contributors);
+
+        byte[] buffer = new byte[512];
+        Assert.Equal(buffer.Length, reader.Read(0, buffer));
+        Assert.Equal(RecoveryFixtures.Content("report.txt", 10000)[..buffer.Length], buffer);
+
+        File.Encrypt(image);
+        Assert.True(File.GetAttributes(image).HasFlag(FileAttributes.Encrypted));
+        Array.Fill(buffer, (byte)0xA5);
+        var refused = Assert.Throws<IOException>(() => reader.Read(buffer.Length, buffer));
+        Assert.Contains("disk image uses Windows EFS", refused.Message, StringComparison.Ordinal);
+        Assert.All(buffer, value => Assert.Equal((byte)0xA5, value));
+        var after = observed.Freeze();
+        Assert.Equal(OutputEfsObservation.State.Encrypted, after.Protection);
+        Assert.Equal(contributor, Assert.Single(after.Contributors));
     }
 
     [Fact]

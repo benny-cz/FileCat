@@ -45,8 +45,13 @@ public static class JobExecutors
 
     /// <summary>Typed dispatch per operation (plan §7.1): no Cartesian product of provider methods.</summary>
     public static IJobExecutor Create(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal)
+        => Create(job, fs, providers, journal, Archives.ArchiveJobBackends.Empty, null);
+
+    internal static IJobExecutor Create(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal,
+        Archives.ArchiveJobBackends archiveBackends, Archives.ArchiveJobOperation? archiveOperation,
+        IStorageTransforms? storageTransforms = null, StorageReviewOwner? storageOwner = null)
     {
-        var executor = CreateFor(job, fs, providers, journal);
+        var executor = CreateFor(job, fs, providers, journal, archiveBackends, archiveOperation, storageTransforms, storageOwner);
         bool transfer = job.Request.Kind is JobKind.Copy or JobKind.Move or JobKind.Extract;
         if (transfer && job.Request.Options.Filter is not null && executor is not IHonorsTransferFilter)
             return new RefusedExecutor(job, fs, journal,
@@ -56,12 +61,24 @@ public static class JobExecutors
         return executor;
     }
 
-    private static IJobExecutor CreateFor(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal)
+    private static IJobExecutor CreateFor(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal,
+        Archives.ArchiveJobBackends archiveBackends, Archives.ArchiveJobOperation? archiveOperation,
+        IStorageTransforms? storageTransforms, StorageReviewOwner? storageOwner)
     {
         var r = job.Request;
+        if (r.Kind != JobKind.StorageTransform && r.StorageTransform is not null)
+            throw new ArgumentException("Storage approval does not match this operation kind.");
+        r.EditUpload?.RequireRequest(r);
         bool fsSources = r.Sources.All(s => s.Parent.IsFileSystem);
         switch (r.Kind)
         {
+            case JobKind.ReviewedAnalysisCopy:
+                return new ReviewedAnalysisCopyExecutor(job, journal, job.ReviewedAnalysisCopy ??
+                    throw new InvalidOperationException("Reviewed analysis copy requires a live approval."));
+            case JobKind.StorageTransform:
+                if (storageTransforms is null || storageOwner is null) throw new InvalidOperationException("Storage dispatch requires its live reviewed owner and platform adapter.");
+                ReviewedStorageRoots.RequireAction(storageTransforms, r.StorageTransform?.Action ?? throw new ArgumentException("Missing storage action."));
+                return new StorageTransformExecutor(job, storageTransforms, storageOwner, journal.Storage);
             case JobKind.Copy or JobKind.Move when fsSources && r.Destination is { IsFileSystem: true }:
                 return new TransferExecutor(job, fs, journal);
             case JobKind.Copy or JobKind.Extract when r.Destination is { IsFileSystem: true } && StreamTransferExecutor.CanHandle(r, providers):
@@ -73,6 +90,14 @@ public static class JobExecutors
             case JobKind.CreateDirectory or JobKind.CreateFile when r.Destination is { IsFileSystem: true }:
                 return new CreateExecutor(job, fs, journal);
             case JobKind.ArchiveUpdate when r.Archive is not null:
+                if (r.Archive.Profile is not null)
+                    return archiveBackends.Create(job, fs, journal, archiveOperation);
+                // Where a ZIP route is composed, every ZIP change takes the worker profile; only an edit session made before
+                // then keeps committing through the old route (release text, Downgrade).
+                if (!r.Archive.LegacyEditCommit && Path.IsPathFullyQualified(r.Archive.ArchivePath) &&
+                    archiveBackends.CoversNow(new Archives.ArchivePlan(r.Archive.ArchivePath, null, [], Profile: Archives.ZipProvider.WorkerProfile)))
+                    return new RefusedExecutor(job, fs, journal,
+                        "This ZIP is changed through FileCat's archive worker here, but this change was prepared for the old ZIP route. Nothing was changed; make the change again.");
                 return new Archives.ZipUpdateExecutor(job, fs, journal);
             case JobKind.ArchiveTest when fsSources:
                 return new Archives.ZipTestExecutor(job, fs, journal);
@@ -249,6 +274,9 @@ internal abstract class ExecutorBase(Job job, IFileSystemOperations fs, JobJourn
                 Reason: "This file system cannot bind replacement to the exact reviewed destination; it was kept.");
     }
 
+    protected static bool IsEfsProtected(FileSystemItemInfo item) =>
+        OperatingSystem.IsWindows() && item.Attributes.HasFlag(FileAttributes.Encrypted);
+
     /// <summary>
     /// How a bound replacement that published nothing is journaled: refused before any change, failed with the original
     /// back at its name, or partly applied with the original kept at a recovery name, which is never recorded as canceled
@@ -259,6 +287,13 @@ internal abstract class ExecutorBase(Job job, IFileSystemOperations fs, JobJourn
 
     protected void Issue(IssueSeverity severity, string path, string message, StepOutcome outcome, string? cause = null) =>
         Job.AddIssue(new JobIssue(severity, path, message, outcome) { Cause = cause });
+
+    protected void CheckAdministratorPaths(string? source, string target)
+    {
+        if (!Job.Request.AdministratorFileRetry) return;
+        if (source is not null) PathUtil.RequireOrdinaryWindowsPath(source, allowMissing: false);
+        PathUtil.RequireOrdinaryWindowsPath(target, allowMissing: true);
+    }
 
     /// <summary>Runs an I/O action; transient sharing violations (antivirus) retry briefly, others ask the user.</summary>
     protected bool TryIo(string path, string what, Action action)
@@ -420,10 +455,11 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     private bool Move => Job.Kind == JobKind.Move;
 
     private void TransferIssue(IssueSeverity severity, string source, string target, string message,
-        StepOutcome outcome, string effect, string sourceDisposition, string targetDisposition, string certainty)
+        StepOutcome outcome, string effect, string sourceDisposition, string targetDisposition, string certainty, string? cause = null)
     {
         Job.AddIssue(new JobIssue(severity, source, message, outcome)
         {
+            Cause = cause,
             SourcePath = source,
             TargetPath = target,
             SourceIsLocal = true,
@@ -443,9 +479,10 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     public override void Execute()
     {
         var destDir = Job.Request.Destination!.Path;
+        CheckAdministratorPaths(null, destDir);
         // A queued recovery may outlive the UI review. Refuse the whole request before destination creation or
         // discovery when any reviewed root changed or became unavailable.
-        if (Job.Request.ExpectedSources is not null || Job.Request.ExpectedSourceTrees is not null)
+        if (Job.Request.ExpectedSources is not null || Job.Request.ExpectedSourceTrees is not null || Job.Request.RequireResultSourceMetadata)
             foreach (var source in Job.Request.Sources)
                 if (!SourceStillReviewed(source)) return;
         using var discoveryCts = CancellationTokenSource.CreateLinkedTokenSource(Job.Token);
@@ -454,16 +491,26 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         {
             if (!Directory.Exists(destDir))
             {
-                if (!TryIo(destDir, "create the destination folder", () => Directory.CreateDirectory(destDir))) return;
+                if (!TryIo(destDir, "create the destination folder", () => Directory.CreateDirectory(destDir)))
+                {
+                    if (Job.AccessIssueCount > 0) Job.RecordTransferAccessDenied(null);
+                    return;
+                }
                 Journal.Note("created destination " + destDir);
             }
             var sources = Job.Request.Sources;
             for (int i = 0; i < sources.Count; i++)
             {
                 Job.Checkpoint();
+                long accessIssues = Job.AccessIssueCount, completed = Job.ItemsDone, changedIssues = Job.ChangedIssueCount;
                 var result = ProcessRoot(sources[i], destDir);
                 if (result is Result.Committed) Job.RootCompleted(i);
-                else if (result is Result.Failed or Result.Skipped) Job.RootFailed(i);
+                else if (result is Result.Failed or Result.Skipped)
+                {
+                    Job.RootFailed(i);
+                    if (Job.AccessIssueCount > accessIssues && Job.ItemsDone == completed && Job.ChangedIssueCount == changedIssues)
+                        Job.RecordTransferAccessDenied(i);
+                }
             }
         }
         finally
@@ -496,6 +543,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 {
                     foreach (var fi in new DirectoryInfo(dir).EnumerateFileSystemInfos("*", ChildOptions))
                     {
+                        PathUtil.RefuseAmbiguousUnixName(fi.Name);
                         bool link = (fi.Attributes & FileAttributes.ReparsePoint) != 0;
                         if (fi is DirectoryInfo && !link) stack.Push(fi.FullName);
                         else if (Options.Filter is null || Options.Filter.IsMatch(fi.Name))
@@ -567,6 +615,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             return Result.Failed;
         }
         var dst = Path.Combine(targetDir, name);
+        CheckAdministratorPaths(src, dst);
         if (info.IsDirectory && !info.IsLink && InsideItself(dst, src))
         {
             Job.ItemFailed();
@@ -586,6 +635,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         // existing copy-then-delete traversal leaves excluded children (and their source folders) intact.
         if (Move && SameVolume(src, dst) && (Options.Filter is null || !info.IsDirectory || info.IsLink))
             return MoveByRename(src, dst, info);
+        if (Move && Job.Request.AdministratorFileRetry)
+            throw new IOException("Administrator retry moves items only by renaming them on their original volume.");
         // A replacement planned by a comparison happens only while the target is as compared: one edited while the plan
         // was reviewed is not overwritten (release plan DPI P10).
         (long Size, long ModifiedTicks)? compared = Job.Request.ExpectedTargets is { } expected && expected.TryGetValue(root, out var seen) ? seen : null;
@@ -611,12 +662,13 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
 
     private bool SourceStillReviewed(ItemRef source)
     {
-        if (Job.Request.ExpectedSources is null && Job.Request.ExpectedSourceTrees is null) return true;
+        if (Job.Request.ExpectedSources is null && Job.Request.ExpectedSourceTrees is null && !Job.Request.RequireResultSourceMetadata) return true;
         var path = source.FileSystemPath!;
         try
         {
-            bool pathMatches = Job.Request.ExpectedSources is not { } expected ||
-                expected.TryGetValue(source, out var review) && review.Matches(path, Fs, Job.Checkpoint);
+            bool pathMatches = (!Job.Request.RequireResultSourceMetadata || SourcePathReview.MatchesSelectionMetadata(source, Fs)) &&
+                (Job.Request.ExpectedSources is not { } expected ||
+                expected.TryGetValue(source, out var review) && review.Matches(path, Fs, Job.Checkpoint));
             bool treeMatches = pathMatches && (Job.Request.ExpectedSourceTrees is not { } trees ||
                 trees.TryGetValue(source, out var reviewed) && reviewed.Tree.Matches(Fs, reviewed.Provider, Job.Checkpoint));
             if (pathMatches && treeMatches) return true;
@@ -723,6 +775,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
 
     private Result MoveByRename(string src, string dst, FileSystemItemInfo info)
     {
+        CheckAdministratorPaths(src, dst);
         Job.Checkpoint();
         if (!SourceRenameStillReviewed(src, info)) return Result.Failed;
         Job.SetCurrent(src);
@@ -761,6 +814,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             }
         }
         // A conflict answer can arrive long after the root was admitted.
+        CheckAdministratorPaths(src, target);
         if (!SourceRenameStillReviewed(src, info)) return Result.Failed;
         if (replace && (targetReview = ReviewForReplacement(dst, existing!, atQuestion)) is null)
         {
@@ -809,6 +863,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         {
             // Another volume behind the same drive letter (a mounted folder): use the guarded copy-then-delete path.
             Journal.Done(step, StepOutcome.CanceledBeforeChange);
+            if (Job.Request.AdministratorFileRetry) throw;
             return info.IsDirectory && !info.IsLink ? CopyDirectory(src, target, info) : CopyFileItem(src, target, info);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -816,6 +871,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             bool refused = false;
             ok = TryIo(src, "move the item", () =>
             {
+                CheckAdministratorPaths(src, target);
                 if (!SourceRenameStillReviewed(src, info)) { refused = true; return; }
                 Fs.Move(src, target, replaceExisting: false);
             }) && !refused;
@@ -864,6 +920,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     /// </param>
     private Result CopyDirectory(string src, string dst, FileSystemItemInfo info, Func<bool>? ensureParent = null, int depth = 0)
     {
+        CheckAdministratorPaths(src, dst);
         Job.Checkpoint();
         if (depth >= MaxRecursiveTreeDepth)
         {
@@ -873,6 +930,34 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         }
         if (!SourceItemStillReviewed(src)) return Result.Failed;
         Job.SetCurrent(src);
+        MacExtendedAttributes.DirectoryMetadata? macMetadata = null;
+        LinuxPosixAcl.DirectoryMetadata? linuxMetadata = null;
+        if (OperatingSystem.IsMacOS())
+        {
+            try { macMetadata = MacExtendedAttributes.ProbeDirectory(src); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Job.ItemFailed();
+                Issue(IssueSeverity.Error, src, "The source folder's metadata could not be inspected: " + ErrorText.Describe(ex), StepOutcome.Failed);
+                return Result.Failed;
+            }
+            if (Move && macMetadata is { HasMetadata: true })
+            {
+                Job.ItemFailed();
+                Issue(IssueSeverity.Error, src, "The folder has macOS ACLs or extended attributes. A cross-volume folder move cannot safely preserve them; copy it to a fresh destination and review the result before deleting the original.", StepOutcome.CanceledBeforeChange);
+                return Result.Failed;
+            }
+        }
+        if (OperatingSystem.IsLinux())
+        {
+            try { linuxMetadata = LinuxPosixAcl.ProbeDirectory(src); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Job.ItemFailed();
+                Issue(IssueSeverity.Error, src, "The source folder's POSIX ACL could not be inspected: " + ErrorText.Describe(ex), StepOutcome.Failed);
+                return Result.Failed;
+            }
+        }
         var existing = Fs.TryGetInfo(dst);
         var target = dst;
         if (existing is not null && (!existing.IsDirectory || existing.IsLink))
@@ -896,13 +981,31 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             }
             existing = null;
         }
+        if (existing is { IsDirectory: true } && macMetadata is { HasMetadata: true })
+        {
+            Job.ItemFailed();
+            Issue(IssueSeverity.Error, src, "The folder has macOS ACLs or extended attributes. Merging it into an existing folder would discard those protections; choose a fresh destination name.", StepOutcome.CanceledBeforeChange);
+            return Result.Failed;
+        }
+        if (existing is { IsDirectory: true } && linuxMetadata is { HasMetadata: true })
+        {
+            Job.ItemFailed();
+            Issue(IssueSeverity.Error, src, "The folder has a POSIX ACL. Merging it into an existing folder would discard that protection; choose a fresh destination name.", StepOutcome.CanceledBeforeChange);
+            return Result.Failed;
+        }
         bool created = false;
+        FileIdentity? createdIdentity = null;
         bool EnsureCreated()
         {
             if (created || existing is not null) return true;
             if (ensureParent is not null && !ensureParent()) return false;
-            if (!TryIo(target, "create a folder", () => Fs.CreateDirectory(target))) return false;
+            if (!TryIo(target, "create a folder", () =>
+                {
+                    CheckAdministratorPaths(src, target);
+                    Fs.CreateDirectoryForCopy(target, UnixPermissions.WhileCopying(isDirectory: true));
+                })) return false;
             created = true;
+            if (macMetadata is { HasMetadata: true } || linuxMetadata is not null) createdIdentity = UnixFiles.Stat(target)?.Identity;
             UnixPermissions.TryCopyFolderMode(src, target, final: false); // no wider than the source while it fills
             return true;
         }
@@ -942,9 +1045,40 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (_enumerationFailed.Remove(src)) allOk = false;
         if (created || existing is not null)
         {
-            if (created) UnixPermissions.TryCopyFolderMode(src, target, final: true);
+            if (created && !OperatingSystem.IsLinux()) UnixPermissions.TryCopyFolderMode(src, target, final: true);
             if (Options.PreserveTimestamps) TrySetTimes(target, info);
             if (created && Options.PreserveAttributes) TrySetAttributes(target, info.Attributes);
+            if (created && macMetadata is { HasMetadata: true } sourceMetadata)
+            {
+                try
+                {
+                    if (createdIdentity is not { } destinationIdentity)
+                        throw new IOException("The new folder's identity could not be read.");
+                    MacExtendedAttributes.CopyDirectory(src, target, sourceMetadata.Identity, destinationIdentity, Job.Token);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    allOk = false;
+                    Job.ItemFailed();
+                    Issue(IssueSeverity.Error, target, "The copied folder's macOS ACL or extended attributes could not be preserved. The partial destination needs review: " + ErrorText.Describe(ex), StepOutcome.PartiallyApplied);
+                }
+            }
+            if (created && linuxMetadata is { } sourceAcl)
+            {
+                try
+                {
+                    if (createdIdentity is not { } destinationIdentity)
+                        throw new IOException("The new folder's identity could not be read.");
+                    if (!LinuxPosixAcl.CopyDirectory(src, target, sourceAcl, destinationIdentity, Job.Token))
+                        UnixPermissions.TryCopyFolderMode(src, target, final: true);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    allOk = false;
+                    Job.ItemFailed();
+                    Issue(IssueSeverity.Error, target, "The copied folder's POSIX ACL could not be preserved. The partial destination needs review: " + ErrorText.Describe(ex), StepOutcome.PartiallyApplied);
+                }
+            }
         }
         if (Move && allOk) RemoveIfEmpty(src);
         return allOk ? Result.Committed : anyTransferred ? Result.Failed : Result.Failed;
@@ -964,7 +1098,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         {
             _enumerationFailed.Add(dir);
             Job.ItemFailed();
-            Issue(IssueSeverity.Error, dir, "The folder could not be read: " + ErrorText.Describe(ex), StepOutcome.Failed);
+            Issue(IssueSeverity.Error, dir, "The folder could not be read: " + ErrorText.Describe(ex), StepOutcome.Failed, ErrorText.Classify(ex));
             return [];
         }
         return children;
@@ -1011,6 +1145,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
 
     private Result CopyFileItem(string src, string dst, FileSystemItemInfo info, bool firstAttempt = true, (long Size, long ModifiedTicks)? expectedTarget = null, bool followLink = false)
     {
+        CheckAdministratorPaths(src, dst);
         Job.Checkpoint();
         if (!SourceItemStillReviewed(src)) return Result.Failed;
         Job.SetCurrent(src);
@@ -1066,6 +1201,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             return Result.Skipped;
         }
 
+        CheckAdministratorPaths(src, target);
+
         if (info.IsLink) return CopyLink(src, target, info, replace, target == dst ? expectedTarget : null, targetReview);
 
         // PI-05: a move that would drop metadata the destination cannot store asks before anything irreversible.
@@ -1111,23 +1248,31 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         }
         bool copied = false;
         bool allowDecrypted = false;
+        bool decryptedCopyApproved = false;
+        IDecryptedCopyReview? pendingReview = null;
         int quietRetries = 0;
         while (!copied)
         {
+            // A retry first tries to preserve protection again.
+            bool approvedForAttempt = allowDecrypted;
+            allowDecrypted = false;
+            var approvedReview = pendingReview;
+            pendingReview = null;
             long reported = 0;
             var pace = new TransferPace();
             try
             {
+                CheckAdministratorPaths(src, writeTo);
                 var options = new FileCopyOptions
                 {
                     CopyLinkAsLink = !followLink,
                     NoBuffering = info.Size > 256L * 1024 * 1024,
                     DisablePreallocation = direct,
-                    AllowDecryptedDestination = allowDecrypted,
+                    AllowDecryptedDestination = approvedForAttempt,
                     // A move deletes the source next: the copy must be on the device first, not in the write cache.
                     FlushDestination = Move,
                 };
-                Fs.CopyFile(src, writeTo, options, (done, total) =>
+                CopyProgressCallback progress = (done, total) =>
                 {
                     long advanced = done - reported;
                     Job.AddBytes(advanced);
@@ -1136,8 +1281,14 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     if (Job.IsPaused) Job.Checkpoint();
                     Job.Throttle(done, pace);
                     return Job.IsCancellationRequested ? CopyProgressAction.Cancel : CopyProgressAction.Continue;
-                }, Job.Token);
+                };
+                using (approvedReview)
+                {
+                    if (approvedReview is null) Fs.CopyFile(src, writeTo, options, progress, Job.Token);
+                    else approvedReview.Copy(options, progress, Job.Token);
+                }
                 copied = true;
+                decryptedCopyApproved = approvedForAttempt;
             }
             catch (OperationCanceledException)
             {
@@ -1163,16 +1314,45 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     // exists but cannot be inspected gets the ordinary question below).
                     return CopyFileItem(src, dst, info, firstAttempt: false, expectedTarget: expectedTarget, followLink: followLink);
                 }
-                if (cls == "encryption" && !allowDecrypted)
+                if (cls == "encryption" && !approvedForAttempt)
                 {
-                    var d = Job.Ask(new ConfirmRequest("Encrypted file",
-                        $"\"{Path.GetFileName(src)}\" is encrypted with Windows EFS, and the destination cannot keep it encrypted. Copy it decrypted?",
-                        src, "decrypt", [DecisionAction.Proceed, DecisionAction.Skip, DecisionAction.CancelJob]) { ProceedLabel = "Copy decrypted" });
-                    if (d.Action == DecisionAction.Proceed)
+                    IDecryptedCopyReview? review = null;
+                    try
                     {
-                        allowDecrypted = true;
-                        continue;
+                        if (Fs is IDecryptedCopyReviewProvider native)
+                            review = native.PrepareDecryptedCopy(src, writeTo, followLink, Job.Token);
                     }
+                    catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+                    {
+                        Job.ItemFailed();
+                        TransferIssue(IssueSeverity.Warning, src, target, "Cannot review a decrypted copy: " + error.Message,
+                            StepOutcome.Failed, "No decrypted copy attempted", "Original kept",
+                            "No decrypted output produced", "Actual input or output could not be bound");
+                        return Result.Failed;
+                    }
+                    string stage = direct ? "" : $"\nTemporary copy: {writeTo}";
+                    string allocation = IsSparseWindowsFile(info)
+                        ? "\nA destination that cannot preserve sparse holes may allocate space for the entire file." : "";
+                    string effect = Move ? "\nA successful move can remove the original after verifying the copy." : "";
+                    Decision d;
+                    try
+                    {
+                        d = Job.Ask(new ConfirmRequest("Copy without Windows EFS?",
+                            $"Windows could not preserve EFS for this copy. Allow one attempt that can write unencrypted data?\n\nSource: {src}\nDestination: {target}{stage}{allocation}{effect}",
+                            src, "decrypt", [DecisionAction.Proceed, DecisionAction.Skip, DecisionAction.CancelJob])
+                        {
+                            ProceedLabel = "Copy decrypted",
+                            OffersApplyToAll = false,
+                        });
+                        if (d.Action == DecisionAction.Proceed)
+                        {
+                            allowDecrypted = true;
+                            pendingReview = review;
+                            review = null;
+                            continue;
+                        }
+                    }
+                    finally { review?.Dispose(); }
                     if (d.Action != DecisionAction.Skip) throw new OperationCanceledException();
                     Job.ItemSkipped();
                     TransferIssue(IssueSeverity.Warning, src, target, "Skipped: it is encrypted and the destination cannot keep it encrypted.",
@@ -1187,14 +1367,12 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     Job.ItemFailed();
                     TransferIssue(IssueSeverity.Error, src, target, "Not copied: " + ErrorText.Describe(ex),
                         StepOutcome.Failed, "Copy failed; no published copy confirmed", "Original kept",
-                        "Target state not confirmed; inspect before retrying", "Failure reported by the copy operation");
+                        "Target state not confirmed; inspect before retrying", "Failure reported by the copy operation", cls);
                     return Result.Failed;
                 }
                 throw new OperationCanceledException();
             }
         }
-        if (allowDecrypted) Issue(IssueSeverity.Warning, src, "Copied decrypted: the destination cannot store EFS encryption.", StepOutcome.Committed);
-
         // Verification at the selected profile. A copy that fails it is removed: this job created it.
         var writtenInfo = Fs.TryGetInfo(writeTo);
         if (writtenInfo is null || writtenInfo.Size != info.Size && info.Size >= 0)
@@ -1215,6 +1393,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         PreserveOrigin(src, writeTo, target);
         if (!Fs.CopyPreservesMetadata && Options.PreserveAttributes) TrySetAttributes(writeTo, info.Attributes & ~FileAttributes.ReadOnly);
 
+        string? retainedTargetPath = null;
         if (!direct)
         {
             // Publish: replacing an existing item is journaled durably first; a new name is group-committed. A move
@@ -1225,6 +1404,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             string? refusal = null;
             bool published = TryIo(target, replace ? "replace the existing item" : "publish the copied item", () =>
             {
+                CheckAdministratorPaths(writeTo, target);
                 // The target may change while copying or while a failed publication waits for Retry.
                 // This is a fresh metadata/type check, not an atomic filesystem compare-and-replace.
                 if (expectedTarget is { } baseline && target == dst && !TargetStillCompared(target, baseline))
@@ -1247,8 +1427,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                             Issue(IssueSeverity.Warning, bound.RetainedPath,
                                 "The original destination remains at this recovery name.", StepOutcome.PartiallyApplied);
                     }
-                    else if (bound.RetainedPath is not null)
-                        Issue(IssueSeverity.Warning, bound.RetainedPath,
+                    else if ((retainedTargetPath = bound.RetainedPath) is not null)
+                        Issue(IssueSeverity.Warning, retainedTargetPath,
                             bound.Reason ?? "The replaced destination remains at this recovery name.", StepOutcome.PartiallyApplied);
                     return;
                 }
@@ -1274,13 +1454,19 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Journal.Done(step, StepOutcome.Committed);
         }
         if (!Fs.CopyPreservesMetadata && Options.PreserveAttributes && (info.Attributes & FileAttributes.ReadOnly) != 0) TrySetAttributes(target, info.Attributes);
+        if (IsSparseWindowsFile(info)) ReportSparseCopy(src, target, direct ? writtenInfo : Fs.TryGetInfo(target));
+        if (decryptedCopyApproved && !writtenInfo.Attributes.HasFlag(FileAttributes.Encrypted))
+            Issue(IssueSeverity.Warning, src, "Copied decrypted with approval.", StepOutcome.Committed);
         if (!Move)
         {
             Job.ItemDone();
             return Result.Committed;
         }
         Job.RecordUndoRemainder(target, "This copy-then-delete move route has no recorded inverse; Undo will not remove the published copy or recreate its source.");
-        if (replace) Job.RecordUndoRemainder(target, "The overwritten destination contents were not retained.");
+        if (replace)
+            Job.RecordUndoRemainder(retainedTargetPath ?? target, retainedTargetPath is null
+                ? "The overwritten destination contents were not retained."
+                : "Undo does not restore the original destination from this recovery name.");
         if (keepSource)
         {
             Job.ItemSkipped();
@@ -1299,7 +1485,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 "Copy published", "Observed at publication; later external changes are possible");
             return Result.Skipped;
         }
-        return DeleteMovedSource(src, target, info);
+        return DeleteMovedSource(src, target, info, decryptedCopyApproved);
     }
 
     /// <summary>
@@ -1348,8 +1534,20 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             return Result.Failed;
         }
         if (!CopiedItemStillReviewed(src, dst)) return Result.Failed;
+        if (IsSparseWindowsFile(info)) ReportSparseCopy(src, dst, written);
         Job.ItemDone();
         return Result.Committed;
+    }
+
+    private static bool IsSparseWindowsFile(FileSystemItemInfo info) => OperatingSystem.IsWindows() &&
+        info.Size > 0 && !info.IsDirectory && !info.IsLink && info.Attributes.HasFlag(FileAttributes.SparseFile);
+
+    private void ReportSparseCopy(string source, string target, FileSystemItemInfo? output)
+    {
+        if (output is { IsDirectory: false, IsLink: false } && !output.Attributes.HasFlag(FileAttributes.SparseFile))
+            TransferIssue(IssueSeverity.Warning, source, target, "The destination copy lost the sparse file attribute and may use more disk space.",
+                StepOutcome.Committed, "Copy published", Move ? "Source removal checked separately" : "Original kept",
+                "Copy published without the sparse file attribute", "Based on the observed file attributes");
     }
 
     /// <summary>Metadata a move to <paramref name="target"/> would lose, in plain words, or null (plan §8.1, PI-05).</summary>
@@ -1376,7 +1574,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     /// </summary>
     private static string Holder(VolumeInfo vol) => vol.IsRemote ? "the network share" : vol.FileSystem ?? "the destination";
 
-    private Result DeleteMovedSource(string src, string target, FileSystemItemInfo before)
+    private Result DeleteMovedSource(string src, string target, FileSystemItemInfo before, bool decryptedCopyApproved)
     {
         // Revalidate: a source that changed while it was copied is kept (plan §9.2).
         var now = Fs.TryGetInfo(src);
@@ -1420,6 +1618,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         // including when read-back verification already passed before publication. This is still a path check, not an
         // atomic native-handle guarantee: later changes and aliases require separate native qualification.
         bool matching = false;
+        bool requireEfs = !decryptedCopyApproved && (IsEfsProtected(before) || IsEfsProtected(now));
+        bool protectionVerified = !requireEfs;
         try
         {
             if (!now.IsDirectory && !now.IsLink && (now.Attributes & FileAttributes.ReparsePoint) == 0 &&
@@ -1438,10 +1638,20 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 matching &= after is { IsDirectory: false, IsLink: false } && after.Size == now.Size && after.ModifiedUtc == now.ModifiedUtc &&
                     (after.Attributes & FileAttributes.ReparsePoint) == 0 && copyAfter is { IsDirectory: false, IsLink: false } &&
                     copyAfter.Size == copy.Size && copyAfter.ModifiedUtc == copy.ModifiedUtc && (copyAfter.Attributes & FileAttributes.ReparsePoint) == 0;
+                requireEfs |= !decryptedCopyApproved && after is not null && IsEfsProtected(after);
+                protectionVerified = !requireEfs || copyAfter is not null && IsEfsProtected(copyAfter);
                 if (after is not null) now = after;
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { }
+        if (!protectionVerified)
+        {
+            TransferIssue(IssueSeverity.Warning, src, target, "The published copy could not be verified as EFS-encrypted. The original was kept.",
+                StepOutcome.PartiallyApplied, "Copy published; source deletion refused", "Original kept",
+                "EFS protection not verified", "No approval to lose EFS protection");
+            Job.ItemDone();
+            return Result.Failed;
+        }
         if (!matching)
         {
             TransferIssue(IssueSeverity.Warning, src, target, "Not deleted: the source and published copy changed or their complete bytes could not be checked. The source stays.",
@@ -1453,6 +1663,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         int step = Journal.Intent("delete-source", src);
         bool ok = TryIo(src, "delete the moved source", () =>
         {
+            if (requireEfs && (Fs.TryGetInfo(target) is not { IsDirectory: false, IsLink: false } protectedCopy || !IsEfsProtected(protectedCopy)))
+                throw new IOException("The published copy could no longer be verified as EFS-encrypted.");
             if (now.IsReadOnly) Fs.SetAttributes(src, now.Attributes & ~FileAttributes.ReadOnly);
             Fs.DeleteFile(src);
         });
@@ -1620,6 +1832,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         out QuestionReview? atQuestion, bool replaceable = true)
     {
         atQuestion = null;
+        bool efs = IsEfsProtected(existing);
+        replaceable &= !efs;
         bool typeMismatch = incoming.IsDirectory != existing.IsDirectory;
         bool same = SameItem(src, dst);
         bool newer = IsIncomingNewer(src, dst, incoming, existing);
@@ -1637,7 +1851,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         }
         if (same && policy is ConflictPolicy.KeepBothRenameIncoming) return DecisionAction.KeepBothRenameIncoming;
         var request = new ConflictRequest(
-            same ? "Copying an item onto itself" : typeMismatch ? "A file and a folder have the same name" : "An item with this name already exists",
+            same ? "Copying an item onto itself" : typeMismatch ? "A file and a folder have the same name" :
+                efs ? "The destination uses Windows EFS" : "An item with this name already exists",
             Path.GetFileName(dst), incoming, existing, src, dst,
             CanReplace: !typeMismatch && !same && replaceable, SameItem: same, TypeMismatch: typeMismatch, IncomingIsNewer: newer,
             SuggestedIncomingName: Path.GetFileName(UniqueSibling(dst, incoming.IsDirectory)),
@@ -1682,6 +1897,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     private bool RenameExisting(string path, bool isDirectory)
     {
         var newPath = UniqueSibling(path, isDirectory);
+        CheckAdministratorPaths(path, newPath);
         int step = Journal.Intent("rename-existing", path, newPath);
         bool ok = TryIo(path, "rename the existing item", () => Fs.Move(path, newPath, false));
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.Failed);
@@ -2034,7 +2250,9 @@ internal sealed class RecycleExecutor(Job job, IFileSystemOperations fs, JobJour
                     Job.ItemSkipped();
                     Job.RootFailed(i);
                     Issue(IssueSeverity.Warning, p,
-                        "Not recycled: this file system cannot bind the Recycle Bin operation to the exact compared object.",
+                        OperatingSystem.IsWindows()
+                            ? "Not recycled: this file system cannot bind the Recycle Bin operation to the exact compared object."
+                            : "Not moved to Trash: this file system cannot bind the Trash operation to the exact compared object.",
                         StepOutcome.CanceledBeforeChange);
                     continue;
                 }
@@ -2083,7 +2301,7 @@ internal sealed class RecycleExecutor(Job job, IFileSystemOperations fs, JobJour
                     Job.ItemDone();
                     if (root >= 0) Job.RootCompleted(root);
                     if (r.RecycledId is not null) Job.AddUndo(new UndoStep(UndoKind.RestoreRecycled, r.RecycledId, r.Path, 0, 0, r.RecycledId));
-                    else Job.RecordUndoRemainder(r.Path, "The item was recycled, but the platform did not provide an identity FileCat can restore. Use the Recycle Bin to review it.");
+                    else Job.RecordUndoRemainder(r.Path, $"The item was moved to {RecycleText.Destination}, but the platform did not provide an identity FileCat can restore. Review it in {RecycleText.Destination}.");
                     break;
                 case RecycleOutcome.PermanentlyDeleted:
                     Job.RecordUndoRemainder(r.Path, "The platform permanently deleted this item instead of recycling it; its data was not retained for Undo.");
@@ -2117,6 +2335,7 @@ internal sealed class CreateExecutor(Job job, IFileSystemOperations fs, JobJourn
         var parent = Job.Request.Destination!.Path;
         var name = Job.Request.NewName ?? throw new InvalidOperationException("A name is required.");
         var full = Path.GetFullPath(Path.Combine(parent, name));
+        CheckAdministratorPaths(null, full);
         if (!PathUtil.IsSameOrUnder(full, parent)) throw new InvalidOperationException("The name must stay inside the current folder.");
         Job.AddTotals(1, 0);
         if (Fs.TryGetInfo(full) is not null)
@@ -2131,7 +2350,11 @@ internal sealed class CreateExecutor(Job job, IFileSystemOperations fs, JobJourn
         {
             var created = new List<string>();
             for (var p = full; p is not null && !Directory.Exists(p); p = Path.GetDirectoryName(p)) created.Add(p);
-            ok = TryIo(full, "create the folder", () => Directory.CreateDirectory(full));
+            ok = TryIo(full, "create the folder", () =>
+            {
+                CheckAdministratorPaths(null, full);
+                Directory.CreateDirectory(full);
+            });
             // Recorded outermost first so that undo (which runs in reverse) removes the deepest folder first.
             if (ok) foreach (var c in Enumerable.Reverse(created)) Job.AddUndo(new UndoStep(UndoKind.RemoveEmptyDirectory, c, c, 0, 0));
         }
@@ -2158,6 +2381,7 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
         var src = root.FileSystemPath!;
         var newName = Job.Request.NewName ?? throw new InvalidOperationException("A new name is required.");
         var dst = Path.Combine(Path.GetDirectoryName(src)!, newName);
+        CheckAdministratorPaths(src, dst);
         Job.AddTotals(1, 0);
         var info = Fs.TryGetInfo(src);
         if (info is null)
@@ -2167,35 +2391,26 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
             Job.RootFailed(0);
             return;
         }
-        bool caseOnly = string.Equals(src, dst, StringComparison.OrdinalIgnoreCase);
-        var existing = caseOnly ? null : Fs.TryGetInfo(dst);
-        QuestionReview? atQuestion = null;
-        bool replace = false;
+        var existing = Fs.TryGetInfo(dst);
         if (existing is not null)
         {
-            // Replace as a Move replaces (review finding C7 of f134ba37): offered only where the destination can be replaced
-            // bound to its review, and only the destination the question showed.
-            bool replaceable = !existing.IsDirectory && !existing.IsLink && !info.IsDirectory && Fs.CanReplaceReviewed(dst);
-            var request = new ConflictRequest("An item with this name already exists", newName, info, existing, src, dst,
-                CanReplace: replaceable, false, existing.IsDirectory != info.IsDirectory, false, null, null);
-            atQuestion = ReviewAtQuestion(request, dst);
-            var d = Job.Ask(request);
-            if (d.Action == DecisionAction.Replace && replaceable) replace = true;
-            else if (d.Action == DecisionAction.Skip)
+            string? sourceIdentity = Fs.GetFileIdentity(src), targetIdentity = Fs.GetFileIdentity(dst);
+            bool otherSpelling = string.Equals(src, dst, StringComparison.OrdinalIgnoreCase) ||
+                !OperatingSystem.IsWindows() && string.Equals(src.Normalize(), dst.Normalize(), StringComparison.OrdinalIgnoreCase);
+            // A case-sensitive directory can contain both spellings. If they resolve to the same entry,
+            // the ordinary rename path still handles case-only and normalization-only renames.
+            if (!otherSpelling || sourceIdentity != targetIdentity)
             {
-                Job.ItemSkipped();
-                Job.RootFailed(0);
+                ResolveRenameConflict(src, dst, info, existing, sourceIdentity, targetIdentity);
                 return;
             }
-            else throw new OperationCanceledException();
-        }
-        if (replace)
-        {
-            Replace(src, dst, existing!, atQuestion);
-            return;
         }
         int step = Journal.Intent("rename", src, dst);
-        bool ok = TryIo(src, "rename the item", () => Fs.Move(src, dst, replaceExisting: false));
+        bool ok = TryIo(src, "rename the item", () =>
+        {
+            CheckAdministratorPaths(src, dst);
+            Fs.Move(src, dst, replaceExisting: false);
+        });
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.Failed);
         if (!ok)
         {
@@ -2209,10 +2424,33 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
         Job.RootCompleted(0);
     }
 
-    /// <summary>The rename over the reviewed destination, which stays at a recovery name if it cannot be removed.</summary>
-    private void Replace(string src, string dst, FileSystemItemInfo found, QuestionReview? atQuestion)
+    private void ResolveRenameConflict(string src, string dst, FileSystemItemInfo incoming, FileSystemItemInfo existing,
+        string? sourceIdentity, string? targetIdentity)
     {
-        if (ReviewForReplacement(dst, found, atQuestion) is not { } review)
+        bool efs = IsEfsProtected(existing);
+        bool same = sourceIdentity is not null && sourceIdentity == targetIdentity;
+        bool typeMismatch = existing.IsDirectory != incoming.IsDirectory;
+        bool eligible = !same && !typeMismatch && !existing.IsLink && !efs;
+        bool replaceFile = eligible && !existing.IsDirectory && Fs.CanReplaceReviewed(dst);
+        string? backupName = eligible && !replaceFile && sourceIdentity is not null && targetIdentity is not null &&
+            !existing.Attributes.HasFlag(FileAttributes.ReparsePoint) && Fs.CanRetainRenameTarget(dst)
+            ? $"Saved before rename {Guid.NewGuid():N}.bak" : null;
+        var request = new ConflictRequest(efs ? "The destination uses Windows EFS" : "An item with this name already exists",
+            Path.GetFileName(dst), incoming, existing, src, dst, replaceFile || backupName is not null, same, typeMismatch, false, null, null)
+        { RenameBackupName = backupName };
+        var atQuestion = replaceFile ? ReviewAtQuestion(request, dst) : null;
+        var decision = Job.Ask(request);
+        if (decision.Action == DecisionAction.Skip)
+        {
+            Job.ItemSkipped();
+            Job.RootFailed(0);
+            return;
+        }
+        if (decision.Action != DecisionAction.Replace || !request.CanReplace) throw new OperationCanceledException();
+
+        string? backup = backupName is null ? null : Path.Combine(Path.GetDirectoryName(dst)!, backupName);
+        var review = replaceFile ? ReviewForReplacement(dst, existing, atQuestion) : null;
+        if (replaceFile && review is null)
         {
             Job.ItemSkipped();
             Issue(IssueSeverity.Warning, dst, ChangedSinceQuestion, StepOutcome.CanceledBeforeChange);
@@ -2220,11 +2458,13 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
             return;
         }
         int step = Journal.Intent("rename-replace", src, dst, null, durable: true);
+        if (backup is not null) Journal.ReplacementRecovery(step, backup);
         BoundReplacement? bound = null;
         // Held open by another program: asked as in use, and Retry tries the same replacement again.
         if (!TryIo(dst, "replace the existing item", () =>
             {
-                bound = ReplaceReviewed(src, dst, review, step);
+                bound = backup is null ? ReplaceReviewed(src, dst, review, step)
+                    : ReplaceKeepingOriginal(src, dst, backup, incoming, existing, sourceIdentity!, targetIdentity!);
                 if (bound.InUse is { } busy) throw busy;
             }))
         {
@@ -2233,7 +2473,8 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
             Job.RootFailed(0);
             return;
         }
-        Journal.Done(step, bound!.Published ? StepOutcome.Committed : Unpublished(bound));
+        if (backup is not null && bound!.RetainedPath is not null) Journal.RequireRecovery();
+        else Journal.Done(step, bound!.Published ? StepOutcome.Committed : Unpublished(bound));
         if (bound.RetainedPath is not null)
             Issue(IssueSeverity.Warning, bound.RetainedPath, bound.Reason ?? "The replaced file remains at this recovery name.", StepOutcome.PartiallyApplied);
         if (!bound.Published)
@@ -2243,8 +2484,44 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
             Job.RootFailed(0);
             return;
         }
+        if (backup is not null)
+            Issue(IssueSeverity.Info, backup, "The previous item was saved under a backup name in the same folder.", StepOutcome.Committed);
         Job.ItemDone();
         Job.RootCompleted(0);
+    }
+
+    private BoundReplacement ReplaceKeepingOriginal(string src, string dst, string backup, FileSystemItemInfo incoming,
+        FileSystemItemInfo existing, string sourceIdentity, string targetIdentity)
+    {
+        CheckAdministratorPaths(src, dst);
+        if (Fs.GetFileIdentity(src) != sourceIdentity || Fs.TryGetInfo(src) != incoming ||
+            Fs.GetFileIdentity(dst) != targetIdentity || Fs.TryGetInfo(dst) != existing)
+            return new(false, true, Reason: "The source or destination changed after the conflict question.");
+
+        Fs.MoveToFreeName(dst, backup);
+        // Publication and rollback both claim a free name so a new occupant survives either path.
+        try
+        {
+            Job.Token.ThrowIfCancellationRequested();
+            if (Fs.GetFileIdentity(backup) != targetIdentity || Fs.GetFileIdentity(src) != sourceIdentity)
+                throw new IOException("The source or destination changed during the rename.");
+            Fs.MoveToFreeName(src, dst);
+            return new(true, false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        {
+            try
+            {
+                if (Fs.GetFileIdentity(backup) != targetIdentity)
+                    return new(false, true, backup, "The backup changed and was kept for review.");
+                Fs.MoveToFreeName(backup, dst);
+                return new(false, false, Reason: "The original destination was restored. " + ErrorText.Describe(ex));
+            }
+            catch (Exception restore) when (restore is IOException or UnauthorizedAccessException)
+            {
+                return new(false, false, backup, "The original destination is at the backup name. " + ErrorText.Describe(restore));
+            }
+        }
     }
 }
 
@@ -2286,6 +2563,7 @@ internal sealed class AttributesExecutor(Job job, IFileSystemOperations fs, JobJ
                 foreach (var (child, isDirectory) in inside)
                 {
                     Job.Checkpoint();
+                    PathUtil.RefuseAmbiguousUnixName(child);
                     if (isDirectory) folders.Add(child);
                     else ok &= Apply(child, change, inside: true);
                 }

@@ -1,0 +1,68 @@
+using FileCat.Core.Archives;
+using FileCat.Core.Edit;
+using FileCat.Platform.Windows.Elevation;
+using FileCat.Platform.Windows.Shell;
+using Microsoft.Win32.SafeHandles;
+using static FileCat.Platform.Windows.Elevation.NtFile;
+
+namespace FileCat.Platform.Windows.Archives;
+
+/// <summary>Fixed-stream origin propagation to the still-open, newly created private editor file.</summary>
+internal static class WindowsArchiveEditOrigin
+{
+    internal static void Copy(FileStream working,string workingPath,ArchiveOriginSnapshot origin,CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArchiveOuterEfs.RequireClear(working.SafeFileHandle, ArchiveOuterEfs.EditTemporaryOutputUnavailable);
+        if (origin.Format != ArchiveOriginFormat.WindowsZoneIdentifier || origin.State == ArchiveOriginState.Unavailable)
+            throw new IOException("The archive download mark cannot be preserved on the private edit copy.");
+        if (origin.State == ArchiveOriginState.Absent) return;
+        using var parent = LocalIconFileLease.TryOpenDirectory(Path.GetDirectoryName(workingPath)!, LeaseLinks.Refuse, removable: true)
+            ?? throw new IOException("The private edit directory cannot be pinned safely.");
+        Copy(working, parent.LastHandle, Path.GetFileName(workingPath), origin, ct);
+    }
+
+    internal static void Copy(FileStream working,SafeFileHandle parent,string leaf,ArchiveOriginSnapshot origin,CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArchiveOuterEfs.RequireClear(working.SafeFileHandle, ArchiveOuterEfs.EditTemporaryOutputUnavailable);
+        if (origin.Format != ArchiveOriginFormat.WindowsZoneIdentifier || origin.State == ArchiveOriginState.Unavailable)
+            throw new IOException("The archive download mark cannot be preserved on the private edit copy.");
+        if (origin.State == ArchiveOriginState.Absent) return;
+        var handle = working.SafeFileHandle; var identity = ProtectedHexFile.Identity(handle);
+        WindowsArchiveNative.Regular(handle, EditSessionStore.MaxMemberBytes, artifact: true, mayRename: false);
+        using var named = OpenOrThrow(parent, leaf, ReadAttributes | Synchronize, ShareAll, NtFile.Open,
+            NonDirectoryFile | OpenReparsePoint, "Check private edit origin owner");
+        if (ProtectedHexFile.Identity(named) != identity || IsReparsePoint(GetBasic(named).FileAttributes))
+            throw new IOException("The private edit name no longer identifies its held file.");
+        var before = GetBasic(handle);
+        using (var stream = OpenOrThrow(parent, leaf + ":Zone.Identifier", GenericRead | GenericWrite | Synchronize,
+            ShareRead | ShareDelete, Create, NonDirectoryFile | OpenReparsePoint, "Create private edit origin"))
+        {
+            if (ProtectedHexFile.Identity(stream) != identity) throw new IOException("The private edit origin belongs to a different file.");
+            CheckProtection(stream);
+            RandomAccess.Write(stream, origin.Bytes, 0); WindowsArchiveNative.Flush(stream);
+            byte[] bytes = new byte[origin.Bytes.Length]; int offset = 0;
+            while (offset < bytes.Length)
+            {
+                ct.ThrowIfCancellationRequested();
+                CheckProtection(stream);
+                int read = RandomAccess.Read(stream, bytes.AsSpan(offset), offset);
+                CheckProtection(stream);
+                if (read <= 0) throw new IOException("The private edit origin ended before complete readback.");
+                offset += read;
+            }
+            if (RandomAccess.GetLength(stream) != bytes.Length || !bytes.AsSpan().SequenceEqual(origin.Bytes))
+                throw new IOException("The private edit origin changed during exact readback.");
+        }
+        SetBasic(handle, new BasicInfo { LastWriteTime = before.LastWriteTime });
+        WindowsArchiveNative.Flush(handle); ct.ThrowIfCancellationRequested();
+        ArchiveOuterEfs.RequireClear(handle, ArchiveOuterEfs.EditTemporaryOutputUnavailable);
+
+        void CheckProtection(SafeFileHandle stream)
+        {
+            ArchiveOuterEfs.RequireClear(handle, ArchiveOuterEfs.EditTemporaryOutputUnavailable);
+            ArchiveOuterEfs.RequireClear(stream, ArchiveOuterEfs.EditTemporaryOutputUnavailable);
+        }
+    }
+}

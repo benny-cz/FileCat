@@ -3,6 +3,7 @@ using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
@@ -101,7 +102,11 @@ internal sealed class DialogCard : Border
         _layout.Children.Add(_bodyBorder);
         if (pinnedReview is not null)
         {
-            var review = new Border { Classes = { "dialogBody" }, Child = pinnedReview };
+            var review = new Border { Classes = { "dialogBody" }, Child = pinnedReview, IsVisible = pinnedReview.IsVisible };
+            pinnedReview.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == IsVisibleProperty) review.IsVisible = pinnedReview.IsVisible;
+            };
             Grid.SetRow(review, 2);
             _layout.Children.Add(review);
         }
@@ -129,11 +134,11 @@ internal sealed class DialogCard : Border
     }
 
     /// <summary>Optional pointer and keyboard size control for substantial search dialogs.</summary>
-    internal void EnableResizing(Panel host)
+    internal void EnableResizing(Panel host, Size? preferredSize = null)
     {
         _resizable = true;
         MaxWidth = double.PositiveInfinity;
-        _requestedSize = new Size(700, 560);
+        _requestedSize = preferredSize ?? new Size(700, 560);
         _layout.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         var gripRow = new Grid { Height = 24 };
         var thumb = new Thumb { Name = "DialogResizeGrip", Width = 32, Height = 24,
@@ -265,7 +270,7 @@ internal sealed class DialogForm : Grid
             {
                 Text = row.Label,
                 TextWrapping = TextWrapping.Wrap,
-                VerticalAlignment = row.Control is TextBox { AcceptsReturn: true } ? VerticalAlignment.Top : VerticalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Top,
             };
             if (label is not null)
             {
@@ -316,6 +321,17 @@ internal sealed class DialogForm : Grid
 
 internal static class DialogLayout
 {
+    internal static void RevealVertically(ScrollViewer scroll, Control target)
+    {
+        if (target.Bounds.Height > scroll.Viewport.Height) return;
+        var viewport = scroll.GetVisualDescendants().OfType<ScrollContentPresenter>().FirstOrDefault();
+        if (viewport is null || target.TranslatePoint(default, viewport) is not { } top) return;
+        double delta = top.Y < 0 ? top.Y : Math.Max(0, top.Y + target.Bounds.Height - viewport.Bounds.Height);
+        if (Math.Abs(delta) > 0.5)
+            scroll.Offset = new Vector(scroll.Offset.X, Math.Clamp(scroll.Offset.Y + delta, 0,
+                Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height)));
+    }
+
     // Keep the original string Content (and thus the accessible name and access key) intact.
     internal static readonly IDataTemplate WrappingText = new FuncDataTemplate<string>((text, _) =>
         new AccessText { Text = text, TextWrapping = TextWrapping.Wrap });

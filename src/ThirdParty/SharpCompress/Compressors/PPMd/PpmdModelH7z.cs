@@ -86,5 +86,5 @@ internal sealed class PpmdModelH7z : IDisposable
         return symbol;
     }
 
-    public void Dispose() { }
+    public void Dispose() { _model.Clear(); _initialized = false; _ended = false; _failed = true; }
 }

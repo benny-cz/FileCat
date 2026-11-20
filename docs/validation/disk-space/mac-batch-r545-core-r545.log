@@ -1,0 +1,13 @@
+  Discovering: FileCat.Core.Tests
+  Discovered:  FileCat.Core.Tests
+  Starting:    FileCat.Core.Tests
+Stopped fallback fixture: source closed=True, directory closed=False, retained dataset=True.
+    FileCat.Core.Tests.AnalysisProfileQuotaTests.WindowsForeignObjectTypeIsPreservedAndItsPrivateNameDoesNotEscapeTheFailure [SKIP]
+      Windows named-kernel-object negative control.
+Owned scratch child exited; initial entries=1, final entries=1, cleanup observation=0,087ms.
+    FileCat.Core.Tests.AnalysisPrivateStorageTests.LinuxScratchCannotBePublishedThroughItsKernelDescriptorButInventoryStagingCan [SKIP]
+      Linux O_TMPFILE publication fixture.
+Alternating 6,000 captured rows: native ReadAt calls=47
+  Finished:    FileCat.Core.Tests (ID = '386ec10c21872c045dcdda6c2f8a39e94233c626d392ebbc3e48a4fe067d96cb')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Core.Tests  Total: 692, Errors: 0, Failed: 0, Skipped: 2, Not Run: 0, Time: 20,370s

@@ -1,0 +1,616 @@
+# Coverage-guided archive-writing fuzz setup
+
+**12 November, fuzz gates complete: campaign on `62f0a457`, ZIP family and re-qualification at `489177af` (row 7, §13.6).**
+
+- **Campaign result.** All 47 runs finished by 05:02 and every transport passes host verification
+  ([`verify_fuzz_candidate_transport.py`](../../../eng/validation/archive-writing/verify_fuzz_candidate_transport.py)
+  `campaign`, list `fuzz-candidate-v4-campaign-list-sealed.json`): 1,422,309,568 executions, two slow-unit reports (the
+  protected RAR5 updates below), no oracle skip, crash, leak or dump. CPU-hours per family: TAR 25.627, compressed
+  streams 27.972, 7z 27.462, RAR5 29.337, shared stateful/protocol/recovery 29.330, ZIP 15.861; every target 2 or more
+  (lowest `stream-faults` 2.072). ZIP is below 24 (next bullet) and is repeated on the fixed commit, as `1f51bd15`
+  changed its code anyway.
+- **Contention.** The scheduler sized each run's wall time from its short run's uncontended CPU rate. With 11 units on 12
+  vCPUs the multithreaded `zip-archives` units earned 0.74 CPU-seconds per second against a short-run rate of 1.38, and
+  14 runs ended clean below their planned per-run floor (all six `zip-archives`, two `sevenzip-writer`, two
+  `verify-output`, two `create-inputs`, `publication-races`, `stream-faults`). A guest watcher sealed each at the CPU it
+  earned (every other sealer check unchanged); the sealed list carries those floors (`fuzz-candidate-v4-short-runs.json`)
+  and the families are judged on actual CPU. Single-threaded targets kept their rates. New plans count on at most one
+  CPU-second per second (`c3eb3847`).
+- **Final corpus.** `corpora-final-v4.tar.gz` (`d4f93db3…`): 465,380 inputs over 27 targets (127,730 for
+  `zip-archives`). Replayed at the fixed commit on every shipping RID with no failure, each report matching its
+  folder's file count and digest (`verify_corpus_replay.py`): macOS arm64 27 targets, 2.495 CPU-hours
+  (`replay-final-mac`, `c67ef85e…`); linux-x64 with the uninstrumented harness 27 targets, 4.128
+  (`replay-final-ubuntu`, `1b7f6ea6…`); Windows x64 26 targets, 453,231 inputs, 2.722 (`replay-final-win`,
+  `4ae569c8…`; the Unix publication route skipped). Accepted and refused counts agree between the RIDs except two of
+  12,149 publication-race inputs (macOS against Linux, whose exchange semantics differ; the oracle passed both) and
+  the Unix-rooted session records and intents that Windows refuses before any path check.
+- **Fixed commit `489177af`.** Its product source equals `1f51bd15` (the ZIP stack fix); later commits change tests and
+  tooling only.
+  - Full regressions. macOS `full-v23a-mac` passes (Core 344 + 8,732, App 2,810, Remote 2,638, Rendering 23;
+    `dae87372…`). Windows VM `full-v23a-win` (Core 8,344, Platform 422 + 1,163, App 2,914, Remote 2,405, Rendering 24;
+    `4d615e83…`) fails only `DeviceReadTests.A_folder_reached_through_a_link_is_placed_where_the_link_leads`, whose
+    expectation ignored that the VM's S: is a VHD whose file lies on C: (`DeviceTopology` rightly counts that disk); the
+    test now compares the link with the volume it leads to (`5b6a5836`) and passes on the VM (`devread-v23c-win`).
+    Ubuntu `full-v23a-ubuntu` (Core 355 + 8,795, App 2,822, Remote 2,543, Rendering 23; `0a420a59…`) fails only
+    `SecretStoreTests`: the VM's keyring has no login collection, and creating one needs the session's keyring daemon to
+    start unlocked at a graphical login (an attempt over ssh was reverted).
+  - Platform floors (structured mutation from the image's exact seeds, checked by `verify_structured_lanes.py`): macOS
+    27 targets, 6.762 CPU-hours (`xrid-mac-489177af`, `3f579846…`); Windows 26 targets, 4.801 (`xrid-win-489177af`,
+    `f77759ec…`; 4.408 without the two record targets whose Unix-rooted seeds only reach the refusal), and the
+    Windows-rooted record pass accepted 115,018 session records and 20,110 intents (`22a3a8cd…`).
+  - Corpus-seeded passes (extra coverage): macOS 27 targets, 25.38 CPU-hours, 1.74 billion inputs (`fd8e5c79…`);
+    Windows 26 targets, 11.70 (`2ff46c7e…`), where a harness fault ended `manifest-member` early (below) and its rerun
+    with the fixed harness ran the full 30 minutes, 369 million inputs (`4ac84b0f…`). From the interim sample at
+    `62f0a457`: macOS 49.66 CPU-hours (`2fed3f34…`), Windows 12.25 (`12b4cf40…`).
+  - Writer scale (AT18, `ArchiveWriterScaleTests`) under the Windows VM's standard token: all ten engine profiles write
+    and strictly read 100,000 members on a 1 MiB thread (7z LZMA2 63.7 s, RAR5 normal 49.8 s, all others under 12 s).
+  - ZIP family: image `fuzz-candidate-v5` at `489177af` qualified (canary found in 11,963 calls, its replay exits 77,
+    27 clean short runs), then ran six `zip-archives` units planned at one CPU-second per second (`c3eb3847`); each
+    earned about 20,200 CPU-seconds against its 15,000 floor. All six transports pass host verification
+    (`verify_fuzz_candidate_transport.py campaign 489177af… fuzz-candidate-v5-campaign-list.json zip-archives`):
+    33.71 CPU-hours for the family (floor 24), 14,057,629 executions, no crash, leak, dump, slow unit or oracle skip.
+    Only `zip-archives` reaches the code `1f51bd15` changed, so with the other families' floors from `62f0a457`
+    (identical code for every method they reach) every §13.6 format-release floor holds for the fixed commit.
+- **Harness and tooling defects found on the way** (not product). Structured lanes replaced their report file without
+  retrying, so on Windows a scanner holding the file ended a lane as a failure, and they published every 4,096 calls
+  (about 23 forced collections a second on fast targets): retried, at most one publish a second (`b1253274`). Transient
+  unit names repeat across images and the canary's failed units stayed loaded, so the first v5 canary could not start:
+  the runner resets such a unit first (`96b63086`). Unix test evidence keeps published files' hashes instead of the
+  binaries (`d72445df`); test runners refuse below 10 GiB free and the scheduler waits below 5 GiB (`c6f1df11`);
+  subset planning and per-family verification (`489177af`).
+- **Gate status.** Every §13.6 floor is met for the fixed commit: format families (TAR 25.627, compressed streams
+  27.972, 7z 27.462, RAR5 29.337 and shared 29.330 CPU-hours on `62f0a457`; ZIP 33.71 on `489177af`), every target 2
+  or more, the platform floors on macOS and Windows, and the entire regression corpus on every shipping RID. A product
+  change after `489177af` repeats the families whose code it reaches. Not fuzz work: the owner's route decisions,
+  signing, hosted CI and the final independent review.
+
+**11 November, candidate campaign on `62f0a457` running (row 7, §13.3, §13.6).** One image, one candidate, every target:
+
+- **Image `fuzz-candidate-v4`.** [`prepare_fuzz_candidate_guest.py`](../../../eng/validation/archive-writing/prepare_fuzz_candidate_guest.py)
+  built it on the Ubuntu VM from a clean checkout of exactly `62f0a457` (product source identical to `d7287a35`): the
+  product build's files are hashed into `preparation.json`, the harness packet is `2ad17f19…` (the checkout's own
+  harness build), and only the reviewed native libFuzzer driver comes from the earlier `fuzz-canary-v2` image.
+  Instrumentation now covers what §13 lists: all of `FileCat.Core.Archives` with the edit-session store and job
+  journal (528 types: guards, planning, worker protocol, transform conversation, journaled preparation, native jobs,
+  publication, discard and recovery records), the whole `FileCat.Archives.Writing` namespace (201 types: strict readers,
+  rewrite engines, encoders, catalogs, worker roles) with the read guards and password sessions, and the vendored codecs
+  (`SharpCompress.Compressors`, `Crypto`, `Algorithms`: 315 types, including the unsafe Zstandard port). Codec locations
+  feed coverage only; they are instrumented without the per-branch method callback. Earlier images covered the strict
+  readers and the recovery parsers only. Method reports keep one flag per location (no longer cut at 128 names).
+- **27 targets.** The 25 existing ones plus `sevenzip-writer` and `rar5-writer`
+  ([`ContainerWriterTargets.cs`](../../../eng/validation/archive-writing/ArchiveFuzzHarness/ContainerWriterTargets.cs)):
+  create, update, stale/unknown/unused/unsafe change refusal and mutated-stage verification through the real plans,
+  worker roles (single-use password grants for protected profiles, a quarter of requests) and fresh verifier, compared
+  with each format's separate browse reader (FZ05–FZ07, FZ13). On v4 the two-byte canary was found (933 calls) and its
+  replay reproduced exit 77; every target's 120-second short run finished clean and reached its required production
+  methods (for example 1,550 named methods for `publication-races`, 965 for `sevenzip-writer`).
+- **Product defects the new image found** (both fixed, with regression tests that fail without the fix; Mac 216/216 in
+  the edit-session and 7z writing, filter and PPMd classes):
+  `session-record` — the edit-record parser accepted a record whose working path is its session folder (the recovery
+  helper's fallback value) as a usable edit; `37ffe408` requires a file strictly inside the folder.
+  `sevenzip-writer` — the 7z browse reader passed a following filter the PPMd coder's overrun bytes (7z PPMd has no end
+  marker), so PPMd + Swap2/Swap4 archives, including ones FileCat writes, read back with a changed tail and FileCat's
+  CRC check called them damaged; real 7-Zip 24.01 tests and extracts them. `d7287a35` ends that coder's output at the
+  folder's recorded unpack size in both decoder registries (`THIRD-PARTY-CHANGES.md` records it).
+- **A third product defect, found beside the campaign** (fixed after the candidate, `1f51bd15`). A host build's CA2014
+  warning led to the ZIP rewrite: each new or replaced payload's data descriptor was a `stackalloc` inside the member loop,
+  released only when the rebuild returns, so the frame grew by 32 bytes per payload. Requests admit 100,000 members
+  (3.2 MB), beyond a 1–1.5 MiB worker thread stack, and a stack overflow ends the process. One buffer before the loop now
+  serves every descriptor. The regression test rebuilds 20,000 one-byte files on a 256 KiB thread: the old engine dies
+  with `STATUS_STACK_OVERFLOW` inside `Rebuild`, the fixed one finishes and the strict catalog reads every member back;
+  the host passed the 1,182 tests of the ZIP, 7z and TAR pipeline classes. No fuzz input could reach it (inputs are at
+  most 1 MiB with a few members per plan). The image's method reports show that only `zip-archives` reaches
+  `ZipRewriteEngine`, so every other target ran code identical to the fixed commit's; `zip-archives` replays its
+  collected corpus (2,752 inputs) at the fixed commit with the same 2,160 accepted and 592 refused, no failure. The
+  member limit now has an opt-in AT18 test for every writer engine
+  ([`ArchiveWriterScaleTests.cs`](../../../tests/FileCat.Core.Tests/ArchiveWriterScaleTests.cs), `48a321ad`):
+  10,000 and 100,000 one-byte members written and strictly read back on a 1 MiB thread, in linear time. On the host at
+  100,000 members, write plus read: ZIP 2.8 s (stored) and 5.6 s (Deflate), TAR 3.0, TAR.GZ 5.6, TAR.BZ2 21.3, TAR.ZST
+  2.8, 7z copy 9.9, 7z LZMA2 91.8, RAR5 store 4.2 and normal 63.9 s. RAR5 normal makes 27.4 MB of one-byte files
+  (store: 4.4 MB), because every block carries its complete fixed code table; per-file automatic store selection is the
+  RAR5 encoder's documented open item ([RAR5_CSHARP_ENCODER.md](RAR5_CSHARP_ENCODER.md)), not a new finding.
+- **Harness and runner defects found on the way** (not product): the units' 16 MiB `LimitFSIZE` also caps the
+  runtime's write-xor-execute memory file that holds all JIT code, so widely instrumented images ran out of executable
+  memory within seconds and the runtime failed fast with out-of-memory; this was also the unreproducible create-inputs
+  crash of the first candidate image, never seen in 2.1 million executions outside a unit. The cap is now 1 GiB.
+  `PrivateDevices=` left inherited capabilities, so FileCat's ordinary-identity check refused every publication-race
+  input (58,542 of 58,542); an empty `CapabilityBoundingSet=` clears them. The session-record target still called the
+  parser's old signature; the seed cap (64) was below `publication-races`' 181 seeds; and the in-process roles ran on
+  thread-pool threads whose shared-array-pool caches kept the LZMA encoder's match-finder tables (95–280 MiB that a
+  full collection could not free on Linux), so each role now gets its own thread, as each real role gets its own
+  process: the live heap stays at 2–8 MiB. Every unit now leaves a .NET crash report if the managed child faults.
+- **Campaign.** [`run_fuzz_candidate_campaign_guest.py`](../../../eng/validation/archive-writing/run_fuzz_candidate_campaign_guest.py)
+  sizes 47 runs from each short run's CPU rate (18% margin) and keeps 11 hardened units busy, longest first, on the
+  12-vCPU VM. Planned floors: 25 CPU-hours for each format family (TAR: `tar-strict`, `member-keys`, `create-inputs`,
+  `update-changes`, `verify-output`; compressed streams: `gzip-`, `bzip2-`, `zstd-strict`, `standalone-streams`; 7z:
+  `sevenzip-strict`, `-password`, `-writer`; RAR5: `rar5-strict`, `-password`, `-writer`; ZIP: `zip-archives`) and 25.3
+  for the eleven shared stateful, protocol and recovery targets, every target at least 2.3 (§13.6: 24 and 2). Each
+  finished run is sealed on the guest by
+  [`seal_fuzz_candidate_guest.py`](../../../eng/validation/archive-writing/seal_fuzz_candidate_guest.py) with its canary,
+  replay and short runs, the clean binaries, type reports and the target's seed folder;
+  [`verify_fuzz_candidate_transport.py`](../../../eng/validation/archive-writing/verify_fuzz_candidate_transport.py)
+  re-derives every check on the host and the family floors (`campaign` mode). The same seeds run as structured mutation
+  at the same commit on macOS arm64 and Windows x64 (the §13.6 platform floor of 4 CPU-hours per additional RID), with
+  [`run_structured_lanes_unix.sh`](../../../eng/validation/archive-writing/run_structured_lanes_unix.sh) and
+  [`run_structured_lanes_windows.ps1`](../../../eng/validation/archive-writing/run_structured_lanes_windows.ps1).
+- **Other RIDs (§13.6 platform floor, 4 CPU-hours each).** At `62f0a457`, every target ran as structured mutation from
+  the image's exact seed folders: macOS 27 (arm64, M1) 27 targets, 6.471 CPU-hours, 772,679,582 inputs; Windows 11
+  x64 (the 8-vCPU VM, `C:\FileCatValidation\dotnet` SDK) 26 targets in two passes with distinct random seeds (the
+  Unix publication route excluded), 5.179 CPU-hours, 396,046,683 inputs; no failure and no oracle skip on either.
+  [`verify_structured_lanes.py`](../../../eng/validation/archive-writing/verify_structured_lanes.py) checks each
+  report against the seed archive (`fuzz-candidate-v4-seeds.tar.gz`, `c0411ae6…`) and the floor; transports
+  `xrid-mac-62f0a457` (`20c51562…`), `xrid-win-62f0a457` (`17777749…`) and `-b` (`810e0c6a…`). The first Windows pass
+  alone reached 3.945 CPU-hours, so a second pass was added. The corpus-replay tools
+  ([`collect_fuzz_corpora_guest.py`](../../../eng/validation/archive-writing/collect_fuzz_corpora_guest.py), the two
+  `run_corpus_replay_*` scripts, [`verify_corpus_replay.py`](../../../eng/validation/archive-writing/verify_corpus_replay.py))
+  replayed a first interim corpus on macOS (27 targets, 28,903 inputs, no failure); the final corpora follow the campaign.
+- **Windows seeds for path-bearing records.** The image's seeds and the campaign's corpus are Linux: session records and
+  saved-copy intents name the harness's Unix session and destination roots, which the Windows harness refuses before any
+  path check. Every win-x64 pass above therefore exercised only that refusal for these two targets (38.7 and 31.1 million
+  inputs, none accepted); without them the Windows floor is still 4.753 CPU-hours.
+  [`sample_corpus_seeds.py`](../../../eng/validation/archive-writing/sample_corpus_seeds.py) `--windows` (`86f03a28`)
+  rewrites those roots, separators included, as `make_session_fuzz_seeds.py --platform windows` writes them; a
+  30-minute pass per target from the rewritten corpus sample accepted 155,246 of 57.8 million session records and 27,825
+  of 55.4 million intents, with no oracle failure (`xrid-win-62f0a457-winpaths1`, `cd0b9247…`). An 85-input probe of
+  Windows spellings through the harness on the VM (`\\?\`, `\\.\`, `\\localhost\C$`, 8.3 names, drive and folder case,
+  trailing dots and spaces, dot segments, doubled separators, drive-relative and driveless paths) found every
+  non-canonical form refused, as the parsers' rules predict; Windows-only theories now pin those forms (`8197bad8`).
+  Alternate data streams and a `CON` leaf inside the session folder parse as usable working paths: FileCat never writes
+  such working names (`SafeNames`) and both stay inside the session folder.
+- **Interim corpus replay.** `corpora-interim-1` (`4d5a29f1…`: every short run and the first four sealed long runs,
+  38,230 inputs) replayed with no failure on macOS arm64 (27 targets, 38,230 inputs, 1.95 CPU-hours,
+  `replay-interim1-mac`, `0e456304…`) and Windows x64 (26 targets, 37,425 inputs, 0.71 CPU-hours,
+  `replay-interim1-win`, `0908bcbf…`), both checked by `verify_corpus_replay.py`. The two RIDs accept and refuse the same
+  inputs except the path-bearing records above. The replay runners now take several targets at once, largest folders
+  first (`ba2bc7f5`). `rar5-writer` dominates (6,795 CPU-seconds on the M1, 2,121 on the VM): a quarter of its update
+  requests are protected and derive PBKDF2 keys with 2^19 rounds several times each; the same inputs take 0.14 s each
+  with protection cleared.
+- **Slow units.** Each `rar5-writer` long run saved one slow-unit report, a protected update over libFuzzer's 10-second
+  report threshold under instrumentation (4.7 s uninstrumented on the M1). The image's own sealer refused such runs; the
+  repository's sealer (`1d2dc830…`), which records slow units as reports and still refuses any crash, leak, OOM or
+  timeout, sealed both, and the host verifier accepts either sealer.
+- **FZ10 on Windows.** [`ArchiveAppContainerPublicationRaceTests.cs`](../../../tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerPublicationRaceTests.cs)
+  runs the same publication-race oracle against the actual confined application worker and NTFS recipes (new-file
+  publication and the transactional same-object update): every action at every early durable point for creation and
+  update, a disturbance-free control that must publish, and a seeded random lane. Windows VM, standard token: 179/179;
+  seed 42829402 published 121 of 200 random rounds and refused 79, all within the oracle (`fz10win-b`, `19793f36…`).
+- **Open.** Campaign completion, sealing and host verification. Because `1f51bd15` changed product code after the
+  candidate, the final corpora's replay on each shipping RID and at least the ZIP family's floor are repeated at the
+  fixed commit.
+
+**11 November, FZ10 `publication-races` target implemented (no campaign yet).**
+[`PublicationTargets.cs`](../../../eng/validation/archive-writing/ArchiveFuzzHarness/PublicationTargets.cs) runs the real
+Unix archive job route (`UnixArchiveJobBackend` through `IArchiveJobBackend.Execute`: review, capture, journaled
+preparation with the in-process worker roles, exchange or creation claim, reconciliation, exact cleanup or discard) on a
+fresh link-free fixture, a TAR update of a three-member original or a new TAR. The journal stream is wrapped, as the crash
+harness does, and immediately before and after each durable transaction, creation-cleanup and discard record the input
+applies up to six actions of another program of the same user: replace or move away the archive (its old version moves
+to a kept folder), append to it, change its time, create a file at a free archive name, put a file into or rename
+FileCat's private stage folder, open the folder to everyone, swap FileCat's stage for another file, hard-link the
+archive, or put a symbolic link at its name. The oracle: only typed refusals escape; no version another program wrote is
+lost, and the original only when the update was published; a version FileCat moved from the archive name is never a
+silent success; a job that stopped before `Publishing` never leaves its output at the name; the name never holds bytes
+nobody wrote completely; a reported success leaves its complete output somewhere. FileCat.Core now names the harness as a
+friend assembly (test tooling, as for the crash harness). `make-worker-seeds` writes 181 seeds (each action alone at
+eight points for creation and update, plus pairs around publication); the native libFuzzer and `replay-worker` entries
+accept the target, and so do `run_fuzz_guest.py` (60-second input timeout) and the portable `structured-mutation` lane.
+On the exact candidate (packet v19m9) all 181 seeds replayed with no oracle violation on the Mac and on Ubuntu: 61
+published and 120 refused on each. The first replay (Mac, v19m6) found a harness defect, not a product one: the fixture used
+macOS `/var/…` (a link) where `JobManager.SubmitArchive` resolves the folder once, so every creation was refused with
+ENOTDIR; the harness now resolves paths as submission does. The same replay showed that a file appearing at a new
+archive's name just before the claim was refused correctly but reported as a raw `errno 17`; the claim on Unix and on
+Windows now reports "Another file named “…” appeared while the archive was being prepared. That file was kept and the
+new archive was not saved." (shared creation-publication case `existing-target` asserts it on Linux, macOS and Windows).
+The target covers the Unix exchange and creation routes only; Windows TxF publication races stay with the Windows
+restoration and crash matrices. Seal/verify entries, the native campaign and the 24 CPU-hour totals remain for the
+final candidate.
+
+**10 November, harness targets for FZ04–FZ08, FZ11 and FZ12 implemented (no campaign yet).**
+Seven new test-only targets call the real public parent conversations through the real `ArchiveWorkerSession`; only the
+process boundary is replaced, by the real worker roles running in-process over pipes
+([`WorkerTargets.cs`](../../../eng/validation/archive-writing/ArchiveFuzzHarness/WorkerTargets.cs),
+[`WriterTargets.cs`](../../../eng/validation/archive-writing/ArchiveFuzzHarness/WriterTargets.cs),
+[`StatefulTargets.cs`](../../../eng/validation/archive-writing/ArchiveFuzzHarness/StatefulTargets.cs)):
+
+| Plan | Target | Input and oracle |
+| --- | --- | --- |
+| FZ04 | `member-keys` | Edits whose key has a stale or forged catalog revision, name, type or occurrence. A key that names no member of the pinned catalog must be refused; accepted plans are written, verified, independently decoded, and untouched members are preserved with all TAR metadata. |
+| FZ05 | `create-inputs` | Arbitrary names, lengths, payloads, modes and times for TAR, TAR.GZ, TAR.BZ2 and TAR.ZST creation. The real writer's stage must pass the real fresh verifier; TAR and TAR.GZ output must also decode identically with `System.Formats.Tar`/`GZipStream`. |
+| FZ06 | `update-changes` | Fixture source plus delete/replace/rename edits and additions; same verification and independent decoding, plus byte- and metadata-exact preservation of every member no edit names. |
+| FZ07 | `verify-output` | Mutated staged bytes against a fixed expected manifest. Whatever the fresh verifier accepts must decode with an independent TAR reader to exactly the fixture's names, types, lengths, contents, mode, owner IDs/names and time. |
+| FZ08 | `worker-frames` | Hostile worker output (correctly framed scripts derived from real worker transcripts, or raw bytes) against the parent assessment and fresh-verification conversations; only typed refusals or receipts for the exact request are allowed. |
+| FZ11 | `stream-faults` | Short reads, early end, `IOException` and nonseekable sources at the assessment, verification and transform-input boundaries, and failing stage writes/flushes/length changes. Success must equal the unfaulted result; a stage failure must never yield a receipt. |
+| FZ12 | `repeated-cancel` | Up to eight assessment/verification/transform conversations in one process, cancelled at an arbitrary read. Each succeeds exactly or ends cancelled; the worker queue is free after each; a final clean assessment is unchanged. |
+
+`make-worker-seeds` writes the seed corpus: real transcripts of the in-process worker roles for FZ08, the fixture archives
+for FZ07, and complete valid requests for the others. `replay-worker`, the native libFuzzer entry
+([`run_fuzz_guest.py`](../../../eng/validation/archive-writing/run_fuzz_guest.py), 10-second watchdog; 60 seconds for
+`repeated-cancel`) and the portable `structured-mutation` lane accept all seven. On the development host only, every seed
+replayed as expected and 30–60-second structured smokes ran 26,143 to 743,391 executions per target with no oracle
+failure. Those smokes are not evidence. Still open: the harness found two of its own defects before any product
+finding (a stage wrapper that was not readable/seekable, and typed member-key refusals not counted as refusals in replay);
+the seal/verify scripts need entries for these targets; canary, short and long native campaigns, structured replay on
+each RID, FZ09 transition targets, FZ10 and the per-family and shared 24-CPU-hour totals belong to the final candidate.
+
+**10 November, structured-mutation platform floors passed on all three desktop RIDs.**
+The portable test-only lane
+[`StructuredMutation.cs`](../../../eng/validation/archive-writing/ArchiveFuzzHarness/StructuredMutation.cs)
+replays bounded deterministic byte, truncation and boundary mutations of a frozen synthetic corpus
+against the production `sevenzip-strict`, `rar5-strict`, `sevenzip-password`, `rar5-password` and
+`journal-state` entry points. It complements, and does not replace, the Linux coverage-guided
+libFuzzer lane: it has no coverage feedback and earns no per-target 7,200-CPU-second floor. All three
+runs used the same frozen harness packet (SHA-256
+`ca7a04047cf09c5a32dab64cf42bcc64fd15f88aba97b47d9512387cc2288297`) and seed packet (SHA-256
+`c36d2e822b2505c04f77e96d23844e742da475803c7c2ce0224d344ae8f1297b`), five concurrent
+one-hour lanes, and the plan's 4-CPU-hour (14,400 s) additional-RID floor. Windows ran under the
+real standard account `fcarchive42829297`; the Unix runs used
+[`run_structured_mutation_unix.py`](../../../eng/validation/archive-writing/run_structured_mutation_unix.py)
+as the ordinary guest user.
+
+| RID / product source | CPU seconds | 7z strict calls | RAR5 strict calls | 7z password calls | RAR5 password calls | Journal-state calls | Bundle SHA-256 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| win-x64, `320f43c6` | 17,818.312 | 49,517,652 | 21,568,377 | 674,139 | 56,468 | 271,628,108 | `5ef91fff1e52e9a01d2fc78ce1a8a0dc608aa69c63bf502d5d91078c28fbd54f` |
+| osx-arm64, `320f43c6` | 18,018.843 | 80,130,793 | 60,265,439 | 794,871 | 15,392 | 976,723,181 | `7b7dbe9d4ce069f1edde550df4e9842ebbed24ac8c3be1db9f6bb3d0add365e3` |
+| linux-x64, `34d98b51` | 18,072.139 | 46,875,554 | 15,079,096 | 722,833 | 16,229 | 308,532,315 | `4927f650e3a976c6504861345e52b15b36f40b3fd932e7659784c27fc677d31c` |
+
+Every lane reported completion, no failure and no reproducer; no lane was under 3,553 CPU seconds.
+The independent host verifier
+[`verify_structured_mutation_evidence.py`](../../../eng/validation/archive-writing/verify_structured_mutation_evidence.py)
+checked each bundle's PASS status, both frozen packet identities, the harness `Program.cs` and
+`StructuredMutation.cs` hashes against the committed sources, all five lanes and the CPU floor. Product
+DLL hashes in each bundle match the guest-built `FileCat.Core.dll` of the named source tree
+(`85b49a4a…`, `eac4a585…`, `aaf42d83…`). Between those product commits and `06f70594` only Unix
+storage files changed, so the exercised parser and journal paths are unchanged. Peak private bytes stayed
+at or below 126,038,016 on Linux and 69,206,016 on Windows; macOS reported zero because
+`Process.PrivateMemorySize64` is unavailable there, so that run is not memory evidence. A first Windows
+attempt (`v1`) refused before its long lanes because its smoke check required more calls than seeds and
+the 2-second `rar5-password` smoke only covered its 38 seeds (password derivation cost); `v2` corrected
+the check to `calls >= seeds` against the identical frozen packets and passed. The `v1` failure is
+retained. These floors cover the platform structured-replay gate for these five targets only; the other
+targets, the per-format-family 24-CPU-hour totals and the shared-state 24-CPU-hour total remain open.
+
+**10 November, gzip/BZip2/Zstd long campaigns passed independent verification.**
+All three Ubuntu `fuzz-campaign-v7` drivers completed their bounded
+12,000-second wall runs with no crash artifact. The host-side transport verifier
+checked their raw members, exact instrumented product images, canary and
+replay, structured seeds, production methods, managed-call counts, terminal
+cgroup outcome and the 7,200-CPU-second floor:
+
+| Target | Kernel CPU seconds | Executions | Accepted | Transport SHA-256 |
+| --- | ---: | ---: | ---: | --- |
+| gzip-strict | 10,839.053064 | 16,642,135 | 7,649 | `844855e5a0f0e46406d5ab551718f7debaf4ec267e56e5a6fbbcb935aaae0e00` |
+| bzip2-strict | 12,734.511204 | 5,004,086 | 2,658 | `155a43a93369ce5c9e1baf483d5901b457cdf3189ee12e0862a35c30271a55b2` |
+| zstd-strict | 7,581.796526 | 63,219,077 | 1,862,658 | `521d5fb9fe82f0529596a7a07775341370ff691f8564fee69c7f7a083d4879fa` |
+
+Zstd's native driver and cgroup finished successfully, but its test supervisor
+raised `FileNotFoundError` while measuring the output tree: the managed worker
+atomically replaced `reports/managed.json.tmp` between `is_file()` and `stat()`.
+The original failed wrapper queue and supervisor log (SHA-256
+`8a82dc533c2a384d114cd76779f5eb59d872af015ea537c85305ff6abf70fd76`)
+remain retained. The narrow
+[`recover_fuzz_finalizer_guest.py`](../../../eng/validation/archive-writing/recover_fuzz_finalizer_guest.py)
+checked the exact command/image hashes, 12,001-second driver completion,
+63,219,077 managed calls, zero crash artifacts, 7,581.796526 cgroup CPU
+seconds and hard memory limit, then wrote the previously missing result with
+an explicit recovery marker. The original strict sealer and independent host
+verifier accepted the resulting transport. The in-memory per-second resource
+samples were lost; the hard cgroup policy, final CPU/memory accounting, driver
+log and report are retained. The source-controlled supervisor now tolerates
+only a file disappearing during this live size walk. These are three wrapper
+targets, not completion of all required fuzz targets or final product gates.
+
+**10 November, strict 7z and RAR5 long campaigns passed.** The two independent
+Ubuntu `fuzz-campaign-v5` native runs completed their bounded 12,000-second wall
+campaigns with zero crash artifacts. The sealed sevenzip-strict target recorded
+8,323.744031 kernel CPU seconds, 59,195,865 executions (336,756 accepted),
+with transport SHA-256
+`58a087e4cf774c6df6b923ba6a5a6a3dcf8d89bf6573c9c77880322e5dca34ad`.
+The rar5-strict target recorded 9,618.853456 kernel CPU seconds, 32,556,207
+executions (109,531 accepted), with transport SHA-256
+`eb07cd5b0cd09ee3bd0915eae51f25e57b15ef3a3c622e1c9398e68c7ad8e2f3`.
+The independent host verifier checked every raw transport member, exact packet
+and instrumented image hashes, canary crash and replay, structured seed sets,
+production method coverage, terminal status and the 7,200-CPU-second floor for
+each target. These are two format targets, not a complete release fuzz gate.
+The old post-fuzz queue then failed at its final global-idle check because the
+separately running gzip/bzip2/zstd campaigns were still active. Dependent
+native queues failed from that false prerequisite, without executing their
+tests. A new guarded native batch uses the three exact wrapper fuzz cgroups as
+the only allowed concurrent processes, runs with reduced CPU priority, and
+keeps its own source and evidence. The three wrapper long campaigns
+subsequently sealed as recorded above.
+
+**9 November, FZ02 setup checkpoint.** The next test-only harness adds direct production
+`StrictGzipReadStream`, `StrictBzip2ReadStream` and `StrictZstdReadStream` targets. It
+drains each accepted stream to physical EOF, limits encoded input to 1 MiB and decoded
+output to 16 MiB, and instruments those readers plus `ZstdFrameHeader`. The Mac guest
+built the isolated harness with zero warnings/errors and replayed 24 deterministic
+wrapper seeds: nine valid reads and 15 controlled refusals. The exact guest source,
+product and instrumented binaries, seed bytes and raw results were sealed in a
+3,410,893-byte transport (guest/host SHA-256
+`5bfb3420d976733fcb6530256161b6e6989c9a49e611c48a148e6dbe685829e6`)
+and passed `verify_wrapper_replay_transport.py`. This validates the replay and
+instrumentation selection only. The canary-bound Ubuntu native campaigns, CPU floors,
+codec coverage and fresh-process cross-platform replay remain open.
+The source-bound v17 test packet is 497,222 bytes (SHA-256
+`300cfb93b0c134917e59b8cd5de35f045ad5fb5c315a18baa634bd68513c8a59`).
+Its three-format seed bundle is 132,696 bytes (SHA-256
+`69a898f3c57d53bfb04c313297f65267a2f40e73db44dee5401bebe9d389f6f9`).
+Both are staged on Ubuntu. The guarded `filecat-archive-wrapper-fuzz-v17-queue` waits for
+the adoption and strict-format queues to pass, checks machine idleness, creates a separate
+instrumented image, runs its own canary/replay and short runs, then attempts a 7,200
+CPU-second minimum for each gzip, BZip2 and Zstd target. No v17 campaign has started yet.
+The Windows 11 VM independently built the same test-only source with zero warnings/errors
+against its own product DLLs and replayed the same 24 seeds: nine accepted and 15 controlled
+refusals, with the required types among 45 instrumented Archive types. Its 3,444,092-byte
+transport (guest/host SHA-256
+`f63cd83e1c7566b1f7d3c1059cc612c773cd401cb9eba0b076142329d10e2da3`) passed
+`verify_wrapper_windows_transport.py`, which checks source, packet/corpus and binary hashes,
+every regenerated seed and raw output, compiler log and instrumentation. The guest ended
+without FileCat, dotnet or testhost processes. The Mac and Windows replays are two platform
+checks of the harness and selected readers, not long campaigns or final product qualification.
+
+**9 November, password-target progress.** Ubuntu's `sevenzip-password-nightly-v5` completed
+the 12,000-second wall campaign with 11,687.566561 CPU seconds, 5,855,094 executions
+(16,036 accepted and 5,839,058 controlled refusals), zero crash artifacts and a 95,035,392-byte
+memory peak. Its 2,898,774-byte source/image/canary/seed/raw-result transport (SHA-256
+`4d8ef4f653df31023dc234ab65dd52d6e0f8cb2a264c25630f0350f1aa1e7791`) passed
+independent verification against the 7,200 CPU-second target floor. This is one long password
+target, not the complete per-format floor. At that checkpoint the RAR5 password
+campaign was running; its later result is recorded separately.
+
+**9 November 2026, current checkpoint.** The first strict-TAR two-hour FZ01 floor and the
+first stateful FZ09 `journal-state` floor are sealed and independently verified below. The
+next test-only packet, `fuzz-harness-v14.tar.gz`
+(490,767 bytes, SHA-256 `6b9ffe4d8b8bee85733d0b44a1599ec3bf78c99ea01e04df477634df7047c3a6`),
+adds a direct production `StrictSevenZipCatalog.Read` FZ03 target. It instruments the strict
+7z framing, metadata, header and payload decoder types together with the existing TAR target.
+Mac guest replay against the independently sealed v45 Core/Archives binaries accepted all seven
+new FileCat-generated codec seeds and controlled-refused eight older fixture variants. The
+27-type instrumentation completed. The 15 exact seeds, result and type report are retained in
+a 7z replay transport (SHA-256
+`0096d979dda7b6a2df368aaa2c062b09a0fb7a814a7a2cae9010d035abdac664`),
+which passed a separate host-side byte/binary/packet verifier. The packet and corpus transport
+are staged inert on Ubuntu. A canary, short FZ03 run, long run, encrypted-header/path seeds,
+structured graph mutations and the complete format floor remain open. No FZ03 CPU floor is claimed.
+
+The follow-on `fuzz-harness-v15.tar.gz` packet (491,603 bytes, SHA-256
+`e7e0443d48240b809a2ac25ce4c074fd7317625187268a5f96b5c5f416ae72c1`)
+adds a direct production RAR5 logical-catalog target and instruments both the strict catalog
+and physical framing. Mac generated six methods' source/rewrite archives under the sealed
+v45 product candidate. All 12 generated RAR5 seeds replayed as accepted; a RAR4 archive and
+a malformed RAR input controlled-refused. The exact 14-seed result/instrumentation transport
+has SHA-256 `5fc4ee4fc07e8852d610ff03bf8bc65356bb4bbf9db5e0932b9b1eda8bd61a95`
+and passed a separate host-side packet/guest-binary/seed verifier. The 33 selected Archive
+types were instrumented. The packet and corpus are staged inert on Ubuntu. The v15 image can
+serve both FZ03 and FZ13 once FZ09 ends, but canary, short and long runs for each target,
+password-aware paths, structured mutations, and full format floors remain open.
+
+The v16 packet (493,581 bytes, SHA-256
+`c41697f6e37fd8d4dd76f02cbfb246a6fe37264827f8859689ed98b20ea1d355`)
+adds dedicated password-aware 7z/RAR5 strict-catalog targets with public synthetic passwords,
+bounded production read sessions/KDFs and instrumentation of both password stacks. Mac's full
+synthetic 7z matrix passed 273/273 cases. Its v16 replay accepted all 21 generated 7z codec and
+protection vectors and all 36 generated RAR5 method, mode and rewrite vectors; eight older 7z
+fixtures and two RAR4/malformed inputs controlled-refused. The exact Mac transports have SHA-256
+`53ee853544fcb5a36865b213fd6839e481956643ce22f6bc45cb943e0ff9d10b` (7z) and
+`3c7b0f96918e42abff8c7adede2fd33f93b3fa14351e338b4527e88fef51299b` (RAR5).
+Separate host verifiers checked packet/binary/seed identities and 38 selected Archive types.
+These transports and the packet are staged inert on Ubuntu during FZ09. The password targets
+need their own canary-bound short and long campaigns, structured mutations and CPU floors.
+
+9 November 2026. This is an **experimental test-only checkpoint**, not a format or release gate. The
+product candidate under test is `8355ee58cd21edf2b7e4eab185309be669c3c9ad`; application UI changes
+made afterward are outside these fuzz results. No new writer profile is registered.
+
+## Tooling and ownership
+
+`eng/validation/archive-writing/ArchiveFuzzHarness` builds separately from the application. It pins
+SharpFuzz 2.3.0, SharpFuzz.Common 2.2.0 and dnlib 4.4.0 in a locked restore; the exact NuGet and
+test-only native driver hashes and available MIT notices are in `toolchain.json`. The downloaded
+`libfuzzer-dotnet` Ubuntu executable has SHA-256
+`c2c2a90d94c409a4af339a0d4f244e0442c5a5d249be0f1252ba07871f285958`.
+Its linked LLVM/compiler provenance has **not** been reproduced or qualified. None of these tools is
+in the shipping application reference graph.
+
+The sealed harness packet `fuzz-harness-v3.tar.gz` has SHA-256
+`af70621e9b7fe99ddc35aa13b23516d8a55ee23648510e7f991b1065effa36ef`.
+It deliberately excludes host product DLLs. `prepare_fuzz_guest.py` instead requires the verified
+Ubuntu candidate's Core SHA-256 `9d1897fb1ba19c0c16a19477cd2d82e996c00d42671d6e22db5e3f890953faba`
+and Archives SHA-256 `1ad84b8bc81b659ce04f1356c3874ec6877bb67b646901eb7812391b72f3e4a2`.
+Each disposable image has its own instrumented copies and `preparation.json` with resulting hashes.
+The clean copies are distinct from the copy with an intentionally injected canary. The original
+product DLLs and source are never modified by instrumentation.
+
+The guest runner `run_fuzz_guest.py` launches only its owned benny-user systemd service. It enforces
+1 GiB cgroup memory, zero swap, a 2-second per-input watchdog (10 seconds for the password/KDF
+targets), 1 MiB maximum input, a finite wall
+deadline, 16 MiB per-file output limit, 256 MiB total run-output monitor and writable paths confined
+to its run directory. It disables network access and new privileges, retains kernel CPU/memory-peak
+observations before stopping the service, and records command, seeds, product/instrumented hashes,
+coverage method names, counts, artifacts and terminal status. A supervisor/service timeout, memory
+kill, unexpected exit or output cap is a **failure**, never a passing refusal.
+
+## Canary and first target
+
+The test-only canary throws `FILECAT_VALIDATED_DIGEST_CANARY` **after** the real
+`ArchiveWritePolicy.ValidateDigest` accepts a complete 64-character uppercase digest. The first three
+raw-input mutation runs did **not** discover the canary: 656,503, 1,939,757 and 929,828 executions.
+A fourth near-boundary run also did not find it after 634,732 executions. Their logs remain in the
+guest `fuzz-canary-v1` and `fuzz-canary-v2` directories and are not counted as success.
+
+The final canary-only two-byte adaptation fills the other 62 digest characters with valid zeroes,
+so a mutation from the noncrashing `F0` seed can reach real post-validation code. Ubuntu's
+`fuzz-campaign-v3/runs/canary-v8` found and saved `FC` after 17,915 executions. The saved two-byte
+artifact has SHA-256 `b4777ccc172fb07e66e76582fcbae01af9154cbdc596c1f66aeae210c9f5b3a9`.
+Fresh replay returns the deliberate crash status 77 on the patched image and accepts one input with
+status 0 on the clean image. This adaptation is **not** used in format campaigns.
+
+The first clean FZ01 target calls the actual `StrictTarCatalog.Read`, then independently
+`StrictTarCatalog.CompareDecoder` against the same bytes. It instruments the strict scanner and
+`TarHeaderGuard` in `FileCat.Archives` plus the Core write guard. Ubuntu's 60-second `tar-pr-v1`
+run completed **391,877 executions, 9,735 accepted, 382,142 controlled refusals, zero crashes**;
+kernel CPU usage was 45.648 seconds and peak cgroup memory 67,522,560 bytes. Method traces include
+both the raw scanner and independent decoder guard. This is only FZ01's first fast-target result.
+
+`make_tar_fuzz_seeds.py` generated four synthetic 10,240-byte TARs (one file, directory/file,
+duplicate entries, and Unicode PAX with fractional timestamps). Each passed individual real-parser
+and decoder replay with one accepted input, zero refusals, zero crashes. Their guest
+`seeds-tar-v1/manifest.json` records names and hashes. An initial long run from the empty-only corpus
+was deliberately stopped after about 170 CPU seconds because it did not reach member/PAX paths;
+its terminal status 72 and raw log remain as nonqualifying evidence. The restarted
+`tar-nightly-v2` run includes the 60-second corpus and all four valid synthetic seeds. Its initial
+coverage had 719 features versus 179 in the early empty-only run. It completed 9,708.590486 CPU
+seconds and 45,447,001 executions with zero crash artifacts; the independently verified transport
+SHA-256 is `325385e6040e65c17f1e63a43ffca1b7f9f2a1f1d08ff1d951f39813b00a9625`.
+
+## Open fuzz qualification
+
+FZ01 still needs complete corpus evolution, fresh-process replay, targeted pre-allocation and
+structured mutation oracles and cross-platform replay. FZ02–14, all other
+affected format and shared-state families, complete campaign floors, minimized findings,
+native containment, package/RID evidence and the final code review remain open. Current callback
+coverage is managed FileCat methods only; .NET runtime, native driver and unrelated codecs are not
+instrumented by this image. The canary proof does not imply they are covered.
+
+## Queued FZ09 recovery-record targets
+
+The v8 test-only packet adds the production bounded journal line/CRC reader and the archive
+assessment manifest-member decoder to the four existing record targets. Its six-target synthetic
+corpus includes CRC-valid journal headers and two records, invalid checksums and torn lines,
+plus valid file/directory members and corrupt binary framing. Mac and Windows each replayed
+all 42 inputs against their sealed v40 Core build: twelve accepted and 30 controlled refusals,
+zero crashes. The v8 packet is 486,928 bytes / SHA-256
+`c357872eb75baa277e56603c42e026278f002b8b04f404572c094c078595cd61`.
+Unix seeds are 5,212 bytes / `cf43ad458f8f22118b86fe6974335e436894b1b500b48035bed933c8f02a632e`;
+Windows seeds are 5,159 bytes / `f94ab1c71b9e53dff057b782deb5b5d24d79e2e988ed119829516a81e9030c66`.
+The raw guest result hashes are `00c01d9e764c18a430ee2c767d27b3de73139612c406ba5faae0671108f36f44`
+and `416aa7e654a0f82b7e8af5eb03477c1d0bf04711da250f98047bd948b2fb3336`.
+Independent replay verification binds these Mac/Windows results to the source, seed bytes, packet
+and sealed product Core. Ubuntu's v40 test/replay is pending. These additions parse
+single journal records and single assessment members; full archive transaction state transitions,
+sidecar completeness and crash/restart mutation oracles remain open. The 1 MiB input cap also
+does not exercise the journal's 4 MiB per-line limit. No native fuzz floor is earned by replay.
+
+The staged v9 fuzz packet is 487,056 bytes / SHA-256
+`4e0f203dcf92c69ad8cb3a3598b2108b3a42b3e5e63150bf6d91f40feb88a776`.
+Its harness DLL is byte-identical to v8; only the preparation source changes. The preparer now
+requires the exact v40 Ubuntu Core and Archives hashes, checks both against the sealed guest
+binary index and active build outputs, and records the evidence index hash before making any
+instrumented image. The Ubuntu packet and seeds are staged; image creation waits for FZ01 to
+finish and the Ubuntu v40 focused cohort to pass. No v9 campaign has started.
+
+A preparatory review caught that the supervisor's extra-seed loader selected only JSON files
+for non-TAR targets, which would have left the binary manifest-member corpus unseeded. The v10
+packet fixes that selector and is staged on Ubuntu: 487,066 bytes / SHA-256
+`b764c9c6b34c8750f6f0398d992f158d899b035307e3ff61e5316e920aa53d5d`.
+Its harness DLL remains byte-identical to v8/v9. The later v12 packet supersedes v10 for the
+first Ubuntu native campaign; v9/v10 remain preserved preparatory packets and have not run.
+
+The subsequent v11 test-only packet adds a seventh `journal-state` target. It feeds bounded,
+CRC-checked records into the production `ArchiveTransactionCollector` and checks that damaged or
+unsupported archive history still requires review. Twelve synthetic seeds cover clean begin/end,
+future headers, unknown archive facts, duplicate endings, damaged suffixes and facts before begin.
+The 488,793-byte v11 packet has SHA-256
+`1dda94c53f511ef404604a827233c36a9713b9952cd5b668fdfdb96abe29ff6b`.
+Mac passed all 54 seven-target replays against its sealed v40 Core (15 accepted, 39 controlled
+refusals, zero crashes); the raw result SHA-256 is
+`27922504822323a13047c0f8f02811016c3ea0cbd806e60dee8a8bc55f76fc37`.
+The independent verifier checks exact committed harness and seed sources, packet, seed bytes,
+guest runner and sealed product Core. The v11 native image was not launched: a prelaunch review
+found that its instrumentation filter omitted `ArchiveTransactionCollector`, so state transitions
+would not guide mutations. Windows and Ubuntu v11 replays remain pending.
+
+The v12 packet corrects that filter and makes image preparation require the collector in its
+instrumented Core type report. It is 488,815 bytes / SHA-256
+`758aa0dcc9865ae30eac26d4aa53653243748798868a068aaee4e028699ffb3b`.
+Its replay harness keeps the same seven targets and v11 synthetic corpus. The packet, preparer and
+replay runner were staged on Ubuntu while FZ01 ran. Ubuntu v40, replay, instrumentation, the
+intentional canary and a short clean run then passed before the first native FZ09 long campaign
+started. v10/v11 are retained preparatory artifacts, not native qualification results.
+
+Windows independently passed the v12 bounded replay against its sealed v43 Core: 54/54 seeds,
+15 accepted and 39 controlled refusals, with zero crashes. Its raw result SHA-256 is
+`516f2f0ae65c178e100d2724ed5f57b82cfd7a66fef7cb1bc5d5af520a97c3c4`.
+Ubuntu independently passed the same 54/54 v12 replay against its sealed v40 Core, with
+15 accepted, 39 controlled refusals and zero crashes. Its raw result SHA-256 is
+`1fa5690d55f1bfb53b6a8f3e0b682e60c67b75192098fb5097385af15b08ded7`.
+The fresh `fuzz-campaign-v4` image binds that v40 Core and Archives to the v12 packet and
+records `ArchiveTransactionCollector` in both instrumented Core images. An intentional
+two-byte canary crash was discovered and replayed. A 60-second clean `journal-state` run
+finished without artifacts: 363,670 executions, 35 accepted, 363,635 refused, and coverage
+of both `JobJournal::ReadRecords` and `ArchiveTransactionCollector::Read`. The bounded
+12,000-second `journal-state-nightly-v1` campaign completed on Ubuntu with 10,134.451051 CPU
+seconds, 38,006,260 executions, 14,079 accepted inputs, 37,992,181 controlled refusals and
+zero crash artifacts. Its 2,477,285-byte, 332-member sealed transport has SHA-256
+`6472b580af3da8bdafa29346719db1d9c20483e0b1ccb2a31a744c2c15b0a7cb` and passed
+the independent host verifier's 7,200-CPU-second floor, source image, canary/replay, short-run,
+production coverage and raw-file checks. This is the first long FZ09 target; other recovery
+targets and campaign/final release gates remain open.
+The canary, exact crash replay and short clean run are themselves bundled with the short-run
+transport: 2,137,119 bytes / SHA-256
+`bfbd3f8c578601b46a447f674a704dd6a8207f191ce78c7ef1b8f1121336cd3a`.
+The independent host verifier checks every retained member, the two-byte canary artifact and
+replay input, expected exit status 77, exact clean/canary Core hashes, both production methods
+and all twelve structured seeds. The long-run sealer now requires and includes these same
+qualification runs before it can attest a stateful CPU floor; the short transport itself
+earns no release floor. The unchanged FZ01 transport still passes the updated verifier.
+
+A separate guest sealer and host verifier now check the terminal service result, kernel CPU and
+memory observations, managed execution counts, production method coverage, exact image/packet
+hashes, structured seed copies and every raw evidence file before a floor can be recorded. These
+scripts sealed the first long FZ01 run. The early TAR image did not instrument Core, so the
+sealer now requires the Core instrumentation report only when the preparation records it;
+`journal-state` always requires that report. The finished TAR service recorded 9,708.590486
+kernel CPU seconds, 45,447,001 executions (250,613 accepted, 45,196,388 refused), no crash
+artifacts and an 84,934,656-byte memory peak. The 2,223,951-byte evidence transport has
+SHA-256 `325385e6040e65c17f1e63a43ffca1b7f9f2a1f1d08ff1d951f39813b00a9625`.
+The independent host verifier checked every member, exact image and packet hashes, production
+TAR method coverage, structured seeds and the 7,200-second floor. This earns that FZ01 target's
+first clean two-hour floor; it does not qualify other targets, formats or a release.
+
+The v16 test-only packet and Mac-replayed seed transports add password-aware 7z and RAR5
+targets across all seven 7z codecs and six RAR5 methods, each with stored/plain, data-encrypted
+and header-encrypted profiles. Ubuntu's fresh `fuzz-campaign-v5` image is bound to the sealed
+v40 Core/Archives binaries; the preparer copies those binaries from the verified evidence
+folder so a newer product build cannot change the campaign candidate. Both 29-file 7z and
+38-file RAR5 seed sets were installed with transport SHA-256 checks. The two-byte intentional
+canary crashed with exit 77 and its exact replay reproduced exit 77 without a new artifact.
+The 60-second clean `sevenzip-password-short-v5` run completed 43,022 executions: 116
+accepted, 42,906 controlled refusals, zero crash artifacts. Its bounded 12,000-second follow-up
+earned the verified long target floor recorded above. The RAR5 password long campaign was active at that checkpoint;
+its result and the remaining FZ targets are still open.
+
+The next test-only harness packet `fuzz-harness-v7.tar.gz` is 484,533 bytes, SHA-256
+`df43851a4e45cddbfe90583d2e315a577ad9d361b3f08926e9792992bb8442bd`.
+It adds direct production targets for `EditSessionStore.ParseRecord`,
+`EditSessionStore.ParseCaptureRecord`, `EditSaveCopyIntent.Decode` and
+`EditSaveCopyRecord.Decode`. The Core instrumentation
+includes those types alongside the write guard. Synthetic per-platform seeds cover supported
+session versions, complete/interrupted capture records, valid saved-copy intent/receipts, future
+versions, path escape attempts, torn JSON, invalid UTF-8, bad digests and depth limits. The
+`replay-record` command can run a bounded single seed without the native fuzzer on Mac/Windows.
+This packet also seals the guest preparation, runner and seed-generator source. The preceding v4
+session-only and v5 three-parser packets are preserved as preparatory artifacts and have not run.
+The v6 three-parser packet passed the Mac/Windows bounded replay below but was never used for a
+native campaign.
+
+The next Ubuntu guest image must be prepared from the same verified product Core/Archives bytes,
+with fresh clean/canary Core copies before instrumentation. The packet excludes product DLLs
+and has **not yet run under the native fuzzer**. The separate uninstrumented `replay-record`
+command in v6 passed all 21 sealed synthetic inputs on Mac and Windows against their exact v38
+guest-built Core DLLs: six valid records accepted and 15 malformed/unsupported records refused
+on each. Independent verification binds guest results to source, seed hashes and v38 DLL hashes;
+the result JSON SHA-256 values are
+`31bdfb0d115cb96dc50722e37e0125ea9ef90cd00be5a0443fe2589e695162bd` (Mac) and
+`21d56c41c0851fef93bd38c5f4e6e536dfee5720b7252890b383ccde15b44300` (Windows).
+The v7 receipt extension passed all 28 bounded synthetic inputs on Mac and Windows against
+their verified v38 product Core DLLs: eight accepted, twenty controlled refusals on each.
+Independent replay verification binds the runner source, packet, individual seeds, output and
+product binary. Result JSON SHA-256 values are
+`f7a27c883ca916edfc993629b17c1573f563cefd3e5f2cdcd591cb084c769d2f` (Mac) and
+`5b1ad9bc4f6f37efd768ab248c20fe50299646041316d6ea8ac818fd9a0498ce` (Windows).
+These bounded replays do not earn any native fuzz CPU floor. Install the Ubuntu
+image only after its current FZ01 service exits, then begin bounded FZ09 campaigns. Journal,
+archive-manifest and stateful
+recovery oracles remain separate unfinished FZ09 work.

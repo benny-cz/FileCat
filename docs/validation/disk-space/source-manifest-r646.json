@@ -1,0 +1,658 @@
+{
+  "purpose": "Internal indexed grouped explorer, metric/query replacement and bounded read-only inspection",
+  "observedUtc": "2026-11-07T04:43:45.113520+00:00",
+  "gitBase": "0c5e40c46eb2303bfa4303cbe2d2fd46f6a1dd62",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+      "sha256": "ecac46ad0bfdc3afde1a46c60890e4ec0fa5642c8034493a2e987c48cdd32859"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedGrouping.cs",
+      "sha256": "9c2d55bd6655c87d7a6a942f5fb3830f7c16661bb7a2d8f0eddabf00b3f81b6d"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Build.cs",
+      "sha256": "823f4bf87e57d22e06db51595dfb64471af472f23af0b2f5406c90bd74e830f4"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Fold.cs",
+      "sha256": "c52ba9baaa314108762a4ac6b8cd364ec79929737882ac672292b61355754dfd"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Order.cs",
+      "sha256": "e65e24d7e346ce5377a621e08d6ebd4725d0d40f1afb10dcacb49f3ad5e6ae7c"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.cs",
+      "sha256": "9e4915777001e0f14717a1a2e880ffaaeef4ad4d2ba2555f195951d18bfd824c"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.GroupedFilters.cs",
+      "sha256": "b2bf40e5a0e5b0647aa78dafacc1c86e66b62f6dc78ce0116cb717307daa2e7e"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Indexed.cs",
+      "sha256": "8a6038a0750d226a87648f62c6a626d18c1dea5a4420b11c5caa69bc66b6159d"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.IndexedGrouping.cs",
+      "sha256": "9e161719221d1f81918771082f14d48737f1039f557003f5da905a727c971cec"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r643.txt",
+      "sha256": "6368b6dd6088fd1a510b5371f08bc91bb2af7f1482603e4b4a13b6d01cdb0ed2"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r644-core-r644.xml",
+      "sha256": "7f1efd600e7fd74125d58924aa2b35ed68495b18e15a4a9466e815b68fc0284e"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r644-core-r644.log",
+      "sha256": "23e6f2e0bcc94ab46e1574efe2cd907466653cdeb31bcda9f2666cf6ff051143"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r644-render-r644.xml",
+      "sha256": "d81a0a5a183b4d32589145f3fc62f02347d533d51ba759e013dde1ca5a66be0c"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r644-render-r644.log",
+      "sha256": "f215e7713adc8258f38dd56f24b193bd52c0ab41a7d3577d189007da40f37d5d"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r644-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r644-post.json",
+      "sha256": "e6431a00efcd756c69f0657e3ecff5cd8f674fd8bf3faacc1cdb0df701ebc988"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r644-core-r644.xml",
+      "sha256": "db43d4c2c9c7494fe75cb988c1587d087a0c581a07992bd8b6eccc0ebbe11e62"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r644-core-r644.log",
+      "sha256": "e72b413ced36e68b89b76c137b98db0d1bbb27c03376fda5d8b4e7e016f61b51"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r644-render-r644.xml",
+      "sha256": "06a84cfe0ed59985b67ad34cd851f762b288b33e9ebb912082e8f3ad08e32722"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r644-render-r644.log",
+      "sha256": "f816a9b42b2e6e08d3febe37e213d114882bfe6cd4a5c38af5cad7a3b3626e0a"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r644-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r644-post.json",
+      "sha256": "b3d1f83df19762b1205f54f434a89d533e0f478efe4fcc1d16034163fa7e06a1"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r644-core-r644.xml",
+      "sha256": "b45ac3e538fddc6ef684aafb790f2138991b9aa9471dd189334984c3785d431f"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r644-core-r644.log",
+      "sha256": "72e339d50654b374aabcda35b7842bf85a3a4ca21033bb86a1152e246acb1784"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r644-native-r644.xml",
+      "sha256": "4cddd8ed4f9968bf52fc5298555b77f93a583da2d8741c429a8ee57588024550"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r644-native-r644.log",
+      "sha256": "9d1cd6089b5c344123f8d93c372f3a089125106554ed28dfc5402305d73d0e23"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r644-render-r644.xml",
+      "sha256": "6454af4f8a974a7ca66a589b3d913078e061bfb433593fc3a3d22b453799c81b"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r644-render-r644.log",
+      "sha256": "39b21627ed70cbdd83ac5355f69566dc5969ad95c62411db9915ab1bb653b1bf"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r644-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r644-post.json",
+      "sha256": "e34a348cfd26c276f5d3af08ae75d7a4cfc9e97100c04e92edd9f84deb3d2b58"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r632-render-r632.log",
+      "sha256": "6e035a42667a169921d3975d0cfbfcadd7d3374244f284e10810d6ae797124db"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r632-render-r632.log",
+      "sha256": "a52022f7aa6c1a876a7457d61b9bd62226ce6300cd33f5e8531c24a309b92b1f"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r632-render-r632.log",
+      "sha256": "0d7c61aba37039a082b82889d5d7534464dbddca75f0ce1f572e11d05f652dd8"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r636-render-r636.log",
+      "sha256": "6c75d02ef5dec3176a8f5a205815cd45be2670432fdfdb9955ce8f949df7cdf3"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r636-render-r636.log",
+      "sha256": "ffa82192d9e39384803809099dedc25159e3e799d7b1870f62605a03ce5232f6"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r636-render-r636.log",
+      "sha256": "dff67ead311300d321d0f110ed887ec500339e2beffdb201865d1f821e732596"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r644.sh",
+      "sha256": "4472dc08761bdeab9163cf2ea50f99fedb2553d9d91ba228e752ff3c527337d0"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r644.sh",
+      "sha256": "a4dd48b884b3bdca703edf9e2bafbee42d99dd97b8b867967196ace1dbc32fd2"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r644.ps1",
+      "sha256": "db116d0cd3a378bd41ecc96e5dc975262f11805ea8a95bf191cb305d139d66c2"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r644.tgz",
+      "sha256": "82bf22d31e84dde2442de908328a213e9f64c8beab85d1f05d1accb0cfed8a87"
+    },
+    {
+      "name": "dsa-batch-linux-r644.tgz",
+      "sha256": "78b40f5e18c8cefeaa576f7a0a00bc8190c127e340ff043d24ee46753c95cdcc"
+    },
+    {
+      "name": "dsa-batch-windows-r644.tgz",
+      "sha256": "4f5d1b52fa4b76f372b52ef2f4636ec549efadce376cc10e76a26e7789a41622"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r644": "7a51424ba28f9408cf8e67f6fed7058a174739188dcbae94c12d87912a273c27",
+    "native-r644": "7a51424ba28f9408cf8e67f6fed7058a174739188dcbae94c12d87912a273c27",
+    "render-r645-mac": "7a51424ba28f9408cf8e67f6fed7058a174739188dcbae94c12d87912a273c27",
+    "render-r645-linux": "7a51424ba28f9408cf8e67f6fed7058a174739188dcbae94c12d87912a273c27",
+    "render-r645-windows": "7a51424ba28f9408cf8e67f6fed7058a174739188dcbae94c12d87912a273c27"
+  },
+  "productionAppHashes": {
+    "render-r645-mac": "5131c0e7f68b0629878ad64e49e65f989be6ea58718ef85ba55f601234a2b08a",
+    "render-r645-linux": "5131c0e7f68b0629878ad64e49e65f989be6ea58718ef85ba55f601234a2b08a",
+    "render-r645-windows": "5131c0e7f68b0629878ad64e49e65f989be6ea58718ef85ba55f601234a2b08a"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r644": "e4431fe9d8d09345f238402c312abaab8420be0e5f4d6507842890de6659ef6e",
+    "render-r645-mac": "e4431fe9d8d09345f238402c312abaab8420be0e5f4d6507842890de6659ef6e",
+    "render-r645-linux": "e4431fe9d8d09345f238402c312abaab8420be0e5f4d6507842890de6659ef6e",
+    "render-r645-windows": "e4431fe9d8d09345f238402c312abaab8420be0e5f4d6507842890de6659ef6e"
+  },
+  "matrix": {
+    "mac-batch-r644-core-r644.xml": {
+      "total": "836",
+      "passed": "832",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "24.996"
+    },
+    "mac-batch-r644-render-r644.xml": {
+      "total": "125",
+      "passed": "125",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "41.721"
+    },
+    "ubuntu-batch-r644-core-r644.xml": {
+      "total": "836",
+      "passed": "832",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "57.169"
+    },
+    "ubuntu-batch-r644-render-r644.xml": {
+      "total": "125",
+      "passed": "125",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "56.627"
+    },
+    "windows-batch-r644-core-r644.xml": {
+      "total": "854",
+      "passed": "806",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "22.130"
+    },
+    "windows-batch-r644-native-r644.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "36.130"
+    },
+    "windows-batch-r644-render-r644.xml": {
+      "total": "125",
+      "passed": "124",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "61.972"
+    }
+  },
+  "targetedControls": {
+    "mac": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: FileType, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: FileType, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: FileType, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: FileType, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: Extension, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: Extension, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: Extension, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: Extension, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: ModifiedAge, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: ModifiedAge, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: ModifiedAge, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: ModifiedAge, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: CapturedLocation, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: CapturedLocation, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: CapturedLocation, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: CapturedLocation, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedUniqueIdentityUncertaintySortsAfterMeasuredZeroInBothDirections(descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedUniqueIdentityUncertaintySortsAfterMeasuredZeroInBothDirections(descending: True)"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedSharedNativeAliasesStayZeroAssignedAndExposeTheSingleSharedCharge",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingReplacesAllMetricsAndItsQueryWithoutRetainingDuplicateHierarchyReaders",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedParentPublicationDiscardsAnInspectionStartedOnTheOldPage",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedWindowsKeepBothChartsAndTableEvidenceInsideNarrowAndLargeTextLayoutsAcrossThemes",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedTableAppliesEverySortAndDirectionWhilePreservingCapturedMemberFocus",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: CapturedLocation)"
+      ]
+    },
+    "ubuntu": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: FileType, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: FileType, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: FileType, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: FileType, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: Extension, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: Extension, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: Extension, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: Extension, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: ModifiedAge, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: ModifiedAge, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: ModifiedAge, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: ModifiedAge, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: CapturedLocation, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: CapturedLocation, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: CapturedLocation, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: CapturedLocation, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedUniqueIdentityUncertaintySortsAfterMeasuredZeroInBothDirections(descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedUniqueIdentityUncertaintySortsAfterMeasuredZeroInBothDirections(descending: True)"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingReplacesAllMetricsAndItsQueryWithoutRetainingDuplicateHierarchyReaders",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedSharedNativeAliasesStayZeroAssignedAndExposeTheSingleSharedCharge",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedParentPublicationDiscardsAnInspectionStartedOnTheOldPage",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: CapturedLocation)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedTableAppliesEverySortAndDirectionWhilePreservingCapturedMemberFocus",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedWindowsKeepBothChartsAndTableEvidenceInsideNarrowAndLargeTextLayoutsAcrossThemes"
+      ]
+    },
+    "windows": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: FileType, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: FileType, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: FileType, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: FileType, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: Extension, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: Extension, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: Extension, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: Extension, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: ModifiedAge, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: ModifiedAge, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: ModifiedAge, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: ModifiedAge, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: CapturedLocation, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: CapturedLocation, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: CapturedLocation, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FilteredGroupedPagesAndDirectLookupMatchTheFullCapturedAliasAccounting(dimension: CapturedLocation, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedUniqueIdentityUncertaintySortsAfterMeasuredZeroInBothDirections(descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedUniqueIdentityUncertaintySortsAfterMeasuredZeroInBothDirections(descending: True)"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedWindowsKeepBothChartsAndTableEvidenceInsideNarrowAndLargeTextLayoutsAcrossThemes",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedTableAppliesEverySortAndDirectionWhilePreservingCapturedMemberFocus",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedSharedNativeAliasesStayZeroAssignedAndExposeTheSingleSharedCharge",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: CapturedLocation)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedParentPublicationDiscardsAnInspectionStartedOnTheOldPage",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingReplacesAllMetricsAndItsQueryWithoutRetainingDuplicateHierarchyReaders",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement"
+      ]
+    }
+  },
+  "newCoreControls": 18,
+  "newRenderingControls": 10,
+  "failedAttempts": [
+    {
+      "revision": "r632",
+      "reason": "Five tests assumed full128-row pages despite the byte cap; a sixth exposed graph-reader exhaustion during grouped replacement.",
+      "candidateSources": [
+        {
+          "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+          "sha256": "2d92961b865831dff81a1268bf54d111ed3767c342a7e6a281f3d30f7fb22b51"
+        },
+        {
+          "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedGrouping.cs",
+          "sha256": "a8afc3bfd2abcc578520bf64f92613c74228c7965a5258e65379defdaf8c7ab3"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.cs",
+          "sha256": "db52416bef54d69547b777c5cb457911367a6fca4d9ddadf4f6e7ee2e406df12"
+        },
+        {
+          "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Indexed.cs",
+          "sha256": "8a6038a0750d226a87648f62c6a626d18c1dea5a4420b11c5caa69bc66b6159d"
+        },
+        {
+          "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.IndexedGrouping.cs",
+          "sha256": "47d8c5c596f6e0e51f8f43f9c47ef15b10a37ac07c4ae5557a6c3f0ced3af114"
+        }
+      ],
+      "matrix": {
+        "mac-batch-r632-core-r632.xml": {
+          "total": "818",
+          "passed": "814",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0"
+        },
+        "mac-batch-r632-render-r632.xml": {
+          "total": "123",
+          "passed": "117",
+          "failed": "6",
+          "skipped": "0",
+          "errors": "0"
+        },
+        "ubuntu-batch-r632-core-r632.xml": {
+          "total": "818",
+          "passed": "814",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0"
+        },
+        "ubuntu-batch-r632-render-r632.xml": {
+          "total": "123",
+          "passed": "117",
+          "failed": "6",
+          "skipped": "0",
+          "errors": "0"
+        },
+        "windows-batch-r632-core-r632.xml": {
+          "total": "836",
+          "passed": "788",
+          "failed": "0",
+          "skipped": "48",
+          "errors": "0"
+        },
+        "windows-batch-r632-native-r632.xml": {
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0"
+        },
+        "windows-batch-r632-render-r632.xml": {
+          "total": "123",
+          "passed": "116",
+          "failed": "6",
+          "skipped": "1",
+          "errors": "0"
+        }
+      },
+      "failures": {
+        "mac-batch-r632-render-r632.xml": [
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedTableAppliesEverySortAndDirectionWhilePreservingCapturedMemberFocus",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 128\nActual:   83"
+          },
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: FileType)",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 128\nActual:   83"
+          },
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: Extension)",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 128\nActual:   83"
+          },
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: ModifiedAge)",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 128\nActual:   83"
+          },
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: CapturedLocation)",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 128\nActual:   83"
+          },
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement",
+            "message": "The requested view state was not published."
+          }
+        ],
+        "ubuntu-batch-r632-render-r632.xml": [
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: FileType)",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 128\nActual:   83"
+          },
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: Extension)",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 128\nActual:   83"
+          },
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: ModifiedAge)",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 128\nActual:   83"
+          },
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: CapturedLocation)",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 128\nActual:   83"
+          },
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement",
+            "message": "The requested view state was not published."
+          },
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedTableAppliesEverySortAndDirectionWhilePreservingCapturedMemberFocus",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 128\nActual:   83"
+          }
+        ],
+        "windows-batch-r632-render-r632.xml": [
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement",
+            "message": "The requested view state was not published."
+          },
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedTableAppliesEverySortAndDirectionWhilePreservingCapturedMemberFocus",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 128\nActual:   83"
+          },
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: FileType)",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 128\nActual:   83"
+          },
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: Extension)",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 128\nActual:   83"
+          },
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: ModifiedAge)",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 128\nActual:   83"
+          },
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: CapturedLocation)",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 128\nActual:   83"
+          }
+        ]
+      }
+    },
+    {
+      "revision": "r636",
+      "reason": "Corrected paging/accounting and other window controls passed; duplicate old/new hierarchy readers exceeded the unchanged consumer cap.",
+      "candidateSources": [
+        {
+          "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+          "sha256": "7dc0d292b3763ae91048f16d25eb74ada9f00f7eef0200b88fda039f1f53c2a6"
+        },
+        {
+          "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedGrouping.cs",
+          "sha256": "b4c6568bcdcb230b11b1fcc89fa2b4098e1cdeac3040a7943423774fbf36fa4e"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.cs",
+          "sha256": "db52416bef54d69547b777c5cb457911367a6fca4d9ddadf4f6e7ee2e406df12"
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.GroupedFilters.cs",
+          "sha256": "53e3df56afbab6b56e0b84b45393e578e218eb5c9282063a748deb30f0744755"
+        },
+        {
+          "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Indexed.cs",
+          "sha256": "8a6038a0750d226a87648f62c6a626d18c1dea5a4420b11c5caa69bc66b6159d"
+        },
+        {
+          "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.IndexedGrouping.cs",
+          "sha256": "d47d4c7b07acb9feb26fec2bfae4e119fa4b2d69bfba1697fb971d368dc9097d"
+        }
+      ],
+      "matrix": {
+        "mac-batch-r636-core-r636.xml": {
+          "total": "834",
+          "passed": "830",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0"
+        },
+        "mac-batch-r636-render-r636.xml": {
+          "total": "124",
+          "passed": "123",
+          "failed": "1",
+          "skipped": "0",
+          "errors": "0"
+        },
+        "ubuntu-batch-r636-core-r636.xml": {
+          "total": "834",
+          "passed": "830",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0"
+        },
+        "ubuntu-batch-r636-render-r636.xml": {
+          "total": "124",
+          "passed": "123",
+          "failed": "1",
+          "skipped": "0",
+          "errors": "0"
+        },
+        "windows-batch-r636-core-r636.xml": {
+          "total": "852",
+          "passed": "804",
+          "failed": "0",
+          "skipped": "48",
+          "errors": "0"
+        },
+        "windows-batch-r636-native-r636.xml": {
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0"
+        },
+        "windows-batch-r636-render-r636.xml": {
+          "total": "124",
+          "passed": "122",
+          "failed": "1",
+          "skipped": "1",
+          "errors": "0"
+        }
+      },
+      "failures": {
+        "mac-batch-r636-render-r636.xml": [
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement",
+            "message": "The requested view state was not published. The previous view remains displayed. The indexed graph reader limit was reached. Groups: .bin: 303"
+          }
+        ],
+        "ubuntu-batch-r636-render-r636.xml": [
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement",
+            "message": "The requested view state was not published. The previous view remains displayed. The indexed graph reader limit was reached. Groups: .bin: 303"
+          }
+        ],
+        "windows-batch-r636-render-r636.xml": [
+          {
+            "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement",
+            "message": "The requested view state was not published. The previous view remains displayed. The indexed graph reader limit was reached. Groups: .bin: 303"
+          }
+        ]
+      }
+    }
+  ],
+  "excludedBuilds": [
+    "r629: missing import and nullable inspector labels",
+    "r630/r631/r635: superseded by navigation/reader-ownership corrections and expanded controls",
+    "r639/r640 batch: all3 passed; superseded by explicit identity-unverified numeric ordering correction and two added controls"
+  ],
+  "finalBuild": "build-r643.txt: full solution zero warnings/errors",
+  "testScope": "Actual guest runtimes, captured native metadata/hard links, headless full-window theme/layout/input/state controls and complete existing regression suites. Physical grouping input/a11y/DPI and complete1M/10M/resource qualification remain pending.",
+  "batchWorkflow": "One immutable bundle per platform; sequential applicable suites, integrity/per-phase occupancy gates and one evidence collection per completed machine.",
+  "ownedProcessExitEvidence": "All original runners terminal, guest states FINISHED exit=0 and authoritative inventories contain no owned instances. Foreign Mac archive tests, if present, were left untouched. No host app/input tests.",
+  "foreignProcessesObserved": {
+    "mac": [],
+    "ubuntu": [],
+    "windows": []
+  },
+  "qualification": {
+    "indexedGroupedExplorerControlsIntegrated": true,
+    "groupedTableNavigationInspectionHistoryHeadlessQualified": true,
+    "groupedMetricQueryReplacementHeadlessQualified": true,
+    "nativeCrossGroupHardLinkEvidencePassedAllThree": true,
+    "newControlsPassedAllThree": true,
+    "uniqueIdentityUncertaintyOrderingControlsPassedAllThree": true,
+    "memoryGroupedUiAdapterImplemented": false,
+    "groupedViewPersistenceImplemented": false,
+    "groupedMarksBasketImplemented": false,
+    "ownerComparisonVolumeGroupingImplemented": false,
+    "nativeDesktopGroupingQualified": false,
+    "fullResourceGateQualified": false,
+    "fullMillionTenMillionGroupingQualificationComplete": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

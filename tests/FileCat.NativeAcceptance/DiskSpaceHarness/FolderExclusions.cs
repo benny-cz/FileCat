@@ -1,0 +1,684 @@
+using System.Diagnostics;
+using Avalonia;
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.VisualTree;
+using FileCat.App.Services;
+using FileCat.App.ViewModels;
+using FileCat.App.Views;
+using FileCat.Core.Analysis;
+using FileCat.Core.Listing;
+using FileCat.Core.Resources;
+
+namespace DiskSpaceHarness;
+
+internal sealed partial class HarnessApp
+{
+    private static Button? FindAnalysisButton(DiskSpaceWindow window, string caption)
+    {
+        var buttons = window.GetVisualDescendants().OfType<Button>();
+        var visible = buttons.SingleOrDefault(button => button.IsEffectivelyVisible && Equals(button.Content, caption));
+        if (visible is not null) return visible;
+        foreach (var trigger in buttons.OfType<ToggleButton>().Where(button => button.IsEffectivelyVisible && Equals(button.Content, "Analysis actions")))
+        {
+            var command = (trigger.Parent as Panel)?.GetVisualDescendants().OfType<Button>()
+                .SingleOrDefault(button => button.IsVisible && Equals(button.Content, caption));
+            if (command is null) continue;
+            trigger.IsChecked = true;
+            return command.IsEffectivelyVisible ? command : null;
+        }
+        return null;
+    }
+
+    private async Task CheckResultControlsAsync(DiskSpaceWindow window, string expectedCoverage)
+    {
+        var trigger = window.GetVisualDescendants().OfType<ToggleButton>().Single(button =>
+            button.IsEffectivelyVisible && Equals(button.Content, "Analysis actions"));
+        var commands = (Panel)trigger.Parent!;
+        var resourceLimits = commands.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Resource limits…"));
+        if (trigger.IsChecked == true || resourceLimits.IsEffectivelyVisible)
+            throw new InvalidOperationException("Secondary commands were displayed by default.");
+        trigger.IsChecked = true;
+        await ReadyAsync(() => resourceLimits.IsEffectivelyVisible && resourceLimits.Bounds.Height > 0);
+        if (!resourceLimits.Focus()) throw new InvalidOperationException("The keyboard could not reach the secondary command.");
+        resourceLimits.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape });
+        if (trigger.IsChecked == true || !ReferenceEquals(window.FocusManager?.GetFocusedElement(), trigger))
+            throw new InvalidOperationException("Dismissing Analysis actions did not restore keyboard focus.");
+
+        var coverage = FindAnalysisButton(window, "Coverage details") ?? throw new InvalidOperationException("Coverage details is missing.");
+        coverage.BringIntoView();
+        coverage.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await ReadyAsync(() => FindAnalysisButton(window, "Close coverage details") is { IsDefault: true, IsCancel: true });
+        if (!window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
+            text.Text?.Contains(expectedCoverage, StringComparison.Ordinal) == true))
+            throw new InvalidOperationException("Coverage details did not expose the recorded scan evidence.");
+        FindAnalysisButton(window, "Close coverage details")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await ReadyAsync(() => FindAnalysisButton(window, "Close coverage details") is null);
+    }
+
+    private async Task FolderExclusionProbeAsync()
+    {
+        var layoutIssues = new List<string>();
+        async Task CheckLayoutAsync(string stage, Func<Task> check)
+        {
+            try { await check(); }
+            catch (Exception error) when (error is InvalidOperationException or TimeoutException or ArgumentException)
+            {
+                layoutIssues.Add(stage + " · " + error.Message);
+                RenderNativeFrame("analysis-reading-layout-" + stage + "-failure.png");
+            }
+        }
+
+        try
+        {
+            if (OperatingSystem.IsWindows()) WindowsGuestInput.DesktopGuard();
+            var window = _window!;
+            var model = _models.Single();
+            string? packageFastNtfsReason = null;
+            if (Program.PackageTier is { } tier)
+            {
+                packageFastNtfsReason = model.FastNtfsUnavailableReason;
+                if (packageFastNtfsReason is null || !packageFastNtfsReason.Contains("Use standard analysis", StringComparison.Ordinal) ||
+                    (tier == "portable" && !packageFastNtfsReason.Contains("requires the installed Windows edition", StringComparison.Ordinal)))
+                    throw new InvalidOperationException("This package must offer Standard analysis instead of Fast NTFS.");
+            }
+            Button? VisibleButton(string caption) => FindAnalysisButton(window, caption);
+            void Click(string caption) => (VisibleButton(caption) ?? throw new InvalidOperationException($"Missing button {caption}."))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var windowTransitions = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_WINDOW_TRANSITIONS") == "1"
+                ? await CheckWindowTransitionsAsync(window, () => VisibleButton("Start analysis")) : null;
+            bool compactDoubleText = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_DOUBLE_TEXT") == "1";
+            if (compactDoubleText) await CheckLayoutAsync("setup", () => CheckSetupTypographyAsync(window));
+            var limits = VisibleButton("Resource limits…") ?? throw new InvalidOperationException("Missing resource limits in setup.");
+            var setup = limits.GetVisualAncestors().OfType<ScrollViewer>().First();
+            await ReadyAsync(() => setup.Viewport.Height > 0 && limits.Bounds.Height > 0);
+            var limitsTop = limits.TranslatePoint(default, setup) ?? throw new InvalidOperationException("Resource limits are outside the setup view.");
+            setup.Offset = new Vector(setup.Offset.X, Math.Max(0, setup.Offset.Y + limitsTop.Y + limits.Bounds.Height - setup.Viewport.Height));
+            await ReadyAsync(() => limits.TranslatePoint(default, setup) is { } top && top.Y >= 0 &&
+                top.Y + limits.Bounds.Height <= setup.Viewport.Height + 1);
+            bool recordResourceSpeech = Environment.GetEnvironmentVariable("FILECAT_TEST_RESOURCE_SPEECH") == "1";
+            if (OperatingSystem.IsWindows() && (Program.ResourceKeyboardProbe || recordResourceSpeech))
+                WindowsGuestInput.ActivateFromDesktop(window.TryGetPlatformHandle()?.Handle ?? 0);
+            if (OperatingSystem.IsMacOS() && Program.ResourceKeyboardProbe)
+                window.Activate();
+            Click("Resource limits…");
+            await ReadyAsync(() => VisibleButton("Close limits") is { IsDefault: true, IsCancel: true });
+            var closeLimits = VisibleButton("Close limits")!;
+            if (closeLimits.TranslatePoint(default, window) is not { } closeTop || closeTop.Y < 0 ||
+                closeTop.Y + closeLimits.Bounds.Height > window.ClientSize.Height)
+                throw new InvalidOperationException("The resource limits close button was clipped.");
+            await RecipeFrameAsync("folder-exclusions-limits.png", true, _indexedLifetime.Token);
+            if (recordResourceSpeech)
+            {
+                // Keep the first dialog available while the external screen reader processes its focus event.
+                File.WriteAllText(Path.Combine(_run, "resource-speech.request"), "Close limits");
+                await ReadyAsync(() => File.Exists(Path.Combine(_run, "resource-speech.response")));
+            }
+            Click("Close limits");
+            await ReadyAsync(() => VisibleButton("Close limits") is null);
+            if (model.Tree is not null) throw new InvalidOperationException("Viewing the limits started a scan.");
+            var expander = window.GetVisualDescendants().OfType<Expander>().Single(item => item.Header as string == "Exclude folders…");
+            expander.IsExpanded = true;
+            TextBox? Editor() => window.GetVisualDescendants().OfType<TextBox>().SingleOrDefault(box =>
+                box.IsEffectivelyVisible && AutomationProperties.GetName(box) == "Excluded folders for location 1");
+            Button? StartButton() => VisibleButton("Start analysis");
+            await ReadyAsync(() => Editor() is not null);
+            var editor = Editor()!;
+            editor.Text = "Small files";
+            editor.BringIntoView();
+            await ReadyAsync(() => editor.Bounds.Height > 0 && StartButton()?.IsEnabled == true);
+            var start = StartButton()!;
+            var position = start.TranslatePoint(default, window);
+            if (position is null || position.Value.Y < 0 || position.Value.Y + start.Bounds.Height > window.ClientSize.Height + 1)
+                throw new InvalidOperationException("Start analysis was clipped after opening the exclusions editor.");
+            if (window.GetVisualDescendants().OfType<Button>().Any(button => button.IsEffectivelyVisible &&
+                button.Content as string is "Export entire inventory…" or "Export report…"))
+                throw new InvalidOperationException("The ready scanner showed result export commands.");
+            var panelFilter = window.GetVisualDescendants().OfType<CheckBox>().Single(box =>
+                AutomationProperties.GetName(box) == "Use panel filter for display after scan");
+            if (panelFilter.IsChecked == true) throw new InvalidOperationException("A new scan selected the panel display filter automatically.");
+            panelFilter.BringIntoView();
+            await ReadyAsync(() => panelFilter.TranslatePoint(default, window) is { } top && top.Y >= 0 &&
+                top.Y + panelFilter.Bounds.Height <= window.ClientSize.Height + 1);
+            panelFilter.IsChecked = true;
+            await ReadyAsync(() => panelFilter.IsChecked == true);
+            RenderNativeFrame("folder-exclusions-setup.png");
+            var analysisStarted = Stopwatch.StartNew();
+            start.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+            double? firstResultMilliseconds = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_FIRST_RESULTS") == "1"
+                ? await WaitForNativeLayoutAsync(analysisStarted, FirstRankedRowVisible, "the first ranked analysis row", _indexedLifetime.Token)
+                : null;
+            await ReadyAsync(() => model.Tree?.Snapshot.Phase == AnalysisPhase.Finished && model.PanelFilterApplied);
+            var snapshot = model.Tree!.Snapshot;
+            var skipped = snapshot.BoundaryTotals.GetValueOrDefault(AnalysisBoundaryKind.FolderExclusion);
+            if (snapshot.Coverage != NamespaceCoverage.CompleteUnderPolicy || model.SourceCloseFailures != 0 || model.IsIndexedRuntimePreview || skipped != 1 ||
+                snapshot.Nodes.Any(node => node.Name.StartsWith("item-", StringComparison.Ordinal)) ||
+                !snapshot.Nodes.Any(node => node.Name == "Small files" && !node.IncludedByPolicy) ||
+                !snapshot.Nodes.Any(node => node.Name == "photo.png" && node.IncludedByPolicy))
+                throw new InvalidDataException("The native scan did not preserve the requested exclusion and sibling evidence.");
+            if (model.Tree.Projection.Totals.Known != 60 || model.Tree.Projection.Totals.MatchingPaths != 1)
+                throw new InvalidDataException("The native view did not apply only the requested panel filename mask.");
+            await CheckNativeVolumeCapacityAsync(window, model, "folder-exclusions-capacity.png");
+            await ReadyAsync(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
+                text.Text == "Folders skipped: 1"));
+            var panelStatus = window.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == "Panel filter active");
+            Point? panelTop = panelStatus.TranslatePoint(default, window);
+            if (panelTop is null || panelTop.Value.Y < 0 || panelTop.Value.Y + panelStatus.Bounds.Height > window.ClientSize.Height)
+                throw new InvalidOperationException("The display filter status was clipped in the compact results.");
+            var table = window.GetVisualDescendants().OfType<ListBox>().Single(view =>
+                view.IsEffectivelyVisible && AutomationProperties.GetName(view) == "Ranked analysis entries");
+            var tableTop = table.TranslatePoint(default, window);
+            if (tableTop is null || table.Bounds.Height < 30 || tableTop.Value.Y + 30 > window.ClientSize.Height)
+                throw new InvalidOperationException("The ranked table was below the compact window viewport.");
+            if (!window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Value" &&
+                AutomationProperties.GetName(text) == "Active metric"))
+                throw new InvalidOperationException("The compact table did not keep a complete value heading and its accessible name.");
+            await CheckResultControlsAsync(window, "Folder exclusion rules: 1. Folders skipped: 1.");
+            if (VisibleButton("Copy summary") is not { IsEnabled: true })
+                throw new InvalidOperationException("The compact result did not offer its summary as text.");
+            window.GetVisualDescendants().OfType<ToggleButton>().Single(button =>
+                button.IsEffectivelyVisible && Equals(button.Content, "Analysis actions")).IsChecked = false;
+            RenderNativeFrame("folder-exclusions-result.png");
+            model.Focus(model.Rows[0].Key);
+            var resultThemes = await CheckResultThemesAsync(window, model, warning: false, "compact");
+            IReadOnlyList<ScratchThemeFrame>? wideThemes = null;
+            IReadOnlyList<string>? cleanupThemes = null;
+            if (compactDoubleText)
+            {
+                model.Focus(AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "photo.png").Id));
+                await CheckLayoutAsync("wide", async () => { wideThemes = await CheckWideTypographyAsync(window, model); });
+                string themeBefore = ThemeManager.RequestedName;
+                try
+                {
+                    foreach (string theme in ThemeManager.Names)
+                    {
+                        ThemeManager.Apply(theme);
+                        await CheckLayoutAsync("compact-" + theme, () => CheckCompactDoubleTextAsync(window));
+                    }
+                }
+                finally { ThemeManager.Apply(themeBefore); }
+                await CheckLayoutAsync("cleanup", async () => { cleanupThemes = await CheckDialogTypographyAsync(window); });
+            }
+            Click("Clear filter");
+            await ReadyAsync(() => !model.PanelFilterApplied);
+            string rootScope = AnalysisTree.Key(snapshot.Nodes.Single(node => node.ParentId == 0).Id);
+            string packageScope = AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "Package.app").Id);
+            model.Focus(rootScope, open: true);
+            await ReadyAsync(() => model.Selection.Scope == rootScope);
+            model.Focus(packageScope);
+            Click("Inspect selection");
+            await ReadyAsync(() => VisibleButton("Close details") is not null);
+            bool packageHint = window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
+                text.Text?.Contains("The recorded scan policy includes package contents where accessible.", StringComparison.Ordinal) == true);
+            if (packageHint != OperatingSystem.IsMacOS()) throw new InvalidOperationException("The package hint did not match the captured platform.");
+            await RecipeFrameAsync("folder-exclusions-package.png", true, _indexedLifetime.Token);
+            Click("Close details");
+            await ReadyAsync(() => VisibleButton("Close details") is null);
+            model.Focus(packageScope, open: true);
+            await ReadyAsync(() => model.Rows.Any(row => row.Name == "Contents"));
+            model.NavigateToScope(rootScope);
+            await ReadyAsync(() => model.Selection.Scope == rootScope);
+            model.Focus(AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "Small files").Id));
+            Click("Inspect selection");
+            await ReadyAsync(() => VisibleReadingText(window, text => text == "Small files") &&
+                VisibleReadingText(window, text => text.StartsWith("Excluded by policy\nThis folder and its contents were skipped", StringComparison.Ordinal)));
+            if (VisibleButton("Copy details") is not { IsEnabled: true })
+                throw new InvalidOperationException("The compact inspector did not offer its selected details as text.");
+            await RecipeFrameAsync("folder-exclusions-inspector.png", true, _indexedLifetime.Token);
+            Click("Close details");
+            await ReadyAsync(() => !window.GetVisualDescendants().OfType<Button>().Any(button =>
+                button.IsEffectivelyVisible && button.Content as string == "Close details"));
+            Click("New analysis");
+            await ReadyAsync(() => window.SessionCount == 2 && _tabs?.SelectedIndex == 1);
+            window.SelectTemporaryWork();
+            await ReadyAsync(() => _tabs?.SelectedIndex == 0);
+            var scratchThemes = await CheckIndexedCopyPathAsync(window);
+            var saved = await model.SaveNewAsync("native-current-source.fcdsa", _indexedLifetime.Token);
+            var historical = await model.OpenSavedAsync(saved.Name, _indexedLifetime.Token);
+            historical.Chart = "Table";
+            window.AddSession(historical);
+            await historical.RebuildAsync(true, _indexedLifetime.Token);
+            historical.Focus(AnalysisTree.Key(historical.Tree!.Snapshot.Nodes.Single(node => node.Name == "photo.png").Id));
+            await ReadyAsync(() => VisibleButton("Inspect selection") is { IsEnabled: true });
+            Click("Inspect selection");
+            await ReadyAsync(() => VisibleButton("Bind current source…") is { IsEnabled: true });
+            Click("Close details");
+            await ReadyAsync(() => VisibleButton("Close details") is null);
+            if (window.SessionCount != 4 || historical.Tree?.Snapshot.Origin == AnalysisOrigin.LiveSession)
+                throw new InvalidOperationException("The historical inspector did not preserve its offline source.");
+            var comparison = await model.CompareSavedAsync(saved.Name, _indexedLifetime.Token);
+            window.AddSession(comparison);
+            ListBox? ComparedRows() => window.GetVisualDescendants().OfType<ListBox>().SingleOrDefault(control =>
+                control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Comparison rows");
+            await ReadyAsync(() => VisibleButton("Copy summary") is { IsEnabled: true } && ComparedRows() is { ItemCount: > 0 });
+            ComparedRows()!.SelectedIndex = 0;
+            Click("Inspect comparison entry");
+            await ReadyAsync(() => VisibleButton("Copy details") is { IsEnabled: true });
+            var currentPaths = window.GetVisualDescendants().OfType<ListBox>().Single(list => list.IsEffectivelyVisible &&
+                AutomationProperties.GetName(list) == "Current observed paths");
+            currentPaths.SelectedIndex = 0;
+            await ReadyAsync(() => VisibleButton("Copy displayed Current path") is { IsEnabled: true });
+            var comparedPath = VisibleButton("Copy displayed Current path")!;
+            comparedPath.BringIntoView();
+            await ReadyAsync(() => comparedPath.TranslatePoint(default, window) is { } top && top.Y >= 0 &&
+                top.Y + comparedPath.Bounds.Height <= window.ClientSize.Height);
+            Click("Close");
+            await ReadyAsync(() => VisibleButton("Close") is null);
+            string photo = AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "photo.png").Id);
+            var warmShell = await CheckPanelRevealAsync(window, model, packageScope, photo);
+            var token = _indexedLifetime.Token;
+            ChartFrameTiming[]? chartFrames = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_CHART_FRAMES") switch
+            {
+                "1" => await MeasureChartFramesAsync(false, token),
+                "hierarchy" => await MeasureChartFramesAsync(true, token),
+                "both" => [.. await MeasureChartFramesAsync(false, token), .. await MeasureChartFramesAsync(true, token)],
+                _ => null
+            };
+            _indexedProbe = new { kind = "folder-exclusions", skipped, observed = snapshot.Nodes.Length, setupButtonVisible = true,
+                sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString(), selectedTemporaryAnalysis = true,
+                panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true,
+                packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
+                currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
+                readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true,
+                standardIndexChoice = true, scratchThemes, resultThemes, wideThemes, cleanupThemes, layoutIssues,
+                resourceNativeKeyboard = Program.ResourceKeyboardProbe, volumeCapacity = true, compactDoubleText,
+                packageTier = Program.PackageTier, packageFastNtfsReason, warmShell, firstResultMilliseconds, chartFrames, windowTransitions };
+            if (layoutIssues.Count != 0)
+                throw new InvalidOperationException("One or more layout checks failed.");
+            _indexedProbeFinished = true;
+            WriteReport("folder-exclusion-probe-finished");
+
+            bool FirstRankedRowVisible() => model.Tree is { Snapshot.Nodes.Length: > 0 } &&
+                window.GetVisualDescendants().OfType<ListBox>()
+                    .Where(list => list.IsEffectivelyVisible && AutomationProperties.GetName(list) == "Ranked analysis entries")
+                    .SelectMany(list => list.GetVisualDescendants().OfType<ListBoxItem>())
+                    .Any(row => row.IsEffectivelyVisible && row.Bounds.Height > 0 &&
+                        row.TranslatePoint(default, window) is { } top && top.Y >= 0 && top.Y < window.ClientSize.Height);
+        }
+        catch (Exception error)
+        {
+            _indexedProbeError = (layoutIssues.Count == 0 ? "" : string.Join("\n", layoutIssues) + "\n") + error;
+            try { RenderNativeFrame("folder-exclusions-failure.png"); } catch (Exception) { }
+            WriteReport("folder-exclusion-probe-failed");
+        }
+    }
+
+    private static bool VisibleReadingText(DiskSpaceWindow window, Func<string, bool> matches) =>
+        window.GetVisualDescendants().OfType<TextBlock>().Any(label => label.IsEffectivelyVisible && label.Text is { } text && matches(text));
+
+    private async Task<IReadOnlyList<ScratchThemeFrame>> CheckResultThemesAsync(DiskSpaceWindow window, DiskSpaceViewModel model,
+        bool warning, string layout)
+    {
+        var scope = Reading("AnalysisReadingScope");
+        var amount = Reading("AnalysisReadingAmount");
+        var coverage = Reading("AnalysisReadingCoverage");
+        var expansion = window.GetVisualDescendants().OfType<Expander>().SingleOrDefault(expander =>
+            expander.IsEffectivelyVisible && Equals(expander.Header, "Measurement details"));
+        var trigger = window.GetVisualDescendants().OfType<ToggleButton>().Single(button =>
+            button.IsEffectivelyVisible && Equals(button.Content, "Analysis actions"));
+        var list = window.GetVisualDescendants().OfType<ListBox>().Single(control =>
+            control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Ranked analysis entries");
+        var viewport = scope.GetVisualAncestors().OfType<ScrollViewer>().First(control => control.Name == "AnalysisPageScroll");
+        bool compact = window.ClientSize.Width < 640;
+        Control focus = compact ? list : trigger;
+        string? selection = model.Selection.Focus;
+        string requested = ThemeManager.RequestedName;
+        bool wasExpanded = expansion?.IsExpanded == true;
+        if (expansion is not null) expansion.IsExpanded = true;
+        if (!focus.Focus()) throw new InvalidOperationException("The theme check could not focus the analysis control.");
+        viewport.Offset = default;
+        window.UpdateLayout();
+        var frames = new List<ScratchThemeFrame>();
+        try
+        {
+            foreach (string theme in ThemeManager.Names)
+            {
+                ThemeManager.Apply(theme);
+                window.UpdateLayout();
+                await ReadyAsync(() => Reading("AnalysisReadingAmount").Bounds.Height > 0);
+                if (!ReferenceEquals(window.FocusManager?.GetFocusedElement(), focus) || selection != model.Selection.Focus ||
+                    expansion is { IsExpanded: false })
+                    throw new InvalidOperationException($"{theme} lost focus, selection or expanded details.");
+                if (scope.FontSize >= amount.FontSize || amount.FontWeight != FontWeight.Bold ||
+                    scope.TranslatePoint(default, window) is not { } scopeTop || amount.TranslatePoint(default, window) is not { } amountTop ||
+                    scopeTop.Y >= amountTop.Y)
+                    throw new InvalidOperationException($"{theme} displayed the reading without a clear scope and emphasized amount: {scope.FontSize}/{amount.FontSize}.");
+                foreach (var reading in new[] { scope, amount, coverage })
+                {
+                    if (reading.Foreground is not ISolidColorBrush foreground ||
+                        reading.GetVisualAncestors().OfType<Border>().FirstOrDefault(border => border.Background is ISolidColorBrush)?.Background is not ISolidColorBrush background ||
+                        ThemeManager.Contrast(foreground.Color, background.Color) < 4.5)
+                        throw new InvalidOperationException($"{theme} failed text contrast for {reading.Text}.");
+                }
+                if (coverage.GetVisualParent() is not Border status || (status.BorderThickness.Left > 0) != warning)
+                    throw new InvalidOperationException($"{theme} did not distinguish the coverage state with a labeled warning.");
+                CheckVisualCaptions(window);
+                if (compact && (!InResultViewport(scope) || !InResultViewport(amount) || !InResultViewport(coverage) ||
+                    !list.GetVisualDescendants().OfType<ListBoxItem>().Any(row => row.IsEffectivelyVisible && InResultViewport(row))))
+                    throw new InvalidOperationException($"{theme} clipped the scope, amount, coverage or first table row at compact width.");
+                string frame = $"analysis-reading-{layout}-{theme}.png";
+                RenderNativeFrame(frame);
+                frames.Add(new(theme, ThemeManager.Current.Name, frame, window.ClientSize.Width, window.ClientSize.Height, window.RenderScaling, window.FontSize));
+            }
+            return frames;
+        }
+        finally
+        {
+            ThemeManager.Apply(requested);
+            if (expansion is not null) expansion.IsExpanded = wasExpanded;
+        }
+
+        TextBlock Reading(string id) => window.GetVisualDescendants().OfType<TextBlock>().Single(label =>
+            label.IsEffectivelyVisible && AutomationProperties.GetAutomationId(label) == id);
+
+        bool InResultViewport(Control control) => control.Bounds.Height > 0 && control.TranslatePoint(default, viewport) is { } top &&
+            top.Y >= -1 && top.Y + control.Bounds.Height <= viewport.Bounds.Height + 1;
+    }
+
+    private async Task CheckCompactDoubleTextAsync(DiskSpaceWindow window)
+    {
+        double original = window.FontSize;
+        window.FontSize = 28;
+        try
+        {
+            window.UpdateLayout();
+            var filter = window.GetVisualDescendants().OfType<TextBox>().Single(control => control.IsEffectivelyVisible &&
+                AutomationProperties.GetName(control) == "Filter observations");
+            Control[] controls = [filter, Command("Coverage details"), Command("Inspect selection"), Command("Review cleanup")];
+            foreach (var control in controls)
+            {
+                string name = AutomationProperties.GetName(control) ?? (control as Button)?.Content as string ?? control.GetType().Name;
+                if (!control.Focus(NavigationMethod.Tab)) throw new InvalidOperationException($"Keyboard focus could not reach {name} at 28 DIP text size.");
+                control.BringIntoView();
+                try
+                {
+                    await ReadyAsync(() => ReferenceEquals(window.FocusManager?.GetFocusedElement(), control) &&
+                        control.TranslatePoint(default, window) is { } point && point.Y >= -1 && point.X >= -1 &&
+                        point.Y + control.Bounds.Height <= window.ClientSize.Height + 1 && point.X + control.Bounds.Width <= window.ClientSize.Width + 1 &&
+                        control.GetVisualAncestors().OfType<ScrollViewer>().All(scroll => control.TranslatePoint(default, scroll) is { } relative &&
+                            relative.Y >= -1 && relative.Y + control.Bounds.Height <= scroll.Bounds.Height + 1), TimeSpan.FromSeconds(5));
+                }
+                catch (TimeoutException error)
+                {
+                    RenderNativeFrame("analysis-reading-compact-double-text-failure.png");
+                    string viewports = string.Join("; ", control.GetVisualAncestors().OfType<ScrollViewer>().Select(scroll =>
+                        $"{scroll.Name ?? AutomationProperties.GetName(scroll)} offset {scroll.Offset}, height {scroll.Bounds.Height}, control at {control.TranslatePoint(default, scroll)}"));
+                    throw new InvalidOperationException($"{name} was clipped or lost focus at 28 DIP. Position {control.TranslatePoint(default, window)}, size {control.Bounds.Size}, focused {control.IsFocused}. {viewports}", error);
+                }
+            }
+        }
+        finally
+        {
+            window.FontSize = original;
+            window.UpdateLayout();
+        }
+
+        Button Command(string name) => FindAnalysisButton(window, name) ?? throw new InvalidOperationException($"Missing compact command: {name}.");
+    }
+
+    private async Task<WarmShellTiming?> CheckPanelRevealAsync(DiskSpaceWindow window, DiskSpaceViewModel model, string folder, string file)
+    {
+        var vm = new MainViewModel(_services!);
+        var main = new MainWindow(vm, null);
+        vm.Initialize(null);
+        main.Show();
+        try
+        {
+            await ReadyAsync(() => _tabs is { IsVisible: true });
+            _tabs!.SelectedIndex = 0;
+            var shown = await RevealAsync(folder);
+            if (shown.Listing.Provider?.GetCapabilities(shown.Location!) != LocationCapabilities.Enumerate ||
+                shown.Listing.Store.Count != 1 || shown.Listing.Store[0].Name != "Contents" || shown.Listing.GetItemRef(0).FileSystemPath is not null)
+                throw new InvalidOperationException("Reveal did not show the verified package folder in a read-only workspace tab.");
+            var selected = await RevealAsync(file);
+            if (!selected.Listing.TryGetFocused(out var row) || row.Name != "photo.png")
+                throw new InvalidOperationException("Reveal did not focus the exact selected file in its verified folder.");
+
+            window.Activate();
+            model.Focus(file, toggleMark: true);
+            Button? ResultsButton() => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
+                button.IsEffectivelyVisible && button.IsEnabled && button.Content as string == "Show selection in results");
+            await ReadyAsync(() => ResultsButton() is not null);
+            ResultsButton()!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await ReadyAsync(() => vm.ActiveTab is { Location.Scheme: Schemes.AnalysisFolder, Listing.State: ListingState.Complete } current &&
+                !ReferenceEquals(selected, current));
+            var results = vm.ActiveTab!;
+            if (results.Listing.Store.Count != 1 || !results.Listing.Store[0].Name.EndsWith("photo.png", StringComparison.Ordinal) ||
+                results.Listing.GetItemRef(0).FileSystemPath is not null)
+                throw new InvalidOperationException("The workspace results did not preserve the marked observation as read-only metadata.");
+            return Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_WARM_SHELL") == "1"
+                ? await MeasureWarmShellAsync(vm, _indexedLifetime.Token) : null;
+
+            async Task<TabViewModel> RevealAsync(string key)
+            {
+                var previous = vm.ActiveTab;
+                window.Activate();
+                model.Focus(key);
+                Button? Find(string label) => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
+                    button.IsEffectivelyVisible && button.Content as string == label);
+                await ReadyAsync(() => Find("Inspect selection") is { IsEnabled: true });
+                Find("Inspect selection")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await ReadyAsync(() => Find("Reveal in panel") is { IsEnabled: true });
+                Find("Reveal in panel")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await ReadyAsync(() => vm.ActiveTab is { Location.Scheme: Schemes.AnalysisFolder, Listing.State: ListingState.Complete } current &&
+                    !ReferenceEquals(previous, current));
+                return vm.ActiveTab!;
+            }
+        }
+        finally
+        {
+            main.Close();
+            foreach (var tab in vm.Workspace.Panels.SelectMany(panel => panel.Tabs).ToArray()) tab.Dispose();
+        }
+    }
+
+    private sealed record ScratchThemeFrame(string Theme, string ResolvedTheme, string Frame, double Width, double Height, double Scale, double FontSize);
+
+    private async Task CheckNativeVolumeCapacityAsync(DiskSpaceWindow window, DiskSpaceViewModel model, string frame)
+    {
+        var sample = model.VolumeCapacities.Values.Single();
+        if (sample.WholeVolumeVerified || sample.TotalBytes == 0 || sample.AvailableBytes > sample.FreeBytes || sample.FreeBytes > sample.TotalBytes)
+            throw new InvalidDataException("The test folder did not expose coherent volume capacity.");
+        Button? Ribbon() => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
+            button.IsEffectivelyVisible && AutomationProperties.GetAutomationId(button) == "AnalysisVolumeCapacity");
+        Button? CloseCapacity() => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
+            button.IsEffectivelyVisible && button.Content as string == "Close capacity");
+        await ReadyAsync(() => Ribbon() is { IsEnabled: true });
+        var ribbon = Ribbon()!;
+        ribbon.BringIntoView();
+        ribbon.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await ReadyAsync(() => CloseCapacity() is { IsDefault: true, IsCancel: true });
+        var text = window.GetVisualDescendants().OfType<TextBlock>().Where(block => block.IsEffectivelyVisible).Select(block => block.Text);
+        var freeLabel = window.GetVisualDescendants().OfType<TextBlock>().SingleOrDefault(label => label.IsEffectivelyVisible && label.Text == "Reported free");
+        if (!text.Contains("Current analysis") || !text.Contains("Containing filesystem") || freeLabel?.Parent is not Grid figures ||
+            !figures.Children.OfType<TextBlock>().Any(value => Grid.GetRow(value) == Grid.GetRow(freeLabel) && Grid.GetColumn(value) == 1 &&
+                value.Text?.Replace('\u00a0', ' ') == DiskSpaceViewModel.Bytes(sample.FreeBytes)) ||
+            !text.Any(value => value?.Contains("Volume ID " + sample.VolumeIdentity, StringComparison.Ordinal) == true && value.Contains("scanned scope", StringComparison.Ordinal)) ||
+            text.Any(value => value?.Contains("Difference from reported used space", StringComparison.Ordinal) == true))
+            throw new InvalidDataException("The volume display changed the held sample or offered a whole-volume difference for a folder.");
+        var close = CloseCapacity()!;
+        if (close.TranslatePoint(default, window) is not { } top || top.Y < 0 || top.Y + close.Bounds.Height > window.ClientSize.Height)
+            throw new InvalidOperationException("The compact capacity dialog clipped its close control.");
+        await RecipeFrameAsync(frame, true, _indexedLifetime.Token);
+        close.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await ReadyAsync(() => CloseCapacity() is null);
+    }
+
+    private async Task<IReadOnlyList<ScratchThemeFrame>> CheckIndexedCopyPathAsync(DiskSpaceWindow window)
+    {
+        var services = _services!;
+        var cancellation = _indexedLifetime.Token;
+        _tabs!.SelectedIndex = 1;
+        var model = _models[1];
+        ListBox? IndexedList() => window.GetVisualDescendants().OfType<ListBox>().SingleOrDefault(control =>
+            control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Indexed analysis entries");
+        Button? VisibleButton(string label) => FindAnalysisButton(window, label);
+        CheckBox? IndexChoice() => window.GetVisualDescendants().OfType<CheckBox>().SingleOrDefault(control =>
+            control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Use a private index for standard analysis");
+        await ReadyAsync(() => IndexChoice() is { IsEnabled: true } && VisibleButton("Start analysis") is { IsEnabled: true });
+        var option = IndexChoice()!;
+        if (option.IsChecked == true) throw new InvalidOperationException("Standard setup selected private indexing automatically.");
+        option.BringIntoView();
+        await ReadyAsync(() => option.TranslatePoint(default, window) is { } top && top.Y >= 0 &&
+            top.Y + option.Bounds.Height <= window.ClientSize.Height);
+        option.IsChecked = true;
+        VisibleButton("Start analysis")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        try { await ReadyAsync(() => model.CanOpenRecordedResult && VisibleButton("Open recorded result") is { IsEnabled: true }); }
+        catch (TimeoutException error)
+        {
+            throw new InvalidOperationException($"Standard recorded result did not become ready. Phase: {model.Phase}. Indexed preview: {model.IsIndexedRuntimePreview}. " +
+                $"Reported state: {model.Status} {model.AcquisitionNotice} Open refusal: {model.RecordedResultUnavailableReason}", error);
+        }
+        if (model.Phase != AnalysisPhase.Finished || model.SourceCloseFailures != 0)
+            throw new IOException("The native standard indexed scan did not finish.");
+        await using var lease = await model.AcquireRecordedDatasetAsync(cancellation);
+        var open = VisibleButton("Open recorded result")!;
+        if (OperatingSystem.IsWindows())
+        {
+            open.BringIntoView();
+            await ReadyAsync(() => open.IsEnabled && FullyVisible(window, open) && Hits(window, open), TimeSpan.FromSeconds(5));
+            if (!WindowsGuestInput.ForegroundIsOwned())
+                WindowsGuestInput.ActivateFromDesktop(window.TryGetPlatformHandle()?.Handle ?? 0);
+            WindowsClick(open);
+        }
+        else
+        {
+            await RevealLayoutControlAsync(window, open, "Open recorded result");
+            open.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        }
+        try { await ReadyAsync(() => IndexedList() is { ItemCount: 1 }); }
+        catch (TimeoutException error)
+        {
+            throw new InvalidOperationException($"The recorded tab did not publish. Tabs: {window.SessionCount}. " +
+                $"Ready to open: {model.CanOpenRecordedResult}. Status: {model.Status}", error);
+        }
+        await CheckResultControlsAsync(window, "private index of captured metadata");
+        await CheckNativeVolumeCapacityAsync(window, model, "folder-exclusions-indexed-capacity.png");
+        var limits = VisibleButton("Resource limits…")!;
+        limits.BringIntoView();
+        await ReadyAsync(() => limits.TranslatePoint(default, window) is { } top && top.Y >= 0 &&
+            top.Y + limits.Bounds.Height <= window.ClientSize.Height + 1);
+        long reserved = lease.ScratchReservedBytes;
+        if (reserved <= 0) throw new InvalidOperationException("The native recorded index held no scratch reservation.");
+        if (Program.ResourceKeyboardProbe) limits.Focus();
+        limits.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await ReadyAsync(() => VisibleButton("Close limits") is { IsDefault: true, IsCancel: true });
+        var rows = window.GetVisualDescendants().OfType<TextBlock>().Where(text => text.IsEffectivelyVisible).ToArray();
+        var rules = OperatingSystem.IsWindows() ? AnalysisNameRules.Windows : AnalysisNameRules.Unix;
+        var reservation = rows.SingleOrDefault(text => text.Text == $"{DiskSpaceViewModel.Bytes((UInt128)reserved)} for this index and its derived data.");
+        if (!rows.Any(text => text.Text == AnalysisNames.DisplayPath(services.Paths.AnalysisScratchDirectory, rules)) || reservation is null)
+            throw new InvalidOperationException("The limits overlay did not show the recorded index's scratch location and actual reservation.");
+        if (VisibleButton("Close limits") is not { } closeLimits || closeLimits.TranslatePoint(default, window) is not { } closeTop ||
+            closeTop.Y < 0 || closeTop.Y + closeLimits.Bounds.Height > window.ClientSize.Height)
+            throw new InvalidOperationException("The recorded resource limits close button was clipped.");
+        if (reservation.TranslatePoint(default, window) is not { } reservationTop || reservationTop.Y < 0 ||
+            reservationTop.Y + reservation.Bounds.Height >= closeTop.Y)
+            throw new InvalidOperationException("The scratch reservation is below the limits viewport.");
+        await RecipeFrameAsync("folder-exclusions-scratch.png", true, cancellation);
+        var themes = new List<ScratchThemeFrame>();
+        string previousTheme = ThemeManager.RequestedName;
+        try
+        {
+            foreach (string theme in ThemeManager.Names)
+            {
+                ThemeManager.Apply(theme);
+                await Task.Delay(100, cancellation);
+                window.UpdateLayout();
+                if (VisibleButton("Close limits") is not { IsDefault: true, IsCancel: true } close ||
+                    close.TranslatePoint(default, window) is not { } closePoint || closePoint.X < 0 || closePoint.Y < 0 ||
+                    closePoint.X + close.Bounds.Width > window.ClientSize.Width + 1 || closePoint.Y + close.Bounds.Height > window.ClientSize.Height + 1 ||
+                    reservation.TranslatePoint(default, window) is not { } amount || amount.Y + reservation.Bounds.Height >= closePoint.Y)
+                    throw new InvalidOperationException($"The scratch details and preserving footer were clipped in {theme}.");
+                if (!ReferenceEquals(window.FocusManager?.GetFocusedElement(), close))
+                    throw new InvalidOperationException($"The resource dialog lost the focused Close control in {theme}.");
+                string frame = $"folder-exclusions-scratch-theme-{themes.Count:D2}.png";
+                await RecipeFrameAsync(frame, true, cancellation);
+                themes.Add(new(theme, ThemeManager.Current.Name, frame, window.ClientSize.Width, window.ClientSize.Height, window.RenderScaling, window.FontSize));
+            }
+        }
+        finally { ThemeManager.Apply(previousTheme); }
+        if (Program.ResourceKeyboardProbe)
+        {
+            await CloseWithNativeKeyAsync("Return");
+            limits.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await CloseWithNativeKeyAsync("Escape");
+        }
+        else closeLimits.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await ReadyAsync(() => VisibleButton("Close limits") is null);
+        var list = IndexedList()!;
+        var root = list.Items.OfType<AnalysisHierarchyRow>().Single();
+        list.SelectedItem = root;
+        window.GetVisualDescendants().OfType<Button>().Single(button => button.IsEffectivelyVisible &&
+            button.Content as string == "Explore selected folder").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await ReadyAsync(() => list.Items.OfType<AnalysisHierarchyRow>().Any(row => row.Path.Name == "Package.app"));
+        list.SelectedItem = list.Items.OfType<AnalysisHierarchyRow>().Single(row => row.Path.Name == "Package.app");
+        await ReadyAsync(() => VisibleButton("Copy path") is { IsEnabled: true } &&
+            window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
+                text.Text == "Captured metadata ready for Package.app."));
+        var copy = VisibleButton("Copy path")!;
+        var viewport = copy.GetVisualAncestors().OfType<ScrollViewer>().First();
+        await ReadyAsync(() =>
+        {
+            if (copy.TranslatePoint(default, viewport) is not { } top || viewport.Viewport.Height <= 0) return false;
+            double bottom = top.Y + copy.Bounds.Height;
+            if (top.Y >= 0 && bottom <= viewport.Viewport.Height + 1) return true;
+            double move = top.Y < 0 ? top.Y : bottom - viewport.Viewport.Height;
+            viewport.Offset = new Vector(viewport.Offset.X, Math.Max(0, viewport.Offset.Y + move));
+            return false;
+        });
+        return themes;
+
+        async Task CloseWithNativeKeyAsync(string key)
+        {
+            await ReadyAsync(() => VisibleButton("Close limits") is { } dismiss && ReferenceEquals(window.FocusManager?.GetFocusedElement(), dismiss));
+            if (OperatingSystem.IsWindows())
+            {
+                WindowsGuestInput.Key(key == "Return" ? (ushort)0x0d : (ushort)0x1b);
+                await WaitForDismissalAsync();
+                return;
+            }
+            string request = Path.Combine(_run, "resource-key.request"), response = Path.Combine(_run, "resource-key.response");
+            string pending = request + ".pending";
+            bool cocoa = OperatingSystem.IsMacOS() && Environment.GetEnvironmentVariable("FILECAT_TEST_RESOURCE_COCOA") == "1";
+            string? received = null;
+            void ObserveKey(object? sender, KeyEventArgs args)
+            {
+                string observed = args.Key.ToString();
+                if (observed == key || key == "Return" && observed == "Enter") received = observed;
+            }
+            window.AddHandler(InputElement.KeyDownEvent, ObserveKey, RoutingStrategies.Tunnel, handledEventsToo: true);
+            try
+            {
+                await File.WriteAllTextAsync(pending, key, cancellation);
+                File.Move(pending, request);
+                if (cocoa)
+                {
+                    PostCocoaResourceKey(window.TryGetPlatformHandle()?.Handle ?? 0, key);
+                    await ReadyAsync(() => received is not null);
+                }
+                else
+                {
+                    await ReadyAsync(() => File.Exists(response));
+                    if (await File.ReadAllTextAsync(response, cancellation) != key) throw new InvalidOperationException("Unexpected native key acknowledgement.");
+                }
+                await WaitForDismissalAsync();
+                if (cocoa) File.WriteAllText(Path.Combine(_run, $"resource-key-completed-{key}.txt"), received!);
+                File.Delete(request);
+                File.Delete(response);
+            }
+            catch (TimeoutException error)
+            {
+                bool open = VisibleButton("Close limits") is not null;
+                throw new TimeoutException($"Native {key} did not dismiss and restore focus. Received key: {received ?? "none"}. Dialog open: {open}.", error);
+            }
+            finally { window.RemoveHandler(InputElement.KeyDownEvent, ObserveKey); }
+        }
+
+        Task WaitForDismissalAsync() => ReadyAsync(() =>
+            VisibleButton("Close limits") is null && ReferenceEquals(window.FocusManager?.GetFocusedElement(), limits));
+    }
+}

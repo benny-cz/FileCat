@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native Mac scan/save/compare/query/close subset, not full qualification",
+  "controlReport": "mac-native-ui-control-r34.json",
+  "harnessReport": "mac-native-ui-report-r34.json",
+  "ownedProcessExited": true,
+  "deadlineClosed": false,
+  "sourcePathsUnchanged": 509,
+  "appSha256": "c38bb9ba4237a439d53ae4a99401059cb6fdc3d5a27ed16453506c2476bbbf2e",
+  "harnessSha256": "15e8a240174ad43a45a07d7f85eca4c7a8dc766d0564e021b72d930f4b467aec",
+  "captureHelper": "Existing com.filecat.validation.capture app, invoked through Launch Services, unchanged",
+  "observedClientDip": {
+    "height": 368,
+    "width": 720,
+    "renderScaling": 2
+  },
+  "limitations": [
+    "Visual inspection found unnecessary window shrinking on the Retina display. Investigating shared WindowFit coordinate conversion; fix and retest required.",
+    "AXPress and real Return are a native interaction subset, not complete keyboard/screen-reader/DPI/theme acceptance.",
+    "Previous failed automation and direct-binary capture attempts are not passing acceptance. Existing capture authorization required no modification."
+  ]
+}

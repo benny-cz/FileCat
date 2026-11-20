@@ -1,0 +1,263 @@
+AXGroup	WindowChrome	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	New analysis	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Close analysis	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Continue in FileCat	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXTabGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXRadioButton	Analysis 1	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXScrollArea	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Back	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Forward	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Up	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXPopUpButton	missing value	Treemap
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Treemap	Treemap
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXUnknown	missing value	missing value
+AXPopUpButton	missing value	On disk — reported
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	On disk — reported	On disk — reported
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXUnknown	missing value	missing value
+AXButton	Pause	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Stop	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Inspect selection	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Save…	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Open saved…	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Compare…	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	All locations	All locations
+AXStaticText	On disk — reported: 3,3 MiB known · 509 observed file paths	On disk — reported: 3,3 MiB known · 509 observed file paths
+AXStaticText	Traversal complete under the captured policy. Observed metadata over time. Reported allocation can share physical blocks; expected free-space gain is unknown. Missing measurements: 0. Traversal boundaries: 1; issues: 1. Standard: reported allocation; extra component coverage unknown.	Traversal complete under the captured policy. Observed metadata over time. Reported allocation can share physical blocks; expected free-space gain is unknown. Missing measurements: 0. Traversal boundaries: 1; issues: 1. Standard: reported allocation; extra component coverage unknown.
+AXGroup	missing value	missing value
+AXTextField	Filter observations	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXScrollArea	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Search within observations…	Search within observations…
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXCheckBox	Case sensitive	false
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Clear filter	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	Treemap: All locations, 3424256 reported units. Use the table for every entry and its measurement and identity states.	missing value
+AXHandle	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Mark	Mark
+AXStaticText	Name	Name
+AXStaticText	Active metric	Active metric
+AXList	Ranked analysis entries	missing value
+AXGroup	missing value	missing value
+AXScrollArea	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXRow	fixture; 3,3 MiB; 2,3 MiB; 509; Shared links	missing value
+AXGroup	missing value	missing value
+AXGroup	fixture; 3,3 MiB; 2,3 MiB; 509; Shared links	missing value
+AXCheckBox	missing value	false
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	fixture	fixture
+AXStaticText	3,3 MiB	3,3 MiB
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Review basket: 0 references · expected free-space gain unknown	Review basket: 0 references · expected free-space gain unknown
+AXButton	Review cleanup	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Finished · 518 observed paths · 1 issues. Values are observations over time.	Finished · 518 observed paths · 1 issues. Values are observations over time.
+AXScrollBar	missing value	0,0
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Line up	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Page up	missing value
+AXGroup	missing value	missing value
+AXButton	Page down	missing value
+AXGroup	missing value	missing value
+AXHandle	Position	missing value
+AXGroup	missing value	missing value
+AXButton	Line down	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	Save named analysis dialog	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Save named analysis	Save named analysis
+AXButton	Close dialog	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXScrollArea	Save named analysis content	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Save the entire captured inventory, including paths, identities and observed metadata. File contents are excluded. The display filter does not limit this save.	Save the entire captured inventory, including paths, identities and observed metadata. File contents are excluded. The display filter does not limit this save.
+AXStaticText	Saved analyses folder: /Users/benny/FileCatValidation/dsa-20261105-r34f-native/app/native-validation/dsa-194ec5808b3249b883cbc6b26852d09e/data/local/analysis-snapshots
+Observed 2026-11-05 13:07:48Z – 2026-11-05 13:07:48Z. Traversal complete under the captured policy. The live scan can continue.	Saved analyses folder: /Users/benny/FileCatValidation/dsa-20261105-r34f-native/app/native-validation/dsa-194ec5808b3249b883cbc6b26852d09e/data/local/analysis-snapshots
+Observed 2026-11-05 13:07:48Z – 2026-11-05 13:07:48Z. Traversal complete under the captured policy. The live scan can continue.
+AXTextField	Inventory filename	Analysis 2026-11-05 140756.fcdsa
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXScrollArea	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Cancel	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Save new inventory	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	missing value	missing value
+AXButton	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	missing value	missing value
+AXStaticText	Disk space — FileCat	Disk space — FileCat
+

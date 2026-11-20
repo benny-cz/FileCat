@@ -1,0 +1,27 @@
+# EFS recovery decisions in the job prompt
+
+The internal EFS job composition can now request setup and a recovery choice through FileCat's running-job decision path. Setup names the invoking Windows account, defaults to Cancel and describes possible key provisioning. The next prompt offers only freshly matched certificates from that setup file. It identifies each by the certificate's bounded display name and exact thumbprint. The user can request Windows private-key backup from a live parent window or explicitly declare an existing recovery arrangement. [Microsoft's certificate display-name API](https://learn.microsoft.com/en-us/windows/win32/api/wincrypt/nf-wincrypt-certgetnamestringw).
+
+The job retains its traversal owner while the decisions or native wizard are active. After cancellation or a failed export it waits for a new explicit choice. The selected item is revalidated before any native encryption intent. A cleanup problem includes the retained setup path when available.
+
+The Windows 11 x64 VM passed 71 tests with four fixture-specific skips. In the default recovery-flow test, setup and both recovery prompts occurred while the original file remained clear. An unavailable backup owner returned the failure to the next prompt. A subsequent declaration allowed a single native change with the chosen certificate recorded. Both real wizard export and cancellation controls passed in the same run. See `.tmp/filecat-efs-recovery-workflow-tests.xml` and `.tmp/filecat-efs-recovery-workflow-results.log`.
+
+Ubuntu and macOS each passed 17 application dialog and report tests, including selection of the second exact key and the Cancel default. The portable fixture has no Windows parent handle and offers the declaration route. See `.tmp/efs-recovery-workflow-app/results.xml` in each remote checkout. This checkpoint covers setup and recovery from the new encryption job. Existing-file key backup, interactive hardware providers, command placement and product enablement remain open.
+
+## Native refusal before key setup
+
+Encryption preparation checks the native EFS status and complete stream inventory before asking for a recovery choice. It repeats those checks after the decision. On Windows 11 x64 build 26340 at medium integrity, two selected-item jobs were refused because Windows disallowed encryption in their fixture directory or the file exceeded the bounded stream inventory. The original files stayed clear and readable. Neither job requested recovery or recorded a native mutation intent, and both journals ended normally. The `native-prerequisites.xml` receipt records two passes with zero skips in `.tmp/arm64-ops-f8d6b000-r1/`. [Windows directory encryption policy](https://learn.microsoft.com/en-us/windows/win32/api/winefs/nf-winefs-encryptiondisable)
+
+Both cases also executed and passed on native Windows ARM64 at medium integrity (Windows 11 Enterprise build 26200, 4 KiB NTFS). The same run passed all 12 selected storage cases, 11 key and recovery prompt cases, both wizard outcomes and the three independent-account recovery cases. The platform test assembly SHA-256 was `235B76B5453F927C295448388F7289C41371C37CD0BCC2B6CA2FDEC9BC17FA55` from commit `9699a2b9b5865fb73975b8db330ae227dc65469b`. [Native ARM64 rerun and receipts](https://github.com/benny-cz/FileCat/actions/runs/44509039612)
+
+## Explicit CNG key access during setup
+
+The gated encryption job can now offer **Access EFS key…** when a CNG certificate on its actual setup file requires provider interaction. The choice opens the comparison on the visible FileCat owner's thread. A fresh match for the same invoking account and certificate is required before **Use existing recovery** or **Back up EFS key…** becomes available for that certificate. The job asks for the recovery choice separately.
+
+On Windows 11 x64 build 26340, all 16 focused cases executed and passed at medium integrity. The new case supplies a controlled pending observation for a disposable software CNG certificate, checks the explicit action and actual association, and compares the fresh key from CurrentUser My with a native owner. A missing certificate, an unreviewed association and a CryptoAPI provider do not reach the owner callback. The run also passed the existing setup and recovery decision test and the virtual TPM comparison. The receipt is `.tmp/filecat-efs-access-cbc2d8bb-r1/efs-access-r1.trx`. The platform and test assembly SHA-256 hashes are `B4E2762B9091C0CEEB64B8D881BC8E5FFC0054985DDF50E3A82D8AD91902FC75` and `EF1F24B6CBA474493116D9AE42FB36796791E08D3A102E8C16935B0DE7886384`.
+
+All seven focused Ubuntu dialog and evidence-text cases passed. The mixed-key dialog case restored the pending certificate selection, refused the declaration click, and allowed the declaration after selection moved to the already matched certificate. The receipt is `efs-recovery-dialog.trx` in the same evidence directory.
+
+At commit `e2947b9d`, native ARM64 passed all three parented provider comparisons at medium integrity, including the reviewed-access case. The same run passed the 11 key and recovery checks and both setup wizard outcomes, with zero skips. [Native ARM64 EFS receipts](https://github.com/benny-cz/FileCat/actions/runs/44527445412)
+
+Live provider credential prompts, CryptoAPI interaction isolation and provider access during selected-file backup remain open. The backup wizard and post-encryption observation still require their own fresh key evidence.

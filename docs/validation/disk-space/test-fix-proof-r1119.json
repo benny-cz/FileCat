@@ -1,0 +1,36 @@
+{
+  "revision": "r1119",
+  "baseline": "r1118",
+  "scope": "RunnerOnly",
+  "testPhases": [
+    "render"
+  ],
+  "productSourceBaseline": null,
+  "elapsedSeconds": 7.1238893,
+  "platforms": [
+    {
+      "archiveBytes": 9092,
+      "sha256": "1eb675d5a18579d1588b80c4161d09aefac136e1a3671df50f0363516abb4bab",
+      "platform": "windows",
+      "verifiedInputs": 270,
+      "changed": [],
+      "guestReuse": true
+    },
+    {
+      "archiveBytes": 9041,
+      "sha256": "3a90587081096f74ad884cb8ce2d741a340de60210be4a50f704c1f1a71e8278",
+      "platform": "mac",
+      "verifiedInputs": 192,
+      "changed": [],
+      "guestReuse": true
+    },
+    {
+      "archiveBytes": 8975,
+      "sha256": "640c6ce479b7fd9ea8c1d088c2840e5ccdb61ab4b60986f6a65800399c35b048",
+      "platform": "linux",
+      "verifiedInputs": 191,
+      "changed": [],
+      "guestReuse": true
+    }
+  ]
+}

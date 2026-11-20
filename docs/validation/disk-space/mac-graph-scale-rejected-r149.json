@@ -1,0 +1,20 @@
+{
+  "purpose": "Native related graph and exact index storage; not full analysis scale qualification",
+  "archiveSha256": "2c074283706714bbef910fb6319651449f65ab8b885d904f11f0bd3dbacc2384",
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "architecture": "arm64",
+  "runs": [
+    {
+      "records": 1000000,
+      "processId": 38695,
+      "exitCode": -15,
+      "ownedProcessExited": true,
+      "error": "Native storage scale failed: "
+    }
+  ],
+  "hashes": {
+    "FileCat.Core.dll": "d3d1f4c856941f147820eacb11a38809629b34255b497124b9de603b844c4a84",
+    "FileCat.CoreCrashHarness.dll": "65d3c972c881cdcf76d33aa86eee0625ecac804041f3e592944d8dce48859cb7",
+    "FileCat.Platform.Windows.dll": "4a2922a4250ee054079433332e133a40f31c805dacd73616033140524c7190ca"
+  }
+}

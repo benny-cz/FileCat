@@ -69,6 +69,8 @@ public sealed class AppSettings : IVersionedState
     public const int CurrentSchema = 1;
 
     public int SchemaVersion { get; set; } = CurrentSchema;
+    /// <summary>Finite, diagnostic-safe preferences. No private paths or inventories and no runtime approval.</summary>
+    public Analysis.AnalysisPreferences AnalysisPreferences { get; set; } = new();
     /// <summary>"Classic", "ClassicDark", "Cyberpunk", "Psychedelic", "Steampunk", "HighContrast", or "System".</summary>
     public string Theme { get; set; } = "System";
     /// <summary>Animated theme light, edges, and glitches; off, they stand still. The system's reduce-motion setting also stops them.</summary>
@@ -110,6 +112,8 @@ public sealed class AppSettings : IVersionedState
     public List<ToolDefinition> UserCommands { get; set; } = [];
     /// <summary>Named masks used as <c>@name</c> wherever a mask is accepted (plan §11 saved filters).</summary>
     public List<SavedFilter> SavedFilters { get; set; } = [];
+    /// <summary>Named formats for Commands → Create file list; built-in formats stay in the application.</summary>
+    public List<Operations.FileListRule> FileListRules { get; set; } = [];
     /// <summary>Find's saved searches (plan §11); one may load whenever Find opens.</summary>
     public List<Search.SavedSearch> SavedSearches { get; set; } = [];
     /// <summary>Folders Find does not search, each switchable.</summary>
@@ -122,8 +126,11 @@ public sealed class AppSettings : IVersionedState
     public Dictionary<string, string[]> KeyBindings { get; set; } = new(StringComparer.Ordinal);
     public List<ColumnProfile> ColumnProfiles { get; set; } = [];
     public bool KeepAwakeDuringJobs { get; set; }
-    public bool CheckForUpdates { get; set; }
+    /// <summary>On for new profiles; a saved false value remains an explicit opt-out.</summary>
+    public bool CheckForUpdates { get; set; } = true;
     public DateTime? LastUpdateCheckUtc { get; set; }
+    /// <summary>Only this published version is hidden from automatic update prompts; manual checks still show it.</summary>
+    public string? SkippedUpdateVersion { get; set; }
     public bool DiagnosticMode { get; set; }
     public int RecentlyClosedTabs { get; set; } = 25;
     public int HistorySize { get; set; } = 200;
@@ -137,6 +144,9 @@ public sealed class AppSettings : IVersionedState
     /// <summary>Last user-sized F3 viewer dimensions in logical pixels; omitted until a viewer is resized.</summary>
     public double? ViewerWidth { get; set; }
     public double? ViewerHeight { get; set; }
+    /// <summary>Last user-sized Disk usage window dimensions in logical pixels.</summary>
+    public double? DiskUsageWidth { get; set; }
+    public double? DiskUsageHeight { get; set; }
     /// <summary>Files up to this size are checked against the checksums and signatures beside them when shown (D-57); larger ones on request.</summary>
     public int VerifyAutomaticallyUpToMiB { get; set; } = 256;
     /// <summary>Thumbnails in quick view and programs' own icons from Windows Shell handlers, run in the restricted helper (TV-16).</summary>
@@ -156,6 +166,7 @@ public sealed class TabState
     public bool SortDescending { get; set; }
     public string? Filter { get; set; }
     public int ColumnProfile { get; set; }
+    public bool PictureView { get; set; }
     public string? FocusName { get; set; }
     public List<Location> BackHistory { get; set; } = [];
     public List<Location> ForwardHistory { get; set; } = [];

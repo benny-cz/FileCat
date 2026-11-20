@@ -126,9 +126,10 @@ public sealed class NtfsViewIndexTests
         var left = index.Entries.Where(e => e.InSlack).ToList();
         Assert.Equal([(ushort)5, (ushort)6], left.Select(e => e.Sequence).Order());
         Assert.Equal(earlier, left.Single(e => e.Sequence == 5).ObjectId);
-        // The entry for a system record (7) carved from the slack is noise, and not kept even without a filter.
+        // Its ID's first eight bytes also look like a plausible MFT reference when a carver mistakes
+        // the intact entry header for a bare key after the end mark.
         var all = new NtfsViewIndex(ViewIndexKind.ObjectIds);
-        all.ReadBlock(Block([ObjectIdEntry(mine, 100, 7)], ObjectIdEntry(Guid.NewGuid(), 7, 1)), 0, inUse: true);
+        all.ReadBlock(Block([ObjectIdEntry(mine, 100, 7)], ObjectIdEntry(new Guid("00000064-0000-0000-0000-000000000001"), 7, 1)), 0, inUse: true);
         Assert.Single(all.Entries);
     }
 

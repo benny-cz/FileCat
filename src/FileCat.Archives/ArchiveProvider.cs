@@ -8,8 +8,12 @@ namespace FileCat.Archives;
 
 /// <summary>A member of a read-only archive, as listed.</summary>
 public sealed record ArchiveMemberTag(string FullName, int Index, long Size, long CompressedSize, bool Encrypted, int DuplicateOrdinal, string? UnsafeReason,
-    MemberKind Kind, string? LinkTarget) : IDisplayDetails
+    MemberKind Kind, string? LinkTarget) : IDisplayDetails, IArchiveMemberRevision
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? ArchiveRevision { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? ArchiveMutationProblem { get; init; }
     public string KindText => Kind switch
     {
         MemberKind.SymbolicLink => "Link",
@@ -28,14 +32,14 @@ public sealed record ArchiveMemberTag(string FullName, int Index, long Size, lon
 /// not opened; archives inside archives (of any supported format, ZIP included) open read-only from a private spool.
 /// Mark-of-the-Web propagates on extraction from the outermost marked file.
 /// </summary>
-public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
+public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider, IUnprotectedContentOutput
 {
     public const int MaxEntries = 1_000_000;
     public const long MaxMemberInMemory = 32L * 1024 * 1024;
     public const long MaxExpansionRatio = 1000;
     public const long MaxSpooledMember = 8L * 1024 * 1024 * 1024;
     public const int MaxNestedSpools = 4;
-    public const int MaxNestingDepth = 8;
+    public const int MaxNestingDepth = ArchiveNesting.MaximumDepth;
 
     // One owner builds/publishes or retires indexes; concurrent misses must not abandon a competing build.
     private readonly object _cacheLock = new();
@@ -123,14 +127,23 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
 
     public override string GetDeviceKey(Location location) => PathUtil.GetDeviceKey(OutermostFile(location));
 
-    public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate | LocationCapabilities.ReadContent;
+    public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate | LocationCapabilities.ReadContent |
+        (!MutationState(location).Available ? LocationCapabilities.None
+            // AW7: a standalone stream takes one explicit replacement (F5 of one file) or a sole-payload edit commit, nothing else.
+            : IsStandaloneTarget(location) ? LocationCapabilities.TransferTarget |
+                (MemberMutationProblem(location) is null ? LocationCapabilities.ExternalEdit : LocationCapabilities.None)
+            : LocationCapabilities.TransferTarget | LocationCapabilities.CreateDirectory |
+                (MemberMutationProblem(location) is null ? LocationCapabilities.Delete | LocationCapabilities.Rename | LocationCapabilities.ExternalEdit : LocationCapabilities.None));
 
     public override string ExplainUnavailable(Location location, LocationCapabilities capability) => capability switch
     {
+        LocationCapabilities.CreateDirectory or LocationCapabilities.CreateFile or LocationCapabilities.Delete or LocationCapabilities.Rename or LocationCapabilities.Recycle
+            when IsStandaloneTarget(location) && MutationState(location).Available => ArchiveStandalone.MemberChangesUnavailable,
+        LocationCapabilities.Delete or LocationCapabilities.Rename or LocationCapabilities.ExternalEdit when MutationState(location).Available && MemberMutationProblem(location) is { } problem => problem,
         LocationCapabilities.CreateDirectory or LocationCapabilities.CreateFile or LocationCapabilities.Delete or LocationCapabilities.Rename or
             LocationCapabilities.TransferTarget or LocationCapabilities.ExternalEdit or LocationCapabilities.Recycle =>
-            "FileCat reads this archive format but does not change it: copy (extract) members with F5; only ZIP archives are updated in place.",
-        LocationCapabilities.MoveSource => "Members cannot be moved out of a read-only archive: copy (extract) them with F5.",
+            ReadOnlyReason(location) + " Copy (extract) members with F5 to work with them in a folder.",
+        LocationCapabilities.MoveSource => "Moving members out of this archive is not supported here. Copy (extract) them with F5.",
         _ => base.ExplainUnavailable(location, capability),
     };
 
@@ -168,7 +181,10 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
             bool nested = node.Tag is { Kind: MemberKind.File } && (IsContainer(node.Name) || zip?.IsContainer(node.Name) == true);
             var e = new EntryData(node.Name, node.IsDirectory ? EntryKind.Directory : EntryKind.File, node.IsDirectory ? -1 : node.Size, node.Modified)
             {
-                Tag = node.Tag,
+                // Rows carry the listing's revision token; a member command resolves it (ArchiveListingRevision).
+                Tag = index.Revision is not { } revision ? node.Tag
+                    : node.Tag is { } tag ? tag with { ArchiveRevision = revision.Token, ArchiveMutationProblem = revision.Problem }
+                    : new DirectoryRevision(revision.Token, revision.Problem),
                 Flags = (node.Tag?.Encrypted == true ? EntryFlags.Protected : EntryFlags.None) |
                         (node.Tag is { UnsafeReason: not null } or { Kind: MemberKind.Special } ? EntryFlags.Unavailable : EntryFlags.None) |
                         (node.Tag?.Kind is MemberKind.SymbolicLink or MemberKind.HardLink ? EntryFlags.Link : EntryFlags.None) |
@@ -182,6 +198,10 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
         index.VerifySource();
         index.VerifyVolumePaths();
         sink.AddBatch(batch.ToArray());
+        // A panel shows the rows: the revision they carry is read now, in the background (ArchiveListingRevision). An index
+        // carries a revision only where writing was available when it was built, or for an edit; a search, a comparison or
+        // a transfer walking the archive reads nothing more.
+        if (sink.Shown && index.Revision is { Problem: null, Known: null } shown) sink.WhileShown(shown.Show(RevisionReadLimit));
         return Task.CompletedTask;
     }
 
@@ -190,7 +210,8 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
         if (entry.Kind == EntryKind.Parent) return GetParent(parent);
         string member = parent.Path.Length == 0 ? entry.Name : parent.Path + "/" + entry.Name;
         if (entry.Kind == EntryKind.Directory) return parent.WithPath(member);
-        if (entry.Has(EntryFlags.Container) && entry.Tag is ArchiveMemberTag { Encrypted: false, UnsafeReason: null, DuplicateOrdinal: 0, Kind: MemberKind.File })
+        if (entry.Has(EntryFlags.Container) && entry.Tag is ArchiveMemberTag { UnsafeReason: null, DuplicateOrdinal: 0, Kind: MemberKind.File } tag &&
+            (!tag.Encrypted || _cache.Values.Any(index => index.PasswordUnlocked && index.ContainerLocation == parent.WithPath(""))))
         {
             var at = parent.WithPath(member);
             if (Zip?.IsContainer(entry.Name) == true) return new Location(Schemes.Zip, string.Empty, at);
@@ -200,30 +221,41 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
     }
 
     public override ItemRef GetItemRef(Location listing, in EntryData entry) =>
-        entry.Tag is ArchiveMemberTag { DuplicateOrdinal: > 0 } t
-            ? new ItemRef(listing, entry.Name, entry.Kind, entry.Size, entry.Modified) { Ordinal = t.DuplicateOrdinal, Flags = entry.Flags }
+        entry.Tag is ArchiveMemberTag t
+            ? new ItemRef(listing, entry.Name, entry.Kind, entry.Size, entry.Modified)
+                { Ordinal = t.DuplicateOrdinal, Flags = entry.Flags, ArchiveRevision = t.ArchiveRevision, ArchiveMutationProblem = t.ArchiveMutationProblem }
             : base.GetItemRef(listing, entry);
 
     // ---- Content -----------------------------------------------------------------------------------------
 
-    public override IContentSource? OpenContent(ItemRef item)
+    public override IContentSource? OpenContent(ItemRef item) => OpenContent(item, output: null);
+
+    IContentSource? IUnprotectedContentOutput.OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind) => OpenContent(item, kind);
+
+    IContentSource? IUnprotectedContentOutput.OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind, out OutputEfsObservation? provenance) =>
+        OpenContent(item, kind, out provenance);
+
+    private IContentSource? OpenContent(ItemRef item, ContentOutputKind? output) => OpenContent(item, output, out _);
+
+    private IContentSource? OpenContent(ItemRef item, ContentOutputKind? output, out OutputEfsObservation? provenance)
     {
         var root = item.Parent.WithPath(string.Empty);
-        using var source = ArchiveFile(root, 0);
+        using var source = ArchiveFile(root);
         string path = source.Path;
         // Resolve nested paths before taking the cache lock; cross-provider spool locks stay ordered.
         // Admission owns the index until extraction has copied bytes or acquired its progressive lease.
         lock (_cacheLock)
         {
             var index = GetIndex(root, source, CancellationToken.None);
+            provenance = index.OutputProtection;
             var node = index.FindFile(item.Parent.Path, item.Name, item.Ordinal);
             if (node?.Tag is not { } tag) throw new FileNotFoundException($"\"{item.Name}\" is not in the archive.");
-            if (tag.Encrypted) return null;
+            if (tag.Encrypted && !index.PasswordUnlocked) return null;
             if (tag.UnsafeReason is not null) throw new InvalidDataException("This member has an unsafe name: " + tag.UnsafeReason);
             if (tag.Kind is MemberKind.SymbolicLink or MemberKind.HardLink)
                 throw new InvalidDataException("Links inside archives are not followed or extracted" + (tag.LinkTarget is { } target ? $" (it points to \"{target}\")." : "."));
             if (tag.Kind == MemberKind.Special) throw new InvalidDataException("Device and pipe entries have no content to extract.");
-            try { return index.Extract(tag, _tempDirectory); }
+            try { return index.Extract(tag, _tempDirectory, output); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // A lazy source-open refusal invalidates the index and closes its witness too. A later request
@@ -235,17 +267,24 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
         }
     }
 
+    void IUnprotectedContentOutput.RequireClearOutputSource(Location location, ContentOutputKind kind)
+    {
+        var root = location.WithPath(string.Empty);
+        using var source = ArchiveFile(root);
+        lock (_cacheLock) GetIndex(root, source, CancellationToken.None).RequireClearOutputSource(kind);
+    }
+
     // ---- Index ---------------------------------------------------------------------------------------------
 
     private ArchiveIndex GetIndex(Location location, CancellationToken ct)
     {
         var root = location.WithPath(string.Empty);
-        using var source = ArchiveFile(root, 0);
+        using var source = ArchiveFile(root);
         string path = source.Path;
         lock (_cacheLock) return GetIndex(root, source, ct);
     }
 
-    private ArchiveIndex GetIndex(Location root, ArchiveSourceLease source, CancellationToken ct)
+    private ArchiveIndex GetIndex(Location root, ArchiveSourceLease source, CancellationToken ct, ArchiveJobPassword? password = null, bool requireRevision = false)
     {
         string path = source.Path;
         var fi = new FileInfo(path);
@@ -258,8 +297,11 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
             try
             {
                 if (!cached.CanReuse) throw new IOException("The archive source has no change token for cache reuse.");
+                if (password is not null && !cached.PasswordUnlocked) throw new IOException("Unlock this archive with a new reader.");
                 cached.VerifySource();
                 cached.VerifyVolumePaths();
+                // A writable route (or an edit) after this index was built: its listings carry a revision token from now on.
+                if (requireRevision || MutationState(root).Available) cached.RequireRevision(RememberRevision);
                 cached.Touch();
                 return cached;
             }
@@ -272,8 +314,12 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
         string displayName = Path.GetFileName(DisplayArchive(root));
         var kind = root.Session is { Length: > 0 } forced && Enum.TryParse<ArchiveKind>(forced, out var k2) ? k2
             : ArchiveFormats.ByName(displayName) ?? throw new InvalidDataException("This file is not in an archive format FileCat reads.");
-        void VerifyOpened(string openedPath, Microsoft.Win32.SafeHandles.SafeFileHandle handle) =>
+        var spoolProtection = new OutputEfsObservation();
+        void VerifyOpened(string openedPath, Microsoft.Win32.SafeHandles.SafeFileHandle handle)
+        {
             OpenedSourceIdentity.RequireMatch(handle, PathUtil.SafetyComparer.Equals(path, openedPath) ? sourceIdentity : GetSourceIdentity(openedPath), GetOpenedSourceIdentity);
+            spoolProtection.ObserveOpened(handle);
+        }
         FileStream? witness = null;
         ArchiveIndex? index = null;
         try
@@ -281,8 +327,9 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
             witness = ArchiveFormats.OpenShared(path, VerifyOpened);
             string? before = SourceChangeToken.FromHandle(witness.SafeFileHandle);
             IMemberReader reader;
-            try { reader = ArchiveFormats.Open(path, kind, displayName, VerifyOpened); }
-            catch (Exception ex) when (ex is not (OperationCanceledException or IOException or UnauthorizedAccessException or InvalidDataException))
+            try { reader = password is null ? ArchiveFormats.Open(path, kind, displayName, VerifyOpened)
+                    : PasswordMemberReader.Open(path, kind, password, VerifyOpened, ct); }
+            catch (Exception ex) when (ex is not (OperationCanceledException or IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException))
             {
                 throw new InvalidDataException("The archive cannot be read: " + ex.Message, ex);
             }
@@ -308,15 +355,23 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
                 throw;
             }
             index = ArchiveIndex.Build(reader, fi.Length, ct);
+            index.PasswordUnlocked = password is not null;
+            index.ContainerSession = root.Session;
+            index.ContainerLocation = root;
+            index.SourceIdentity = sourceIdentity;
             string? after = SourceChangeToken.FromHandle(witness.SafeFileHandle);
             if (before is not null && before != after)
                 throw new IOException("The archive source changed while its catalog was being built.");
-            index.KeepWitness(witness, after);
+            index.KeepWitness(witness, after, stableListing: before is not null);
             witness = null;
             index.KeepVolumes(volumes, GetSourceIdentity, kind == ArchiveKind.Rar ? path : null);
+            index.KeepSpoolProtection(spoolProtection);
+            // Only a token: a listing reads what it shows, never the whole archive (ArchiveListingRevision).
+            if (requireRevision || MutationState(root).Available) index.RequireRevision(RememberRevision);
             index.VerifySource();
             index.VerifyVolumePaths();
             index.KeepSource(source);
+            if (password is not null) index.VerifyPassword(ct);
         }
         catch
         {
@@ -346,11 +401,10 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
     public int RetainedIndexes => _cache.Count;
 
     /// <summary>The local file holding the archive: the file itself, or a private spool of a member of another archive.</summary>
-    private ArchiveSourceLease ArchiveFile(Location location, int depth)
+    private ArchiveSourceLease ArchiveFile(Location location)
     {
         var container = location.Container ?? throw new InvalidOperationException("Archive location without its archive.");
         if (container.IsFileSystem) return new ArchiveSourceLease(container.Path);
-        if (depth >= MaxNestingDepth) throw new InvalidDataException($"Archives are nested more than {MaxNestingDepth} levels deep.");
         return OpenSpool(container);
     }
 
@@ -366,10 +420,14 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
 
     public ArchiveSourceLease OpenSpool(Location member)
     {
+        ArchiveNesting.RequireWithinLimit(member, additionalDepth: 1);
         int slash = member.Path.LastIndexOf('/');
         var folder = member.WithPath(slash < 0 ? string.Empty : member.Path[..slash]);
         string name = member.Path[(slash + 1)..];
         var provider = _providers.For(member);
+        var admittedProvider = OperatingSystem.IsWindows()
+            ? provider as IUnprotectedContentOutput ?? throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.SpoolUnknown)
+            : null;
         string outer = OutermostFile(member);
         var outerInfo = new FileInfo(outer);
         string key = $"{member}|{outerInfo.Length}|{outerInfo.LastWriteTimeUtc.Ticks}|{SourceIdentityKey(outer)}|{SourceChangeKey(outer)}";
@@ -379,16 +437,24 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
         {
             if (_spools.TryGetValue(key, out var existing))
             {
+                admittedProvider?.RequireClearOutputSource(folder, ContentOutputKind.DiskCache);
                 existing.Used = DateTime.UtcNow;
                 return existing.Acquire();
             }
-            Directory.CreateDirectory(_tempDirectory);
             string spoolPath = Path.Combine(_tempDirectory, $"nested-{Guid.NewGuid():N}{Path.GetExtension(name)}");
-            var holder = new FileStream(spoolPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read | FileShare.Delete, 64 * 1024, FileOptions.DeleteOnClose);
+            FileStream? holder = null;
+            OutputEfsObservation? protection = null;
+            OutputEfsObservation.Receipt? origin = null;
             try
             {
-            using var source = ProgressiveContent.Sequential(provider.OpenContent(new ItemRef(folder, name, EntryKind.File)))
-                               ?? throw new NotSupportedException("The inner archive is encrypted and cannot be opened here.");
+                var item = new ItemRef(folder, name, EntryKind.File);
+                var content = admittedProvider is null ? provider.OpenContent(item) :
+                    admittedProvider.OpenUnprotectedOutput(item, ContentOutputKind.DiskCache, out protection);
+                using var source = ProgressiveContent.Sequential(content)
+                    ?? throw new NotSupportedException("The inner archive is encrypted and cannot be opened here.");
+                if (admittedProvider is not null) RequireClearSpoolOrigin(protection);
+                Directory.CreateDirectory(_tempDirectory);
+                holder = new FileStream(spoolPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read | FileShare.Delete, 64 * 1024, FileOptions.DeleteOnClose);
                 var buffer = new byte[256 * 1024];
                 long offset = 0;
                 int n;
@@ -399,13 +465,14 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
                     holder.Write(buffer, 0, n);
                 }
                 holder.Flush();
+                if (admittedProvider is not null) origin = RequireClearSpoolOrigin(protection);
             }
             catch
             {
-                holder.Dispose();
+                holder?.Dispose();
                 throw;
             }
-            var added = new ArchiveSpool(spoolPath, holder);
+            var added = new ArchiveSpool(spoolPath, holder, origin);
             _spools[key] = added;
             while (_spools.Count > MaxNestedSpools)
             {
@@ -420,6 +487,13 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
             }
             return added.Acquire();
         }
+    }
+
+    private static OutputEfsObservation.Receipt RequireClearSpoolOrigin(OutputEfsObservation? protection)
+    {
+        var origin = protection?.Freeze() ?? throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.SpoolUnknown);
+        ArchiveOuterEfs.RequireClearOutput(origin.Protection, ContentOutputKind.DiskCache);
+        return origin;
     }
 
     public void Release(string archivePath)
@@ -454,6 +528,8 @@ internal sealed class ArchiveIndex : IDisposable
     private readonly object _lock = new();
     private readonly IMemberReader _reader;
     private FileStream? _witness;
+    private OutputEfsObservation _spoolProtection = new();
+    internal OutputEfsObservation OutputProtection => _spoolProtection;
     private string? _openedChangeToken;
     internal readonly record struct VolumeWitness(FileStream Stream, string Path, string? Token, string? Identity);
     private VolumeWitness[] _volumes = [];
@@ -465,13 +541,35 @@ internal sealed class ArchiveIndex : IDisposable
         _volumePathIdentity = pathIdentity;
         _rarEntryPath = rarEntryPath;
     }
-    public void KeepWitness(FileStream witness, string? changeToken)
+    public void KeepWitness(FileStream witness, string? changeToken, bool stableListing = true)
     {
         _witness = witness;
+        _witnessHandle = witness.SafeFileHandle;
         _openedChangeToken = changeToken;
+        _stableListing = stableListing;
     }
+    internal void KeepSpoolProtection(OutputEfsObservation protection) => _spoolProtection = protection;
+
+    private void RequireClearSpoolSource() => RequireClearOutputSource(ContentOutputKind.DiskCache);
+
+    internal void RequireClearOutputSource(ContentOutputKind kind)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        if (_witnessHandle is { } witness) _spoolProtection.Observe(witness);
+        foreach (var volume in _volumes) _spoolProtection.Observe(volume.Stream.SafeFileHandle);
+        ArchiveOuterEfs.RequireClearOutput(_spoolProtection, kind);
+    }
+    private Microsoft.Win32.SafeHandles.SafeFileHandle? _witnessHandle;
+    // Whether the source had a change token when its catalog was started (not only when it was finished).
+    private bool _stableListing;
+    // A revision read saw the archive change: this index is never reused (a refresh lists the archive anew).
+    private volatile bool _stale;
+    private void MarkStale() => _stale = true;
+    internal bool Stale => _stale;
+
     public void VerifySource()
     {
+        if (_stale) throw new IOException("The archive changed since it was listed.");
         // Direct readers and filesystems without a token still permit one admitted read. The provider
         // disables cache reuse when no token was captured; it cannot prove a later read is the same source.
         if (_openedChangeToken is not null && (_witness is null || SourceChangeToken.FromHandle(_witness.SafeFileHandle) != _openedChangeToken))
@@ -494,10 +592,62 @@ internal sealed class ArchiveIndex : IDisposable
     }
     // A volume without an opened identity cannot be tied to its path on the next request. Its change token
     // guards the current open handle, but is not sufficient to authorize reuse of a multipart catalog.
-    public bool CanReuse => _openedChangeToken is not null &&
+    public bool CanReuse => !_stale && (!PasswordUnlocked || Volatile.Read(ref _views) >= 0) && _openedChangeToken is not null &&
         _volumes.All(volume => volume.Token is not null && volume.Identity is { Length: > 0 });
     private ArchiveSourceLease? _source;
-    public void KeepSource(ArchiveSourceLease source) => _source = source.Retain();
+    internal string? ContainerPath => _source?.Path;
+    internal string? ContainerSession { get; set; }
+    internal Location? ContainerLocation { get; set; }
+    internal string? SourceIdentity { get; set; }
+    internal bool PasswordUnlocked { get; set; }
+    private ArchiveListingRevision? _revision;
+    /// <summary>
+    /// Where this archive can be written: the revision token its listings carry, read through the witness handle in the
+    /// background once a listing is shown, or by the first command (ArchiveListingRevision). Null elsewhere.
+    /// </summary>
+    internal ArchiveListingRevision? Revision => Volatile.Read(ref _revision);
+
+    /// <summary>Gives this index its listing revision (once; cheap: nothing is read yet). Call after the witness is kept.</summary>
+    internal ArchiveListingRevision RequireRevision(Action<string, string>? resolved = null)
+    {
+        if (Volatile.Read(ref _revision) is { } existing) return existing;
+        var handle = _witnessHandle ?? throw new InvalidOperationException("The archive witness is not kept yet.");
+        string? problem = _openedChangeToken is null || !_stableListing ? "This location cannot identify a stable archive listing for member changes."
+            : _volumes.Length > 1 ? "Members of a multi-volume archive are read-only."
+            : !CompleteListing ? "This listing has archive warnings and cannot safely identify members for changes." : null;
+        var created = new ArchiveListingRevision(handle,
+            () => SourceChangeToken.Holds(SourceChangeToken.FromHandle(handle), _openedChangeToken),
+            TryLease, problem, resolved, MarkStale);
+        var kept = Interlocked.CompareExchange(ref _revision, created, null) ?? created;
+        if (_closing || _closed) kept.Close();
+        return kept;
+    }
+
+    /// <summary>Keeps this index's archive open until disposed, even if the cache drops the index meanwhile; null once closing.</summary>
+    internal IDisposable? TryLease()
+    {
+        lock (_lock)
+        {
+            if (_closing || _closed) return null;
+            _leases++;
+            return new IndexLease(this);
+        }
+    }
+
+    private sealed class IndexLease(ArchiveIndex owner) : IDisposable
+    {
+        private ArchiveIndex? _owner = owner;
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _owner, null) is not { } index) return;
+            lock (index._lock) { if (--index._leases == 0 && index._closing && index.ViewCount == 0) index.Close(); }
+        }
+    }
+    public void KeepSource(ArchiveSourceLease source)
+    {
+        if (source.Origin is { } origin) _spoolProtection.Include(origin);
+        _source = source.Retain();
+    }
     private readonly long _archiveLength;
 
     public sealed record Node(string Name, bool IsDirectory, long Size, long Modified, ArchiveMemberTag? Tag);
@@ -520,6 +670,50 @@ internal sealed class ArchiveIndex : IDisposable
 
     public void Touch() => LastUsed = DateTime.UtcNow;
 
+    internal void VerifyPassword(CancellationToken ct)
+    {
+        lock (_lock)
+        {
+            ct.ThrowIfCancellationRequested();
+            // Header encryption is checked while opening. Data-only protection also needs an actual
+            // bounded, checksum-verified member read before the tab accepts this password.
+            var tag = Children.Values.SelectMany(nodes => nodes).Select(node => node.Tag)
+                .FirstOrDefault(tag => tag is { Encrypted: true, Kind: MemberKind.File });
+            if (tag is not null)
+            {
+                if (_reader is PasswordMemberReader passwordReader && !passwordReader.SupportsPasswordRead(tag.Index))
+                    throw new NotSupportedException("Password reading for this older RAR encryption format is not implemented.");
+                using var stream = new DamageReportingStream(_reader.Open(tag.Index, ct));
+                var limits = MemberLimits.Of(tag.Size, tag.CompressedSize > 0 ? tag.CompressedSize : _archiveLength,
+                    ArchiveProvider.MaxSpooledMember, ArchiveProvider.MaxExpansionRatio);
+                (limits with { MaxLength = Math.Min(limits.MaxLength, ArchiveProvider.MaxSpooledMember) }).CopyAll(stream, Stream.Null, ct);
+            }
+            VerifySource(); VerifyVolumePaths(); ct.ThrowIfCancellationRequested();
+        }
+    }
+
+    private int _views;
+    internal int ViewCount => Math.Max(0, Volatile.Read(ref _views));
+    internal bool AcquireView()
+    {
+        while (true)
+        {
+            int previous = Volatile.Read(ref _views);
+            if (previous < 0) return false;
+            if (Interlocked.CompareExchange(ref _views, previous + 1, previous) == previous) return true;
+        }
+    }
+    internal int ReturnView()
+    {
+        while (true)
+        {
+            int previous = Volatile.Read(ref _views);
+            if (previous <= 0) throw new InvalidOperationException("Unbalanced archive password view.");
+            int next = previous == 1 ? -1 : previous - 1; // Last close cannot race a new runtime grant.
+            if (Interlocked.CompareExchange(ref _views, next, previous) == previous) return Math.Max(0, next);
+        }
+    }
+
     public Dictionary<string, List<Node>> Children { get; }
 
     private Dictionary<(string Folder, string Name, int Ordinal), Node>? _files;
@@ -539,6 +733,7 @@ internal sealed class ArchiveIndex : IDisposable
         }).GetValueOrDefault((folder, name, ordinal));
 
     public List<string> Warnings { get; }
+    internal bool CompleteListing { get; private init; }
     public DateTime LastUsed { get; private set; }
     public string Format => _reader.Format;
 
@@ -634,11 +829,12 @@ internal sealed class ArchiveIndex : IDisposable
             catch (Exception ex) { FileCat.Core.Diagnostics.AppLog.Warn("Archive cleanup after listing failure: " + ex.GetType().Name); }
         }
 
+        bool completeListing = warnings.Count == 0;
         if (seen.Values.Any(v => v > 0)) warnings.Add("The archive contains duplicate names; each copy is listed separately.");
         // Include the retained ancestor strings and directory-node overhead, even when the archive
         // has only one member with many path segments.
         return new ArchiveIndex(reader, archiveLength, children, warnings,
-            count * 185L + nameChars * 4 + directoryChars * 2 + directoryCount * 160);
+            count * 201L + nameChars * 4 + directoryChars * 2 + directoryCount * 160) { CompleteListing = completeListing };
     }
 
     /// <summary>
@@ -646,12 +842,17 @@ internal sealed class ArchiveIndex : IDisposable
     /// privately spooled); larger ones are decompressed as they are read (<see cref="ProgressiveContent"/>), so the first
     /// bytes are there at once. Sizes are never trusted.
     /// </summary>
-    public IContentSource Extract(ArchiveMemberTag tag, string tempDirectory)
+    public IContentSource Extract(ArchiveMemberTag tag, string tempDirectory, ContentOutputKind? output = null)
     {
         LastUsed = DateTime.UtcNow;
         lock (_lock)
         {
-            VerifySource();
+            void VerifyInput()
+            {
+                VerifySource();
+                if (output is { } purpose) RequireClearOutputSource(purpose);
+            }
+            VerifyInput();
             if (_closing && _leases == 0) throw new IOException("The archive was closed; open it again.");
             long declared = tag.Size;
             var limits = MemberLimits.Of(declared, tag.CompressedSize > 0 ? tag.CompressedSize : _archiveLength, ArchiveProvider.MaxSpooledMember,
@@ -661,7 +862,7 @@ internal sealed class ArchiveIndex : IDisposable
                 _leases++;
                 ProgressiveContent? content = null;
                 content = new ProgressiveContent(tag.FullName, _lock, () => new DamageReportingStream(OpenFor(content, tag.Index)), limits,
-                    ArchiveProvider.MaxSpooledMember, tempDirectory, () => Returned(content!), VerifySource);
+                    ArchiveProvider.MaxSpooledMember, tempDirectory, () => Returned(content!), VerifyInput, RequireClearSpoolSource);
                 return content;
             }
             Stream dst;
@@ -670,6 +871,7 @@ internal sealed class ArchiveIndex : IDisposable
             {
                 if (FileCat.Core.State.WindowsTokenAuthority.IsHighIntegrity)
                     throw new IOException("This archive member has no declared size and cannot be viewed safely while FileCat runs as administrator.");
+                RequireClearSpoolSource();
                 Directory.CreateDirectory(tempDirectory);
                 string spoolPath = Path.Combine(tempDirectory, $"member-{Guid.NewGuid():N}.tmp");
                 dst = new FileStream(spoolPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read | FileShare.Delete, 1, FileOptions.DeleteOnClose);
@@ -677,8 +879,9 @@ internal sealed class ArchiveIndex : IDisposable
             try
             {
                 using var src = new DamageReportingStream(OpenFor(null, tag.Index));
-                limits.CopyAll(src, dst);
-                VerifySource();
+                Action? verify = output is not null ? VerifyInput : declared < 0 ? RequireClearSpoolSource : null;
+                limits.CopyAll(src, dst, default, verify);
+                VerifyInput();
             }
             catch (Exception ex)
             {
@@ -723,21 +926,28 @@ internal sealed class ArchiveIndex : IDisposable
         lock (_lock)
         {
             if (ReferenceEquals(_cursorOwner, content)) _cursorOwner = null;
-            if (--_leases == 0 && _closing) Close();
+            if (--_leases == 0 && _closing && ViewCount == 0) Close();
         }
     }
 
     public void Dispose()
     {
+        ArchiveListingRevision? revision;
         lock (_lock)
         {
-            if (_closing) return;
+            if (_closed) return;
             _closing = true;
-            if (_leases == 0) Close();
+            revision = Volatile.Read(ref _revision);
+            if (_leases == 0 && ViewCount == 0) Close();
         }
+        // Outside the index lock (the revision takes its own lock, then this one for a lease): a revision read nothing waits
+        // for stops at its next block and returns its lease, and the archive then closes.
+        revision?.Close();
     }
     private void Close()
     {
+        if (_closed) return;
+        _closed = true;
         Exception? failure = null;
         void CloseOne(Action action, string name)
         {
@@ -753,6 +963,7 @@ internal sealed class ArchiveIndex : IDisposable
         CloseOne(() => Interlocked.Exchange(ref _source, null)?.Dispose(), "source");
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
+    private bool _closed;
 }
 
 /// <summary>

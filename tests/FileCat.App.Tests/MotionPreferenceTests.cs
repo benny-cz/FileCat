@@ -4,11 +4,65 @@ using FileCat.App.Services;
 
 namespace FileCat.App.Tests;
 
+// The theme and its effect clock are one per process. Every Avalonia test runs on the one headless UI thread, and tests
+// interleave wherever one awaits, so another class's test could change the theme between this one's Apply and its
+// assertion: ApplySettings applies the configured theme, and opening or closing a main window changes which windows are
+// active. On 15 November 2026 the macOS full lane failed Viewer_activation_keeps_effects_running_after_main_window_
+// deactivates that way, across its await of the motion preference. Classes that apply a theme and judge it across an
+// await run in this collection, after the parallel ones, one at a time.
+// Window-lifetime probes also use a fresh process: previously started windows can remain active after their test
+// finishes, and the real aggregate clock correctly keeps running for those independent owners.
+[CollectionDefinition("Shared theme state", DisableParallelization = true)]
+public sealed class SharedThemeStateCollection;
+
+[Collection("Shared theme state")]
 public sealed class MotionPreferenceTests
 {
     [AvaloniaFact]
+    public async Task Closing_the_last_tracked_window_stops_effects_without_a_deactivation_notification()
+    {
+        if (!IsolatedAppTestProcess.IsChild(typeof(MotionPreferenceTests), nameof(Closing_the_last_tracked_window_stops_effects_without_a_deactivation_notification)))
+        {
+            await IsolatedAppTestProcess.RunAsync(typeof(MotionPreferenceTests), nameof(Closing_the_last_tracked_window_stops_effects_without_a_deactivation_notification));
+            return;
+        }
+        string prior = ThemeManager.RequestedName;
+        var originalReader = ThemeAnimation.PreferenceReader;
+        var viewer = new Window();
+        try
+        {
+            ThemeAnimation.SetAllowed(false);
+            ThemeAnimation.PreferenceReader = _ => Task.FromResult<bool?>(false);
+            ThemeManager.Apply("Psychedelic");
+            viewer.Show();
+            // A bare viewer has no Deactivated handler that calls ThemeAnimation.
+            ThemeAnimation.SetWindowActive(viewer, true);
+            ThemeAnimation.SetAllowed(true);
+            await ThemeAnimation.RefreshPreferenceAsync();
+            Assert.True(ThemeAnimation.IsRunning);
+            viewer.Close();
+            Assert.False(ThemeAnimation.IsRunning);
+        }
+        finally
+        {
+            viewer.Close();
+            ThemeAnimation.SetAllowed(false);
+            ThemeAnimation.SetWindowActive(viewer, false);
+            ThemeAnimation.PreferenceReader = originalReader;
+            ThemeManager.Apply(prior);
+            ThemeAnimation.SetActive(true);
+            ThemeAnimation.SetAllowed(true);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Viewer_activation_keeps_effects_running_after_main_window_deactivates()
     {
+        if (!IsolatedAppTestProcess.IsChild(typeof(MotionPreferenceTests), nameof(Viewer_activation_keeps_effects_running_after_main_window_deactivates)))
+        {
+            await IsolatedAppTestProcess.RunAsync(typeof(MotionPreferenceTests), nameof(Viewer_activation_keeps_effects_running_after_main_window_deactivates));
+            return;
+        }
         string prior = ThemeManager.RequestedName;
         var originalReader = ThemeAnimation.PreferenceReader;
         var main = new Window();

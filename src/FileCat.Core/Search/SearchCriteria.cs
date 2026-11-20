@@ -94,6 +94,7 @@ public sealed class AdvancedSearchCriteria
     [
         (FileAttributes.Archive, "archive"), (FileAttributes.ReadOnly, "read-only"), (FileAttributes.Hidden, "hidden"),
         (FileAttributes.System, "system"), (FileAttributes.Compressed, "compressed"), (FileAttributes.Encrypted, "encrypted"),
+        (FileAttributes.ReparsePoint, "reparse point attribute"), (FileAttributes.SparseFile, "sparse attribute"), (FileAttributes.Offline, "offline attribute"),
         (FileAttributes.Directory, "folder"),
     ];
 
@@ -108,6 +109,8 @@ public sealed class AdvancedSearchCriteria
 
     /// <summary>Only items carrying a stream or attribute besides their download mark (D-55).</summary>
     public bool CarriesHiddenData { get; set; }
+    /// <summary>Explicit scope chosen by the user. Missing/older saved scopes require replacement before execution.</summary>
+    public string? HiddenDataScope { get; set; }
 
     public bool IsEmpty => (AttributesSet | AttributesClear) == 0 && SizeAtLeast is null && SizeAtMost is null && !Modified.IsActive && !Created.IsActive && !CarriesHiddenData;
 
@@ -133,14 +136,16 @@ public sealed class AdvancedSearchCriteria
         foreach (var (attribute, name) in Attributes)
         {
             if (attribute == FileAttributes.Directory) continue;
-            if ((AttributesSet & attribute) != 0) parts.Add(name);
-            if ((AttributesClear & attribute) != 0) parts.Add("not " + name);
+            string label = attribute is FileAttributes.Compressed or FileAttributes.Encrypted or FileAttributes.ReparsePoint or FileAttributes.SparseFile or FileAttributes.Offline
+                ? NativeSearchPredicates.Name(attribute) : name;
+            if ((AttributesSet & attribute) != 0) parts.Add(label);
+            if ((AttributesClear & attribute) != 0) parts.Add("not " + label);
         }
         if (SizeAtLeast is { } least) parts.Add($"at least {least.ToString("0.##", CultureInfo.CurrentCulture)} {Unit(SizeAtLeastUnit)}");
         if (SizeAtMost is { } most) parts.Add($"at most {most.ToString("0.##", CultureInfo.CurrentCulture)} {Unit(SizeAtMostUnit)}");
         if (Modified.Describe() is { } modified) parts.Add("modified " + modified);
         if (Created.Describe() is { } created) parts.Add("created " + created);
-        if (CarriesHiddenData) parts.Add("carrying streams or attributes");
+        if (CarriesHiddenData) parts.Add(HiddenDataScope == HiddenData.HiddenSearch.ScopeId ? HiddenData.HiddenSearch.Label : "older extra-data criterion — replace or clear before running");
         return string.Join(" · ", parts);
     }
 
@@ -189,9 +194,16 @@ public sealed class SearchCriteria
     /// when a mask, hex pattern, or range cannot work, or a folder to search is missing.
     /// </summary>
     public bool TryBuildQuery(DateTime nowUtc, IReadOnlyList<string> ignoredFolders, IReadOnlyList<(Resources.ItemRef Item, string Relative)>? within,
-        out SearchQuery? query, out string? error, IArchiveMembers? archives = null, HiddenData.IHiddenData? hiddenData = null)
+        out SearchQuery? query, out string? error, IArchiveMembers? archives = null, HiddenData.IHiddenData? hiddenData = null,
+        IReadOnlyList<SearchRetryFolder>? retryFolders = null)
     {
         query = null;
+        if (!NativeSearchPredicates.Validate(Advanced.AttributesSet, Advanced.AttributesClear, within, Advanced.CarriesHiddenData, out error)) return false;
+        if (Advanced.CarriesHiddenData && Advanced.HiddenDataScope != HiddenData.HiddenSearch.ScopeId)
+        {
+            error = "The saved streams/attributes criterion has an older or different platform scope. Open Advanced criteria and explicitly replace it with the displayed current scope, or clear it before running.";
+            return false;
+        }
         if (!Mask.TryParse(string.IsNullOrWhiteSpace(Names) ? "*" : Names, plainMeansContains: true, out var mask, out var maskError))
         {
             error = "Names: " + maskError;
@@ -204,7 +216,7 @@ public sealed class SearchCriteria
             return false;
         }
         var roots = within is null ? Roots() : [];
-        if (within is null)
+        if (within is null && retryFolders is null)
         {
             if (roots.Count == 0)
             {
@@ -222,6 +234,7 @@ public sealed class SearchCriteria
         query = new SearchQuery
         {
             Roots = roots,
+            RetryFolders = retryFolders,
             Names = mask,
             Text = Hex || string.IsNullOrEmpty(Text) ? null : Text,
             Bytes = bytes,

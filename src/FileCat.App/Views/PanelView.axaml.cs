@@ -9,7 +9,10 @@ using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.Commands;
+using FileCat.Core.HiddenData;
 using FileCat.Core.Listing;
+using FileCat.Core.Records;
+using FileCat.Core.Threading;
 
 namespace FileCat.App.Views;
 
@@ -34,11 +37,14 @@ public partial class PanelView : UserControl
         StatusBar.SizeChanged += (_, e) => StatusRightText.MaxWidth = Math.Max(120, e.NewSize.Width * 0.45);
         List.ActivateRequested += (_, _) => Activated?.Invoke();
         List.OpenRequested += (_, _) => OpenRequested?.Invoke();
+        List.RenameRequested += (_, _) => RenameRequested?.Invoke();
         List.MiddleClickRequested += (_, row) => MiddleClick?.Invoke(row);
-        List.ContextMenuRequested += (_, point) => ShowContextMenu(point: point);
+        List.ContextMenuRequested += (_, context) => ShowContextMenu(point: context.Point, extended: List.ContextWithShift,
+            invokedStoreIndex: context.StoreIndex);
         List.InspectRequested += (_, report) => _ = ShowInspectionAsync(report);
         AutomationProperties.SetHelpText(List, "Ctrl+Shift+I inspects every full value in the focused row. Shift+F10 opens item actions.");
-        List.BackgroundContextRequested += (_, point) => ShowBackgroundContextMenu(point);
+        List.BackgroundContextRequested += (_, point) => ShowBackgroundContextMenu(point, List.ContextWithShift);
+        List.HeaderContextRequested += (_, _) => ShowHeaderContextMenu();
         List.GotFocus += (_, _) => Activated?.Invoke();
         // The number, or the tab strip beside the tabs, moves the whole panel.
         NumberBadge.PointerPressed += (_, e) =>
@@ -110,6 +116,7 @@ public partial class PanelView : UserControl
             _main = vm;
             vm.PlacesChanged += OnPlacesChanged;
             if (vm.Services.Icons.Native is { } native) native.IconsLoaded += OnIconsLoaded;
+            vm.Services.Icons.Cleared += OnIconsLoaded;
             ThemeManager.ThemeChanged += OnThemeChanged;
             BuildPlaceButtons(force: true);
         };
@@ -119,6 +126,7 @@ public partial class PanelView : UserControl
             {
                 _main.PlacesChanged -= OnPlacesChanged;
                 if (_main.Services.Icons.Native is { } native) native.IconsLoaded -= OnIconsLoaded;
+                _main.Services.Icons.Cleared -= OnIconsLoaded;
                 ThemeManager.ThemeChanged -= OnThemeChanged;
             }
             _main = null;
@@ -385,6 +393,8 @@ public partial class PanelView : UserControl
         if (_main is { } main)
         {
             items.Add(new Separator());
+            if (!Environment.IsPrivilegedProcess && place.Drive is { } analysisDrive && MainViewModel.DiskSpaceDriveRoot(analysisDrive) is { } root)
+                items.Add(ContextMenuFactory.Analyze(main, MainViewModel.AnalyzeDiskSpaceTitle, [root]));
             bool pinned = main.Services.Settings.PinnedPlaces?.Contains(PlaceBarPolicy.Key(place), StringComparer.Ordinal) == true;
             var pin = new MenuItem { Header = pinned ? "Unpin from Places bar" : "Pin to Places bar",
                 IsEnabled = !main.Services.SettingsReadOnly };
@@ -396,7 +406,10 @@ public partial class PanelView : UserControl
 
     private bool _iconsPending;
 
-    /// <summary>The platform's icons load in the background: the buttons take them when they arrive (once per batch).</summary>
+    /// <summary>
+    /// The platform's icons load in the background, and are made anew when settings apply (Shell pictures on or off): the
+    /// buttons take them when they arrive or change (once per batch).
+    /// </summary>
     private void OnIconsLoaded()
     {
         if (_iconsPending) return;
@@ -408,7 +421,8 @@ public partial class PanelView : UserControl
         }, DispatcherPriority.Background);
     }
 
-    private void OnThemeChanged() => Dispatcher.UIThread.Post(() => BuildPlaceButtons(force: true), DispatcherPriority.Background);
+    // One rebuild with the icons made anew for the theme (the same batch as theirs).
+    private void OnThemeChanged() => OnIconsLoaded();
 
     private void OpenPlace(Place place, bool newTab)
     {
@@ -766,6 +780,7 @@ public partial class PanelView : UserControl
 
     public event Action? Activated;
     public event Action? OpenRequested;
+    public event Action? RenameRequested;
 
     /// <summary>A press on the panel's number or tab strip that may start moving the panel (and the element pressed).</summary>
     public event Action<PointerPressedEventArgs, Control>? MoveRequested;
@@ -1022,6 +1037,19 @@ public partial class PanelView : UserControl
         LocationMenuRequested?.Invoke();
     }
 
+    private async void OnReopenDeniedFolder(object? sender, RoutedEventArgs e)
+    {
+        if (Panel?.ActiveTab is { } tab && TopLevel.GetTopLevel(this)?.DataContext is MainViewModel vm)
+            await vm.ReopenDeniedFolderAsAdministratorAsync(tab);
+    }
+
+    private async void OnReopenDeniedRegistry(object? sender, RoutedEventArgs e)
+    {
+        if (Panel?.ActiveTab is { CanReopenDeniedRegistry: true, Location: { } key } &&
+            TopLevel.GetTopLevel(this)?.DataContext is MainViewModel vm && !vm.Dialogs.IsOpen)
+            await vm.RequestAdministratorRegistryAsync(key);
+    }
+
     /// <summary>Accessible sort choices live outside the custom file-list renderer's native bridge.</summary>
     private void OnSortClick(object? sender, RoutedEventArgs e)
     {
@@ -1034,7 +1062,7 @@ public partial class PanelView : UserControl
             if (column.SortField is not { } field || field == SortField.None) continue;
             string? metadataId = field == SortField.Metadata ? column.MetadataId : null;
             if (field == SortField.Metadata && metadataId is null) continue;
-            string label = Formatters.SafeName(column.Header);
+            string label = Formatters.SafeName(column.DisplayHeader);
             bool current = tab.Listing.Sort.Field == field &&
                 (field != SortField.Metadata || tab.Listing.Sort.MetadataId == metadataId);
             var item = new MenuItem
@@ -1071,6 +1099,29 @@ public partial class PanelView : UserControl
         List.Focus();
     }
 
+    private async void OnReadSupplementaryEas(object? sender, RoutedEventArgs e)
+    {
+        if (_main is not { } main || Panel?.ActiveTab is not { CanReadSupplementaryEas: true } tab || tab.Location is not { } location) return;
+        long generation = tab.NavigationGeneration;
+        bool admitted = await main.Dialogs.ConfirmAsync("Read extended attributes",
+            "Windows returns extended attribute names and value bytes in the same query. FileCat will acquire a bounded buffer, retain names, flags and lengths, and discard the values. The inventory does not display or export value excerpts.", "Read extended attributes");
+        if (!admitted || !ReferenceEquals(Panel?.ActiveTab, tab) || tab.Location != location || tab.NavigationGeneration != generation || !tab.CanReadSupplementaryEas) return;
+        tab.Listing.AdmitSupplementaryEaQuery();
+    }
+
+    private void OnReadSupplementaryReport(object? sender, RoutedEventArgs e)
+    {
+        if (_main is not { } main || Panel?.ActiveTab is not { CanReadSupplementaryReport: true } tab ||
+            tab.Listing.Provider is not HiddenDataProvider provider || tab.Listing.SupplementaryInventory?.Identity is not { } identity ||
+            TopLevel.GetTopLevel(this) is not Window owner) return;
+        var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
+        string device = provider.GetDeviceKey(item.Parent);
+        var report = ReportWindow.ForSupplementaryValue(item.Name, ct =>
+            FileObservationRequests.RunOwned(main.Services.Io, device, IoPriority.Interactive,
+                token => provider.ReadValueReport(item, identity, token), ct));
+        report.Show(owner);
+    }
+
     /// <summary>Count in the status line: this panel's marked folders are counted, and the keyboard stays in its list.</summary>
     private void OnCountFolderSizes(object? sender, RoutedEventArgs e)
     {
@@ -1079,15 +1130,34 @@ public partial class PanelView : UserControl
     }
 
     /// <summary>The item context menu: at the pointer for a right click, at the focused row from the keyboard.</summary>
-    public void ShowContextMenu(bool atFocus = false, Avalonia.Point? point = null)
+    /// <param name="extended">Shift was held for the right click: Windows adds its extended verbs, as in Explorer.</param>
+    public void ShowContextMenu(bool atFocus = false, Avalonia.Point? point = null, bool extended = false, int? invokedStoreIndex = null)
     {
         long request = ++_menuRequest;
         _openItemMenu?.Close();
         _openItemMenu = null;
-        _ = ShowContextMenuAsync(atFocus, point, request);
+        _ = ShowContextMenuAsync(atFocus, point, extended && point is not null, request, invokedStoreIndex);
     }
 
-    private void ShowBackgroundContextMenu(Avalonia.Point point)
+    /// <summary>
+    /// Tests: stands in for Windows' own menu of a folder's empty space (folder, screen x, screen y, extended), so each
+    /// of its outcomes can be given on purpose without a desktop.
+    /// </summary>
+    internal static Func<string, int, int, bool, Task<WindowsContextMenu.Outcome>>? NativeBackgroundMenuForTests { get; set; }
+
+    /// <summary>
+    /// Windows' own menus need a desktop window of FileCat's to stand on: not the headless test platform's stand-in, where
+    /// a Shell popup would wait on a desktop no one looks at.
+    /// </summary>
+    internal bool HasNativeWindow() => OperatingSystem.IsWindows() &&
+        TopLevel.GetTopLevel(this)?.TryGetPlatformHandle() is { HandleDescriptor: "HWND", Handle: not 0 };
+
+    /// <summary>
+    /// The menu for a folder's empty space. On Windows, for a folder on disk, it is the folder's own Shell menu, as
+    /// Explorer shows it there (New, Paste, Give access to, installed handlers, Properties), with FileCat's location
+    /// actions one item away; elsewhere, or when that menu is unavailable, FileCat's location actions directly.
+    /// </summary>
+    private void ShowBackgroundContextMenu(Avalonia.Point point, bool extended = false)
     {
         long request = ++_menuRequest;
         _openItemMenu?.Close();
@@ -1095,6 +1165,68 @@ public partial class PanelView : UserControl
         if (TopLevel.GetTopLevel(this)?.DataContext is not MainViewModel vm ||
             Panel is not { ActiveTab: { Location: { } location } tab } panel ||
             !ReferenceEquals(tab, List.Tab)) return;
+        // A folder whose listing failed keeps FileCat's menu, which says why writing there waits for a reread.
+        if (location.IsFileSystem && WindowsContextMenu.CanShowBackground(location.Path) &&
+            MainViewModel.LocationWriteBlockReason(tab, location) is null &&
+            (NativeBackgroundMenuForTests is not null || HasNativeWindow()))
+        {
+            _ = ShowNativeBackgroundMenuAsync(vm, panel, tab, location, point, extended, request);
+            return;
+        }
+        ShowFileCatBackgroundMenu(vm, panel, tab, location, request);
+    }
+
+    /// <summary>
+    /// The column header's menu, at the pointer: setting up the columns, on Settings' Columns page with this panel's
+    /// profile selected. A view with columns of its own (results, the Recycle Bin, the registry) says so instead.
+    /// </summary>
+    private void ShowHeaderContextMenu()
+    {
+        ++_menuRequest; // an item or folder menu still being prepared gives way to this one
+        _openItemMenu?.Close();
+        _openItemMenu = null;
+        if (TopLevel.GetTopLevel(this)?.DataContext is not MainViewModel vm || List.Tab is not { } tab) return;
+        bool profiled = tab.UsesColumnProfiles;
+        var columns = new MenuItem
+        {
+            Header = "Set up columns…",
+            Icon = MenuIconFactory.Create(Core.Commands.CommandIds.ColumnProfilePrefix),
+            IsEnabled = profiled,
+        };
+        string tip = profiled
+            ? $"Settings → Columns, on this panel's profile {Formatters.SafeName(vm.Services.Columns.NameOf(tab.ColumnProfile))} " +
+              $"(Alt+{tab.ColumnProfile}): its columns, their order and widths."
+            : "This view keeps its own columns; Settings → Columns sets those of folders, archives and connections.";
+        ToolTip.SetTip(columns, tip);
+        if (!profiled)
+        {
+            ToolTip.SetShowOnDisabled(columns, true);
+            AutomationProperties.SetHelpText(columns, tip);
+        }
+        columns.Click += (_, _) => _ = vm.ShowSettingsAsync(SettingsDialog.ColumnsPage, tab.ColumnProfile);
+        var menu = new ContextMenu { ItemsSource = new Control[] { columns }, Placement = PlacementMode.Pointer };
+        _openItemMenu = menu;
+        menu.Closed += (_, _) =>
+        {
+            vm.ReconcileKeyBar(KeyMods.None);
+            if (ReferenceEquals(_openItemMenu, menu)) _openItemMenu = null;
+        };
+        menu.Open(List);
+    }
+
+    /// <summary>
+    /// Whether this window's keyboard focus is still in this panel's list, or nowhere (the window not active while the
+    /// Shell's popup hands the foreground back): not in the path box, the command line, a menu, or another panel.
+    /// </summary>
+    private bool KeyboardStaysInList() => TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() switch
+    {
+        null => true,
+        Visual focused => ReferenceEquals(focused, List) || List.IsVisualAncestorOf(focused),
+        _ => false,
+    };
+
+    private void ShowFileCatBackgroundMenu(MainViewModel vm, PanelViewModel panel, TabViewModel tab, Core.Resources.Location location, long request)
+    {
         var menu = ContextMenuFactory.BuildBackground(vm, panel, tab, location);
         if (request != _menuRequest) return;
         menu.Placement = PlacementMode.Pointer;
@@ -1107,10 +1239,83 @@ public partial class PanelView : UserControl
         menu.Open(List);
     }
 
-    private async Task ShowContextMenuAsync(bool atFocus, Avalonia.Point? point, long request)
+    private async Task ShowNativeBackgroundMenuAsync(MainViewModel vm, PanelViewModel panel, TabViewModel tab,
+        Core.Resources.Location location, Avalonia.Point point, bool extended, long request)
+    {
+        try
+        {
+            var screen = List.PointToScreen(point);
+            var show = NativeBackgroundMenuForTests ?? WindowsContextMenu.ShowBackgroundAsync;
+            // The cursor and marks as the menu opens (it holds the input while open): whatever changes them after it
+            // closes is the user's doing, and wins over renaming a new item.
+            string? cursor = MainViewModel.CursorName(tab.Listing);
+            int marks = tab.Listing.MarkedCount;
+            var outcome = await show(location.Path, screen.X, screen.Y, extended);
+            if (request != _menuRequest) return;
+            switch (outcome.Result)
+            {
+                case WindowsContextMenu.Result.Handled:
+                    return;
+                case WindowsContextMenu.Result.Created when outcome.Created is { } created:
+                    // New → Folder, Text Document, …: the item is selected with its name open for editing, as in Explorer,
+                    // unless the user went on to something else meanwhile: the path box, the command line or search, the
+                    // menu bar, another menu (the keyboard left this list, or a menu opened since), or a rename.
+                    vm.RenameCreatedItem(panel, tab, location, created, cursor, marks,
+                        () => request == _menuRequest && _openItemMenu is null && !List.IsRenaming && KeyboardStaysInList());
+                    return;
+                case WindowsContextMenu.Result.Created:
+                    return;
+                case WindowsContextMenu.Result.Properties:
+                    vm.ShowPropertiesForPath(location.Path);
+                    return;
+                case WindowsContextMenu.Result.ActionFailed:
+                    vm.Notify("Windows could not complete that action.", true);
+                    return;
+                case WindowsContextMenu.Result.Failed:
+                    if (!_nativeMenuWarningShown)
+                    {
+                        _nativeMenuWarningShown = true;
+                        vm.Notify("Windows menu unavailable here; showing FileCat actions.", true);
+                    }
+                    break;
+                case WindowsContextMenu.Result.FileCatActions:
+                    break;
+                default:
+                    return;
+            }
+            // FileCat's own location actions, for the folder this menu was opened for while the tab still shows it.
+            if (!panel.Tabs.Contains(tab) || tab.Listing.IsDisposed || tab.Location != location || !ReferenceEquals(Panel, panel)) return;
+            ShowFileCatBackgroundMenu(vm, panel, tab, location, request);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Core.Diagnostics.AppLog.Error("The folder's context menu failed", ex);
+            vm.Notify("The folder's menu could not open: " + Formatters.SafeName(ex.Message), true);
+        }
+    }
+
+    private async Task ShowContextMenuAsync(bool atFocus, Avalonia.Point? point, bool extended, long request, int? invokedStoreIndex)
     {
         if (TopLevel.GetTopLevel(this)?.DataContext is not MainViewModel vm) return;
-        if (OperatingSystem.IsWindows() && Panel?.ActiveTab is { Location.IsFileSystem: true } tab &&
+        if (Panel is { ActiveTab: { Location: { } current } parentTab } parentPanel &&
+            (invokedStoreIndex is null || invokedStoreIndex == parentTab.Listing.FocusedStoreIndex) &&
+            parentTab.Listing.TryGetFocused(out var focused) && focused.Kind == Core.Resources.EntryKind.Parent &&
+            vm.Services.Providers.For(current).GetParent(current) is { } parent)
+        {
+            if (request == _menuRequest) ShowParentContextMenu(vm, parentPanel, parentTab, current, parent, atFocus, request);
+            return;
+        }
+        string? invokedAnalysisRoot = null;
+        IReadOnlyList<string>? markedAnalysisRoots = null;
+        if (!Environment.IsPrivilegedProcess && Panel?.ActiveTab is { } source)
+        {
+            if (invokedStoreIndex is { } invoked)
+                invokedAnalysisRoot = MainViewModel.DiskSpaceRoot(source, invoked);
+            else if (source.Listing.TryGetFocused(out _))
+                invokedAnalysisRoot = MainViewModel.DiskSpaceRoot(source, source.Listing.FocusedStoreIndex);
+            markedAnalysisRoots = MainViewModel.MarkedDiskSpaceRoots(source);
+        }
+        if (HasNativeWindow() && Panel?.ActiveTab is { Location.IsFileSystem: true } tab &&
             tab.Listing.MarkedCount <= WindowsContextMenu.MaxItems)
         {
             var paths = tab.Listing.GetSelection().Select(item => item.FileSystemPath).ToArray();
@@ -1119,12 +1324,54 @@ public partial class PanelView : UserControl
                 var anchor = point ?? (List.FocusedRowBounds() is { } bounds
                     ? new Avalonia.Point(bounds.Left + 12, bounds.Bottom) : new Avalonia.Point(0, 0));
                 var screen = List.PointToScreen(anchor);
-                var result = await WindowsContextMenu.ShowAsync(paths!, screen.X, screen.Y);
+                var result = await WindowsContextMenu.ShowAsync(paths!, screen.X, screen.Y, extended,
+                    analyze: invokedAnalysisRoot is not null, analyzeSelected: markedAnalysisRoots is { Count: > 0 });
                 if (request != _menuRequest) return;
                 if (result == WindowsContextMenu.Result.Handled) return;
+                if (result == WindowsContextMenu.Result.Properties)
+                {
+                    if (paths.Length == 1) vm.ShowPropertiesForPath(paths[0]!);
+                    else vm.Notify("Select one item to show its properties.");
+                    return;
+                }
+                if (result == WindowsContextMenu.Result.CompressedZip)
+                {
+                    vm.PackFromWindowsSendTo(paths, tab);
+                    return;
+                }
+                if (result is WindowsContextMenu.Result.Copy or WindowsContextMenu.Result.Cut)
+                {
+                    await vm.PutContextFilesOnClipboardAsync(tab, paths, result == WindowsContextMenu.Result.Cut);
+                    return;
+                }
+                if (result == WindowsContextMenu.Result.ShareInExplorer)
+                {
+                    try
+                    {
+                        vm.Services.Shell.Reveal(paths[0]!);
+                        vm.Notify(paths.Length == 1
+                            ? "Selected in Explorer. Choose Share there."
+                            : "The first item is selected in Explorer. Select the other items there, then choose Share.");
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception or System.Runtime.InteropServices.COMException)
+                    {
+                        vm.Notify("Could not open Explorer for sharing: " + ex.Message, true);
+                    }
+                    return;
+                }
                 if (result == WindowsContextMenu.Result.RecoverImage)
                 {
                     vm.RecoverImage(paths[0]!);
+                    return;
+                }
+                if (result == WindowsContextMenu.Result.AnalyzeDiskSpace)
+                {
+                    if (invokedAnalysisRoot is not null) vm.OpenDiskSpace([invokedAnalysisRoot]);
+                    return;
+                }
+                if (result == WindowsContextMenu.Result.AnalyzeSelectedFolders)
+                {
+                    if (markedAnalysisRoots is { Count: > 0 }) vm.OpenDiskSpace(markedAnalysisRoots);
                     return;
                 }
                 if (result == WindowsContextMenu.Result.ActionFailed)
@@ -1141,13 +1388,51 @@ public partial class PanelView : UserControl
             }
         }
         if (request != _menuRequest) return;
-        var menu = ContextMenuFactory.Build(vm);
+        var menu = ContextMenuFactory.Build(vm, invokedAnalysisRoot, markedAnalysisRoots);
         AppendInspectionItem(menu);
         if (atFocus && List.FocusedRowBounds() is { } row)
         {
             menu.Placement = Avalonia.Controls.PlacementMode.BottomEdgeAlignedLeft;
             menu.PlacementRect = row;
         }
+        _openItemMenu = menu;
+        menu.Closed += (_, _) =>
+        {
+            vm.ReconcileKeyBar(KeyMods.None);
+            if (ReferenceEquals(_openItemMenu, menu)) _openItemMenu = null;
+        };
+        menu.Open(List);
+    }
+
+    private void ShowParentContextMenu(MainViewModel vm, PanelViewModel panel, TabViewModel tab,
+        Core.Resources.Location current, Core.Resources.Location parent, bool atFocus, long request)
+    {
+        bool Current() => request == _menuRequest && ReferenceEquals(Panel, panel) &&
+            ReferenceEquals(panel.ActiveTab, tab) && Equals(tab.Location, current);
+        void Run(Action action)
+        {
+            if (!Current()) { vm.Notify("The location changed. Open the parent menu again for the current location."); return; }
+            action();
+            List.Focus();
+        }
+        MenuItem Action(string header, string icon, Action run)
+        {
+            var item = new MenuItem { Header = header, Icon = MenuIconFactory.Create(icon) };
+            item.Click += (_, _) => Run(run);
+            return item;
+        }
+        var parentText = parent.IsFileSystem ? parent.Path : vm.Services.Providers.Display(parent);
+        var menu = new ContextMenu
+        {
+            ItemsSource = new[]
+            {
+                Action("Go to parent", Core.Commands.CommandIds.Parent, () => tab.Navigate(parent)),
+                Action("Open parent in new tab", Core.Commands.CommandIds.NewTab, () => panel.OpenTab(parent)),
+                Action("Copy parent path", Core.Commands.CommandIds.CopyPaths, () => _ = CopyToClipboardAsync(parentText)),
+            },
+            Placement = atFocus ? PlacementMode.BottomEdgeAlignedLeft : PlacementMode.Pointer,
+        };
+        if (atFocus && List.FocusedRowBounds() is { } row) menu.PlacementRect = row;
         _openItemMenu = menu;
         menu.Closed += (_, _) =>
         {

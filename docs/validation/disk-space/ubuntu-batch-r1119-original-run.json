@@ -1,0 +1,9 @@
+{
+  "platform": "ubuntu",
+  "revision": "r1119",
+  "terminalExit": 1,
+  "sessionId": null,
+  "terminalToolChunk": "0aa17a",
+  "observedUtc": "2026-11-16T14:45:34.104648+00:00",
+  "reason": "14 cases ran: 13 passed; discovery transport replaced both unpaired UTF-16 InlineData values. Fixture corrected before acceptance."
+}

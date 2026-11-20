@@ -30,6 +30,9 @@ public enum LocationCapabilities : uint
 /// <summary>Receives enumeration batches. Implementations are single-writer and non-blocking.</summary>
 public interface IEnumerationSink
 {
+    /// <summary>Explicit admission for the Windows EA query that co-returns value bytes; never implied by listing.</summary>
+    bool IncludeSupplementaryEaValues => false;
+    void ReportSupplementaryInventory(HiddenData.HiddenInventory inventory) { }
     void AddBatch(ReadOnlySpan<EntryData> entries);
 
     /// <summary>A non-fatal problem (an entry or subtree that could not be read).</summary>
@@ -45,6 +48,18 @@ public interface IEnumerationSink
     /// provider that bounds what it lists for a folder shown may allow far more (review finding R-M9).
     /// </summary>
     bool Whole => false;
+
+    /// <summary>
+    /// Whether this is a panel's listing, shown to the user, rather than a search, a comparison, an export or a transfer
+    /// walking the folder: a provider starts work only a shown listing needs (an archive's revision read) for these.
+    /// </summary>
+    bool Shown => false;
+
+    /// <summary>
+    /// Keeps <paramref name="work"/> while this listing stays shown (a panel's listing, until the panel moves on, refreshes
+    /// into a new listing or closes) and disposes it then; any other enumeration disposes it at once.
+    /// </summary>
+    void WhileShown(IDisposable work) => work.Dispose();
 }
 
 /// <summary>
@@ -97,6 +112,14 @@ public abstract class ResourceProvider
     /// </summary>
     public virtual Task<Location>? PrepareAsync(Location location, CancellationToken ct) => null;
 
+    /// <summary>Preparation with temporary resources retained by the tab until it leaves or closes.</summary>
+    public virtual Task<PreparedLocation>? PrepareNavigationAsync(Location location, CancellationToken ct)
+    {
+        var pending = PrepareAsync(location, ct);
+        return pending is null ? null : Wrap(pending);
+        static async Task<PreparedLocation> Wrap(Task<Location> pending) => new(await pending);
+    }
+
     /// <summary>Identity of an entry listed at <paramref name="listing"/>. Result sets override this.</summary>
     public virtual ItemRef GetItemRef(Location listing, in EntryData entry) => ItemRef.FromEntry(listing, entry);
 
@@ -105,6 +128,9 @@ public abstract class ResourceProvider
 
     /// <summary>Opens item content for random-access reading, or null when unsupported.</summary>
     public virtual IContentSource? OpenContent(ItemRef item) => null;
+
+    /// <summary>Retains existing runtime read credentials for a queued operation. Must perform no I/O or prompts.</summary>
+    public virtual IDisposable? RetainRead(Location location) => null;
 
     /// <summary>
     /// Why copying out of <paramref name="source"/> into <paramref name="destinationDirectory"/> must not happen, or null.
@@ -128,7 +154,7 @@ public abstract class ResourceProvider
         LocationCapabilities.CreateDirectory => "creating folders",
         LocationCapabilities.CreateFile => "creating files",
         LocationCapabilities.Delete => "deleting",
-        LocationCapabilities.Recycle => "the Recycle Bin",
+        LocationCapabilities.Recycle => FileCat.Core.Jobs.RecycleText.Destination,
         LocationCapabilities.Rename => "renaming",
         LocationCapabilities.TransferTarget => "receiving copied or moved items",
         LocationCapabilities.ReadContent => "reading content",
@@ -136,6 +162,14 @@ public abstract class ResourceProvider
         LocationCapabilities.MoveSource => "moving items out",
         _ => c.ToString(),
     };
+}
+
+/// <summary>Runtime-only navigation ownership. Never part of a saved location, history or workspace.</summary>
+public sealed class PreparedLocation(Location location, IDisposable? lifetime = null) : IDisposable
+{
+    private IDisposable? _lifetime = lifetime;
+    public Location Location { get; } = location;
+    public void Dispose() => Interlocked.Exchange(ref _lifetime, null)?.Dispose();
 }
 
 /// <summary>Scheme → provider map plus shared parsing of user-typed locations.</summary>

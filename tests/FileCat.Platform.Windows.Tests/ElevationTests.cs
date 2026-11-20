@@ -3,6 +3,7 @@ using System.Security.Principal;
 using System.Text;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 using FileCat.Platform.Windows.Elevation;
 using Microsoft.Win32;
 
@@ -23,6 +24,19 @@ public sealed class ElevationTests
     }
 
     private static SecureFileOps Ops() => new(() => { });
+
+    private static void RequireBrokerEfsFixture()
+    {
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipUnless(WindowsStorageTransforms.SupportsHost(arm64) && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires a disposable Windows VM with EFS enabled.");
+        if (arm64)
+        {
+            string root = Path.TrimEndingDirectorySeparator(Path.GetTempPath());
+            Assert.Equal(Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ABI_ROOT"), root, ignoreCase: true);
+            Assert.Equal("NTFS", new DriveInfo(Path.GetPathRoot(root)!).DriveFormat);
+        }
+    }
 
     [Fact]
     public void The_window_titles_account_and_rights_come_from_the_process_token()
@@ -153,7 +167,7 @@ public sealed class ElevationTests
             File.WriteAllText(source + ":Zone.Identifier", mark);
             string sourceVolume = ElevationPaths.ToVolumePath(source);
             string destinationVolume = ElevationPaths.ToVolumePath(destination);
-            using (var held = new FileStream(source + ":Zone.Identifier", FileMode.Open, FileAccess.Read, FileShare.None))
+            using (var held = HeldDownloadMark.Take(source))
             {
                 var report = Ops().CopyTree(sourceVolume, destinationVolume, "copy.exe", replace: false);
                 Assert.Equal(0, report.Done);
@@ -171,6 +185,164 @@ public sealed class ElevationTests
             Assert.Equal(0, control.Failed);
             Assert.Equal(mark, File.ReadAllText(Path.Combine(destination, "control.exe") + ":Zone.Identifier"));
             Assert.Empty(Directory.GetFiles(destination, ".filecat-admin-*"));
+        }
+        finally { DeleteTree(root); }
+    }
+
+    [Theory]
+    [InlineData("source")]
+    [InlineData("child")]
+    [InlineData("replacement")]
+    [InlineData("replacement-encrypted-during-copy")]
+    [InlineData("replacement-appeared-during-copy")]
+    public void Administrator_copy_refuses_efs_sources_and_retains_encrypted_destinations(string scenario)
+    {
+        RequireBrokerEfsFixture();
+        string root = NewDirectory();
+        try
+        {
+            string sourceFolder = Directory.CreateDirectory(Path.Join(root, "source")).FullName;
+            string targetFolder = Directory.CreateDirectory(Path.Join(root, "target")).FullName;
+            string source = Path.Join(sourceFolder, "member.txt");
+            string target = Path.Join(targetFolder, "copy.txt");
+            File.WriteAllText(source, "Synthetic source data");
+            if (scenario is "source" or "child") File.Encrypt(source);
+            if (scenario is "replacement" or "replacement-encrypted-during-copy") File.WriteAllText(target, "Original destination");
+            if (scenario == "replacement") File.Encrypt(target);
+            bool injected = false;
+            Exception? encryptionRefusal = null;
+            var ops = new SecureFileOps(() =>
+            {
+                if (injected || scenario is not ("replacement-encrypted-during-copy" or "replacement-appeared-during-copy")) return;
+                injected = true;
+                if (scenario == "replacement-encrypted-during-copy")
+                {
+                    encryptionRefusal = Record.Exception(() => File.Encrypt(target));
+                    return;
+                }
+                if (!File.Exists(target)) File.WriteAllText(target, "Original destination");
+                File.Encrypt(target);
+            });
+            string selected = scenario == "child" ? sourceFolder : source;
+            string destination = scenario == "child" ? "copy-folder" : Path.GetFileName(target);
+            var report = ops.CopyTree(ElevationPaths.ToVolumePath(selected), ElevationPaths.ToVolumePath(targetFolder), destination, replace: true);
+            Assert.Empty(Directory.EnumerateFiles(targetFolder, ".filecat-admin-*", SearchOption.AllDirectories));
+            if (scenario == "replacement-encrypted-during-copy")
+            {
+                Assert.True(injected);
+                Assert.True(encryptionRefusal is IOException or UnauthorizedAccessException, encryptionRefusal?.ToString());
+                Assert.Equal((1, 0), (report.Done, report.Failed));
+                Assert.False(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+                Assert.Equal("Synthetic source data", File.ReadAllText(target));
+                return;
+            }
+            Assert.Equal(1, report.Failed);
+            Assert.Equal(scenario == "child" ? 1 : 0, report.Done);
+            if (scenario is "source" or "child")
+            {
+                Assert.Contains("EFS-encrypted items", Assert.Single(report.Problems));
+                Assert.Empty(Directory.EnumerateFiles(targetFolder, "*", SearchOption.AllDirectories));
+                Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+            }
+            else
+            {
+                if (scenario != "replacement-appeared-during-copy")
+                    Assert.Contains("EFS-encrypted destination", Assert.Single(report.Problems));
+                Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+                Assert.Equal("Original destination", File.ReadAllText(target));
+            }
+            Assert.Equal(scenario.EndsWith("during-copy", StringComparison.Ordinal), injected);
+            Assert.Equal("Synthetic source data", File.ReadAllText(source));
+        }
+        finally { DeleteTree(root); }
+    }
+
+    [Fact]
+    public void The_administrator_copy_holds_the_source_clear_during_native_reads()
+    {
+        RequireBrokerEfsFixture();
+        string root = NewDirectory();
+        try
+        {
+            string source = Path.Join(root, "original.txt");
+            string target = Path.Join(root, "copy.txt");
+            File.WriteAllText(source, "Synthetic source data");
+            bool attempted = false;
+            Exception? refused = null;
+            var ops = new SecureFileOps(() =>
+            {
+                if (attempted) return;
+                attempted = true;
+                refused = Record.Exception(() => File.Encrypt(source));
+            });
+            var report = ops.CopyTree(ElevationPaths.ToVolumePath(source), ElevationPaths.ToVolumePath(root), Path.GetFileName(target), replace: false);
+            Assert.True(attempted);
+            Assert.True(refused is IOException or UnauthorizedAccessException, refused?.ToString());
+            Assert.Equal((1, 0), (report.Done, report.Failed));
+            Assert.False(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal("Synthetic source data", File.ReadAllText(target));
+            File.Encrypt(source);
+            Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+            Assert.Empty(Directory.GetFiles(root, ".filecat-admin-*"));
+            TestContext.Current.TestOutputHelper?.WriteLine($"EFS_BROKER_SOURCE nativeEncryptionSucceeded={refused is null} copied={report.Done} failed={report.Failed}");
+        }
+        finally { DeleteTree(root); }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_marked_administrator_replacement_commits_or_rolls_back_the_entire_copy(bool abort)
+    {
+        RequireBrokerEfsFixture();
+        string root = NewDirectory();
+        string source = Path.Combine(root, "source.txt"), target = Path.Combine(root, "target.txt");
+        const string originalMark = "[ZoneTransfer]\r\nZoneId=2\r\n", replacementMark = "[ZoneTransfer]\r\nZoneId=3\r\n";
+        try
+        {
+            File.WriteAllText(source, "Reviewed replacement");
+            File.WriteAllText(source + ":Zone.Identifier", replacementMark);
+            File.WriteAllText(target, "Original version");
+            File.WriteAllText(target + ":Zone.Identifier", originalMark);
+            var files = new WindowsFileOperations();
+            string? originalIdentity = files.GetFileIdentity(target);
+            Assert.NotNull(originalIdentity);
+            int checkpoints = 0;
+            var copy = new SecureFileOps(() =>
+            {
+                Assert.Contains(target, Directory.EnumerateFiles(root));
+                Assert.Empty(Directory.EnumerateFiles(root, ".filecat-admin-*"));
+                if (++checkpoints == 2 && abort) throw new IOException("Injected refusal after staging the payload.");
+            });
+            var report = copy.CopyTree(ElevationPaths.ToVolumePath(source), ElevationPaths.ToVolumePath(root), Path.GetFileName(target), replace: true);
+            Assert.True(checkpoints >= 2);
+            Assert.Equal(abort ? (0, 1) : (1, 0), (report.Done, report.Failed));
+            Assert.Equal(abort, files.GetFileIdentity(target) == originalIdentity);
+            Assert.Equal(abort ? "Original version" : "Reviewed replacement", File.ReadAllText(target));
+            Assert.Equal(abort ? originalMark : replacementMark, File.ReadAllText(target + ":Zone.Identifier"));
+            Assert.Empty(Directory.EnumerateFiles(root, ".filecat-admin-*"));
+        }
+        finally { DeleteTree(root); }
+    }
+
+    [Fact]
+    public void An_encrypted_destination_default_refuses_administrator_copy_before_creation()
+    {
+        RequireBrokerEfsFixture();
+        string root = NewDirectory();
+        try
+        {
+            string source = Directory.CreateDirectory(Path.Combine(root, "source")).FullName;
+            string target = Directory.CreateDirectory(Path.Combine(root, "target")).FullName;
+            File.WriteAllText(Path.Combine(source, "payload.txt"), "Synthetic source data");
+            File.Encrypt(target);
+
+            var result = Ops().CopyTree(ElevationPaths.ToVolumePath(source), ElevationPaths.ToVolumePath(target), "copy", replace: true);
+
+            Assert.Equal((0, 1), (result.Done, result.Failed));
+            Assert.Contains("EFS encryption default", Assert.Single(result.Problems));
+            Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(target));
         }
         finally { DeleteTree(root); }
     }
@@ -205,17 +377,29 @@ public sealed class ElevationTests
 
             File.Delete(ads);
             bool injected = false;
+            Exception? newMarkRefusal = null;
             var racing = new SecureFileOps(() =>
             {
                 if (injected) return;
                 injected = true;
-                File.WriteAllText(ads, "[ZoneTransfer]\r\nZoneId=3\r\n");
+                newMarkRefusal = Record.Exception(() => File.WriteAllText(ads, "[ZoneTransfer]\r\nZoneId=3\r\n"));
             }).CopyTree(sourceVolume, destinationVolume, "racing.exe", replace: false);
             Assert.True(injected);
-            Assert.Equal((0, 1), (racing.Done, racing.Failed));
-            Assert.False(File.Exists(Path.Combine(destination, "racing.exe")));
+            string racingCopy = Path.Combine(destination, "racing.exe");
+            if (newMarkRefusal is null)
+            {
+                Assert.Equal((0, 1), (racing.Done, racing.Failed));
+                Assert.False(File.Exists(racingCopy));
+            }
+            else
+            {
+                Assert.True(newMarkRefusal is IOException or UnauthorizedAccessException, newMarkRefusal.ToString());
+                Assert.Equal((1, 0), (racing.Done, racing.Failed));
+                Assert.False(File.Exists(racingCopy + ":Zone.Identifier"));
+            }
 
             const string originalMark = "[ZoneTransfer]\r\nZoneId=3\r\n";
+            File.WriteAllText(ads, originalMark);
             bool replacementAttempted = false, replacementBlocked = false;
             var heldSourceMark = new SecureFileOps(() =>
             {
@@ -235,7 +419,7 @@ public sealed class ElevationTests
             {
                 int checkpoints = 0;
                 var blocked = new SecureFileOps(() => checkpoints++).CopyTree(sourceVolume, destinationVolume, "existing.exe", replace: true);
-                Assert.True(checkpoints > 0); // The stage was reached before publication was refused.
+                Assert.Equal(!WindowsFileTransaction.CanEncrypt(held.SafeFileHandle), checkpoints > 0);
                 Assert.Equal((0, 1), (blocked.Done, blocked.Failed));
                 Assert.Equal("ORIGINAL", File.ReadAllText(existing));
                 var plan = ValidPlan(new ElevatedStep(ElevatedVerb.CopyTree)
@@ -254,7 +438,7 @@ public sealed class ElevationTests
     [Fact]
     public void High_token_copy_runner_keeps_the_mark_at_a_protected_destination()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess,
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess || !WindowsTokenAuthority.IsHighIntegrity,
             "An owned high-integrity Windows guest is required.");
         string root = NewDirectory();
         try
@@ -276,7 +460,7 @@ public sealed class ElevationTests
                 Destination = ElevationPaths.ToVolumePath(protectedFolder),
                 Name = "approved.exe",
             });
-            using (var held = new FileStream(source + ":Zone.Identifier", FileMode.Open, FileAccess.Read, FileShare.None))
+            using (var held = HeldDownloadMark.Take(source))
             {
                 var refused = Assert.Single(ElevationPlanRunner.Run(plan, () => false, _ => { }));
                 Assert.Equal(ElevatedOutcome.Failed, refused.Outcome);

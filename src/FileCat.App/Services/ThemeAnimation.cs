@@ -58,9 +58,17 @@ public static class ThemeAnimation
     /// </summary>
     internal static void SetWindowActive(Window window, bool active)
     {
-        if (active) ActiveWindows.Add(window);
-        else ActiveWindows.Remove(window);
+        if (active)
+        {
+            if (ActiveWindows.Add(window)) window.Closed += OnWindowClosed;
+        }
+        else if (ActiveWindows.Remove(window)) window.Closed -= OnWindowClosed;
         SetActive(ActiveWindows.Count > 0);
+    }
+
+    private static void OnWindowClosed(object? sender, EventArgs e)
+    {
+        if (sender is Window window) SetWindowActive(window, false);
     }
 
     private static void Update()

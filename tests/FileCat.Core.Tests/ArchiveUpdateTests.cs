@@ -344,7 +344,7 @@ public sealed class ArchiveUpdateTests : IDisposable
     }
 
     [Fact]
-    public async Task A_marked_archive_is_restored_if_replacement_loses_its_mark()
+    public async Task A_lost_replacement_mark_restores_the_original_or_keeps_it_for_review()
     {
         string zip = MakeZip("marked.zip", ("original.txt", "original"));
         byte[] before = File.ReadAllBytes(zip);
@@ -356,10 +356,20 @@ public sealed class ArchiveUpdateTests : IDisposable
             [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, "new-folder")]));
 
         Assert.Equal(JobState.Failed, job.State);
-        Assert.Equal(before, File.ReadAllBytes(zip));
-        Assert.Equal(mark, _operations.ReadOriginMark(zip));
         Assert.True(_operations.TemporaryMarkAttempts > 0);
-        Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*"));
+        if (OperatingSystem.IsWindows())
+        {
+            // This synthetic PortableFileOperations adapter cannot restore through the native Windows handles.
+            string backup = Assert.Single(Directory.GetFiles(_dir.Path, ".filecat-zip-*.bak"));
+            Assert.Equal(before, File.ReadAllBytes(backup));
+            Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Uncertain);
+        }
+        else
+        {
+            Assert.Equal(before, File.ReadAllBytes(zip));
+            Assert.Equal(mark, _operations.ReadOriginMark(zip));
+            Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*"));
+        }
     }
 
     [Fact]

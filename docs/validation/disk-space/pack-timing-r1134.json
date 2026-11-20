@@ -1,0 +1,29 @@
+{
+  "revision": "r1134",
+  "renderRevision": "r1134",
+  "buildLog": ".tmp/indexed-comparison-ui-build-r1134.txt",
+  "sourceManifest": ".tmp/source-candidate-r1134.json",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 22.8995034,
+  "archives": [
+    {
+      "bytes": 55994182,
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r1134.tgz",
+      "sha256": "ab55647217d2dbda7d289a93522c30cde6b3ba49c210eea9228928d6fb07dc76",
+      "platform": "mac"
+    },
+    {
+      "bytes": 53326641,
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r1134.tgz",
+      "sha256": "3aa36097ddc81c33ae75d804bae95a6ceade76f6b26e48f950ef84a6adbf4077",
+      "platform": "linux"
+    },
+    {
+      "bytes": 95255032,
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r1134.tgz",
+      "sha256": "e3b9c3221ce763fb3b77f44166a4caab74864d3ead16af6dcd98ff4fc3feaeeb",
+      "platform": "windows"
+    }
+  ]
+}

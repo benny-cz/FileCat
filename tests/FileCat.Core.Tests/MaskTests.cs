@@ -7,6 +7,9 @@ public class MaskTests
     [Theory]
     [InlineData("*.txt", "a.txt", true)]
     [InlineData("*.txt", "A.TXT", true)]
+    [InlineData("caf\u00e9*", "cafe\u0301.txt", true)]
+    [InlineData("cafe\u0301*", "caf\u00e9.txt", true)]
+    [InlineData("caf\u00e9*", "cafe.txt", false)]
     [InlineData("*.txt", "a.txt.bak", false)]
     [InlineData("*.*", "noext", true)]
     [InlineData("*", "anything.x", true)]
@@ -28,6 +31,15 @@ public class MaskTests
     {
         Assert.Equal(expected, Mask.Parse(mask).IsMatch(name));
         Assert.Equal(expected, Mask.Parse(mask).IsMatch(name.AsSpan()));
+    }
+
+    [Fact]
+    public void Canonically_equivalent_names_follow_the_same_include_and_exclude_scope()
+    {
+        const string decomposed = "cafe\u0301.txt";
+        Assert.True(Mask.Parse("caf\u00e9*").IsMatch(decomposed));
+        Assert.False(Mask.Parse("*|caf\u00e9*").IsMatch(decomposed));
+        Assert.True(Mask.Parse("caf\u00e9*").IsMatchPath("notes/" + decomposed));
     }
 
     [Fact]

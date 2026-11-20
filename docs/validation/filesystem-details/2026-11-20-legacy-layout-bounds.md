@@ -1,0 +1,16 @@
+# Windows legacy layout inventory bounds — 20 November 2026
+
+The older direct `WindowsFileRecords.Read` report still exposed a layout section outside the newer metadata-only `ReadFull` route. Its extent loop could retry a header-only `ERROR_MORE_DATA` response without advancing, and its sparse-range loop could accept malformed or capped output as a complete byte count. This change routes both through the existing bounded, validating collectors. Incomplete extent observations show only a validated prefix and its reason; they no longer infer a complete fragment or resident-file result. An empty complete mapping also no longer guesses that a nonempty file is resident in its MFT record or that a directory index is inline. Sparse observations report an incomplete inventory rather than a stored-byte total. The sparse query now reopens the held object by handle instead of resolving its pathname again. It checks held-stream eligibility and size before and after the query and omits a data-access query when cloud sync-root membership cannot be ruled out. Complete range counts are described as allocated byte ranges; they do not claim nonzero content or physical savings.
+
+Verification:
+
+- `dotnet build tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj -c Release --no-restore -v quiet` on SDK 10.0.101: 0 warnings, 0 errors.
+- Windows 11 x64 VM, native NTFS: `A_file_reads_with_its_exact_times_IDs_links_layout_and_permissions` and `A_junction_names_its_target_and_a_sparse_file_its_stored_ranges` passed, 2 executed, 0 failed/skipped. The latter also inspected a nonempty, entirely unallocated sparse file and rejected a guessed resident-file label. The VM checked for other .NET processes before the run. Platform DLL SHA-256 `30643214B82CE6FF63286FE1E54E04C94C52F54168B0138F00CB1815C15DB08D`; test DLL SHA-256 `F74D30A65CB1F2CB7F3599BD7BB1BCF2262990FF76A99A894D24F3B6C5F8D9BA`; TRX SHA-256 `6F78B7ECAC038B81A83E43A459046EBA9BED0184C777DDA67F2C3BA620085574`. Local receipt: `E:\FileCat\.tmp\legacy-layout-r3.trx`.
+
+The direct reader remains a legacy broad report. This receipt does not qualify its other collectors or broaden the metadata-only F3 route.
+
+## ARM64 CI cloud-query refusal
+
+The Windows ARM64 job in run `44758208530` failed the older sparse-layout assertion after the direct reader reported `yes (range query omitted: Cloud sync-root membership could not be ruled out; …)`. The new guard correctly refused the data-access query on that runner, but the test still required one returned range. The test now accepts only that explicit unknown-membership omission as its alternative result and forbids presenting an allocated-range count on that branch. It still requires the actual one-range result whenever the query is admitted; a known cloud sync-root or any other omission remains a failure.
+
+The corrected test assembly built with zero warnings and errors. On the Windows 11 x64 VM, the one-range sparse fixture and the adjacent record test passed, 2/2 with no skips. Test DLL SHA-256 `71DBDB196578900D7587B4B4F7B812FE5D156754F9C6F854DCE632D835149E6F`; returned TRX `.tmp/armci-sparse-r1-armci-sparse.trx` SHA-256 `1860C5179FD8130A340C7716C7BC123A72F23937DFD2D554F73A0DF3D559B209`. ARM64 CI rerun remains the evidence needed for its refusal branch; this change does not claim ARM64 range inventory qualification.

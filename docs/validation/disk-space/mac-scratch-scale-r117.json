@@ -1,0 +1,76 @@
+{
+  "purpose": "Native indexed scratch primitive; not full analysis scale qualification",
+  "archiveSha256": "3b1726a39295a88aac1fd9f43951591fc5c38a2b0259c4345338ad16518d37d9",
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "architecture": "arm64",
+  "runs": [
+    {
+      "records": 1000000,
+      "processId": 35166,
+      "exitCode": 0,
+      "ownedProcessExited": true,
+      "measurement": {
+        "purpose": "Native indexed scratch storage only; not full analysis scale or capability qualification",
+        "records": 1000000,
+        "ordinaryRecordBytes": 64,
+        "longRecordBytes": 65536,
+        "longRecordEvery": 1024,
+        "parentDistribution": "binary hierarchy identifiers; no full analysis graph/query/chart/export",
+        "writeSeconds": 0.8244728,
+        "readSeconds": 0.5045276,
+        "scratchBytes": 132035336,
+        "sampledEveryRecords": 16384,
+        "privateMemoryAvailable": false,
+        "baselinePrivateBytes": null,
+        "sampledPeakPrivateIncrement": null,
+        "privateMemoryBudgetVerified": false,
+        "privateMemoryBasis": "Unavailable from this runtime; working-set samples are not private bytes",
+        "sampledPeakWorkingSetIncrement": 18153472,
+        "verifiedEveryRecord": true,
+        "retainedCheckpointKeptItsCount": true,
+        "checksum": 500000500000,
+        "ownedArtifactsRemoved": true,
+        "foreignNeighborPreserved": true,
+        "remainingQuotaBytes": 0,
+        "passed": true
+      }
+    },
+    {
+      "records": 10000000,
+      "processId": 35171,
+      "exitCode": 0,
+      "ownedProcessExited": true,
+      "measurement": {
+        "purpose": "Native indexed scratch storage only; not full analysis scale or capability qualification",
+        "records": 10000000,
+        "ordinaryRecordBytes": 64,
+        "longRecordBytes": 65536,
+        "longRecordEvery": 1024,
+        "parentDistribution": "binary hierarchy identifiers; no full analysis graph/query/chart/export",
+        "writeSeconds": 8.1224188,
+        "readSeconds": 5.2828914,
+        "scratchBytes": 1320663792,
+        "sampledEveryRecords": 16384,
+        "privateMemoryAvailable": false,
+        "baselinePrivateBytes": null,
+        "sampledPeakPrivateIncrement": null,
+        "privateMemoryBudgetVerified": false,
+        "privateMemoryBasis": "Unavailable from this runtime; working-set samples are not private bytes",
+        "sampledPeakWorkingSetIncrement": 18890752,
+        "verifiedEveryRecord": true,
+        "retainedCheckpointKeptItsCount": true,
+        "checksum": 50000005000000,
+        "ownedArtifactsRemoved": true,
+        "foreignNeighborPreserved": true,
+        "remainingQuotaBytes": 0,
+        "passed": true
+      }
+    }
+  ],
+  "hashes": {
+    "FileCat.Core.dll": "f18c613523b29594fa89e3fc8d4cffc25532a7ba13ecfb6ec901e2bcdf829344",
+    "FileCat.CoreCrashHarness.dll": "e798a8387e8e3ead097081d903a9aa80df3f88f7a73af07fecbde962cb68e07e",
+    "FileCat.Platform.Windows.dll": "0380087e725d2cafe4d8acd1e4860b7ab2600a261527ee45c00202050387ea65"
+  },
+  "passed": true
+}

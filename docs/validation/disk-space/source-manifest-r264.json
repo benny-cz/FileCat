@@ -1,0 +1,172 @@
+{
+  "purpose": "Internal bounded indexed window, chart/table/inspector adoption and handled legacy row gesture fix",
+  "gitBase": "9713162a",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "6f1260f2ad626ee43ffeec6d313ef4defc2835e6370c56c913341f321516bd26"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "2f0623ac7e270842771a5d48567e5de9a92ad5a8ea91519330f7ff76e4aa0ca2"
+    },
+    {
+      "path": "src/FileCat.App/Controls/DiskSpace/AnalysisChartControl.cs",
+      "sha256": "2befc78ca75c3d32ed46fdb86e28502d9dee97b99687070dc871666306af4d34"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "b755492a322b456b031e03719872176b2cc46add787d8982e8ae547a7eb49847"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+      "sha256": "76d2dc7526b02049c75b7caa7f4a7233dac1acbba47a50098a0fa442b5c28707"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetExplorer.cs",
+      "sha256": "55d68ac5e8be500a41ee79479641f8bdedad0391b44b6482217a8790f9960be1"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedChart.cs",
+      "sha256": "1828d19ba200cd07548f3846ff845e223d8ac0e8f20292bd52ce0f59ff99a0f5"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisNames.cs",
+      "sha256": "cbd1ce2c25751c5a69c81776e2fdddb47902d6611dede436899986abea6e8fa5"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+      "sha256": "4247894efca5a509205b1d9ed45624cbecbe91b4d7614ddeb8b95074752188f7"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/IAnalysisChartData.cs",
+      "sha256": "f234abab498e94f488d0cde6adf071b9c569787c0d5537da47d05eb539364b5b"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.Chart.cs",
+      "sha256": "d0178b72ac2b8452ba13997608264c6cd34ec042696736f4edc3bbdd002fb96e"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Indexed.cs",
+      "sha256": "91871d881b836c31405d6e6d606db02d8dae08a831ec7724368944c8fca3c629"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Range.cs",
+      "sha256": "befb0d5aee430b2be24d9b7b69c4a0318675b1f82118b6f29e8e161c3078d545"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r248.tgz",
+      "sha256": "4efd5f0125f9e53a2dd509d2d743d7463cdb2615a2f6a1b82884554c7d2bbe9f"
+    },
+    {
+      "path": ".tmp/dsa-native-r248.tgz",
+      "sha256": "da40ee9594f436b188ef71ba1ff59662be86d376704b1e23c97e18ab1faec887"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r264.tgz",
+      "sha256": "902ec992ed3c45a3bb0bb8828ec0fd437b37d75968ec8cd17ec2874d2715944d"
+    },
+    {
+      "path": ".tmp/dsa-render-linux-r264.tgz",
+      "sha256": "7408cd7a8fb0b5a7398ae370366a933c8d79589a731ee857ee93f6dd9366e380"
+    },
+    {
+      "path": ".tmp/dsa-render-windows-r264.tgz",
+      "sha256": "ee6f647a389bc9d5357c1b8c104c383f2675ff962a31e1b65e232e241e26be40"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r265.tgz",
+      "sha256": "fb1345be3d09406c4f6ec987e730796a64714c323eb565918edb57be293ba337"
+    }
+  ],
+  "negativeControl": {
+    "oldApp": {
+      "path": ".tmp/render-r265-mac/FileCat.dll",
+      "sha256": "56d3b0d760a77be43f12194711c360fb90eead5f151fce20172cebb78fd0f879"
+    },
+    "fixedApp": {
+      "path": ".tmp/render-r264-mac/FileCat.dll",
+      "sha256": "274a8de99c17847ec3018269143528689778919a763cab422b47a2c7341f09a4"
+    },
+    "testAssembly": {
+      "path": ".tmp/render-r264-mac/FileCat.Rendering.Tests.dll",
+      "sha256": "dd6cedc8a93eac8ba2a13e2fb2261877acc226bc833e9ea7ac64be058a267666"
+    },
+    "scope": "One new handled-row regression, final test assembly with only App DLL/PDB replaced by pre-fix r259 App artifacts. Expected failure; not final qualification."
+  },
+  "coreAssembly": {
+    "path": ".tmp/render-r264-windows/FileCat.Core.dll",
+    "sha256": "a4f944700504f819da2cd29269fd3cd06468796b395b0dfed0f23cadb792b497"
+  },
+  "controllers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r248.sh",
+      "sha256": "ef5b563b66947d0337cd4ecbbf1c0040bd2949ee2e5b614293af97dc1d08c737"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r248.ps1",
+      "sha256": "6cd6a1fff5cd3163bcd30e60abfcb5c57649ad5665d4fc167f88f2f1be3872f8"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r248.ps1",
+      "sha256": "811d19f54c83f91c01396a2f935aec374cc1c941d063886afa7d2cf81abe533f"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-mac-r264.sh",
+      "sha256": "f6cc84ed353b25ab308692ea7e1b8b3789376b7e6e175cf47892c6caf9802688"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-linux-r264.sh",
+      "sha256": "911d65615991171d902d8e195dad55a33c4ff8a821c824adbbf734c9038df070"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-render-r264.ps1",
+      "sha256": "19b60ce472284a97f6b60411d1d6bde4a2a21d38a6c71ca9b2d38da417144dd1"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-mac-r265.sh",
+      "sha256": "3da0f0d2b31601b35a964e638df8d64e369cb03a6278d1d6d6e21bbfd4ea5b3a"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-occupancy-r267.ps1",
+      "sha256": "6aec3b0ff7461fd954a96db1c95aefca2fd2990d717aa682c77da2cfc2f50238"
+    }
+  ],
+  "reports": [
+    "mac-core-r248.xml",
+    "ubuntu-core-r248.xml",
+    "windows-core-r248.xml",
+    "windows-native-r248.xml",
+    "mac-render-r264.xml",
+    "ubuntu-render-r264.xml",
+    "windows-render-r264.xml",
+    "mac-render-r265.xml",
+    "windows-render-r259.xml",
+    "indexed-window-build-r263.txt",
+    "mac-post-window-r264.txt",
+    "ubuntu-post-window-r264.txt",
+    "windows-post-window-r264.json"
+  ],
+  "renders": [
+    {
+      "path": "docs/validation/disk-space/renders/indexed-r264/mac-Classic-1180-0.png",
+      "sha256": "1426b9b8646524415d49e0b35a422786cc926c4dee7097021c8914c0de842f6a"
+    },
+    {
+      "path": "docs/validation/disk-space/renders/indexed-r264/mac-HighContrast-380-1.png",
+      "sha256": "e12dc8fcf94a8365e1aaedd6b3cec3723e81747274d4c99edf6498ae4e17d2bb"
+    },
+    {
+      "path": "docs/validation/disk-space/renders/indexed-r264/windows-Classic-1180-0.png",
+      "sha256": "3f70dac477e7553d2dc39c9daf19449f934e90cbd243cf41597817f38774f95a"
+    },
+    {
+      "path": "docs/validation/disk-space/renders/indexed-r264/windows-HighContrast-380-1.png",
+      "sha256": "ea310927dee1df2f326e06b6060a5b83f8b4ed42832683519a6466121fdd1eea"
+    }
+  ],
+  "remaining": "Public indexed acquisition/profile quota, complete sort/group/member/mark/basket and persistence/compare/action flows, native scale/resource and full desktop/theme/DPI/a11y/package qualification, remaining mandatory packets and final independent review."
+}

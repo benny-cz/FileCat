@@ -1,0 +1,7 @@
+{
+  "controller": 75938,
+  "exitCode": 1,
+  "terminal": true,
+  "chunk": "47fb2a",
+  "reason": "New locality filter fixture erroneously used name:*; smoke6 passed, locality3 passed/4 failed; broad and scale never reached"
+}

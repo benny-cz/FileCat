@@ -84,6 +84,10 @@ public sealed class ToolAssociationTests
     [InlineData("0.2.0", "v0.1.9", false)]
     [InlineData("1.0.0+abc", "1.0.0", false)]
     [InlineData("1.0.0-alpha", "1.0.0-beta", true)]
+    [InlineData("1.0.0-preview.9", "v1.0.0-preview.10", true)]
+    [InlineData("1.0.0-preview.10", "v1.0.0-preview.9", false)]
+    [InlineData("1.0.0-alpha.1", "1.0.0-alpha.beta", true)]
+    [InlineData("1.0.0-rc.1", "1.0.0-rc.1.1", true)]
     [InlineData("1.0.0", "garbage", false)]
     [InlineData("1.2", "1.2.1", true)]
     public void Release_versions_compare_like_semver(string current, string candidate, bool newer) =>

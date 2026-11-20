@@ -1,0 +1,31 @@
+{
+  "purpose": "private test oracle only; never a FileCat runtime or redistributed package",
+  "files": [
+    {
+      "name": "7z2605-linux-x64.tar.xz",
+      "id": 662536708,
+      "size": 1579976,
+      "digest": "sha256:22cf82fcc6eb7474f1d5bb4f02c0f8ebd573a718089d6833dc30f8350a3b232e",
+      "browser_download_url": "https://github.com/ip7z/7zip/releases/download/26.05/7z2605-linux-x64.tar.xz",
+      "updated_at": "2026-10-21T13:05:11Z"
+    },
+    {
+      "name": "7z2605-mac.tar.xz",
+      "id": 662536759,
+      "size": 1868068,
+      "digest": "sha256:12ef6830317743cfd3f0ab1724bde43fcc270d8b6d8564f8c12c2a2b7f993570",
+      "browser_download_url": "https://github.com/ip7z/7zip/releases/download/26.05/7z2605-mac.tar.xz",
+      "updated_at": "2026-10-21T13:05:12Z"
+    },
+    {
+      "name": "7z2605-extra.7z",
+      "id": 662536626,
+      "size": 1763900,
+      "digest": "sha256:f27a8f103c84785026edcba1f67faf1357225df9d19ddb0b7760d55947141bc7",
+      "browser_download_url": "https://github.com/ip7z/7zip/releases/download/26.05/7z2605-extra.7z",
+      "updated_at": "2026-10-21T13:05:09Z"
+    }
+  ],
+  "release_page": "https://www.7-zip.org/download.html",
+  "licence": "Actual bundled License.txt files retained with each private test tool; no production redistribution."
+}

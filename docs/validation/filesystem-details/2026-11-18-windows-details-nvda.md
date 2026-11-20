@@ -1,0 +1,49 @@
+# File-system details with NVDA on Windows
+
+The Windows 11 x64 VM (build 26340) ran the FileCat desktop app as a standard user with NVDA 2026.3.1. With two files in a local NTFS folder, the keyboard selected `alpha-details.txt` and opened **File-system details** with Ctrl+Alt+Enter. At 96 DPI, the resized report measured 504 × 381 DIP in Windows UI Automation.
+
+NVDA spoke the focused file, the details window and the report controls. It announced **Full · observation** after the first full read, **Summary · observation** after returning to summary, and the cached **Full · observation** after switching back. Escape returned keyboard focus and speech to the same file. Before the fix, a fast read could announce the pending status and drop the completion. The report now keeps the pending notice readable and uses the status live region for the outcome.
+
+**Copy all** produced 2,341 UTF-8 bytes of metadata. It included the full selected path and the omission notice. Both the file payload and its alternate-stream canary were absent, as was the other file's name. The fixture verified that the source and stream kept their original bytes.
+
+The runner is `tests/FileCat.NativeAcceptance/win-nvda-filesystem-details.ps1`. Both runs passed with fresh FileCat and NVDA profiles. The raw speech and UI Automation receipts are `.tmp/nvda-result-r7.json` and `.tmp/nvda-result-r8.json`. The tested `FileCat.dll` SHA-256 is `E1EF6500BCCE8B43BE7D86DB8CF3E22EB0B2D3712886C30B2DCDD61A3AD9C5C2`. The Windows VM also passed all 35 focused report, details and picture-view regression tests in `.tmp/filecat-details-regressions-r7.log`.
+
+The updated runner passed in both the standard profile and the `-NarrowHighContrast` case. The latter ran with FileCat’s High Contrast theme in an isolated settings profile and measured 320 × 521 DIP at 96 DPI. NVDA announced both tiers, Copy all produced metadata for the focused file, and Escape returned focus to that file. See `.tmp/nvda-result-r11-standard.json` and `.tmp/nvda-result-r11-contrast.json`.
+
+## Narrow report from picture view
+
+The Windows 11 x64 VM passed `-NarrowHighContrast -PictureView` with NVDA 2026.3.1. The fixture switched the populated source tab to its picture grid through keyboard command search, then opened the focused file's details with Ctrl+Alt+Enter. In the 320 × 521 DIP report at 96 DPI, it used the keyboard to read the full record, copy it, return to summary and reopen the cached full observation. NVDA announced the tier changes and spoke the picture grid and the same file after Escape. The clipboard contained the focused file's metadata. The distinct main-stream and named-stream payload sentinels were absent, and both source streams still matched their initial values.
+
+The `FileCat.dll` from `26bfcec30aec2715cc35621a74a79cde59e339b1` had SHA-256 `1B1660119E742BFD0063ACF2DF8E9B9348CCA482BFBDED5C4022BD97FEFE5C65`. The receipt `.tmp/filecat-efs-live-166b6897-r1/filesystem-details-contrast-picture-r1.json` has SHA-256 `55C5F65E76EEFDA0F0B07B57AD59E52A60CB3C4626915A873EE01C5ADFFEF29F`.
+
+## Native Properties shortcut
+
+On Windows 11 x64 build 26340, `-VerifyNativeProperties` passed in the ordinary list and with `-NarrowHighContrast -PictureView`. File-system details opened with Ctrl+Alt+Enter, showed both observation tiers and returned focus to `alpha-details.txt`. Alt+Enter then opened the native Windows Properties dialog for that file. UI Automation identified the Windows dialog class and NVDA 2026.3.1 announced its title. Escape closed the dialog. The main and named data streams retained their original bytes. Both runs were at 96 DPI.
+
+The tested `FileCat.dll` SHA-256 is `24042895EE6888B59F0FB82CB3FD79C8171D6A51C9EA7BA53628D5A30F18EE56`. Under `.tmp/filecat-efs-live-166b6897-r1`, `native-details-properties-list-r2.json` has SHA-256 `432A965B5D7ACB5071BB8F1F4C177B79022EB650B7014694E55AD1296581752D` and `native-details-properties-picture-r2.json` has SHA-256 `1AD0A5B6C73FDF1F961DA7ABAD39AA6562D567EA9655BAFF31DAD69B1B935DB2`.
+
+## Windows system text size at 150%
+
+On that same standard Windows x64 profile, the Windows Accessibility setting changed text size from 100% to 150%. WinRT `UISettings.TextScaleFactor` read 1.5 during the run. At 96 monitor DPI, the High Contrast fixture opened details from the picture grid in a 320 × 516 DIP report. NVDA announced both observation tiers and the restored file. The keyboard copied 2,345 UTF-8 bytes of metadata with both stream payloads omitted. Alt+Enter opened the file's native Properties dialog. The controller restored the prior 100% setting and read back a factor of 1.0.
+
+The run used the same FileCat assembly as the native Properties shortcut fixture. Under `.tmp/filecat-efs-live-166b6897-r1`, `native-text-scale-details.json` has SHA-256 `7CE9EFA83439D9984A012C96656539EE32C63C4ABFDA6010A3B42102330CB09C` and the controller receipt `native-text-scale-controller.json` has SHA-256 `F909677D130DA4B72FD4FBEEDD835DDDD610797BE9B5EB567C3E1C30F43E469E`.
+
+## Windows display scale at 150%
+
+On the same x64 guest, VMware temporarily set the resolution to 1600 × 900 and the Windows Display setting changed scale to 150%. The FileCat report measured 144 DPI. The input driver resizes in a per-monitor DPI context and calculates DIP from the physical desktop frame. The visible High Contrast report measured 324 × 554 DIP. NVDA read both observation tiers, Copy all provided 2,351 UTF-8 bytes of metadata for the selected file, and Escape returned focus and speech to that file in the picture grid. Alt+Enter opened native Properties. The source and its alternate stream kept their original bytes. [Microsoft high-DPI window coordinates](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowrect)
+
+The controller verified restoration of 100% display scale and 1004 × 590 resolution. Under `.tmp/filecat-efs-live-166b6897-r1`, `native-display-scale-r6-details.json` has SHA-256 `B45790ACDA11B037A581AD796C0BCA4A67A2078DE376E4960D6A06D8FD900160`. The scale and resolution receipts are `native-display-scale-r6-controller.json` with SHA-256 `148910F68989DE0350C90A5F43774CA0A426C52DF16AE04B372FAE6D99BFA615` and `native-display-scale-r6-host.json` with SHA-256 `115509AA588C5394EDA6BCAED9187B08E8F7FD9E101A164C26EFBEF874962496`.
+
+## Standalone Find results
+
+On Windows 11 x64 build 26340 in standard-user session 1, `-FindResults -VerifyNativeProperties` opened the standalone Find window, searched for `alpha-details.txt`, and moved keyboard focus to its result. Ctrl+Alt+Enter opened File-system details at 506 × 413 DIP and 96 DPI. NVDA 2026.3.1 announced both observation tiers and the cached full observation. Copy all produced 2,343 UTF-8 bytes with the selected original path and the omission notice, excluding the other file and both stream payload sentinels. Escape restored foreground focus and speech to the same Find window and result. Alt+Enter opened the native `#32770` Properties dialog for that file. Both streams retained their original bytes.
+
+Under `.tmp/filecat-efs-live-166b6897-r1`, `native-find-details-8af6f3c6-r1.json` has SHA-256 `1FF704A00C8EFB6DCDDFA5509B87C18CF1E129C77373BD53011AB8565FCB4074`. The tested `FileCat.dll` SHA-256 was `EF28BCD0B921D6826B8EE830F3CA992522F61971D9C47821D6FEBDF0227D3E9D`.
+
+The focused application tests also exercised the supplementary-data command from a captured Find result. It opened a new main-workspace tab while preserving the original Find selection. The command used the Windows test provider on x64 and the platform supplementary-data providers on Ubuntu x64 and Apple silicon.
+
+| Fixture | Passed | Skipped | TRX SHA-256 |
+| --- | ---: | ---: | --- |
+| Windows 11 x64 | 24 | 3 Unix link cases | `66373B75EAB5BACAF2D03764AA3F6BB5664A6CF82594C58AF6092D31375F896A` |
+| Ubuntu x64 | 27 | 0 | `9A73FE7CDE0C20D2B7EB344CC28305F00DFEA9E61946A16D88FDB00B56F38D51` |
+| Apple silicon | 27 | 0 | `A7F2DAE4CD9B26230117E743568B332215365D25E936443617DE7D2CB62B94FC` |

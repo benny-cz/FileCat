@@ -1,0 +1,286 @@
+{
+    "capacity":  213660311552,
+    "available":  1936642048,
+    "folders":  [
+                    {
+                        "name":  "batch-r525",
+                        "files":  353,
+                        "bytes":  308234546
+                    },
+                    {
+                        "name":  "batch-r535",
+                        "files":  353,
+                        "bytes":  308201315
+                    },
+                    {
+                        "name":  "batch-r545",
+                        "files":  353,
+                        "bytes":  308344449
+                    },
+                    {
+                        "name":  "batch-r549",
+                        "files":  353,
+                        "bytes":  308446004
+                    },
+                    {
+                        "name":  "batch-r557",
+                        "files":  353,
+                        "bytes":  308571070
+                    },
+                    {
+                        "name":  "batch-r569",
+                        "files":  353,
+                        "bytes":  308639222
+                    },
+                    {
+                        "name":  "batch-r581",
+                        "files":  377,
+                        "bytes":  315817214
+                    },
+                    {
+                        "name":  "batch-r585",
+                        "files":  375,
+                        "bytes":  315693719
+                    },
+                    {
+                        "name":  "batch-r589",
+                        "files":  375,
+                        "bytes":  315691877
+                    },
+                    {
+                        "name":  "batch-r598",
+                        "files":  374,
+                        "bytes":  310702957
+                    },
+                    {
+                        "name":  "batch-r610",
+                        "files":  374,
+                        "bytes":  311497756
+                    },
+                    {
+                        "name":  "batch-r614",
+                        "files":  374,
+                        "bytes":  311016915
+                    },
+                    {
+                        "name":  "batch-r626",
+                        "files":  374,
+                        "bytes":  311223950
+                    },
+                    {
+                        "name":  "batch-r632",
+                        "files":  374,
+                        "bytes":  311325263
+                    },
+                    {
+                        "name":  "batch-r636",
+                        "files":  374,
+                        "bytes":  311334573
+                    },
+                    {
+                        "name":  "batch-r640",
+                        "files":  374,
+                        "bytes":  311342710
+                    },
+                    {
+                        "name":  "batch-r644",
+                        "files":  374,
+                        "bytes":  311355191
+                    },
+                    {
+                        "name":  "batch-r654",
+                        "files":  374,
+                        "bytes":  311529558
+                    },
+                    {
+                        "name":  "batch-r666",
+                        "files":  374,
+                        "bytes":  311639173
+                    },
+                    {
+                        "name":  "batch-r672",
+                        "files":  374,
+                        "bytes":  311837457
+                    },
+                    {
+                        "name":  "batch-r675",
+                        "files":  374,
+                        "bytes":  311834374
+                    },
+                    {
+                        "name":  "batch-r680",
+                        "files":  374,
+                        "bytes":  311844590
+                    },
+                    {
+                        "name":  "batch-r685",
+                        "files":  374,
+                        "bytes":  312236391
+                    },
+                    {
+                        "name":  "batch-r689",
+                        "files":  374,
+                        "bytes":  312249326
+                    },
+                    {
+                        "name":  "batch-r706",
+                        "files":  374,
+                        "bytes":  313078606
+                    },
+                    {
+                        "name":  "batch-r710",
+                        "files":  374,
+                        "bytes":  312871854
+                    },
+                    {
+                        "name":  "batch-r714",
+                        "files":  374,
+                        "bytes":  312745330
+                    },
+                    {
+                        "name":  "batch-r723",
+                        "files":  371,
+                        "bytes":  313075347
+                    },
+                    {
+                        "name":  "batch-r727",
+                        "files":  374,
+                        "bytes":  313043134
+                    },
+                    {
+                        "name":  "batch-r732",
+                        "files":  3,
+                        "bytes":  78116840
+                    },
+                    {
+                        "name":  "batch-r739",
+                        "files":  374,
+                        "bytes":  313231736
+                    },
+                    {
+                        "name":  "batch-r743",
+                        "files":  374,
+                        "bytes":  313236313
+                    },
+                    {
+                        "name":  "batch-r747",
+                        "files":  374,
+                        "bytes":  313226528
+                    },
+                    {
+                        "name":  "batch-r753",
+                        "files":  374,
+                        "bytes":  313493776
+                    },
+                    {
+                        "name":  "batch-r757",
+                        "files":  374,
+                        "bytes":  313490438
+                    },
+                    {
+                        "name":  "batch-r763",
+                        "files":  374,
+                        "bytes":  313631130
+                    },
+                    {
+                        "name":  "batch-r767",
+                        "files":  374,
+                        "bytes":  313625411
+                    },
+                    {
+                        "name":  "batch-r777",
+                        "files":  374,
+                        "bytes":  314261693
+                    },
+                    {
+                        "name":  "batch-r781",
+                        "files":  374,
+                        "bytes":  314224813
+                    },
+                    {
+                        "name":  "batch-r789",
+                        "files":  374,
+                        "bytes":  314386552
+                    },
+                    {
+                        "name":  "batch-r795",
+                        "files":  374,
+                        "bytes":  314537534
+                    },
+                    {
+                        "name":  "batch-r799",
+                        "files":  374,
+                        "bytes":  314501248
+                    },
+                    {
+                        "name":  "batch-r809",
+                        "files":  374,
+                        "bytes":  314636729
+                    },
+                    {
+                        "name":  "batch-r814",
+                        "files":  374,
+                        "bytes":  314708195
+                    },
+                    {
+                        "name":  "batch-r818",
+                        "files":  374,
+                        "bytes":  314709408
+                    },
+                    {
+                        "name":  "batch-r828",
+                        "files":  387,
+                        "bytes":  316541954
+                    },
+                    {
+                        "name":  "batch-r833",
+                        "files":  403,
+                        "bytes":  316439750
+                    },
+                    {
+                        "name":  "batch-r836",
+                        "files":  403,
+                        "bytes":  316486191
+                    },
+                    {
+                        "name":  "batch-r840",
+                        "files":  403,
+                        "bytes":  316652004
+                    },
+                    {
+                        "name":  "batch-r846",
+                        "files":  231,
+                        "bytes":  308289880
+                    },
+                    {
+                        "name":  "batch-r849",
+                        "files":  411,
+                        "bytes":  248791065
+                    },
+                    {
+                        "name":  "batch-r852",
+                        "files":  119,
+                        "bytes":  174793326
+                    },
+                    {
+                        "name":  "batch-r856",
+                        "files":  234,
+                        "bytes":  306034775
+                    },
+                    {
+                        "name":  "batch-r865",
+                        "files":  234,
+                        "bytes":  306049441
+                    },
+                    {
+                        "name":  "batch-r868",
+                        "files":  411,
+                        "bytes":  241054761
+                    },
+                    {
+                        "name":  "batch-r873",
+                        "files":  234,
+                        "bytes":  306234636
+                    }
+                ]
+}

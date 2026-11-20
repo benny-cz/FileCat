@@ -163,7 +163,7 @@ public sealed partial class MainViewModel
         // The cloud providers' folders (OneDrive, Dropbox, iCloud Drive, …) by the names they give them, with the icon
         // their folder carries (OneDrive's is a known folder's; the others name theirs in desktop.ini, which is read only
         // for a folder marked read-only or system, so the folder's real attributes go with it).
-        foreach (var root in Services.Shell.CloudSyncRoots)
+        foreach (var root in Services.CloudSyncRoots)
         {
             FileAttributes attributes;
             try { attributes = File.GetAttributes(root.Path); }
@@ -340,10 +340,12 @@ public sealed partial class MainViewModel
     {
         var list = Services.History.Bookmarks.Where(b => b.Location is not null).OrderBy(b => b.Slot ?? 99).ThenBy(b => b.Name).ToList();
         var items = list.Select(b => new ChoiceItem((b.Slot is { } s ? $"[{s}] " : string.Empty) + b.Name, Services.Providers.Display(b.Location!), b.Slot is { } sl ? $"Ctrl+{sl}" : null)).ToList();
-        items.Add(new ChoiceItem("+ Add current location", "Adds an unnumbered bookmark"));
+        bool analysisListing = ActiveTab?.Location?.Scheme == Schemes.AnalysisFolder;
+        if (!analysisListing) items.Add(new ChoiceItem("+ Add current location", "Adds an unnumbered bookmark"));
+        const string keys = "Enter opens · Shift+Enter opens in the target panel · Ctrl+Del removes · Ctrl+Shift+0–9 sets numbered slots, Ctrl+0–9 opens them, Alt+Shift+0–9 opens them in the target panel";
         var r = await Dialogs.ChooseAsync(new ChoiceOptions("Bookmarks", items)
         {
-            Hint = "Enter opens · Shift+Enter opens in the target panel · Ctrl+Del removes · Ctrl+Shift+0–9 sets numbered slots, Ctrl+0–9 opens them, Alt+Shift+0–9 opens them in the target panel",
+            Hint = analysisListing ? AnalysisPanelFolderProvider.BookmarkRefusal : keys,
             AllowDelete = true,
         });
         foreach (var d in r.Deleted.OrderByDescending(i => i)) if (d < list.Count) Services.History.Bookmarks.Remove(list[d]);
@@ -353,6 +355,7 @@ public sealed partial class MainViewModel
         {
             var loc = ActiveTab?.Location;
             if (loc is null) return;
+            if (loc.Scheme == Schemes.AnalysisFolder) { Notify(AnalysisPanelFolderProvider.BookmarkRefusal); return; }
             var name = await Dialogs.PromptAsync(new PromptOptions("Add bookmark", "Name:") { Text = Services.Providers.For(loc).GetDisplayName(loc) });
             if (name is null) return;
             Services.History.Bookmarks.Add(new BookmarkEntry { Name = name.Text, Location = loc });
@@ -455,6 +458,7 @@ public sealed partial class MainViewModel
         var entries = new List<CommandSearch.Entry>();
         foreach (var d in Services.Commands.All)
         {
+            if (!MainMenuModel.IsPlatformApplicable(d.Id) || !AdvertisesEfsCommand(d.Id)) continue;
             if (d.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
                 || d.Id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal)
                 || d.Id.StartsWith(CommandIds.BookmarkTargetPrefix, StringComparison.Ordinal))
@@ -492,13 +496,13 @@ public sealed partial class MainViewModel
     private async Task ShowKeyboardReferenceAsync() => await ShowKeyboardReferenceForSearchAsync();
 
     /// <summary>Returns true when Help was dismissed without running a command, so search can restore its draft.</summary>
-    internal async Task<bool> ShowKeyboardReferenceForSearchAsync()
+    internal async Task<bool> ShowKeyboardReferenceForSearchAsync(bool remapOnly = false)
     {
         // After a shortcut changes, the reference opens again on that command with the new shortcut shown.
         string? selected = null;
         while (true)
         {
-            var choice = await Dialogs.KeyboardReferenceAsync(KeyboardHelpEntries(), selected);
+            var choice = await Dialogs.KeyboardReferenceAsync(KeyboardHelpEntries(remapOnly), selected, remapOnly);
             if (choice is null) return true;
             if (choice.ChangeShortcut)
             {
@@ -512,13 +516,14 @@ public sealed partial class MainViewModel
         }
     }
 
-    private KeyboardHelpEntry[] KeyboardHelpEntries()
+    private KeyboardHelpEntry[] KeyboardHelpEntries(bool remapOnly)
     {
         return Services.Commands.All
-            .Where(d => !d.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
+            .Where(d => AdvertisesEfsCommand(d.Id) && !d.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
                 && !d.Id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal)
                 && !d.Id.StartsWith(CommandIds.BookmarkTargetPrefix, StringComparison.Ordinal)
-                && !d.Id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal))
+                && !d.Id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal)
+                && (!remapOnly || d.Id != CommandIds.ChangeShortcut))
             .Select(d =>
             {
                 var availability = GetAvailability(d.Id);

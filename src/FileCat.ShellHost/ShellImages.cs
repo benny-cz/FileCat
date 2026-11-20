@@ -30,13 +30,55 @@ internal static unsafe partial class ShellImages
             problem = $"The Shell does not know this item (0x{hr:X8}).";
             return null;
         }
+        return Draw(factoryPtr, size, kind == ShellImageKind.Thumbnail ? SIIGBF_THUMBNAILONLY : SIIGBF_ICONONLY, out problem);
+    }
+
+    /// <summary>
+    /// A type's icon as Explorer draws it (a packaged app's file icon: Notepad's for .txt), for FileCat's placeholder name
+    /// in a folder that does not exist (<see cref="WindowsIcons.TypeProbe"/>): a simple ID list stands for it, so nothing
+    /// is opened, and the Shell draws the icon at the size asked for.
+    /// </summary>
+    public static ShellImage? GetTypeIcon(string extension, int size, out string? problem)
+    {
+        if (ShellPreviewPolicy.TypeIconRefusal(extension) is { } refusal)
+        {
+            problem = refusal;
+            return null;
+        }
+        nint pidl = SHSimpleIDListFromPath(WindowsIcons.TypeProbe("file" + extension));
+        if (pidl == 0)
+        {
+            problem = "The Shell could not name the type.";
+            return null;
+        }
+        try
+        {
+            int hr = SHCreateItemFromIDList(pidl, IID_IShellItemImageFactory, out var factoryPtr);
+            if (hr < 0 || factoryPtr == 0)
+            {
+                problem = $"The Shell does not know this type (0x{hr:X8}).";
+                return null;
+            }
+            return Draw(factoryPtr, size, SIIGBF_ICONONLY, out problem);
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(pidl);
+        }
+    }
+
+    /// <summary>The factory's picture at the size, then the factory released; null when it has none (an ordinary answer).</summary>
+    private static ShellImage? Draw(nint factoryPtr, int size, int flags, out string? problem)
+    {
+        problem = null;
         nint bitmap = 0;
         try
         {
             var factory = (IShellItemImageFactory)Marshal.GetObjectForIUnknown(factoryPtr);
+            int hr;
             try
             {
-                hr = factory.GetImage(new SIZE { cx = size, cy = size }, kind == ShellImageKind.Thumbnail ? SIIGBF_THUMBNAILONLY : SIIGBF_ICONONLY, out bitmap);
+                hr = factory.GetImage(new SIZE { cx = size, cy = size }, flags, out bitmap);
             }
             finally
             {
@@ -152,6 +194,12 @@ internal static unsafe partial class ShellImages
 
     [LibraryImport("shell32.dll", StringMarshalling = StringMarshalling.Utf16)]
     private static partial int SHCreateItemFromParsingName(string pszPath, nint pbc, in Guid riid, out nint ppv);
+
+    [LibraryImport("shell32.dll", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial nint SHSimpleIDListFromPath(string path);
+
+    [LibraryImport("shell32.dll")]
+    private static partial int SHCreateItemFromIDList(nint pidl, in Guid riid, out nint ppv);
 
     [LibraryImport("gdi32.dll")]
     private static partial int GetObjectW(nint h, int c, void* pv);

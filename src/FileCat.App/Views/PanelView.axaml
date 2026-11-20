@@ -85,7 +85,8 @@
         <Button x:Name="RoleButton" Grid.Column="5" Classes="role" Classes.target="{Binding IsTarget}" Classes.offer="{Binding OffersTarget}"
                 ToolTip.Tip="{Binding RoleTip}" AutomationProperties.Name="{Binding RoleTip}" Click="OnRoleClick"
                 IsVisible="{Binding RoleLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-          <TextBlock Text="{Binding RoleLabel}" MaxWidth="80" TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{Binding RoleLabel}" MaxWidth="80" TextTrimming="CharacterEllipsis"
+                     VerticalAlignment="Center" TextAlignment="Center" />
         </Button>
       </Grid>
 
@@ -129,6 +130,14 @@
       </Border>
 
       <!-- Comparison / issue banners -->
+      <Border DockPanel.Dock="Top" Classes="banner"
+              IsVisible="{Binding ActiveTab.DeniedFolderVolume, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <Button Content="Reopen folder as administrator…" HorizontalAlignment="Left" Click="OnReopenDeniedFolder"
+                AutomationProperties.HelpText="Windows asks for approval and opens this folder in a separate FileCat window." />
+      </Border>
+      <Border DockPanel.Dock="Top" Classes="banner" IsVisible="{Binding ActiveTab.CanReopenDeniedRegistry}">
+        <Button Content="Reopen Registry key as administrator…" HorizontalAlignment="Left" Click="OnReopenDeniedRegistry" />
+      </Border>
       <Border DockPanel.Dock="Top" Classes="banner" IsVisible="{Binding ActiveTab.AnalysisStatus, Converter={x:Static ObjectConverters.IsNotNull}}">
         <TextBlock Classes="small" Text="{Binding ActiveTab.AnalysisStatus}" />
       </Border>
@@ -142,10 +151,28 @@
         </Grid>
       </Border>
 
+      <Border DockPanel.Dock="Top" Classes="banner" IsVisible="{Binding ActiveTab.IsSupplementaryData}">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="small" Text="{Binding ActiveTab.SupplementaryInventoryText}" TextWrapping="Wrap"
+                     AutomationProperties.Name="Supplementary data inventory" />
+          <WrapPanel ItemSpacing="8" LineSpacing="4">
+            <Button Content="Read extended attributes…" HorizontalAlignment="Left"
+                    IsVisible="{Binding ActiveTab.CanReadSupplementaryEas}" Click="OnReadSupplementaryEas"
+                    AutomationProperties.Name="Read extended attributes"
+                    AutomationProperties.HelpText="Windows returns extended attribute names and values together. Review before issuing that query." />
+            <Button Content="Report selected value…" HorizontalAlignment="Left"
+                    IsVisible="{Binding ActiveTab.SupportsSupplementaryReports}" IsEnabled="{Binding ActiveTab.CanReadSupplementaryReport}"
+                    Click="OnReadSupplementaryReport" AutomationProperties.Name="Report selected value"
+                    AutomationProperties.HelpText="Reads a bounded preview of the focused supplementary value from the reviewed file." />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
       <Panel>
         <ctl:QuickViewPane x:Name="QuickView" IsVisible="{Binding QuickViewSource, Converter={x:Static ObjectConverters.IsNotNull}}"
                            Background="{DynamicResource FcPanel}" ZIndex="1" />
         <ctl:FileListControl x:Name="List" Tab="{Binding ActiveTab}" IsActivePanel="{Binding IsActive}"
+                             PictureMode="{Binding ActiveTab.PictureView}"
                              FontSize="{Binding $parent[Window].((vm:MainViewModel)DataContext).ListFontSize, FallbackValue=13}"
                              ComfortableRows="{Binding $parent[Window].((vm:MainViewModel)DataContext).ComfortableDensity, FallbackValue=False}"
                              AutomationProperties.Name="File list" />

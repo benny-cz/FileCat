@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Security.Cryptography;
 
 namespace SharpCompress.Compressors.Filters;
 
@@ -14,6 +15,9 @@ internal abstract partial class Filter : Stream
     private int _read;
     private bool _endReached;
     private bool _isDisposed;
+    private readonly byte[]? _encodeBuffer;
+    private int _encodeCount;
+    private bool _encodeFailed;
 
     protected Filter(bool isEncoder, Stream baseStream, int lookahead)
     {
@@ -21,6 +25,7 @@ internal abstract partial class Filter : Stream
         _baseStream = baseStream;
         _tail = new byte[lookahead - 1];
         _window = new byte[_tail.Length * 2];
+        if (isEncoder) _encodeBuffer = new byte[(64 << 10) + _tail.Length];
     }
 
     protected override void Dispose(bool disposing)
@@ -30,17 +35,31 @@ internal abstract partial class Filter : Stream
             return;
         }
         _isDisposed = true;
-        base.Dispose(disposing);
-        _baseStream.Dispose();
+        try
+        {
+            // Transform returns the consumed prefix; an incomplete instruction/pair remains byte-exact at EOF.
+            if (disposing && _isEncoder && !_encodeFailed && _encodeCount > 0)
+                _baseStream.Write(_encodeBuffer!, 0, _encodeCount);
+        }
+        finally
+        {
+            try { if (disposing) _baseStream.Dispose(); }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(_tail); CryptographicOperations.ZeroMemory(_window);
+                if (_encodeBuffer is not null) CryptographicOperations.ZeroMemory(_encodeBuffer);
+                base.Dispose(disposing);
+            }
+        }
     }
 
-    public override bool CanRead => !_isEncoder;
+    public override bool CanRead => !_isDisposed && !_isEncoder;
 
     public override bool CanSeek => false;
 
-    public override bool CanWrite => _isEncoder;
+    public override bool CanWrite => !_isDisposed && _isEncoder && !_encodeFailed;
 
-    public override void Flush() { }
+    public override void Flush() { if (_isEncoder) _baseStream.Flush(); }
 
     public override long Length => _baseStream.Length;
 
@@ -52,6 +71,8 @@ internal abstract partial class Filter : Stream
 
     public override int Read(byte[] buffer, int offset, int count)
     {
+        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        if (_isEncoder) throw new NotSupportedException();
         var size = 0;
 
         if (_transformed > 0)
@@ -139,9 +160,29 @@ internal abstract partial class Filter : Stream
     public override void SetLength(long value) => throw new NotSupportedException();
 
     public override void Write(byte[] buffer, int offset, int count)
+        => Write(buffer.AsSpan(offset, count));
+
+    public override void Write(ReadOnlySpan<byte> buffer)
     {
-        Transform(buffer, offset, count);
-        _baseStream.Write(buffer, offset, count);
+        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        if (!_isEncoder) throw new NotSupportedException();
+        if (_encodeFailed) throw new IOException("The encoding filter was stopped after a refusal.");
+        try
+        {
+            while (!buffer.IsEmpty)
+            {
+                int count = Math.Min(buffer.Length, _encodeBuffer!.Length - _encodeCount);
+                buffer[..count].CopyTo(_encodeBuffer.AsSpan(_encodeCount));
+                _encodeCount += count; buffer = buffer[count..];
+                int consumed = Transform(_encodeBuffer, 0, _encodeCount);
+                if (consumed < 0 || consumed > _encodeCount || _encodeCount - consumed > _tail.Length)
+                    throw new InvalidDataException("The encoding filter returned an invalid or non-progressing prefix.");
+                if (consumed > 0) _baseStream.Write(_encodeBuffer, 0, consumed);
+                _encodeCount -= consumed;
+                if (_encodeCount > 0) _encodeBuffer.AsSpan(consumed, _encodeCount).CopyTo(_encodeBuffer);
+            }
+        }
+        catch { _encodeFailed = true; throw; }
     }
 
     protected abstract int Transform(byte[] buffer, int offset, int count);

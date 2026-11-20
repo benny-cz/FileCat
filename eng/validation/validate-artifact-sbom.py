@@ -163,7 +163,11 @@ def edit_json(path: pathlib.Path, change) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--evidence-dir", required=True)
+    parser.add_argument("--source-packet-sha256", help="Exact frozen source packet used by a disposable validation checkout without Git metadata")
     options = parser.parse_args()
+    if options.source_packet_sha256 is not None and (len(options.source_packet_sha256) != 64 or
+            any(c not in "0123456789abcdefABCDEF" for c in options.source_packet_sha256)):
+        raise SystemExit("source packet SHA-256 must be exactly 64 hexadecimal digits")
     evidence = pathlib.Path(options.evidence_dir).resolve()
     if evidence.exists():
         raise SystemExit("evidence directory must be new")
@@ -171,7 +175,7 @@ def main() -> int:
     artifacts = evidence / "artifacts"
     build = subprocess.run([
         "dotnet", "build", str(ROOT / "eng/ArtifactSbom/ArtifactSbom.csproj"), "-c", "Release",
-        "--artifacts-path", str(artifacts), "-p:RestoreLockedMode=true", "--nologo"
+        "--artifacts-path", str(artifacts), "-p:RestoreLockedMode=true", "--disable-build-servers", "--nologo"
     ], cwd=ROOT, text=True, capture_output=True)
     (evidence / "build.stdout.txt").write_text(build.stdout, encoding="utf-8")
     (evidence / "build.stderr.txt").write_text(build.stderr, encoding="utf-8")
@@ -303,12 +307,13 @@ def main() -> int:
     inno_text = evidence / "InnoSetup-6.7.1.txt"
     inno_text.write_bytes(b"Inno Setup License fixture\n")
     run("inno-setup-license", True, extras=(f"licenses/InnoSetup-6.7.1.txt={inno_text}",), expected_inno=True)
-    # FileCat's projects are MIT, except its XADMaster port (LGPL) and its build of SharpCompress, whose parts keep their
-    # own licenses (licenses/sharpcompress/COMPONENTS.md).
-    run("project-licenses", True, projects=("FileCat.Core", "FileCat.Archives.Rar15", "FileCat.SharpCompress"),
+    # Archive projects retain BSD parts; the separate XADMaster port and SharpCompress keep their component terms.
+    run("project-licenses", True, projects=("FileCat.Core", "FileCat.Archives", "FileCat.Archives.Writing", "FileCat.Archives.Rar15", "FileCat.SharpCompress"),
         expected_project_licenses={
             "FileCat.Archives.Rar15": "LGPL-2.1-or-later",
             "FileCat.Core": "MIT",
+            "FileCat.Archives": "MIT AND BSD-2-Clause",
+            "FileCat.Archives.Writing": "MIT AND BSD-2-Clause",
             "FileCat.SharpCompress": "MIT AND Apache-2.0 AND MS-PL AND BSD-2-Clause AND BSD-3-Clause AND Zlib",
         })
     # A project the manifest names but whose files the payload lacks (the Windows-only helpers in the Linux and macOS
@@ -390,8 +395,11 @@ def main() -> int:
         write_json(evidence / "artifact-sbom-controls.json", {"Cases": cases})
         return 1
     summary = {
-        "SourceCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
-        "SourceTreeDirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip()),
+        "SourceCommit": None if options.source_packet_sha256 else subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+        "SourceTreeDirty": None if options.source_packet_sha256 else bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip()),
+        "SourcePacketSHA256": options.source_packet_sha256.lower() if options.source_packet_sha256 else None,
+        "SourceIdentityMethod": "frozen source packet; caller verifies extraction/PDB inputs" if options.source_packet_sha256 else "Git checkout",
+        "SourceRoot": str(ROOT), "ArtifactsRoot": str(artifacts),
         "BuildExitCode": build.returncode, "ToolSHA256": digest(tool), "Controls": len(cases),
         "Platform": sys.platform,
         "Allowed": sum(case["Allowed"] for case in cases), "Refused": sum(not case["Allowed"] for case in cases),

@@ -99,11 +99,13 @@ public sealed class FolderSidecars
     /// <summary>Reads the folder's checksum files and signatures (not the files they cover).</summary>
     public static FolderSidecars Scan(string folder, CancellationToken ct)
     {
+        PathUtil.RefuseAmbiguousUnixName(folder);
         var names = WindowsCaseSensitivity.NamesIn(folder);
         var files = new Dictionary<string, FileInfo>(names);
         foreach (var info in new DirectoryInfo(folder).EnumerateFiles())
         {
             ct.ThrowIfCancellationRequested();
+            if (PathUtil.HasAmbiguousUnixName(info.Name)) continue;
             files[info.Name] = info;
         }
         var sources = new Dictionary<string, (long, long)>(names);
@@ -148,10 +150,12 @@ public sealed class FolderSidecars
     {
         try
         {
+            PathUtil.RefuseAmbiguousUnixName(folder);
             var options = new EnumerationOptions { RecurseSubdirectories = false, IgnoreInaccessible = false, AttributesToSkip = 0 };
             var bySigned = new Dictionary<string, List<FileInfo>>(StringComparer.OrdinalIgnoreCase);
             foreach (var info in new DirectoryInfo(folder).EnumerateFiles("*", options))
             {
+                if (PathUtil.HasAmbiguousUnixName(info.Name)) continue;
                 if (!SidecarNames.IsSignatureFile(info.Name) || IsPlaceholder(info)) continue;
                 string signed = SidecarNames.Signed(info.Name);
                 if (!bySigned.TryGetValue(signed, out var found)) bySigned[signed] = found = [];
@@ -197,6 +201,7 @@ public sealed class FolderSidecars
     internal static string? BareTarget(string sidecarPath)
     {
         string folder = Path.GetDirectoryName(sidecarPath) ?? "", name = Path.GetFileName(sidecarPath);
+        if (PathUtil.HasAmbiguousUnixName(sidecarPath)) return null;
         string stem = name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ? name[..^4] : name;
         int dot = stem.LastIndexOf('.');
         if (dot <= 0) return null;
@@ -206,7 +211,7 @@ public sealed class FolderSidecars
         try
         {
             var namesakes = new DirectoryInfo(folder).EnumerateFiles("*", new EnumerationOptions { RecurseSubdirectories = false })
-                .Where(f => !SidecarNames.IsSidecar(f.Name) && string.Equals(Path.GetFileNameWithoutExtension(f.Name), stem, StringComparison.OrdinalIgnoreCase))
+                .Where(f => !PathUtil.HasAmbiguousUnixName(f.Name) && !SidecarNames.IsSidecar(f.Name) && string.Equals(Path.GetFileNameWithoutExtension(f.Name), stem, StringComparison.OrdinalIgnoreCase))
                 .Take(2).ToList();
             return namesakes.Count == 1 ? namesakes[0].FullName : namesakes.Count == 0 ? exact : null;
         }

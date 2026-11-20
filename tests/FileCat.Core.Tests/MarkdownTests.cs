@@ -183,8 +183,9 @@ public sealed class MarkdownTests
         Assert.Equal("<p>go <a href=\"https://www.example.com\" title=\"https://www.example.com\">www.example.com</a>.</p>", Html("go www.example.com."));
         Assert.Contains("<a href=\"?filecat-open=other.md\" title=\"Open in a separate FileCat viewer — other.md\">", Html("[other](other.md)"));
         Assert.Contains("<a href=\"?filecat-open=docs%2Fother%20file.md%23section\"", Html("[other](<docs/other file.md#section>)"));
+        Assert.Contains("<a href=\"?filecat-open=..%2Frelease%2F1.0.0%2Fstatus.md\"", Html("[release dashboard](../release/1.0.0/status.md)"));
         // Scripts, data, non-Markdown files and paths escaping this folder remain text with the address they named.
-        foreach (string url in new[] { "javascript:alert(1)", "JavaScript:alert(1)", "data:text/html,x", "file:///etc/passwd", "../up.md", "%2e%2e/up.md", "../up.html" })
+        foreach (string url in new[] { "javascript:alert(1)", "JavaScript:alert(1)", "data:text/html,x", "file:///etc/passwd", "../up.html" })
         {
             string html = Html($"[click]({url})");
             Assert.DoesNotContain("<a ", html);

@@ -1,0 +1,10 @@
+{
+  "observedUtc": "2026-11-07T21:10:00.427625+00:00",
+  "exitCode": 0,
+  "filecatOrDotnet": [
+    "68441 68397 /Users/benny/.dotnet/dotnet test /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --no-build --disable-build-servers -p:NuGetAudit=false -m:1 --filter FullyQualifiedName~FileCat.Core.Tests --logger trx;LogFileName=archive-jobs-core.trx --results-directory /Users/benny/FileCatValidation/archive-writing-42829297/archive-job-backend-v1/results",
+    "68445 68441 dotnet exec /Users/benny/.dotnet/sdk/10.0.101/vstest.console.dll --framework:.NETCoreApp,Version=v10.0 --testCaseFilter:FullyQualifiedName~FileCat.Core.Tests --logger:trx;LogFileName=archive-jobs-core.trx --resultsDirectory:/Users/benny/FileCatValidation/archive-writing-42829297/archive-job-backend-v1/results /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll --logger:Console;Verbosity=minimal --artifactsProcessingMode-collect --testSessionCorrelationId:68441_76e2a701-5358-4a55-907d-c2811047bfc9",
+    "68457 68445 /Users/benny/.dotnet/dotnet exec --runtimeconfig /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.runtimeconfig.json --depsfile /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.deps.json /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/testhost.dll --port 50311 --endpoint 127.0.0.1:050311 --role client --parentprocessid 68445 --telemetryoptedin false",
+    "68460 68457 /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests @@ /var/folders/zy/bsrr65210bj1s85fr6g0l0dr0000gn/T/tmpvmyebE.tmp"
+  ]
+}

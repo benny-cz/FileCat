@@ -1,0 +1,18 @@
+  FileCat.Core -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\bin\Debug\net10.0\FileCat.Core.dll
+  FileCat.Recovery -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Recovery\bin\Debug\net10.0\FileCat.Recovery.dll
+  FileCat.Platform.Windows -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Platform.Windows\bin\Debug\net10.0\FileCat.Platform.Windows.dll
+  FileCat.Remote -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Remote\bin\Debug\net10.0\FileCat.Remote.dll
+  FileCat.Archives.Rar15 -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives.Rar15\bin\Debug\net10.0\FileCat.Archives.Rar15.dll
+  FileCat.SharpCompress -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\ThirdParty\SharpCompress\bin\Debug\net10.0\FileCat.SharpCompress.dll
+  FileCat.Archives -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives\bin\Debug\net10.0\FileCat.Archives.dll
+  FileCat.ShellHost -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.ShellHost\bin\Debug\net10.0\FileCat.ShellHost.dll
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\Views\AnalysisHistoryBrowser.cs(104,34): error CS0136: A local or parameter named 'restore' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter [E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\FileCat.App.csproj]
+  FileCat.CoreCrashHarness -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.CoreCrashHarness\bin\Debug\net10.0\FileCat.CoreCrashHarness.dll
+
+Build FAILED.
+
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\Views\AnalysisHistoryBrowser.cs(104,34): error CS0136: A local or parameter named 'restore' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter [E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\FileCat.App.csproj]
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:52.92

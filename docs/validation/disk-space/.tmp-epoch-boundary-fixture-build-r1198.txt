@@ -1,0 +1,7 @@
+  FileCat.Rendering.Tests -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\tests\FileCat.Rendering.Tests\bin\Debug\net10.0\FileCat.Rendering.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:09.35

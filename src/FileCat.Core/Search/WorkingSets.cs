@@ -71,7 +71,7 @@ public sealed class WorkingSets : IDisposable
                 IsComplete = true,
                 CreatedUtc = record.CreatedUtc,
             };
-            set.AddRange((record.Items ?? []).Where(m => m?.Parent is not null && m.Name.Length > 0 && m.Parent.Scheme != Schemes.ResultSet)
+            set.AddRange((record.Items ?? []).Where(m => m?.Parent is not null && m.Name.Length > 0 && m.Parent.Scheme is not (Schemes.ResultSet or Schemes.AnalysisFolder))
                 .Select(m => (new ItemRef(m.Parent!, m.Name, m.Kind, m.Size, m.Modified) { Ordinal = m.Ordinal }, string.Empty)), MaxMembers);
             set.ModifiedUtc = record.ModifiedUtc;
             Attach(set);
@@ -167,8 +167,11 @@ public sealed class WorkingSets : IDisposable
     /// list of sets itself cannot be a member. Returns how many were new; the set stops at <see cref="MaxMembers"/>.
     /// </summary>
     public int Add(ResultSet set, IEnumerable<ItemRef> items) =>
-        set.AddRange(items.Where(i => i.Parent.Scheme != Schemes.ResultSet && i.Kind != EntryKind.Parent)
-            .Select(i => (new ItemRef(i.Parent, i.Name, i.Kind, i.Size, i.Modified) { Ordinal = i.Ordinal, Flags = i.Flags }, string.Empty)), MaxMembers);
+        set.AddRange(items.Where(i => i.Parent.Scheme is not (Schemes.ResultSet or Schemes.AnalysisFolder) && i.Kind != EntryKind.Parent)
+            .Select(i => (new ItemRef(i.Parent, i.Name, i.Kind, i.Size, i.Modified)
+            {
+                Ordinal = i.Ordinal, Flags = i.Flags, NativeAttributes = i.NativeAttributes, NativeReparseTag = i.NativeReparseTag,
+            }, string.Empty)), MaxMembers);
 
     private void Attach(ResultSet set)
     {

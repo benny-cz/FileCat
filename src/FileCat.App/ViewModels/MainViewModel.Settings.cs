@@ -16,18 +16,7 @@ public sealed partial class MainViewModel
     public void ApplySettings()
     {
         var s = Services.Settings;
-        ThemeManager.Apply(s.Theme);
-        ReadabilityPolicy.ApplyDensity(s.RowDensity);
-        ThemeAnimation.SetAllowed(s.ThemeAnimations);
-        Services.Icons.ClearCache();
-        ListFontSize = s.FontSize;
-        ComfortableDensity = ReadabilityPolicy.Comfortable(s.RowDensity);
-        ShowKeyBar = s.ShowFunctionKeyBar;
-        ShowCommandLine = s.ShowCommandLine;
-        ShowToolbar = s.ShowToolbar;
-        ShowDriveButtons = s.ShowDriveButtons;
         ShowHiddenItems = s.ShowHidden;
-        Formatters.DateFormat = s.DateFormat;
         AppLog.DiagnosticMode = s.DiagnosticMode;
         foreach (var p in Workspace.Panels)
         {
@@ -39,9 +28,27 @@ public sealed partial class MainViewModel
         }
         Services.ReloadKeymap();
         foreach (var c in Services.Keymap.Conflicts) Notify("Key binding: " + c, true);
+        RefreshAppearance();
+        Services.SaveSettings();
+    }
+
+    internal void RefreshAppearance()
+    {
+        var s = Services.Settings;
+        ThemeManager.Apply(s.Theme);
+        ReadabilityPolicy.ApplyDensity(s.RowDensity);
+        ThemeAnimation.SetAllowed(s.ThemeAnimations);
+        Services.Icons.ClearCache();
+        ListFontSize = s.FontSize;
+        ComfortableDensity = ReadabilityPolicy.Comfortable(s.RowDensity);
+        ShowKeyBar = s.ShowFunctionKeyBar;
+        ShowCommandLine = s.ShowCommandLine;
+        ShowToolbar = s.ShowToolbar;
+        ShowDriveButtons = s.ShowDriveButtons;
+        Formatters.DateFormat = s.DateFormat;
         View.ReloadChrome();
         foreach (var find in FindWindow.OpenWindows) find.ReloadChrome();
         UpdateKeyBar(KeyMods.None);
-        Services.SaveSettings();
+        PlacesChanged?.Invoke();
     }
 }

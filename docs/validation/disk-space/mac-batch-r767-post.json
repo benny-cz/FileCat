@@ -1,0 +1,7 @@
+{
+  "observedUtc": "2026-11-07T11:57:23.024616+00:00",
+  "exitCode": 0,
+  "filecatOrDotnet": [
+    "42587 42586 /Users/benny/.dotnet/dotnet test tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --disable-build-servers -p:NuGetAudit=false -m:1 --filter FullyQualifiedName~FileCat.Core.Tests.Archive|FullyQualifiedName~FileCat.Core.Tests.Strict|FullyQualifiedName~FileCat.Core.Tests.SevenZip|FullyQualifiedName~FileCat.Core.Tests.Rar|FullyQualifiedName~FileCat.Core.Tests.EmptySevenZip|FullyQualifiedName~FileCat.Core.Tests.UnixArchive|FullyQualifiedName~FileCat.Core.Tests.Zip --logger trx;LogFileName=archive-worker-secrets.trx --results-directory /Users/benny/FileCatValidation/archive-writing-42829297/range-ending-v2/results"
+  ]
+}

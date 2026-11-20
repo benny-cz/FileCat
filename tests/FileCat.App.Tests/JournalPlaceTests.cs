@@ -1,7 +1,15 @@
 using FileCat.App.Controls;
+using FileCat.App.Services;
+using FileCat.App.ViewModels;
+using FileCat.Core.Commands;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
+using FileCat.Platform.Windows;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
+using Avalonia.Input.Raw;
 using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.Tests;
@@ -9,6 +17,52 @@ namespace FileCat.App.Tests;
 /// <summary>D-56 in the window: a change journal lists newest first in its own columns, and Enter goes to an entry's item.</summary>
 public sealed class JournalPlaceTests
 {
+    [Fact]
+    public void Admin_launch_is_discoverable_in_Windows_tools_and_its_journal_argument_stays_local()
+    {
+        Assert.Equal("Tools", MainMenuModel.PathOf(CommandIds.OpenAdministratorWindow));
+        Assert.Equal(OperatingSystem.IsWindows(), MainMenuModel.IsPlatformApplicable(CommandIds.OpenAdministratorWindow));
+        Assert.Equal(OperatingSystem.IsWindows(), MainMenuModel.IsPlatformApplicable(CommandIds.ChangeJournal));
+
+        const string root = @"C:\Mount Points\Drive\";
+        const string volume = @"\\?\Volume{f1e6d606-a052-4ae1-bfc7-d948f4f16fb3}";
+        var journal = new Location(Schemes.Journal, root, session: volume);
+        var start = AdministratorWindow.CreateStartInfo(journal);
+        var options = StartupOptions.Parse(start.ArgumentList.ToArray());
+        Assert.True(start.UseShellExecute);
+        Assert.Equal("runas", start.Verb);
+        Assert.True(options.NewInstance);
+        Assert.Equal((root, volume), options.StartupJournal);
+        Assert.Empty(options.ToForwardArgs());
+        Assert.Null(options.DataRoot);
+        Assert.Empty(options.Locations);
+        Assert.Null(StartupOptions.Parse(AdministratorWindow.CreateStartInfo(null).ArgumentList.ToArray()).StartupJournal);
+    }
+
+    [AvaloniaFact]
+    public async Task Canceling_journal_elevation_keeps_the_ordinary_tab_and_window()
+    {
+        if (!OperatingSystem.IsWindows() || WindowsTokenAuthority.IsHighIntegrity)
+            Assert.Skip("This tests an ordinary Windows session.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        Task command = Task.CompletedTask;
+        try
+        {
+            if (UsnJournalProvider.Resolve(root).Journal is null) Assert.Skip("The test folder needs NTFS or ReFS.");
+            var tab = vm.ActiveTab!;
+            var location = tab.Location;
+            command = vm.ExecuteAsync(CommandIds.ChangeJournal);
+            await Until(() => vm.Dialogs.IsOpen, "the administrator confirmation opens");
+            Assert.Same(location, tab.Location);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await command.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Same(tab, vm.ActiveTab);
+            Assert.Same(location, tab.Location);
+            Assert.True(window.IsVisible);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     private static async Task Until(Func<bool> condition, string what)
     {
         for (int i = 0; i < 400 && !condition(); i++) await Task.Delay(20, TestContext.Current.CancellationToken);

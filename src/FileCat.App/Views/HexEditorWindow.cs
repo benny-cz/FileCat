@@ -8,6 +8,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
@@ -66,6 +67,7 @@ public sealed class HexEditorWindow : Window
     private readonly Button _replace = new() { Content = "Replace bytes…" };
     private readonly Button _goTo = new() { Content = "Go to…" };
     private readonly Button _findToggle = new() { Content = "Find…" };
+    private readonly Button _closeFind = new() { Content = "Close Find" };
     private readonly WrapPanel _findBar = new() { IsVisible = false, Margin = new Thickness(8, 0, 8, 4), ItemSpacing = 6, LineSpacing = 4 };
     private readonly Button _advanced = new() { Content = "More…" };
     private bool _findOpen;
@@ -74,7 +76,8 @@ public sealed class HexEditorWindow : Window
     private readonly TextBlock _contentSize = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _stopCopy = new() { Content = "Stop", IsVisible = false, Classes = { "danger" } };
     private readonly Button _stopSearch = new() { Content = "Stop search", IsVisible = false };
-    private readonly TextBox _search = new() { PlaceholderText = "Find (Ctrl+F)", MinWidth = 200 };
+    private readonly TextBox _search = new() { PlaceholderText = "Find (Ctrl+F)", MinWidth = 200,
+        Classes = { "searchPending" } };
     private readonly Button _previousMatch = new() { Content = "Previous", IsEnabled = false };
     private readonly Button _nextMatch = new() { Content = "Next", IsEnabled = false };
     private readonly TextBlock _matchCount = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center,
@@ -91,6 +94,10 @@ public sealed class HexEditorWindow : Window
     private long _lastCursor = -1;
     private bool _saving, _allowClose, _closed, _saveConfirmed;
     private CancellationTokenSource? _copyStop, _searchCts, _clipboardCts;
+    private readonly DispatcherTimer _findTimer = new(DispatcherPriority.Background)
+        { Interval = TimeSpan.FromMilliseconds(250) };
+    private bool _searchedWholeFileWithoutMatch;
+    private bool _knownMatch;
     private readonly ContentCopyNotice _clipboardNotice = new();
     private readonly SemaphoreSlim _clipboardWrites = new(1, 1);
     private long _lastHit = -1;
@@ -176,7 +183,10 @@ public sealed class HexEditorWindow : Window
         };
         foreach (var c in new Control[] { _save, _stopCopy, _undo, _redo, _replace, _goTo, _smallerText, _contentSize, _largerText, _findToggle, _advanced })
             toolbar.Children.Add(c);
-        foreach (var c in new Control[] { _search, _previousMatch, _nextMatch, _matchCount,
+        Avalonia.Automation.AutomationProperties.SetName(_closeFind, "Close hex editor Find bar");
+        ToolTip.SetTip(_closeFind, "Close Find (Esc); the query stays for next time");
+        _closeFind.Click += (_, _) => { SetFindOpen(false); _hex.Focus(); };
+        foreach (var c in new Control[] { _search, _closeFind, _previousMatch, _nextMatch, _matchCount,
                      _hexSearch, _matchCase, _stopSearch }) _findBar.Children.Add(c);
 
         var finish = new Button { Content = "Finish saving", Classes = { "primary" } };
@@ -240,9 +250,11 @@ public sealed class HexEditorWindow : Window
             bool hasQuery = !string.IsNullOrEmpty(_search.Text);
             _previousMatch.IsEnabled = hasQuery;
             _nextMatch.IsEnabled = hasQuery;
+            ScheduleFind();
         };
-        _hexSearch.IsCheckedChanged += (_, _) => InvalidateSearch();
-        _matchCase.IsCheckedChanged += (_, _) => InvalidateSearch();
+        _hexSearch.IsCheckedChanged += (_, _) => { InvalidateSearch(); ScheduleFind(); };
+        _matchCase.IsCheckedChanged += (_, _) => { InvalidateSearch(); ScheduleFind(); };
+        _findTimer.Tick += (_, _) => { _findTimer.Stop(); _ = FindCoreAsync(forward: true, automatic: true); };
         _replace.Click += async (_, _) => await ReplaceBytesAsync();
         _undo.Click += (_, _) => UndoRedo(redo: false);
         _redo.Click += (_, _) => UndoRedo(redo: true);
@@ -250,11 +262,11 @@ public sealed class HexEditorWindow : Window
         _search.KeyDown += async (_, e) =>
         {
             if (e.Key == Key.Enter) { e.Handled = true; await FindAsync(forward: (e.KeyModifiers & KeyModifiers.Shift) == 0); }
-            else if (e.Key == Key.Escape) { e.Handled = true; _searchCts?.Cancel(); _hex.Focus(); }
+            else if (e.Key == Key.Escape) { e.Handled = true; _findTimer.Stop(); _searchCts?.Cancel(); _hex.Focus(); }
         };
         _hex.CursorMoved += () =>
         {
-            if (!_revealingSearch) InvalidateSearch();
+            if (!_revealingSearch) InvalidateSearch(keepResult: true);
             if (_hex.CursorOffset != _lastCursor)
             {
                 _hex.PendingNibble = -1;
@@ -270,6 +282,7 @@ public sealed class HexEditorWindow : Window
         Closed += (_, _) =>
         {
             _closed = true;
+            _findTimer.Stop();
             _copyStop?.Cancel();
             _searchCts?.Cancel();
             _clipboardCts?.Cancel();
@@ -345,6 +358,7 @@ public sealed class HexEditorWindow : Window
         _hex.IsModified = _overlay.IsModified;
         _overlay.Changed += OnOverlayChanged;
         Title = WindowTitle();
+        ScheduleFind();
     }
 
     private void OnOverlayChanged(HexOverlayChange change)
@@ -358,6 +372,7 @@ public sealed class HexEditorWindow : Window
             _clipboardCts?.Cancel();
             _hex.ContentChanged();
             UpdateStatus();
+            ScheduleFind();
             UnsavedStateChanged?.Invoke();
         }
         // Edits from the keyboard update the cached page before the next frame; background changes are posted.
@@ -449,6 +464,15 @@ public sealed class HexEditorWindow : Window
         if (e.Key == Key.Escape && _clipboardCts is not null)
         {
             e.Handled = true; _clipboardCts.Cancel(); return;
+        }
+        if (e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None && _findOpen &&
+            focused is Visual findControl && _findBar.IsVisualAncestorOf(findControl))
+        {
+            e.Handled = true;
+            _findTimer.Stop();
+            if (_searchCts is not null) _searchCts.Cancel();
+            else { SetFindOpen(false); _hex.Focus(); }
+            return;
         }
         if (e.Key == Key.F6 && !ctrl && !alt)
         {
@@ -754,13 +778,27 @@ public sealed class HexEditorWindow : Window
         return long.TryParse(t, NumberStyles.Integer | NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out offset);
     }
 
-    private async Task FindAsync(bool forward)
+    private void ScheduleFind()
     {
+        _findTimer.Stop();
+        if (!_closed && !string.IsNullOrEmpty(_search.Text)) _findTimer.Start();
+    }
+
+    private Task FindAsync(bool forward) => FindCoreAsync(forward, automatic: false);
+
+    private async Task FindCoreAsync(bool forward, bool automatic)
+    {
+        _findTimer.Stop();
         if (_closed) return;
         var pattern = _search.Text ?? "";
         if (pattern.Length == 0) { SetFindOpen(true, focus: true); return; }
         byte[]? bytes = _hexSearch.IsChecked == true ? ContentSearch.ParseHex(pattern) : null;
-        if (_hexSearch.IsChecked == true && bytes is null) { Status("Hex search expects bytes such as \"4D 5A 90\"."); return; }
+        if (_hexSearch.IsChecked == true && bytes is null)
+        {
+            Status("Hex search expects bytes such as \"4D 5A 90\".");
+            ViewerSearchFeedback.Set(_search, null);
+            return;
+        }
         _searchCts?.Cancel();
         using var cts = _searchCts = new CancellationTokenSource();
         var ct = cts.Token;
@@ -768,39 +806,55 @@ public sealed class HexEditorWindow : Window
         var identity = (pattern, _hexSearch.IsChecked == true, _matchCase.IsChecked == true, _reader);
         // F3 again continues after (or before) the match that is still selected; otherwise the search starts at the cursor.
         bool continuing = _lastHit >= 0 && _lastSearch == identity && sel.Start == _lastHit && sel.Length == _lastHitLength;
-        long from = continuing ? (forward ? _lastHit + 1 : _lastHit) : _hex.CursorOffset;
+        long from = automatic ? 0 : continuing ? (forward ? _lastHit + 1 : _lastHit) : _hex.CursorOffset;
         bool matchCase = _matchCase.IsChecked == true;
         var reader = _reader;
         _stopSearch.IsVisible = true;
         Status($"Searching {(forward ? "forward" : "backward")} from 0x{from:X}… (Esc stops)");
         try
         {
-            long found = await Task.Run(() =>
+            (long found, bool wrapped, bool searchedWhole) = await Task.Run(() =>
             {
-                if (bytes is not null)
-                    return forward ? ContentSearch.FindBytes(reader, from, bytes, ct) : ContentSearch.FindBytesBackward(reader, from, bytes, ct);
-                if (forward) return ContentSearch.FindText(reader, s_latin1, from, pattern, matchCase, ct);
-                return ContentSearch.FindTextBackward(reader, s_latin1, from, pattern, matchCase, ct);
+                long SearchAt(long offset) => bytes is not null
+                    ? forward ? ContentSearch.FindBytes(reader, offset, bytes, ct)
+                        : ContentSearch.FindBytesBackward(reader, offset, bytes, ct)
+                    : forward ? ContentSearch.FindText(reader, s_latin1, offset, pattern, matchCase, ct)
+                        : ContentSearch.FindTextBackward(reader, s_latin1, offset, pattern, matchCase, ct);
+                long first = SearchAt(from);
+                if (first >= 0) return (first, false, false);
+                if (automatic || forward && from <= 0 || !forward && from >= reader.Length)
+                    return (-1L, false, true);
+                long around = SearchAt(forward ? 0 : reader.Length);
+                return (around, around >= 0, true);
             }, ct);
             if (_closed || !ReferenceEquals(_searchCts, cts) || !ReferenceEquals(reader, _reader)) return;
             ct.ThrowIfCancellationRequested();
             if (found < 0)
             {
-                Status($"\"{pattern}\" was not found {(forward ? "after" : "before")} the cursor.");
-                _hex.SetSearchFeedback($"No {(forward ? "later" : "earlier")} match. {_matchCount.Text}");
+                if (searchedWhole) _searchedWholeFileWithoutMatch = true;
+                ViewerSearchFeedback.Set(_search, _knownMatch ? true :
+                    _searchedWholeFileWithoutMatch ? false : null);
+                Status(searchedWhole ? $"\"{pattern}\" was not found in this file."
+                    : $"\"{pattern}\" was not found {(forward ? "after" : "before")} the cursor.");
+                _hex.SetSearchFeedback($"No match in this file. {_matchCount.Text}");
                 return;
             }
             _lastHit = found;
             _lastSearch = identity;
             _lastHitLength = bytes?.Length ?? s_latin1.GetByteCount(pattern);
             if (_observedMatches.Count < MaxObservedMatches) _observedMatches.Add(found);
+            _searchedWholeFileWithoutMatch = false;
+            _knownMatch = true;
+            ViewerSearchFeedback.Set(_search, true);
             UpdateMatchCount();
             _hex.SetSearchFeedback(_matchCount.Text, announce: false);
             _revealingSearch = true;
             try { _hex.GoTo(found, select: true, _lastHitLength); }
             finally { _revealingSearch = false; }
             _hex.Focus();
-            Status($"Found at 0x{found:X}. F3 finds the next match, Shift+F3 the previous one.");
+            Status(wrapped
+                ? $"Wrapped to {(forward ? "the beginning" : "the end")}. Found at 0x{found:X}."
+                : $"Found at 0x{found:X}. F3 finds the next match, Shift+F3 the previous one.");
         }
         catch (OperationCanceledException)
         {
@@ -824,14 +878,22 @@ public sealed class HexEditorWindow : Window
         }
     }
 
-    private void InvalidateSearch()
+    private void InvalidateSearch(bool keepResult = false)
     {
+        _findTimer.Stop();
         _searchCts?.Cancel();
         _searchCts = null;
         _stopSearch.IsVisible = false;
         _lastHit = -1;
         _lastSearch = null;
         _observedMatches.Clear();
+        if (!keepResult)
+        {
+            _searchedWholeFileWithoutMatch = false;
+            _knownMatch = false;
+        }
+        ViewerSearchFeedback.Set(_search, _knownMatch ? true :
+            _searchedWholeFileWithoutMatch ? false : null);
         _hex.SetSearchFeedback(null, announce: false);
         UpdateMatchCount();
     }
@@ -975,7 +1037,12 @@ public sealed class HexEditorWindow : Window
             ShowOverwritePrompt = false,
         });
         string? target = picked?.TryGetLocalPath();
-        if (target is null) return;
+        if (target is not null) await SaveAsToAsync(target);
+    }
+
+    internal async Task SaveAsToAsync(string target)
+    {
+        if (_closed || !CanEdit) return;
         if (File.Exists(target) || Directory.Exists(target))
         {
             await _dialogs.AlertAsync("Choose a new name", "Save As creates a new file and never replaces an existing one. Choose a name that does not exist yet.");
@@ -995,9 +1062,19 @@ public sealed class HexEditorWindow : Window
             var file = _file;
             var overlay = _overlay;
             var token = _copyStop.Token;
-            var result = await Task.Run(() => HexSaveAs.CreateNew(file, overlay, target, token, progress));
-            string notes = (result.Sparse ? " Unallocated ranges stayed sparse." : "") +
-                           " The new file has the default permissions of its folder; alternate data streams other than the download mark were not copied.";
+            HexSaveAsResult result;
+            using (var review = await Task.Run(() => HexSaveAs.Prepare(file, overlay, target), token))
+            {
+                const string efsContents = "The edited copy contains file bytes from EFS-protected inputs.";
+                string disclosure = file.IsSparse ? efsContents +
+                    " A destination without sparse-file support may allocate space for the entire file, including its holes." : efsContents;
+                if (!await ApproveHexOutputAsync(review, "Save an edited copy without EFS protection?",
+                    disclosure, "Save copy", token)) return;
+                result = await Task.Run(() => HexSaveAs.CreateNew(review, token, progress), token);
+            }
+            string notes = result.ExpandedSparseHoles ? " This destination required writing the source's holes and may use more disk space."
+                : result.Sparse && result.BytesWritten < file.Length ? " Unallocated ranges stayed sparse." : "";
+            notes += " The new file has the default permissions of its folder. Alternate data streams other than the download mark were skipped.";
             if (result.OriginMark == HexOriginMark.Lost)
                 await _dialogs.AlertAsync("Download mark lost",
                     "The original file is marked as downloaded from the internet, but the new location cannot store that mark (Mark-of-the-Web). Windows will not warn when the new file is opened.");
@@ -1006,7 +1083,7 @@ public sealed class HexEditorWindow : Window
         catch (OperationCanceledException) { Status("Save As stopped; the incomplete new file was removed. Your edits are still open."); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            await _dialogs.AlertAsync("Save As failed", ex.Message + "\n\nNo new file was created. Your edits are still open.");
+            if (!_closed) await _dialogs.AlertAsync("Save As failed", ex.Message + "\n\nYour edits are still open.");
         }
         finally
         {
@@ -1055,21 +1132,47 @@ public sealed class HexEditorWindow : Window
             FileTypeChoices = [new FilePickerFileType("FileCat hex patch") { Patterns = ["*.json"] }],
         });
         string? target = picked?.TryGetLocalPath();
-        if (target is null) return;
+        if (target is not null) await ExportPatchToAsync(target);
+    }
+
+    internal async Task ExportPatchToAsync(string target)
+    {
+        if (_closed || !CanEdit || _overlay.DirtyBytes == 0) return;
         SetSaving(true);
+        _copyStop = new CancellationTokenSource();
         try
         {
             var file = _file;
             var overlay = _overlay;
-            int ranges = overlay.SnapshotRanges().Count;
-            await Task.Run(() => HexPatchExport.Export(file, overlay, target));
+            var token = _copyStop.Token;
+            using var review = await Task.Run(() => HexPatchExport.Prepare(file, overlay, target), token);
+            if (!await ApproveHexOutputAsync(review, "Export patch without EFS protection?",
+                "This patch contains original and replacement file bytes from an edit that used EFS-protected inputs. Anyone who can read the patch can decode those bytes.",
+                "Export patch", token)) return;
+            int ranges = await Task.Run(() => HexPatchExport.Export(review, token), token);
             Status($"Exported {Formatters.Plural(ranges, "changed range", "changed ranges")} to {Path.GetFileName(target)}. The file itself was not changed; the edits are still unsaved.");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            await _dialogs.AlertAsync("Patch export failed", ex.Message);
+            if (!_closed) await _dialogs.AlertAsync("Patch export failed", ex.Message);
         }
-        finally { SetSaving(false); }
+        finally
+        {
+            _copyStop.Dispose();
+            _copyStop = null;
+            SetSaving(false);
+        }
+    }
+
+    private async Task<bool> ApproveHexOutputAsync(HexOutputReview review, string title, string contents, string action, CancellationToken ct)
+    {
+        if (!review.NeedsEfsConsent) return true;
+        bool approved = await _dialogs.ConfirmWithCancellationAsync(title,
+            $"{contents} The destination and its temporary sibling may both store those bytes without EFS protection.\n\nDestination\n{review.Destination}\n\nTemporary file\n{review.Temporary}\n\nIf FileCat is interrupted, the temporary file may remain in this folder.",
+            action, danger: true, cancellationToken: ct);
+        if (approved) review.ApproveEfsExport();
+        return approved;
     }
 
     private async Task ApplyPatchAsync()

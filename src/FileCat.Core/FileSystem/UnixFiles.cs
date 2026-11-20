@@ -15,6 +15,9 @@ public readonly record struct UnixStat(ulong Device, ulong Inode, bool IsLink, b
 
     /// <summary>The permission bits (the low 12 bits of the mode: set-ID, sticky, and read, write and execute).</summary>
     public uint Mode { get; init; }
+
+    /// <summary>The kernel-reported hard-link count (zero can describe an open anonymous file).</summary>
+    public uint LinkCount { get; init; }
 }
 
 /// <summary>
@@ -25,8 +28,8 @@ public readonly record struct UnixStat(ulong Device, ulong Inode, bool IsLink, b
 public static unsafe partial class UnixFiles
 {
     private const int AtFdCwd = -100, AtSymlinkNoFollow = 0x100, AtEmptyPath = 0x1000;
-    private const uint StatxType = 0x1, StatxMode = 0x2, StatxUid = 0x8, StatxCtime = 0x80, StatxIno = 0x100, StatxSize = 0x200;
-    private const uint StatxWanted = StatxType | StatxMode | StatxUid | StatxCtime | StatxIno | StatxSize;
+    private const uint StatxType = 0x1, StatxMode = 0x2, StatxNlink = 0x4, StatxUid = 0x8, StatxCtime = 0x80, StatxIno = 0x100, StatxSize = 0x200;
+    private const uint StatxWanted = StatxType | StatxMode | StatxNlink | StatxUid | StatxCtime | StatxIno | StatxSize;
     private const int TypeMask = 0xF000, TypeLink = 0xA000, TypeDirectory = 0x4000, TypeRegular = 0x8000;
 
     /// <summary>
@@ -35,7 +38,7 @@ public static unsafe partial class UnixFiles
     /// </summary>
     public static UnixStat? Stat(string path, bool followLinks = false)
     {
-        if (OperatingSystem.IsWindows()) return null;
+        if (OperatingSystem.IsWindows() || PathUtil.HasAmbiguousUnixName(path)) return null;
         byte* buffer = stackalloc byte[256];
         try
         {
@@ -57,14 +60,23 @@ public static unsafe partial class UnixFiles
     }
 
     /// <summary>The full path with every link resolved (realpath), or null when it does not exist or cannot be read.</summary>
-    public static string? RealPath(string path)
+    public static string? RealPath(string path) => RealPath(path, out _);
+
+    internal static string? RealPath(string path, out int error)
     {
-        if (OperatingSystem.IsWindows()) return null;
+        error = 0;
+        if (OperatingSystem.IsWindows() || PathUtil.HasAmbiguousUnixName(path)) return null;
         // PATH_MAX is 4096 on Linux and 1024 on macOS, the terminating zero included.
         byte* buffer = stackalloc byte[4096 + 1];
         try
         {
-            return RealPathNative(path, buffer) is null ? null : Marshal.PtrToStringUTF8((nint)buffer);
+            if (RealPathNative(path, buffer) is null)
+            {
+                error = Marshal.GetLastPInvokeError();
+                return null;
+            }
+            string? resolved = Marshal.PtrToStringUTF8((nint)buffer);
+            return resolved is not null && !PathUtil.HasAmbiguousUnixName(resolved) ? resolved : null;
         }
         catch (Exception ex) when (ex is EntryPointNotFoundException or DllNotFoundException)
         {
@@ -73,7 +85,9 @@ public static unsafe partial class UnixFiles
     }
 
     /// <summary>The file an open handle refers to, or null when the system cannot say.</summary>
-    public static UnixStat? Stat(SafeFileHandle handle)
+    public static UnixStat? Stat(SafeFileHandle handle) => StatHandle(handle);
+
+    internal static UnixStat? StatHandle(SafeHandle handle)
     {
         if (OperatingSystem.IsWindows()) return null;
         byte* buffer = stackalloc byte[256];
@@ -102,6 +116,7 @@ public static unsafe partial class UnixFiles
     public static SafeFileHandle OpenRegularFileForRead(string path)
     {
         if (OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        PathUtil.RefuseAmbiguousUnixName(path);
         int flags = OperatingSystem.IsMacOS() ? 4 | 16777216 : 2048 | 524288; // O_RDONLY(0) | O_NONBLOCK | O_CLOEXEC
         int fd = OpenReadOnly(path, flags);
         if (fd < 0) throw new IOException("The input file could not be opened.");
@@ -127,7 +142,7 @@ public static unsafe partial class UnixFiles
         return new UnixStat(device, *(ulong*)(b + 32), type == TypeLink, type == TypeDirectory,
             (long)*(ulong*)(b + 40), *(long*)(b + 96), *(uint*)(b + 104), (*(uint*)b & StatxCtime) != 0,
             type == TypeRegular)
-        { Owner = *(uint*)(b + 20), Mode = (uint)(*(ushort*)(b + 28) & 0xFFF) };
+        { Owner = *(uint*)(b + 20), Mode = (uint)(*(ushort*)(b + 28) & 0xFFF), LinkCount = *(uint*)(b + 16) };
     }
 
     // struct stat (64-bit inodes): i32 dev at 0, u16 mode at 4, u64 ino at 8, u32 uid at 16, ctimespec at 64, i64 size at 96.
@@ -136,7 +151,7 @@ public static unsafe partial class UnixFiles
         int type = *(ushort*)(b + 4) & TypeMask;
         return new UnixStat((uint)*(int*)b, *(ulong*)(b + 8), type == TypeLink, type == TypeDirectory,
             *(long*)(b + 96), *(long*)(b + 64), *(long*)(b + 72), true, type == TypeRegular)
-        { Owner = *(uint*)(b + 16), Mode = (uint)(*(ushort*)(b + 4) & 0xFFF) };
+        { Owner = *(uint*)(b + 16), Mode = (uint)(*(ushort*)(b + 4) & 0xFFF), LinkCount = *(ushort*)(b + 6) };
     }
 
     /// <summary>
@@ -183,7 +198,7 @@ public static unsafe partial class UnixFiles
         return best;
     }
 
-    [LibraryImport("libc", EntryPoint = "realpath", StringMarshalling = StringMarshalling.Utf8)]
+    [LibraryImport("libc", EntryPoint = "realpath", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial byte* RealPathNative(string path, byte* resolved);
 
     [LibraryImport("libc", EntryPoint = "open", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]

@@ -1,0 +1,8 @@
+{
+  "revision": "r1195",
+  "productAndFixtureRebuilt": false,
+  "archiveByteIdenticalTo": "r1194",
+  "archiveSha256": "ac128dac7acccc0363df78756280330d396c9f2cc5fad7f3dbd4afaf669adc64",
+  "runnerSha256": "d7676fa93b9d5e4727682318530fb4b756f0f43f1911cd61160e4a72ff1f2c0c",
+  "purpose": "Run all focused core/native/app preflights before broad suites"
+}

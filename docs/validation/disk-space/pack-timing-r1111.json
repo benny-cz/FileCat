@@ -1,0 +1,29 @@
+{
+  "revision": "r1111",
+  "renderRevision": "r1111",
+  "buildLog": ".tmp/comparison-interchange-build-r1111.txt",
+  "sourceManifest": ".tmp/source-candidate-r1111.json",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 29.7153076,
+  "archives": [
+    {
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r1111.tgz",
+      "platform": "mac",
+      "bytes": 55699313,
+      "sha256": "b8d5a6a2ea54ed73abeef70cf9cccf7d30083abc387200ab10721a08bab0cc8d"
+    },
+    {
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r1111.tgz",
+      "platform": "linux",
+      "bytes": 53035700,
+      "sha256": "e820781582960f86a94d5b646631e27946ed263f0cf6abc59a335c3545f924d9"
+    },
+    {
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r1111.tgz",
+      "platform": "windows",
+      "bytes": 94906835,
+      "sha256": "c1f6ddfd45a964513f0b65cc9cbd6b7213bc785cb27f0ec3a87d60f730fef9df"
+    }
+  ]
+}

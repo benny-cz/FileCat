@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native Mac compact eight-tab/large-text activation/input subset, not full accessibility or display qualification",
+  "state": "passed-native-subset",
+  "controlReport": "mac-native-tabs-control-r38.json",
+  "harnessReport": "mac-native-tabs-report-r38.json",
+  "beforeFix": "mac-native-tabs-before-fix-r37.json",
+  "framePoints": {
+    "height": 430,
+    "width": 380
+  },
+  "clientDip": {
+    "height": 402,
+    "width": 380
+  },
+  "renderScale": 2,
+  "fontSize": 20,
+  "headerMinimumHeight": 32,
+  "allEightHeadersInsideWindow": true,
+  "nativeActivationAndSelectedValues": true,
+  "actualPaddedPointerSelection": true,
+  "actualLeftArrowSelection": true,
+  "closedCaptionNotReused": true,
+  "sourcePathsUnchanged": 509,
+  "ownedProcessExited": true,
+  "deadlineClosed": false,
+  "limitations": [
+    "AXPress, native selected values and pointer/Left are a subset, not full VoiceOver or theme/DPI/multi-screen acceptance.",
+    "Ubuntu compact resize remains unachieved; its failed attempt closed the owned instance and is not accepted.",
+    "Complete native Windows input acceptance remains pending; all36 presentation cases pass in the VM."
+  ]
+}

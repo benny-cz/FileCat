@@ -56,8 +56,8 @@ internal static unsafe partial class NtFile
     /// Opens <paramref name="name"/> below <paramref name="root"/> (or an absolute NT path when root is null) and returns
     /// the NTSTATUS; <paramref name="handle"/> is invalid unless the status is a success.
     /// </summary>
-    public static int TryOpen(SafeFileHandle? root, string name, uint access, uint share, uint disposition, uint options,
-        out SafeFileHandle handle, uint fileAttributes = 0)
+    public static int TryOpen(SafeHandle? root, string name, uint access, uint share, uint disposition, uint options,
+        out SafeFileHandle handle, uint fileAttributes = 0, ReadOnlySpan<byte> securityDescriptor = default, bool caseSensitive = false)
     {
         if (name.Length == 0 || name.Length > 32766) throw new ArgumentException("Invalid name.", nameof(name));
         bool added = false;
@@ -65,6 +65,7 @@ internal static unsafe partial class NtFile
         {
             root?.DangerousAddRef(ref added);
             fixed (char* chars = name)
+            fixed (byte* security = securityDescriptor)
             {
                 var text = new UnicodeString { Length = (ushort)(name.Length * 2), MaximumLength = (ushort)(name.Length * 2), Buffer = chars };
                 var attributes = new ObjectAttributes
@@ -72,7 +73,8 @@ internal static unsafe partial class NtFile
                     Length = sizeof(ObjectAttributes),
                     RootDirectory = root?.DangerousGetHandle() ?? 0,
                     ObjectName = &text,
-                    Attributes = CaseInsensitive,
+                    Attributes = caseSensitive ? 0 : CaseInsensitive,
+                    SecurityDescriptor = (nint)security,
                 };
                 IoStatusBlock io;
                 int status = NtCreateFile(out nint raw, access, &attributes, &io, null, fileAttributes, share, disposition,
@@ -88,9 +90,9 @@ internal static unsafe partial class NtFile
     }
 
     public static SafeFileHandle OpenOrThrow(SafeFileHandle? root, string name, uint access, uint share, uint disposition, uint options,
-        string what, uint fileAttributes = 0)
+        string what, uint fileAttributes = 0, ReadOnlySpan<byte> securityDescriptor = default)
     {
-        int status = TryOpen(root, name, access, share, disposition, options, out var handle, fileAttributes);
+        int status = TryOpen(root, name, access, share, disposition, options, out var handle, fileAttributes, securityDescriptor);
         if (status < 0) throw Error(status, what);
         return handle;
     }
@@ -107,14 +109,14 @@ internal static unsafe partial class NtFile
         };
     }
 
-    public static BasicInfo GetBasic(SafeFileHandle handle)
+    public static BasicInfo GetBasic(SafeHandle handle)
     {
         BasicInfo info;
         if (!GetFileInformationByHandleEx(handle, 0, &info, (uint)sizeof(BasicInfo))) throw new Win32Exception(Marshal.GetLastPInvokeError());
         return info;
     }
 
-    public static void SetBasic(SafeFileHandle handle, BasicInfo info)
+    public static void SetBasic(SafeHandle handle, BasicInfo info)
     {
         if (!SetFileInformationByHandle(handle, 0, &info, (uint)sizeof(BasicInfo))) throw new Win32Exception(Marshal.GetLastPInvokeError());
     }
@@ -128,7 +130,7 @@ internal static unsafe partial class NtFile
     public static bool IsLinkTag(uint tag) => Core.FileSystem.ReparseLinks.IsLinkTag(tag);
 
     /// <summary>The open item's reparse tag, or 0 when it is no reparse point.</summary>
-    public static uint GetReparseTag(SafeFileHandle handle)
+    public static uint GetReparseTag(SafeHandle handle)
     {
         const int AttributeTagInfo = 9;
         AttributeTag info;
@@ -149,7 +151,11 @@ internal static unsafe partial class NtFile
 
     /// <summary>Names in a directory (without "." and ".."), read through the handle, never by path.</summary>
     public static List<(string Name, uint Attributes, uint ReparseTag)> List(SafeFileHandle directory)
+        =>List(directory,int.MaxValue,default);
+
+    public static List<(string Name, uint Attributes, uint ReparseTag)> List(SafeFileHandle directory,int maximum,CancellationToken ct)
     {
+        if(maximum<0)throw new ArgumentOutOfRangeException(nameof(maximum));
         const int FullDirectoryInfo = 14, FullDirectoryRestartInfo = 15, NoMoreFiles = 18;
         var result = new List<(string, uint, uint)>();
         var buffer = new byte[64 * 1024];
@@ -158,6 +164,7 @@ internal static unsafe partial class NtFile
         {
             while (true)
             {
+                ct.ThrowIfCancellationRequested();
                 if (!GetFileInformationByHandleEx(directory, first ? FullDirectoryRestartInfo : FullDirectoryInfo, start, (uint)buffer.Length))
                 {
                     int error = Marshal.GetLastPInvokeError();
@@ -167,16 +174,24 @@ internal static unsafe partial class NtFile
                 first = false;
                 for (int offset = 0; ;)
                 {
+                    ct.ThrowIfCancellationRequested();
+                    if(offset<0||offset>buffer.Length-68)throw new IOException("Invalid native directory entry.");
                     // FILE_FULL_DIR_INFO: attributes at 56, name length (bytes) at 60, then the EA size, which holds a
                     // reparse point's tag, at 64, and the name at 68.
                     byte* entry = start + offset;
                     uint attributes = *(uint*)(entry + 56);
                     int length = (int)*(uint*)(entry + 60);
+                    if(length<0||(length&1)!=0||length>buffer.Length-offset-68)throw new IOException("Invalid native directory name length.");
                     uint tag = IsReparsePoint(attributes) ? *(uint*)(entry + 64) : 0;
                     var name = new string((char*)(entry + 68), 0, length / 2);
-                    if (name is not ("." or "..")) result.Add((name, attributes, tag));
+                    if (name is not ("." or ".."))
+                    {
+                        if(result.Count>=maximum)throw new IOException("The native directory exceeds its entry budget.");
+                        result.Add((name, attributes, tag));
+                    }
                     int next = (int)*(uint*)entry;
                     if (next == 0) break;
+                    if(next<68+length||(next&7)!=0||next>buffer.Length-offset-68)throw new IOException("Invalid native directory entry offset.");
                     offset += next;
                 }
             }
@@ -216,7 +231,7 @@ internal static unsafe partial class NtFile
     /// Deletes the object behind the handle (opened with DELETE): the link itself for a link. POSIX semantics remove the
     /// name at once; volumes without them fall back to classic delete-on-close.
     /// </summary>
-    public static void DeleteOpen(SafeFileHandle handle)
+    public static void DeleteOpen(SafeHandle handle)
     {
         const int DispositionInfoEx = 21, DispositionInfo = 4;
         const uint Delete = 0x1, Posix = 0x2, IgnoreReadOnly = 0x10;
@@ -240,8 +255,9 @@ internal static unsafe partial class NtFile
     /// Renames or moves the object behind the handle to <paramref name="name"/> inside <paramref name="directory"/>.
     /// NtSetInformationFile takes the target folder as a handle (FILE_RENAME_INFORMATION.RootDirectory), so the
     /// destination is the folder already verified, not a path that could be swapped.
+    /// Pass a null directory and a simple leaf name to rename within the open object's own directory.
     /// </summary>
-    public static void Rename(SafeFileHandle handle, SafeFileHandle directory, string name, bool replace)
+    public static void Rename(SafeHandle handle, SafeHandle? directory, string name, bool replace)
     {
         const int RenameInformation = 10, RenameInformationEx = 65;
         const uint ReplaceIfExists = 0x1, Posix = 0x2, IgnoreReadOnly = 0x40;
@@ -252,10 +268,10 @@ internal static unsafe partial class NtFile
         bool added = false;
         try
         {
-            directory.DangerousAddRef(ref added);
+            directory?.DangerousAddRef(ref added);
             fixed (byte* start = buffer)
             {
-                *(nint*)(start + 8) = directory.DangerousGetHandle();
+                *(nint*)(start + 8) = directory?.DangerousGetHandle() ?? 0;
                 *(uint*)(start + 16) = (uint)(name.Length * 2);
                 fixed (char* chars = name) Buffer.MemoryCopy(chars, start + 20, size - 20, name.Length * 2);
                 IoStatusBlock io;
@@ -280,12 +296,12 @@ internal static unsafe partial class NtFile
         }
         finally
         {
-            if (added) directory.DangerousRelease();
+            if (added) directory!.DangerousRelease();
         }
     }
 
     [LibraryImport("ntdll.dll")]
-    private static partial int NtSetInformationFile(SafeFileHandle handle, IoStatusBlock* io, void* information, uint length, int informationClass);
+    private static partial int NtSetInformationFile(SafeHandle handle, IoStatusBlock* io, void* information, uint length, int informationClass);
 
     [LibraryImport("ntdll.dll")]
     private static partial int NtCreateFile(out nint handle, uint access, ObjectAttributes* attributes, IoStatusBlock* io,
@@ -296,9 +312,9 @@ internal static unsafe partial class NtFile
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool GetFileInformationByHandleEx(SafeFileHandle handle, int informationClass, void* buffer, uint size);
+    private static partial bool GetFileInformationByHandleEx(SafeHandle handle, int informationClass, void* buffer, uint size);
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool SetFileInformationByHandle(SafeFileHandle handle, int informationClass, void* buffer, uint size);
+    private static partial bool SetFileInformationByHandle(SafeHandle handle, int informationClass, void* buffer, uint size);
 }

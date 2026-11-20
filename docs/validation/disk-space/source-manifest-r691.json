@@ -1,0 +1,494 @@
+{
+  "purpose": "Captured namespace navigation, exact scoped mark counts and indexed table ranges",
+  "observedUtc": "2026-11-07T07:33:30.315315+00:00",
+  "gitBase": "5282517fe5e44c692d88a95d533542d4e06e8c0f",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Navigation.cs",
+      "sha256": "53b41e7b0b31fab0bc8dd68b6c60982fdc4d39689672d1739919e909240a82a2"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "05590d146b1b54f6a29d0a885fef500e2b3a605e7441744de5c6f23ad2878af5"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+      "sha256": "1291aa9867c6cbc4561214b8efc56e58e2413d79691d3a9fffa4f84b1f29336d"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedGrouping.cs",
+      "sha256": "01cbf6876d9d78d4768d033178d7b43c40e1592b1c890f53f6ace593b2f8f67e"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedSelection.cs",
+      "sha256": "b8192f2518ddb80c2bf143af20c96729051aeb495dd91071da0eb04545c3a5da"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetExplorer.cs",
+      "sha256": "7b3d07b834117f6a28b1ee1fe860410aad18088640248ace637378b734a14550"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Build.cs",
+      "sha256": "664fe178b575e22d27d470facf3f65aeaa80548287b568bc3ea40efeab52493f"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+      "sha256": "62053c7fdd8095337015c4ca50098e981c8d33ab45b3a8a9c227ae55ee1ce97d"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedFilter.cs",
+      "sha256": "fd7e2624223239ae442b3f142beda45053a1d9906d7e2b92d5a928b124932054"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.IndexedInventory.cs",
+      "sha256": "5b8f6831f433b5ef990c54d1f215c348d0bdf56f845537feb6db0d8e3ce9f3bd"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedCapturedFolder.cs",
+      "sha256": "8cc509c5b663e6776ddc172ea2d67edcc370321a71fea2fe644a0ae15ca1b10f"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedMarkVisibility.cs",
+      "sha256": "046fd93d6ae3c29c54195c411221923225eacbf0f218de52806bfb654c6b42db"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedRanges.cs",
+      "sha256": "d73fb9d3edaf1bcc1a89c9b2e464b0d52e27b0811c31e19c3082753536c8be78"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Range.cs",
+      "sha256": "4bc9b1de20355c613f0492408c4f0d2fd0957ae77865c8f1ff3df777e70a3c13"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Visibility.cs",
+      "sha256": "869c87218d0a1059022e85bd11ecc87a90281872163fd257fc29a7b6df99225b"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.Selection.cs",
+      "sha256": "78248863b9fae599c6a1cc609a9fa29a84fcc5a0aae3ddde7340ab6836777fe6"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSelectionVisibility.cs",
+      "sha256": "f5c773fcea6746f961f6304d5cdd7a45b3051fcaa29f869a23d71cfe0a92c9a1"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.ScopedSelection.cs",
+      "sha256": "2c4b85112a369c3d6eb3d6799a61e009d5cf8804beb5c857cc4a8b2071cffd1f"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.CapturedScope.cs",
+      "sha256": "0c984b3d7cd8272e8bd5f97211a3dc0da9c9a0df900b7f3cb1c8c1cfae327cb8"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r688.txt",
+      "sha256": "fd6ce6eaeeadf2f599b52da5fa44c057b95a9a0c5240e60279fb9058ca4ac8ab"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r689-core-r689.xml",
+      "sha256": "1578feb9285b0828fb61217707354151b435a0aebd300b84455e62da28353d69"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r689-core-r689.log",
+      "sha256": "6d8fe9707909564b5ce529f0806ddd17dced4bd112e458a74ae8cfd38b57ca45"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r689-render-r689.xml",
+      "sha256": "20f5fac222309f6061cd60f77c47305dacd38128904a48cda763909f5dc1f2f7"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r689-render-r689.log",
+      "sha256": "57026554f7e4c0663e2d5aba136f9aac60af74e0494597025e7e5fee0af7bfef"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r689-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r689-post.json",
+      "sha256": "a611945db380f7e913bb124e7eabebd1aba50a9d9520c965911e171b5b96638d"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r689-core-r689.xml",
+      "sha256": "be009f32ab4e6b823c50c0613389bf74d092d0d7a2335753ac49c0c45303550b"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r689-core-r689.log",
+      "sha256": "09aaa356251ed1912e327d5cf413e452c7ed5daed6d7a1849b24fbb6efbf9774"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r689-render-r689.xml",
+      "sha256": "53db6c85f3ad6e2579cffdad7c9b8cf6864331e8a0e0db3928d9679ea8a7c59f"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r689-render-r689.log",
+      "sha256": "41e437e73c265a4411b4bec46040a9d0bf058d4c140b8fa7d1f728804a2577a1"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r689-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r689-post.json",
+      "sha256": "7f2e31784f02cf278f814122d07c0592c0ebf28fe6d69f303a9c71688185253f"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r689-core-r689.xml",
+      "sha256": "ebde4714bb82d1f9478e2dcbacf009b18e9b373a301cb5e43a1c638f5278cd34"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r689-core-r689.log",
+      "sha256": "2138a3e3d963cc6cb2c528303e491990f1e40afb84601bf2b7b13df5357f52f2"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r689-native-r689.xml",
+      "sha256": "effb73dd1eceffc430d0d5a4de4334649853d5ce34043393232f2704a1294598"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r689-native-r689.log",
+      "sha256": "84fcc629c5ba1b7f22ba67dbd7f27657863b8e66fc07907dd6bcffd1337b5a44"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r689-render-r689.xml",
+      "sha256": "3cd9d3b11cc73bc4cee7efbe1b236e3712a210ab7befc77f1a34716383ebe7d4"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r689-render-r689.log",
+      "sha256": "6557ae6887f1c5259950f3e503594493f24768fcdf8ed0b391cf4cb35814f0c8"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r689-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r689-post.json",
+      "sha256": "1c884c3fb2e0cf8b344f7c5748c541d4784a0b475bda0471f41097541766d2d9"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r689.sh",
+      "sha256": "2cb6e80bc4aa2b04d2730483ed35429b8457fbda502efdf49d54f8406969a198"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r689.sh",
+      "sha256": "5e2d7ffb19c59c2b629e08017f73ca72b183d095342943bcf0bd55f26f9d82f5"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r689.ps1",
+      "sha256": "d95a297d0e3232f96f4d3c1272daa79b6910100cdd208773020a71d69536ca19"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r689.tgz",
+      "sha256": "3f8c0a141ec54c63b99d6ead810f11347faada6df0f95f6d8da6fd3e604cbb98"
+    },
+    {
+      "name": "dsa-batch-linux-r689.tgz",
+      "sha256": "794a04227eb94bbffbec97d56f360fe9931be471ccd37f59fdfd927180e1f6c0"
+    },
+    {
+      "name": "dsa-batch-windows-r689.tgz",
+      "sha256": "37ea1a9261ef1a2d868e7f239382ca75d5f221c80967cd9fa35858ff75831191"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r689": "798dffe9a07a79375cc783cfe8047e98afb836e3d3bcde52f293b49e61c7069e",
+    "native-r689": "798dffe9a07a79375cc783cfe8047e98afb836e3d3bcde52f293b49e61c7069e",
+    "render-r690-mac": "798dffe9a07a79375cc783cfe8047e98afb836e3d3bcde52f293b49e61c7069e",
+    "render-r690-linux": "798dffe9a07a79375cc783cfe8047e98afb836e3d3bcde52f293b49e61c7069e",
+    "render-r690-windows": "798dffe9a07a79375cc783cfe8047e98afb836e3d3bcde52f293b49e61c7069e"
+  },
+  "productionAppHashes": {
+    "render-r690-mac": "f1ed1c80f8fc26477a951d373d28c5e169ccc3a3895f7eb67c019a52bfd58fdd",
+    "render-r690-linux": "f1ed1c80f8fc26477a951d373d28c5e169ccc3a3895f7eb67c019a52bfd58fdd",
+    "render-r690-windows": "f1ed1c80f8fc26477a951d373d28c5e169ccc3a3895f7eb67c019a52bfd58fdd"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r689": "3aae88dbceb91180a9959a079224c22e5e1cd57871516c543123d7a6315f2cd4",
+    "render-r690-mac": "3aae88dbceb91180a9959a079224c22e5e1cd57871516c543123d7a6315f2cd4",
+    "render-r690-linux": "3aae88dbceb91180a9959a079224c22e5e1cd57871516c543123d7a6315f2cd4",
+    "render-r690-windows": "3aae88dbceb91180a9959a079224c22e5e1cd57871516c543123d7a6315f2cd4"
+  },
+  "matrix": {
+    "mac-batch-r689-core-r689.xml": {
+      "total": "968",
+      "passed": "964",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "25.104"
+    },
+    "mac-batch-r689-render-r689.xml": {
+      "total": "173",
+      "passed": "173",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "54.817"
+    },
+    "ubuntu-batch-r689-core-r689.xml": {
+      "total": "968",
+      "passed": "964",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "63.718"
+    },
+    "ubuntu-batch-r689-render-r689.xml": {
+      "total": "173",
+      "passed": "173",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "75.017"
+    },
+    "windows-batch-r689-core-r689.xml": {
+      "total": "986",
+      "passed": "938",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "25.058"
+    },
+    "windows-batch-r689-native-r689.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "35.781"
+    },
+    "windows-batch-r689-render-r689.xml": {
+      "total": "173",
+      "passed": "172",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "89.708"
+    }
+  },
+  "targetedControls": {
+    "mac": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeLocateAndRangesMatchEverySortedHierarchyRow(metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeLocateAndRangesMatchEverySortedHierarchyRow(metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeLocateAndRangesMatchEverySortedHierarchyRow(metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeLocateAndRangesMatchEverySortedHierarchyRow(metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: FileType, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: FileType, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: FileType, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: FileType, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: Extension, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: Extension, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: Extension, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: Extension, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: ModifiedAge, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: ModifiedAge, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: ModifiedAge, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: ModifiedAge, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: CapturedLocation, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: CapturedLocation, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: CapturedLocation, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: CapturedLocation, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeHierarchyCountsUseExactRecordedAncestryAndMissingIds(filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeHierarchyCountsUseExactRecordedAncestryAndMissingIds(filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: FileType, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: FileType, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: Extension, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: Extension, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: ModifiedAge, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: ModifiedAge, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: CapturedLocation, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: CapturedLocation, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeDirectoryReferencesAndEmptyFoldersAreNotMistakenForFilteredOutFiles",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeCanceledCountsAndRangesRetainActualQueuedWorkAndCloseAdmission(grouped: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeCanceledCountsAndRangesRetainActualQueuedWorkAndCloseAdmission(grouped: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeVisibilityRemainsAvailableAfterOriginalOwnersCloseWithoutAnySourceConnection",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeEmptyFilterKeepsExcludedNamespaceRowsVisible"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeHiddenMarksCanBeReviewedAndUnmarkedWithoutChangingTheBasket",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeHiddenBasketEntryClearsItsFilterExplicitlyWhenShowingTheRecordedFolder",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeDirectoryAllocationEnterExploresItsRecordedFolderInBothStoragePaths(indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeDirectoryAllocationEnterExploresItsRecordedFolderInBothStoragePaths(indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeKeyboardRangesCrossPagesAndShrinkWithoutLosingOutsideMarksOrBasket(grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeKeyboardRangesCrossPagesAndShrinkWithoutLosingOutsideMarksOrBasket(grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopePendingFolderNavigationRetainsANewerTextDraftButShowsItsActualLocationChoice",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeRapidMarkChangesPublishOnlyTheLatestCountsAndCloseAllWork",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeFolderNavigationFindsTheSortedEntryAfterTheLiveSourceMoves(dimension: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeFolderNavigationFindsTheSortedEntryAfterTheLiveSourceMoves(dimension: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeFolderNavigationFindsTheSortedEntryAfterTheLiveSourceMoves(dimension: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeFolderNavigationFindsTheSortedEntryAfterTheLiveSourceMoves(dimension: CapturedLocation)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeGroupOverviewRangeCannotImplicitlyExpandAccountingRows"
+      ]
+    },
+    "ubuntu": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeHierarchyCountsUseExactRecordedAncestryAndMissingIds(filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeHierarchyCountsUseExactRecordedAncestryAndMissingIds(filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeVisibilityRemainsAvailableAfterOriginalOwnersCloseWithoutAnySourceConnection",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: FileType, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: FileType, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: FileType, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: FileType, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: Extension, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: Extension, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: Extension, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: Extension, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: ModifiedAge, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: ModifiedAge, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: ModifiedAge, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: ModifiedAge, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: CapturedLocation, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: CapturedLocation, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: CapturedLocation, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: CapturedLocation, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeEmptyFilterKeepsExcludedNamespaceRowsVisible",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeCanceledCountsAndRangesRetainActualQueuedWorkAndCloseAdmission(grouped: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeCanceledCountsAndRangesRetainActualQueuedWorkAndCloseAdmission(grouped: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: FileType, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: FileType, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: Extension, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: Extension, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: ModifiedAge, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: ModifiedAge, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: CapturedLocation, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: CapturedLocation, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeLocateAndRangesMatchEverySortedHierarchyRow(metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeLocateAndRangesMatchEverySortedHierarchyRow(metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeLocateAndRangesMatchEverySortedHierarchyRow(metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeLocateAndRangesMatchEverySortedHierarchyRow(metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeDirectoryReferencesAndEmptyFoldersAreNotMistakenForFilteredOutFiles"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopePendingFolderNavigationRetainsANewerTextDraftButShowsItsActualLocationChoice",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeKeyboardRangesCrossPagesAndShrinkWithoutLosingOutsideMarksOrBasket(grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeKeyboardRangesCrossPagesAndShrinkWithoutLosingOutsideMarksOrBasket(grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeGroupOverviewRangeCannotImplicitlyExpandAccountingRows",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeHiddenMarksCanBeReviewedAndUnmarkedWithoutChangingTheBasket",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeFolderNavigationFindsTheSortedEntryAfterTheLiveSourceMoves(dimension: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeFolderNavigationFindsTheSortedEntryAfterTheLiveSourceMoves(dimension: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeFolderNavigationFindsTheSortedEntryAfterTheLiveSourceMoves(dimension: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeFolderNavigationFindsTheSortedEntryAfterTheLiveSourceMoves(dimension: CapturedLocation)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeHiddenBasketEntryClearsItsFilterExplicitlyWhenShowingTheRecordedFolder",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeDirectoryAllocationEnterExploresItsRecordedFolderInBothStoragePaths(indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeDirectoryAllocationEnterExploresItsRecordedFolderInBothStoragePaths(indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeRapidMarkChangesPublishOnlyTheLatestCountsAndCloseAllWork"
+      ]
+    },
+    "windows": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeDirectoryReferencesAndEmptyFoldersAreNotMistakenForFilteredOutFiles",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeEmptyFilterKeepsExcludedNamespaceRowsVisible",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeCanceledCountsAndRangesRetainActualQueuedWorkAndCloseAdmission(grouped: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeCanceledCountsAndRangesRetainActualQueuedWorkAndCloseAdmission(grouped: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: FileType, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: FileType, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: Extension, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: Extension, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: ModifiedAge, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: ModifiedAge, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: CapturedLocation, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupCountsSeparateFiltersOtherGroupsMissingAndDirectoryContext(dimension: CapturedLocation, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: FileType, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: FileType, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: FileType, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: FileType, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: Extension, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: Extension, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: Extension, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: Extension, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: ModifiedAge, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: ModifiedAge, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: ModifiedAge, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: ModifiedAge, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: CapturedLocation, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: CapturedLocation, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: CapturedLocation, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeGroupRangesMatchSortedMemberPagesWithoutExpandingSyntheticGroups(dimension: CapturedLocation, metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeLocateAndRangesMatchEverySortedHierarchyRow(metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeLocateAndRangesMatchEverySortedHierarchyRow(metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeLocateAndRangesMatchEverySortedHierarchyRow(metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeLocateAndRangesMatchEverySortedHierarchyRow(metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeHierarchyCountsUseExactRecordedAncestryAndMissingIds(filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeHierarchyCountsUseExactRecordedAncestryAndMissingIds(filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.CapturedScopeVisibilityRemainsAvailableAfterOriginalOwnersCloseWithoutAnySourceConnection"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeHiddenMarksCanBeReviewedAndUnmarkedWithoutChangingTheBasket",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeKeyboardRangesCrossPagesAndShrinkWithoutLosingOutsideMarksOrBasket(grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeKeyboardRangesCrossPagesAndShrinkWithoutLosingOutsideMarksOrBasket(grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeGroupOverviewRangeCannotImplicitlyExpandAccountingRows",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeRapidMarkChangesPublishOnlyTheLatestCountsAndCloseAllWork",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeHiddenBasketEntryClearsItsFilterExplicitlyWhenShowingTheRecordedFolder",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeDirectoryAllocationEnterExploresItsRecordedFolderInBothStoragePaths(indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeDirectoryAllocationEnterExploresItsRecordedFolderInBothStoragePaths(indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeFolderNavigationFindsTheSortedEntryAfterTheLiveSourceMoves(dimension: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeFolderNavigationFindsTheSortedEntryAfterTheLiveSourceMoves(dimension: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeFolderNavigationFindsTheSortedEntryAfterTheLiveSourceMoves(dimension: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopeFolderNavigationFindsTheSortedEntryAfterTheLiveSourceMoves(dimension: CapturedLocation)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CapturedScopePendingFolderNavigationRetainsANewerTextDraftButShowsItsActualLocationChoice"
+      ]
+    }
+  },
+  "newCoreControls": 35,
+  "newRenderingControls": 13,
+  "excludedAttempts": [
+    "r683: successful implementation-only build; superseded by complete controls before guest deployment.",
+    "r684/r685 (manifest r687): full applicable batches passed35 Core and12 window controls all three; superseded by published location-choice reconciliation when a newer text draft is preserved, plus a13th window case.",
+    "r689 Mac/Ubuntu initial verify attempts declined as busy before extraction/testing; fresh authoritative process probes were empty and the same immutable staged runners then completed without another transfer."
+  ],
+  "failedAttempt": null,
+  "finalBuild": "build-r688.txt: full solution zero warnings/errors",
+  "testScope": "Actual guest runtimes, native private inventory/captured fixtures and source movement; synthetic exact query/scope/order controls and headless windows/input/closure plus existing full applicable suites. Physical desktop/accessibility/DPI and full1M/10M/private-memory/resource qualification remain pending.",
+  "batchWorkflow": "One immutable bundle/platform, sequential applicable suites with integrity/per-phase process gates and one final collection/completed machine.",
+  "ownedProcessExitEvidence": "All original runners terminal; FINISHED exit=0 states and authoritative final inventories contain no owned instances. Foreign testers left alone. No host app/input tests.",
+  "foreignProcessesObserved": {
+    "mac": [],
+    "ubuntu": [],
+    "windows": []
+  },
+  "qualification": {
+    "indexedCapturedFolderNavigationImplemented": true,
+    "sortedCapturedEntryLocationQualifiedAllThree": true,
+    "capturedFolderNavigationAfterNativeSourceMovesPassedAllThree": true,
+    "hiddenEntryFilterClearExplained": true,
+    "pendingDraftRetainsTextButReconcilesPublishedLocationChoice": true,
+    "directoryAllocationMemberEnterExploresCapturedFolderInBothStoragePaths": true,
+    "indexedMarkCountsSeparateScopeFilterElsewhereAndMissing": true,
+    "groupVisibilityUsesBoundedPrivateIndex": true,
+    "indexedReviewMarkedIncludesHiddenEntries": true,
+    "indexedCrossPageShiftHomeEndControlsPassedAllThree": true,
+    "sortedCoreRangeAndPositionControlsPassedAllThree": true,
+    "countsAndRangesRetainActualQueuedWork": true,
+    "latestMarkCountsCoalescedThroughActualCompletion": true,
+    "emptyIndexedFilterKeepsNamespaceRowsVisible": true,
+    "newControlsPassedAllThree": true,
+    "memoryFullHiddenMarkCountsAndReviewMarkedQualified": false,
+    "fullIndexedPointerAndKeyboardRangeQualification": false,
+    "hierarchyAllMatchingMembersCaptureImplemented": false,
+    "deferredSelectAllAfterScanImplemented": false,
+    "indexedOtherExactSubsetParityQualified": false,
+    "indexedSaveUiImplemented": false,
+    "ownerComparisonVolumeGroupingImplemented": false,
+    "nativeDesktopGroupingQualified": false,
+    "fullResourceGateQualified": false,
+    "fullMillionTenMillionGroupingQualificationComplete": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  },
+  "retainedSupersededPasses": [
+    {
+      "path": "docs/validation/disk-space/source-manifest-r687.json",
+      "sha256": "016625f2d31b68bbe8e5a694027b095b9d9dbdcaa37ec2811cdce1367e0fbb3f",
+      "reason": "Passed full35/12 batch; superseded by pending-draft/location control reconciliation and13th window case."
+    }
+  ]
+}

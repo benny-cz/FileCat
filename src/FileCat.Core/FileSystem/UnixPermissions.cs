@@ -17,7 +17,8 @@ public static unsafe partial class UnixPermissions
 
     public const UnixFileMode AnyExecute = UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute;
 
-    private const UnixFileMode OwnerAll = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+    internal const string StickyDirectoryRestriction = "The sticky bit additionally restricts deletion and rename to the entry owner, directory owner or an appropriately privileged process, subject to other access checks.";
+    internal const string SetIdSuppression = "Mount options such as nosuid, process settings such as no_new_privs, and other execution rules can suppress privilege changes.";
 
     /// <summary>"rwxr-xr-x"; set-ID and sticky bits show as s/S and t/T in the execute places, as <c>ls</c> prints them.</summary>
     public static string Format(UnixFileMode mode)
@@ -82,11 +83,11 @@ public static unsafe partial class UnixPermissions
         source & (Access | Special) & ~(isDirectory ? UnixFileMode.SetUser : UnixFileMode.SetUser | UnixFileMode.SetGroup);
 
     /// <summary>
-    /// The mode a copy is created with while FileCat fills it: no wider than the source for group and others, and full
-    /// access for the owner (the final mode follows once it is complete).
+    /// The mode a copy is created with while FileCat fills it: owner-only until the source's final mode and ACL
+    /// are applied. Mode bits alone cannot represent a named-user deny rule.
     /// </summary>
-    public static UnixFileMode WhileCopying(UnixFileMode source, bool isDirectory) =>
-        (source & Access & ~OwnerAll) | UnixFileMode.UserRead | UnixFileMode.UserWrite | (isDirectory ? UnixFileMode.UserExecute : 0);
+    public static UnixFileMode WhileCopying(bool isDirectory) =>
+        UnixFileMode.UserRead | UnixFileMode.UserWrite | (isDirectory ? UnixFileMode.UserExecute : 0);
 
     /// <summary>
     /// Gives a folder FileCat created as a copy the mode it should have: <paramref name="final"/> once its contents are in,
@@ -98,7 +99,7 @@ public static unsafe partial class UnixPermissions
         try
         {
             var mode = File.GetUnixFileMode(source);
-            File.SetUnixFileMode(target, final ? ForCopy(mode, isDirectory: true) : WhileCopying(mode, isDirectory: true));
+            File.SetUnixFileMode(target, final ? ForCopy(mode, isDirectory: true) : WhileCopying(isDirectory: true));
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -128,7 +129,7 @@ public static unsafe partial class UnixPermissions
         const int AtFdCwd = -100, AtSymlinkNoFollow = 0x100;
         const uint Wanted = 0x1 | 0x2 | 0x8 | 0x10; // STATX_TYPE | STATX_MODE | STATX_UID | STATX_GID
         byte* buffer = stackalloc byte[256];
-        if (Statx(AtFdCwd, path, AtSymlinkNoFollow, Wanted, buffer) != 0) return null;
+        if (Statx(AtFdCwd, path, AtSymlinkNoFollow | 0x800, Wanted, buffer) != 0) return null; // AT_NO_AUTOMOUNT
         return ((UnixFileMode)(*(ushort*)(buffer + 28) & 0xFFF), *(uint*)(buffer + 20), *(uint*)(buffer + 24));
     }
 

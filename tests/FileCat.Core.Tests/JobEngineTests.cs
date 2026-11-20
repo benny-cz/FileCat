@@ -53,6 +53,25 @@ public sealed class JobEngineTests : IDisposable
     }
 
     [Fact]
+    public async Task Reviewed_root_contents_copy_uses_explicit_folder_name_without_touching_source()
+    {
+        string proof = Path.Combine(_src, "proof.txt");
+        File.WriteAllText(proof, "owned drive-root copy proof");
+        string before = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(proof)));
+        var root = new ItemRef(Location.FileSystem(_src), string.Empty, EntryKind.Directory);
+        var job = await WaitAsync(_jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Copy, Sources = [root], Destination = Location.FileSystem(_dst), NewName = "Drive X",
+        }));
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal(["Drive X"], Directory.GetDirectories(_dst).Select(Path.GetFileName));
+        string copied = Path.Combine(_dst, "Drive X", "proof.txt");
+        Assert.True(File.Exists(copied));
+        Assert.Equal(before, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(proof))));
+        Assert.Equal(before, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(copied))));
+    }
+
+    [Fact]
     public void Queue_move_only_changes_eligible_queued_order_and_preserves_sync_plan_steps()
     {
         _jobs.MaxConcurrent = 0; // Hold all requests in the queue without relying on timing or a large file.
@@ -355,13 +374,53 @@ public sealed class JobEngineTests : IDisposable
         var big = Path.Combine(_src, "big.bin");
         using (var fs = new FileStream(big, FileMode.Create)) fs.SetLength(200L * 1024 * 1024);
         var job = Submit(JobKind.Copy, [big], _dst, o => o.RateLimit = 5 * 1024 * 1024);
-        while (job.BytesDone == 0 && !job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
-        job.Cancel();
-        await WaitAsync(job);
+        await CancelAfterFirstProgress(job);
         Assert.Equal(JobState.Canceled, job.State);
         Assert.False(File.Exists(Path.Combine(_dst, "big.bin")));
         Assert.Empty(Directory.GetFiles(_dst));
         Assert.True(File.Exists(big));
+    }
+
+    [Fact]
+    public async Task Cancellation_fixture_reports_startup_error_and_retires_its_job()
+    {
+        string source = Path.Combine(_src, "refused.txt");
+        File.WriteAllText(source, "preserve the fixture source");
+        var jobs = new JobManager(new RefusingFixtureCopy(), _providers, Path.Combine(_dir.Path, "refused-journal"));
+        var job = jobs.Submit(new JobRequest { Kind = JobKind.Copy, Sources = [Item(source)], Destination = Location.FileSystem(_dst) });
+        var error = await Assert.ThrowsAsync<IOException>(() => CancelAfterFirstProgress(job));
+        Assert.Contains("Controlled fixture copy startup failure", error.Message);
+        Assert.Equal(JobState.Canceled, job.State);
+        Assert.Empty(Directory.GetFiles(_dst));
+        Assert.Equal("preserve the fixture source", File.ReadAllText(source));
+    }
+
+    private sealed class RefusingFixtureCopy : PortableFileOperations
+    {
+        public override void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct)
+            => throw new IOException("Controlled fixture copy startup failure.");
+    }
+
+    private static async Task CancelAfterFirstProgress(Job job)
+    {
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            while (job.BytesDone == 0 && !job.State.IsFinished())
+            {
+                if (job.Decision is { } decision)
+                    throw new IOException($"The cancellation fixture could not start copying: {decision.Request.Message}");
+                if (started.Elapsed > TimeSpan.FromSeconds(30))
+                    throw new TimeoutException($"The cancellation fixture made no copy progress; job is {job.State}.");
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            }
+            Assert.True(job.BytesDone > 0, $"The copy finished without reaching the cancellation checkpoint: {job.State}.");
+        }
+        finally
+        {
+            job.Cancel();
+            await WaitAsync(job);
+        }
     }
 
     [Fact]

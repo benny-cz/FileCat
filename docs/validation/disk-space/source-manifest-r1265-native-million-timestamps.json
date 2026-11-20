@@ -1,0 +1,576 @@
+{
+  "productRevision": "r1250",
+  "nativeFixtureRevision": "r1252",
+  "sourcePacket": "source-manifest-r1253-runtime-capacity-health.json",
+  "sourcePacketSha256": "19817c3672dd893355218feadd211aeaed6c05979ef9c9f79388db4296d19651",
+  "productSourceSnapshotSha256": "739380f3ccfe515e5c329f6ed5d29528c6a2a66864b62b43a369f610fdc43304",
+  "mergedMainIntegrationIncluded": false,
+  "matrix": {
+    "windows/wide": {
+      "purpose": "Real native filesystem acquisition, retained indexed exploration and actual owner cleanup; headless UI is not physical input qualification",
+      "count": 1000000,
+      "shape": "wide",
+      "phase": "closed",
+      "completed": true,
+      "cleanup": true,
+      "phases": [
+        {
+          "phase": "fixture",
+          "seconds": 0.2069525
+        },
+        {
+          "phase": "logical-baseline",
+          "seconds": 60.9133038
+        },
+        {
+          "phase": "native-acquisition",
+          "seconds": 464.6622369
+        },
+        {
+          "phase": "verify-captured-paths",
+          "seconds": 5.878103
+        },
+        {
+          "phase": "hierarchy-sort-charts",
+          "seconds": 184.6521407
+        },
+        {
+          "phase": "filtered-unique",
+          "seconds": 235.7186434
+        },
+        {
+          "phase": "extension-grouping",
+          "seconds": 531.30671
+        },
+        {
+          "phase": "actual-close",
+          "seconds": 0.2771705
+        }
+      ],
+      "paths": 1000001,
+      "sourceCloseFailures": 0,
+      "progressReports": 674,
+      "reusedSource": true,
+      "retainedSource": "C:\\FileCatDsa20261104R2\\batch-r1181\\retained-fixtures\\native-5e515a7094c640bfad6f56a33b2b1d34\\source",
+      "firstObservationMilliseconds": 1605.7015,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": 67448832,
+      "sampledPeakPrivateIncrementBytes": 183943168,
+      "privateMemoryBudgetVerified": true,
+      "sampledPeakWorkingSetIncrementBytes": 180674560,
+      "nativePhysicalMemory": {
+        "available": false,
+        "complete": false,
+        "basis": "Maximum of macOS proc_pid_rusage current footprint samples and kernel lifetime peaks, which are gathered separately; distinct from committed private bytes",
+        "nativeLayoutControlSha256": null,
+        "baselineBytes": null,
+        "baselineLifetimePeakBytes": null,
+        "lifetimePeakBytes": null,
+        "lifetimePeakIncrementBytes": null,
+        "sampledPeakCurrentBytes": null,
+        "observedPeakBytes": null,
+        "observedPeakIncrementBytes": null,
+        "nonAtomicCounterPairs": 0,
+        "maximumCurrentAboveEarlierPeakBytes": 0,
+        "withinPhysicalReferenceCeiling": false,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": "This additional physical-footprint counter is macOS-specific."
+      },
+      "remainingSharedQuotaBytes": 0,
+      "failure": null
+    },
+    "windows/deep": {
+      "purpose": "Real native filesystem acquisition, retained indexed exploration and actual owner cleanup; headless UI is not physical input qualification",
+      "count": 1000000,
+      "shape": "deep",
+      "phase": "closed",
+      "completed": true,
+      "cleanup": true,
+      "phases": [
+        {
+          "phase": "fixture",
+          "seconds": 0.1795221
+        },
+        {
+          "phase": "logical-baseline",
+          "seconds": 60.1841408
+        },
+        {
+          "phase": "native-acquisition",
+          "seconds": 1519.4150557
+        },
+        {
+          "phase": "verify-captured-paths",
+          "seconds": 7.5696378
+        },
+        {
+          "phase": "hierarchy-sort-charts",
+          "seconds": 196.9705251
+        },
+        {
+          "phase": "filtered-unique",
+          "seconds": 236.1799662
+        },
+        {
+          "phase": "extension-grouping",
+          "seconds": 517.9207606
+        },
+        {
+          "phase": "actual-close",
+          "seconds": 0.3015155
+        }
+      ],
+      "paths": 1000033,
+      "sourceCloseFailures": 0,
+      "progressReports": 3832,
+      "reusedSource": true,
+      "retainedSource": "C:\\FileCatDsa20261104R2\\batch-r1181\\retained-fixtures\\native-5e515a7094c640bfad6f56a33b2b1d34\\source",
+      "firstObservationMilliseconds": 1139.1511,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": 67448832,
+      "sampledPeakPrivateIncrementBytes": 214593536,
+      "privateMemoryBudgetVerified": true,
+      "sampledPeakWorkingSetIncrementBytes": 172814336,
+      "nativePhysicalMemory": {
+        "available": false,
+        "complete": false,
+        "basis": "Maximum of macOS proc_pid_rusage current footprint samples and kernel lifetime peaks, which are gathered separately; distinct from committed private bytes",
+        "nativeLayoutControlSha256": null,
+        "baselineBytes": null,
+        "baselineLifetimePeakBytes": null,
+        "lifetimePeakBytes": null,
+        "lifetimePeakIncrementBytes": null,
+        "sampledPeakCurrentBytes": null,
+        "observedPeakBytes": null,
+        "observedPeakIncrementBytes": null,
+        "nonAtomicCounterPairs": 0,
+        "maximumCurrentAboveEarlierPeakBytes": 0,
+        "withinPhysicalReferenceCeiling": false,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": "This additional physical-footprint counter is macOS-specific."
+      },
+      "remainingSharedQuotaBytes": 0,
+      "failure": null
+    },
+    "mac/wide": {
+      "purpose": "Real native filesystem acquisition, retained indexed exploration and actual owner cleanup; headless UI is not physical input qualification",
+      "count": 1000000,
+      "shape": "wide",
+      "phase": "closed",
+      "completed": true,
+      "cleanup": true,
+      "phases": [
+        {
+          "phase": "fixture",
+          "seconds": 0.0168916
+        },
+        {
+          "phase": "logical-baseline",
+          "seconds": 21.3189375
+        },
+        {
+          "phase": "native-acquisition",
+          "seconds": 153.4075859
+        },
+        {
+          "phase": "verify-captured-paths",
+          "seconds": 2.0722623
+        },
+        {
+          "phase": "hierarchy-sort-charts",
+          "seconds": 74.6801422
+        },
+        {
+          "phase": "filtered-unique",
+          "seconds": 64.201394
+        },
+        {
+          "phase": "extension-grouping",
+          "seconds": 406.1363289
+        },
+        {
+          "phase": "actual-close",
+          "seconds": 0.0471339
+        }
+      ],
+      "paths": 1000001,
+      "sourceCloseFailures": 0,
+      "progressReports": 197,
+      "reusedSource": true,
+      "retainedSource": "/Users/benny/FileCatValidation/dsa-batch-20261107-r1182/retained-fixtures/native-20737c85917441a4ac76f67a59c7596e/source",
+      "firstObservationMilliseconds": 574.3412,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": null,
+      "sampledPeakPrivateIncrementBytes": null,
+      "privateMemoryBudgetVerified": false,
+      "sampledPeakWorkingSetIncrementBytes": 274186240,
+      "nativePhysicalMemory": {
+        "available": true,
+        "complete": true,
+        "basis": "Maximum of macOS proc_pid_rusage current footprint samples and kernel lifetime peaks, which are gathered separately; distinct from committed private bytes",
+        "nativeLayoutControlSha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c",
+        "baselineBytes": 91718592,
+        "baselineLifetimePeakBytes": 91718592,
+        "lifetimePeakBytes": 357696664,
+        "lifetimePeakIncrementBytes": 265978072,
+        "sampledPeakCurrentBytes": 356533400,
+        "observedPeakBytes": 357696664,
+        "observedPeakIncrementBytes": 265978072,
+        "nonAtomicCounterPairs": 0,
+        "maximumCurrentAboveEarlierPeakBytes": 0,
+        "withinPhysicalReferenceCeiling": true,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": null
+      },
+      "remainingSharedQuotaBytes": 0,
+      "failure": null
+    },
+    "mac/deep": {
+      "purpose": "Real native filesystem acquisition, retained indexed exploration and actual owner cleanup; headless UI is not physical input qualification",
+      "count": 1000000,
+      "shape": "deep",
+      "phase": "closed",
+      "completed": true,
+      "cleanup": true,
+      "phases": [
+        {
+          "phase": "fixture",
+          "seconds": 0.0165689
+        },
+        {
+          "phase": "logical-baseline",
+          "seconds": 22.0957195
+        },
+        {
+          "phase": "native-acquisition",
+          "seconds": 248.0395343
+        },
+        {
+          "phase": "verify-captured-paths",
+          "seconds": 2.0761336
+        },
+        {
+          "phase": "hierarchy-sort-charts",
+          "seconds": 74.8886595
+        },
+        {
+          "phase": "filtered-unique",
+          "seconds": 64.8326227
+        },
+        {
+          "phase": "extension-grouping",
+          "seconds": 408.7130642
+        },
+        {
+          "phase": "actual-close",
+          "seconds": 0.0404097
+        }
+      ],
+      "paths": 1000033,
+      "sourceCloseFailures": 0,
+      "progressReports": 555,
+      "reusedSource": true,
+      "retainedSource": "/Users/benny/FileCatValidation/dsa-batch-20261107-r1189/retained-fixtures/native-2a600486c59f474daa481a9a8c439f52/source",
+      "firstObservationMilliseconds": 572.8955,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": null,
+      "sampledPeakPrivateIncrementBytes": null,
+      "privateMemoryBudgetVerified": false,
+      "sampledPeakWorkingSetIncrementBytes": 263553024,
+      "nativePhysicalMemory": {
+        "available": true,
+        "complete": true,
+        "basis": "Maximum of macOS proc_pid_rusage current footprint samples and kernel lifetime peaks, which are gathered separately; distinct from committed private bytes",
+        "nativeLayoutControlSha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c",
+        "baselineBytes": 91046800,
+        "baselineLifetimePeakBytes": 91046800,
+        "lifetimePeakBytes": 338822248,
+        "lifetimePeakIncrementBytes": 247775448,
+        "sampledPeakCurrentBytes": 336036968,
+        "observedPeakBytes": 338822248,
+        "observedPeakIncrementBytes": 247775448,
+        "nonAtomicCounterPairs": 0,
+        "maximumCurrentAboveEarlierPeakBytes": 0,
+        "withinPhysicalReferenceCeiling": true,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": null
+      },
+      "remainingSharedQuotaBytes": 0,
+      "failure": null
+    },
+    "ubuntu/wide": {
+      "purpose": "Real native filesystem acquisition, retained indexed exploration and actual owner cleanup; headless UI is not physical input qualification",
+      "count": 1000000,
+      "shape": "wide",
+      "phase": "closed",
+      "completed": true,
+      "cleanup": true,
+      "phases": [
+        {
+          "phase": "fixture",
+          "seconds": 0.0325181
+        },
+        {
+          "phase": "logical-baseline",
+          "seconds": 7.732933
+        },
+        {
+          "phase": "native-acquisition",
+          "seconds": 192.1195279
+        },
+        {
+          "phase": "verify-captured-paths",
+          "seconds": 4.3551467
+        },
+        {
+          "phase": "hierarchy-sort-charts",
+          "seconds": 122.8253967
+        },
+        {
+          "phase": "filtered-unique",
+          "seconds": 135.8626064
+        },
+        {
+          "phase": "extension-grouping",
+          "seconds": 629.1201922
+        },
+        {
+          "phase": "actual-close",
+          "seconds": 0.1989804
+        }
+      ],
+      "paths": 1000001,
+      "sourceCloseFailures": 0,
+      "progressReports": 99,
+      "reusedSource": true,
+      "retainedSource": "/home/benny/FileCatValidation/dsa-batch-20261107-r1181/retained-fixtures/native-82b33723670e41ab9697f94dc46c06cf/source",
+      "firstObservationMilliseconds": 706.3178,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": 163000320,
+      "sampledPeakPrivateIncrementBytes": 269283328,
+      "privateMemoryBudgetVerified": true,
+      "sampledPeakWorkingSetIncrementBytes": 223690752,
+      "nativePhysicalMemory": {
+        "available": false,
+        "complete": false,
+        "basis": "Maximum of macOS proc_pid_rusage current footprint samples and kernel lifetime peaks, which are gathered separately; distinct from committed private bytes",
+        "nativeLayoutControlSha256": null,
+        "baselineBytes": null,
+        "baselineLifetimePeakBytes": null,
+        "lifetimePeakBytes": null,
+        "lifetimePeakIncrementBytes": null,
+        "sampledPeakCurrentBytes": null,
+        "observedPeakBytes": null,
+        "observedPeakIncrementBytes": null,
+        "nonAtomicCounterPairs": 0,
+        "maximumCurrentAboveEarlierPeakBytes": 0,
+        "withinPhysicalReferenceCeiling": false,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": "This additional physical-footprint counter is macOS-specific."
+      },
+      "remainingSharedQuotaBytes": 0,
+      "failure": null
+    },
+    "ubuntu/deep": {
+      "purpose": "Real native filesystem acquisition, retained indexed exploration and actual owner cleanup; headless UI is not physical input qualification",
+      "count": 1000000,
+      "shape": "deep",
+      "phase": "closed",
+      "completed": true,
+      "cleanup": true,
+      "phases": [
+        {
+          "phase": "fixture",
+          "seconds": 0.0339897
+        },
+        {
+          "phase": "logical-baseline",
+          "seconds": 19.7427847
+        },
+        {
+          "phase": "native-acquisition",
+          "seconds": 229.774275
+        },
+        {
+          "phase": "verify-captured-paths",
+          "seconds": 4.9902508
+        },
+        {
+          "phase": "hierarchy-sort-charts",
+          "seconds": 145.228999
+        },
+        {
+          "phase": "filtered-unique",
+          "seconds": 125.8919015
+        },
+        {
+          "phase": "extension-grouping",
+          "seconds": 639.1622427
+        },
+        {
+          "phase": "actual-close",
+          "seconds": 0.1158617
+        }
+      ],
+      "paths": 1000033,
+      "sourceCloseFailures": 0,
+      "progressReports": 144,
+      "reusedSource": true,
+      "retainedSource": "/home/benny/FileCatValidation/dsa-batch-20261107-r1185/retained-fixtures/native-9d8e22d135a644e88ce7f0d550a248d5/source",
+      "firstObservationMilliseconds": 776.9124,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": 166375424,
+      "sampledPeakPrivateIncrementBytes": 244183040,
+      "privateMemoryBudgetVerified": true,
+      "sampledPeakWorkingSetIncrementBytes": 200257536,
+      "nativePhysicalMemory": {
+        "available": false,
+        "complete": false,
+        "basis": "Maximum of macOS proc_pid_rusage current footprint samples and kernel lifetime peaks, which are gathered separately; distinct from committed private bytes",
+        "nativeLayoutControlSha256": null,
+        "baselineBytes": null,
+        "baselineLifetimePeakBytes": null,
+        "lifetimePeakBytes": null,
+        "lifetimePeakIncrementBytes": null,
+        "sampledPeakCurrentBytes": null,
+        "observedPeakBytes": null,
+        "observedPeakIncrementBytes": null,
+        "nonAtomicCounterPairs": 0,
+        "maximumCurrentAboveEarlierPeakBytes": 0,
+        "withinPhysicalReferenceCeiling": false,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": "This additional physical-footprint counter is macOS-specific."
+      },
+      "remainingSharedQuotaBytes": 0,
+      "failure": null
+    }
+  },
+  "allThreeNativeMillionWideDeepPassed": true,
+  "allSourcePathsVerified": true,
+  "actualOwnerClosureAndZeroQuota": true,
+  "macCommittedPrivateBudgetQualified": false,
+  "strict256MiBReleaseBudgetQualified": false,
+  "tenMillionQualified": false,
+  "globalMultiSessionBudgetQualified": false,
+  "firstVisibleReleaseBudgetQualified": false,
+  "physicalDesktopAccessibilityQualified": false,
+  "publicFeatureRegistered": false,
+  "fullGoalComplete": false,
+  "finalIndependentReviewPerformed": false,
+  "receiptFiles": [
+    {
+      "path": "mac-batch-r1252-post.json",
+      "sha256": "44303f7f7de2c4af49562a56ba00f035a90bdab4fa4769f20ae95f7b3b941993"
+    },
+    {
+      "path": "mac-batch-r1252-results.tgz",
+      "sha256": "60f800efa58a9318f7825eeba5b3d3331bfde24e411dac476120d81ff7facee3"
+    },
+    {
+      "path": "ubuntu-batch-r1252-post.json",
+      "sha256": "d2e053f3d9c8b0affc3614ce0050f46135f320ae09f7c53229978d9039df3844"
+    },
+    {
+      "path": "ubuntu-batch-r1252-results.tgz",
+      "sha256": "abb6306d6e9f652d1672f257621263d6d5c781adeba2e7d0408abea637856fca"
+    },
+    {
+      "path": "windows-batch-r1252-post.json",
+      "sha256": "b69b4fc65eaf1f62c5e62ed897a868ef3fe5f26f491e49d259b3c3fa08e65a8b"
+    },
+    {
+      "path": "windows-batch-r1252-results.tgz",
+      "sha256": "757c2c73b2c2c0192ac5c472c39f914d0cb0b7cc8f42adba214b687b7d6cda50"
+    }
+  ],
+  "workflowFiles": [
+    {
+      "path": ".tmp/batch-linux-r1252.sh",
+      "sha256": "7ec960fd5a8c6b584bc841787771c68abd32aeca4164dc59788bc040356b25f5"
+    },
+    {
+      "path": ".tmp/batch-mac-r1252.sh",
+      "sha256": "ef218ba7c67605ceedb3fe70516342f46fa5e7867da5ef1f9f875531076e4129"
+    },
+    {
+      "path": ".tmp/batch-windows-r1252.ps1",
+      "sha256": "c1efb289ae9b0056420f6478d842d4a83740d71d917e18b533c17fef139ca773"
+    },
+    {
+      "path": ".tmp/cached-native-million-proof-r1252.json",
+      "sha256": "ba2c02921ebee8ff896d8f4db7d55514d5370e78d2674b7ca34a48f563ad906a"
+    },
+    {
+      "path": ".tmp/cached-native-r1252-linux/plan.json",
+      "sha256": "ce94ec24e07eb50257614d621c5995e9ebd17a9dcd351f6fe36703cdf655f4c1"
+    },
+    {
+      "path": ".tmp/cached-native-r1252-mac/native-counter-layout.json",
+      "sha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c"
+    },
+    {
+      "path": ".tmp/cached-native-r1252-mac/plan.json",
+      "sha256": "967b442fa252603f760bed1582be5ede3f1698514292977503900fe903e5ee2d"
+    },
+    {
+      "path": ".tmp/cached-native-r1252-windows/plan.json",
+      "sha256": "aa963d183ea1a4a95025d4e20d74e6c982dc0845f5c0f88c55cfc3bf35adf754"
+    },
+    {
+      "path": ".tmp/runtime-capacity-health-proof-r1250.json",
+      "sha256": "8c4285ab671c1c027f38126f6070a9849b0a5ca7036cddb1ac17260644c983d6"
+    },
+    {
+      "path": ".tmp/windows-retained-fixture-observed-r1251.json",
+      "sha256": "50d911c06935c394d15bc23e7b9e204fed496b3c2c79e0bc0e524bb51e7b8cd8"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/cached-native-million-r1252.py",
+      "sha256": "0af58e77ba5bbcc9c6be4f0075a96e28829be3532f7599b0c74f6d02439cb0f3"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/cached-native-million-template-r1252.ps1",
+      "sha256": "0a169278ec5d5065081c56e786902e54e90015804286f5f4ffa35ba8470ec129"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/collect-native-million-r1252.ps1",
+      "sha256": "e613aab8cda6d16f204d5a70ea6be86c54e366dd45c53b2d4b603377def8d528"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/deploy-batch.ps1",
+      "sha256": "a268e46a28e72314f96501cf3b4afd9642b7dc745f1d220f8b76df41f4089000"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/finalize-native-million-timestamps-r1265.py",
+      "sha256": "1e90eab89f304464c5356213da2dca4f89228173838563079442ba8b39472716"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/flatten-retained-native-fixture-r1252.ps1",
+      "sha256": "38067d8ce202fd98294e7a599d734b1fbac6eb75d123efcd3f11e331075397b6"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/preflight-indexed-r732.ps1",
+      "sha256": "bb69544f9c7e1309400c9f771c15fc74d11fab070cd51b8f1da6d0f2d0995d40"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-cached-native-million-r1252.py",
+      "sha256": "6a9203a5149be6c2153c4adb3cca86946a0c416643d7e7a77bd3b84afba28729"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/validate-native-optimization-r1184.py",
+      "sha256": "580f7de928b35fca3aba83187ae32dc78eeda22407f46745eb0459dc5685aa7e"
+    }
+  ],
+  "archives": [
+    {
+      "path": "exact-receipts-r1265-native-million-timestamps.tgz",
+      "sha256": "b20e36a2a4ffa2fe21b7d3c8d3fc628922e2fe5215ab455112e938d8288fc427",
+      "bytes": 11049
+    },
+    {
+      "path": "exact-workflow-r1265-native-million-timestamps.tgz",
+      "sha256": "e0afe7a9cff8980cead8c344d108961ed41e78cfc57abcd39bfbd55d37aaee50",
+      "bytes": 275641
+    }
+  ]
+}

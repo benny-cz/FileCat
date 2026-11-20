@@ -1,0 +1,9 @@
+{
+  "observedUtc": "2026-11-07T19:06:15.6321458Z",
+  "exitCode": 0,
+  "filecatOrDotnet": [
+    "pid=6888, owner=DESKTOP-A60F1NE\\fcarchive42829297, cmd=dotnet.exe",
+    "pid=6228, owner=DESKTOP-A60F1NE\\fcarchive42829297, cmd=FileCat.Core.Tests.exe",
+    "pid=6268, owner=, cmd=dotnet.exe"
+  ]
+}

@@ -325,6 +325,30 @@ public sealed class FtpIntegrationTests : IDisposable
 {
     private readonly string _state = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-ftp-state", Guid.NewGuid().ToString("N")[..8])).FullName;
 
+    [Fact]
+    public void Missing_FTPS_transfer_reply_retires_the_control_connection_before_retry()
+    {
+        using var server = TestFtpServer.TryStart(TestFtpServer.SelfSigned("FileCat missing FTPS reply").Pem);
+        if (server is null) Assert.Skip("The owned FTPS test server is unavailable.");
+        var ct = TestContext.Current.CancellationToken;
+        var profile = server.Profile(RemoteProtocols.FtpExplicitTls);
+        using var connections = Connections(profile, new FtpInteraction { CertificateAnswer = HostKeyDecision.AcceptOnce });
+        FtpChannel retired;
+        using (var lease = connections.Lease(profile.Id, ct))
+        {
+            retired = Assert.IsType<FtpChannel>(lease.Channel);
+            // The control socket remains open, but a server with no final reply sends nothing here.
+            var elapsed = Stopwatch.StartNew();
+            Assert.Null(retired.ReplyAfterBreak());
+            Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(15), $"The missing reply took {elapsed.Elapsed}.");
+            Assert.False(retired.IsConnected);
+        }
+
+        using var retry = connections.Lease(profile.Id, ct);
+        Assert.NotSame(retired, retry.Channel);
+        Assert.Empty(retry.Channel.List("/", ct));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

@@ -1,0 +1,15 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+    FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSelectionCheckboxAndSpaceToggleCapturedRealRowsWithoutExpandingAccountingGroups [FAIL]
+      Assert.True() Failure
+      Expected: True
+      Actual:   False
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedSelection.cs(113,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSelectionCheckboxAndSpaceToggleCapturedRealRowsWithoutExpandingAccountingGroups()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedSelection.cs(118,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSelectionCheckboxAndSpaceToggleCapturedRealRowsWithoutExpandingAccountingGroups()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedSelection.cs(118,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSelectionCheckboxAndSpaceToggleCapturedRealRowsWithoutExpandingAccountingGroups()
+        --- End of stack trace from previous location ---
+  Finished:    FileCat.Rendering.Tests (ID = 'a3d883c77e4acd4e06e584198cec8c677f391cdc1dcba133ae1428a1e02abf5b')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 159, Errors: 0, Failed: 1, Skipped: 0, Not Run: 0, Time: 73.858s

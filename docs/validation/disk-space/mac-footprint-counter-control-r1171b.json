@@ -1,0 +1,1 @@
+{"counter":"proc_pid_rusage/RUSAGE_INFO_V4 physical footprint","structBytes":296,"footprintOffset":72,"lifetimePeakOffset":240,"pageBytes":16384,"touchedBytes":67108864,"before":1114544,"touched":68256224,"released":1114544,"lifetimePeak":68256224,"passed":true}

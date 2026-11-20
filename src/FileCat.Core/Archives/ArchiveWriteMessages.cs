@@ -1,0 +1,177 @@
+using FileCat.Core.Jobs;
+
+namespace FileCat.Core.Archives;
+
+/// <summary>
+/// The plan's user-facing text for a controlled archive refusal (§11.7). "Not saved" and "no replacement was published"
+/// are only said where the job had not yet reached publication; once saving may have begun, the text says what is known.
+/// The technical message is kept as issue details.
+/// </summary>
+public static class ArchiveWriteMessages
+{
+    internal const string UserMessageKey = "FileCat.ArchiveUserMessage";
+
+    internal static void ReportSparseInputs(Job job, string archivePath) => job.AddIssue(new(IssueSeverity.Warning, archivePath,
+        "The archive stores the logical bytes of sparse files without their hole layout. Extracting them may use more disk space than the originals.",
+        StepOutcome.Committed) { TargetPath = archivePath, TargetIsLocal = true, CommittedEffect = "Archive saved." });
+
+
+    public static string ForUser(ArchiveWriteException error, ArchiveWriteFormat? format, ArchiveJobPhase? phase)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+        if (phase == ArchiveJobPhase.FinishingSafely)
+            return "The archive was saved, but a follow-up step did not finish. Review the operation details before continuing.";
+        if (phase == ArchiveJobPhase.Saving)
+            return error.Reason == ArchiveWriteReason.PublicationUnavailable ? error.Message : Ambiguous;
+        // A full drive surfaces through whichever step was writing (the stage, a sidecar or the worker transport).
+        if (IsOutOfSpace(error)) return OutOfSpace;
+        if (IsDriveError(error)) return DriveError;
+        return error.Reason switch
+        {
+            ArchiveWriteReason.SourceChanged =>
+                "The archive changed while this update was being prepared. Your changes were not saved. Refresh and review the update again.",
+            ArchiveWriteReason.InvalidArchive => "The archive is damaged or inconsistent. FileCat did not save an update.",
+            ArchiveWriteReason.UnsupportedFeature =>
+                $"This {Name(format)} contains metadata FileCat cannot preserve when saving. It is read-only here. You can still extract supported files with F5.",
+            ArchiveWriteReason.BudgetExceeded =>
+                "This archive needs more memory or expanded data than FileCat currently allows for writing. It remains read-only.",
+            ArchiveWriteReason.WorkerUnavailable or ArchiveWriteReason.ProtocolViolation or ArchiveWriteReason.VerificationFailed =>
+                "FileCat stopped processing this archive safely. No replacement was published.",
+            ArchiveWriteReason.NeedsReview => Ambiguous,
+            _ => error.Message,
+        };
+    }
+
+    /// <summary>A file with another hard link is not archived or updated: its other names would silently diverge.</summary>
+    internal static ArchiveWriteException HardLinked(string path)
+    {
+        var error = new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "A retained archive binding requires a single-link regular object: " + path);
+        error.Data[UserMessageKey] = HardLinkedText(path);
+        return error;
+    }
+
+    /// <summary>What the user is told about an archive with another hard link (also before any job, by a target probe).</summary>
+    internal static string HardLinkedText(string path) =>
+        $"\u201c{Path.GetFileName(path)}\u201d has another hard link (a second name for the same file), which FileCat does not " +
+            "archive or update. Nothing was changed.";
+
+    /// <summary>
+    /// Another object took a new archive's name between the review and the exclusive claim. The claim is a no-replace rename
+    /// that the system refused, so nothing at that name changed and the new archive was never published; the transaction's
+    /// own objects stay for its discard. Saving had begun, so the text states exactly that instead of the generic outcome.
+    /// </summary>
+    internal static ArchiveWriteException NameTaken(string leaf, Exception? inner = null)
+    {
+        var error = new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable,
+            $"Another file named “{leaf}” appeared while the archive was being prepared. That file was kept and the new archive " +
+            "was not saved. Choose another name, then try again.", inner!);
+        error.Data[UserMessageKey] = error.Message;
+        return error;
+    }
+
+    /// <summary>Marks a refusal raised before any object was created, so no artifact review or reconciliation applies.</summary>
+    internal const string NothingCreatedKey = "FileCat.ArchiveNothingCreated";
+
+    /// <summary>
+    /// Marks a failure during saving that the journal proves never published anything: the original is untouched, so the
+    /// text is the one before saving, never "could not confirm which version".
+    /// </summary>
+    internal const string NothingPublishedKey = "FileCat.ArchiveNothingPublished";
+
+    /// <summary>
+    /// The phase that decides the wording. A refusal at the publication boundary that durable facts prove never published
+    /// anything (for example the space review just before the content snapshot, or a refused exchange) is worded as one
+    /// before saving: the original is untouched, so "could not confirm which version" would be false.
+    /// </summary>
+    internal static ArchiveJobPhase? WordingPhase(ArchiveJobPhase? phase, Exception error) =>
+        error.Data[NothingPublishedKey] is true ? null : phase;
+
+    /// <summary>
+    /// The destination folder refused FileCat's first private object (permissions, a read-only mount or medium). Raised only
+    /// where that creation failed, so a denied source file is never reported as a denied destination.
+    /// </summary>
+    internal static ArchiveWriteException DestinationDenied(string folder, Exception? inner = null, bool readOnly = false)
+    {
+        string name = Path.GetFileName(Path.TrimEndingDirectorySeparator(folder));
+        var error = new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, "The destination folder refused a new file: " + folder, inner!);
+        // A read-only drive or medium (EROFS, a write-protected medium): its permissions are not what refused.
+        error.Data[UserMessageKey] = readOnly
+            ? $"“{(name.Length == 0 ? folder : name)}” is on a drive that is read-only now. Nothing was changed. " +
+              "Choose another folder, or check the drive and make it writable first."
+            : $"FileCat is not allowed to create files in “{(name.Length == 0 ? folder : name)}”. Nothing was changed. " +
+              "Choose another folder, or change this folder's permissions first.";
+        error.Data[NothingCreatedKey] = true;
+        return error;
+    }
+
+    internal const string OutOfSpace =
+        "The drive ran out of space before the archive was saved, so no archive was changed. Free up space or choose another destination, then try again.";
+
+    /// <summary>
+    /// For a raw IO failure that escaped as itself rather than as a typed refusal. Only a full drive or quota gets the
+    /// plan's text, and only before saving began; anything else keeps its own message.
+    /// </summary>
+    internal static string? ForUser(IOException error, ArchiveJobPhase? phase) =>
+        phase is ArchiveJobPhase.Saving or ArchiveJobPhase.FinishingSafely ? null
+            : IsOutOfSpace(error) ? OutOfSpace
+            // A drive error under a step's own wrapper, such as a stage folder whose creation could not be made durable.
+            : IsDriveError(error) ? DriveError : null;
+
+    /// <summary>
+    /// True when the exception or one of its causes carries the operating system's out-of-space or quota error:
+    /// ENOSPC/EDQUOT (raw errno in <see cref="Exception.HResult"/> on Unix) or ERROR_DISK_FULL, ERROR_HANDLE_DISK_FULL and
+    /// ERROR_DISK_QUOTA_EXCEEDED on Windows.
+    /// </summary>
+    internal static bool IsOutOfSpace(Exception? error)
+    {
+        for (int depth = 0; error is not null && depth < 8; depth++)
+        {
+            if (error is IOException io && IsOutOfSpaceCode(io.HResult)) return true;
+            if (error is AggregateException aggregate && aggregate.InnerExceptions.Any(IsOutOfSpace)) return true;
+            error = error.InnerException;
+        }
+        return false;
+    }
+
+    private static bool IsOutOfSpaceCode(int code) => OperatingSystem.IsWindows()
+        ? code is unchecked((int)0x80070070) or unchecked((int)0x80070027) or unchecked((int)0x8007050F)
+        : code == 28 /* ENOSPC */ || code == (OperatingSystem.IsMacOS() ? 69 : 122) /* EDQUOT */;
+
+    /// <summary>AT08: the drive itself failed (a write or flush returned an I/O error) before the archive was saved.</summary>
+    internal const string DriveError =
+        "The drive reported an error before the archive was saved, so no archive was changed. Check the drive, then try again.";
+
+    /// <summary>The same once saving may have begun: what is at the archive path is not known to be complete.</summary>
+    internal const string DriveErrorDuringSave =
+        "The drive reported an error while the archive was being saved. Check the drive, and review the archive before continuing.";
+
+    /// <summary>
+    /// True when the exception or one of its causes carries a Unix device error, EIO (raw errno in
+    /// <see cref="Exception.HResult"/>, as .NET and FileCat's native layer keep it). A read-only file system (EROFS) is not
+    /// one: a medium mounted read-only gives it too, and the destination refusal words it.
+    /// </summary>
+    internal static bool IsDriveError(Exception? error)
+    {
+        if (OperatingSystem.IsWindows()) return false;
+        for (int depth = 0; error is not null && depth < 8; depth++)
+        {
+            if (error is IOException { HResult: 5 /* EIO */ }) return true;
+            if (error is AggregateException aggregate && aggregate.InnerExceptions.Any(IsDriveError)) return true;
+            error = error.InnerException;
+        }
+        return false;
+    }
+
+    private const string Ambiguous =
+        "FileCat could not confirm which version is now at the archive path. Both available versions were kept. Review these files before continuing.";
+
+    private static string Name(ArchiveWriteFormat? format) => format switch
+    {
+        ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd => "TAR",
+        ArchiveWriteFormat.SevenZip => "7z archive",
+        ArchiveWriteFormat.Rar5 => "RAR archive",
+        ArchiveWriteFormat.Zip => "ZIP",
+        ArchiveWriteFormat.Gzip or ArchiveWriteFormat.Bzip2 or ArchiveWriteFormat.Zstd => "compressed file",
+        _ => "archive",
+    };
+}

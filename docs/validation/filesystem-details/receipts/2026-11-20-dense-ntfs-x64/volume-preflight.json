@@ -1,0 +1,12 @@
+{
+    "attached":  true,
+    "imageSize":  81604378624,
+    "devicePath":  "\\\\.\\PhysicalDrive2",
+    "backingLength":  339738624,
+    "volumeLabel":  "FCATDENSE",
+    "volumeTotal":  81587580928,
+    "volumeFree":  81447231488,
+    "guestCFree":  78646562816,
+    "cloudFilter":  true,
+    "filters":  "Instances for S: volume:\n\nFilter                  Altitude        Instance Name       Frame   SprtFtrs  VlStatus\n--------------------  ------------  ----------------------  -----   --------  --------\nFsDepends                407000     FsDepends                 0     0000000f  \nUCPD                     385250.5   UCPD - Top Instance       0     0000000f  \napplockerfltr            265000     def                       0     0000000f  \nCldFlt                   180451     CldFlt                    0     0000000f  \nbfs                      150000     bfs                       0     0000000f  \nFileInfo                  40500     FileInfo                  0     0000000f  "
+}

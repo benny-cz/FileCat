@@ -1,0 +1,54 @@
+[
+  {
+    "path": "src/FileCat.App/Services/AnalysisOwnedStoreAccess.cs",
+    "sha256": "5f884c3de31a169e797012177cff35e0b71f8e9216813ca01159cdd58f6635a2"
+  },
+  {
+    "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Persistence.cs",
+    "sha256": "0d34fc8dcb2ce14a8dbd9647e2b50353c92eb9119527b219ad771d4fb5fb5792"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+    "sha256": "63bc0120661a220f8cbd7599eda856af2016a38fc21c4c86dbd8fe2946d0c7f1"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedPersistence.cs",
+    "sha256": "f1c778de99bea6f0a392ddbf2b853a5fe148a8c5c0c401c5d712ccfdb1c30552"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Persistence.cs",
+    "sha256": "3d68ee3d20fa0a6a6549dc50dfab9827a9115430cbbd5b29d3a5ccb9d5630755"
+  },
+  {
+    "path": "src/FileCat.App/Views/SavedAnalysisInspectionPanel.cs",
+    "sha256": "82f691c8b3c65dc58f2e077656399dd95ff13201da4bd4b9cbffc71b1d4d3697"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisInventoryInspection.cs",
+    "sha256": "f5c2c388af49df45abf2d21afbbdb1061d9ba5f6b1c99c7ec57fbd95385ad7c1"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPrivateInventoryStore.Borrow.cs",
+    "sha256": "309c826ee9e6d42d1c32fe3abf79032bf51d2fa2a1d2c9c9ba3a3d3efe216ee7"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/OwnedAnalysisStore.cs",
+    "sha256": "03608d7fb51a2288450c9dfa3986deac3e2df91b480a90ba15f0a0715ae4ad03"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/UnixAnalysisPrivateDirectory.cs",
+    "sha256": "8dcc1df88a1cf481a2de806fa2af331699b56a9c02854a2d79ef481fb2ae52d7"
+  },
+  {
+    "path": "src/FileCat.Platform.Windows/WindowsAnalysisPrivateDirectory.cs",
+    "sha256": "19d70c7256bc9a108cbbff9bfe3d8268c73dcc148cf2eb4a13fef5b6a4806cff"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisOwnedStoreTests.cs",
+    "sha256": "649e32dc8369797b6de2e5d5eb0457096f9f695b794ea73bed8ee94a65402a68"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.OwnedStore.cs",
+    "sha256": "89d78cd9b815ff4511b29ca65d58f64e1b5022f40f5f03bec65c0303c1cca5bf"
+  }
+]

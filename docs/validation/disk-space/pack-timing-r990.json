@@ -1,0 +1,29 @@
+{
+  "revision": "r990",
+  "renderRevision": "r990",
+  "buildLog": ".tmp/build-r989.txt",
+  "sourceManifest": ".tmp/source-candidate-r990.json",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 50.4433018,
+  "archives": [
+    {
+      "platform": "mac",
+      "bytes": 42697605,
+      "sha256": "30600497109520b5d0077e56eeece99bdfec256d3a22220eb53b772d29e4c7fd",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r990.tgz"
+    },
+    {
+      "platform": "linux",
+      "bytes": 40035903,
+      "sha256": "c75b37e1c8b185c21822c368ce7a42c6cc8d9a10c2b5126b111f498ba0a74abc",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r990.tgz"
+    },
+    {
+      "platform": "windows",
+      "bytes": 79200081,
+      "sha256": "994f1936987a92f2bc1f3a0a7aa02074bd6c18d7204ef6c6c7a89b576dfdaa71",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r990.tgz"
+    }
+  ]
+}

@@ -1,0 +1,198 @@
+AXGroup	WindowChrome	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	New analysis	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Close analysis	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Continue in FileCat	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXTabGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXRadioButton	Analysis 1	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXRadioButton	Comparison 2	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXScrollArea	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Compare observations · On disk — reported	Compare observations · On disk — reported
+AXStaticText	Previous: Native Mac r34.fcdsa · 2026-11-05 13:07:48Z – 2026-11-05 13:07:48Z
+Current captured revision: 2026-11-05 13:07:48Z – 2026-11-05 13:07:48Z	Previous: Native Mac r34.fcdsa · 2026-11-05 13:07:48Z – 2026-11-05 13:07:48Z
+Current captured revision: 2026-11-05 13:07:48Z – 2026-11-05 13:07:48Z
+AXStaticText	Previous: 3 424 256 B known
+Current: 3 424 256 B known
+Observed net change: 0 B	Previous: 3 424 256 B known
+Current: 3 424 256 B known
+Observed net change: 0 B
+AXStaticText	All values are metadata observations over an interval. Unchanged metadata does not prove unchanged content.	All values are metadata observations over an interval. Unchanged metadata does not prove unchanged content.
+AXGroup	missing value	missing value
+AXPopUpButton	Comparison status	All observations
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	All observations	All observations
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXUnknown	missing value	missing value
+AXPopUpButton	Comparison sort	Absolute difference
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Absolute difference	Absolute difference
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXUnknown	missing value	missing value
+AXGroup	missing value	missing value
+AXTextField	Comparison query	delta>
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXScrollArea	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXPopUpButton	Comparison query side	Current; Previous for removed rows
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Current; Previous for removed rows	Current; Previous for removed rows
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXUnknown	missing value	missing value
+AXCheckBox	Case sensitive	false
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Apply comparison query	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Clear comparison query	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Filter not applied. Incomplete filter.	Filter not applied. Incomplete filter.
+AXStaticText	1 of 508 accounting rows · 0 uncertain query matches. Shared aliases remain together. Totals above describe the full inventories.	1 of 508 accounting rows · 0 uncertain query matches. Shared aliases remain together. Totals above describe the full inventories.
+AXList	Comparison rows	missing value
+AXGroup	missing value	missing value
+AXScrollArea	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXRow	No observed metadata change · 0 B · 0%; /Users/benny/FileCatValidation/dsa-20261105-r34f-native/app/native-validation/dsa-194ec5808b3249b883cbc6b26852d09e/fixture/.hidden.bin	missing value
+AXGroup	missing value	missing value
+AXGroup	No observed metadata change · 0 B · 0%; /Users/benny/FileCatValidation/dsa-20261105-r34f-native/app/native-validation/dsa-194ec5808b3249b883cbc6b26852d09e/fixture/.hidden.bin	missing value
+AXStaticText	No observed metadata change · 0 B · 0%	No observed metadata change · 0 B · 0%
+AXStaticText	Current: /Users/benny/FileCatValidation/dsa-20261105-r34f-native/app/native-validation/dsa-194ec5808b3249b883cbc6b26852d09e/fixture/.hidden.bin · 4 096 B	Current: /Users/benny/FileCatValidation/dsa-20261105-r34f-native/app/native-validation/dsa-194ec5808b3249b883cbc6b26852d09e/fixture/.hidden.bin · 4 096 B
+AXStaticText	Previous: /Users/benny/FileCatValidation/dsa-20261105-r34f-native/app/native-validation/dsa-194ec5808b3249b883cbc6b26852d09e/fixture/.hidden.bin · 4 096 B	Previous: /Users/benny/FileCatValidation/dsa-20261105-r34f-native/app/native-validation/dsa-194ec5808b3249b883cbc6b26852d09e/fixture/.hidden.bin · 4 096 B
+AXStaticText	Compatible observed identity/version evidence	Compatible observed identity/version evidence
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Inspect comparison entry	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Offline metadata comparison. Reported allocation is not consumed or reclaimable physical space. No file contents were compared. This view uses the captured metric; choose another metric before starting a new comparison.	Offline metadata comparison. Reported allocation is not consumed or reclaimable physical space. No file contents were compared. This view uses the captured metric; choose another metric before starting a new comparison.
+AXScrollBar	missing value	0,0
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Line up	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Page up	missing value
+AXGroup	missing value	missing value
+AXButton	Page down	missing value
+AXGroup	missing value	missing value
+AXHandle	Position	missing value
+AXGroup	missing value	missing value
+AXButton	Line down	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	missing value	missing value
+AXButton	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	missing value	missing value
+AXStaticText	Disk space — FileCat	Disk space — FileCat
+

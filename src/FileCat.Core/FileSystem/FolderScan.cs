@@ -22,10 +22,12 @@ public static class FolderScan
         {
             try
             {
+                PathUtil.RefuseAmbiguousUnixName(dir);
                 var children = new DirectoryInfo(dir).GetDirectories("*", options);
                 Array.Sort(children, (x, y) => Listing.NaturalCompare.Compare(x.Name, y.Name, natural: true));
                 foreach (var child in children)
                 {
+                    if (PathUtil.HasAmbiguousUnixName(child.Name)) { unreadable++; continue; }
                     folders.Add(child.FullName);
                     if ((child.Attributes & FileAttributes.ReparsePoint) == 0) pending.Enqueue(child.FullName);
                     if (folders.Count >= limit || clock.Elapsed > budget || ct.IsCancellationRequested) return new Result(folders, true, unreadable);

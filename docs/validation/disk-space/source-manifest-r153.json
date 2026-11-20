@@ -1,0 +1,105 @@
+{
+  "purpose": "Parent-validation cache correction and synthetic typed graph scale; no feature/capability authorization",
+  "gitBase": "680b83bd9035f29e70e0a5294285bdbc48056092",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "0481a60fb4d11e86ba37f3ab486cc2d6c624164ca701858d8cdc36b6ee3fa952"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "728892842c9749436be445279e69083f46e5b8caef756cf9198a5fb4f722e264"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedGraphValidation.cs",
+      "sha256": "44aa0aeaabb8f44d568d1cc22f5ca1627b471c3c92d2e3a1979c6045e5512ec5"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisIndexedGraphTests.cs",
+      "sha256": "e16e1617925e7426f49642b803788d3acbde77b9e15322218384719a57936451"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+      "sha256": "6997efeec215cc95fc9eaf454fb44fac620fb518ab22b70ca3fa8d4a10f6cd3b"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/ScratchGraphScale.cs",
+      "sha256": "61b1b53141e22d195ef1ff156c89ad507e9533868cc3845ff0ff7dd2cd8862ce"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r152.tgz",
+      "sha256": "af263780ca9e8fa38c284aa2c2db900118e869e9277feadb3f44321e496fd93f"
+    },
+    {
+      "path": ".tmp/dsa-native-r152.tgz",
+      "sha256": "7e34f11e835d6e66fa0091ee0b94e6693cd71ba765fb2062d978119537440643"
+    },
+    {
+      "path": ".tmp/dsa-red-r151.tgz",
+      "sha256": "2163c040a158f25c1a08fe4c262fa0848c8835dfda22f714fbe1fcde447cdb90"
+    },
+    {
+      "path": ".tmp/scratch-scale-r153.tgz",
+      "sha256": "e82ef660aab4aa96f191b6a1382ed980defc948ad16c2cc9d32141437022dc76"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r152.sh",
+      "sha256": "5280f7103563facdbe34900fc07f97f8fd4285e1cba78c7e71ed02ad73099f3e"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r152.ps1",
+      "sha256": "b15547feca49612c03e882c53263210b6e074df7778a27895b29e1a7ba2accc7"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r152.ps1",
+      "sha256": "dded08c951a4310781f003ee804a4dc8e2de5e78722ebd042fefe118fcd13e44"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-red-r151.sh",
+      "sha256": "b9991804335868e3751a55de0fd3d8050ab9d60ea1f5fc3faba2ac618fece177"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-scratch-scale-r153.py",
+      "sha256": "15ef9160a84c83569b7bb03873b9d96416b305bb86784fb15ef28765b51c5907"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-scratch-scale-r153.ps1",
+      "sha256": "46179efeb0e9097686c30a823c445db4627ec07ba4f2dec1949e2c885bd21983"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-scratch-scale-r154.py",
+      "sha256": "4a9bff33bd6f5eba834b49591ee4ac3bdb90975bae63142f24aa10c3289a52cd"
+    }
+  ],
+  "reports": [
+    "windows-core-r152.xml",
+    "mac-core-r152.xml",
+    "ubuntu-core-r152.xml",
+    "windows-native-r152.xml",
+    "graph-cache-build-r150.txt",
+    "mac-cache-red-r151.xml",
+    "windows-graph-scale-rejected-r149.json",
+    "mac-graph-scale-rejected-r149.json",
+    "windows-graph-scale-r153.json",
+    "mac-graph-scale-r153.json",
+    "ubuntu-graph-scale-r153.json",
+    "ubuntu-graph-scale-r154.json",
+    "ubuntu-graph-scale-accepted-r154.json"
+  ],
+  "negativeControlAssemblies": [
+    {
+      "path": ".tmp/core-r151-red/FileCat.Core.dll",
+      "sha256": "f0da55e49f1e80a738d19544cf0a1c358be38f93ee28f0f85cba91977f456f2e"
+    },
+    {
+      "path": ".tmp/core-r151-red/FileCat.Core.Tests.dll",
+      "sha256": "e9dd0c6ac88c05cfa5c331f2508306641f7d3ef822bd97cda9e073669239d0b3"
+    }
+  ],
+  "remaining": "Complete coverage/issue totals and original inventory-ID mapping; qualified live frontier/candidate coalescing/source/store/snapshot integration; bounded aggregation/query/projection/table/import/export; cross-process profile quota/own-artifact exclusion and complete resource/native qualification; entire remaining plan and final independent review."
+}

@@ -15,6 +15,9 @@ internal static partial class WindowsClipboardFileDrop
     private const int MaximumFiles = 100_000;
     private const int MaximumPathLength = 32_767;
     private const int MaximumTotalCharacters = 4_000_000;
+    private const int MaximumVirtualFiles = 1_000;
+    private const int FileDescriptorSize = 592;
+    private const int FileDescriptorNameOffset = 72;
     private static int _reportInFlight;
 
     [LibraryImport("user32.dll")]
@@ -30,6 +33,13 @@ internal static partial class WindowsClipboardFileDrop
 
     [LibraryImport("user32.dll")]
     private static partial nint GetClipboardData(uint format);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool EmptyClipboard();
+
+    [LibraryImport("user32.dll")]
+    private static partial nint SetClipboardData(uint format, nint memory);
 
     [LibraryImport("user32.dll", EntryPoint = "RegisterClipboardFormatW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial uint RegisterClipboardFormat(string format);
@@ -66,6 +76,111 @@ internal static partial class WindowsClipboardFileDrop
     private static extern uint DragQueryFile(nint drop, uint index, StringBuilder? path, uint length);
 
     internal static uint Sequence() => OperatingSystem.IsWindows() ? GetClipboardSequenceNumber() : 0;
+
+    // Use eagerly stored Unicode text only. No file, custom format or OLE data object is used.
+    private const uint CfUnicodeText = 13;
+
+    internal static unsafe string? ReadBoundedText(int maximumCharacters)
+    {
+        if (!OperatingSystem.IsWindows() || !OpenClipboard(0)) return null;
+        try
+        {
+            nint memory = GetClipboardData(CfUnicodeText);
+            nuint bytes = memory != 0 ? GlobalSize(memory) : 0;
+            if (bytes < sizeof(char)) return null;
+            nint pointer = GlobalLock(memory);
+            if (pointer == 0) return null;
+            try
+            {
+                var text = new ReadOnlySpan<char>((void*)pointer, (int)Math.Min(bytes / sizeof(char), (nuint)maximumCharacters + 1));
+                int end = text.IndexOf('\0');
+                return end >= 0 ? new string(text[..end]) : null;
+            }
+            finally { GlobalUnlock(memory); }
+        }
+        finally { CloseClipboard(); }
+    }
+
+    internal static unsafe bool WriteText(nint owner, string text)
+    {
+        if (!OperatingSystem.IsWindows() || owner == 0) return false;
+        nint memory = GlobalAlloc(2 /* GMEM_MOVEABLE */, (nuint)(text.Length + 1) * sizeof(char));
+        if (memory == 0) return false;
+        try
+        {
+            nint pointer = GlobalLock(memory);
+            if (pointer == 0) return false;
+            try
+            {
+                var chars = new Span<char>((void*)pointer, text.Length + 1);
+                text.AsSpan().CopyTo(chars);
+                chars[^1] = '\0';
+            }
+            finally { GlobalUnlock(memory); }
+            if (!OpenClipboard(owner)) return false;
+            try
+            {
+                if (!EmptyClipboard() || SetClipboardData(CfUnicodeText, memory) == 0) return false;
+                memory = 0; // Windows now owns the data, even after the source window exits.
+                return true;
+            }
+            finally { CloseClipboard(); }
+        }
+        finally { if (memory != 0) GlobalFree(memory); }
+    }
+
+    internal sealed record VirtualDescriptor(string Name, bool IsDirectory, DateTime? ModifiedUtc = null, long? Size = null);
+
+    /// <summary>Reads the complete native descriptor count before Avalonia can omit an unreadable virtual item.</summary>
+    internal static IReadOnlyList<VirtualDescriptor>? TryReadVirtualDescriptors()
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        uint format = RegisterClipboardFormat("FileGroupDescriptorW");
+        if (format == 0) return null;
+        bool opened = false;
+        for (var attempt = 0; attempt < 10 && !(opened = OpenClipboard(0)); attempt++)
+            Thread.Sleep(20);
+        if (!opened) return null;
+        try
+        {
+            nint memory = GetClipboardData(format);
+            if (memory == 0 || GlobalSize(memory) < sizeof(uint)) return null;
+            nint pointer = GlobalLock(memory);
+            if (pointer == 0) return null;
+            try
+            {
+                uint count = unchecked((uint)Marshal.ReadInt32(pointer));
+                if (count is 0 or > MaximumVirtualFiles ||
+                    GlobalSize(memory) < (nuint)(sizeof(uint) + count * FileDescriptorSize)) return null;
+                var descriptors = new List<VirtualDescriptor>((int)count);
+                for (int i = 0; i < count; i++)
+                {
+                    nint entry = nint.Add(pointer, sizeof(uint) + i * FileDescriptorSize);
+                    string name = Marshal.PtrToStringUni(nint.Add(entry, FileDescriptorNameOffset), 260)!
+                        .Split('\0')[0];
+                    uint flags = unchecked((uint)Marshal.ReadInt32(entry));
+                    uint attributes = unchecked((uint)Marshal.ReadInt32(entry, 36));
+                    DateTime? modified = null;
+                    if ((flags & 0x20) != 0)
+                    {
+                        try { modified = DateTime.FromFileTimeUtc(Marshal.ReadInt64(entry, 56)); }
+                        catch (ArgumentOutOfRangeException) { }
+                    }
+                    long? size = null;
+                    if ((flags & 0x40) != 0)
+                    {
+                        ulong declared = ((ulong)unchecked((uint)Marshal.ReadInt32(entry, 64)) << 32)
+                            | unchecked((uint)Marshal.ReadInt32(entry, 68));
+                        size = declared > long.MaxValue ? long.MaxValue : (long)declared;
+                    }
+                    descriptors.Add(new VirtualDescriptor(name, (attributes & 0x10) != 0, modified, size));
+                }
+                return descriptors;
+            }
+            finally { GlobalUnlock(memory); }
+        }
+        finally { CloseClipboard(); }
+    }
 
     internal static IReadOnlyList<string>? TryRead(int expectedCount)
     {

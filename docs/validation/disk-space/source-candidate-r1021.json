@@ -1,0 +1,46 @@
+[
+  {
+    "path": "src/FileCat.App/Services/AnalysisIndexedAcquisition.cs",
+    "sha256": "39f5e7f6716bcb751d1017aee64083a960c1ce212076008ffa6489fe79a4e379"
+  },
+  {
+    "path": "src/FileCat.App/Services/AnalysisRollingHistoryController.cs",
+    "sha256": "70661ee65216f35521272858b96032cea5e2f19074e90d4b3babdb22518e60c8"
+  },
+  {
+    "path": "src/FileCat.App/Services/AppServices.cs",
+    "sha256": "633d66c029c9d21439712097548e637c0d831d384a95d4dae9b88c7366fb81f8"
+  },
+  {
+    "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Acquisition.cs",
+    "sha256": "921459516bae543170c47d07de06f56c8e64c3741f6ae403f6656b315979d12a"
+  },
+  {
+    "path": "src/FileCat.App/Views/AnalysisHistorySettingsEditor.cs",
+    "sha256": "302ed00cfe46de5bdf73753a8078a17a5bf54aeaf119abe4b246596adb4b3800"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Acquired.cs",
+    "sha256": "585257142fd670880e6e55c44b65aba443e292fb7347c23f7f1700f16c4ac729"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+    "sha256": "36e664fb0a4e9161207a2d2e25df99f3933ed3930c4f8bff77ccccaa458fa6d1"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+    "sha256": "8d40ee94a49b3c679ec949a950b02f1f005a25087f69d010aa5ef48b5226ed94"
+  },
+  {
+    "path": "src/FileCat.App/Views/SettingsDialog.cs",
+    "sha256": "4096e422845831c6d7330daecabd53698d59b247504ad2e53ebb46fc806300fd"
+  },
+  {
+    "path": "src/FileCat.Core/State/AppPaths.cs",
+    "sha256": "7fa5883729b62085aa0e7518535a1cad3669744036668d9cf1223965c33ae5ef"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.HistoryRuntime.cs",
+    "sha256": "b1c5d8122f6031bb703cccd0089b998e6ca5724437f65b95077d5ebcb2e0bcce"
+  }
+]

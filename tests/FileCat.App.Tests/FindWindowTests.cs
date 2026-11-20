@@ -258,6 +258,35 @@ public sealed class FindWindowTests
     }
 
     [AvaloniaFact]
+    public async Task A_replaced_find_result_refuses_copy_before_showing_a_stale_review()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var find = await OpenFindAsync(vm, ct);
+            await SearchAsync(find, "a.txt", ct);
+            var listing = find.ResultsTab!.Listing;
+            await WaitFor(() => listing.VisibleCount == 1, ct);
+            string original = Path.Combine(root, "files", "a.txt");
+            File.Move(original, Path.Combine(root, "files", "retired.txt"));
+            File.WriteAllText(original, "replacement source with a different size");
+            find.List.Focus();
+            listing.SetFocus(0);
+            find.KeyPress(Key.F5, RawInputModifiers.None, PhysicalKey.F5, null);
+            await WaitFor(() => vm.RecentNotifications.Any(n => n.Message.Contains("changed since it was listed", StringComparison.Ordinal)), ct);
+            Assert.False(find.Dialogs.IsOpen);
+            Assert.Contains(vm.RecentNotifications, n => n.IsError && n.Message.Contains("Search or refresh", StringComparison.Ordinal));
+            Assert.Equal("replacement source with a different size", File.ReadAllText(original));
+        }
+        finally
+        {
+            CloseAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task The_log_lists_ignored_folders_and_shows_one_in_the_active_panel()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
@@ -548,6 +577,55 @@ public sealed class FindWindowTests
             await WaitFor(() => panel.Listing.TryGetFocused(out var f) && f.Name == "readme.txt", ct);
             Assert.True(panel.Listing.TryGetFocused(out var focused) && focused.Name == "readme.txt");
             Assert.NotEqual(Core.Resources.Schemes.FileSystem, panel.Location?.Scheme);
+        }
+        finally
+        {
+            CloseAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Content_query_with_inside_archives_explains_that_archive_member_bytes_are_not_searched()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            string scope = Path.Combine(root, "files", "archive-search");
+            Directory.CreateDirectory(scope);
+            string zip = Path.Combine(scope, "evidence.zip");
+            using (var archive = System.IO.Compression.ZipFile.Open(zip, System.IO.Compression.ZipArchiveMode.Create))
+            using (var writer = new StreamWriter(archive.CreateEntry("proof.txt").Open()))
+                writer.Write("owned beta");
+
+            var find = await OpenFindAsync(vm, ct);
+            find.LookInBox.Text = scope;
+            var notice = Field<TextBlock>(find, "_archiveContentNotice");
+            Assert.False(notice.IsVisible);
+            find.SetInsideArchives(true);
+            find.SetContent("owned beta", hex: false);
+            await WaitFor(() => notice.IsVisible, ct);
+            Assert.True(notice.IsVisible);
+            Assert.Equal("Archive content search limitation", AutomationProperties.GetName(notice));
+
+            await SearchAsync(find, "*.txt", ct);
+            Assert.Empty(find.Found);
+            Assert.Equal("No matches", find.EmptyResultHeadline);
+            Assert.True(notice.IsVisible);
+            Assert.Contains("archive member names and contents are not searched", notice.Text);
+            find.Width = find.MinWidth;
+            find.Height = find.MinHeight;
+            find.UpdateLayout();
+            var noticeTop = notice.TranslatePoint(new Avalonia.Point(0, 0), find);
+            Assert.NotNull(noticeTop);
+            Assert.True(noticeTop.Value.Y >= 0 && noticeTop.Value.Y + notice.Bounds.Height <= find.ClientSize.Height + 1);
+
+            find.SetContent(string.Empty, hex: false);
+            await WaitFor(() => !notice.IsVisible, ct);
+            Assert.False(notice.IsVisible);
+            await SearchAsync(find, "*.txt", ct);
+            Assert.Equal(["proof.txt"], find.Found);
         }
         finally
         {

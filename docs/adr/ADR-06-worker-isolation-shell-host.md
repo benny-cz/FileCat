@@ -107,3 +107,25 @@ operations (`FOFX_NOCOPYHOOKS`, ADR-03).
   mitigation; network contact from other types is a residual risk documented here.
 - The helper ships in every build, including the portable ZIP. It needs no privileges beyond the user's own and runs
   with fewer.
+
+## Proposed amendment: archive workers (not decided)
+
+Recorded 2026-11-10 for the [archive writing plan](../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md), whose
+hostile-input requirement includes enforceable time and memory containment. It describes boundaries that exist on the
+archive-writing branch and are exercised by its tests; it qualifies nothing, and ADR-07's ZIP route stays in-process.
+
+- **Roles.** Assessment, transformation and fresh verification are separate short-lived FileCat processes started with a
+  fixed role argument, a random nonce and a cancellation pipe. They speak a nonce-bound frame protocol on standard input and
+  output (1 MiB control frames, 64 KiB data frames, finite cumulative totals) and receive numeric read grants for the
+  archive and captured inputs and one write grant for the stage; they never receive a path.
+- **Parent enforcement.** The parent alone opens files, answers each read or write within its grant and IO allowance, and
+  stops a worker after 30 seconds without useful progress, beyond its CPU allowance (derived from the real input bytes and
+  members, at most 2 hours) or after 12 hours. One archive worker runs at a time; at most eight requests wait, and one
+  profiled archive job prepares at a time, so the parent's retained preparation state has one job's bound.
+- **Windows.** The worker runs in a less-privileged AppContainer with a restricted token inside a job object that limits
+  committed memory and CPU, with an exact inherited-handle list and bounded error output.
+- **Linux.** The worker runs in a delegated cgroup with memory and process limits, with seccomp and Landlock applied to all
+  threads, a parent-death signal and a pidfd for exact reaping.
+- **macOS.** No enforceable hard memory ceiling is available to an unprivileged process (RLIMIT_AS is refused, the footprint
+  setter is not permitted), so macOS cannot meet the plan's memory gate as worded and stays read-only unless that gate is
+  re-scoped by the user.

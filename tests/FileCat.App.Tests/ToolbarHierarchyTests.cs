@@ -42,7 +42,8 @@ public sealed class ToolbarHierarchyTests
         {
             window.UpdateLayout();
             var toolbar = window.GetVisualDescendants().OfType<WrapPanel>().Single(p => p.Name == "Toolbar");
-            var buttons = toolbar.GetVisualDescendants().OfType<Button>().Where(b => b.Tag is string).ToArray();
+            var buttons = toolbar.GetVisualDescendants().OfType<Button>()
+                .Where(b => b.Classes.Contains("toolbar") && b.Tag is string).ToArray();
             Assert.Equal(MainMenuModel.PrimaryToolbar, buttons.Select(b => (string)b.Tag!));
             var more = window.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "ToolbarMore");
             Assert.True(more.IsVisible);

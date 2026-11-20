@@ -1,0 +1,262 @@
+{
+  "purpose": "Unconfirmed scratch, directory and profile-capacity retention through actual process exit",
+  "observedUtc": "2026-11-06T23:53:13.737437+00:00",
+  "gitBase": "0f82fdddbb019cb0b077933b89f4356901448313",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisProfileQuota.cs",
+      "sha256": "008e52f0bf2a0702e4a505b23120ea07191df5739bf1e476115c839ad4344a9a"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisResourceQuarantine.cs",
+      "sha256": "35c72bb902edf1a520812ce712dcade893dc943c41fb0b26dc706be4752a0349"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchArena.cs",
+      "sha256": "cca78fc60c55e80556b3412d550e4be3b1a3b3e65bb0bedb3648a79396005873"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchWorkspace.cs",
+      "sha256": "697fce372327062c4b92bb5be9a15225d6c964bb8f50ee1abeea9fddbc9a1871"
+    },
+    {
+      "path": "tests/AnalysisFileQuotaCases.cs",
+      "sha256": "60e4cfc0897e61003bc8c6116309fd35cc74895f36a9fb4e8e8a924580170ac0"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisProfileQuotaTests.Files.cs",
+      "sha256": "9b3e7b2642126ebcdb9c632004b419ab981277d0694ac56d906251ac85adc8e3"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisScratchArenaTests.Quarantine.cs",
+      "sha256": "7af6a471f55dea05eb88a42400a5bd64998d668d52ee1fcea0be69becc6cb707"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisScratchArenaTests.cs",
+      "sha256": "2278d26768bf3dd712c4798fd1c2597c93dcb48af36cd4967b00b1f8897fcb69"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/AnalysisQuotaHold.cs",
+      "sha256": "33e9ca6bcea97e85052fc29251eb2a795aedfa342100b2049cd52518f0bbf732"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/AnalysisScratchQuarantineHold.cs",
+      "sha256": "b67819d5071b7fe3a7edadca481a6fdbabb7f19dce39fcdece905290d70dee97"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+      "sha256": "380afd46adf44137044ae6e1e05c3b190e767e08b9ec3d4a11b6e1f0a28112ee"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.ProfileFiles.cs",
+      "sha256": "a8d84eaa83313f343b4afcbc34c5ec760772a33620ceb0aa30cc3cf0085b5caa"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r534.txt",
+      "sha256": "9a92b88ae7716b4a7a023f3387eff4622ac79c6035eb8051c3e5a922d18501e1"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r535-core-r535.xml",
+      "sha256": "bd509f71d3bea8587817ea9490d63c7335fb28be36e3a8b5ae1f77a9d549506c"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r535-core-r535.log",
+      "sha256": "d09b33c98bc8df0a692c425c86c462fe63871b4a74ff7a75b39cc4addd06ff48"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r535-render-r535.xml",
+      "sha256": "71b3afe30a960947ba2291615d9a896cdf1c82144bbaa25037ea223c32265322"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r535-render-r535.log",
+      "sha256": "de3a344506bf1861d9e09f5167eaebf9bf89ef07dc7c64a9cf7293d5f2c4916e"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r535-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r535-post.json",
+      "sha256": "c80b6265afc521122229a4a0ff4c81088e0c3989300b317543e7c8ab277659e8"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r535-core-r535.xml",
+      "sha256": "ae6174dd5531959f5b4d808cdd7192c8c9a8eca7709a97e28aab294f3d31a97d"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r535-core-r535.log",
+      "sha256": "612dd0d347283e2a56c0c28de25e19125c8c4769b12fac7053139ba08e682d68"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r535-render-r535.xml",
+      "sha256": "0bf96e8d3185e06ec85995c42dfece9b1dbf44be5213c1a9b0124c591d6359a6"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r535-render-r535.log",
+      "sha256": "20252dcaff4db41f293e3fe5ea6d4eafa3524588724f76c8458c7b01e6636eba"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r535-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r535-post.json",
+      "sha256": "971423dc931e960fe040dccebb30284bdcf03a0accf666dab9f2e3caeb70769f"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r535-core-r535.xml",
+      "sha256": "13524d328f75a2d7b720a92e0c33ae55a36c98d06c48c8594f2afdb0a91d244b"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r535-core-r535.log",
+      "sha256": "f43fb6b5d88e79fc46c4a0f2da15c6f5c0864862fd551babedc82ab0c3441e9a"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r535-native-r535.xml",
+      "sha256": "94af3c76a3fd44cb04935bce986049a4cac0892173592de5b916268d75be6807"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r535-native-r535.log",
+      "sha256": "9fe759beeebd83b29ceebbcca967259f9a5c8e4c878a596b373e408a0734cc1e"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r535-render-r535.xml",
+      "sha256": "8ad77b9067db3bcb2fface2eaae2e4e8fff9f54d219dfda0e5de9b0a283d8dff"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r535-render-r535.log",
+      "sha256": "0a489a11c68d47e001ea94d0e6ec1e23135e44a210bf30d09a1127fa7abc1c2c"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r535-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r535-post.json",
+      "sha256": "a67a4b120a4e3fc5d11461915ab50d1746044f768d1a5f4cf135bfed1ccfb8ea"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r535.sh",
+      "sha256": "a5f221906aaebcd1771deda6d6f3f331b77a5343c783b92ff949c0c7f96ce185"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r535.sh",
+      "sha256": "81d07506b0a232cb907dc2ffc94bbacaf8bb0b06a27555c0b1e371534bfe1a17"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r535.ps1",
+      "sha256": "6ed5e2e9451ca69ad97cc013fd3ca31e4029e7431522c5e75707268044412d5d"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r535.tgz",
+      "sha256": "861c84178161b60dd8fca7edf3e3d822dfaf8837fa847c462b419716e24ce8c1"
+    },
+    {
+      "name": "dsa-batch-linux-r535.tgz",
+      "sha256": "9f831609985d7012b339837406a82f34d3f1600ae0645bd8f21d1ad53164eac2"
+    },
+    {
+      "name": "dsa-batch-windows-r535.tgz",
+      "sha256": "9309f1a99e861f3506df82d9dbaba5e9a6cef5b03bbf44e28e69e3afb233310f"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r535": "48e704b18fd9521d109cc74af849d6582521a84b91aee45bc22fb4d6db09e67c",
+    "native-r535": "48e704b18fd9521d109cc74af849d6582521a84b91aee45bc22fb4d6db09e67c",
+    "render-r536-mac": "48e704b18fd9521d109cc74af849d6582521a84b91aee45bc22fb4d6db09e67c",
+    "render-r536-linux": "48e704b18fd9521d109cc74af849d6582521a84b91aee45bc22fb4d6db09e67c",
+    "render-r536-windows": "48e704b18fd9521d109cc74af849d6582521a84b91aee45bc22fb4d6db09e67c"
+  },
+  "productionAppHashes": {
+    "render-r536-mac": "2f370fa3042bcacfebd33e2b79373217d3ecc48142b533477b0e4961fbff44aa",
+    "render-r536-linux": "2f370fa3042bcacfebd33e2b79373217d3ecc48142b533477b0e4961fbff44aa",
+    "render-r536-windows": "2f370fa3042bcacfebd33e2b79373217d3ecc48142b533477b0e4961fbff44aa"
+  },
+  "matrix": {
+    "mac-batch-r535-core-r535.xml": {
+      "total": "680",
+      "passed": "678",
+      "failed": "0",
+      "skipped": "2",
+      "errors": "0",
+      "time": "21.466"
+    },
+    "mac-batch-r535-render-r535.xml": {
+      "total": "109",
+      "passed": "109",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "38.252"
+    },
+    "ubuntu-batch-r535-core-r535.xml": {
+      "total": "680",
+      "passed": "678",
+      "failed": "0",
+      "skipped": "2",
+      "errors": "0",
+      "time": "44.454"
+    },
+    "ubuntu-batch-r535-render-r535.xml": {
+      "total": "109",
+      "passed": "109",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "65.086"
+    },
+    "windows-batch-r535-core-r535.xml": {
+      "total": "698",
+      "passed": "654",
+      "failed": "0",
+      "skipped": "44",
+      "errors": "0",
+      "time": "17.193"
+    },
+    "windows-batch-r535-native-r535.xml": {
+      "total": "40",
+      "passed": "40",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "72.508"
+    },
+    "windows-batch-r535-render-r535.xml": {
+      "total": "109",
+      "passed": "108",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "57.740"
+    }
+  },
+  "directControls": 4,
+  "nativeCrossProcessControlsPerPlatform": 1,
+  "finalBuild": "build-r534.txt: full solution zero warnings/errors",
+  "excludedAttempt": "build-r530.txt: harness type mismatch corrected before final build/packaging; not test evidence",
+  "nativeProbe": "Real ordinary file-backed quota and native scratch in a separate child. Forward native file close then inject unconfirmed result. Contending process proves retained quantum unavailable until actual child exit; remaining capacity usable, empty scratch and unchanged neighbor canary. This does not simulate every native OS close-error mode.",
+  "batchWorkflow": "One immutable bundle per platform; sequential applicable suites, hash verification, occupancy gate before extraction/every phase, authoritative post-process inventory.",
+  "processExitEvidence": "All runners terminal and states FINISHED exit=0; final inventories empty all3; no host app/input test or other tester termination.",
+  "qualification": {
+    "scratchAndProfileCloseRetentionImplemented": true,
+    "nativeCrossProcessCapacityRetentionControlsPassed": true,
+    "nativeHandleCloseAccountingQualified": false,
+    "nativeConstructorAndRollbackFaultMatrixQualified": false,
+    "unconfirmedOwnerBudgetAccountingQualified": false,
+    "fullResourceGateQualified": false,
+    "globalPendingCpuDeviceAliasGateQualified": false,
+    "nativeDesktopInputQualified": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

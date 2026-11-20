@@ -1,0 +1,9 @@
+{
+  "observedUtc": "2026-11-17T06:23:10.589277+00:00",
+  "sessionId": 95362,
+  "terminalExit": 1,
+  "controllerExit": 1,
+  "completionChunk": "0010b0",
+  "actualOriginalController": true,
+  "meaning": "Read full retained original XML/logs; original task terminal and collected; post0."
+}

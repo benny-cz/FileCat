@@ -13,7 +13,9 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $Policy = & (Join-Path $PSScriptRoot 'Assert-ProducerReference.ps1') -Reference $Reference -EventName push
-if ($Policy.Mode -cne 'prerelease') { throw 'Draft asset upload requires a supported prerelease tag.' }
+if ($Policy.Mode -cne 'prerelease' -or $Reference -cnotmatch '^refs/tags/v1\.0\.0-preview\.[1-9][0-9]*$') {
+    throw 'Draft asset upload requires a 1.0.0 preview tag; RC artifacts need the separate signed-candidate path.'
+}
 $Tag = $Reference.Substring('refs/tags/'.Length)
 $Version = $Tag.Substring(1)
 $Path = [IO.Path]::GetFullPath($ManifestPath)

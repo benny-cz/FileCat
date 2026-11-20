@@ -1,0 +1,10 @@
+{
+    "explorer":  [
+                     {
+                         "pid":  6468,
+                         "session":  1,
+                         "owner":  "DESKTOP-A60F1NE\\Admin"
+                     }
+                 ],
+    "users":  " USERNAME              SESSIONNAME        ID  STATE   IDLE TIME  LOGON TIME\r\n admin                 console             1  Active      none   15.11.2026 18:47\r\n"
+}

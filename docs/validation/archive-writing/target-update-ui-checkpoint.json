@@ -1,0 +1,506 @@
+{
+  "component": "Retained target review and existing-archive Pack updates",
+  "baseline": "e7f98320",
+  "candidate_source_commit": "352b81453003fa4f25476603b863caa71adf5826",
+  "batch": {
+    "mac": "awt-v6",
+    "ubuntu": "awt-v6",
+    "windows": "awt-v7"
+  },
+  "production_backend_qualified": false,
+  "goal": "active: member/edit/password journeys, Unix mutation/confinement and complete production/final-review gates remain open",
+  "platforms": [
+    {
+      "platform": "mac",
+      "candidate_source_commit": "352b81453003fa4f25476603b863caa71adf5826",
+      "bytes": 44090067,
+      "sha256": "b9ef4fa879972be15652fbd452db0239d400f045528ac08b687b479e531a0b66",
+      "rows": 4011,
+      "tests": {
+        "application-regressions.trx": {
+          "Passed": 113,
+          "NotExecuted": 1
+        },
+        "archive-creation-core.trx": {
+          "Passed": 8190,
+          "NotExecuted": 207
+        },
+        "creation-smoke.trx": {
+          "Passed": 2
+        },
+        "creation-ui.trx": {
+          "Passed": 20
+        },
+        "mutation-preflight.trx": {
+          "Passed": 8
+        },
+        "password-preflight.trx": {
+          "Passed": 21
+        },
+        "target-native-preflight.trx": {
+          "Passed": 10
+        },
+        "target-preflight.trx": {
+          "Passed": 28
+        },
+        "update-smoke.trx": {
+          "Passed": 1
+        },
+        "update-ui.trx": {
+          "Passed": 16
+        }
+      },
+      "current_CSharp_sources_bound": 21,
+      "source_audit_not_applicable": [
+        "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerNativeJobTests.cs"
+      ],
+      "evidence_version": "v6",
+      "reused_regressions": [],
+      "DLL_PDB_pairs_bound": 15,
+      "census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "production_backend_qualified": false
+    },
+    {
+      "platform": "ubuntu",
+      "candidate_source_commit": "352b81453003fa4f25476603b863caa71adf5826",
+      "bytes": 44082666,
+      "sha256": "08627e91307d564c652ee9a7b1b3fa6efd620660392d1798715a67e70f4af2c9",
+      "rows": 4014,
+      "tests": {
+        "application-regressions.trx": {
+          "Passed": 113,
+          "NotExecuted": 1
+        },
+        "archive-creation-core.trx": {
+          "Passed": 8212,
+          "NotExecuted": 185
+        },
+        "creation-smoke.trx": {
+          "Passed": 2
+        },
+        "creation-ui.trx": {
+          "Passed": 20
+        },
+        "mutation-preflight.trx": {
+          "Passed": 8
+        },
+        "password-preflight.trx": {
+          "Passed": 21
+        },
+        "target-native-preflight.trx": {
+          "Passed": 10
+        },
+        "target-preflight.trx": {
+          "Passed": 28
+        },
+        "update-smoke.trx": {
+          "Passed": 1
+        },
+        "update-ui.trx": {
+          "Passed": 16
+        }
+      },
+      "current_CSharp_sources_bound": 21,
+      "source_audit_not_applicable": [
+        "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerNativeJobTests.cs"
+      ],
+      "evidence_version": "v6",
+      "reused_regressions": [],
+      "DLL_PDB_pairs_bound": 15,
+      "census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "production_backend_qualified": false
+    },
+    {
+      "platform": "windows",
+      "candidate_source_commit": "352b81453003fa4f25476603b863caa71adf5826",
+      "bytes": 170815122,
+      "sha256": "7dd577d30f44401a92145400805383aa88718aa695a02f3bc00e16f2e0ceea06",
+      "rows": 5051,
+      "tests": {
+        "app-entry.trx": {
+          "Passed": 14
+        },
+        "application-regressions.trx": {
+          "Passed": 114
+        },
+        "archive-creation-core.trx": {
+          "Passed": 7941,
+          "NotExecuted": 461
+        },
+        "creation-cleanup-crashes.trx": {
+          "Passed": 18
+        },
+        "creation-native-ui.trx": {
+          "Passed": 10
+        },
+        "creation-smoke.trx": {
+          "Passed": 2
+        },
+        "creation-ui.trx": {
+          "Passed": 20
+        },
+        "mutation-preflight.trx": {
+          "Passed": 8
+        },
+        "native-review-preflight.trx": {
+          "Passed": 10
+        },
+        "native.trx": {
+          "Passed": 217
+        },
+        "password-preflight.trx": {
+          "Passed": 21
+        },
+        "target-preflight.trx": {
+          "Passed": 28
+        },
+        "update-smoke.trx": {
+          "Passed": 1
+        },
+        "update-ui.trx": {
+          "Passed": 16
+        }
+      },
+      "current_CSharp_sources_bound": 22,
+      "source_audit_not_applicable": [],
+      "evidence_version": "v7",
+      "reused_regressions": [
+        {
+          "lane": "tests",
+          "result": "results/archive-creation-core.trx",
+          "sha256": "7fbb388edc366e9b0fbdc55c45a43923e977f27790a55064eeb659f7de580e41",
+          "log_sha256": "4840017f5f11556a0554315789de8905bb7675e094ce63ce1a32e5ae9caf45ee",
+          "executed_in_previous_batch": true,
+          "rerun_in_this_batch": false
+        }
+      ],
+      "DLL_PDB_pairs_bound": 17,
+      "census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "production_backend_qualified": false
+    }
+  ],
+  "historical_sealed_runs": {
+    "mac-target-update-ui-v1-evidence": {
+      "bytes": 44166801,
+      "sha256": "5869f7e400acc989bbbd76aa7dbdd1d31767cb516ad6ee347352f0c838747f83",
+      "rows": 4022,
+      "transport_and_manifest_verified": true
+    },
+    "awt-v2-evidence": {
+      "bytes": 44056529,
+      "sha256": "85703d4ca42ca20ec087a3092e39c409a55274a53f74f3ffaf935de158975295",
+      "rows": 4007,
+      "transport_and_manifest_verified": true
+    },
+    "windows-target-update-ui-v1-failed-evidence": {
+      "bytes": 144474279,
+      "sha256": "005d6140617c57b395b7908cdb4b84ec0165920c71ab7dfa9dd69c97a1e039cb",
+      "rows": 2828,
+      "transport_and_manifest_verified": true
+    },
+    "archive-target-update-ui-v1-failed-evidence": {
+      "bytes": 18153578,
+      "sha256": "24a77e65228af3a9dd6d7f53399d334b145db1465ffe7b325c5d253e0d6a5d87",
+      "rows": 2142,
+      "transport_and_manifest_verified": true
+    },
+    "awt-v3-failed-evidence": {
+      "bytes": 18154015,
+      "sha256": "9d8e0a2b5de0fd81f61126becb90e1b5631c54b5eb1d07ecfc7598782f5c80e9",
+      "rows": 2176,
+      "transport_and_manifest_verified": true
+    },
+    "mac-target-update-ui-v3-failed-evidence": {
+      "bytes": 40704410,
+      "sha256": "4fb0da8959bb9569eb2a8ac48de8978ad9768b70c3c5b5dd13d3f3127cef737d",
+      "rows": 2967,
+      "transport_and_manifest_verified": true,
+      "phase": {
+        "result": "specific-password-mode-refusal-expectations-not-yet-updated",
+        "counts": {
+          "total": "8397",
+          "executed": "8190",
+          "passed": "8188",
+          "failed": "2",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "production_backend_qualified": false,
+        "native_job_tests_not_yet_run": true,
+        "source_audit_not_applicable": [],
+        "resumed_after_overstrict_seal_check": false
+      }
+    },
+    "windows-target-update-ui-v3-failed-evidence": {
+      "bytes": 165459872,
+      "sha256": "a2520dd29a1231505a84854817a4f9dcad44889f021ff3c97b6fb6c01cffb763",
+      "rows": 3577,
+      "transport_and_manifest_verified": true,
+      "phase": {
+        "result": "specific-password-mode-refusal-expectations-not-yet-updated",
+        "counts": {
+          "total": "8402",
+          "executed": "7941",
+          "passed": "7939",
+          "failed": "2",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "production_backend_qualified": false,
+        "native_job_tests_not_yet_run": true,
+        "source_audit_not_applicable": [],
+        "resumed_after_overstrict_seal_check": false
+      }
+    },
+    "ubuntu-target-update-ui-v4-failed-evidence": {
+      "bytes": 40684946,
+      "sha256": "d0836f2ef85229331fd94de2a179613f5e177057195a8bfb7b7d8102c3ad1d1f",
+      "rows": 2964,
+      "transport_and_manifest_verified": true,
+      "phase": {
+        "result": "core-refusal",
+        "counts": {
+          "total": "8397",
+          "executed": "8212",
+          "passed": "8210",
+          "failed": "2",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "production_backend_qualified": false,
+        "native_job_tests_not_yet_run": true,
+        "source_audit_not_applicable": [],
+        "resumed_after_overstrict_seal_check": false
+      }
+    },
+    "mac-target-update-ui-v5-canceled-evidence": {
+      "bytes": 18130662,
+      "sha256": "1cc8f61a4e516336e467cc4e4e6317a78537535f21a1ebf2b76747c402314be5",
+      "rows": 2166,
+      "transport_and_manifest_verified": true,
+      "phase": {
+        "result": "cohort-canceled-after-preflight",
+        "counts": {
+          "total": "28",
+          "executed": "28",
+          "passed": "28",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "production_backend_qualified": false,
+        "native_job_tests_not_yet_run": true,
+        "source_audit_not_applicable": [],
+        "resumed_after_overstrict_seal_check": false
+      }
+    },
+    "windows-target-update-ui-v5-failed-evidence": {
+      "bytes": 144391069,
+      "sha256": "1e6451bc168e3470d56c495bee451945a7a5f1c71a6580e6b24af098994de26b",
+      "rows": 2775,
+      "transport_and_manifest_verified": true,
+      "phase": {
+        "result": "creation-fixture",
+        "counts": {
+          "total": "20",
+          "executed": "20",
+          "passed": "19",
+          "failed": "1",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "production_backend_qualified": false,
+        "native_job_tests_not_yet_run": true,
+        "source_audit_not_applicable": [],
+        "resumed_after_overstrict_seal_check": false
+      }
+    },
+    "windows-target-update-ui-v6-failed-evidence": {
+      "bytes": 167307839,
+      "sha256": "0410638b7806a5e6963625d3fde21350fb8cdb585127904bf17cf95ecc2ed188",
+      "rows": 3779,
+      "transport_and_manifest_verified": true,
+      "phase": {
+        "result": "native-review-negative-fixture",
+        "counts": {
+          "total": "217",
+          "executed": "217",
+          "passed": "207",
+          "failed": "10",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "production_backend_qualified": false,
+        "native_job_tests_not_yet_run": true,
+        "source_audit_not_applicable": [],
+        "resumed_after_overstrict_seal_check": false
+      }
+    }
+  },
+  "candidate_csharp_inputs": [
+    {
+      "path": "src/FileCat.App/ViewModels/MainViewModel.ArchiveTargetReview.cs",
+      "git_blob_sha256": "db46c657291412fb8a5c6385fd412e3b10252846f33bed32ed8fb2397fdbea02"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/MainViewModel.Archives.cs",
+      "git_blob_sha256": "d13199bd298d0d4ce6dc672198ca3e9daed6d8556f5b112f793aae5076ccee64"
+    },
+    {
+      "path": "src/FileCat.App/Views/ArchiveCreationDialog.cs",
+      "git_blob_sha256": "0eb0383753fc9efe6c83f5c8e79a1e73d02f0986da88aae53d3483f0b21195d8"
+    },
+    {
+      "path": "src/FileCat.Archives/Writing/Rar5SemanticCatalog.cs",
+      "git_blob_sha256": "e1d10f2f47eec4286fb14675b20dc2b214a87f5c51f000520cbb5c4e9ca98320"
+    },
+    {
+      "path": "src/FileCat.Archives/Writing/SevenZipSemanticCatalog.cs",
+      "git_blob_sha256": "b6522a8afde5dee661230021ba0998282cb326b895a8c0c712cccc6780901589"
+    },
+    {
+      "path": "src/FileCat.Core/Archives/ArchiveJobBackend.cs",
+      "git_blob_sha256": "1c8a16910a88a520594ba18969670f5b510bbc65a64d18157b0c61c100715a00"
+    },
+    {
+      "path": "src/FileCat.Core/Archives/ArchiveNativeJobBackend.cs",
+      "git_blob_sha256": "23b563d1c29b46bad1f1d3b7bff82a750494dfc9e62bb09bbb59f309c9889be3"
+    },
+    {
+      "path": "src/FileCat.Core/Archives/ArchivePlan.cs",
+      "git_blob_sha256": "cdfdd557b185a40a9794d48ee5dc98869340872730dcdd766a86ae0ad0f74487"
+    },
+    {
+      "path": "src/FileCat.Core/Archives/ArchiveTargetReview.cs",
+      "git_blob_sha256": "ccf7a6a6d248944a50ea447f795a0855ff160599cefa41b5820476b4e5d4d72c"
+    },
+    {
+      "path": "src/FileCat.Core/Archives/ArchiveWriteContracts.cs",
+      "git_blob_sha256": "a53f9294cdcea8c148e07a38c2424c192aca102d070462c68bd78b75278dfba8"
+    },
+    {
+      "path": "src/FileCat.Core/Archives/Unix/UnixArchiveTargetReadLease.cs",
+      "git_blob_sha256": "f2b3df42278f1d942f5e3292e6183dd8dfe120fc260227ead6d35227b25c9058"
+    },
+    {
+      "path": "src/FileCat.Core/Jobs/JobManager.Archives.cs",
+      "git_blob_sha256": "eb9ff77e0bf9f36f3aeef860428527c99280b9943441aa095b8a64aee9593f24"
+    },
+    {
+      "path": "src/FileCat.Core/Threading/DeviceIoScheduler.cs",
+      "git_blob_sha256": "d85ff778ef2b352312ffa11b556c2985e5f16b8454c3646ab2aaf9747eba3e0b"
+    },
+    {
+      "path": "src/FileCat.Platform.Windows/Archives/WindowsArchiveJobBackend.cs",
+      "git_blob_sha256": "1ef54c9c7a5385f264f4232d33a698f6076359957b2cae42a47165c2a62bfe68"
+    },
+    {
+      "path": "tests/FileCat.App.Tests/ArchiveCreationWorkflowTests.cs",
+      "git_blob_sha256": "48ccfdd9b142f02211c58c62caf15e555a84cb46e9394594444e1558c91182cc"
+    },
+    {
+      "path": "tests/FileCat.App.Tests/ArchiveTargetUpdateUiTests.cs",
+      "git_blob_sha256": "dcc9e343b082344c5fcc849c53e4ae5b1de0d6f6f69196cf4d29a03ec2eea1bd"
+    },
+    {
+      "path": "tests/FileCat.App.Tests/MutationPreparationTests.cs",
+      "git_blob_sha256": "c6678425b713c795e6cc09d4ee0352dd793ef14d7ffe755cb1e14a4b039dc6c1"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/ArchiveTargetReviewTests.cs",
+      "git_blob_sha256": "a5d88c605993d86cafb7f4d7bbfbea477dd5a8431732de9e84a93a138d1cc4d2"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/DeviceIoOwnedWorkTests.cs",
+      "git_blob_sha256": "401c28eace154219e1192f7610d9c4d3f2e2054d974d2aee1023ba26435088e5"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/Rar5WorkerPipelineTests.cs",
+      "git_blob_sha256": "3f31ed6f6b9187e73073f6dca5e5c34c53fe588be6380692f75d973b16566d1f"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/UnixArchiveNativeJobTests.cs",
+      "git_blob_sha256": "62866dae7df9d5efc55d2258ddf80490e5238724cc5555cc036ed1b87983018d"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerNativeJobTests.cs",
+      "git_blob_sha256": "5d1f3347c9574b994097797619715e02763b5010be13c44a6e9c08d16b53a4d1"
+    }
+  ],
+  "verification": "Exact archive transport/manifests, case inventory, independent-reader inputs, DLL/PDB association and exact compiler snapshot hashes verified. C# snapshot text binds to the immutable Git candidate with CRLF normalized for Git comparison only.",
+  "execution": "Mac/Ubuntu lanes freshly executed in v6. Windows v7 reruns focused, application, native, crash and reader lanes; its complete v6 Core result is explicitly retained after compiled-runtime identity verification. The follow-up changes only the Windows negative-test assertion; production and Core runtimes are unchanged.",
+  "process_improvement": "Connected workflow packets, cross-platform focused gate before full regressions, checked deltas, phase-level continuation, one sealed artifact per cohort and candidate-pinned source verification.",
+  "limitation": "Portable UI uses explicit synthetic dispatch fixtures. Actual create/update UI publication is Windows-only; Unix evidence includes native creation and pinned target review. Default composition is empty.",
+  "historical_metadata_note": "The original failure sealer carried a legacy native_job_tests_not_yet_run flag derived from a cleanup-preflight sentinel. For Windows v6 that flag is inaccurate: native.trx/native.log prove 217 cases executed (207 passed, 10 failed at the contradictory negative-fixture waiter). Original sealed bytes are preserved; explicit counters and logs take precedence.",
+  "initial_production_source_commit": "3fcf51b09e2c3be90a3e9c11de0a2af09960d34f"
+}

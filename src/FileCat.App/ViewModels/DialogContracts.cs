@@ -71,6 +71,9 @@ public sealed record ChoiceOptions(string Title, IReadOnlyList<ChoiceItem> Items
 /// <summary>A button in a custom dialog; <see cref="Result"/> is returned when chosen.</summary>
 public sealed record DialogButton(string Text, object Result, bool IsDefault = false, bool IsCancel = false, bool IsDanger = false)
 {
+    /// <summary>Optional live text and accessibility, changed together with availability on the UI thread.</summary>
+    public DialogButtonPresentation? Presentation { get; init; }
+
     /// <summary>
     /// When set, the button is enabled only while this is true ("Go to" needs a result): cheap and side-effect free, it
     /// is re-evaluated while the dialog is open.
@@ -84,6 +87,23 @@ public sealed record DialogButton(string Text, object Result, bool IsDefault = f
     public Func<bool>? Validate { get; init; }
 }
 
+public sealed record DialogButtonSnapshot(string Text, string? AccessibleName = null, string? HelpText = null);
+
+/// <summary>Presentation only. The dialog's existing result, availability and validation own activation.</summary>
+public sealed class DialogButtonPresentation(DialogButtonSnapshot initial)
+{
+    private DialogButtonSnapshot _snapshot = initial ?? throw new ArgumentNullException(nameof(initial));
+    public DialogButtonSnapshot Snapshot => Volatile.Read(ref _snapshot);
+    public event Action? Changed;
+
+    public void Update(DialogButtonSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        Volatile.Write(ref _snapshot, snapshot);
+        Changed?.Invoke();
+    }
+}
+
 /// <summary>Lets a custom dialog's content end it as one of its buttons would (Enter on a search result: "Go to").</summary>
 public sealed class DialogCloser
 {
@@ -95,7 +115,23 @@ public sealed class DialogCloser
     public void Close(object? result) => _close?.Invoke(result);
 }
 
-/// <summary>Overlay dialogs owned by the main window. All are keyboard-first: Enter confirms, Esc cancels.</summary>
+/// <summary>Optional presentation and implicit-dismiss behavior for a custom modal.</summary>
+public sealed record DialogBehavior
+{
+    public bool DismissOnBackdrop { get; init; } = true;
+    public bool AlignTop { get; init; }
+    /// <summary>Initial size for a resizable dialog, clamped to the available client area.</summary>
+    public Avalonia.Size? PreferredSize { get; init; }
+    /// <summary>Esc and the title-bar close button use this action; explicit buttons keep their own behavior.</summary>
+    public Action? OnImplicitDismiss { get; init; }
+    /// <summary>
+    /// Plan §11.5: while this dialog is on top the operation center stays above its backdrop and usable (pointer, focus and
+    /// its shortcut), for example during a format scan. Panel commands remain blocked.
+    /// </summary>
+    public bool KeepOperationsUsable { get; init; }
+}
+
+/// <summary>Overlay dialogs owned by the main window. Enter confirms; Esc follows each dialog's close behavior.</summary>
 public interface IDialogService
 {
     Task<PromptResult?> PromptAsync(PromptOptions options);
@@ -109,13 +145,14 @@ public interface IDialogService
     /// <param name="selectedId">The command selected when it opens (after changing its shortcut).</param>
     Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null, bool remapOnly = false);
     /// <summary>
-    /// Hosts arbitrary content with buttons; returns the chosen button result or null on Esc. The default button is
+    /// Hosts arbitrary content with buttons; returns the chosen button result or the cancel result on implicit close.
+    /// The default button is
     /// enabled only while <paramref name="canConfirm"/> (cheap, side-effect free; re-evaluated while open) is true.
     /// <paramref name="closer"/> lets the content end the dialog itself.
     /// </summary>
     Task<object?> ShowCustomAsync(string title, Control content, IReadOnlyList<DialogButton> buttons, Control? initialFocus = null,
         Func<bool>? canConfirm = null, DialogCloser? closer = null, bool resizable = false,
-        Control? pinnedReview = null);
+        Control? pinnedReview = null, DialogBehavior? behavior = null);
     bool IsOpen { get; }
 }
 

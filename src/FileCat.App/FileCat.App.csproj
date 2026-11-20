@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
+    <!-- Direct source builds are development builds for the 1.0 line. Tagged package producers pass
+         Version explicitly, so their informational version stays bound to the immutable release tag. -->
+    <InformationalVersion Condition="'$(VersionPrefix)' == '0.1.0' and '$(VersionSuffix)' == 'preview' and '$(Version)' == ''">1.0.0-dev</InformationalVersion>
     <RootNamespace>FileCat.App</RootNamespace>
     <AssemblyName>FileCat</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -16,6 +19,9 @@
     <AvaloniaAccessUnstablePrivateApis>true</AvaloniaAccessUnstablePrivateApis>
     <NoWarn>$(NoWarn);AVA3001</NoWarn>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(FileCatFastNtfsQualification)' == 'true' and ('$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64')">
+    <DefineConstants>$(DefineConstants);FILECAT_FAST_NTFS_QUALIFICATION</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
@@ -24,6 +30,7 @@
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="PDFtoImage" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\FileCat.Core\FileCat.Core.csproj" />
@@ -38,6 +45,10 @@
     <InternalsVisibleTo Include="FileCat.PageEngineSmoke" />
     <InternalsVisibleTo Include="PageEngineFaultHarness" />
     <InternalsVisibleTo Include="FileCat.Rendering.Tests" />
+    <InternalsVisibleTo Include="DiskSpaceHarness" />
     <InternalsVisibleTo Include="FileCat.Screenshots" />
+    <InternalsVisibleTo Include="FileCat.ArchiveQualificationHost" />
   </ItemGroup>
+  <!-- The macOS archive worker launcher beside the executable (route decision of 12 November 2026). -->
+  <Import Project="MacOS\ArchiveWorkerLauncher.targets" />
 </Project>

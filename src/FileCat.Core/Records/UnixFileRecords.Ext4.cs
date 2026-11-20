@@ -1,11 +1,58 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
 using FileCat.Core.Inspect;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.Records;
 
 public sealed unsafe partial class UnixFileRecords
 {
+    private const ulong LinuxGetInodeFlags64 = 0x8008_6601; // FS_IOC_GETFLAGS
+
+    private static ObservedFact<uint> ReadLinuxExtInodeFlags(SafeFileHandle? file, FactState descriptorState,
+        string? descriptorReason, string format, CancellationToken ct)
+    {
+        string source = $"FS_IOC_GETFLAGS on the held {format} inode";
+        if (file is null)
+            return ObservedFact<uint>.Unavailable(descriptorState, FactScope.Entry, source, descriptorReason!);
+        uint flags = 0;
+        ct.ThrowIfCancellationRequested();
+        int error = Ioctl((int)file.DangerousGetHandle(), LinuxGetInodeFlags64, &flags) == 0 ? 0 : Marshal.GetLastPInvokeError();
+        ct.ThrowIfCancellationRequested();
+        return error == 0 ? ObservedFact<uint>.Known(flags, FactScope.Entry, source)
+            : ObservedFact<uint>.Unavailable(LinuxMetadataFailure(error), FactScope.Entry, source, $"The inode flag query returned errno {error}.");
+    }
+
+    private static FileDetailsReport AddLinuxExtInodeFlags(FileDetailsReport report, ObservedFact<uint> flags, string format,
+        bool fullReport)
+    {
+        string Describe(uint value) => $"0x{value:X8} · {LsattrText(value, format)}";
+        // Call out historical flags in the summary when they are present. The full report keeps their complete observation.
+        if (flags is { State: FactState.Known, Value: var value } && (value & 7) != 0)
+        {
+            var summary = report.Summary;
+            report = report with { Summary = summary with { Notes = summary.Notes.Add($"{format} inode flags: {Describe(value)}") } };
+        }
+        if (!fullReport) return report;
+        var section = new InspectionSection($"{format} inode flags", [("Recorded flags", flags.Describe(Describe)), ("Observation", flags.Source)]);
+        return report with { Technical = report.Technical with { Sections = [.. report.Technical.Sections, section] } };
+    }
+
+    private static FileDetailsReport AddExt4DirectoryNamespace(FileDetailsReport report, ObservedFact<uint> flags)
+    {
+        const uint caseFold = 0x4000_0000; // FS_CASEFOLD_FL
+        var section = new InspectionSection("ext4 directory namespace", [
+            ("Case folding", flags.Describe(value => (value & caseFold) != 0 ? "Enabled" : "Disabled")),
+            ("Scope", "Name lookup in this directory"), ("Observation", flags.Source)])
+        {
+            Lines = flags is { State: FactState.Known, Value: var value } && (value & caseFold) != 0
+                ? ["Case-folded lookup compares valid encoded names using Unicode normalization. Stored spellings are preserved.",
+                    "For encrypted names, case-folded lookup can depend on key availability."]
+                : [],
+        };
+        return report with { Technical = report.Technical with { Sections = [.. report.Technical.Sections, section] } };
+    }
+
     /// <summary>What the kernel shows of an item now: statx, and for files and folders FS_IOC_GETVERSION and FS_IOC_GETFLAGS.</summary>
     internal sealed record Ext4Live(int Mode, uint Links, uint Uid, uint Gid, ulong Size, ulong Blocks, Ext4Inode.Timestamp Modified,
         Ext4Inode.Timestamp Changed, Ext4Inode.Timestamp Accessed, Ext4Inode.Timestamp? Born, uint? Generation, uint? Flags);
@@ -130,7 +177,7 @@ public sealed unsafe partial class UnixFileRecords
             return live with
             {
                 Generation = Ioctl(fd, 0x8008_7601 /* FS_IOC_GETVERSION */, &generation) == 0 ? generation : null,
-                Flags = Ioctl(fd, 0x8008_6601 /* FS_IOC_GETFLAGS */, &flags) == 0 ? flags : null,
+                Flags = Ioctl(fd, LinuxGetInodeFlags64, &flags) == 0 ? flags : null,
             };
         }
         finally { Close(fd); }

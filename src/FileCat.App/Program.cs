@@ -1,4 +1,5 @@
 using Avalonia;
+using FileCat.Platform.Windows;
 
 namespace FileCat.App;
 
@@ -7,6 +8,12 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == Services.UnixPermissionApproval.Argument)
+            return Services.UnixPermissionApproval.RunHelper(args);
+        if (TryRunStorageCloudQueryWorker(args) is { } workerExit) return workerExit;
+        if (args.Length > 0 && Services.ArchiveWorker.IsArgument(args[0])) return Services.ArchiveWorker.Run(args);
+        if (args.Length > 0 && Services.ArchiveWorker.IsLinuxArgument(args[0])) return Services.ArchiveWorker.RunLinux(args);
+        if (args.Length > 0 && Services.ArchiveWorker.IsMacArgument(args[0])) return Services.ArchiveWorker.RunMac(args);
         // Linux enters a filesystem/network domain here, then replaces this trusted launcher with the worker below.
         if (args.Length > 0 && args[0] == Services.LinuxPictureSandbox.Argument)
             return Services.LinuxPictureSandbox.Run(args);
@@ -26,6 +33,25 @@ internal static class Program
             return 0;
         }
         var options = StartupOptions.Parse(args);
+        if (options.NewInstance && options.AdministratorLinkReview is { } review && Core.State.WindowsTokenAuthority.IsHighIntegrity)
+        {
+            try { options.LinkDraft = Services.AdministratorLinkDraft.Read(review.Path, review.Hash); }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or
+                                       NotSupportedException or System.ComponentModel.Win32Exception or System.Text.Json.JsonException)
+            {
+                options.LinkDraftProblem = ex.Message;
+            }
+        }
+        if (options.NewInstance && options.AdministratorRequest is { } request && Core.State.WindowsTokenAuthority.IsHighIntegrity)
+        {
+            try { options.AdministratorTask = Services.AdministratorTask.Read(request.Path, request.Hash); }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or
+                                       NotSupportedException or System.ComponentModel.Win32Exception or System.Text.Json.JsonException)
+            {
+                options.LinkDraftProblem = ex.Message;
+            }
+        }
+        using var storageCloudQuery = OperatingSystem.IsWindows() ? StartStorageCloudQuery(typeof(Program)) : null;
         bool menuTrace = Environment.GetEnvironmentVariable("FILECAT_MENU_TRACE") == "1" && options.DataRoot is not null;
         if (menuTrace)
         {
@@ -50,6 +76,17 @@ internal static class Program
         {
             SingleInstance.Release();
         }
+    }
+
+    internal static int? TryRunStorageCloudQueryWorker(string[] args) =>
+        args is [WindowsStorageCloudQuery.WorkerArgument] ? WindowsStorageCloudQuery.RunWorker() : null;
+
+    internal static IDisposable StartStorageCloudQuery(Type entryPoint)
+    {
+        string executable = Environment.ProcessPath ?? Path.Join(AppContext.BaseDirectory, entryPoint.Assembly.GetName().Name + ".exe");
+        string? managedEntry = Path.GetFileName(executable).Equals("dotnet.exe", StringComparison.OrdinalIgnoreCase)
+            ? entryPoint.Assembly.Location : null;
+        return WindowsStorageCloudQuery.UseWorker(executable, managedEntry);
     }
 
     /// <summary>FILECAT_RENDERING=compat restores Avalonia's default composition (troubleshooting).</summary>

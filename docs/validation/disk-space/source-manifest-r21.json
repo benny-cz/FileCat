@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Development regression provenance, not capability authorization",
+  "gitBase": "e05ce3b17348a3ac41a8b24ffab59373fd817747",
+  "testedWorkingTreeChanges": true,
+  "windowsGuestBundleSha256": "1b52cae7889e1ac6e8464df8a7b55db044b1a2e5402e36a451fdf0a5f36a4e12",
+  "desktopAcceptance": "Unqualified; no new desktop-input claim in r21",
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_INVENTORY_SCHEMA.md",
+      "sha256": "3f046facae1e6812646846fddd6522608541f01c319549381db55c8c2714605b"
+    },
+    {
+      "path": "docs/validation/disk-space/FINAL_REVIEW_CHECKLIST.md",
+      "sha256": "eaf7f6158b8812373e3809f53241359bdc6d9231a03b25107826e1fa0c649397"
+    },
+    {
+      "path": "src/FileCat.App/Controls/DiskSpace/AnalysisChartControl.cs",
+      "sha256": "8b36ca2ab97a87aa278fd1ae1b37068babf56eebf651ae470476fad35ace7956"
+    },
+    {
+      "path": "src/FileCat.App/Services/DiskSpaceWindowManager.cs",
+      "sha256": "044e8c6e2ef15b3394d0552aeb1f97e30f6018c084df3020dd9499dbd8502529"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "fbe4b3aeabe6b40916a2b8b7538a6042b56f5e2fb0b59b1b7888bf789cd0a9f8"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "a05ba3012c138731010a2cdc6dcf211f12fc5b1e490180c77212398a311e4e86"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisAdmission.cs",
+      "sha256": "d3225846cc5e752f2de11cf80b6b78e06db5c563b34c787b7f155db9f4ed56ad"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisAggregate.cs",
+      "sha256": "ad77f6d039ab7813111ba237375fbd67c72938a6026480f50d8c486b1b5255ed"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisCapabilities.cs",
+      "sha256": "9564ea63ca5464117ca261cf4a998554a91253cec6ba9f665caffe8c6d7437e0"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisComponents.cs",
+      "sha256": "2cb146339c19309247c184e1ed33674783efc6412bc51d53cd28b111d8fa6b72"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisCoordinator.cs",
+      "sha256": "fe9160f75b0aa3f15da7a3d0dde953056c28aec1db2a5e5ec5783ccd93d1b330"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisCoverage.cs",
+      "sha256": "4775301039453fe69d2e2e2ec9ceee20ed06d5f84ff8f8b37c1f810305aa07b8"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisFilter.cs",
+      "sha256": "03da71f7dd2b59cc17cacb5831e6221d77f79b03ab847e35624898cecbc10dfb"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisInventoryFormat.cs",
+      "sha256": "ae7f632e70cc0729ea614676d93864235ed10d89058d2c509228a9b0d6001463"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisInventoryReader.cs",
+      "sha256": "96793bca0afed1173ff407b60e54fdb972909011567066c856899339082ec1fd"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisLimits.cs",
+      "sha256": "b79a12144fb93427ffa9ff345ca780d9b3631cf7ffd9080255b3cf5a5acaec7a"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisModel.cs",
+      "sha256": "d63ee7221c82fb5e3051a940f3755735fb3bd9aed447ee885e6e2900e0918309"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisNames.cs",
+      "sha256": "6cd117dedae7ed0484c7a11397b0c1e246a705c8c63fe285e36f70958105fb2d"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisNativeHandles.cs",
+      "sha256": "8e5805d083480854846a735584e70c9a2aead1ed8643f7ffdd656aab18952c84"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisPrivacy.cs",
+      "sha256": "ebab3838e522a5eb4bc4a95be898d4649616cd9f33160b6d34389a67765d4e50"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisRawNames.cs",
+      "sha256": "8104e239e6c122b720a2da86f2a96edb26bc787acb977a351f9ccd0325dc1699"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisRootPaths.cs",
+      "sha256": "b3953eddeb72ecd89de022c596797ecde6e5a8ec621af0eea3dfa4a043b5981d"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisRootScopeIndex.cs",
+      "sha256": "59e5b8d784fccd610c9b61bbe28e6157bd096054e56e3642bf51563a1d9ec1ef"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSelectionLease.cs",
+      "sha256": "9c5cdadc13d1468ca6b14c7e0272b135cdc2efb6db662397e6242f75d41008e5"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSelectionState.cs",
+      "sha256": "06c10f8b04d44fd871d639f04eef55f89c57bb4e79f12d38d0fa974ac33fc882"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisStore.cs",
+      "sha256": "c2e4b2866799c1f0a430aa40940846d60482735954d906d81fc462b2d56ac531"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+      "sha256": "e5d9003a4b2fd976810e967cdd4d204019eaa90659b14748d4ca83c861318fb2"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisValidation.cs",
+      "sha256": "b8dc80cb81dca31a526c7fe0bb7c8cbd1200e037162a64120b1e8bef223fc6a6"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/IAnalysisBackend.cs",
+      "sha256": "e3ba7fe82890d3c56279c63375c8d94b1677bcc9c934d91995184e863bc0595a"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/ScanPolicy.cs",
+      "sha256": "74c1785488975d696dd8462ee9ac87d9c0419a6ef8e6fe1bc284b68cac5b3d5f"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/UnixAnalysisBackend.cs",
+      "sha256": "0cf1a4a4cc55eec0257469c17b15c4ecdbca86f79732be258208e8497618ac67"
+    },
+    {
+      "path": "src/FileCat.Core/Commands/CommandRegistry.cs",
+      "sha256": "62d7f259aa741a3b36c3f7d961896f1f694d67c93dbed492cc5aada0cb527bdc"
+    },
+    {
+      "path": "src/FileCat.Platform.Windows/Analysis/WindowsAnalysisBackend.cs",
+      "sha256": "9b3697124fdafbaab5f7f0cf8817093d094deb6426d3232a53135656d4eac7a8"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisAccountingTests.cs",
+      "sha256": "e0e934b9437614ebdc768415fd691f6e3163652441777233549e78e6ce908464"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisAdmissionTests.cs",
+      "sha256": "cf60e5362627be4ac8e4010063518b0e8e2ee301b799601236629fa2a93201ef"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisContractTests.cs",
+      "sha256": "563ae35ee71dd9da48e03de13cd12dad7ceb24c6c024416051e529c486fe7c2f"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisFilterTests.cs",
+      "sha256": "45ce291a09fa2b675e6eedfbe38d11db118a9360af7bae6dcecfd44d206b3764"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisInventoryTests.cs",
+      "sha256": "6e0061ffedd9a3107e1e8c9a137d984052d1d0e53d83b30fe5d20e2944e9fb62"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisScanningTests.cs",
+      "sha256": "4b2a081a600d0ff47b5dad67c9453a13f2258fc7ab4c3f91164c6d41e06faad9"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisStoreTests.cs",
+      "sha256": "7c9243eb1d4a54568af19e3422c32298373a568cc78fb1252f04f14485731235"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisTreeTests.cs",
+      "sha256": "5672d4881baae671189b97b2286a661451ddc6aafa1e5df855c18cc67d14c150"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/DiskSpaceHarness.csproj",
+      "sha256": "09da326b3a278d98b1aae9c13d28c6eedb360ba8303ebfc6f21132a516e3f3df"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/packages.lock.json",
+      "sha256": "34d7de2593da794ffacce0e5a0289f3491eb4bbddbf392040ee88cc7756aac14"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Program.cs",
+      "sha256": "e8951bf7eb44f9ff9aaad0cebf7ac3027d680b7e7eb014d7a9eb39a571ec5ccf"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/README.md",
+      "sha256": "d450bbd231c281556742a42e159a1511439358b332748eda52e8fca1c0818c2b"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.cs",
+      "sha256": "cbe08e7a05c79fe6fe3ac25594bc723e0cb0172131abfb30c6dc673a2935b7d3"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.cs",
+      "sha256": "d95a3f1536262861627a1487d60357e5b028471e9bd70816a69ae499d55ec656"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.dll",
+      "sha256": "3199529387fbe7d51d940b005af98da8fb3c7758bc4fbc9f700cf0856891709c"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll",
+      "sha256": "2ada7dc548f155705bc2e8f96fb18b0b537f8ebb527ca1320d9bb5692bcdf883"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/bin/Debug/net10.0/FileCat.Platform.Windows.dll",
+      "sha256": "3b2ebb0ee872c968819f263e7adf5502373b86d53c4ec1dbcae471f3bbf71376"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/bin/Debug/net10.0/FileCat.Platform.Windows.Tests.dll",
+      "sha256": "7b7b51c9d87ffa5a789fe1a9ceae36ac91652e2033d2b5d39c4ed72ef88b9429"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/bin/Debug/net10.0/FileCat.dll",
+      "sha256": "e5dcd104987307f468052f1dd4f05efda99e86d834bffd03f76270a2346faa2c"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/bin/Debug/net10.0/FileCat.Rendering.Tests.dll",
+      "sha256": "a782b7d1c9eda43b3e525083f80feba5830d10ff99a2bfd9261127e53914e98f"
+    }
+  ]
+}

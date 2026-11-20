@@ -7,6 +7,8 @@
     <PackageVersion Include="Avalonia.Headless" Version="12.1.4" />
     <PackageVersion Include="Avalonia.Headless.XUnit" Version="12.1.4" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <!-- MIT PDF page renderer used only inside the isolated viewer worker; 5.2.1 shares Avalonia's SkiaSharp 3 major. -->
+    <PackageVersion Include="PDFtoImage" Version="5.2.1" />
     <!-- The HTML page view on Windows (D-51): Microsoft Edge WebView2, BSD-3-Clause; the runtime ships with Windows 11. -->
     <PackageVersion Include="Microsoft.Web.WebView2" Version="1.0.3179.45" />
     <PackageVersion Include="System.Management" Version="10.0.0" />

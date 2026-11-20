@@ -1,0 +1,7 @@
+{
+  "observedUtc": "2026-11-07T15:17:40.505261+00:00",
+  "exitCode": 0,
+  "filecatOrDotnet": [
+    " 343620  343619 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet test tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --disable-build-servers -p:NuGetAudit=false -m:1 --filter FullyQualifiedName~Captured_RAR_files_and_directories_publish_only_after_journaled_native_sealing_and_fresh_verification --logger trx;LogFileName=archive-worker-secrets.trx --results-directory /home/benny/FileCatValidation/archive-writing-42829297/rar5-native-v4/results"
+  ]
+}

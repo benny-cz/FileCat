@@ -1,0 +1,10 @@
+{
+  "observedUtc": "2026-11-17T09:38:30.914580+00:00",
+  "sessionId": 34679,
+  "terminalExit": 143,
+  "controllerExit": 1,
+  "completionChunk": "a2749a",
+  "actualOriginalController": true,
+  "ownedCancellation": true,
+  "reason": "Owned scaling-cliff baseline ended with SIGTERM after SIGINT was observed but did not cancel the active test; 1M not qualified"
+}

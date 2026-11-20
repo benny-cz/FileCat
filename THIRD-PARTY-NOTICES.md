@@ -28,6 +28,9 @@ the runtime and relinks the AppImage with a modified libfuse.
 | Avalonia (Avalonia, Desktop, Skia, HarfBuzz, Win32, X11, Native, FreeDesktop, AtSpi, Remote.Protocol, Themes.Fluent) | 12.1.4 | MIT | UI framework |
 | Avalonia.Angle.Windows.Natives | 2.1.27548.20260419 | BSD-3-Clause (ANGLE) | Native OpenGL ES over Direct3D on Windows |
 | SkiaSharp (+ native assets) | 3.119.4 | MIT; native Skia BSD-3-Clause | 2D graphics |
+| SkiaSharp.NativeAssets.Linux.NoDependencies | 3.119.2 | MIT; bundled native notices | Additional Linux native asset resolved by the PDF renderer; exact package license and third-party notice bytes retained |
+| PDFtoImage | 5.2.1 | MIT | PDF page rasterization inside FileCat's restricted viewer worker; no PDF actions, links or forms run |
+| bblanchon.PDFium (Win32, Linux, macOS) | 147.0.7690 | NuGet declares Apache-2.0; PDFium includes BSD-3-Clause and other notices | Native PDF renderer. The NuGet packages omit license/notice files, so FileCat retains the exact `chromium/7690` vendor release archives' MIT root LICENSE and 15 third-party license members per platform. Native binary hashes match the NuGet/publish inputs on Windows x64/ARM64, Linux x64 and macOS ARM64. Final artifact-specific notice/SBOM review remains open |
 | HarfBuzzSharp (+ native assets) | 8.3.1.3 | MIT; native HarfBuzz "Old MIT" | Text shaping |
 | MicroCom.Runtime | 0.11.6 | MIT | COM interop helper used by Avalonia |
 | Tmds.DBus.Protocol | 0.94.1 | MIT | Linux desktop integration (D-Bus) |
@@ -39,12 +42,20 @@ the runtime and relinks the AppImage with a modified libfuse.
 | Microsoft.Extensions.DependencyInjection.Abstractions | 8.0.2 | MIT | Resolved App runtime dependency |
 | FluentFTP | 55.0.0 | MIT | FTP and FTPS (ADR-17 addendum, P8) |
 | SharpCompress (FileCat's build, `FileCat.SharpCompress.dll`) | 0.50.5 (commit e4193af8) | MIT AND Apache-2.0 AND MS-PL AND BSD-2-Clause AND BSD-3-Clause AND Zlib | Read-only 7z, xz, bzip2, and zstd (ADR-07, P8); Copyright (c) Adam Hathcock and SharpCompress contributors. Built from `src/ThirdParty/SharpCompress`, cut down to its 7z, bzip2, xz and zstd readers: none of its RAR support and PPMd variant H, which it ported from UnRAR, and none of its other formats (among them ZIP's Info-ZIP-derived implode and reduce decoders). 7z PPMd decodes through FileCat's PPMd model (rardecode row). SharpCompress itself is MIT; its parts from other projects keep their own licenses, all OSI-approved, listed file by file in `licenses/sharpcompress/COMPONENTS.md`, with `NOTICE` and the full texts, shipped with FileCat |
-| rardecode (ported source in FileCat's RAR reader) | v2.4.5 | BSD-2-Clause | `src/FileCat.Archives/Rar` ports its RAR decoding, and `src/ThirdParty/SharpCompress/Compressors/PPMd/PpmdModelH.cs` its PPMd variant H model, which RAR 3 and 7z PPMd share; Copyright (c) 2015 Nicholas Waples. Full text below and in `licenses/rardecode/LICENSE`; no UnRAR source |
+| rardecode (ported RAR/PPMd and password primitives) | v2.4.5 | BSD-2-Clause | `src/FileCat.Archives/Rar` ports its RAR decoding, `src/FileCat.Archives/Writing/Rar5EncryptionPrimitives.cs` its bounded RAR5 password/checksum derivation, and `src/ThirdParty/SharpCompress/Compressors/PPMd/PpmdModelH.cs` its PPMd variant H model, which RAR 3 and 7z PPMd share; Copyright (c) 2015 Nicholas Waples. Full text below and in `licenses/rardecode/LICENSE`; no UnRAR source |
 | XADMaster (ported source in FileCat's RAR 1.5 decoder) | commit 7cb9ee0a | LGPL-2.1-or-later | `src/FileCat.Archives.Rar15` ports its RAR 1.5 decoding (XADRAR15Handle) into the separate, replaceable `FileCat.Archives.Rar15.dll`; Copyright (c) 2017-present MacPaw Way Ltd., originally by Dag Ågren. Notice below; full text in `licenses/xadmaster/LICENSE`, shipped with FileCat; no UnRAR source |
 | LTRData.DiscUtils (Core, Streams, Iso9660, Udf) | 1.0.89 | MIT | Read-only ISO 9660 and UDF images (ADR-07, P8); DiscUtils by Kenneth Bell and contributors, maintained by LTR Data |
 | LTRData.Extensions | 1.0.23 | MIT | Helpers used by DiscUtils; Copyright (c) 2011 - 2026, Olof Lagerkvist, LTR Data (the signed package's own declaration). Its MIT notice is in full below; the package ships no license file, so the canonical MIT text is retained as well |
 | AppImage type2-runtime (Linux AppImage only) | commit fedfad51; upstream GitHub asset 657374641, kept in `eng/linux/appimage-runtime` and pinned by checksum | MIT root; libfuse LGPL-2.1; other linked components have their own licenses | The official producer log binds Alpine 3.21 digest `ce6475…3507`, libfuse 3.15.0, squashfuse 0.5.2, musl 1.2.5-r11, zstd 1.5.6-r2, zlib 1.3.2-r1 and mimalloc 2.1.7-r0. Original source license texts are retained in `licenses/appimage-runtime`. The runtime's corresponding source, with a rebuild and relink script, is published with every AppImage release as `FileCat-<version>-linux-x64-appimage-runtime-source.tar.gz`. The tarball and Debian package omit this wrapper |
 | Inno Setup installer engine, loader and uninstaller (Windows setup package only) | 6.7.1 | Inno Setup license (modified BSD) | Generated installer bytes; Copyright (C) 1997-2026 Jordan Russell, portions Copyright (C) 2000-2026 Martijn Laan. Full license installed as `licenses/InnoSetup-6.7.1.txt`; compiler inputs pinned in `eng/toolchains/inno-setup.json` |
+
+Selected LZMA SDK BCJ2 encoding source is also used by the development archive-writing engine:
+`src/FileCat.Archives/Writing/SevenZipBcj2Encoder.cs` adapts `Bcj2Enc.c` and `Bcj2.h` from SDK 26.05,
+commit `b88c6bc09339de32f7d18bbab900686b244f42ba`. Each file declares **Igor Pavlov: Public domain**.
+FileCat adds bounded stream-only IO, source hashing, cancellation and ownership controls. The exact individual
+source notices/blob/SHA-256 identities are retained in
+`eng/validation/archive-writing/sevenzip-feasibility/ppmd-filter-sources.json`. This uses those individually
+permitted source files, not the full 7-Zip/UnRAR distribution. Production writer qualification remains open.
 
 Test-only (not shipped): sample archives from SharpCompress's test suite (MIT), listed in
 `tests/FileCat.Core.Tests/TestData/Archives/README.md`; the SharpCompress 0.50.5 package (MIT; its RAR and PPMd
@@ -87,7 +98,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 ## rardecode (BSD-2-Clause)
 
 FileCat's RAR reader, and the PPMd variant H model in `FileCat.SharpCompress.dll` that RAR 3 and 7z PPMd
-share, contain code ported from rardecode (https://github.com/nwaples/rardecode).
+share, and the RAR5 password/checksum primitives in `FileCat.Archives`/`FileCat.Archives.Writing`, contain code ported
+from rardecode (https://github.com/nwaples/rardecode).
 
 ```
 Copyright (c) 2015, Nicholas Waples

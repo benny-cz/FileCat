@@ -1,0 +1,62 @@
+{
+  "purpose": "Unfiltered all-metric hierarchy, explicit synthetic accounting and bounded rollups; Windows deferred; no feature/action authorization",
+  "gitBase": "2f2cd955",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "714fbee3af6ff2862c06f16b27c0b3daf7adf3ec74df0b44c6b8db8c27f8939a"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "4dfa30ab5b523072a8c8a39bc29715eb00a034db211fc04c235705ee2d0b21ab"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+      "sha256": "756cce9abe908b3cf4f30546c6c0314c5de39f1001ccff8089a5511faed5373a"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObjectCharges.cs",
+      "sha256": "e02cb805212e0d5ca2d2a2e89f08180fce1a115ece1fe72df80ea68bb635c16e"
+    },
+    {
+      "path": "tests/AnalysisSourceFrontierFixture.cs",
+      "sha256": "1981ee79c645cea51d98f05b96f554515ea9a4cb9165a7d3c40e38148c7cdf5c"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.AllMetricHierarchy.cs",
+      "sha256": "de0ad3a0a5c391c76c52b9313325649cad86f672e291740bd0c5d0e8abc06bc5"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r219.tgz",
+      "sha256": "9175a9ca3d5235c485f13d9791337dd3e23d2a347b0183bed087bfbc19e0490c"
+    },
+    {
+      "path": ".tmp/dsa-native-r219.tgz",
+      "sha256": "62a8aec7050a56927c4999175ad9b2f970a06d0d9edc80f64485d7b502bcd66c"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r219.sh",
+      "sha256": "2b585e9f150c89ccb4dad08466724ea3ae55307269c5c68b1bd3e4414af8fba7"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r219.ps1",
+      "sha256": "ccfd6829e86c650ba7eaab43bb573025735a740eca4024587e1b5428d7cbaec5"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r219.ps1",
+      "sha256": "3c282d140d0d854a71660819c506e8e7178545c8dfe858d364a69d55dea46174"
+    }
+  ],
+  "reports": [
+    "mac-core-r219.xml",
+    "ubuntu-core-r219.xml",
+    "all-metric-hierarchy-build-r218.txt",
+    "windows-deferred-r219.json"
+  ],
+  "remaining": "Filter/group/scoped projection and indexed frontend adoption; original inventory-ID mapping and streaming import/export; cross-process profile quota; native source-scale/resource and Windows qualification; remaining feature packets and final independent review."
+}

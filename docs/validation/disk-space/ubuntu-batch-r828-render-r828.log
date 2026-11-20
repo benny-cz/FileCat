@@ -1,0 +1,35 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+    FileCat.Rendering.Tests.AnalysisRenderingTests.ColorChoiceUpdatesBothChartsAndLegendWithoutChangingScopeMarksOrTheCapturedProjection [FAIL]
+      Assert.Equal() Failure: Values differ
+      Expected: Growth
+      Actual:   FileType
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Colors.cs(60,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.ColorChoiceUpdatesBothChartsAndLegendWithoutChangingScopeMarksOrTheCapturedProjection()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Colors.cs(83,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.ColorChoiceUpdatesBothChartsAndLegendWithoutChangingScopeMarksOrTheCapturedProjection()
+        --- End of stack trace from previous location ---
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+    FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSavedColorRestoresAndSwitchesOfflineWithoutReplacingTheExplorerOrChartData [FAIL]
+      Assert.Contains() Failure: Sub-string not found
+      String:    "Colors: File-type family · rules v1. Expand or col"···
+      Not found: "Observed growth / shrinkage"
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Colors.cs(114,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSavedColorRestoresAndSwitchesOfflineWithoutReplacingTheExplorerOrChartData()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Colors.cs(120,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSavedColorRestoresAndSwitchesOfflineWithoutReplacingTheExplorerOrChartData()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Colors.cs(120,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSavedColorRestoresAndSwitchesOfflineWithoutReplacingTheExplorerOrChartData()
+        --- End of stack trace from previous location ---
+  Finished:    FileCat.Rendering.Tests (ID = 'fae7f8fc14316a08485579fb988892f553d81b74414786c5fd96e99d220231fc')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 274, Errors: 0, Failed: 2, Skipped: 0, Not Run: 0, Time: 165.496s

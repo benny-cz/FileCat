@@ -1,0 +1,90 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+    FileCat.Rendering.Tests.AnalysisRenderingTests.RejectedIndexedCatalogSelectionPreservesNativeSourceAndReleasesItsPendingSession(fault: "id") [FAIL]
+      System.InvalidOperationException : Windowing backend wasn't properly initialized.
+      Stack Trace:
+           at Avalonia.Controls.WindowBase.get_Screens()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\Views\WindowFit.cs(32,0): at FileCat.App.Views.WindowFit.<>c__DisplayClass0_0.<Attach>b__4(Object _, EventArgs _)
+           at Avalonia.Controls.TopLevel.<>c__DisplayClass142_0.<OnClosed>b__0(Object _)
+           at Avalonia.Threading.Dispatcher.Send(SendOrPostCallback action, Object arg, Nullable`1 priority)
+           at Avalonia.Controls.TopLevel.OnClosed(EventArgs e)
+           at Avalonia.Controls.WindowBase.OnClosed(EventArgs e)
+           at Avalonia.Controls.TopLevel.HandleClosed()
+           at Avalonia.Controls.WindowBase.HandleClosed()
+           at Avalonia.Controls.Window.HandleClosed()
+           at Avalonia.Controls.TopLevel.EnsureClosed()
+           at Avalonia.Headless.HeadlessWindowImpl.Dispose()
+           at Avalonia.Controls.Window.CloseInternal()
+           at Avalonia.Controls.Window.CloseCore(WindowCloseReason reason, Boolean isProgrammatic, Boolean ignoreCancel)
+           at Avalonia.Controls.Window.CloseCore(WindowCloseReason reason, Boolean isProgrammatic, Boolean ignoreCancel)
+           at Avalonia.Controls.Window.Close()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\Views\DiskSpaceWindow.cs(152,0): at FileCat.App.Views.DiskSpaceWindow.ForceClose()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedInventory.cs(99,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.RejectedIndexedCatalogSelectionPreservesNativeSourceAndReleasesItsPendingSession(String fault)
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.RejectedIndexedCatalogSelectionPreservesNativeSourceAndReleasesItsPendingSession(fault: "bytes") [FAIL]
+      System.InvalidOperationException : Windowing backend wasn't properly initialized.
+      Stack Trace:
+           at Avalonia.Controls.WindowBase.get_Screens()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\Views\WindowFit.cs(32,0): at FileCat.App.Views.WindowFit.<>c__DisplayClass0_0.<Attach>b__4(Object _, EventArgs _)
+           at Avalonia.Controls.TopLevel.<>c__DisplayClass142_0.<OnClosed>b__0(Object _)
+           at Avalonia.Threading.Dispatcher.Send(SendOrPostCallback action, Object arg, Nullable`1 priority)
+           at Avalonia.Controls.TopLevel.OnClosed(EventArgs e)
+           at Avalonia.Controls.WindowBase.OnClosed(EventArgs e)
+           at Avalonia.Controls.TopLevel.HandleClosed()
+           at Avalonia.Controls.WindowBase.HandleClosed()
+           at Avalonia.Controls.Window.HandleClosed()
+           at Avalonia.Controls.TopLevel.EnsureClosed()
+           at Avalonia.Headless.HeadlessWindowImpl.Dispose()
+           at Avalonia.Controls.Window.CloseInternal()
+           at Avalonia.Controls.Window.CloseCore(WindowCloseReason reason, Boolean isProgrammatic, Boolean ignoreCancel)
+           at Avalonia.Controls.Window.CloseCore(WindowCloseReason reason, Boolean isProgrammatic, Boolean ignoreCancel)
+           at Avalonia.Controls.Window.Close()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\Views\DiskSpaceWindow.cs(152,0): at FileCat.App.Views.DiskSpaceWindow.ForceClose()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedInventory.cs(99,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.RejectedIndexedCatalogSelectionPreservesNativeSourceAndReleasesItsPendingSession(String fault)
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.RejectedIndexedCatalogSelectionPreservesNativeSourceAndReleasesItsPendingSession(fault: "coverage") [FAIL]
+      System.InvalidOperationException : Windowing backend wasn't properly initialized.
+      Stack Trace:
+           at Avalonia.Controls.WindowBase.get_Screens()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\Views\WindowFit.cs(32,0): at FileCat.App.Views.WindowFit.<>c__DisplayClass0_0.<Attach>b__4(Object _, EventArgs _)
+           at Avalonia.Controls.TopLevel.<>c__DisplayClass142_0.<OnClosed>b__0(Object _)
+           at Avalonia.Threading.Dispatcher.Send(SendOrPostCallback action, Object arg, Nullable`1 priority)
+           at Avalonia.Controls.TopLevel.OnClosed(EventArgs e)
+           at Avalonia.Controls.WindowBase.OnClosed(EventArgs e)
+           at Avalonia.Controls.TopLevel.HandleClosed()
+           at Avalonia.Controls.WindowBase.HandleClosed()
+           at Avalonia.Controls.Window.HandleClosed()
+           at Avalonia.Controls.TopLevel.EnsureClosed()
+           at Avalonia.Headless.HeadlessWindowImpl.Dispose()
+           at Avalonia.Controls.Window.CloseInternal()
+           at Avalonia.Controls.Window.CloseCore(WindowCloseReason reason, Boolean isProgrammatic, Boolean ignoreCancel)
+           at Avalonia.Controls.Window.CloseCore(WindowCloseReason reason, Boolean isProgrammatic, Boolean ignoreCancel)
+           at Avalonia.Controls.Window.Close()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\Views\DiskSpaceWindow.cs(152,0): at FileCat.App.Views.DiskSpaceWindow.ForceClose()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedInventory.cs(99,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.RejectedIndexedCatalogSelectionPreservesNativeSourceAndReleasesItsPendingSession(String fault)
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.RejectedIndexedCatalogSelectionPreservesNativeSourceAndReleasesItsPendingSession(fault: "taint") [FAIL]
+      System.InvalidOperationException : Windowing backend wasn't properly initialized.
+      Stack Trace:
+           at Avalonia.Controls.WindowBase.get_Screens()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\Views\WindowFit.cs(32,0): at FileCat.App.Views.WindowFit.<>c__DisplayClass0_0.<Attach>b__4(Object _, EventArgs _)
+           at Avalonia.Controls.TopLevel.<>c__DisplayClass142_0.<OnClosed>b__0(Object _)
+           at Avalonia.Threading.Dispatcher.Send(SendOrPostCallback action, Object arg, Nullable`1 priority)
+           at Avalonia.Controls.TopLevel.OnClosed(EventArgs e)
+           at Avalonia.Controls.WindowBase.OnClosed(EventArgs e)
+           at Avalonia.Controls.TopLevel.HandleClosed()
+           at Avalonia.Controls.WindowBase.HandleClosed()
+           at Avalonia.Controls.Window.HandleClosed()
+           at Avalonia.Controls.TopLevel.EnsureClosed()
+           at Avalonia.Headless.HeadlessWindowImpl.Dispose()
+           at Avalonia.Controls.Window.CloseInternal()
+           at Avalonia.Controls.Window.CloseCore(WindowCloseReason reason, Boolean isProgrammatic, Boolean ignoreCancel)
+           at Avalonia.Controls.Window.CloseCore(WindowCloseReason reason, Boolean isProgrammatic, Boolean ignoreCancel)
+           at Avalonia.Controls.Window.Close()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\Views\DiskSpaceWindow.cs(152,0): at FileCat.App.Views.DiskSpaceWindow.ForceClose()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedInventory.cs(99,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.RejectedIndexedCatalogSelectionPreservesNativeSourceAndReleasesItsPendingSession(String fault)
+        --- End of stack trace from previous location ---
+  Finished:    FileCat.Rendering.Tests (ID = '7f9fd2870d80475e9fc931061960359fd5cc69820566a1295cffab1d9ee7951c')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 103, Errors: 0, Failed: 4, Skipped: 0, Not Run: 0, Time: 38,753s

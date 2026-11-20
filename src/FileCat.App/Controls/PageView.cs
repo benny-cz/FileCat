@@ -59,7 +59,7 @@ public sealed class PageView : NativeControlHost
     public event Action<bool, string?>? LoadCompleted;
 
     /// <summary>A contained relative Markdown link was activated; open its file in another viewer.</summary>
-    public event Action<string>? LinkedMarkdown;
+    public event Action<HtmlPage, LinkedMarkdownTarget>? LinkedMarkdown;
 
     /// <summary>Keys the page would otherwise keep (Esc, function keys, Ctrl and Alt combinations): whether the viewer took one.</summary>
     public Func<Key, KeyModifiers, bool>? KeyRequested { get; set; }
@@ -305,10 +305,10 @@ public sealed class PageView : NativeControlHost
             if (!IsFocused) Focus(NavigationMethod.Pointer);
         });
         engine.FocusLeft += backward => Dispatcher.UIThread.Post(() => LeavePage(backward));
-        engine.LinkedMarkdown += (page, path) => Dispatcher.UIThread.Post(() =>
+        engine.LinkedMarkdown += (page, target) => Dispatcher.UIThread.Post(() =>
         {
             if (ReferenceEquals(engine, _engine) && ReferenceEquals(page, _page) && IsEffectivelyVisible)
-                LinkedMarkdown?.Invoke(path);
+                LinkedMarkdown?.Invoke(page, target);
         });
     }
 
@@ -367,13 +367,24 @@ public sealed class PageView : NativeControlHost
         if (ManagesKeyboard || _keyboardOwner is WindowBase { IsActive: true }) _engine?.Focus();
     }
 
+    /// <summary>Completes a programmatic handoff from the native Windows page to a viewer control.
+    /// Avalonia can focus Find logically without moving Win32 focus out of WebView2.</summary>
+    internal void ReturnKeyboardToViewer()
+    {
+        if (!OperatingSystem.IsWindows() || !IsEffectivelyVisible ||
+            _keyboardOwner is not WindowBase { IsActive: true } owner) return;
+        _hasKeyboard = false;
+        _engine?.ReturnFocus(KeyboardHome(owner));
+    }
+
     /// <summary>Finds visible text in the current rendered page. Null means no page or no find capability.</summary>
-    public async Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
+    public async Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct,
+        bool wrap = false)
     {
         var engine = _engine;
         var page = _page;
         if (!PageLoaded || engine is null || page is null) return null;
-        var found = await engine.FindAsync(text, matchCase, forward, ct);
+        var found = await engine.FindAsync(text, matchCase, forward, ct, wrap);
         ct.ThrowIfCancellationRequested();
         return ReferenceEquals(engine, _engine) && ReferenceEquals(page, _page) && PageLoaded ? found : null;
     }
@@ -382,6 +393,28 @@ public sealed class PageView : NativeControlHost
 
     /// <summary>Fallback for a Page key received by the window while its native page lacks focus.</summary>
     internal Task<bool> ScrollByPageAsync(int direction) => _engine?.ScrollByPageAsync(direction) ?? Task.FromResult(false);
+
+    /// <summary>Reads the rendered page's viewport before Refresh replaces its source.</summary>
+    internal async Task<(double X, double Y)?> CaptureScrollPositionAsync(CancellationToken ct)
+    {
+        var engine = _engine;
+        var page = _page;
+        if (!PageLoaded || engine is null || page is null) return null;
+        var position = await engine.CaptureScrollPositionAsync(ct);
+        ct.ThrowIfCancellationRequested();
+        return ReferenceEquals(engine, _engine) && ReferenceEquals(page, _page) && PageLoaded ? position : null;
+    }
+
+    /// <summary>Restores the old viewport after the replacement page has finished loading.</summary>
+    internal async Task<bool> RestoreScrollPositionAsync((double X, double Y) position, CancellationToken ct)
+    {
+        var engine = _engine;
+        var page = _page;
+        if (!PageLoaded || engine is null || page is null) return false;
+        bool restored = await engine.RestoreScrollPositionAsync(position, ct);
+        ct.ThrowIfCancellationRequested();
+        return restored && ReferenceEquals(engine, _engine) && ReferenceEquals(page, _page) && PageLoaded;
+    }
 }
 
 /// <summary>One platform's web engine behind <see cref="PageView"/>.</summary>
@@ -392,13 +425,17 @@ internal interface IPageEngine : IDisposable
     int BlockedCount { get; }
     event Action? Changed;
     event Action<bool, string?>? Loaded;
-    event Action<HtmlPage, string>? LinkedMarkdown { add { } remove { } }
+    event Action<HtmlPage, LinkedMarkdownTarget>? LinkedMarkdown { add { } remove { } }
     Func<Key, KeyModifiers, bool>? KeyRequested { get; set; }
     void Show(HtmlPage page);
     void SetSize(int width, int height);
     void Focus();
     bool HasKeyboardFocus => false;
     Task<bool> ScrollByPageAsync(int direction) => Task.FromResult(false);
+    Task<(double X, double Y)?> CaptureScrollPositionAsync(CancellationToken ct) =>
+        Task.FromResult<(double X, double Y)?>(null);
+    Task<bool> RestoreScrollPositionAsync((double X, double Y) position, CancellationToken ct) =>
+        Task.FromResult(false);
     /// <summary>The keyboard back to the window holding the page (its native handle; 0: only stop giving it to the page).</summary>
     void ReturnFocus(nint window) { }
     /// <summary>The page was clicked, or took the keyboard itself, so its host should take focus (raised on the engine's thread).</summary>
@@ -407,6 +444,8 @@ internal interface IPageEngine : IDisposable
     event Action<bool>? FocusLeft { add { } remove { } }
     Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) =>
         Task.FromResult<PageFindResult?>(null);
+    Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct, bool wrap) =>
+        FindAsync(text, matchCase, forward, ct);
     void ClearFind() { }
 }
 
@@ -456,7 +495,7 @@ internal sealed class WindowsPageEngine : IPageEngine
         _view.TitleChanged += _ => Changed?.Invoke();
         _view.Blocked += _ => Changed?.Invoke();
         _view.Loaded += (ok, why) => Loaded?.Invoke(ok, why);
-        _view.LinkedMarkdown += (page, path) => LinkedMarkdown?.Invoke(page, path);
+        _view.LinkedMarkdown += (page, target) => LinkedMarkdown?.Invoke(page, target);
         _view.KeyPressed = (virtualKey, ctrl, shift, alt) =>
         {
             if (KeyRequested is not { } handler || ToKey(virtualKey) is not { } key) return false;
@@ -472,20 +511,27 @@ internal sealed class WindowsPageEngine : IPageEngine
     public event Action? Changed;
     public event Action<bool, string?>? Loaded;
     public event Action? FocusRequested;
-    public event Action<HtmlPage, string>? LinkedMarkdown;
+    public event Action<HtmlPage, LinkedMarkdownTarget>? LinkedMarkdown;
     public Func<Key, KeyModifiers, bool>? KeyRequested { get; set; }
     public void Show(HtmlPage page) => _view.Show(page);
     public void SetSize(int width, int height) => _view.SetSize(width, height);
     public void Focus() => _view.Focus();
     public async Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
+        => await FindAsync(text, matchCase, forward, ct, wrap: false);
+
+    public async Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct, bool wrap)
     {
-        bool? found = await _view.FindAsync(text, matchCase, forward, ct);
+        bool? found = await _view.FindAsync(text, matchCase, forward, ct, wrap);
         return found is { } value ? new PageFindResult(value) : null;
     }
     public void ClearFind() => _view.ClearFind();
     public Task<bool> ScrollByPageAsync(int direction) => _view.ScrollByPageAsync(direction);
+    public Task<(double X, double Y)?> CaptureScrollPositionAsync(CancellationToken ct) =>
+        _view.CaptureScrollPositionAsync(ct);
+    public Task<bool> RestoreScrollPositionAsync((double X, double Y) position, CancellationToken ct) =>
+        _view.RestoreScrollPositionAsync(position, ct);
     public void Dispose() => _view.Dispose();
-    public void ReturnFocus(nint window) => _view.CancelPendingFocus();
+    public void ReturnFocus(nint window) => _view.ReturnFocus(window);
 
     /// <summary>The keys the viewer acts on: Esc, the function keys, and letters (with Ctrl or Alt).</summary>
     private static Key? ToKey(uint virtualKey) => virtualKey switch

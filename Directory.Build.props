@@ -11,8 +11,8 @@
     <Deterministic>true</Deterministic>
     <Company>FileCat</Company>
     <Product>FileCat</Product>
-    <Authors>FileCat contributors</Authors>
-    <Copyright>Copyright (c) 2026 Benny and FileCat contributors</Copyright>
+    <Authors>Marek Střihavka; FileCat contributors</Authors>
+    <Copyright>Copyright (c) 2026 Marek Střihavka &lt;marek.strihavka@gmail.com&gt; and FileCat contributors</Copyright>
     <VersionPrefix>0.1.0</VersionPrefix>
     <VersionSuffix>preview</VersionSuffix>
     <NeutralLanguage>en</NeutralLanguage>

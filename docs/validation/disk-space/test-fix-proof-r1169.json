@@ -1,0 +1,47 @@
+{
+  "revision": "r1169",
+  "baseline": "r1168",
+  "scope": "TestOnly",
+  "testPhases": [
+    "render"
+  ],
+  "productSourceBaseline": null,
+  "reuseFrozenDependencies": false,
+  "producerSha256": "1aff5bb02d642f406231264ede6ac045611c3acbc3455ed7b0d649ec782469e9",
+  "elapsedSeconds": 31.4680618,
+  "platforms": [
+    {
+      "changed": [
+        "render/FileCat.Rendering.Tests.dll",
+        "render/FileCat.Rendering.Tests.pdb"
+      ],
+      "sha256": "9dee52e28908dd7f299f606e593c4fed4929cadd77de05ed7404822af0709ea8",
+      "archiveBytes": 95953346,
+      "verifiedInputs": 270,
+      "platform": "windows",
+      "guestReuse": false
+    },
+    {
+      "changed": [
+        "render/FileCat.Rendering.Tests.dll",
+        "render/FileCat.Rendering.Tests.pdb"
+      ],
+      "sha256": "52f69cfe26c1a3ac02dd1f8ef03305fc8a898a32ef0816564928ee37cecebea3",
+      "archiveBytes": 56584107,
+      "verifiedInputs": 192,
+      "platform": "mac",
+      "guestReuse": false
+    },
+    {
+      "changed": [
+        "render/FileCat.Rendering.Tests.dll",
+        "render/FileCat.Rendering.Tests.pdb"
+      ],
+      "sha256": "56e98ce6915bef510734c07438cf9e91de48e296faa965d1c09ce08e9ee4d6f5",
+      "archiveBytes": 53918559,
+      "verifiedInputs": 191,
+      "platform": "linux",
+      "guestReuse": false
+    }
+  ]
+}

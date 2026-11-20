@@ -1,0 +1,16 @@
+[
+    {
+        "ProcessId":  1340,
+        "ParentProcessId":  2244,
+        "Name":  "dotnet.exe",
+        "CommandLine":  "\"C:/Program Files/dotnet/dotnet.exe\" exec C:/Users/fcarchive42829297/FileCatValidation/Capture-42829297-v7/tester/vstest.console.dll C:\\Users\\Admin\\FileCatValidation\\ArchiveWriting-42829297\\archive-workflow-source-v1\\tests\\FileCat.Platform.Windows.Tests\\bin\\Release\\net10.0\\FileCat.Platform.Windows.Tests.dll /TestCaseFilter:FullyQualifiedName~ArchiveAppContainer|FullyQualifiedName~ArchiveRetainedStage|FullyQualifiedName~ArchiveContent /Logger:trx;LogFileName=native.trx /ResultsDirectory:C:\\Users\\Admin\\FileCatValidation\\ArchiveWriting-42829297\\archive-creation-ui-v5\\results",
+        "CreationDate":  "\/Date(1794113797282)\/"
+    },
+    {
+        "ProcessId":  6540,
+        "ParentProcessId":  2536,
+        "Name":  "FileCat.Platform.Windows.Tests.exe",
+        "CommandLine":  "\"C:\\Users\\Admin\\FileCatValidation\\ArchiveWriting-42829297\\archive-workflow-source-v1\\tests\\FileCat.Platform.Windows.Tests\\bin\\Release\\net10.0\\FileCat.Platform.Windows.Tests.exe\" @@ \"C:\\Users\\fcarchive42829297\\AppData\\Local\\Temp\\tmpvlsdnh.tmp\"",
+        "CreationDate":  "\/Date(1794113799110)\/"
+    }
+]

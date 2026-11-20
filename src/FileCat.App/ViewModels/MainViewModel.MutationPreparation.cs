@@ -30,13 +30,14 @@ public sealed partial class MainViewModel
                     Check(); var info = fs.TryGetInfo(archive) ?? throw new FileNotFoundException("The archive no longer exists.", archive);
                     if (info.IsDirectory) throw new IOException("The archive path is a folder.");
                     if (info.IsReadOnly) throw new UnauthorizedAccessException("The archive file is read-only; clear its read-only attribute to change it.");
-                    var revision = ArchiveBaseline.Of(archive, Check);
+                    var revision = ArchiveBaseline.OfForMutation(archive, Check);
                     if (revision.Length != info.Size || revision.LastWriteUtcTicks != info.ModifiedUtc.Ticks)
                         throw new IOException("The archive changed while its update was being prepared; refresh and try again.");
                     return revision;
                 }
                 var baseline = ReadRevision();
-                using var zip = ZipFile.OpenRead(archive);
+                using var source = new ArchiveMutationReadStream(archive);
+                using var zip = new ZipArchive(source, ZipArchiveMode.Read, leaveOpen: true);
                 if (zip.Entries.Count > ZipProvider.MaxEntries) throw new InvalidDataException($"The archive has more than {ZipProvider.MaxEntries:N0} members.");
                 var taken = new HashSet<string>(StringComparer.Ordinal); var copies = new Dictionary<string, int>(StringComparer.Ordinal);
                 foreach (var entry in zip.Entries)

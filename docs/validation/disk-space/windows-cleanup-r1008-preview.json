@@ -1,0 +1,47 @@
+{
+    "root":  "C:\\FileCatDsa20261104R2",
+    "dryRun":  true,
+    "keep":  [
+                 "batch-r1006"
+             ],
+    "removed":  [
+                    {
+                        "bytes":  238068557,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r955\\payload"
+                    },
+                    {
+                        "bytes":  443888,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r955\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  229037771,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r959\\payload"
+                    },
+                    {
+                        "bytes":  79146461,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r959\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  229050383,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r963\\payload"
+                    },
+                    {
+                        "bytes":  79154169,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r963\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  229191995,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r998\\payload"
+                    },
+                    {
+                        "bytes":  79197649,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r998\\bundle.tgz"
+                    }
+                ],
+    "skipped":  [
+                    "batch-r581",
+                    "batch-r732"
+                ],
+    "capacity":  213660311552,
+    "available":  1429598208
+}

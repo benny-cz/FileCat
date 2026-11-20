@@ -1,0 +1,29 @@
+{
+  "revision": "r1146",
+  "renderRevision": "r1146",
+  "buildLog": ".tmp/indexed-comparison-chart-build-r1146.txt",
+  "sourceManifest": ".tmp/source-candidate-r1146.json",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 32.4370764,
+  "archives": [
+    {
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r1146.tgz",
+      "bytes": 56141929,
+      "sha256": "cad7bed56925babd1e8f5e64cdb0de913ea4cde38144ec79b237f1b3250ced56",
+      "platform": "mac"
+    },
+    {
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r1146.tgz",
+      "bytes": 53468733,
+      "sha256": "57d7af90b7841cf04eeb219eefcf0b1d69ef23399c3887235182149228365f58",
+      "platform": "linux"
+    },
+    {
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r1146.tgz",
+      "bytes": 95432020,
+      "sha256": "fdd6145aef2def3704188bc6433e5c8f5810aced59f8f8e075a6e09b891d27a3",
+      "platform": "windows"
+    }
+  ]
+}

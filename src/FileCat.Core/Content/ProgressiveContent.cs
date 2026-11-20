@@ -41,16 +41,22 @@ public sealed record MemberLimits(long Declared, long Compressed, long MaxLength
     }
 
     /// <summary>Copies a whole member under these limits and verifies its end; returns the bytes copied.</summary>
-    public long CopyAll(Stream source, Stream destination, CancellationToken ct = default)
+    public long CopyAll(Stream source, Stream destination, CancellationToken ct = default) =>
+        CopyAll(source, destination, ct, null);
+
+    internal long CopyAll(Stream source, Stream destination, CancellationToken ct, Action? verifySource)
     {
         uint crc = 0;
         var buffer = ArrayPool<byte>.Shared.Rent(256 * 1024);
         try
         {
             long total = 0;
-            int n;
-            while ((n = source.Read(buffer, 0, buffer.Length)) > 0)
+            while (true)
             {
+                verifySource?.Invoke();
+                int n = source.Read(buffer, 0, buffer.Length);
+                verifySource?.Invoke();
+                if (n <= 0) break;
                 ct.ThrowIfCancellationRequested();
                 total += n;
                 Check(total);
@@ -83,6 +89,7 @@ public sealed class ProgressiveContent : IContentSource
     private Action? _closed;
     private readonly MemberLimits _limits;
     private Action? _verifySource;
+    private Action? _verifyDiskSpool;
     private readonly long _maxKept;
     private readonly string _tempDirectory;
     private uint _crc;
@@ -102,7 +109,12 @@ public sealed class ProgressiveContent : IContentSource
         : this(displayName, gate, open, limits, maxKept, tempDirectory, closed, null) { }
 
     /// <param name="verifySource">Optional opened-source check invoked before and after each read.</param>
-    public ProgressiveContent(string displayName, object gate, Func<Stream> open, MemberLimits limits, long maxKept, string tempDirectory, Action? closed, Action? verifySource)
+    public ProgressiveContent(string displayName, object gate, Func<Stream> open, MemberLimits limits, long maxKept, string tempDirectory,
+        Action? closed, Action? verifySource)
+        : this(displayName, gate, open, limits, maxKept, tempDirectory, closed, verifySource, null) { }
+
+    internal ProgressiveContent(string displayName, object gate, Func<Stream> open, MemberLimits limits, long maxKept, string tempDirectory,
+        Action? closed, Action? verifySource, Action? verifyDiskSpool)
     {
         if (limits.Declared < 0) throw new ArgumentException("Progressive content needs a declared size.", nameof(limits));
         DisplayName = displayName;
@@ -113,6 +125,7 @@ public sealed class ProgressiveContent : IContentSource
         _tempDirectory = tempDirectory;
         _closed = closed;
         _verifySource = verifySource;
+        _verifyDiskSpool = verifyDiskSpool;
     }
 
     public string DisplayName { get; }
@@ -208,16 +221,26 @@ public sealed class ProgressiveContent : IContentSource
     private void Produce(long upTo)
     {
         if (_damage is not null) return;
+        var verify = WindowsTokenAuthority.IsHighIntegrity ? null : _verifyDiskSpool;
         var chunk = ArrayPool<byte>.Shared.Rent(ChunkSize);
         try
         {
             while (!_ended && _produced < upTo)
             {
                 if (_disposed) throw new ObjectDisposedException(DisplayName);
+                verify?.Invoke();
                 var source = Source();
                 // After the cursor was taken away, the reopened stream first catches up with what was kept.
                 int want = _sourceAt < _produced ? (int)Math.Min(ChunkSize, _produced - _sourceAt) : ChunkSize;
                 int n = source.Read(chunk, 0, want);
+                try { verify?.Invoke(); }
+                catch
+                {
+                    // The source advanced, but nothing from this read was admitted to the spool.
+                    try { CloseSource(); }
+                    catch (Exception ex) { AppLog.Warn("Archive member close failed after disk cache refusal", ex); }
+                    throw;
+                }
                 if (n <= 0)
                 {
                     End();
@@ -352,6 +375,7 @@ public sealed class ProgressiveContent : IContentSource
             // A caller may retain disposed content; it no longer owns an archive index or callback captures.
             _open = null;
             _verifySource = null;
+            _verifyDiskSpool = null;
             var closed = _closed;
             _closed = null;
             Exception? failure = null;

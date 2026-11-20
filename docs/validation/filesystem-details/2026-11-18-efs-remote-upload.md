@@ -1,0 +1,21 @@
+# EFS consent for uploads from local files
+
+The shared SFTP, FTP and FTPS upload job inspects the actual opened Windows file before creating or appending to a server stage. For EFS inputs it shows the source and remote destination and asks once per attempt. Skip is the initial choice. Reopening after a failure requires fresh consent. When a previously clear source is observed as EFS-protected during a read, the newly read buffer stays local. A successful move ties a granted decision to the opened file identity, checks the published bytes and keeps a source that became EFS-protected without that approval.
+
+The Windows 11 x64 VM passed seven focused tests with no skips. The six EFS tests exercised the production upload job and Windows file operations against a controlled SFTP channel. They verified copy and move with approval and refusal, a reconnect after 150,000 staged bytes without an unapproved append, and retention of a source encrypted after server publication. The seventh test exercised ordinary FAT32 and exFAT move retirement. Results are in `.tmp/filecat-efs-remote-upload-verified-tests.xml`.
+
+Ubuntu and macOS each passed 783 focused remote regressions across the ordinary SFTP controls and real FTP, FTPES and FTPS servers, with one Windows-only link fixture skipped per host. Two crash controls on each host passed after the standalone package was given the expected harness layout. Windows EFS combined with real protocol transports and the origin of retained and derived uploads remain open in E-OUT4.
+
+## Native ARM64 upload and source retirement
+
+On Windows 11 Enterprise ARM64 build 26200, the medium-integrity app test process used actual 4 KiB NTFS sources with a scripted SFTP server. All 15 upload cases and 24 retained-edit cases passed with zero skips. They verified consent before creating a server stage, keeping an encrypted original after declining a move, renewed consent for resume or restart, and refusal to retire a source encrypted after remote publication. The cases preserved the sparse-file notice and checked protection at the actual ZIP, TAR and retained edit snapshot. Source commit was `0f709d9699eb4dcbdf8994dd04a3457fb3743ea4`. Live SFTP, FTP and FTPS evidence is recorded in the separate x64 protocol checkpoint. [Run and `native-efs-remote-upload.trx`](https://github.com/benny-cz/FileCat/actions/runs/44517702874)
+
+## Sparse sources and exact stage review
+
+The upload reads the sparse attribute from the same Windows handle used for the EFS check. The sparse upload sends the whole logical byte stream. Its successful publication reports that the server copy may need more space. The EFS review shows that potential growth along with the exact destination and temporary server name before the upload writes. A reconnect that can resume shows both the existing stage and the fresh one FileCat will use if the server declines to append. The decision applies to that attempt.
+
+On 2026-11-19 the medium-integrity Windows x64 VM passed 39 controlled SFTP upload and retained-edit tests. New cases covered clear sparse copies and EFS sparse sources with approval and refusal. After a simulated disconnect with 150,000 bytes staged, fresh approval either appended at that offset or restarted at the named fresh stage when the server refused to resume. Declining the renewed review caused no append, removed the stage and kept the encrypted original. The approved paths published exact logical bytes and performed source retirement for the moves. The stage observed on the first write matched its reviewed name. See `.tmp/filecat-sparse-upload-9762f943-r1.xml`.
+
+Production SFTP, FTP, FTPES and FTPS connectors each passed an approved and a declined 2 MiB sparse EFS upload against the disposable Ubuntu servers. A separate connection observed an empty destination at the review. Each approved case published one file whose bytes matched on read-back. The server directory stayed empty after decline, and all originals stayed encrypted. The Windows driver log and per-protocol XML results are under `.tmp` with prefix `filecat-sparse-upload-9762f943-r1-live`.
+
+Ubuntu passed 191 portable remote cases with 15 platform or fixture skips. The build-host result is `.tmp/filecat-sparse-upload-9762f943-r1-portable.trx`.

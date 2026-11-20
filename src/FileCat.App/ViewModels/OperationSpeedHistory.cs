@@ -12,8 +12,9 @@ internal sealed class OperationSpeedHistory
     private bool _everActive;
 
     internal IReadOnlyList<Point> Samples => _samples;
-    // Keep a stalled operation's flatline visible even after its last positive sample has aged out.
+    // Remember real activity so a later zero-rate stretch remains meaningful while at least two samples remain.
     internal bool HasActivity => _everActive;
+    internal bool HasTrend => HasActivity && _samples.Count >= 2;
     internal double Peak => _samples.Count == 0 ? 0 : _samples.Max(point => point.Y);
     internal double Current => _samples.Count == 0 ? 0 : _samples[^1].Y;
 

@@ -1,0 +1,17 @@
+# I597 — Create and edit chose Xcode's unavailable `xed` on macOS
+
+## User consequence and distinct scope
+
+A native Mac user chose **File → Edit new file…**, entered `draft note.txt` in an owned folder, and confirmed **Create and edit**. FileCat created the zero-byte file and reported a completed job, but no editor showed that file. On this Mac, `/usr/bin/xed` exists even without Xcode.app. The auto-detector selected it ahead of TextEdit; `/usr/bin/xed` exited 70 with **Unable to find Xcode.app**, as the isolated FileCat launch log also showed. A direct `/usr/bin/open -e` positive control on the same owned file exited 0 and produced a TextEdit window named `draft note.txt`. The existing unrelated TextEdit window was not controlled.
+
+This is a new create → external-editor handoff. Prior tool-launch/quoted-command tests and Windows editor gate controls do not establish that macOS's `xed` is Xcode's launcher rather than the similarly named Linux text editor. The before source was `08ec46647a4921b826238db26749aec761867a23`, with Mac package ZIP SHA-256 `ad16f5fc8a2c0c6d01691393163a8a6470c0034016981182c112b72d606d1cfd`. The owned `keep.txt` remained at SHA-256 `522781617c08dfc8068ea4105a457f0ab0485d181a020dd4677a41ffbf605f62`; the target stayed empty.
+
+## Correction and bounded verification
+
+Product `3bf3447705e3e5ef89a7b54ea12730be4a1fda3b` narrows macOS editor auto-detection to an installed `code` CLI or native TextEdit (`/usr/bin/open -e`). Linux keeps its existing `code`, GNOME, Kate and Xed choices; configured editor associations remain available. The focused cross-platform Core control supplies a fake `xed` executable and requires the macOS path to choose TextEdit while the Linux path still chooses Xed. It passed **1P/0F/0S** on Windows x64 and Mac ARM64.
+
+A fresh exact-source Mac package ZIP had SHA-256 `1059e11bb7b3c8615ddc3304f5112c2d77b75c9efa9e60088eb975150cb3138e`; the extracted app passed strict deep code-signature verification. A new isolated FileCat instance created `source-after/draft-after.txt` through the same native **Create and edit** dialog. Its completed job and file row named the zero-byte file; TextEdit gained an exact `draft-after.txt` window, while its preexisting unrelated window remained. The owned test window and FileCat instance were closed without editing the file. Independent `stat` found the new file at zero bytes, `keep.txt` retained SHA-256 `9215e83dfe325c072e90d00d6c8e24a95fa2ef7a30e0e73a578031de604e825d`, and the target stayed empty. This proves editor handoff, not a full save/round-trip in TextEdit.
+
+## Disposition and finite candidate rule
+
+Medium create/edit continuity issue, **remediated preliminarily**. On the exact installed 1.0.0 macOS candidate without Xcode, choose **Edit new file…** in an owned folder, enter a name with a space and confirm. Require the new file to appear and the selected editor to open that exact file. If the `code` CLI is intentionally installed and selected, verify its actual document window; otherwise require TextEdit. Check the source sentinel and empty target. Stop after this affected route and latest-product five-lane CI with skip reconciliation; do not retest arbitrary external editors without a new observation. Public preview.5 predates I597; stable 1.0.0 remains **NO-GO** until all candidate gates and explicit owner GO. This finding resets the exploratory clean streak to **0/20**; the preceding four-panel pass is historical.

@@ -52,10 +52,23 @@ public sealed class CompareTextInteractionTests
             var scope = window.GetVisualDescendants().OfType<ComboBox>().Single(c =>
                 AutomationProperties.GetName(c) == "Comparison search source scope");
             var view = window.GetVisualDescendants().OfType<CompareTextView>().Single();
-            ButtonNamed(window, "Find…").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            window.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, null);
             Assert.True(search.IsVisible);
+            Assert.True(search.IsFocused);
             search.Text = "needle";
             await Until(() => status.Text?.StartsWith("2 matches", StringComparison.Ordinal) == true);
+            window.GetVisualDescendants().OfType<Button>().Single(b =>
+                AutomationProperties.GetName(b) == "Close comparison Find bar")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.False(search.IsEffectivelyVisible);
+            window.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, null);
+            Assert.True(search.IsEffectivelyVisible);
+            Assert.Equal("needle", search.Text);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            Assert.False(search.IsEffectivelyVisible);
+            window.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, null);
+            Assert.True(search.IsEffectivelyVisible);
+            Assert.Contains("searchFound", search.Classes);
             ButtonNamed(window, "Next match").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.True(window.CurrentRow >= 90);
             Assert.Equal("needle", view.SelectedSourceText().Text);
@@ -64,11 +77,16 @@ public sealed class CompareTextInteractionTests
             Assert.Contains("Match 2 of 2", status.Text);
             window.KeyPress(Key.F3, RawInputModifiers.Shift, PhysicalKey.F3, null);
             Assert.Contains("Match 1 of 2", status.Text);
+            window.KeyPress(Key.F3, RawInputModifiers.Shift, PhysicalKey.F3, null);
+            Assert.Contains("Wrapped to the end. Match 2 of 2", status.Text);
+            window.KeyPress(Key.F3, RawInputModifiers.None, PhysicalKey.F3, null);
+            Assert.Contains("Wrapped to the beginning. Match 1 of 2", status.Text);
             scope.SelectedIndex = 1;
             await Until(() => status.Text?.StartsWith("1 match", StringComparison.Ordinal) == true);
             var changed = window.GetVisualDescendants().OfType<CheckBox>().Single(c => c.Content as string == "Changed rows only");
             changed.IsChecked = true;
             await Until(() => status.Text?.StartsWith("No matches", StringComparison.Ordinal) == true);
+            Assert.Contains("searchMissing", search.Classes);
             Assert.Contains("left shown source, changed rows only", status.Text);
             Assert.False(ButtonNamed(window, "Next match").IsEnabled);
         }

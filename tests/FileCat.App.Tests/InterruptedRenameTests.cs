@@ -79,7 +79,22 @@ public sealed class InterruptedRenameTests(ITestOutputHelper output)
         ClickBanner("Mark reviewed…");
         await Wait(() => f.Button("Mark reviewed and stop reminders") is not null);
         f.Click("Mark reviewed and stop reminders");
-        await Wait(() => f.Ended && f.Vm.Operations.Interrupted.Count == 0);
+        // Poll UI retirement first. Ended scans the journal with an exclusive Windows probe; polling it
+        // concurrently can make the closure worker conservatively refuse its own InUse check.
+        try { await Wait(() => f.Vm.Operations.Interrupted.Count == 0); }
+        catch
+        {
+            output.WriteLine("REVIEW_CLOSURE_STATE " + JsonSerializer.Serialize(new
+            {
+                f.Ended, f.Vm.Notification,
+                Rows = f.Vm.Operations.Interrupted.Select(r => new { r.Job.JournalPath, r.ActionPhase, r.ActionStatus }).ToArray(),
+                f.Vm.Operations.StorageAccountingStatus, f.Vm.Operations.StorageHistoryStatus,
+                f.Vm.Operations.IsStorageHistoryAccounting, f.Vm.Operations.IsStorageHistoryLoading,
+                Reviewed = RecoveryReviewStore.Load(f.Services.Paths.JournalDirectory).Select(r => new { r.JournalPath, r.ClosureConfirmed }).ToArray(),
+            }));
+            throw;
+        }
+        Assert.True(f.Ended);
         var record = Assert.Single(RecoveryReviewStore.Load(f.Services.Paths.JournalDirectory));
         Assert.True(record.ClosureConfirmed);
         Assert.Contains(JsonSerializer.Serialize(f.Via), record.Report);

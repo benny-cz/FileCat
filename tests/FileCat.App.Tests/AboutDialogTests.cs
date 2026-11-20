@@ -3,7 +3,10 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Markup.Xaml.Styling;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
+using FileCat.App.Services;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
 
@@ -12,6 +15,34 @@ namespace FileCat.App.Tests;
 /// <summary>Help → About: who made FileCat, what it runs on, and the details copied whole for a bug report.</summary>
 public sealed class AboutDialogTests
 {
+    [AvaloniaFact]
+    public async Task About_fits_the_minimum_main_window_without_horizontal_page_scrolling_across_themes()
+    {
+        string previousTheme = ThemeManager.RequestedName;
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 455);
+        try
+        {
+            window.Styles.Add(new StyleInclude(new Uri("avares://FileCat/"))
+                { Source = new Uri("avares://FileCat/Themes/Styles.axaml") });
+            foreach (var theme in new[] { "Classic", "ClassicDark", "HighContrast", "Cyberpunk", "Psychedelic", "Steampunk", "DosCommander" })
+            {
+                ThemeManager.Apply(theme);
+                var pending = AboutDialog.ShowAsync(vm);
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+                var scroll = Assert.Single(window.GetVisualDescendants().OfType<ScrollViewer>(), s => s.Name == "DialogBodyScroll");
+                Assert.True(scroll.Extent.Width <= scroll.Viewport.Width + 1,
+                    $"{theme}: About content width {scroll.Extent.Width} exceeds the {scroll.Viewport.Width} viewport.");
+                Assert.Contains(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Copy details");
+                ((OverlayDialogService)vm.Dialogs).CancelAll();
+                await pending;
+            }
+        }
+        finally { AccessibilityTests.Close(services, window, root); ThemeManager.Apply(previousTheme); }
+    }
+
     [AvaloniaFact]
     public async Task About_names_the_author_says_what_it_runs_on_and_copies_the_details()
     {

@@ -15,6 +15,13 @@ public partial class App : Application
 {
     public static StartupOptions StartupOptions { get; set; } = new();
 
+    /// <summary>
+    /// Set only by the never-shipped archive qualification host (tests/FileCat.ArchiveQualificationHost) through
+    /// InternalsVisibleTo: the same application with explicitly composed native archive or storage backends for
+    /// screen-reader and layout qualification. Ordinary startup registers only qualified routes.
+    /// </summary>
+    internal static Func<StartupOptions, AppServices>? QualificationServices { get; set; }
+
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
@@ -23,7 +30,8 @@ public partial class App : Application
         bool benchmark = StartupOptions.BenchmarkCount > 0;
         // The TV-01 benchmark runs on isolated, temporary state with synthetic listings.
         string? benchmarkRoot = benchmark ? Path.Combine(Path.GetTempPath(), "FileCat-benchmark-" + Guid.NewGuid().ToString("N")) : null;
-        var services = AppServices.Initialize(StartupOptions.Profile, benchmarkRoot, StartupOptions.DataRoot);
+        var services = QualificationServices?.Invoke(StartupOptions) ?? AppServices.Initialize(StartupOptions.Profile, benchmarkRoot,
+            StartupOptions.DataRoot, StartupOptions.AnalysisScratchParent);
         string syntheticRoot = Path.Combine(benchmarkRoot ?? services.Paths.TempDirectory, "synthetic");
         if (benchmark)
         {
@@ -35,6 +43,7 @@ public partial class App : Application
         ThemeAnimation.SetAllowed(services.Settings.ThemeAnimations);
         Controls.AtSpiLayoutNames.Install(this);
         Controls.LiveRegions.Install();
+        Controls.ComboBoxAnnouncements.Install();
         Controls.ToolTipNames.Install();
         Controls.SyntheticModifierKeys.Install();
         if (PlatformSettings is { } ps)
@@ -55,14 +64,41 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var window = new MainWindow(vm, state?.Window);
+            var window = new MainWindow(vm, vm.LoadStartupWindowPlacement(state, StartupOptions.ResetLayout));
             // Periodic autosave keeps the layout recoverable even after a hard crash (plan §19.2).
             var autosave = new DispatcherTimer(TimeSpan.FromSeconds(60), DispatcherPriority.Background, (_, _) => vm.SaveWorkspace(null));
             autosave.Start();
-            vm.Initialize(state);
+            WorkspaceTransfer.Prepared? remembered = null;
+            string? workspaceWarning = null;
+            if (!benchmark && !StartupOptions.ResetLayout && StartupOptions.Workspace is null)
+            {
+                workspaceWarning = services.AdministratorWorkspaceWarning;
+                try { remembered = vm.PrepareRememberedWorkspace(); }
+                catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
+                {
+                    workspaceWarning = "Could not load the remembered workspace. " + Formatters.SafeName(ex.Message);
+                }
+            }
+            try
+            {
+                vm.Initialize(remembered?.State ?? state);
+                if (remembered is not null)
+                {
+                    if (remembered.Skipped > 0)
+                        workspaceWarning = $"The remembered workspace skipped {remembered.Skipped} unavailable or linked folders.";
+                    vm.RetainWorkspaceTransferPaths(remembered);
+                    remembered = null;
+                }
+            }
+            finally { remembered?.Dispose(); }
             vm.OpenArguments(StartupOptions, initial: true);
-            if (!benchmark) _ = vm.CheckForUpdatesOnStartupAsync();
             desktop.MainWindow = window;
+            if (StartupOptions.LinkDraft is { } draft)
+                window.Opened += async (_, _) => await vm.ReviewAdministratorLinkDraftAsync(draft);
+            else if (StartupOptions.AdministratorTask is { } request)
+                window.Opened += async (_, _) => await vm.ReviewAdministratorTaskAsync(request, StartupOptions.AdministratorRequest);
+            else if (StartupOptions.LinkDraftProblem is { } draftProblem)
+                window.Opened += async (_, _) => await vm.Dialogs.AlertAsync("Could not reopen the administrator request", draftProblem);
             desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnMainWindowClose;
             // Signing out or shutting down while operations run: Windows shows the reason set by the view model and
             // lets the user decide; interrupted jobs are reviewed at the next start.
@@ -72,6 +108,8 @@ public partial class App : Application
             };
             if (!benchmark && services.Shell.IsElevated)
                 NotifyAdministratorNotice(vm);
+            if (services.AdministratorTransferWarning is { } appearanceWarning) vm.Notify(appearanceWarning, true);
+            if (workspaceWarning is not null) vm.Notify(workspaceWarning, true);
             if (services.Paths.PortableUnavailableReason is { } portable) vm.Notify(portable, true);
             desktop.Exit += (_, _) =>
             {
@@ -84,6 +122,14 @@ public partial class App : Application
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
                 }
             };
+            if (!benchmark)
+            {
+                var startupUpdateCheck = new CancellationTokenSource();
+                window.Opened += (_, _) => services.AnalysisHistory.StartMaintenance();
+                window.Opened += (_, _) => Dispatcher.UIThread.Post(
+                    () => _ = vm.CheckForUpdatesOnStartupAsync(startupUpdateCheck.Token), DispatcherPriority.Background);
+                window.Closed += (_, _) => startupUpdateCheck.Cancel();
+            }
             if (benchmark)
             {
                 window.Opened += async (_, _) => await NativeBenchmark.RunAsync(window, vm, services, StartupOptions, syntheticRoot);
@@ -103,7 +149,8 @@ public partial class App : Application
     }
 
     internal static void NotifyAdministratorNotice(MainViewModel vm) =>
-        vm.Notify("FileCat is running as administrator: every operation has full rights, Windows blocks drag and drop from other programs, and changes to its user-profile state are not saved. Start it normally for everyday work.");
+        vm.Notify("FileCat is running as administrator. Operations have full rights, drag and drop from other programs is blocked, and the normal profile is read-only." +
+            (vm.Services.AdministratorTransfers is not null ? " Use Settings to remember copied preferences for later administrator launches." : ""));
 
     /// <summary>
     /// A UI exception is logged with its stack and reported instead of terminating FileCat; jobs keep their

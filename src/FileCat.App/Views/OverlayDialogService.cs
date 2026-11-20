@@ -14,12 +14,13 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.ViewModels;
+using FileCat.Core.Commands;
 
 namespace FileCat.App.Views;
 
 /// <summary>
-/// In-window modal dialogs on a dimmed backdrop. Keyboard-first: Enter confirms, Esc cancels, Tab cycles
-/// inside the dialog, and focus returns to where it was when the dialog closes (plan §4.3).
+/// In-window modal dialogs on a dimmed backdrop. Keyboard-first: Enter confirms, Esc follows the dialog's
+/// implicit-close behavior, Tab cycles inside the dialog, and closing restores the prior focus (plan §4.3).
 /// </summary>
 public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallbackFocus,
     Action<FileListControl>? announceRestoredRow = null) : IDialogService
@@ -41,6 +42,41 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         public required Control InitialFocus;
         public IInputElement? PreviousFocus;
         public required Action OnEscape;
+        public required Action OnImplicitDismiss;
+        public bool DismissOnBackdrop;
+        public bool KeepOperationsUsable;
+    }
+
+    /// <summary>The operation center that a dialog with <see cref="DialogBehavior.KeepOperationsUsable"/> leaves interactive.</summary>
+    public Control? OperationsRegion { get; set; }
+    private int? _operationsZIndex;
+    /// <summary>True while the topmost dialog leaves the operation center usable.</summary>
+    public bool OperationsUsable => _sessions.Count > 0 && _sessions[^1].KeepOperationsUsable && OperationsRegion is not null;
+
+    private bool InOperations(Visual source, Session session) =>
+        session.KeepOperationsUsable && OperationsRegion is { } region && IsInCardOrPopup(source, region);
+
+    // Raise the operation center above the backdrop only while the topmost dialog allows it.
+    private void UpdateOperationsRegion()
+    {
+        if (OperationsRegion is not { } region) return;
+        if (OperationsUsable) { _operationsZIndex ??= region.ZIndex; region.ZIndex = host.ZIndex + 1; }
+        else if (_operationsZIndex is { } original) { region.ZIndex = original; _operationsZIndex = null; }
+    }
+
+    /// <summary>Moves the keyboard between the operation center and the dialog that leaves it usable.</summary>
+    public bool ToggleOperationsFocus()
+    {
+        if (!OperationsUsable || OperationsRegion is not { } region) return false;
+        var top = _sessions[^1]; var focused = TopLevel.GetTopLevel(host)?.FocusManager?.GetFocusedElement();
+        if (focused is Visual visual && IsInCardOrPopup(visual, region))
+        {
+            if (CanFocus(top.InitialFocus)) Controls.ListKeys.Focus(top.InitialFocus);
+            return true;
+        }
+        var target = region.GetVisualDescendants().OfType<InputElement>().FirstOrDefault(element => element.Focusable && element.IsEffectivelyVisible && element.IsEffectivelyEnabled);
+        if (target is not null) target.Focus(NavigationMethod.Tab);
+        return true;
     }
 
     // Open dialogs, the topmost last, and the window whose Esc reaches them wherever the keyboard is.
@@ -75,28 +111,37 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         if (e.Handled || e.Key != Key.Escape || e.KeyModifiers != KeyModifiers.None || _sessions.Count == 0) return;
         var top = _sessions[^1];
         if (e.Source is Visual source && (ReferenceEquals(source, top.Layer) ||
-            IsInCardOrPopup(source, top))) return;
+            IsInCardOrPopup(source, top) || InOperations(source, top))) return;
         e.Handled = true;
-        top.OnEscape();
+        top.OnImplicitDismiss();
     }
 
     private void OnRootPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (_sessions.Count == 0 || e.Source is not Visual source) return;
         var top = _sessions[^1];
+        if (InOperations(source, top)) return;
+        // ComboBox popups in an in-window modal do not reliably light-dismiss when a
+        // press lands on another control or the non-dismissing backdrop. Close only
+        // choosers outside the pressed target; a press on the chooser or its popup
+        // must still reach its own toggle/selection handler.
+        if (top.Layer.Child is Visual card)
+            foreach (var chooser in card.GetVisualDescendants().OfType<ComboBox>())
+                if (chooser.IsDropDownOpen && !IsInCardOrPopup(source, chooser))
+                    chooser.IsDropDownOpen = false;
         // At minimum window sizes a native hit can land on a footer or other
         // window chrome outside the overlay's arranged hit surface. Treat it
         // like the backdrop before the obscured control receives its press.
         if (IsInCardOrPopup(source, top)) return;
         e.Handled = true;
-        top.OnEscape();
+        if (top.DismissOnBackdrop) top.OnImplicitDismiss();
     }
 
     private void OnRootGotFocus(object? sender, RoutedEventArgs e)
     {
         if (sender is not TopLevel root || _sessions.Count == 0 || e.Source is not Visual source) return;
         var currentSession = _sessions[^1];
-        if (currentSession.Layer.IsVisualAncestorOf(source) || IsInCardOrPopup(source, currentSession)) return;
+        if (currentSession.Layer.IsVisualAncestorOf(source) || IsInCardOrPopup(source, currentSession) || InOperations(source, currentSession)) return;
         long focusRevision = _focusRevision;
         Dispatcher.UIThread.Post(() =>
         {
@@ -109,7 +154,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         }, DispatcherPriority.Input);
     }
 
-    private Session Show(Control card, Control? initialFocus, bool top, Action onEscape)
+    private Session Show(Control card, Control? initialFocus, bool top, Action onEscape, DialogBehavior? behavior = null)
     {
         var focusManager = TopLevel.GetTopLevel(host)?.FocusManager;
         var session = new Session
@@ -122,6 +167,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 Child = card,
             },
             OnEscape = onEscape,
+            OnImplicitDismiss = behavior?.OnImplicitDismiss ?? onEscape,
+            DismissOnBackdrop = behavior?.DismissOnBackdrop ?? true,
+            KeepOperationsUsable = behavior?.KeepOperationsUsable == true,
         };
         if (_escapeRoot is null && TopLevel.GetTopLevel(host) is { } root)
         {
@@ -132,8 +180,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         }
         card.HorizontalAlignment = HorizontalAlignment.Center;
         card.Focusable = true;
-        card.VerticalAlignment = top ? VerticalAlignment.Top : VerticalAlignment.Center;
-        card.Margin = top ? new Thickness(24, 56, 24, 24) : new Thickness(24);
+        bool alignTop = top || behavior?.AlignTop == true;
+        card.VerticalAlignment = alignTop ? VerticalAlignment.Top : VerticalAlignment.Center;
+        card.Margin = alignTop ? new Thickness(24, 56, 24, 24) : new Thickness(24);
         KeyboardNavigation.SetTabNavigation(card, KeyboardNavigationMode.Cycle);
         session.Layer.AddHandler(InputElement.GotFocusEvent, (_, e) =>
         {
@@ -159,6 +208,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             if (layoutRevealQueued || !IsCurrent(session)) return;
             var focused = TopLevel.GetTopLevel(host)?.FocusManager?.GetFocusedElement() as TextBox;
             if (focused is null || !session.Layer.IsVisualAncestorOf(focused)) return;
+            // A search field stays focused while the user scrolls the result/page below it.
+            // Revealing it on every layout would pull that deliberate scroll back to the top.
+            if (focused.Classes.Contains("dialogSearch")) return;
             layoutRevealQueued = true;
             Dispatcher.UIThread.Post(() =>
             {
@@ -173,25 +225,32 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             {
                 e.Handled = true;
                 _escapeClosing = new(e);
-                onEscape();
+                session.OnImplicitDismiss();
             }
         }, Avalonia.Interactivity.RoutingStrategies.Bubble);
         session.Layer.PointerPressed += (_, e) =>
         {
             if (!ReferenceEquals(e.Source, session.Layer) || !IsCurrent(session)) return;
             e.Handled = true;
-            onEscape();
+            if (session.DismissOnBackdrop) session.OnImplicitDismiss();
         };
         if (card is DialogCard dialogCard)
             dialogCard.CloseRequested += () =>
             {
-                if (IsCurrent(session)) onEscape();
+                if (IsCurrent(session)) session.OnImplicitDismiss();
             };
+        if (behavior?.OnImplicitDismiss is not null && card.GetVisualDescendants().OfType<Button>()
+                .FirstOrDefault(button => button.Name == "DialogCloseButton") is { } closeButton)
+        {
+            AutomationProperties.SetHelpText(closeButton, "Close this dialog; unsaved changes may need review.");
+            ToolTip.SetTip(closeButton, "Close dialog (Esc)");
+        }
         if (_sessions.Count > 0) _sessions[^1].Layer.IsEnabled = false;
         host.Children.Add(session.Layer);
         host.IsVisible = true;
         _open++;
         _sessions.Add(session);
+        UpdateOperationsRegion();
         // A headless or partially themed host can have no backdrop brush. Keep the
         // modal layer in the pointer hit tree after styles have had a layout pass.
         Dispatcher.UIThread.Post(() =>
@@ -251,14 +310,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         // viewport. Later validation text can also move the editor after focus.
         var body = editor.GetVisualAncestors().OfType<ScrollViewer>()
             .FirstOrDefault(view => view.Name == "DialogBodyScroll");
-        if (body is null || editor.Bounds.Height > body.Viewport.Height) return;
-        var viewport = body.GetVisualDescendants().OfType<ScrollContentPresenter>().FirstOrDefault();
-        if (viewport is null || editor.TranslatePoint(default, viewport) is not { } field) return;
-        double delta = field.Y < 0 ? field.Y :
-            Math.Max(0, field.Y + editor.Bounds.Height - viewport.Bounds.Height);
-        if (Math.Abs(delta) > 0.5)
-            body.Offset = new Vector(body.Offset.X, Math.Clamp(body.Offset.Y + delta,
-                0, Math.Max(0, body.Extent.Height - body.Viewport.Height)));
+        if (body is not null) DialogLayout.RevealVertically(body, editor);
     }
 
     private bool IsCurrent(Session? session) => session is not null && _sessions.Count > 0 && ReferenceEquals(_sessions[^1], session);
@@ -271,6 +323,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         bool wasCurrent = IsCurrent(s);
         if (!_sessions.Remove(s)) return;
         host.Children.Remove(s.Layer);
+        UpdateOperationsRegion();
         _open = Math.Max(0, _open - 1);
         host.IsVisible = host.Children.Count > 0;
         long revision = ++_focusRevision;
@@ -320,6 +373,26 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         var row = DialogLayout.Actions(buttons);
         row.HorizontalAlignment = HorizontalAlignment.Right;
         foreach (var button in buttons) button.ContentTemplate ??= DialogLayout.WrappingText;
+        row.KeyDown += (_, e) =>
+        {
+            if (e.KeyModifiers != KeyModifiers.None || e.Source is not Button current) return;
+            int step = e.Key switch
+            {
+                Key.Left or Key.Up => -1,
+                Key.Right or Key.Down => 1,
+                _ => 0,
+            };
+            int index = Array.IndexOf(buttons, current);
+            if (step == 0 || index < 0) return;
+            // Keep the action order even when the footer wraps onto more than one line.
+            for (int offset = 1; offset < buttons.Length; offset++)
+            {
+                var next = buttons[(index + step * offset + buttons.Length) % buttons.Length];
+                if (!next.Focusable || !CanFocus(next) || !next.Focus(NavigationMethod.Directional)) continue;
+                e.Handled = true;
+                break;
+            }
+        };
         return row;
     }
 
@@ -707,79 +780,114 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
 
     public Task<object?> ShowCustomAsync(string title, Control content, IReadOnlyList<DialogButton> buttons, Control? initialFocus = null,
         Func<bool>? canConfirm = null, DialogCloser? closer = null, bool resizable = false,
-        Control? pinnedReview = null)
+        Control? pinnedReview = null, DialogBehavior? behavior = null)
     {
         var tcs = new TaskCompletionSource<object?>();
         Session? session = null;
         DispatcherTimer? requery = null;
+        var presentationSubscriptions = new List<(DialogButtonPresentation Source, Action Changed)>();
+        bool presentationClosed = false;
+        void RetirePresentation()
+        {
+            presentationClosed = true;
+            requery?.Stop();
+            foreach (var (source, changed) in presentationSubscriptions) source.Changed -= changed;
+            presentationSubscriptions.Clear();
+        }
         void Finish(object? r)
         {
             if (tcs.Task.IsCompleted) return;
-            requery?.Stop();
+            RetirePresentation();
             Close(session!);
             tcs.TrySetResult(r);
         }
-        var gated = new List<(Button Button, Func<bool> Available)>();
-        DialogButton? confirm = null;
-        Func<bool>? confirmAvailable = null;
-        var btns = buttons.Select(b =>
+        try
         {
-            var btn = new Button { Content = b.Text, IsDefault = b.IsDefault, IsCancel = b.IsCancel };
-            if (!string.IsNullOrWhiteSpace(b.HelpText))
-                AutomationProperties.SetHelpText(btn, b.HelpText);
-            if (b.IsDanger) btn.Classes.Add("danger");
-            else if (b.IsDefault) btn.Classes.Add("primary");
-            var available = b.IsDefault && canConfirm is not null
-                ? b.IsAvailable is { } own ? () => own() && canConfirm() : canConfirm
-                : b.IsAvailable;
-            if (available is not null) gated.Add((btn, available));
-            if (b.IsDefault && confirm is null) (confirm, confirmAvailable) = (b, available);
-            btn.Click += (_, _) => { if (IsCurrent(session) && available?.Invoke() != false && b.Validate?.Invoke() != false) Finish(b.Result); };
-            return btn;
-        }).ToArray();
-        // Buttons show whether they would do anything (the predicates are cheap and side-effect free).
-        if (gated.Count > 0)
-        {
-            void Requery()
+            var gated = new List<(Button Button, Func<bool> Available)>();
+            DialogButton? confirm = null;
+            Func<bool>? confirmAvailable = null;
+            var btns = buttons.Select(b =>
             {
-                foreach (var (button, available) in gated) button.IsEnabled = available();
+                var btn = new Button { Content = b.Text, IsDefault = b.IsDefault, IsCancel = b.IsCancel };
+                if (!string.IsNullOrWhiteSpace(b.HelpText))
+                    AutomationProperties.SetHelpText(btn, b.HelpText);
+                if (b.IsDanger) btn.Classes.Add("danger");
+                else if (b.IsDefault) btn.Classes.Add("primary");
+                var available = b.IsDefault && canConfirm is not null
+                    ? b.IsAvailable is { } own ? () => own() && canConfirm() : canConfirm
+                    : b.IsAvailable;
+                if (available is not null) gated.Add((btn, available));
+                if (b.Presentation is { } presentation)
+                {
+                    void ApplyPresentation()
+                    {
+                        if (presentationClosed) return;
+                        var snapshot = presentation.Snapshot;
+                        btn.Content = snapshot.Text;
+                        AutomationProperties.SetName(btn, snapshot.AccessibleName ?? snapshot.Text);
+                        AutomationProperties.SetHelpText(btn, snapshot.HelpText ?? b.HelpText ?? string.Empty);
+                        // Text and eligibility must describe the same action, including an immediate Enter.
+                        btn.IsEnabled = available?.Invoke() != false;
+                        foreach (var (button, predicate) in gated) button.IsEnabled = predicate();
+                    }
+                    void Changed()
+                    {
+                        if (Dispatcher.UIThread.CheckAccess()) ApplyPresentation();
+                        else Dispatcher.UIThread.Post(ApplyPresentation);
+                    }
+                    presentation.Changed += Changed;
+                    presentationSubscriptions.Add((presentation, Changed));
+                    ApplyPresentation();
+                }
+                if (b.IsDefault && confirm is null) (confirm, confirmAvailable) = (b, available);
+                btn.Click += (_, _) => { if (IsCurrent(session) && available?.Invoke() != false && b.Validate?.Invoke() != false) Finish(b.Result); };
+                return btn;
+            }).ToArray();
+            // Buttons show whether they would do anything (the predicates are cheap and side-effect free).
+            if (gated.Count > 0)
+            {
+                void Requery()
+                {
+                    foreach (var (button, available) in gated) button.IsEnabled = available();
+                }
+                Requery();
+                requery = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+                requery.Tick += (_, _) => Requery();
+                requery.Start();
             }
-            Requery();
-            requery = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
-            requery.Tick += (_, _) => Requery();
-            requery.Start();
+            var card = Card(title, content, ButtonRow(btns), 760, pinnedReview);
+            if (resizable) card.EnableResizing(host, behavior?.PreferredSize);
+            // Enter confirms as soon as the dialog would: whether the default button may act is asked when Enter is pressed,
+            // not only when the 200 ms re-check last enabled it, so Enter right after typing is not lost. A button or a
+            // multi-line box that used Enter keeps it; a focused list item takes Enter for itself, and in a dialog Enter
+            // there still confirms (unless the content acted on it already and so ended the dialog).
+            card.AddHandler(InputElement.KeyDownEvent, (_, e) =>
+            {
+                if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || tcs.Task.IsCompleted || !IsCurrent(session) || e.Source is not Visual source) return;
+                bool inListItem = source.FindAncestorOfType<ListBoxItem>(includeSelf: true) is { } item && card.IsVisualAncestorOf(item);
+                if (e.Handled && !inListItem || confirm is null || confirmAvailable?.Invoke() == false) return;
+                e.Handled = true;
+                if (confirm.Validate?.Invoke() != false) Finish(confirm.Result);
+            }, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
+            // Enter on a check box or an option confirms, as in Windows dialogs (Space toggles it): Avalonia would click it.
+            card.AddHandler(InputElement.KeyDownEvent, (_, e) =>
+            {
+                if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || tcs.Task.IsCompleted || !IsCurrent(session) || e.Source is not (CheckBox or RadioButton)) return;
+                e.Handled = true;
+                if (confirm is not null && confirmAvailable?.Invoke() != false && confirm.Validate?.Invoke() != false) Finish(confirm.Result);
+            }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+            var cancel = buttons.FirstOrDefault(b => b.IsCancel);
+            session = Show(card, initialFocus ?? btns.FirstOrDefault(b => b.IsDefault), top: false, () => Finish(cancel?.Result), behavior);
+            closer?.Attach(Finish);
+            return tcs.Task;
         }
-        var card = Card(title, content, ButtonRow(btns), 760, pinnedReview);
-        if (resizable) card.EnableResizing(host);
-        // Enter confirms as soon as the dialog would: whether the default button may act is asked when Enter is pressed,
-        // not only when the 200 ms re-check last enabled it, so Enter right after typing is not lost. A button or a
-        // multi-line box that used Enter keeps it; a focused list item takes Enter for itself, and in a dialog Enter
-        // there still confirms (unless the content acted on it already and so ended the dialog).
-        card.AddHandler(InputElement.KeyDownEvent, (_, e) =>
-        {
-            if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || tcs.Task.IsCompleted || !IsCurrent(session) || e.Source is not Visual source) return;
-            bool inListItem = source.FindAncestorOfType<ListBoxItem>(includeSelf: true) is { } item && card.IsVisualAncestorOf(item);
-            if (e.Handled && !inListItem || confirm is null || confirmAvailable?.Invoke() == false) return;
-            e.Handled = true;
-            if (confirm.Validate?.Invoke() != false) Finish(confirm.Result);
-        }, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
-        // Enter on a check box or an option confirms, as in Windows dialogs (Space toggles it): Avalonia would click it.
-        card.AddHandler(InputElement.KeyDownEvent, (_, e) =>
-        {
-            if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || tcs.Task.IsCompleted || !IsCurrent(session) || e.Source is not (CheckBox or RadioButton)) return;
-            e.Handled = true;
-            if (confirm is not null && confirmAvailable?.Invoke() != false && confirm.Validate?.Invoke() != false) Finish(confirm.Result);
-        }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
-        var cancel = buttons.FirstOrDefault(b => b.IsCancel);
-        session = Show(card, initialFocus ?? btns.FirstOrDefault(b => b.IsDefault), top: false, () => Finish(cancel?.Result));
-        closer?.Attach(Finish);
-        return tcs.Task;
+        catch { RetirePresentation(); throw; }
     }
 
     public Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null, bool remapOnly = false)
     {
         var tcs = new TaskCompletionSource<KeyboardReferenceChoice?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var search = new TextBox { PlaceholderText = "Search command, shortcut, or command ID", MinWidth = 220 };
+        var search = new TextBox { PlaceholderText = remapOnly ? "Find the command to remap" : "Search command, shortcut, or command ID", MinWidth = 220 };
         Avalonia.Automation.AutomationProperties.SetName(search, "Search keyboard reference");
         var categories = new[] { "All categories" }.Concat(commands.Select(c => c.Category).Distinct().Order()).ToArray();
         var category = new ComboBox { ItemsSource = categories, SelectedIndex = 0, MinWidth = 130, Margin = new Thickness(8, 0, 0, 0) };
@@ -805,10 +913,14 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             }),
         };
         Avalonia.Automation.AutomationProperties.SetName(list, "Commands and current shortcuts");
+        // Menus skip disabled commands in keyboard navigation, so this list is where a keyboard or screen reader user learns
+        // why a command is unavailable: the reason is each such item's help text, not only the detail line below it.
+        list.ContainerPrepared += (_, e) => Avalonia.Automation.AutomationProperties.SetHelpText(e.Container,
+            e.Container.DataContext is KeyboardHelpEntry { Enabled: false } entry ? "Unavailable: " + (entry.UnavailableReason ?? "not available here") : null);
         var detail = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "muted" }, MinHeight = 24 };
         var count = new TextBlock { Classes = { "muted", "small" } };
         var run = new Button { Content = "Run command", Classes = { "primary" }, IsDefault = !remapOnly, IsVisible = !remapOnly };
-        var change = new Button { Content = "Change shortcut…" };
+        var change = new Button { Content = remapOnly ? "Next: set shortcut…" : "Change shortcut…" };
         Avalonia.Controls.ToolTip.SetTip(change, "Press a new shortcut for the selected command (F2)");
         var close = new Button { Content = "Close", IsCancel = true };
         var filters = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
@@ -818,7 +930,11 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         var body = new StackPanel { Spacing = 8 };
         body.Children.Add(new TextBlock
         {
-            Text = "Move: arrows, Page Up/Down, Home/End · Mark: Space or Insert · Shift+movement marks a range · Type to quick-search in a panel · Ctrl+0–9 opens a bookmark; Ctrl+Shift+0–9 sets one · Esc leaves search or stops loading.",
+            Text = remapOnly
+                ? "Step 1 of 2 · Choose a command to remap. Search by its name, current shortcut, or command ID."
+                : "Move: arrows, Page Up/Down, Home/End · Mark: Space or Insert · Shift+movement marks a range · Type to quick-search in a panel · Ctrl+0–9 opens a bookmark; Ctrl+Shift+0–9 sets one · Esc leaves search or stops loading.",
+            FontWeight = remapOnly ? Avalonia.Media.FontWeight.SemiBold : Avalonia.Media.FontWeight.Normal,
+            FontSize = remapOnly ? 17 : 14,
             TextWrapping = TextWrapping.Wrap,
         });
         body.Children.Add(filters);
@@ -826,7 +942,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         body.Children.Add(list);
         body.Children.Add(detail);
         body.Children.Add(new TextBlock { Text = remapOnly
-            ? "Shortcuts reflect this Settings draft. Select a command and press Enter or F2 to change it; Esc returns to Settings."
+            ? "Select a command and press Enter or F2 to change its shortcut; Esc returns to the previous view."
             : "Shortcuts reflect your current settings. Select a command and press Enter to run it; F2 changes its shortcut; Esc closes help.", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap });
         Session? session = null;
         void Finish(KeyboardReferenceChoice? choice)
@@ -864,6 +980,11 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         list.SelectionChanged += (_, _) =>
         {
             var item = list.SelectedItem as KeyboardHelpEntry;
+            var editLauncher = !remapOnly && item?.Id == CommandIds.ChangeShortcut;
+            change.Content = editLauncher ? "Choose a command…" : remapOnly ? "Next: set shortcut…" : "Change shortcut…";
+            Avalonia.Controls.ToolTip.SetTip(change, editLauncher
+                ? "Choose which command's shortcut to change"
+                : "Press a new shortcut for the selected command (F2)");
             detail.Text = item is null ? "No matching command." :
                 (item.ContextLabel is null ? string.Empty : "Context: " + item.ContextLabel + ". ") +
                 (item.DefaultGestures is null ? string.Empty : "Default: " + item.DefaultGestures + ". ") +
@@ -903,10 +1024,14 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         });
         list.DoubleTapped += (_, _) => Accept();
         run.Click += (_, _) => Accept();
-        change.Click += (_, _) => ChangeShortcut();
+        change.Click += (_, _) =>
+        {
+            if (!remapOnly && list.SelectedItem is KeyboardHelpEntry { Id: CommandIds.ChangeShortcut }) Accept();
+            else ChangeShortcut();
+        };
         close.Click += (_, _) => Finish(null);
         Apply();
-        session = Show(Card("Keyboard reference", body, ButtonRow(close, change, run), 840), search, top: false, () => Finish(null));
+        session = Show(Card(remapOnly ? "Choose command to remap" : "Keyboard reference", body, ButtonRow(close, change, run), 840), search, top: false, () => Finish(null));
         return tcs.Task;
     }
 

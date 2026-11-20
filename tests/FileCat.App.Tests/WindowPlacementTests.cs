@@ -3,8 +3,11 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using FileCat.App.Services;
+using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.State;
+using FileCat.Platform.Windows;
+using Microsoft.Win32;
 
 namespace FileCat.App.Tests;
 
@@ -92,5 +95,74 @@ public sealed class WindowPlacementTests
             Assert.InRange(reopened.Position.Y, original.Y - 2, original.Y + 2);
         }
         finally { AccessibilityTests.Close(services, reopened ?? window, root); }
+    }
+
+    [AvaloniaFact]
+    public void Genuine_high_token_restores_resized_window_without_writing_normal_profile()
+    {
+        if (!OperatingSystem.IsWindows() || !WindowsTokenAuthority.IsHighIntegrity)
+            Assert.Skip("Run in a high-integrity Windows test process.");
+
+        string root = Path.Combine(Path.GetTempPath(), "filecat-administrator-window-" + Guid.NewGuid().ToString("N"));
+        string keyName = @"SOFTWARE\FileCat.TransferTests." + Guid.NewGuid().ToString("N");
+        var registry = new AdministratorTransferRegistry(keyName);
+        using var machine = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+        try
+        {
+            var paths = AppPaths.Resolve("Work", overrideRoot: root);
+            var baseline = new Dictionary<string, string>
+            {
+                [paths.SettingsFile] = """{"SchemaVersion":1,"Theme":"ClassicDark"}""",
+                [paths.SettingsFile + ".bak"] = """{"SchemaVersion":1,"Theme":"Light"}""",
+                [paths.WorkspaceFile] = """{"SchemaVersion":1,"Window":{"Width":700,"Height":500}}""",
+                [paths.WorkspaceFile + ".bak"] = """{"SchemaVersion":1,"Window":{"Width":740,"Height":540}}""",
+            };
+            foreach (var (path, contents) in baseline) File.WriteAllText(path, contents);
+
+            var services = AppServices.CreateForPathsWithAdministratorRegistry(paths, registry);
+            var vm = new MainViewModel(services);
+            var state = vm.LoadSavedWorkspace();
+            var placement = vm.LoadStartupWindowPlacement(state, reset: false);
+            var window = new MainWindow(vm, placement);
+            try
+            {
+                Assert.True(vm.WorkspaceReadOnly);
+                Assert.Null(placement);
+                vm.Initialize(state);
+                window.Show();
+                Dispatcher.UIThread.RunJobs();
+                window.Width = 930;
+                window.Height = 640;
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+            }
+            finally { AccessibilityTests.Close(services, window, Path.Combine(root, "first-window")); }
+
+            var reopened = AppServices.CreateForPathsWithAdministratorRegistry(paths, registry);
+            var reopenedVm = new MainViewModel(reopened);
+            var reopenedState = reopenedVm.LoadSavedWorkspace();
+            var reopenedWindow = new MainWindow(reopenedVm, reopenedVm.LoadStartupWindowPlacement(reopenedState, reset: false));
+            try
+            {
+                reopenedVm.Initialize(reopenedState);
+                reopenedWindow.Show();
+                Dispatcher.UIThread.RunJobs();
+                Assert.Equal(WindowStartupLocation.Manual, reopenedWindow.WindowStartupLocation);
+                Assert.InRange(reopenedWindow.Bounds.Width, 925, 935);
+                Assert.InRange(reopenedWindow.Bounds.Height, 635, 645);
+                Assert.Null(reopenedVm.LoadStartupWindowPlacement(reopenedState, reset: true));
+            }
+            finally { AccessibilityTests.Close(reopened, reopenedWindow, Path.Combine(root, "second-window")); }
+
+            using var other = AppServices.CreateForPathsWithAdministratorRegistry(AppPaths.Resolve("Other", overrideRoot: root), registry);
+            var otherVm = new MainViewModel(other);
+            Assert.Null(otherVm.LoadStartupWindowPlacement(otherVm.LoadSavedWorkspace(), reset: false));
+            foreach (var (path, contents) in baseline) Assert.Equal(contents, File.ReadAllText(path));
+        }
+        finally
+        {
+            machine.DeleteSubKeyTree(keyName, throwOnMissingSubKey: false);
+            FileCat.Tests.TestCleanup.DeleteTree(root);
+        }
     }
 }

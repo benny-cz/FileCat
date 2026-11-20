@@ -1,0 +1,100 @@
+using System.Collections.Immutable;
+using FileCat.App.Services;
+using FileCat.Core.Analysis;
+
+namespace FileCat.App.ViewModels;
+
+public sealed partial class DiskSpaceViewModel
+{
+    private string? _capturedPreviewNotice;
+    internal bool IsIndexedRuntimePreview => !_disposed && _acquisition?.IndexedStorage == true && _session is { UsesMemoryFallback: false };
+    private bool FinishedWithoutRecordedResult => _session is { Completion.IsCompletedSuccessfully: true, DatasetDescriptor: null };
+    private string RecordedResultFailure => (_session?.ScratchLimitReached switch
+    {
+        AnalysisScratchLimit.Budget => "The private scratch budget was reached before the recorded result was ready.",
+        AnalysisScratchLimit.FreeSpaceReserve => "Private scratch reached its free-space reserve before the recorded result was ready.",
+        _ => "The recorded result could not be prepared."
+    }) + " The bounded preview remains available.";
+    internal string? RuntimePreviewNotice => _capturedPreviewNotice ?? (IsIndexedRuntimePreview
+        ? FinishedWithoutRecordedResult
+            ? RecordedResultFailure + " Try a narrower scan to record more of the selected scope."
+            : "Live preview of a bounded subset. Marks and selection apply to this displayed revision. Open the recorded result after scanning to explore every recorded entry."
+        : null);
+    internal bool CanOpenRecordedResult => RecordedResultUnavailableReason is null;
+    internal string? RecordedResultUnavailableReason => RecordedResultUnavailableReasonFor(null);
+    private string? RecordedResultUnavailableReasonFor(Guid? reviewedRequest) => _disposed ? "This analysis is closed."
+        : !IsIndexedRuntimePreview || _acquisition is null ? "This view has no pending full recorded result."
+        : reviewedRequest is not null && _deferredIndexedReady?.Request != reviewedRequest
+            ? "The deferred selection was canceled or replaced. No reviewed matches were opened."
+        : HasDeferredSelection && (reviewedRequest is null || _deferredIndexedReady?.Request != reviewedRequest)
+            ? "Review or cancel the pending after-scan selection first. This keeps its captured matches with the recorded scan."
+        : _actualWork.HasUnconfirmedClose || _bindingCloseError is not null || _session!.SourceCloseFailures != 0
+            ? "Source cleanup could not be confirmed. Preserve this result before restarting FileCat."
+        : IsPreparing || IsRescanning || !_session!.Completion.IsCompletedSuccessfully
+            ? "Wait for the scan and its source handles to finish closing."
+        : _session.DatasetDescriptor is null ? RecordedResultFailure
+        : _building || _interaction != 0 && !(reviewedRequest is not null && _interaction == 1)
+            ? "Finish the current view update or chart interaction first."
+        : Tree is null || _publishedView is null ? "Wait for the preview revision to be displayed."
+        : null;
+
+    internal async Task<AnalysisDatasetLease> AcquireRecordedDatasetAsync(CancellationToken cancellation)
+    {
+        if (RecordedResultUnavailableReason is { } reason) throw new InvalidOperationException(reason);
+        return await _session!.AcquireDatasetAsync(cancellation) ?? throw new InvalidOperationException("The full recorded result is unavailable.");
+    }
+
+    // Called only after the full view has finished its fallible native preparation. No source
+    // factory is decoded from observations. The caller either publishes or rolls back this move.
+    internal RecordedResultHandoff DetachRecordedResultOwner(Guid? reviewedRequest = null)
+    {
+        if (RecordedResultUnavailableReasonFor(reviewedRequest) is { } reason) throw new InvalidOperationException(reason);
+        var preview = CaptureDisplayedRevision();
+        try { return new(this, preview); }
+        catch { preview.Dispose(); throw; }
+    }
+
+    internal void RecordedResultPublished() => SetStatus("The recorded result opened in another tab. This captured preview, its marks and review basket were kept.");
+
+    internal sealed class RecordedResultHandoff
+    {
+        private readonly DiskSpaceViewModel _model;
+        private readonly AnalysisSession _session;
+        private readonly AnalysisSnapshot? _observation;
+        private readonly AnalysisSnapshotLease? _capturedOwner;
+        private readonly string? _notice;
+        private readonly AnalysisPhase _phase;
+        private readonly ImmutableDictionary<string, AnalysisVolumeCapacity> _capacities;
+        private bool _settled;
+        internal AnalysisIndexedAcquisition Acquisition { get; }
+
+        internal RecordedResultHandoff(DiskSpaceViewModel model, AnalysisSnapshotLease preview)
+        {
+            _model = model; Acquisition = model._acquisition!; _session = model._session!;
+            _observation = model._observation; _capturedOwner = model._capturedOwner; _notice = model._capturedPreviewNotice; _phase = model.Phase;
+            _capacities = model._capturedVolumeCapacities;
+            model._projectionCancel?.Cancel(); ++model._generation;
+            model._pending?.Lease?.Dispose(); model._pending?.Order.Dispose(); model._pending = null;
+            ObjectDisposedException.ThrowIf(model._disposed, model);
+            model._capturedOwner = preview; model._observation = preview.Snapshot;
+            model._capturedVolumeCapacities = _session.VolumeCapacities;
+            model._acquisition = null; model._session = null; model.Dirty = false;
+            model.Phase = preview.Snapshot.Phase is AnalysisPhase.Scanning or AnalysisPhase.Refreshing or AnalysisPhase.Paused or AnalysisPhase.Pausing or AnalysisPhase.Ready
+                ? AnalysisPhase.Stopped : preview.Snapshot.Phase;
+            model._capturedPreviewNotice = "Captured preview. Its displayed subset and review references remain unchanged; the full recorded result has its own tab.";
+        }
+
+        internal void Commit() { _settled = true; }
+
+        internal bool TryRollback()
+        {
+            if (_settled) return false; _settled = true;
+            if (_model._disposed) return false; // The prepared view must close the moved owner.
+            _model._capturedOwner?.Dispose(); _model._capturedOwner = _capturedOwner; _model._observation = _observation;
+            _model._acquisition = Acquisition; _model._session = _session; _model.Phase = _phase;
+            _model._capturedPreviewNotice = _notice;
+            _model._capturedVolumeCapacities = _capacities;
+            return true;
+        }
+    }
+}

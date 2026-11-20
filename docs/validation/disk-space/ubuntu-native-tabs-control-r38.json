@@ -1,0 +1,58 @@
+{
+  "purpose": "Native Ubuntu compact eight-tab/large-text input subset; no full qualification",
+  "processId": 267045,
+  "events": [
+    "Invoked New analysis",
+    "Invoked New analysis",
+    "Invoked New analysis",
+    "Invoked New analysis",
+    "Invoked New analysis",
+    "Invoked New analysis",
+    "Invoked New analysis"
+  ],
+  "state": "native-tabs-failed",
+  "error": "Command '['xdotool', 'windowsize', '--sync', '29360147', '380', '430']' timed out after 4.999978600011673 seconds",
+  "ownedProcessExited": true,
+  "harnessReport": {
+    "schemaVersion": 1,
+    "purpose": "Native desktop development validation; no capability qualification",
+    "state": "closed",
+    "sourceUnchanged": true,
+    "deadlineClosed": false,
+    "processId": 267045,
+    "platform": "Ubuntu 24.04.5 LTS",
+    "architecture": "X64",
+    "run": "/home/benny/FileCatValidation/dsa-20261105-r38-tabs/app/native-validation/dsa-f7c5807f92d544ac9327b5e8fa7eb942",
+    "fixture": "/home/benny/FileCatValidation/dsa-20261105-r38-tabs/app/native-validation/dsa-f7c5807f92d544ac9327b5e8fa7eb942/fixture",
+    "fixtureRegularPaths": 509,
+    "fixtureLimitations": [],
+    "nativeWindowVisible": false,
+    "lastVisibleWidth": 1214,
+    "lastVisibleHeight": 731,
+    "lastVisibleScale": 1,
+    "lastScreen": {
+      "bounds": "0, 0, 1280, 800",
+      "workingArea": "66, 32, 1214, 768",
+      "Scaling": 1,
+      "position": "66, 32",
+      "frameSize": "1214, 768"
+    },
+    "largeText": true,
+    "sessions": 0,
+    "createdSessions": 8,
+    "lastObservation": null,
+    "selectedTab": 7,
+    "tabHeaders": [
+      "Analysis 1",
+      "Analysis 2",
+      "Analysis 3",
+      "Analysis 4",
+      "Analysis 5",
+      "Analysis 6",
+      "Analysis 7",
+      "Analysis 8"
+    ],
+    "appSha256": "90e4db79f2fa3ef6471d8d894ce70550e52099d8a01dbebadec9cea476868275",
+    "harnessSha256": "8194a4cf19fd1e84368db032bd71128037d8f995199dc425f7d8fb5c9d41063c"
+  }
+}

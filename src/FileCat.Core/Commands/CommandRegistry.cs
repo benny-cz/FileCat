@@ -11,6 +11,8 @@ public enum CommandContext
     Find,
     FindCriteria,
     FindResults,
+    DiskSpace,
+    DiskSpaceReview,
 }
 
 public static class CommandContextNames
@@ -20,6 +22,8 @@ public static class CommandContextNames
         CommandContext.Find => "Find criteria and results",
         CommandContext.FindCriteria => "Find criteria",
         CommandContext.FindResults => "Find results",
+        CommandContext.DiskSpace => "Disk space analysis",
+        CommandContext.DiskSpaceReview => "Disk space review",
         CommandContext.Panel => "file panels",
         CommandContext.Global => "everywhere",
         CommandContext.Viewer => "viewers",
@@ -46,6 +50,19 @@ public sealed record CommandDefinition(string Id, string Title, string Category)
 
 public static class CommandIds
 {
+    public const string DiskSpace = "tools.diskSpace";
+    public const string DiskSpaceFilter = "diskSpace.filter";
+    public const string DiskSpaceMark = "diskSpace.mark";
+    public const string DiskSpaceEnter = "diskSpace.enter";
+    public const string DiskSpaceParent = "diskSpace.parent";
+    public const string DiskSpaceBack = "diskSpace.back";
+    public const string DiskSpaceForward = "diskSpace.forward";
+    public const string DiskSpacePreview = "diskSpace.preview";
+    public const string DiskSpaceCopy = "diskSpace.copy";
+    public const string DiskSpaceMove = "diskSpace.move";
+    public const string DiskSpaceReview = "diskSpace.review";
+    public const string DiskSpaceClose = "diskSpace.close";
+    public const string DiskSpaceReviewCancel = "diskSpace.reviewCancel";
     public const string View = "file.view";
     public const string ViewAlternate = "file.viewAlternate";
     public const string Edit = "file.edit";
@@ -73,6 +90,9 @@ public static class CommandIds
     public const string EditSessions = "file.editsessions";
     public const string Undo = "file.undo";
     public const string Attributes = "file.attributes";
+    public const string StorageAttributes = "file.storageAttributes";
+    public const string EfsProtection = "file.efsProtection";
+    public const string EfsFileBackup = "file.efsFileBackup";
     public const string CreateLink = "file.createLink";
     public const string BulkRename = "file.bulkRename";
     public const string ApplyCommand = "file.applyCommand";
@@ -168,6 +188,7 @@ public static class CommandIds
     public const string FocusPanelFilter = "view.focusFilter";
     public const string FlatView = "view.flat";
     public const string AnalyzeFolder = "view.analyze";
+    public const string PictureView = "view.pictures";
 
     public const string FindFiles = "search.find";
     public const string FindRun = "find.search";
@@ -193,6 +214,7 @@ public static class CommandIds
     /// <summary>Deleted items of a disk image, read-only (P10).</summary>
     public const string FindDeleted = "tools.findDeleted";
     public const string ChangeJournal = "tools.changeJournal";
+    public const string OpenAdministratorWindow = "tools.openAdministratorWindow";
     public const string CommandLineFocus = "cmdline.focus";
     public const string CommandHistory = "cmdline.history";
     public const string InsertName = "cmdline.insertName";
@@ -205,6 +227,7 @@ public static class CommandIds
     public const string CopyNames = "clipboard.copyNames";
     public const string CopyPaths = "clipboard.copyPaths";
     public const string CopyUncPaths = "clipboard.copyUnc";
+    public const string CreateFileList = "file.createList";
 
     public const string ConnectNetworkDrive = "net.connect";
     public const string DisconnectNetworkDrive = "net.disconnect";
@@ -218,6 +241,7 @@ public static class CommandIds
     public const string Menu = "app.menu";
     public const string Settings = "app.settings";
     public const string Help = "app.help";
+    public const string ChangeShortcut = "app.changeShortcut";
     public const string Exit = "app.exit";
     public const string About = "app.about";
     public const string CheckUpdates = "app.checkUpdates";
@@ -303,18 +327,21 @@ public sealed class CommandRegistry
         Add(CommandIds.Open, "Open", F, null, CommandContext.Panel, "Enter");
         Add(CommandIds.OpenWithSystem, "Open with system application", F, null, CommandContext.Panel, "Shift+Enter");
         Add(CommandIds.Properties, "Properties", F, null, CommandContext.Panel, "Alt+Enter");
-        Add(CommandIds.HiddenData, "Streams and attributes", F, null, CommandContext.Panel, "Alt+Shift+Enter");
-        Add(CommandIds.FileRecord, "File-system record", F, null, CommandContext.Panel, "Ctrl+Alt+Enter");
+        Add(CommandIds.HiddenData, OperatingSystem.IsWindows() ? "Streams and attributes" : OperatingSystem.IsMacOS() ? "Extended attributes and resource fork" : "Extended attributes", F, null, CommandContext.Panel, "Alt+Shift+Enter");
+        Add(CommandIds.FileRecord, "File-system details…", F, null, CommandContext.Panel, "Ctrl+Alt+Enter");
         Add(CommandIds.ContextMenu, "Context menu", F, "Context", CommandContext.Panel, "Shift+F10", "Apps");
         Add(CommandIds.Reveal, OperatingSystem.IsWindows() ? "Reveal in Explorer" : "Reveal in file manager", F, "Reveal", CommandContext.Panel, "Shift+F3");
         Add(CommandIds.Checksum, "Calculate checksums…", F);
         Add(CommandIds.VerifyChecksums, "Verify checksums and signatures", F);
-        Add(CommandIds.Pack, "Pack into ZIP…", F, "Pack", CommandContext.Panel, "Alt+F5");
+        Add(CommandIds.Pack, "Pack into archive…", F, "Pack", CommandContext.Panel, "Alt+F5");
         Add(CommandIds.Unpack, "Unpack…", F, "Unpack", CommandContext.Panel, "Alt+F6", "Alt+F9");
         Add(CommandIds.TestArchive, "Test archive integrity", F);
         Add(CommandIds.EditSessions, "Edit sessions…", F);
         Add(CommandIds.Undo, "Undo last operation…", F, null, CommandContext.Panel, "Ctrl+Z");
         Add(CommandIds.Attributes, "Change attributes and times…", F);
+        Add(CommandIds.StorageAttributes, "NTFS compression…", F);
+        Add(CommandIds.EfsProtection, "EFS protection…", F);
+        Add(CommandIds.EfsFileBackup, "Back up EFS key…", F);
         Add(CommandIds.CreateLink, "Create link…", F);
         Add(CommandIds.BulkRename, "Bulk rename…", F, null, CommandContext.Panel, "Ctrl+M");
         Add(CommandIds.ApplyCommand, "Run a command for each item…", F, null, CommandContext.Panel, "Ctrl+G");
@@ -414,6 +441,7 @@ public sealed class CommandRegistry
         Add(CommandIds.FocusPanelFilter, "Edit active panel filter", V, null, CommandContext.Panel, "Ctrl+Shift+F");
         Add(CommandIds.FlatView, "Flat view (all files below this folder)", V, null, CommandContext.Panel, "Ctrl+B");
         Add(CommandIds.AnalyzeFolder, "Analyze folder…", V);
+        Add(CommandIds.PictureView, "Show or hide pictures", V, null, CommandContext.Panel);
 
         Add(CommandIds.FindFiles, "Find files…", C, "Find", CommandContext.Panel, "Alt+F7");
         const string FindCategory = "Find";
@@ -427,6 +455,19 @@ public sealed class CommandRegistry
         Add(CommandIds.FindShowInPanel, "Show focused result in panel", FindCategory, null, CommandContext.FindResults, "Space");
         Add(CommandIds.FindStopOrClose, "Stop search or close Find", FindCategory, null, CommandContext.Find, "Escape");
         Add(CommandIds.FindSkipCurrent, "Skip current search folder", FindCategory, null, CommandContext.Find);
+        const string DiskCategory = "Disk space";
+        Add(CommandIds.DiskSpaceFilter, "Filter analysis observations", DiskCategory, null, CommandContext.DiskSpace, "Ctrl+F");
+        Add(CommandIds.DiskSpaceMark, "Toggle analysis mark", DiskCategory, null, CommandContext.DiskSpace, "Space");
+        Add(CommandIds.DiskSpaceEnter, "Inspect file or drill into analysis folder/group", DiskCategory, null, CommandContext.DiskSpace, "Enter");
+        Add(CommandIds.DiskSpaceParent, "Parent analysis scope", DiskCategory, null, CommandContext.DiskSpace, "Back");
+        Add(CommandIds.DiskSpaceBack, "Previous analysis scope", DiskCategory, null, CommandContext.DiskSpace, "Alt+Left");
+        Add(CommandIds.DiskSpaceForward, "Next analysis scope", DiskCategory, null, CommandContext.DiskSpace, "Alt+Right");
+        Add(CommandIds.DiskSpacePreview, "Preview analysis file", DiskCategory, null, CommandContext.DiskSpace, "F3");
+        Add(CommandIds.DiskSpaceCopy, "Review analysis copy…", DiskCategory, null, CommandContext.DiskSpace, "F5");
+        Add(CommandIds.DiskSpaceMove, "Review analysis move…", DiskCategory, null, CommandContext.DiskSpace, "F6");
+        Add(CommandIds.DiskSpaceReview, "Review analysis deletion…", DiskCategory, null, CommandContext.DiskSpace, "F8", "Delete");
+        Add(CommandIds.DiskSpaceClose, "Close disk space window", DiskCategory, null, CommandContext.DiskSpace, "Escape");
+        Add(CommandIds.DiskSpaceReviewCancel, "Cancel analysis review / Keep files", DiskCategory, null, CommandContext.DiskSpaceReview, "Escape");
         Add(CommandIds.RegistryExport, "Export Registry selection to .reg…", F);
         Add(CommandIds.RegistryImport, "Import .reg into selected Registry scope…", F);
         Add(CommandIds.RegistryWritable, "Open writable Registry location…", F);
@@ -437,8 +478,10 @@ public sealed class CommandRegistry
         Add(CommandIds.HexRecovery, "Recover interrupted hex save…", F, null, CommandContext.Global);
         Add(CommandIds.CompareDirectories, "Compare directories…", C, "Compare", CommandContext.Panel, "Ctrl+F10");
         Add(CommandIds.CompareFiles, "Compare files…", C, null, CommandContext.Panel, "Ctrl+I");
+        Add(CommandIds.DiskSpace, "Disk usage…", C);
         Add(CommandIds.FindDeleted, "Recover deleted files…", C);
         Add(CommandIds.ChangeJournal, "Change journal of this drive", C);
+        Add(CommandIds.OpenAdministratorWindow, "Open FileCat as administrator…", C);
         Add(CommandIds.CommandLineFocus, "Focus command line", C, null, CommandContext.Panel, "Ctrl+E");
         Add(CommandIds.CommandHistory, "Command history…", C, "Cmd hist", CommandContext.Panel, "Alt+F8");
         Add(CommandIds.InsertName, "Insert focused name into command line", C, null, CommandContext.Panel, "Ctrl+Enter");
@@ -451,6 +494,7 @@ public sealed class CommandRegistry
         Add(CommandIds.CopyNames, "Copy names", C, null, CommandContext.Panel, "Ctrl+Shift+N");
         Add(CommandIds.CopyPaths, "Copy full paths", C, null, CommandContext.Panel, "Ctrl+Shift+C");
         Add(CommandIds.CopyUncPaths, "Copy UNC paths", C, null, CommandContext.Panel, "Ctrl+Shift+U");
+        Add(CommandIds.CreateFileList, "Create file list…", C, null, CommandContext.Panel);
         Add(CommandIds.ConnectNetworkDrive, "Connect network drive…", C);
         Add(CommandIds.DisconnectNetworkDrive, "Disconnect network drive…", C);
         Add(CommandIds.SftpConnect, "Connect to a server (SFTP, FTPS, FTP)…", C);
@@ -463,6 +507,7 @@ public sealed class CommandRegistry
         Add(CommandIds.Menu, "Menu bar", A, "Menu", CommandContext.Global, "F10");
         Add(CommandIds.Settings, "Settings…", A, null, CommandContext.Global, "Ctrl+Comma");
         Add(CommandIds.Help, "Keyboard reference", A, "Help", CommandContext.Global, "F1");
+        Add(CommandIds.ChangeShortcut, "Change shortcut…", A, null, CommandContext.Global);
         Add(CommandIds.Exit, "Exit", A, "Quit", CommandContext.Global, "Alt+F4");
         Add(CommandIds.About, "About FileCat", A);
         Add(CommandIds.CheckUpdates, "Check for updates…", A);
@@ -476,6 +521,8 @@ public sealed class CommandRegistry
         Add(CommandIds.ThemeCycle, "Next theme", A);
         Add(CommandIds.ThemePrevious, "Previous theme", A);
         AddSearchWords(r);
+        r.Describe(CommandIds.CreateFileList, "List all or selected items, optionally including subfolders; format fields and send the result to a viewer, clipboard, or text file.");
+        r.AddKeywords(CommandIds.CreateFileList, "make file list", "directory listing", "export filenames", "inventory", "recursive list");
         return r;
     }
 
@@ -486,12 +533,16 @@ public sealed class CommandRegistry
     private static void AddSearchWords(CommandRegistry r)
     {
         void K(string id, params string[] words) => r.AddKeywords(id, words);
+        K(CommandIds.FileRecord, "file-system record", "reparse", "junction", "symlink", "mount", "streams", "xattr", "resource fork", "hard links", "sparse", "allocation", "WOF", "inode", "APFS");
         // What a title cannot say: which items a command takes, and where its result goes.
         r.Describe(CommandIds.CompareFiles, "Two marked files, one marked in each panel, or the file under the cursor and the file of the same name in the other panel.");
         r.Describe(CommandIds.ChangeJournal, "Lists what the drive's change journal records, newest first: each item made, changed, renamed, or deleted, when, and in which folder. Enter goes to an item, F3 shows the whole entry. Needs administrator rights (NTFS and ReFS).");
+        r.Describe(CommandIds.OpenAdministratorWindow, "Opens a separate FileCat window with Windows administrator rights after you approve the Windows prompt.");
+        r.Describe(CommandIds.DiskSpace, "Choose locations and inspect their disk usage by folder and file.");
         r.Describe(CommandIds.FindDeleted, "Choose a drive or a disk image: its deleted files open in a new tab, to copy (F5) to another drive.");
         r.Describe(CommandIds.ChooseTarget, "Where F5 and F6 copy and move to, with three or more panels; “Set as target” on a panel's header does the same.");
-        r.Describe(CommandIds.AnalyzeFolder, "Reads one column (versions, picture sizes, link targets, where files came from) for every item, then sorts by it.");
+        r.Describe(CommandIds.AnalyzeFolder, "Reads one column (versions, picture sizes, link targets, owners, where files came from) for items in the folder, then sorts by it.");
+        r.Describe(CommandIds.PictureView, "Toggle a thumbnail grid in this tab. Folders and every file remain available for selection and file operations.");
         r.Describe(CommandIds.CompareDirectories, "Marks what differs between the two panels' folders; Include subfolders lists every difference below and can synchronize.");
         // The toolbar's commands (D-49): their tooltips say this under the title and key.
         r.Describe(CommandIds.Back, "Goes back to the folder this tab showed before.");
@@ -510,10 +561,10 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.Move, "Moves the marked items (or the one under the cursor) to the target panel's folder, or renames them.");
         r.Describe(CommandIds.Rename, "Renames the item under the cursor right in the list.");
         r.Describe(CommandIds.MakeDirectory, "Creates a new folder in this panel's folder.");
-        r.Describe(CommandIds.Delete, "Moves the marked items (or the one under the cursor) to the Recycle Bin or trash; Shift+Del deletes permanently.");
+        r.Describe(CommandIds.Delete, $"Moves the marked items (or the one under the cursor) to {FileCat.Core.Jobs.RecycleText.Destination}; Shift+Del deletes permanently.");
         r.Describe(CommandIds.Properties, "Shows the properties of the item under the cursor.");
-        r.Describe(CommandIds.FileRecord, "Shows what the file system itself records about the item: its IDs, every time it keeps with checks for times set by a program, the change journal, hard links, object ID, reparse data (cloud placeholders too), who can decrypt an encrypted item, clusters, and security. As administrator on NTFS also its MFT record with every attribute's runs, its $ObjId and $Reparse index entries, and its history in the change journal; as root on Linux and macOS, its raw FAT or exFAT entry, ext4's inode as the disk keeps it, and HFS+'s journal.");
-        r.Describe(CommandIds.HiddenData, "Lists what the item carries beside its contents: alternate data streams and NTFS attributes on Windows, extended attributes (and the resource fork) on Linux and macOS, each decoded. F3 views one, F5 saves it as a file, F8 deletes it.");
+        r.Describe(CommandIds.FileRecord, "Shows metadata for the focused file or folder. Read full record adds qualified filesystem details. Use the supplementary-data tab to read stream, attribute and fork values.");
+        r.Describe(CommandIds.HiddenData, "Lists supplementary-data names, categories and available lengths. F3 reads a selected value, F5 exports an allowed selection, and F8 requests deletion. Windows extended attribute inventory requires explicit approval.");
         r.Describe(CommandIds.Pack, "Packs the marked items (or the one under the cursor) into a new ZIP file.");
         r.Describe(CommandIds.Unpack, "Unpacks the archive under the cursor, or the marked archives.");
         r.Describe(CommandIds.MarkSelectMask, "Marks the items whose names match a mask, such as *.txt.");
@@ -538,11 +589,14 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.ToggleToolbar, "Shows or hides this toolbar; Settings → Appearance has it too.");
         r.Describe(CommandIds.ToggleDriveButtons, "Shows or hides the buttons above each panel that open a drive, This PC, a special folder, a bookmark, or a saved server with one click: everything Alt+F1 and Alt+F2 offer.");
         r.Describe(CommandIds.Settings, "Appearance, behavior, keys, columns, programs, and more.");
-        r.Describe(CommandIds.Help, "Every command with its key: run one from there, or change its key.");
+        r.Describe(CommandIds.Help, "Browse commands and their current keys; press F2 on a selected row to assign a key.");
+        r.Describe(CommandIds.ChangeShortcut, "Choose a command, then assign or reset its keyboard shortcut.");
         K(CommandIds.ChangeJournal, "USN", "UsnJrnl", "$J", "journal", "recent changes", "what changed", "forensics", "timeline");
+        K(CommandIds.OpenAdministratorWindow, "admin", "elevate", "UAC", "permissions", "run as");
+        K(CommandIds.DiskSpace, "disk space", "analyze disk space", "storage usage", "largest files", "folder usage", "disk map");
         K(CommandIds.FindDeleted, "recover", "recovery", "undelete", "unerase", "restore deleted", "lost files", "deleted files", "find deleted files", "disk image", "scan drive");
         K(CommandIds.FindFiles, "search", "locate", "look for", "grep", "find in files");
-        K(CommandIds.Settings, "options", "preferences", "configuration", "configure", "setup");
+        K(CommandIds.Settings, "options", "preferences", "configuration", "configure", "setup", "columns", "owner");
         K(CommandIds.BulkRename, "multi rename", "mass rename", "batch rename", "renamer");
         K(CommandIds.CompareDirectories, "diff", "differences", "synchronize", "sync", "compare folders");
         K(CommandIds.CompareFiles, "diff", "differences", "compare two files", "same name", "text compare", "binary compare");
@@ -552,6 +606,12 @@ public sealed class CommandRegistry
         K(CommandIds.Unpack, "extract", "unzip", "decompress", "unpack archive");
         K(CommandIds.TestArchive, "verify archive", "integrity", "check archive");
         K(CommandIds.Attributes, "read-only", "hidden", "timestamps", "dates", "touch", "modified time");
+        K(CommandIds.StorageAttributes, "NTFS", "compression", "remove compression", "uncompress");
+        r.Describe(CommandIds.StorageAttributes, "Changes NTFS compression in place for the captured selected items: main file data or folder defaults. Optional folder scope includes existing contents. Alternate data streams keep their own compression settings.");
+        K(CommandIds.EfsProtection, "EFS", "encrypt", "decrypt");
+        r.Describe(CommandIds.EfsProtection, "Reviews the selected files and folders before changing Windows EFS protection.");
+        K(CommandIds.EfsFileBackup, "EFS", "key backup", "certificate", "private key");
+        r.Describe(CommandIds.EfsFileBackup, "Reviews the certificates associated with selected encrypted files and opens the Windows key export wizard.");
         K(CommandIds.CreateLink, "symlink", "symbolic link", "junction", "hard link", "shortcut");
         K(CommandIds.ApplyCommand, "run for each", "batch", "execute for each");
         K(CommandIds.HexEdit, "binary", "bytes", "patch");
@@ -593,6 +653,7 @@ public sealed class CommandRegistry
         K(CommandIds.Operations, "jobs", "progress", "transfers", "queue", "tasks", "background");
         K(CommandIds.Palette, "command palette", "commands", "actions", "run command");
         K(CommandIds.Help, "shortcuts", "keyboard", "hotkeys", "keys", "key bindings");
+        K(CommandIds.ChangeShortcut, "edit shortcut", "remap key", "customize shortcut", "assign shortcut", "change hotkey");
         K(CommandIds.About, "version");
         K(CommandIds.CheckUpdates, "update", "new version");
         K(CommandIds.DiagnosticsExport, "logs", "bug report", "crash report");
@@ -607,7 +668,8 @@ public sealed class CommandRegistry
         K(CommandIds.FileHistory, "recent files");
         K(CommandIds.WorkingSets, "collections", "basket");
         K(CommandIds.Undo, "revert", "take back");
-        K(CommandIds.AnalyzeFolder, "metadata", "versions", "picture sizes", "dimensions", "link targets", "origin");
+        K(CommandIds.AnalyzeFolder, "metadata", "versions", "picture sizes", "dimensions", "link targets", "origin", "owner", "ownership");
+        K(CommandIds.PictureView, "photo", "photos", "images", "thumbnails", "gallery");
         K(CommandIds.MarkToggle, "folder size", "folder sizes", "calculate size");
         K(CommandIds.MoveTabLeft, "reorder tabs", "tab order", "drag tab");
         K(CommandIds.MoveTabRight, "reorder tabs", "tab order", "drag tab");

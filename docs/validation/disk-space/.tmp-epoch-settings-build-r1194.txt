@@ -1,0 +1,21 @@
+  Determining projects to restore...
+  Restored E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\tests\FileCat.App.Tests\FileCat.App.Tests.csproj (in 984 ms).
+  11 of 12 projects are up-to-date for restore.
+  FileCat.Archives.Rar15 -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Archives.Rar15\bin\Debug\net10.0\FileCat.Archives.Rar15.dll
+  FileCat.Core -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Core\bin\Debug\net10.0\FileCat.Core.dll
+  FileCat.SharpCompress -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\ThirdParty\SharpCompress\bin\Debug\net10.0\FileCat.SharpCompress.dll
+  FileCat.Remote -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Remote\bin\Debug\net10.0\FileCat.Remote.dll
+  FileCat.Archives -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Archives\bin\Debug\net10.0\FileCat.Archives.dll
+  FileCat.Recovery -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Recovery\bin\Debug\net10.0\FileCat.Recovery.dll
+  FileCat.Platform.Windows -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Platform.Windows\bin\Debug\net10.0\FileCat.Platform.Windows.dll
+  FileCat.ShellHost -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.ShellHost\bin\Debug\net10.0\FileCat.ShellHost.dll
+  FileCat.App -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.App\bin\Debug\net10.0\FileCat.dll
+  FileCat.CoreCrashHarness -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\tests\FileCat.CoreCrashHarness\bin\Debug\net10.0\FileCat.CoreCrashHarness.dll
+  FileCat.WorkerProbe -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\tests\FileCat.WorkerProbe\bin\Debug\net10.0\FileCat.WorkerProbe.dll
+  FileCat.App.Tests -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\tests\FileCat.App.Tests\bin\Debug\net10.0\FileCat.App.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:10.77

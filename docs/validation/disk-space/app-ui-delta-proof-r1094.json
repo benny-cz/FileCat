@@ -1,0 +1,45 @@
+{
+  "revision": "r1094",
+  "baseline": "r1093",
+  "scope": "AppUi",
+  "testPhases": [
+    "render"
+  ],
+  "productSourceBaseline": null,
+  "elapsedSeconds": 5.3122567,
+  "platforms": [
+    {
+      "archiveBytes": 2370001,
+      "guestReuse": true,
+      "sha256": "4a3d7cbf728197df83981a9ac0723dea2c8e720717b1f7b8eb4b7e47f196455a",
+      "changed": [
+        "render/FileCat.dll",
+        "render/FileCat.pdb"
+      ],
+      "verifiedInputs": 235,
+      "platform": "windows"
+    },
+    {
+      "archiveBytes": 2369090,
+      "guestReuse": true,
+      "sha256": "723e0e683b15c24e4f803385a42e26289e007d9488986de69b5632c5300b9ec0",
+      "changed": [
+        "render/FileCat.dll",
+        "render/FileCat.pdb"
+      ],
+      "verifiedInputs": 168,
+      "platform": "mac"
+    },
+    {
+      "archiveBytes": 2368999,
+      "guestReuse": true,
+      "sha256": "f8b27a50e80af6d3b12cfe5d839ef33ef15c2ab6ba383606a16a641eec2fe700",
+      "changed": [
+        "render/FileCat.dll",
+        "render/FileCat.pdb"
+      ],
+      "verifiedInputs": 167,
+      "platform": "linux"
+    }
+  ]
+}

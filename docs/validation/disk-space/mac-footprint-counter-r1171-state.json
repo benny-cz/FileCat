@@ -1,0 +1,40 @@
+{
+  "purpose": "Supplementary native physical-footprint counter control; not disk-space scale/private-byte qualification",
+  "source": ".tmp/mac-footprint-counter-control-r1171.c",
+  "sourceSha256": "ce4e7aba464424b72f4554daecdef0e917d1d90f54450abe5f25819b471c9167",
+  "receipt": ".tmp/mac-footprint-counter-control-r1171b.json",
+  "nativeCounter": "proc_pid_rusage RUSAGE_INFO_V4 ri_phys_footprint and ri_lifetime_max_phys_footprint",
+  "sizeof": 296,
+  "footprintOffset": 72,
+  "lifetimePeakOffset": 240,
+  "compiler": "Apple clang15.0.0 from selected Xcode toolchain",
+  "explicitSdk": "/Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk",
+  "deploymentTarget": "14.0",
+  "flags": [
+    "-std=c11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "nativeGuestDirectory": "/Users/benny/FileCatValidation/dsa-memory-counter-20261117-r1171",
+  "firstCompileAttempt": {
+    "terminalExit": 1,
+    "chunk": "7d5e4e",
+    "reason": "Default MacOSX27.2 SDK stub arm64e.x1 unsupported by the selected old linker. Used existing SDK15.2 per command, no shared settings changed."
+  },
+  "successfulAttempt": {
+    "terminalExit": 0,
+    "chunk": "ce2cdb",
+    "touchedBytes": 67108864,
+    "before": 1114544,
+    "touched": 68256224,
+    "released": 1114544,
+    "lifetimePeak": 68256224
+  },
+  "postInventory": ".tmp/mac-pre-r1171counterpost.json",
+  "privateByteBudgetQualified": false,
+  "scaleQualified": false,
+  "managedPInvokeCrossCheckPerformed": false,
+  "observedUtc": "2026-11-17T07:06:26.835151+00:00"
+}

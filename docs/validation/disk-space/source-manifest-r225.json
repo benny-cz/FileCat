@@ -1,0 +1,82 @@
+{
+  "purpose": "Bounded shared scratch-read cache with rejected read-count baseline and final native regressions; Windows deferred",
+  "gitBase": "0bb0636c",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "cebbb874ee733dc609429e26c5b82f00eaf69fcf10e2a4a42789235bfe5869d9"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "c7bbbccac5c0ff3a5ce8733db20d95e1a5cf9ef145a864056a36bc8adbd42f58"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchReadCache.cs",
+      "sha256": "90104fe40d76097b27e4a041a17a655eaa87784f19d3a1f25fccdf4992ccfaab"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchVector.cs",
+      "sha256": "4ef3792586944e5ccf66b7e134a31045b367be40a2a5de87443e5543276fa383"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisScratchReadCacheTests.cs",
+      "sha256": "574f68c4ea5a5a125e7b9240979a4257fcabff424543fa754a7286eabc246741"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisScratchVectorTests.cs",
+      "sha256": "e47120818487cfbf5242e82af36a108e986a70f55c1feac1d7ccbdf5ce4f6f02"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r221.tgz",
+      "sha256": "e6e4d256a1b6ab05ff0d5db9627f4dafcfb6ed744fe698246c35198225e4f329"
+    },
+    {
+      "path": ".tmp/dsa-core-r225.tgz",
+      "sha256": "d0e7d2c95c21f05773f1f5d1fd40d0aa5e6ea8996f0dbe1cc6c7b2966b1dd0a4"
+    },
+    {
+      "path": ".tmp/dsa-native-r225.tgz",
+      "sha256": "4caefcfee579478cdfd336240ffbb10f1411f4a98f0c660e88e89b850c940d08"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r225.sh",
+      "sha256": "ed61c55252aaea3582b900e421635773d70a7659decabbc938c294a9e30560ad"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r225.ps1",
+      "sha256": "4bf6e5c90b59ccfdac87d88d3288919a23a150cd4d14fb466fc6e9d8aded1426"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r225.ps1",
+      "sha256": "6289d415e81ca802b948bd5752e4149bcbe001f894107c7c62bd59a5fa8e49e5"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r221.sh",
+      "sha256": "b6c1651d1a95b5b98db90c5d7f1990e0b9361ad4e99b9f15cfd8750a8fd2407e"
+    }
+  ],
+  "baselines": [
+    {
+      "path": "docs/validation/disk-space/baselines/read-cache-source-r221.json",
+      "sha256": "fa2d5bea9eeefa43413dd46a22b7a530ddcca427924966ef0decf6c5e4c05a11"
+    },
+    {
+      "path": "docs/validation/disk-space/baselines/read-cache-vector-tests-r221.txt",
+      "sha256": "668594a25514361b34b626f47dac4e7eff1756db5f79a07b2e8e3f756d77bdef"
+    }
+  ],
+  "reports": [
+    "mac-core-r225.xml",
+    "ubuntu-core-r225.xml",
+    "mac-core-r221.xml",
+    "ubuntu-core-r221.xml",
+    "read-cache-build-r224.txt",
+    "windows-deferred-r225.json"
+  ],
+  "remaining": "Filter/group/scoped/member projection and indexed frontend adoption; original inventory-ID mapping and streaming import/export; cross-process profile quota; native 1M/10M source/query/resource and Windows qualification; remaining feature packets and final independent review."
+}

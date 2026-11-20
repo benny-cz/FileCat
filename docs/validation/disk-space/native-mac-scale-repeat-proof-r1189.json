@@ -1,0 +1,9 @@
+{
+  "revision": "r1189",
+  "productAndFixtureRebuilt": false,
+  "priorRevision": "r1185",
+  "archiveByteIdentical": true,
+  "archiveSha256": "4db8cfbdaf90cab696ffb9b3bf65f0bb2f0b04a2bcb001afd872a9e9e321d7b1",
+  "runnerSha256": "03bd62c88a67b11a52e02b7d93f5395603e1d8f0822028b870ff11ce9692acc4",
+  "scope": "Only native1Mwide/deep; prior successful broad and1K runs reused; original cancelled Mac grouping remains inconclusive"
+}

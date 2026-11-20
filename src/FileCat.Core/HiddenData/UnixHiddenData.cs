@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using FileCat.Core.FileSystem;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.HiddenData;
 
@@ -7,13 +9,14 @@ namespace FileCat.Core.HiddenData;
 /// Extended attributes on Linux (every namespace this user may read) and macOS (with the resource fork), through libc,
 /// never following a link (D-55).
 /// </summary>
-public sealed partial class UnixHiddenData : IHiddenData
+public sealed partial class UnixHiddenData : IHiddenData, IHiddenValueOutput, IHiddenValueDeletion
 {
     private const int MacNoFollow = 0x0001;
     private const string ResourceForkName = "com.apple.ResourceFork";
     private const int MaxValue = 16 << 20;
 
     public bool IsSupported => OperatingSystem.IsLinux() || OperatingSystem.IsMacOS();
+    bool IHiddenValueOutput.SupportsValueReports => OperatingSystem.IsLinux();
 
     public IReadOnlyList<HiddenItem> List(string path)
     {
@@ -35,33 +38,86 @@ public sealed partial class UnixHiddenData : IHiddenData
 
     public byte[] Read(string path, HiddenItem item, int max)
     {
-        if (item.Kind == HiddenKind.ResourceFork && OperatingSystem.IsMacOS())
-        {
-            using var fork = Open(path, item);
-            var head = new byte[Math.Min(max, (int)Math.Min(int.MaxValue, Math.Max(0, item.Size)))];
-            int read = fork.ReadAtLeast(head, head.Length, throwOnEndOfStream: false);
-            return head[..read];
-        }
-        nint size = GetValue(path, item.Name, null, 0);
-        if (size < 0) throw Error(path);
-        var buffer = new byte[Math.Min(size, MaxValue)];
-        size = GetValue(path, item.Name, buffer, buffer.Length);
-        if (size < 0) throw Error(path);
-        return buffer.AsSpan(0, (int)Math.Min(size, max)).ToArray();
+        ArgumentOutOfRangeException.ThrowIfNegative(max);
+        return ReadBoundAttribute(path, item, max);
     }
 
     public Stream Open(string path, HiddenItem item)
     {
-        // A resource fork is a stream of its own (it may be large): read through its path, not the attribute call.
-        if (item.Kind == HiddenKind.ResourceFork && OperatingSystem.IsMacOS())
-            return new FileStream(Path.Join(path, "..namedfork", "rsrc"), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         return new MemoryStream(Read(path, item, MaxValue), writable: false);
     }
 
-    public void Delete(string path, HiddenItem item)
+    void IHiddenValueOutput.RequireClearSource(string path)
     {
-        int result = OperatingSystem.IsMacOS() ? MacRemove(path, item.Name, MacNoFollow) : LinuxRemove(path, item.Name);
-        if (result != 0) throw Error(path);
+        if (!OperatingSystem.IsLinux()) throw new NotSupportedException("A bound supplementary value adapter is unavailable on this system.");
+        using var file = OpenInventoryFile(path, default);
+    }
+
+    Stream IHiddenValueOutput.OpenClearValue(string path, HiddenItem item, OutputEfsObservation observation, FileIdentity? reviewed)
+    {
+        using var file = OpenActionFile(path, item);
+        if (reviewed is { } expected && UnixFiles.Stat(file)?.Identity != expected)
+            throw new IOException("The supplementary value belongs to a different file. Refresh the inventory and try again.");
+        observation.ObserveOpenedLinux(file);
+        byte[] value = ReadAttribute(file, path, item, MaxValue);
+        observation.ObserveOpenedLinux(file);
+        return new MemoryStream(value, writable: false);
+    }
+
+    public void Delete(string path, HiddenItem item) => DeleteCore(path, item, null, default);
+
+    void IHiddenValueDeletion.DeleteReviewedValue(string path, HiddenItem item, FileIdentity reviewed, CancellationToken ct) =>
+        DeleteCore(path, item, reviewed, ct);
+
+    private static void DeleteCore(string path, HiddenItem item, FileIdentity? reviewed, CancellationToken ct)
+    {
+        using var file = OpenActionFile(path, item, ct);
+        if (reviewed is { } expected && UnixFiles.Stat(file)?.Identity != expected)
+            throw new IOException("The supplementary value belongs to a different file. Refresh the inventory and try again.");
+        var inventory = CollectInventory(path, (buffer, size) => LinuxFdList(file, buffer, size), name => LinuxFdGet(file, name, null, 0), ct);
+        if (inventory.State != HiddenInventoryState.Complete) throw new IOException("The attribute category could not be completely resolved; refresh required.");
+        var current = inventory.Items.SingleOrDefault(i => i.Kind == item.Kind && i.Name == item.Name)
+            ?? throw new FileNotFoundException("The exact attribute is missing; refresh required.");
+        if (HiddenMetadataRoles.DeleteRefusal(current) is { } reason) throw new NotSupportedException(reason);
+        ct.ThrowIfCancellationRequested();
+        if (LinuxFdRemove(file, current.Name) != 0) throw Error(path);
+    }
+
+    private static SafeFileHandle OpenActionFile(string path, HiddenItem item, CancellationToken ct = default)
+    {
+        if (!OperatingSystem.IsLinux()) throw new NotSupportedException("A held-object attribute value/action adapter is not qualified on this platform.");
+        if (item.Kind != HiddenKind.Attribute || item.Name.Length == 0 || item.Name.Contains('\0') ||
+            !new UTF8Encoding(false, true).GetString(new UTF8Encoding(false, true).GetBytes(item.Name)).Equals(item.Name, StringComparison.Ordinal))
+            throw new NotSupportedException("The attribute category or native name is invalid; refresh required.");
+        return OpenInventoryFile(path, ct);
+    }
+
+    private static byte[] ReadBoundAttribute(string path, HiddenItem item, int max)
+    {
+        using var file = OpenActionFile(path, item);
+        return ReadAttribute(file, path, item, max);
+    }
+
+    private static byte[] ReadAttribute(SafeFileHandle file, string path, HiddenItem item, int max)
+    {
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            nint size = LinuxFdGet(file, item.Name, null, 0);
+            if (size < 0) throw Error(path);
+            if (size > MaxValue) throw new NotSupportedException("The attribute exceeds the 16 MiB explicit-value acquisition limit.");
+            if (max == 0) return [];
+            byte[] value = new byte[(int)size];
+            try
+            {
+                nint got = LinuxFdGet(file, item.Name, value, value.Length);
+                if (got < 0 && Marshal.GetLastPInvokeError() == 34 && attempt < 2) continue;
+                if (got < 0) throw Error(path);
+                if (got > value.Length) throw new IOException("The attribute query returned an invalid length.");
+                return value.AsSpan(0, (int)Math.Min(got, max)).ToArray();
+            }
+            finally { System.Security.Cryptography.CryptographicOperations.ZeroMemory(value); }
+        }
+        throw new IOException("The attribute kept growing beyond two retries; refresh required.");
     }
 
     private static nint ListNames(string path, byte[]? buffer, nint size) =>
@@ -90,6 +146,9 @@ public sealed partial class UnixHiddenData : IHiddenData
 
     [LibraryImport("libc", EntryPoint = "lremovexattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int LinuxRemove(string path, string name);
+
+    [LibraryImport("libc", EntryPoint = "fremovexattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial int LinuxFdRemove(Microsoft.Win32.SafeHandles.SafeFileHandle file, string name);
 
     [LibraryImport("libc", EntryPoint = "listxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial nint MacList(string path, byte[]? list, nint size, int options);

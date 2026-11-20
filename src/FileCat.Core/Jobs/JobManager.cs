@@ -1,4 +1,6 @@
+using System.Collections.Immutable;
 using FileCat.Core.Diagnostics;
+using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 
@@ -8,7 +10,7 @@ namespace FileCat.Core.Jobs;
 /// Owns jobs independently of tabs and panels (plan §6.3). Jobs queue per device; overlapping jobs wait
 /// and say which job they wait for; independent devices run in parallel within a global limit (§9.1).
 /// </summary>
-public sealed class JobManager
+public sealed partial class JobManager
 {
     private const int ExactScopeLimit = 4096;
     private const string GlobalScope = "<all locations>";
@@ -17,17 +19,42 @@ public sealed class JobManager
     private readonly List<SyncGroup> _syncGroups = [];
     private readonly Dictionary<Job, SyncGroup> _syncByJob = [];
     private readonly HashSet<Job> _starting = []; // chosen to start, not yet Running: no other Schedule may choose them
+    private readonly HashSet<Job> _handoffs = []; // one consumer of each reserved launch claim
+    private readonly HashSet<Job> _retiring = []; // canceled before start; ownership retires outside the manager lock
+    private readonly HashSet<Job> _admitting = []; // observers and ownership must settle before scheduling
+    private readonly HashSet<Job> _removeAfterAdmission = []; // explicit removal of a canceled admission waits for terminal ownership cleanup
+    private readonly Dictionary<Job, ArchiveJobOperation> _archiveOperations = [];
+    private readonly ArchiveJobBackends _archiveBackends;
+    private readonly IStorageTransforms _storageTransforms;
     private readonly IFileSystemOperations _fs;
     private readonly ProviderRegistry _providers;
     private readonly string _journalDirectory;
+    private readonly Func<string, string, CancellationToken, StorageJournalFile>? _createStorageJournal;
+    private readonly StorageEvidenceBackend? _storageEvidenceBackend;
     private int _order;
     private int _suppressScheduling;
 
     public JobManager(IFileSystemOperations fs, ProviderRegistry providers, string journalDirectory)
+        : this(fs, providers, journalDirectory, ArchiveJobBackends.Empty, new NoStorageTransforms()) { }
+
+    public JobManager(IFileSystemOperations fs, ProviderRegistry providers, IStorageTransforms storageTransforms, string journalDirectory)
+        : this(fs, providers, journalDirectory, ArchiveJobBackends.Empty, storageTransforms) { }
+
+    internal JobManager(IFileSystemOperations fs, ProviderRegistry providers, string journalDirectory, ArchiveJobBackends archiveBackends)
+        : this(fs, providers, journalDirectory, archiveBackends, new NoStorageTransforms()) { }
+
+    internal JobManager(IFileSystemOperations fs, ProviderRegistry providers, string journalDirectory, ArchiveJobBackends archiveBackends,
+        IStorageTransforms storageTransforms, Func<string, string, CancellationToken, StorageJournalFile>? createStorageJournal = null,
+        StorageEvidenceBackend? storageEvidenceBackend = null)
     {
         _fs = fs;
         _providers = providers;
         _journalDirectory = journalDirectory;
+        _archiveBackends = archiveBackends ?? throw new ArgumentNullException(nameof(archiveBackends));
+        _storageTransforms = storageTransforms ?? throw new ArgumentNullException(nameof(storageTransforms));
+        CompressionUnavailable = _storageTransforms.Unavailable(StorageAction.Compress);
+        _createStorageJournal = createStorageJournal;
+        _storageEvidenceBackend = storageEvidenceBackend;
     }
 
     public int MaxConcurrent { get; set; } = 4;
@@ -93,6 +120,7 @@ public sealed class JobManager
         bool seenRemoval = false;
         foreach (var request in requests)
         {
+            if (request.StorageTransform is not null) throw new ArgumentException("A storage approval must be submitted through its reviewed owner.", nameof(requests));
             bool removal = request.Kind is JobKind.Delete or JobKind.Recycle;
             if (request.Kind != JobKind.Copy && !removal || request.Mode != QueueMode.Queue ||
                 seenRemoval && !removal || removal && seenRemoval || request.Sources.Count == 0)
@@ -110,6 +138,16 @@ public sealed class JobManager
             if (job.Kind is JobKind.Delete or JobKind.Recycle) job.Pause();
         }
         var group = new SyncGroup(this, source, target, reviewedPlan, jobs);
+        var readOwnership = new Dictionary<Job, List<IDisposable>>();
+        try
+        {
+            foreach (var job in jobs) readOwnership.Add(job, CaptureReadLeases(job.Request));
+        }
+        catch
+        {
+            foreach (var leases in readOwnership.Values) DisposeReadLeases(leases);
+            throw;
+        }
         IReadOnlyList<Job> retired;
         IReadOnlyList<SyncGroup> retiredGroups;
         lock (_lock)
@@ -118,6 +156,7 @@ public sealed class JobManager
             {
                 job.QueueOrder = ++_order;
                 _jobs.Add(job);
+                _readLeases.Add(job, readOwnership[job]);
                 _syncByJob.Add(job, group);
                 job.Changed += OnJobChanged;
             }
@@ -126,10 +165,11 @@ public sealed class JobManager
             retiredGroups = _syncGroups.Where(g => g.IsFinished).Take(Math.Max(0, _syncGroups.Count(g => g.IsFinished) - KeepFinished)).ToArray();
             foreach (var old in retiredGroups) RetireSyncGroupLocked(old);
         }
-        foreach (var old in retired) JobRemoved?.Invoke(old);
+        foreach (var old in retired) Notify(JobRemoved, old);
         foreach (var old in retiredGroups) SyncGroupRemoved?.Invoke(old);
         SyncGroupAdded?.Invoke(group);
         foreach (var job in jobs) JobAdded?.Invoke(job);
+        foreach (var job in jobs) job.SealAdmission();
         group.Begin();
         Schedule();
         return group;
@@ -153,54 +193,101 @@ public sealed class JobManager
         }, reservation);
     }
 
-    private Job Submit(JobRequest request, UndoReservation? reservation, Action<Job>? register = null)
+    private Job Submit(JobRequest request, UndoReservation? reservation, Action<Job>? register = null, ArchiveJobOperation? archiveOperation = null,
+        StorageReviewOwner? storageOwner = null, ReviewedAnalysisCopyOperation? reviewedAnalysisCopy = null)
     {
-        if (reservation is null && (request.Kind == JobKind.Undo || request.UndoPlan is not null))
-            throw new ArgumentException("An inverse must be admitted through an approved Undo reservation.", nameof(request));
-        var (title, device, reads, writes) = Describe(request);
-        var job = new Job(request, title, device, reads, writes);
-        IReadOnlyList<Job> retired = [];
-        lock (_lock)
+        Job? job = null;
+        List<IDisposable>? readLeases = null;
+        try
         {
-            void Admit() { job.QueueOrder = ++_order; _jobs.Add(job); }
-            if (reservation is null) Admit();
-            else if (!reservation.TryAdmit(job, Admit)) throw new InvalidOperationException("This Undo approval no longer owns the original operation.");
-            retired = TrimFinishedLocked();
+            ValidateStorageRequest(request, storageOwner);
+            if ((request.Kind == JobKind.ReviewedAnalysisCopy) != (reviewedAnalysisCopy is not null))
+                throw new ArgumentException("A reviewed analysis copy requires its live approval.", nameof(request));
+            if (reservation is null && (request.Kind == JobKind.Undo || request.UndoPlan is not null))
+                throw new ArgumentException("An inverse must be admitted through an approved Undo reservation.", nameof(request));
+            var (title, device, reads, writes) = Describe(request);
+            job = new Job(request, title, device, reads, writes) { ReviewedAnalysisCopy = reviewedAnalysisCopy };
+            readLeases = CaptureReadLeases(request);
+            IReadOnlyList<Job> retired = [];
+            lock (_lock)
+            {
+                void Admit()
+                {
+                    job.QueueOrder = ++_order;
+                    _jobs.Add(job);
+                    _admitting.Add(job);
+                    if (archiveOperation is not null) _archiveOperations.Add(job, archiveOperation);
+                    if (storageOwner is not null) _storageOwners.Add(job, storageOwner);
+                    _readLeases.Add(job, readLeases ?? throw new InvalidOperationException("Missing source read ownership."));
+                    readLeases = null;
+                }
+                if (reservation is null) Admit();
+                else if (!reservation.TryAdmit(job, Admit)) throw new InvalidOperationException("This Undo approval no longer owns the original operation.");
+                retired = TrimFinishedLocked();
+            }
+            reservation?.Original.UndoAdmissionChanged();
+            foreach (var finished in retired) Notify(JobRemoved, finished);
+            // A queued state change must not start or finish the job before its owner and JobAdded
+            // subscribers can observe it. SubmitSyncGroup uses this same ordering.
+            job.SetState(JobState.Queued);
+            register?.Invoke(job);
+            job.Changed += OnJobChanged;
+            JobAdded?.Invoke(job);
         }
-        reservation?.Original.UndoAdmissionChanged();
-        foreach (var finished in retired) JobRemoved?.Invoke(finished);
-        // A queued state change must not start or finish the job before its owner and JobAdded
-        // subscribers can observe it. SubmitSyncGroup uses this same ordering.
-        job.SetState(JobState.Queued);
-        if (register is not null)
+        catch
         {
-            try { register(job); }
-            catch
+            if (job is not null)
             {
                 lock (_lock)
                 {
                     _jobs.Remove(job);
+                    _admitting.Remove(job);
+                    _removeAfterAdmission.Remove(job);
+                    _archiveOperations.Remove(job);
+                    _storageOwners.Remove(job);
+                    job.TakeReviewedAnalysisCopy();
+                    job.Changed -= OnJobChanged;
                 }
-                throw;
             }
+            archiveOperation?.Dispose();
+            storageOwner?.Dispose();
+            if (readLeases is not null) DisposeReadLeases(readLeases);
+            if (job is not null) ReleaseReadLeases(job);
+            if (job is not null)
+            {
+                job.SealAdmission(); // rollback notifications cannot prevent retirement or another owner's cleanup
+                try { job.Cancel(); job.SetState(JobState.Canceled); }
+                catch (Exception ex) { AppLog.Warn("Failed submission observer cleanup failed", ex); }
+                Notify(JobRemoved, job);
+            }
+            // Reentrant observers may have queued other work behind this admission.
+            try { Schedule(); }
+            catch (Exception ex) { AppLog.Warn("Scheduling after a failed submission failed", ex); }
+            throw;
         }
-        job.Changed += OnJobChanged;
-        JobAdded?.Invoke(job);
+        job.SealAdmission();
+        lock (_lock) _admitting.Remove(job);
         Schedule();
         return job;
     }
 
     public void Remove(Job job)
     {
-        if (!job.State.IsFinished()) return;
         bool removed;
         lock (_lock)
         {
+            if(!job.State.IsFinished())
+            {
+                if(_admitting.Contains(job)&&job.State==JobState.Queued&&job.IsCancellationRequested)
+                    _removeAfterAdmission.Add(job);
+                return;
+            }
+            _removeAfterAdmission.Remove(job);
             removed = _jobs.Remove(job);
             if (removed) job.Changed -= OnJobChanged;
         }
-        if (removed) JobRemoved?.Invoke(job);
-        JobChanged?.Invoke(job);
+        if (removed) Notify(JobRemoved, job);
+        Notify(JobChanged, job);
     }
 
     public void ClearFinished()
@@ -218,7 +305,7 @@ public sealed class JobManager
             retiredGroups = _syncGroups.Where(g => g.IsFinished).ToList();
             foreach (var group in retiredGroups) RetireSyncGroupLocked(group);
         }
-        foreach (var job in retired) JobRemoved?.Invoke(job);
+        foreach (var job in retired) Notify(JobRemoved, job);
         foreach (var group in retiredGroups) SyncGroupRemoved?.Invoke(group);
     }
 
@@ -267,8 +354,8 @@ public sealed class JobManager
             displaced = queued[k];
             (queued[i].QueueOrder, queued[k].QueueOrder) = (queued[k].QueueOrder, queued[i].QueueOrder);
         }
-        JobChanged?.Invoke(job);
-        JobChanged?.Invoke(displaced);
+        Notify(JobChanged, job);
+        Notify(JobChanged, displaced);
         Schedule();
         return true;
     }
@@ -296,33 +383,51 @@ public sealed class JobManager
 
     private void OnJobChanged(Job job)
     {
-        JobChanged?.Invoke(job);
-        if (job.State == JobState.AwaitingDecision && job.Decision is { } d) DecisionRequested?.Invoke(d);
+        Notify(JobChanged, job);
+        if (job.State == JobState.AwaitingDecision && job.Decision is { } d) Notify(DecisionRequested, d);
         if (job.State == JobState.Queued) Schedule();
+    }
+
+    private static void Notify<T>(Action<T>? handlers, T value)
+    {
+        if (handlers is null) return;
+        foreach (Action<T> observer in handlers.GetInvocationList())
+            try { observer(value); }
+            catch (Exception error) { AppLog.Warn("Job manager observer failed after admission", error); }
+    }
+
+    private void PublishFinished(Job job)
+    {
+        if (job.TryPublishTerminal())
+        {
+            PublishStorageReview(job);
+            Notify(JobFinished, job);
+        }
     }
 
     /// <summary>Starts queued jobs whose preconditions hold. Called after every submission and completion.</summary>
     public void Schedule()
     {
         var toStart = new List<Job>();
-        var canceled = new List<Job>();
+        var canceled = new List<(Job Job,bool Remove)>();
         lock (_lock)
         {
             if (_suppressScheduling > 0) return;
             // Schedule runs on the submitting thread and on every finishing job's thread; a job is chosen by one of them.
             int running = _jobs.Count(j => j.State.IsActive() || _starting.Contains(j));
-            foreach (var job in _jobs.Where(j => j.State == JobState.Queued && !_starting.Contains(j)).OrderBy(j => j.QueueOrder).ToList())
+            foreach (var job in _jobs.Where(j => j.State == JobState.Queued).OrderBy(j => j.QueueOrder).ToList())
             {
+                if (job.State != JobState.Queued || _starting.Contains(job) || _admitting.Contains(job) || _retiring.Contains(job)) continue;
                 if (job.IsCancellationRequested)
                 {
-                    job.SetState(JobState.Canceled);
-                    if (job.Kind == JobKind.Undo && job.Request.UndoPlan is { } plan)
-                        job.SetUndoReport(UndoReport.NotStarted(plan, "Canceled before the inverse started; no inverse steps ran."));
-                    canceled.Add(job);
+                    bool remove=_removeAfterAdmission.Remove(job);
+                    _retiring.Add(job);
+                    canceled.Add((job,remove));
                     continue;
                 }
                 if (job.IsPaused)
                 {
+                    job.WaitingFor = null;
                     job.WaitReason = "Paused before start";
                     continue;
                 }
@@ -330,7 +435,16 @@ public sealed class JobManager
                 if (blocker is not null)
                 {
                     job.WaitingFor = blocker;
-                    job.WaitReason = $"Waits for \"{blocker.Title}\": both touch the same items";
+                    job.WaitReason = job.Kind == JobKind.StorageTransform || blocker.Kind == JobKind.StorageTransform
+                        ? $"Waits for \"{blocker.Title}\": storage changes run exclusively with other FileCat jobs"
+                        : $"Waits for \"{blocker.Title}\": both touch the same items";
+                    continue;
+                }
+                if (PreparesArchive(job) && _jobs.FirstOrDefault(j => !ReferenceEquals(j, job) && PreparesArchive(j) &&
+                    (j.State.IsActive() || _starting.Contains(j))) is { } preparing)
+                {
+                    job.WaitingFor = preparing;
+                    job.WaitReason = $"Waits for \"{preparing.Title}\": archive changes are made one at a time";
                     continue;
                 }
                 if (job.Request.Mode == QueueMode.Queue)
@@ -357,8 +471,10 @@ public sealed class JobManager
                 toStart.Add(job);
             }
         }
-        foreach (var job in canceled) JobFinished?.Invoke(job);
+        foreach (var (job,remove) in canceled)
+            RetireUnstarted(job, JobState.Canceled, remove);
         foreach (var job in toStart) Start(job);
+        if (canceled.Count > 0) Schedule(); // retirement may have unblocked a job omitted from this pass
     }
 
     private Job? FindBlocker(Job job)
@@ -366,7 +482,8 @@ public sealed class JobManager
         foreach (var other in _jobs)
         {
             if (ReferenceEquals(other, job) || other.State.IsFinished()) continue;
-            bool ahead = other.State.IsActive() || other.State == JobState.Queued && other.QueueOrder < job.QueueOrder;
+            bool ahead = other.State.IsActive() || _starting.Contains(other) || _retiring.Contains(other) ||
+                other.State == JobState.Queued && other.QueueOrder < job.QueueOrder;
             if (!ahead) continue;
             if (Overlaps(job, other)) return other;
         }
@@ -376,6 +493,7 @@ public sealed class JobManager
     /// <summary>Two jobs overlap when one writes where the other reads or writes (subtree-aware, conservative).</summary>
     public static bool Overlaps(Job a, Job b)
     {
+        if (a.Kind == JobKind.StorageTransform || b.Kind == JobKind.StorageTransform) return true;
         foreach (var w in a.WriteSet)
         {
             foreach (var x in b.WriteSet) if (ScopesOverlap(w, x)) return true;
@@ -391,34 +509,102 @@ public sealed class JobManager
     private static bool ScopesOverlap(string a, string b) =>
         a == GlobalScope || b == GlobalScope || PathUtil.SubtreesOverlap(a, b);
 
+    // A profiled archive job keeps its catalogs, captured inputs and expected manifest in this process, charged up to
+    // ArchiveWritePolicy.MaxRetainedHeapBytes. Running one at a time makes that charge the global bound (plan §9.2: one
+    // active archive worker, queued through the job center). Legacy ZIP updates keep their existing scheduling.
+    private static bool PreparesArchive(Job job) => job.Kind == JobKind.ArchiveUpdate && job.Request.Archive?.Profile is not null;
+
     private void Start(Job job)
     {
-        if (!job.TryStart())
+        lock (_lock)
+            if (!_starting.Contains(job) || !_handoffs.Add(job)) return;
+        try
         {
-            lock (_lock) _starting.Remove(job);
-            if (!job.State.IsFinished())
+            switch (job.TryStart())
             {
-                job.SetState(JobState.Canceled);
-                JobFinished?.Invoke(job);
+                case JobStartDisposition.Canceled:
+                    RetireUnstarted(job, JobState.Canceled, false);
+                    return;
+                case JobStartDisposition.Paused or JobStartDisposition.AlreadyOwned:
+                    return; // a stale attempt never retires another worker's owner
             }
-            Schedule();
-            return;
+            var thread = new Thread(() => Run(job)) { IsBackground = true, Name = "FileCat job " + job.ShortId };
+            thread.Start();
         }
-        lock (_lock) _starting.Remove(job);
-        var thread = new Thread(() => Run(job)) { IsBackground = true, Name = "FileCat job " + job.ShortId };
-        thread.Start();
+        catch (Exception error)
+        {
+            AppLog.Error("Job worker handoff failed", error);
+            job.AddIssue(new(IssueSeverity.Error, string.Empty, "The operation could not start: " + error.Message, StepOutcome.Failed));
+            RetireUnstarted(job, JobState.Failed, false);
+        }
+        finally
+        {
+            lock (_lock) { _starting.Remove(job); _handoffs.Remove(job); }
+            Schedule();
+        }
+    }
+
+    private void RetireUnstarted(Job job, JobState final, bool remove)
+    {
+        if (job.ReviewedAnalysisCopy is null) RetireUnstartedCore(job, final, remove);
+        else
+        {
+            lock (_lock) _retiring.Add(job);
+            _ = Task.Run(() =>
+            {
+                RetireUnstartedCore(job, final, remove);
+                Schedule();
+            });
+        }
+    }
+
+    private void RetireUnstartedCore(Job job, JobState final, bool remove)
+    {
+        try
+        {
+            ReleaseArchiveOperation(job);
+            ReleaseReadLeases(job);
+            ReleaseStorageOwner(job);
+            if (!ReleaseReviewedAnalysisCopy(job)) final = JobState.Failed;
+            if (job.Request.StorageTransform is { } storage)
+                job.SetStorageResult(new(storage.Action, storage.Scope, storage.ReviewRevision, new(NotProcessed: storage.Roots.Select(r => r.PinIndex).Distinct().Count()))
+                {
+                    Canceled = final == JobState.Canceled, ExecutionRefused = final == JobState.Failed,
+                    Roots = storage.Roots.Select(r => new StorageRootResult(r.SourceIndex, r.Observation.Identity, StorageCompleteness.Incomplete, false)).ToImmutableArray(),
+                });
+            if (job.Kind == JobKind.Undo && job.Request.UndoPlan is { } plan)
+                job.SetUndoReport(UndoReport.NotStarted(plan, "The inverse did not start; no inverse steps ran."));
+            job.SetState(final);
+            if (remove) Remove(job);
+            PublishFinished(job);
+        }
+        finally { lock (_lock) _retiring.Remove(job); }
     }
 
     private void Run(Job job)
     {
         JobJournal? journal = null;
+        IDisposable? storageNative = null;
+        IDisposable? storageEvidence = null;
         JobState final;
         try
         {
-            journal = JobJournal.Create(_journalDirectory, job);
-            var executor = JobExecutors.Create(job, _fs, _providers, journal);
+            if (job.Kind == JobKind.StorageTransform)
+            {
+                storageEvidence = StorageEvidenceBudget.Shared.Reserve(_journalDirectory, job.Id, job.Token, _storageEvidenceBackend);
+                storageNative = StorageReviewResources.EnterNative(job.Token, job);
+            }
+            journal = JobJournal.Create(_journalDirectory, job, _createStorageJournal);
+            ArchiveJobOperation? archiveOperation;
+            StorageReviewOwner? storageOwner;
+            lock (_lock)
+            {
+                archiveOperation = _archiveOperations.GetValueOrDefault(job);
+                storageOwner = _storageOwners.GetValueOrDefault(job);
+            }
+            var executor = JobExecutors.Create(job, _fs, _providers, journal, _archiveBackends, archiveOperation, _storageTransforms, storageOwner);
             executor.Execute();
-            job.TotalsFinal = true;
+            job.TotalsFinal = job.StorageResult is not { } storageTotals || storageTotals.Discovery == StorageCompleteness.Complete;
             final = FinalState(job);
         }
         catch (OperationCanceledException)
@@ -428,26 +614,68 @@ public sealed class JobManager
         catch (Exception ex)
         {
             AppLog.Error($"Job {job.ShortId} failed", ex);
-            job.AddIssue(new JobIssue(IssueSeverity.Error, string.Empty, ex.Message, StepOutcome.Failed));
+            // Archive refusals carry the plan's user text; the technical message stays available as details.
+            if (ex.Data[Archives.ArchiveWriteMessages.UserMessageKey] is string message && message != ex.Message)
+                job.AddIssue(new JobIssue(IssueSeverity.Error, job.Request.Archive?.ArchivePath ?? string.Empty, message, StepOutcome.Failed) { Details = ex.Message });
+            else job.AddIssue(new JobIssue(IssueSeverity.Error, string.Empty, ex.Message, StepOutcome.Failed));
             final = JobState.Failed;
         }
-        if (job.IsCancellationRequested && final != JobState.Failed) final = JobState.Canceled;
+        finally { ReleaseArchiveOperation(job); ReleaseReadLeases(job); }
+        if (!ReleaseReviewedAnalysisCopy(job))
+        {
+            journal?.RequireRecovery();
+            final = JobState.Failed;
+        }
+        if (job.StorageResult is null && job.IsCancellationRequested && final != JobState.Failed) final = JobState.Canceled;
         if (job.Kind == JobKind.Undo && job.UndoReport is null && job.Request.UndoPlan is { } undoPlan)
             job.SetUndoReport(UndoReport.NotStarted(undoPlan, "The inverse could not start. " + (JobIssue.Summarize(job.Issues) ?? final.Describe()), journal?.Path));
+        if (job.Request.StorageTransform is { } missing && job.StorageResult is null)
+            job.SetStorageResult(new(missing.Action, missing.Scope, missing.ReviewRevision, new(NotProcessed: missing.Roots.Select(r => r.PinIndex).Distinct().Count()))
+            {
+                Canceled = final == JobState.Canceled, ExecutionRefused = final == JobState.Failed,
+                Roots = missing.Roots.Select(r => new StorageRootResult(r.SourceIndex, r.Observation.Identity, StorageCompleteness.Incomplete, false)).ToImmutableArray(),
+            });
         try
         {
-            if (journal is { NeedsRecovery: true }) journal.Note("Temporary items remain unresolved; the journal is retained for recovery.");
+            if (job.StorageResult is { } storageFinal)
+            {
+                journal?.FinishStorage(storageFinal);
+                if (journal is not null) job.SetStorageResult(storageFinal with { DurablePrefix = journal.StoragePrefix });
+            }
+            else if (journal is { NeedsRecovery: true }) journal.Note(job.Kind == JobKind.ReviewedAnalysisCopy
+                ? "Reviewed copy has an unconfirmed outcome or release. Inspect its receipt before a fresh review."
+                : "Temporary items remain unresolved; the journal is retained for recovery.");
             else journal?.Finish(final, job.Summary);
         }
-        catch (IOException ex) { AppLog.Warn("Journal finish failed", ex); }
-        journal?.Dispose();
+        catch (Exception ex)
+        {
+            AppLog.Warn("Journal finish failed", ex);
+            final = JobState.Failed;
+            if (job.StorageResult is { } storage) job.SetStorageResult(storage with { PersistenceFault = true, ReviewPending = true });
+        }
+        finally
+        {
+            try { journal?.Dispose(); }
+            catch (Exception ex)
+            {
+                AppLog.Warn("Journal close failed", ex);
+                final = JobState.Failed;
+                if (job.StorageResult is { } storage) job.SetStorageResult(storage with { PersistenceFault = true, ReviewPending = true });
+            }
+            finally
+            {
+                try { storageNative?.Dispose(); }
+                finally { try { ReleaseStorageOwner(job); } finally { storageEvidence?.Dispose(); } }
+            }
+        }
         job.SetState(final);
-        JobFinished?.Invoke(job);
+        PublishFinished(job);
         Schedule();
     }
 
     private static JobState FinalState(Job job)
     {
+        if (job.StorageResult is { } storage) return storage.FinalState();
         if (job.IsCancellationRequested) return JobState.Canceled;
         bool anyFailed = job.ItemsFailed > 0 || job.Issues.Any(i => i.Severity == IssueSeverity.Error);
         bool anyDone = job.ItemsDone > 0;
@@ -483,6 +711,20 @@ public sealed class JobManager
         string title;
         switch (r.Kind)
         {
+            case JobKind.StorageTransform:
+                var storage = r.StorageTransform ?? throw new ArgumentException("A storage approval is required.", nameof(r));
+                string storageAction = storage.Action switch
+                {
+                    StorageAction.Compress => "Compress",
+                    StorageAction.RemoveCompression => "Remove compression from",
+                    StorageAction.EncryptEfs => "Encrypt with EFS",
+                    StorageAction.DecryptEfs => "Decrypt EFS from",
+                    _ => throw new ArgumentOutOfRangeException(nameof(r), "Choose a storage action."),
+                };
+                title = $"{storageAction} {What()} · " +
+                    (storage.Scope == StorageScope.SelectedItems ? "selected items only" : "selected folders and existing contents");
+                writes.Add(GlobalScope);
+                break;
             case JobKind.Undo:
             {
                 var inverse = r.UndoPlan ?? throw new ArgumentException("An approved inverse plan is required.", nameof(r));
@@ -497,6 +739,11 @@ public sealed class JobManager
                 }
                 break;
             }
+            case JobKind.ReviewedAnalysisCopy:
+                title = $"Copy reviewed entries ({r.Sources.Count:N0}) to {Analysis.AnalysisNames.Display(Dest())}";
+                AddSourceScopes(reads);
+                AddDestinationScopes();
+                break;
             case JobKind.Copy:
             case JobKind.Extract:
                 title = $"{(r.Kind == JobKind.Copy ? "Copy" : "Extract")} {What()} to {Dest()}";
@@ -510,7 +757,7 @@ public sealed class JobManager
                 AddDestinationScopes();
                 break;
             case JobKind.Recycle:
-                title = $"Move {What()} to the Recycle Bin";
+                title = $"Move {What()} to {RecycleText.Destination}";
                 AddSourceScopes(writes);
                 break;
             case JobKind.Delete:
@@ -526,9 +773,18 @@ public sealed class JobManager
                 writes.Add(D(r.NewName ?? ""));
                 break;
             case JobKind.Attributes:
-                title = $"Change attributes of {What()}";
+            {
+                var change = r.Attributes;
+                bool attributes = change is null || change.Set != 0 || change.Clear != 0 || change.ChangesPermissions;
+                bool modified = change?.ModifiedUtc is not null;
+                bool created = change?.CreatedUtc is not null;
+                string part = attributes
+                    ? modified || created ? "attributes and times" : "attributes"
+                    : modified && created ? "file times" : modified ? "modified time" : "creation time";
+                title = $"Change {part} of {What()}";
                 AddSourceScopes(writes);
                 break;
+            }
             case JobKind.ApplyCommand:
                 title = r.Description ?? $"Run a command for {What()}";
                 // The program may change the items and write next to them.
@@ -567,7 +823,8 @@ public sealed class JobManager
             {
                 var archive = r.Archive ?? throw new ArgumentException("An archive plan is required.", nameof(r));
                 title = r.Description ?? $"Update \"{Path.GetFileName(archive.ArchivePath)}\"";
-                foreach (var source in archive.Changes.Select(c => c.SourcePath).OfType<string>()) reads.Add(source);
+                foreach (var source in archive.Changes.Select(c => c.SourcePath).OfType<string>())
+                { reads.Add(source); if (archive.MoveSources) writes.Add(source); }
                 // The archive is rewritten as a whole: any job reading or writing it overlaps.
                 writes.Add(Path.GetFullPath(archive.ArchivePath));
                 break;

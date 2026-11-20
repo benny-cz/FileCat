@@ -1,0 +1,1341 @@
+{
+  "utc": "2026-11-16T17:33:37.6473122Z",
+  "runtime": "10.0.15",
+  "os": "Microsoft Windows NT 10.0.26320.0",
+  "processors": 24,
+  "diagnostic": false,
+  "reuseTarget": true,
+  "cpuMask": "555555",
+  "tieredCompilation": "0",
+  "calibrationBeforeMs": 26.477,
+  "calibrationAfterMs": 21.7854,
+  "label": "candidate-a",
+  "samples": [
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 1,
+      "supersede": false,
+      "run": 0,
+      "cpuMs": 234.375,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 1,
+      "supersede": false,
+      "run": 0,
+      "elapsedMs": 246.9719,
+      "allocatedBytes": 2467872,
+      "capturedRows": 100000,
+      "captures": 1,
+      "reservedBytes": 21809664,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 63317448,
+        "retainedManagedBytes": 59713560,
+        "privateBytes": 125796352,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 1,
+      "supersede": false,
+      "run": 1,
+      "cpuMs": 203.125,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 1,
+      "supersede": false,
+      "run": 1,
+      "elapsedMs": 211.9132,
+      "allocatedBytes": 2211976,
+      "capturedRows": 100000,
+      "captures": 1,
+      "reservedBytes": 21809664,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 61955624,
+        "retainedManagedBytes": 59728184,
+        "privateBytes": 123957248,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 1,
+      "supersede": false,
+      "run": 2,
+      "cpuMs": 265.625,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 1,
+      "supersede": false,
+      "run": 2,
+      "elapsedMs": 243.2863,
+      "allocatedBytes": 2183544,
+      "capturedRows": 100000,
+      "captures": 1,
+      "reservedBytes": 21809664,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 61931776,
+        "retainedManagedBytes": 59724808,
+        "privateBytes": 124628992,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 1,
+      "supersede": false,
+      "run": 3,
+      "cpuMs": 218.75,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 1,
+      "supersede": false,
+      "run": 3,
+      "elapsedMs": 230.4854,
+      "allocatedBytes": 2182960,
+      "capturedRows": 100000,
+      "captures": 1,
+      "reservedBytes": 21809664,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 61932752,
+        "retainedManagedBytes": 59729192,
+        "privateBytes": 120938496,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 1,
+      "supersede": false,
+      "run": 4,
+      "cpuMs": 250,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 1,
+      "supersede": false,
+      "run": 4,
+      "elapsedMs": 258.0942,
+      "allocatedBytes": 2224824,
+      "capturedRows": 100000,
+      "captures": 1,
+      "reservedBytes": 21809664,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 61979208,
+        "retainedManagedBytes": 59715264,
+        "privateBytes": 118550528,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 1,
+      "supersede": true,
+      "run": 0,
+      "cpuMs": 218.75,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 1,
+      "supersede": true,
+      "run": 0,
+      "elapsedMs": 245.0162,
+      "allocatedBytes": 2216760,
+      "capturedRows": 100000,
+      "captures": 1,
+      "reservedBytes": 21809664,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 65784712,
+        "retainedManagedBytes": 59718160,
+        "privateBytes": 110366720,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 1,
+      "supersede": true,
+      "run": 1,
+      "cpuMs": 265.625,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 1,
+      "supersede": true,
+      "run": 1,
+      "elapsedMs": 280.6434,
+      "allocatedBytes": 2131968,
+      "capturedRows": 100000,
+      "captures": 1,
+      "reservedBytes": 21809664,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 61889040,
+        "retainedManagedBytes": 59729800,
+        "privateBytes": 107450368,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 1,
+      "supersede": true,
+      "run": 2,
+      "cpuMs": 250,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 1,
+      "supersede": true,
+      "run": 2,
+      "elapsedMs": 257.9094,
+      "allocatedBytes": 2188792,
+      "capturedRows": 100000,
+      "captures": 1,
+      "reservedBytes": 21809664,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 61941544,
+        "retainedManagedBytes": 59725992,
+        "privateBytes": 109174784,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 1,
+      "supersede": true,
+      "run": 3,
+      "cpuMs": 265.625,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 1,
+      "supersede": true,
+      "run": 3,
+      "elapsedMs": 289.9231,
+      "allocatedBytes": 2179384,
+      "capturedRows": 100000,
+      "captures": 1,
+      "reservedBytes": 21809664,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 61937736,
+        "retainedManagedBytes": 59730144,
+        "privateBytes": 109596672,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 1,
+      "supersede": true,
+      "run": 4,
+      "cpuMs": 250,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 1,
+      "supersede": true,
+      "run": 4,
+      "elapsedMs": 246.4185,
+      "allocatedBytes": 2194904,
+      "capturedRows": 100000,
+      "captures": 1,
+      "reservedBytes": 21809664,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 61949976,
+        "retainedManagedBytes": 59729472,
+        "privateBytes": 109735936,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 2,
+      "supersede": false,
+      "run": 0,
+      "cpuMs": 484.375,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 2,
+      "supersede": false,
+      "run": 0,
+      "elapsedMs": 277.4926,
+      "allocatedBytes": 4546080,
+      "capturedRows": 200000,
+      "captures": 2,
+      "reservedBytes": 27619328,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 66837016,
+        "retainedManagedBytes": 60989128,
+        "privateBytes": 113172480,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 2,
+      "supersede": false,
+      "run": 1,
+      "cpuMs": 453.125,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 2,
+      "supersede": false,
+      "run": 1,
+      "elapsedMs": 244.2513,
+      "allocatedBytes": 4466976,
+      "capturedRows": 200000,
+      "captures": 2,
+      "reservedBytes": 27619328,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 65483192,
+        "retainedManagedBytes": 60993600,
+        "privateBytes": 113434624,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 2,
+      "supersede": false,
+      "run": 2,
+      "cpuMs": 515.625,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 2,
+      "supersede": false,
+      "run": 2,
+      "elapsedMs": 289.9831,
+      "allocatedBytes": 4371424,
+      "capturedRows": 200000,
+      "captures": 2,
+      "reservedBytes": 27619328,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 65394328,
+        "retainedManagedBytes": 60993200,
+        "privateBytes": 108150784,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 2,
+      "supersede": false,
+      "run": 3,
+      "cpuMs": 468.75,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 2,
+      "supersede": false,
+      "run": 3,
+      "elapsedMs": 250.8288,
+      "allocatedBytes": 4286784,
+      "capturedRows": 200000,
+      "captures": 2,
+      "reservedBytes": 27619328,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 65321768,
+        "retainedManagedBytes": 61003920,
+        "privateBytes": 110469120,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 2,
+      "supersede": false,
+      "run": 4,
+      "cpuMs": 546.875,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 2,
+      "supersede": false,
+      "run": 4,
+      "elapsedMs": 294.5891,
+      "allocatedBytes": 4368112,
+      "capturedRows": 200000,
+      "captures": 2,
+      "reservedBytes": 27619328,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 65397832,
+        "retainedManagedBytes": 61003856,
+        "privateBytes": 110776320,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 2,
+      "supersede": true,
+      "run": 0,
+      "cpuMs": 484.375,
+      "gcPauseMs": 1.123
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 2,
+      "supersede": true,
+      "run": 0,
+      "elapsedMs": 267.2235,
+      "allocatedBytes": 4412192,
+      "capturedRows": 200000,
+      "captures": 2,
+      "reservedBytes": 27619328,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 62379544,
+        "retainedManagedBytes": 60994528,
+        "privateBytes": 120377344,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 2,
+      "supersede": true,
+      "run": 1,
+      "cpuMs": 468.75,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 2,
+      "supersede": true,
+      "run": 1,
+      "elapsedMs": 288.2617,
+      "allocatedBytes": 4294304,
+      "capturedRows": 200000,
+      "captures": 2,
+      "reservedBytes": 27619328,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 65327248,
+        "retainedManagedBytes": 61004776,
+        "privateBytes": 118820864,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 2,
+      "supersede": true,
+      "run": 2,
+      "cpuMs": 453.125,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 2,
+      "supersede": true,
+      "run": 2,
+      "elapsedMs": 250.0521,
+      "allocatedBytes": 4359904,
+      "capturedRows": 200000,
+      "captures": 2,
+      "reservedBytes": 27619328,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 65395064,
+        "retainedManagedBytes": 61004712,
+        "privateBytes": 112803840,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 2,
+      "supersede": true,
+      "run": 3,
+      "cpuMs": 468.75,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 2,
+      "supersede": true,
+      "run": 3,
+      "elapsedMs": 280.5921,
+      "allocatedBytes": 4368104,
+      "capturedRows": 200000,
+      "captures": 2,
+      "reservedBytes": 27619328,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 65403224,
+        "retainedManagedBytes": 61005176,
+        "privateBytes": 112705536,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 100000,
+      "panels": 2,
+      "supersede": true,
+      "run": 4,
+      "cpuMs": 437.5,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 100000,
+      "panels": 2,
+      "supersede": true,
+      "run": 4,
+      "elapsedMs": 258.5223,
+      "allocatedBytes": 4439648,
+      "capturedRows": 200000,
+      "captures": 2,
+      "reservedBytes": 27619328,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 65477608,
+        "retainedManagedBytes": 60995072,
+        "privateBytes": 112406528,
+        "peakWorkingSetBytes": 200060928
+      }
+    },
+    {
+      "check": "scene",
+      "fonts": [
+        {
+          "FontSize": 12,
+          "family": "$Default",
+          "VisibleRowCapacity": 43,
+          "bounds": "0, 0, 480, 900"
+        },
+        {
+          "FontSize": 12,
+          "family": "$Default",
+          "VisibleRowCapacity": 43,
+          "bounds": "480, 0, 480, 900"
+        },
+        {
+          "FontSize": 12,
+          "family": "$Default",
+          "VisibleRowCapacity": 43,
+          "bounds": "960, 0, 480, 900"
+        },
+        {
+          "FontSize": 12,
+          "family": "$Default",
+          "VisibleRowCapacity": 43,
+          "bounds": "1440, 0, 480, 900"
+        }
+      ],
+      "columns": [
+        {
+          "field": "Name",
+          "MetadataId": null,
+          "Width": 200,
+          "Star": true
+        },
+        {
+          "field": "Extension",
+          "MetadataId": null,
+          "Width": 56,
+          "Star": false
+        },
+        {
+          "field": "Size",
+          "MetadataId": null,
+          "Width": 86,
+          "Star": false
+        },
+        {
+          "field": "Modified",
+          "MetadataId": null,
+          "Width": 128,
+          "Star": false
+        },
+        {
+          "field": "Attributes",
+          "MetadataId": null,
+          "Width": 44,
+          "Star": false
+        }
+      ]
+    },
+    {
+      "check": "PF1-diagnostics",
+      "count": 1000000,
+      "panels": 4,
+      "run": 0,
+      "cpuMs": 2171.875,
+      "gcPauseMs": 89.206,
+      "gcGen0": 14,
+      "gcGen1": 14,
+      "gcGen2": 0
+    },
+    {
+      "check": "PF1",
+      "count": 1000000,
+      "panels": 4,
+      "run": 0,
+      "elapsedMs": 2160.7195,
+      "renderCount": 960,
+      "renderMedianMs": 2.0081,
+      "renderP95Ms": 2.5189,
+      "renderAllocatedBytes": 236574304,
+      "allocatedBytes": 238119448,
+      "memory": {
+        "managedBytes": 295258024,
+        "retainedManagedBytes": 39497736,
+        "privateBytes": 353193984,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF1-diagnostics",
+      "count": 1000000,
+      "panels": 4,
+      "run": 1,
+      "cpuMs": 2171.875,
+      "gcPauseMs": 95.099,
+      "gcGen0": 14,
+      "gcGen1": 10,
+      "gcGen2": 0
+    },
+    {
+      "check": "PF1",
+      "count": 1000000,
+      "panels": 4,
+      "run": 1,
+      "elapsedMs": 2165.5998,
+      "renderCount": 960,
+      "renderMedianMs": 2.0076,
+      "renderP95Ms": 2.5203,
+      "renderAllocatedBytes": 236576688,
+      "allocatedBytes": 238119912,
+      "memory": {
+        "managedBytes": 41255072,
+        "retainedManagedBytes": 39524416,
+        "privateBytes": 235868160,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF1-diagnostics",
+      "count": 1000000,
+      "panels": 4,
+      "run": 2,
+      "cpuMs": 2109.375,
+      "gcPauseMs": 88.244,
+      "gcGen0": 14,
+      "gcGen1": 14,
+      "gcGen2": 0
+    },
+    {
+      "check": "PF1",
+      "count": 1000000,
+      "panels": 4,
+      "run": 2,
+      "elapsedMs": 2136.6746,
+      "renderCount": 960,
+      "renderMedianMs": 1.9855,
+      "renderP95Ms": 2.4779,
+      "renderAllocatedBytes": 236576688,
+      "allocatedBytes": 238121192,
+      "memory": {
+        "managedBytes": 38186032,
+        "retainedManagedBytes": 39472448,
+        "privateBytes": 214544384,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF1-diagnostics",
+      "count": 1000000,
+      "panels": 4,
+      "run": 3,
+      "cpuMs": 2140.625,
+      "gcPauseMs": 83.347,
+      "gcGen0": 14,
+      "gcGen1": 14,
+      "gcGen2": 0
+    },
+    {
+      "check": "PF1",
+      "count": 1000000,
+      "panels": 4,
+      "run": 3,
+      "elapsedMs": 2155.7455,
+      "renderCount": 960,
+      "renderMedianMs": 1.9853,
+      "renderP95Ms": 2.5532,
+      "renderAllocatedBytes": 236576688,
+      "allocatedBytes": 238130296,
+      "memory": {
+        "managedBytes": 38192800,
+        "retainedManagedBytes": 39472504,
+        "privateBytes": 214712320,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF1-diagnostics",
+      "count": 1000000,
+      "panels": 4,
+      "run": 4,
+      "cpuMs": 2140.625,
+      "gcPauseMs": 88.659,
+      "gcGen0": 14,
+      "gcGen1": 14,
+      "gcGen2": 0
+    },
+    {
+      "check": "PF1",
+      "count": 1000000,
+      "panels": 4,
+      "run": 4,
+      "elapsedMs": 2133.0967,
+      "renderCount": 960,
+      "renderMedianMs": 1.975,
+      "renderP95Ms": 2.4745,
+      "renderAllocatedBytes": 236576688,
+      "allocatedBytes": 238124560,
+      "memory": {
+        "managedBytes": 38183896,
+        "retainedManagedBytes": 39473112,
+        "privateBytes": 181858304,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": false,
+      "run": 0,
+      "cpuMs": 2218.75,
+      "gcPauseMs": 14.024
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": false,
+      "run": 0,
+      "elapsedMs": 2191.9339,
+      "allocatedBytes": 21071584,
+      "capturedRows": 1000000,
+      "captures": 1,
+      "reservedBytes": 218010624,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 104913600,
+        "retainedManagedBytes": 79244936,
+        "privateBytes": 190337024,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": false,
+      "run": 1,
+      "cpuMs": 2000,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": false,
+      "run": 1,
+      "elapsedMs": 2022.8844,
+      "allocatedBytes": 21048920,
+      "capturedRows": 1000000,
+      "captures": 1,
+      "reservedBytes": 218010624,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 100358160,
+        "retainedManagedBytes": 79369872,
+        "privateBytes": 199966720,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": false,
+      "run": 2,
+      "cpuMs": 2125,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": false,
+      "run": 2,
+      "elapsedMs": 2133.3058,
+      "allocatedBytes": 20815568,
+      "capturedRows": 1000000,
+      "captures": 1,
+      "reservedBytes": 218010624,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 100226944,
+        "retainedManagedBytes": 79383512,
+        "privateBytes": 192339968,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": false,
+      "run": 3,
+      "cpuMs": 2093.75,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": false,
+      "run": 3,
+      "elapsedMs": 2073.6509,
+      "allocatedBytes": 21064504,
+      "capturedRows": 1000000,
+      "captures": 1,
+      "reservedBytes": 218010624,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 100498008,
+        "retainedManagedBytes": 79383760,
+        "privateBytes": 192856064,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": false,
+      "run": 4,
+      "cpuMs": 2140.625,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": false,
+      "run": 4,
+      "elapsedMs": 2145.2949,
+      "allocatedBytes": 20780744,
+      "capturedRows": 1000000,
+      "captures": 1,
+      "reservedBytes": 218010624,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 100213624,
+        "retainedManagedBytes": 79383960,
+        "privateBytes": 193490944,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": true,
+      "run": 0,
+      "cpuMs": 2062.5,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": true,
+      "run": 0,
+      "elapsedMs": 2041.7491,
+      "allocatedBytes": 20759312,
+      "capturedRows": 1000000,
+      "captures": 1,
+      "reservedBytes": 218010624,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 128875624,
+        "retainedManagedBytes": 79384888,
+        "privateBytes": 204210176,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": true,
+      "run": 1,
+      "cpuMs": 2140.625,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": true,
+      "run": 1,
+      "elapsedMs": 2138.1972,
+      "allocatedBytes": 20748312,
+      "capturedRows": 1000000,
+      "captures": 1,
+      "reservedBytes": 218010624,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 100183048,
+        "retainedManagedBytes": 79367224,
+        "privateBytes": 204283904,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": true,
+      "run": 2,
+      "cpuMs": 1984.375,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": true,
+      "run": 2,
+      "elapsedMs": 1972.3502,
+      "allocatedBytes": 20814432,
+      "capturedRows": 1000000,
+      "captures": 1,
+      "reservedBytes": 218010624,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 100231456,
+        "retainedManagedBytes": 79384576,
+        "privateBytes": 196583424,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": true,
+      "run": 3,
+      "cpuMs": 2078.125,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": true,
+      "run": 3,
+      "elapsedMs": 2112.8713,
+      "allocatedBytes": 20777320,
+      "capturedRows": 1000000,
+      "captures": 1,
+      "reservedBytes": 218010624,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 100220136,
+        "retainedManagedBytes": 79384048,
+        "privateBytes": 192364544,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": true,
+      "run": 4,
+      "cpuMs": 1984.375,
+      "gcPauseMs": 0
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 1,
+      "supersede": true,
+      "run": 4,
+      "elapsedMs": 1985.0085,
+      "allocatedBytes": 20736424,
+      "capturedRows": 1000000,
+      "captures": 1,
+      "reservedBytes": 218010624,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 100170440,
+        "retainedManagedBytes": 79367800,
+        "privateBytes": 187969536,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": false,
+      "run": 0,
+      "cpuMs": 4734.375,
+      "gcPauseMs": 5.385
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": false,
+      "run": 0,
+      "elapsedMs": 2415.4047,
+      "allocatedBytes": 42372216,
+      "capturedRows": 2000000,
+      "captures": 2,
+      "reservedBytes": 276021248,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 133604008,
+        "retainedManagedBytes": 87359992,
+        "privateBytes": 191242240,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": false,
+      "run": 1,
+      "cpuMs": 4578.125,
+      "gcPauseMs": 4.374
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": false,
+      "run": 1,
+      "elapsedMs": 2306.1366,
+      "allocatedBytes": 41424360,
+      "capturedRows": 2000000,
+      "captures": 2,
+      "reservedBytes": 276021248,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 128695560,
+        "retainedManagedBytes": 87360192,
+        "privateBytes": 193257472,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": false,
+      "run": 2,
+      "cpuMs": 4750,
+      "gcPauseMs": 4.179
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": false,
+      "run": 2,
+      "elapsedMs": 2389.252,
+      "allocatedBytes": 41718400,
+      "capturedRows": 2000000,
+      "captures": 2,
+      "reservedBytes": 276021248,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 128870320,
+        "retainedManagedBytes": 87576128,
+        "privateBytes": 195284992,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": false,
+      "run": 3,
+      "cpuMs": 4625,
+      "gcPauseMs": 4.343
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": false,
+      "run": 3,
+      "elapsedMs": 2308.121,
+      "allocatedBytes": 41550136,
+      "capturedRows": 2000000,
+      "captures": 2,
+      "reservedBytes": 276021248,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 128946264,
+        "retainedManagedBytes": 87585056,
+        "privateBytes": 199008256,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": false,
+      "run": 4,
+      "cpuMs": 4656.25,
+      "gcPauseMs": 4.118
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": false,
+      "run": 4,
+      "elapsedMs": 2356.447,
+      "allocatedBytes": 41485880,
+      "capturedRows": 2000000,
+      "captures": 2,
+      "reservedBytes": 276021248,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 128949472,
+        "retainedManagedBytes": 87585256,
+        "privateBytes": 199073792,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": true,
+      "run": 0,
+      "cpuMs": 4515.625,
+      "gcPauseMs": 5.701
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": true,
+      "run": 0,
+      "elapsedMs": 2286.5112,
+      "allocatedBytes": 41370352,
+      "capturedRows": 2000000,
+      "captures": 2,
+      "reservedBytes": 276021248,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 168978168,
+        "retainedManagedBytes": 87547984,
+        "privateBytes": 233836544,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": true,
+      "run": 1,
+      "cpuMs": 4906.25,
+      "gcPauseMs": 4.837
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": true,
+      "run": 1,
+      "elapsedMs": 2467.1677,
+      "allocatedBytes": 41787200,
+      "capturedRows": 2000000,
+      "captures": 2,
+      "reservedBytes": 276021248,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 129198984,
+        "retainedManagedBytes": 87548208,
+        "privateBytes": 197390336,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": true,
+      "run": 2,
+      "cpuMs": 4781.25,
+      "gcPauseMs": 4.954
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": true,
+      "run": 2,
+      "elapsedMs": 2390.0435,
+      "allocatedBytes": 41471552,
+      "capturedRows": 2000000,
+      "captures": 2,
+      "reservedBytes": 276021248,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 128914968,
+        "retainedManagedBytes": 87563888,
+        "privateBytes": 197615616,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": true,
+      "run": 3,
+      "cpuMs": 4906.25,
+      "gcPauseMs": 4.919
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": true,
+      "run": 3,
+      "elapsedMs": 2510.5724,
+      "allocatedBytes": 41404592,
+      "capturedRows": 2000000,
+      "captures": 2,
+      "reservedBytes": 276021248,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 128840016,
+        "retainedManagedBytes": 87556400,
+        "privateBytes": 197496832,
+        "peakWorkingSetBytes": 667049984
+      }
+    },
+    {
+      "check": "PF3-diagnostics",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": true,
+      "run": 4,
+      "cpuMs": 4843.75,
+      "gcPauseMs": 5.202
+    },
+    {
+      "check": "PF3",
+      "count": 1000000,
+      "panels": 2,
+      "supersede": true,
+      "run": 4,
+      "elapsedMs": 2459.6398,
+      "allocatedBytes": 41562728,
+      "capturedRows": 2000000,
+      "captures": 2,
+      "reservedBytes": 276021248,
+      "reservationLimitBytes": 536870912,
+      "memory": {
+        "managedBytes": 128937576,
+        "retainedManagedBytes": 87548272,
+        "privateBytes": 197480448,
+        "peakWorkingSetBytes": 667049984
+      }
+    }
+  ]
+}

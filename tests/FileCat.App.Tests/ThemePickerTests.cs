@@ -8,6 +8,7 @@ using FileCat.App.Services;
 namespace FileCat.App.Tests;
 
 /// <summary>View → Theme…: every theme tried on FileCat itself, kept with Enter, undone with Esc.</summary>
+[Collection("Shared theme state")]
 public sealed class ThemePickerTests
 {
     [AvaloniaFact]
@@ -141,6 +142,8 @@ public sealed class ThemePickerTests
                     ("FcText", "FcPanel", "FcWindow"),
                     ("FcTextMuted", "FcPanel", "FcWindow"),
                     ("FcActionableDimText", "FcPanel", "FcWindow"),
+                    ("FcTextCompressed", "FcPanel", "FcWindow"),
+                    ("FcTextEncrypted", "FcPanel", "FcWindow"),
                     ("FcFocusText", "FcFocusBackground", "FcPanel"),
                     ("FcOnSearchHit", "FcSearchHit", "FcPanel"),
                     ("FcOnChangedByte", "FcChangedByte", "FcPanel"),

@@ -1,0 +1,12 @@
+{
+  "revision": "r849",
+  "baseline": "r846",
+  "verifiedInputs": 226,
+  "changed": [
+    "core/FileCat.Core.Tests.dll",
+    "core/FileCat.Core.Tests.pdb"
+  ],
+  "archiveBytes": 2395469,
+  "sha256": "2bb0f2a1946bb6cc87aa075f0deee17a98c96d4487739a70151b1ef46c00845d",
+  "elapsedSeconds": 22.741912
+}

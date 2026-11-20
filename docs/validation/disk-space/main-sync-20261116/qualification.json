@@ -1,0 +1,602 @@
+{
+  "observedUtc": "2026-11-16T12:47:38.774988+00:00",
+  "featureParent": "8c2cc6e493d3fc70b76e9aed9f53a6d4e735bd02",
+  "upstreamMain": "20899295ee01322834e97218291b3e27e5376700",
+  "fullSolutionBuild": "passed; locked dependencies; zero warnings/errors",
+  "sourceFiles": 3241,
+  "matrix": {
+    "windows": {
+      "coreOriginal": {
+        "environment": "64-bit (x64) .NET 10.0.15 [collection-per-class, parallel (2 threads)]",
+        "id": "fba96e82-ada6-4abe-987c-dd2d565aa0f3",
+        "name": "C:\\FileCatDsa20261104R2\\batch-r1105\\payload\\core\\FileCat.Core.Tests.dll",
+        "run-date": "2026-11-16",
+        "run-time": "13:31:52",
+        "start-rtf": "2026-11-16T13:31:52.0821225+01:00",
+        "test-framework": "xUnit.net v3 3.2.2+728c1dce01",
+        "target-framework": ".NETCoreApp,Version=v10.0",
+        "errors": "0",
+        "failed": "4",
+        "finish-rtf": "2026-11-16T13:32:57.9153321+01:00",
+        "not-run": "0",
+        "passed": "1593",
+        "skipped": "48",
+        "time": "65.835",
+        "time-rtf": "00:01:05.8345784",
+        "total": "1645"
+      },
+      "coreFocusedRerun": {
+        "environment": "64-bit (x64) .NET 10.0.15 [collection-per-class, parallel (2 threads)]",
+        "id": "9965bbd5-4525-4854-b95f-eccafa4de21c",
+        "name": "C:\\FileCatDsa20261104R2\\batch-r1106\\payload\\tests\\FileCat.Core.Tests\\bin\\Debug\\net10.0\\FileCat.Core.Tests.dll",
+        "run-date": "2026-11-16",
+        "run-time": "13:39:16",
+        "start-rtf": "2026-11-16T13:39:16.9885445+01:00",
+        "test-framework": "xUnit.net v3 3.2.2+728c1dce01",
+        "target-framework": ".NETCoreApp,Version=v10.0",
+        "errors": "0",
+        "failed": "0",
+        "finish-rtf": "2026-11-16T13:39:19.4186274+01:00",
+        "not-run": "0",
+        "passed": "4",
+        "skipped": "0",
+        "time": "2.431",
+        "time-rtf": "00:00:02.4311468",
+        "total": "4"
+      },
+      "effectiveCorePassed": 1597,
+      "coreSkippedNames": [
+        "FileCat.Core.Tests.AnalysisCatalogTests.NativeUnixCatalogCanBeReopenedAndNeverFollowsMetadataLinks",
+        "FileCat.Core.Tests.AnalysisComparisonTests.NativeUnixInventoriesCompareActualGrowthAndHardLinkAttribution",
+        "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeFileTokenCloseRefusalKeepsCapacityAfterFinalQuotaCloseUntilActualExit",
+        "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-removed\\\")",
+        "FileCat.Core.Tests.AnalysisIndexedSessionTests.NativeUnixSourcesExcludePrivateRootsWhenSecureScratchIsUnavailable",
+        "FileCat.Core.Tests.AnalysisInventoryPathMapTests.UnixNativeOriginalIdMapOutlivesItsWorkspaceOwnerAndClosesAllAnonymousFiles",
+        "FileCat.Core.Tests.AnalysisInventoryStageTests.NativeUnixStagingRetainsTheWholeContainerAndOriginalIdMapAfterInputAndWorkspaceClose",
+        "FileCat.Core.Tests.AnalysisNativeHandleTests.NativeBackendChildCloseFailureStopsNewWorkAndRemainsVisibleAtFinalClosure",
+        "FileCat.Core.Tests.AnalysisNativeHandleTests.RepeatedUnixPrivateCatalogCursorsReturnTheirNativeReservations",
+        "FileCat.Core.Tests.AnalysisOperationFeasibilityTests.UnixHeldChildDoesNotPreventReplacementBeforeUnlinkAt",
+        "FileCat.Core.Tests.AnalysisOperationFeasibilityTests.UnixHeldParentDoesNotPinItsSelectedAncestorBinding",
+        "FileCat.Core.Tests.AnalysisPrivateRootExclusionTests.ExplicitFileRootInsidePrivateStorageRetainsOnlyExcludedEvidence",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.LinuxScratchCannotBePublishedThroughItsKernelDescriptorButInventoryStagingCan",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.MacNativeExtendedAclGrantIsRefusedBeforePayloadCreation",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeCoordinatorUsesIndexedStorageAndExcludesItsProtectedDirectory",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeCreateNewRoundTripConflictsAndInterruptedWritesKeepExistingBytes",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeExternalIndexKeepsExactRangesAndReleasesRunArtifacts",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeMetadataCaptureCoalescesActualHardLinksWithoutReadingFileContent",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeRefusesLinksBroadPermissionsAndMovedAncestry",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeRehydratedReadWitnessRejectsAQueuedDirectoryReplacement",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeRelatedTablesRetainOneCoherentRevisionAfterOwnerClosure",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeScratchHasNoPayloadNameAfterAbruptProcessDeath",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeScratchIsAnonymousAndItsReaderSurvivesWriterClosure",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeTypedGraphKeepsItsExactRelatedIndexesAfterOwnerClosure",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeWideDirectoryScanSpillsItsLiveFrontierInsteadOfDroppingChildren",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeWorkspaceSharesDirectoryAndQuotaUntilAllArenaReadersClose",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixScratchPrivacyOrAncestryLossRefusesFurtherIoAndNeverTouchesTheReplacement",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.NativePrivateFilesCoordinateOwnedChildrenThroughActualExit(crash: False)",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.NativePrivateFilesCoordinateOwnedChildrenThroughActualExit(crash: True)",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.NativePrivateFilesPreserveForeignTokensAndRefuseAChangedProfile",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.NativePrivateFilesShareCapacityAndRetainItAfterOwnerClose",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.QuarantinedNativeScratchKeepsCrossProcessCapacityUntilActualProcessExit",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.UnixUnknownOrNonprivateKernelRecordsAreRefusedWithoutMutation(count: 4, mode: 384, marker: 0)",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.UnixUnknownOrNonprivateKernelRecordsAreRefusedWithoutMutation(count: 4, mode: 384, marker: 17987)",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.UnixUnknownOrNonprivateKernelRecordsAreRefusedWithoutMutation(count: 4, mode: 384, marker: 29)",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.UnixUnknownOrNonprivateKernelRecordsAreRefusedWithoutMutation(count: 4, mode: 438, marker: 17987)",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.UnixUnknownOrNonprivateKernelRecordsAreRefusedWithoutMutation(count: 5, mode: 384, marker: 17987)",
+        "FileCat.Core.Tests.AnalysisProfileTests.NativeUnixProfileStateSurvivesReopenAndRejectsASymlinkWithoutChangingItsTarget",
+        "FileCat.Core.Tests.AnalysisScanningTests.UnixExplicitHardLinkedFileRootsAreTwoPathsAndOneObject",
+        "FileCat.Core.Tests.AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink(detailed: False)",
+        "FileCat.Core.Tests.AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink(detailed: True)",
+        "FileCat.Core.Tests.AnalysisScanningTests.UnixNestedRootsAreCoveredOnceInEitherSelectionOrder(childFirst: False)",
+        "FileCat.Core.Tests.AnalysisScanningTests.UnixNestedRootsAreCoveredOnceInEitherSelectionOrder(childFirst: True)",
+        "FileCat.Core.Tests.AnalysisScanningTests.UnixQueuedDirectoryRetainsItsAncestorBinding",
+        "FileCat.Core.Tests.AnalysisScanningTests.UnixUnreadableDirectoryDoesNotLoseReadableSiblingFiles",
+        "FileCat.Core.Tests.CommandTests.Unix_language_file_fifo_is_ignored_without_waiting_for_a_writer(linked: False)",
+        "FileCat.Core.Tests.CommandTests.Unix_language_file_fifo_is_ignored_without_waiting_for_a_writer(linked: True)",
+        "FileCat.Core.Tests.PathAndStateTests.FileCats_own_folders_are_its_users_alone_on_Linux_and_macOS"
+      ],
+      "packagingFailureCases": [
+        "FileCat.Core.Tests.ArchivePasswordCommandTests.Assessment_reports_password_required_without_changing_the_strict_reader_refusal(sevenZip: False, hide: False)",
+        "FileCat.Core.Tests.ArchivePasswordCommandTests.Assessment_reports_password_required_without_changing_the_strict_reader_refusal(sevenZip: False, hide: True)",
+        "FileCat.Core.Tests.ArchivePasswordCommandTests.Assessment_reports_password_required_without_changing_the_strict_reader_refusal(sevenZip: True, hide: False)",
+        "FileCat.Core.Tests.ArchivePasswordCommandTests.Assessment_reports_password_required_without_changing_the_strict_reader_refusal(sevenZip: True, hide: True)"
+      ],
+      "render": {
+        "environment": "64-bit (x64) .NET 10.0.15 [collection-per-class, non-parallel]",
+        "id": "ffc1d613-286c-4ddd-8754-670319a84b3e",
+        "name": "C:\\FileCatDsa20261104R2\\batch-r1105\\payload\\render\\FileCat.Rendering.Tests.dll",
+        "run-date": "2026-11-16",
+        "run-time": "13:33:42",
+        "start-rtf": "2026-11-16T13:33:42.0838433+01:00",
+        "test-framework": "xUnit.net v3 3.2.2+728c1dce01",
+        "target-framework": ".NETCoreApp,Version=v10.0",
+        "errors": "0",
+        "failed": "0",
+        "finish-rtf": "2026-11-16T13:38:36.8509895+01:00",
+        "not-run": "0",
+        "passed": "610",
+        "skipped": "1",
+        "time": "294.766",
+        "time-rtf": "00:04:54.7657692",
+        "total": "611"
+      },
+      "recycleInteractiveQualificationPending": false,
+      "recycleFocusedFailure": {
+        "environment": "64-bit (x64) .NET 10.0.15 [collection-per-class, parallel (1 thread)]",
+        "id": "3b3c6abe-48b4-47ee-bca1-0596524bc722",
+        "name": "C:\\FileCatDsa20261104R2\\batch-r1105\\payload\\native\\FileCat.Platform.Windows.Tests.dll",
+        "run-date": "2026-11-16",
+        "run-time": "13:42:07",
+        "start-rtf": "2026-11-16T13:42:07.7125113+01:00",
+        "test-framework": "xUnit.net v3 3.2.2+728c1dce01",
+        "target-framework": ".NETCoreApp,Version=v10.0",
+        "errors": "0",
+        "failed": "1",
+        "finish-rtf": "2026-11-16T13:42:08.0188457+01:00",
+        "not-run": "0",
+        "passed": "0",
+        "skipped": "0",
+        "time": "0.308",
+        "time-rtf": "00:00:00.3079180",
+        "total": "1"
+      },
+      "recycleDesktopPass": {
+        "environment": "64-bit (x64) .NET 10.0.15 [collection-per-class, parallel (1 thread)]",
+        "id": "7b95b0e2-d6e5-4e7c-9cc1-7c7ca6b8d64f",
+        "name": "C:\\FileCatDsa20261104R2\\batch-r1105\\payload\\native\\FileCat.Platform.Windows.Tests.dll",
+        "run-date": "2026-11-16",
+        "run-time": "13:46:03",
+        "start-rtf": "2026-11-16T13:46:03.3655864+01:00",
+        "test-framework": "xUnit.net v3 3.2.2+728c1dce01",
+        "target-framework": ".NETCoreApp,Version=v10.0",
+        "errors": "0",
+        "failed": "0",
+        "finish-rtf": "2026-11-16T13:46:03.8979383+01:00",
+        "not-run": "0",
+        "passed": "1",
+        "skipped": "0",
+        "time": "0.534",
+        "time-rtf": "00:00:00.5337341",
+        "total": "1"
+      },
+      "effectiveNativePassed": 75,
+      "native": {
+        "environment": "64-bit (x64) .NET 10.0.15 [collection-per-class, parallel (2 threads)]",
+        "id": "d2a9541b-e8f7-4e73-8316-594fcfca6b49",
+        "name": "C:\\FileCatDsa20261104R2\\batch-r1105\\payload\\native\\FileCat.Platform.Windows.Tests.dll",
+        "run-date": "2026-11-16",
+        "run-time": "13:32:59",
+        "start-rtf": "2026-11-16T13:32:59.6334338+01:00",
+        "test-framework": "xUnit.net v3 3.2.2+728c1dce01",
+        "target-framework": ".NETCoreApp,Version=v10.0",
+        "errors": "0",
+        "failed": "1",
+        "finish-rtf": "2026-11-16T13:33:40.2441801+01:00",
+        "not-run": "0",
+        "passed": "74",
+        "skipped": "0",
+        "time": "40.612",
+        "time-rtf": "00:00:40.6117734",
+        "total": "75"
+      }
+    },
+    "mac": {
+      "coreOriginal": {
+        "environment": "64-bit (ARM) .NET 10.0.12 [collection-per-class, parallel (2 threads)]",
+        "id": "0f56a9c3-23ef-4c2a-a361-7c109b210595",
+        "name": "/Users/benny/FileCatValidation/dsa-batch-20261107-r1105/payload/core/FileCat.Core.Tests.dll",
+        "run-date": "2026-11-16",
+        "run-time": "13:31:08",
+        "start-rtf": "2026-11-16T13:31:08.9337030+01:00",
+        "test-framework": "xUnit.net v3 3.2.2+728c1dce01",
+        "target-framework": ".NETCoreApp,Version=v10.0",
+        "errors": "0",
+        "failed": "4",
+        "finish-rtf": "2026-11-16T13:31:39.9846410+01:00",
+        "not-run": "0",
+        "passed": "1619",
+        "skipped": "4",
+        "time": "31.051",
+        "time-rtf": "00:00:31.0514952",
+        "total": "1627"
+      },
+      "coreFocusedRerun": {
+        "environment": "64-bit (ARM) .NET 10.0.12 [collection-per-class, parallel (2 threads)]",
+        "id": "6546c4b7-8170-46d8-9b69-06180185859c",
+        "name": "/Users/benny/FileCatValidation/dsa-batch-20261107-r1106/payload/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll",
+        "run-date": "2026-11-16",
+        "run-time": "13:36:32",
+        "start-rtf": "2026-11-16T13:36:32.3346140+01:00",
+        "test-framework": "xUnit.net v3 3.2.2+728c1dce01",
+        "target-framework": ".NETCoreApp,Version=v10.0",
+        "errors": "0",
+        "failed": "0",
+        "finish-rtf": "2026-11-16T13:36:34.0092170+01:00",
+        "not-run": "0",
+        "passed": "4",
+        "skipped": "0",
+        "time": "1.675",
+        "time-rtf": "00:00:01.6750139",
+        "total": "4"
+      },
+      "effectiveCorePassed": 1623,
+      "coreSkippedNames": [
+        "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-close\\\")",
+        "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-release\\\")",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.LinuxScratchCannotBePublishedThroughItsKernelDescriptorButInventoryStagingCan",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.WindowsForeignObjectTypeIsPreservedAndItsPrivateNameDoesNotEscapeTheFailure"
+      ],
+      "packagingFailureCases": [
+        "FileCat.Core.Tests.ArchivePasswordCommandTests.Assessment_reports_password_required_without_changing_the_strict_reader_refusal(sevenZip: False, hide: False)",
+        "FileCat.Core.Tests.ArchivePasswordCommandTests.Assessment_reports_password_required_without_changing_the_strict_reader_refusal(sevenZip: False, hide: True)",
+        "FileCat.Core.Tests.ArchivePasswordCommandTests.Assessment_reports_password_required_without_changing_the_strict_reader_refusal(sevenZip: True, hide: False)",
+        "FileCat.Core.Tests.ArchivePasswordCommandTests.Assessment_reports_password_required_without_changing_the_strict_reader_refusal(sevenZip: True, hide: True)"
+      ],
+      "render": {
+        "environment": "64-bit (ARM) .NET 10.0.12 [collection-per-class, non-parallel]",
+        "id": "be717b83-f46f-48f7-b6bc-3c5bab1f3edf",
+        "name": "/Users/benny/FileCatValidation/dsa-batch-20261107-r1105/payload/render/FileCat.Rendering.Tests.dll",
+        "run-date": "2026-11-16",
+        "run-time": "13:31:40",
+        "start-rtf": "2026-11-16T13:31:40.1811730+01:00",
+        "test-framework": "xUnit.net v3 3.2.2+728c1dce01",
+        "target-framework": ".NETCoreApp,Version=v10.0",
+        "errors": "0",
+        "failed": "0",
+        "finish-rtf": "2026-11-16T13:35:03.8225370+01:00",
+        "not-run": "0",
+        "passed": "611",
+        "skipped": "0",
+        "time": "203.643",
+        "time-rtf": "00:03:23.6431051",
+        "total": "611"
+      }
+    },
+    "ubuntu": {
+      "coreOriginal": {
+        "environment": "64-bit (x64) .NET 10.0.14 [collection-per-class, parallel (2 threads)]",
+        "id": "2cab3ef4-c277-41e4-adee-d4c3e43c448d",
+        "name": "/home/benny/FileCatValidation/dsa-batch-20261107-r1105/payload/core/FileCat.Core.Tests.dll",
+        "run-date": "2026-11-16",
+        "run-time": "13:31:06",
+        "start-rtf": "2026-11-16T13:31:06.7145242+01:00",
+        "test-framework": "xUnit.net v3 3.2.2+728c1dce01",
+        "target-framework": ".NETCoreApp,Version=v10.0",
+        "errors": "0",
+        "failed": "4",
+        "finish-rtf": "2026-11-16T13:33:07.4967151+01:00",
+        "not-run": "0",
+        "passed": "1619",
+        "skipped": "4",
+        "time": "120.784",
+        "time-rtf": "00:02:00.7837103",
+        "total": "1627"
+      },
+      "coreFocusedRerun": {
+        "environment": "64-bit (x64) .NET 10.0.14 [collection-per-class, parallel (2 threads)]",
+        "id": "39567740-7c05-4b11-8b70-92f69c9636f1",
+        "name": "/home/benny/FileCatValidation/dsa-batch-20261107-r1106/payload/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll",
+        "run-date": "2026-11-16",
+        "run-time": "13:38:57",
+        "start-rtf": "2026-11-16T13:38:57.7719438+01:00",
+        "test-framework": "xUnit.net v3 3.2.2+728c1dce01",
+        "target-framework": ".NETCoreApp,Version=v10.0",
+        "errors": "0",
+        "failed": "0",
+        "finish-rtf": "2026-11-16T13:38:59.8865182+01:00",
+        "not-run": "0",
+        "passed": "4",
+        "skipped": "0",
+        "time": "2.116",
+        "time-rtf": "00:00:02.1155664",
+        "total": "4"
+      },
+      "effectiveCorePassed": 1623,
+      "coreSkippedNames": [
+        "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-close\\\")",
+        "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-release\\\")",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.MacNativeExtendedAclGrantIsRefusedBeforePayloadCreation",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.WindowsForeignObjectTypeIsPreservedAndItsPrivateNameDoesNotEscapeTheFailure"
+      ],
+      "packagingFailureCases": [
+        "FileCat.Core.Tests.ArchivePasswordCommandTests.Assessment_reports_password_required_without_changing_the_strict_reader_refusal(sevenZip: False, hide: False)",
+        "FileCat.Core.Tests.ArchivePasswordCommandTests.Assessment_reports_password_required_without_changing_the_strict_reader_refusal(sevenZip: False, hide: True)",
+        "FileCat.Core.Tests.ArchivePasswordCommandTests.Assessment_reports_password_required_without_changing_the_strict_reader_refusal(sevenZip: True, hide: False)",
+        "FileCat.Core.Tests.ArchivePasswordCommandTests.Assessment_reports_password_required_without_changing_the_strict_reader_refusal(sevenZip: True, hide: True)"
+      ],
+      "render": {
+        "environment": "64-bit (x64) .NET 10.0.14 [collection-per-class, non-parallel]",
+        "id": "446147a7-018f-421f-b505-9d70f31b2ce2",
+        "name": "/home/benny/FileCatValidation/dsa-batch-20261107-r1105/payload/render/FileCat.Rendering.Tests.dll",
+        "run-date": "2026-11-16",
+        "run-time": "13:33:07",
+        "start-rtf": "2026-11-16T13:33:07.8779332+01:00",
+        "test-framework": "xUnit.net v3 3.2.2+728c1dce01",
+        "target-framework": ".NETCoreApp,Version=v10.0",
+        "errors": "0",
+        "failed": "0",
+        "finish-rtf": "2026-11-16T13:37:18.6550320+01:00",
+        "not-run": "0",
+        "passed": "611",
+        "skipped": "0",
+        "time": "250.777",
+        "time-rtf": "00:04:10.7773698",
+        "total": "611"
+      }
+    }
+  },
+  "scope": "Post-merge disk-space and shared-command/scheduler regressions, plus the four newly selected archive command cases.",
+  "recycleControl": "The existing Windows recycle/restore case reports preserving Aborted in R2 session 0, reproduced alone. The unchanged binaries pass in the confirmed ordinary R2 desktop session 2. Original failures and the desktop pass are retained separately.",
+  "fullPlanComplete": false,
+  "finalIndependentReviewPerformed": false,
+  "evidence": [
+    {
+      "path": "batch-linux-r1105.sh",
+      "sha256": "e13c15d6a6493c578bb0a50b822473788880ad61c95c0c52e1d07b57bfee5d02"
+    },
+    {
+      "path": "batch-linux-r1106.sh",
+      "sha256": "fa7b0bcb3463e16bf82d58902fbab3cb4cb8a0cb6a2306f6847ad851072c836f"
+    },
+    {
+      "path": "batch-mac-r1105.sh",
+      "sha256": "60b90cda9507a827f621b98baa3161b911e697f2b03033d50bcb79ea0c201153"
+    },
+    {
+      "path": "batch-mac-r1106.sh",
+      "sha256": "fa7b0bcb3463e16bf82d58902fbab3cb4cb8a0cb6a2306f6847ad851072c836f"
+    },
+    {
+      "path": "batch-windows-r1105.ps1",
+      "sha256": "ef104c7b2b3e06b1b48531e87dc8f038e6c6ff4516d6d5a522170fac237a4ec6"
+    },
+    {
+      "path": "batch-windows-r1106.ps1",
+      "sha256": "17aa267f2326c318d83ac69a418c51d01461404684f44e876ca418f6ccdac3f9"
+    },
+    {
+      "path": "batch-windows-r1107.ps1",
+      "sha256": "5526e258a6f0982822bddb017e73e92d880e06be4a2e76a7655cf09037a40bce"
+    },
+    {
+      "path": "batch-windows-r1109.ps1",
+      "sha256": "1d7b0793147e559b52c4ad8d5b8acdfff621dd828b9f5d544257c8cbabb08762"
+    },
+    {
+      "path": "launch-windows-r1109.ps1",
+      "sha256": "b6f88314b3cd8a98cc57685ce7d8affa5349b3e9d7b5dbbb5ddcdb028af36671"
+    },
+    {
+      "path": "mac-batch-r1105-core-r1105.log",
+      "sha256": "c39ba6ba636be683e45f279bc06492e02091d08c949bd10cc5687e315513edc4"
+    },
+    {
+      "path": "mac-batch-r1105-core-r1105.xml",
+      "sha256": "e0b4ee58e9ebc787b0c6cc7a37f10a9a534c857d1983ae0f81e678cde1a8b2a3"
+    },
+    {
+      "path": "mac-batch-r1105-original-run.json",
+      "sha256": "50bef5e9827f14b632516ffc5c6e87ca1816e8d6b2d0500beb70fb8feaa3ac6d"
+    },
+    {
+      "path": "mac-batch-r1105-post.json",
+      "sha256": "921fc4c7cd2b93633cc8f9ee4c4fc87061682cb806f5adf03033af614ec82393"
+    },
+    {
+      "path": "mac-batch-r1105-render-r1105.log",
+      "sha256": "cf7cb5755ee08a080f1800b828d76ad4595e22e9081aebbdb98cef4d837f4254"
+    },
+    {
+      "path": "mac-batch-r1105-render-r1105.xml",
+      "sha256": "f9f1ab3cc898e28d5cbd7a69c9c173c1adfbfcf61b496069334025036c564e77"
+    },
+    {
+      "path": "mac-batch-r1105-results.tgz",
+      "sha256": "751923cd06daf818e99534abbedcbf3517fe9a849e9a5899c685c0fd9e9d620c"
+    },
+    {
+      "path": "mac-batch-r1106-core-r1106.log",
+      "sha256": "1ad12016144bc4e91d15a0dffb28007c17a91c43f38e06dc9b12fd92e5a3a37a"
+    },
+    {
+      "path": "mac-batch-r1106-core-r1106.xml",
+      "sha256": "e28e0d1af352cec1edc692793fd468b7462ff34a4108895c82ff1185f60afaa2"
+    },
+    {
+      "path": "mac-batch-r1106-original-run.json",
+      "sha256": "e6584859c5e90f933a5a52e5d4b46de452bdf25a9812700c703d2802f02a4900"
+    },
+    {
+      "path": "mac-batch-r1106-post.json",
+      "sha256": "29f4a8c8f47d0c552e8b470d82350fb1fa4ae18a01cbbdb175075f07ab3e0629"
+    },
+    {
+      "path": "mac-batch-r1106-results.tgz",
+      "sha256": "7e53c781bfc3ef55e12789e0712fabe360d2c9513bb2c105750d1d9121a29845"
+    },
+    {
+      "path": "main-sync-probe-r1106.json",
+      "sha256": "752042e017842cc0730df662826ea5eaa72749d5c950395d904202b1eee9fd6e"
+    },
+    {
+      "path": "main-sync-solution-build-20261116.log",
+      "sha256": "0d0e9c6f3809e804825c7725787d264cdd9474eb63ae20849bba50d5d4d06cd1"
+    },
+    {
+      "path": "pack-timing-r1105.json",
+      "sha256": "71483eaf2c01fa644605947591502a567f6c40d637e9561b46326931c4fab867"
+    },
+    {
+      "path": "prepare-main-sync-probe-r1106.ps1",
+      "sha256": "0835f3a55a6a34c9f9ffd5c1634d703a61f9701aa19640d7f655e09aa8b4d4b8"
+    },
+    {
+      "path": "source-candidate-r1105.json",
+      "sha256": "b2909dc1f676c163ac3f6683837c3d13f35886c12234bb90128bd28221778427"
+    },
+    {
+      "path": "ubuntu-batch-r1105-core-r1105.log",
+      "sha256": "3b3dbd8f4787274a788229201467548e0701bff25ecd75d5f5839063dc1695be"
+    },
+    {
+      "path": "ubuntu-batch-r1105-core-r1105.xml",
+      "sha256": "d35750af31db9997efbc5b0f70a8df56d8597ab58ec4cacb9c851bddf1884bda"
+    },
+    {
+      "path": "ubuntu-batch-r1105-original-run.json",
+      "sha256": "f9fea4c3a7370e4957249b6dc2e68a3b6bf9b92510e2b4b53133e519845a1c7c"
+    },
+    {
+      "path": "ubuntu-batch-r1105-post.json",
+      "sha256": "077cd87602b388a2c69f1cb809e202e5a4cfb23c75b17bf4e4100d2e7e5bf56c"
+    },
+    {
+      "path": "ubuntu-batch-r1105-render-r1105.log",
+      "sha256": "7d86c40ff84e66e99f47f7b091416bfd91116edc1f7760589866c32834530863"
+    },
+    {
+      "path": "ubuntu-batch-r1105-render-r1105.xml",
+      "sha256": "62d061484c9079f781775a1382b94919b34bdab5361dbb0dda0eed8a64e7924f"
+    },
+    {
+      "path": "ubuntu-batch-r1105-results.tgz",
+      "sha256": "cbb2563dad4822f74131f29749dde1a58b3cd18885cc98f03a2eede8b61bc459"
+    },
+    {
+      "path": "ubuntu-batch-r1106-core-r1106.log",
+      "sha256": "1d231c8eb80775433ddaa2ee294305c0d0e857213ed23c926c2aeb59de580e4a"
+    },
+    {
+      "path": "ubuntu-batch-r1106-core-r1106.xml",
+      "sha256": "06e8ec162c784685c89c3119e727ce41553e879e1993d66e2477c125fd806080"
+    },
+    {
+      "path": "ubuntu-batch-r1106-original-run.json",
+      "sha256": "5ba370e4c379d5b17c120a1979d66fca88b2f67ab187abaa7fbb7396159c1715"
+    },
+    {
+      "path": "ubuntu-batch-r1106-post.json",
+      "sha256": "6a3fdcf40b59add793b8454c666c0427fb44ab41cbb92ec288fe56e81454a305"
+    },
+    {
+      "path": "ubuntu-batch-r1106-results.tgz",
+      "sha256": "e405e4cdc234fbb8b32ba4b63a19ed454aba3fb0dcd28ebeca0478cde4ce7aa1"
+    },
+    {
+      "path": "windows-batch-r1105-core-r1105.log",
+      "sha256": "088fd8345acbaacda19478d49f00b160341a2c401e56fd8c7504c67411ac28a9"
+    },
+    {
+      "path": "windows-batch-r1105-core-r1105.xml",
+      "sha256": "8d3de5c5e347d108b6723114fa14104889fad264a0ef0decbe2ec3d0ea7bd380"
+    },
+    {
+      "path": "windows-batch-r1105-native-r1105.log",
+      "sha256": "d23d8f6acc0db5c6ad98c9eb3d7a1e595ab3e5a9d2d2d29f67eeffc3976c63ec"
+    },
+    {
+      "path": "windows-batch-r1105-native-r1105.xml",
+      "sha256": "d374d0d9cd27dbc89fd22ead8919462de516a5f40a4ac83ab5c095eafba733b3"
+    },
+    {
+      "path": "windows-batch-r1105-original-run.json",
+      "sha256": "5741515794d33c1ff61061f712a19bcde9b726ecb2e22bdd212b373ec49326c2"
+    },
+    {
+      "path": "windows-batch-r1105-post.json",
+      "sha256": "3fe719049e9b787e73668b36603635ea1e705a392f4b2441579c0859b64f64da"
+    },
+    {
+      "path": "windows-batch-r1105-render-r1105.log",
+      "sha256": "696fde30ba8bfaad9d031fcb8ead5a0e032bfece6c87e2f568b11ae4ea6539ec"
+    },
+    {
+      "path": "windows-batch-r1105-render-r1105.xml",
+      "sha256": "002d791b13f0d30da83b311cad7c046d0727c839808fa7ef86c31081546a4a8b"
+    },
+    {
+      "path": "windows-batch-r1105-results.tgz",
+      "sha256": "36e3c841e804e8142f6e68f057bb5fcabfefeee55dededd31c3b603438fd7855"
+    },
+    {
+      "path": "windows-batch-r1106-core-r1106.log",
+      "sha256": "6b5a97b5b156cb7afeb5ccd4de8ba13db14cf1dbb7e27a7a1683c47fb041aed2"
+    },
+    {
+      "path": "windows-batch-r1106-core-r1106.xml",
+      "sha256": "5bdd8af3467cc11499173406888ab1b30712e4da7a2a5cf1db8509358ec59dc8"
+    },
+    {
+      "path": "windows-batch-r1106-original-run.json",
+      "sha256": "b0348dd39508615bd55f27745816093165b0b3b2f6c7b1c97f0f492fd2f7a363"
+    },
+    {
+      "path": "windows-batch-r1106-post.json",
+      "sha256": "4f4b6a440f6cea3232a3a93bb3f9e736287d58eea0a483f7278f2209901f9331"
+    },
+    {
+      "path": "windows-batch-r1106-results.tgz",
+      "sha256": "11e356f59ef7e3585584a72b3bf2038692f9150d6873a4896a02cb3ffe8e0ef5"
+    },
+    {
+      "path": "windows-batch-r1107-native-r1107.log",
+      "sha256": "aa2019c3d6bb02a7b8b1435799088216255b7cfe5a8fe9b1f86a1d5f8715294f"
+    },
+    {
+      "path": "windows-batch-r1107-native-r1107.xml",
+      "sha256": "03204ab801fa2c184885c11455417b592ace801eb4f40340779c1b1de99f3247"
+    },
+    {
+      "path": "windows-batch-r1107-original-run.json",
+      "sha256": "051e07f6f3c02b3cee94c282faaa38d58f74f25d7a002905771c48d180d899fe"
+    },
+    {
+      "path": "windows-batch-r1107-post.json",
+      "sha256": "788c37ffed543c80fc2944be65f35bac7c7e43eb5b30d67d1b858bbded2bb4cf"
+    },
+    {
+      "path": "windows-batch-r1107-results.tgz",
+      "sha256": "ec635661b3d51e38e68a090ecc560fca1a88fa943b23170dcaa98c34805971dc"
+    },
+    {
+      "path": "windows-batch-r1108-original-run.json",
+      "sha256": "f57a2cee5b6ec477bd1392cd57da3db882358ed3d4e0e8e0db583d1c3de48441"
+    },
+    {
+      "path": "windows-batch-r1109-native-r1109.log",
+      "sha256": "c9d4c36755b0700f46d2ff01f0d604a23251d995eadd578da371700647732ced"
+    },
+    {
+      "path": "windows-batch-r1109-native-r1109.xml",
+      "sha256": "48fb7a06bb9bb880862e691f6f007595db0356494683dfbd2ae5fab7055b1d51"
+    },
+    {
+      "path": "windows-batch-r1109-original-run.json",
+      "sha256": "93dc07f3399f201a06799ee350cd45ccf999b6107bc7344f5ab72476f5624d64"
+    },
+    {
+      "path": "windows-batch-r1109-post.json",
+      "sha256": "f20ba603f792af2aed3d8d15428ec78f56edf8697868fdd36c2c675aa9dd0c89"
+    },
+    {
+      "path": "windows-batch-r1109-results.tgz",
+      "sha256": "a524454d694617fec81014c6aeea17c3c851d0012395571c2b9f539276289fdb"
+    },
+    {
+      "path": "windows-interactive-owner-20261116.json",
+      "sha256": "42a75aa6ae93bdc722583e2ad7921636204ac3fde08d69ff79eec0c0c95c1317"
+    },
+    {
+      "path": "windows-interactive-owner-r1108.json",
+      "sha256": "518471170164bf04522f4f56a548bcc230df1edb5416a707789a181554c8e922"
+    },
+    {
+      "path": "windows-recycle-environment-20261116.json",
+      "sha256": "f0ab095732ff816bc2b00ed71e32f518439e5f1001d044693c20a825fd3fac48"
+    },
+    {
+      "path": "windows-recycle-environment-r1109.json",
+      "sha256": "b8ea34869bdb858d6ba5013263005e9ffa9abc26b1834da7f218ebdb3c0dbf84"
+    }
+  ]
+}

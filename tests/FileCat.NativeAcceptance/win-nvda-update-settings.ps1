@@ -139,7 +139,7 @@ try {
     $result.Privacy.HelpText = $updates.Current.HelpText
     $note = Await {
         @(Descendants $main | Where-Object {
-            $_.Current.Name -like 'At most once a day at startup*'
+            $_.Current.Name -like 'On by default for new profiles. At most once a day at startup*'
         } | Select-Object -First 1)[0]
     } 'update privacy explanation'
     $result.Privacy.Note = $note.Current.Name

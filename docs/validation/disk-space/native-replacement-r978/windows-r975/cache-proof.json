@@ -1,0 +1,8 @@
+{
+    "verifiedInputs":  79,
+    "baseline":  "C:\\FileCatDsa20261104R2\\native-r972\\app",
+    "patched":  [
+                    "DiskSpaceHarness.dll",
+                    "DiskSpaceHarness.pdb"
+                ]
+}

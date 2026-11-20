@@ -152,6 +152,7 @@ public static class ImageInspector
     private static void Jpeg(byte[] b, List<(string, string)> image, List<InspectionSection> sections, List<string> warnings, CancellationToken ct)
     {
         int at = 2;
+        bool exifWithoutDisplayedFields = false;
         while (at + 4 <= b.Length)
         {
             ct.ThrowIfCancellationRequested();
@@ -177,8 +178,10 @@ public static class ImageInspector
             }
             else if (marker == 0xE1 && data + 6 <= b.Length && b.AsSpan(data, 6).SequenceEqual("Exif\0\0"u8))
             {
-                if (Exif(b, data + 6, Math.Min(b.Length, data + length - 2), out _) is { Count: > 0 } exif) sections.Add(new InspectionSection("EXIF", exif));
-                else warnings.Add("The EXIF block could not be read.");
+                int tiff = data + 6, end = Math.Min(b.Length, data + length - 2);
+                if (!ReadableExifDirectory(b, tiff, end)) warnings.Add("The EXIF block could not be read.");
+                else if (Exif(b, tiff, end, out _) is { Count: > 0 } exif) sections.Add(new InspectionSection("EXIF", exif));
+                else exifWithoutDisplayedFields = true;
             }
             else if (marker == 0xE2 && data + 12 <= b.Length && b.AsSpan(data, 12).SequenceEqual("ICC_PROFILE\0"u8))
             {
@@ -186,6 +189,23 @@ public static class ImageInspector
             }
             at += 2 + length;
         }
+        if (exifWithoutDisplayedFields && !sections.Any(s => s.Title == "EXIF"))
+            image.Add(("EXIF", "present; no orientation, camera or date fields in the main directory"));
+    }
+
+    private static bool ReadableExifDirectory(byte[] b, int tiff, int end)
+    {
+        if (tiff < 0 || end > b.Length || tiff + 8 > end) return false;
+        bool little = b[tiff] == 'I' && b[tiff + 1] == 'I';
+        bool big = b[tiff] == 'M' && b[tiff + 1] == 'M';
+        if (!little && !big) return false;
+        ushort magic = little ? BinaryPrimitives.ReadUInt16LittleEndian(b.AsSpan(tiff + 2)) : BinaryPrimitives.ReadUInt16BigEndian(b.AsSpan(tiff + 2));
+        if (magic != 42) return false;
+        uint offset = little ? BinaryPrimitives.ReadUInt32LittleEndian(b.AsSpan(tiff + 4)) : BinaryPrimitives.ReadUInt32BigEndian(b.AsSpan(tiff + 4));
+        long ifd = (long)tiff + offset;
+        if (offset < 8 || ifd + 2 > end) return false;
+        ushort count = little ? BinaryPrimitives.ReadUInt16LittleEndian(b.AsSpan((int)ifd)) : BinaryPrimitives.ReadUInt16BigEndian(b.AsSpan((int)ifd));
+        return ifd + 2L + 12L * count <= end;
     }
 
     /// <summary>IFD0 of a TIFF/EXIF block: orientation, camera, and date; for a TIFF file also its dimensions.</summary>

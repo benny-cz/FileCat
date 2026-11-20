@@ -1,0 +1,106 @@
+{
+  "purpose": "Full indexed coverage and publication-coherent enumeration; current Windows qualification deferred; no feature/action authorization",
+  "gitBase": "05cad85b",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "3daa7b4df4a5dc829e6fd1314e75e3b3562e328adfbe18c974660afd88d740cd"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "065027d6997bc7853464783f4184d3e9cb11b0a676f2099d57c2c8a0ed0229ef"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisCoordinator.cs",
+      "sha256": "94f4bf34380ea8b4e96844488c3c5fb7823c23679c8f9cf2764d66325cae4d2f"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisCoordinator.Indexed.cs",
+      "sha256": "fb6af38a16a757c9a1dd9376c08104788918bdc7a39d19b674136a69770cea46"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisCoverage.cs",
+      "sha256": "7a7d953dc97c2f34d6a349dd15be06246f30d414e40c6fb729c76638e69de682"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDataset.cs",
+      "sha256": "4de0e3509e60883d9b9f1bc8ae87a45a857a525906ead0ec4c15311c9b562b19"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedCoverage.cs",
+      "sha256": "772873b8c2757bbb2b14f465806c01321b081d2f22466604f7daa9b8f8731615"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedGraph.cs",
+      "sha256": "1d56f5da9cb469b7226783b25282b35f45366162f59331ac421df20a997daaaf"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedGraphValidation.cs",
+      "sha256": "68b0ff78666f2b6ca8149dd449ad1049af602e4f021ca41c3ab5b03d0c3a00d7"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObservationCapture.cs",
+      "sha256": "1af7bf99caac80b7d197bd4e3eb795c877a77310bc878831c7a254618d635534"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObservationCoalescer.cs",
+      "sha256": "232ce073c366e4431fc915928550ecbc745166d8a00b5605722e35c6521d1958"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObservationWriter.cs",
+      "sha256": "d417f466645748ff35cd414c6cf60e7690c96197f28de0b90005f09bc0f0b7cd"
+    },
+    {
+      "path": "tests/AnalysisSourceFrontierFixture.cs",
+      "sha256": "67d725e4ab530f1ae579da340f40b805aec1c30c68fd4ea23dbf2abb2b9ba84c"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.Coverage.cs",
+      "sha256": "aa82eb41ad9933e71531ae8a35786d38bdda28e3da83aeb7b7e969eda8ff7c45"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.cs",
+      "sha256": "3020344a0dd506fd426238f1cc0fb4227209557984200a95742bc95eddf0ed6f"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisIndexedSessionTests.cs",
+      "sha256": "efe493a1e9ae8448fc01fc088db0a553ce5052392048f42e584091547cf5cfe7"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisObservationCaptureTests.cs",
+      "sha256": "82289525451b9825c8536aeee8715fd7c7d4a326e67cf0d6a077cb65120b7f52"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r198.tgz",
+      "sha256": "7dcfddc780416949e27d1cce3408a0842604afd71eafd1cfdbdebb88da1232d7"
+    },
+    {
+      "path": ".tmp/dsa-native-r198.tgz",
+      "sha256": "db40eb2e874e720aa0968929093440c395750cb90333f6463939f08a1e7f34af"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r198.sh",
+      "sha256": "0b1a12661204942acb6524308eb01380894a1fed44c62f32173a7b4b6123861e"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r198.ps1",
+      "sha256": "18dae98e878724f06435143295746cae71cf8c93402dfc174040ed71f3c9c3c1"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r198.ps1",
+      "sha256": "ace1780fceca8d120cf142667317f352de2c7c7d3011c6f0fa759123641e0fb1"
+    }
+  ],
+  "reports": [
+    "mac-core-r198.xml",
+    "ubuntu-core-r198.xml",
+    "coverage-build-r197.txt",
+    "windows-deferred-r198.json"
+  ],
+  "remaining": "Windows retest; original inventory-ID mapping; native source-scale/resource qualification; scalable scoped/filtered charges, ranked frontend and streaming inventory/import/export; remaining feature packets and final independent review."
+}

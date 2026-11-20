@@ -11,6 +11,10 @@
     <ProjectReference Include="..\FileCat.Recovery\FileCat.Recovery.csproj" />
     <InternalsVisibleTo Include="FileCat.Platform.Windows.Tests" />
     <InternalsVisibleTo Include="FileCat.App.Tests" />
+    <InternalsVisibleTo Include="FileCat.Rendering.Tests" />
+    <InternalsVisibleTo Include="FileCat.PrivilegedHost" />
+    <InternalsVisibleTo Include="FileCat.ShellHost" />
+    <InternalsVisibleTo Include="FileCat" />
     <InternalsVisibleTo Include="FileCat.Screenshots" />
   </ItemGroup>
   <ItemGroup>

@@ -1,0 +1,34 @@
+[
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisInventoryPreparedWriter.cs",
+    "sha256": "1168e9c9fbec0d4fe717c3d2eb9d33d6cf1738a75f287b6d144618f318d86829"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPrivateInventoryStore.cs",
+    "sha256": "90714dd84bd8990693de7af57f7ddb92105bf98aa1981a1a009a6525a8344ccd"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.cs",
+    "sha256": "10c7e143201a19cba34cdc88f2b9bb7eac2a98732cad61a8830ec1e3af4147f2"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.Replacements.cs",
+    "sha256": "c9e311061532318f1566dae69b85dbfbf17c609ece7cc76f5cde4e8a8d8fd24d"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.Writing.cs",
+    "sha256": "8e6063beea1ae579c9f77874d916597591264188fbad68af35b44de02b04965b"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/OwnedAnalysisStore.Review.cs",
+    "sha256": "ae450f14e73ff04efa544d2d2c180f1de5113d8d7ba7e757fb027ab1e4cf145c"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisMaintenanceTests.PreparedWriter.cs",
+    "sha256": "55db6b50c16127277fb1daf4473f86ef0fddfa00bde0f5d4872eb02433748fc9"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisMaintenanceTests.ReplacementCatalog.cs",
+    "sha256": "35f65a8eedab7fad3c910d8e1def5de844bd276d4bfec732103b3b43be42b30b"
+  }
+]

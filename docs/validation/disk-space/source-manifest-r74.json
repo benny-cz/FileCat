@@ -1,0 +1,147 @@
+{
+  "purpose": "Private host/profile recorded correlation, explicit comparison continuity and native restart/fallback subset; no capability authorization",
+  "gitBase": "143a575bcf102f4a244af7e195dde6af967f1683",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_COMPARISON.md",
+      "sha256": "1e3b2e62d29f2606494efb8d5a19d25416b03a4eb32fe39d899731bfc817bb2d"
+    },
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_PRIVATE_STORE.md",
+      "sha256": "675e92f62b1f6d248848213db9780fc0c2e97e838b51efd3e2fa99b481bbbc05"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "16808488fbe5c45180baa8cfb49deda24382fde3d7f844a1fc3edbb41f2fd961"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "652a70ad6c35fad768c5c2948b316b15f8fa279d1f426192b54accc88a617fb4"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Profile.cs",
+      "sha256": "3bf71efcfe7c8f2ac3a3630ebb9973f5da4a787dca9a623c15e64e03262bd333"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "9e14737642e2ba3f755f536235be5fa83cb3ea9791d0c24d7bf48d5304b35f4a"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisComparison.cs",
+      "sha256": "f8b7b8b79d896f2bf81dc2cc38b7db25df51bab4d0de65fe7803961e0fe3c1d4"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisHostProfileIdentity.cs",
+      "sha256": "f38acd1ba07316954084203fcfa35cd8d1bb8dc4acc6935ea9d4e0b31d892ea5"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisModel.cs",
+      "sha256": "448b0f3290489313f131808182acec54869e9cf3a460835977e1053cbae08c85"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisPrivateProfileState.cs",
+      "sha256": "26c664cb0e7ef044cec689c3a6655d334699d030401ac6f6336089cc48610bcd"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/UnixAnalysisPrivateDirectory.cs",
+      "sha256": "400315546a4813df21c0d114a7c7ad74c220c31fc12b3b292824034cf7974980"
+    },
+    {
+      "path": "src/FileCat.Platform.Windows/WindowsAnalysisPrivateDirectory.cs",
+      "sha256": "a2c11b6f44d560b45a75ca4e411e4602b883d5afc878c7960f6694b68fbefa90"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisComparisonTests.Continuity.cs",
+      "sha256": "06d803ae19583b5b3f72747b96df7facf6d4aae7e6e247f98caa3bda77542442"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisComparisonTests.cs",
+      "sha256": "41cf0229dd7fba4eb180d49cb9e7334684dafc066ed46c161a0b1d5d5170da00"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisProfileTests.cs",
+      "sha256": "11ac313cf9836472b99c03ee50d962fc6239823fcfc7a331c26052baa4694abf"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Program.cs",
+      "sha256": "d7e89d19f87bf4f175a0856a255e7bacbfe4dfb48cfed417f11fe80451cb0402"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/README.md",
+      "sha256": "3769d93ae9ba9e14873fc11a66b64858bf00708bff1e9b08a474de066a450648"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.PrivateStorage.cs",
+      "sha256": "f3046b7d44b5e4db1f05cee138fcfb736e3dc33db82d384a78bf98ddca02ed81"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Comparison.cs",
+      "sha256": "7c9edba81b901c091c4095b39bdf28150e61b53834d0bdedf6d5efb406886c0d"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.ComparisonQuery.cs",
+      "sha256": "60b0eeeda5a76d4d6093db443496f5eaf0d8ed9cf44e7132b268e60e6794ce6e"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Profile.cs",
+      "sha256": "b3fdf2861c6ceb47acee502752b83d1839f23e1983eab4424cdfeaa2d65c8d51"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r67.tgz",
+      "sha256": "4a9ca678f874af79b3626f49c69dd6b98a51fa9547297de620974c94d9438608"
+    },
+    {
+      "path": ".tmp/dsa-render-windows-r72.tgz",
+      "sha256": "c7ad81454f58f2ba503d3865f86a904d14c65598b20bc2c0247e62874eb024e5"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r72.tgz",
+      "sha256": "7dbb6fe3871741ecd8a2ef1f9160fe2a4bb50df302a34348f25264fdb562e3c5"
+    },
+    {
+      "path": ".tmp/dsa-render-linux-r72.tgz",
+      "sha256": "2a4d082cb67abc009496c14d12993cffc235f11e32ae32682c16b09fd02ace5e"
+    },
+    {
+      "path": ".tmp/native-r73.tgz",
+      "sha256": "92924191718ad659a61a4f13d4ccc6f7a4c8d1bacd3014aa9c6b263a65b29a82"
+    },
+    {
+      "path": ".tmp/desktop-r71-windows.tgz",
+      "sha256": "c57fb6275949f352a42bca6bc26f078e87e6f55511adb56478d3e80ccedd231e"
+    },
+    {
+      "path": ".tmp/desktop-r71-mac.tgz",
+      "sha256": "92b7fe1590241f48675617f72ec8233e0bcb64e0c9854870de23f86c09b04375"
+    },
+    {
+      "path": ".tmp/desktop-r71-linux.tgz",
+      "sha256": "c2f2a546d3ef052afb7306f7b2461ce7cfb32be4ab6ad40897e1a5b7598b0f0e"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "drivers/unix-native-profile-r71.py",
+      "sha256": "f2a677550078abba04124c2a2fefddf85cf66521e24e9a10c08af5e6f6ad7a3a"
+    },
+    {
+      "path": "drivers/unix-native-profile-r71b.py",
+      "sha256": "04d15a06621478a7c873aea8190fb34080b1f1f5de0424d89d3a17a83d9517bb"
+    },
+    {
+      "path": "drivers/windows-native-profile-r71.ps1",
+      "sha256": "58254866dc60013b83f669c91f8176cc52b40c6c45f9617cd79a75f2da5f327e"
+    }
+  ],
+  "nativeReports": [
+    "windows-native-profile-r71-1.json",
+    "windows-native-profile-r71-2.json",
+    "windows-native-profile-r71-3.json",
+    "mac-native-profile-r71.json",
+    "ubuntu-native-profile-r71b.json"
+  ],
+  "remaining": "Fresh-rebind continuity, mutable state/history, the broader implementation/qualification plan and final independent review remain pending."
+}

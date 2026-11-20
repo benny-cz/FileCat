@@ -1,0 +1,29 @@
+{
+  "revision": "r900",
+  "renderRevision": "r900",
+  "buildLog": ".tmp/build-r899.txt",
+  "sourceManifest": ".tmp/source-candidate-r900.json",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 25.116426,
+  "archives": [
+    {
+      "bytes": 42271225,
+      "platform": "mac",
+      "sha256": "07609617b51f1579ef50779fc0c1b913ddc0f52528b9409fa37344789e24e5bc",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r900.tgz"
+    },
+    {
+      "bytes": 39606490,
+      "platform": "linux",
+      "sha256": "17e0af704b68af90e5fda5eb17aadba2bc9ec2c3d9b0535d79449480f5a93b1f",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r900.tgz"
+    },
+    {
+      "bytes": 78689929,
+      "platform": "windows",
+      "sha256": "23bea4aafef8238aed03338389c69f785c822e3ad0bff8ba8577b1c8f970f1fa",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r900.tgz"
+    }
+  ]
+}

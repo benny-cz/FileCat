@@ -8,6 +8,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
@@ -34,19 +35,22 @@ public sealed class ViewerWindow : Window
     private readonly AppServices _services;
     private readonly string _deviceKey;
     private PagedReader _reader;
-    private readonly Func<CancellationToken, Task<IContentSource?>>? _reopen;
+    private Func<CancellationToken, Task<IContentSource?>>? _reopen;
     private readonly TextViewer _text = new();
     private readonly Panel _dialogHost = new() { IsVisible = false };
     private readonly OverlayDialogService _dialogs;
     private readonly HexView _hex = new();
     private readonly TextBlock _status = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _encodingInfo = new() { Classes = { "small", "muted" }, VerticalAlignment = VerticalAlignment.Center };
-    private readonly TextBox _search = new() { PlaceholderText = "Find (Ctrl+F)", MinWidth = 220 };
+    private readonly TextBox _search = new() { PlaceholderText = "Find (Ctrl+F)", MinWidth = 220,
+        Classes = { "searchPending" } };
     private readonly CheckBox _matchCase = new() { Content = "Aa", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _hexSearch = new() { Content = "Hex bytes", VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _previousMatch = new() { Content = "Previous" };
     private readonly Button _nextMatch = new() { Content = "Next" };
     private readonly TextBlock _matchCount = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _wrapNotice = new() { Classes = { "small", "muted" },
+        VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
     private readonly Button _stopSearch = new() { Content = "Stop search", IsVisible = false };
     private readonly Button _stopCount = new() { Content = "Stop count", IsVisible = false };
     private readonly Button _refresh = new() { Content = "Refresh" };
@@ -55,11 +59,15 @@ public sealed class ViewerWindow : Window
     private string? _refreshFailure;
     private bool _refreshing;
     private CancellationTokenSource? _refreshCts;
+    private Action<bool, string?>? _pendingPagePositionRestore;
     private readonly ComboBox _encodingBox = new() { MinWidth = 130 };
     private readonly ToggleButton _modeText = new() { Content = "Text" };
     private readonly ToggleButton _modeHex = new() { Content = "Hex" };
     private readonly ToggleButton _modeInfo = new() { Content = "Info" };
     private readonly ToggleButton _modePicture = new() { Content = "Picture", IsVisible = false };
+    private readonly Button _previousPdfPage = new() { Content = "Previous page", IsVisible = false };
+    private readonly Button _nextPdfPage = new() { Content = "Next page", IsVisible = false };
+    private readonly TextBlock _pdfPageLabel = new() { IsVisible = false, VerticalAlignment = VerticalAlignment.Center };
     /// <summary>A web page, drawn by the system's browser engine with scripts and the web off (D-51).</summary>
     private readonly ToggleButton _modePage = new() { Content = "Page", IsVisible = false };
     private readonly PageView _pageView;
@@ -76,13 +84,20 @@ public sealed class ViewerWindow : Window
         TextWrapping = TextWrapping.Wrap, MaxWidth = 300, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _modeLabel = new() { VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeight.SemiBold };
     private readonly Button _findToggle = new() { Content = "Find…" };
+    private readonly Button _closeFind = new() { Content = "Close Find" };
     private readonly WrapPanel _findBar = new() { IsVisible = false, Margin = new Thickness(8, 0, 8, 4), ItemSpacing = 8, LineSpacing = 4 };
     private bool _findOpen;
+    private bool _linkedMarkdownReviewOpen;
     private readonly Button _smallerText = new() { Content = "Text −" };
     private readonly Button _largerText = new() { Content = "Text +" };
     private readonly TextBlock _contentSize = new() { VerticalAlignment = VerticalAlignment.Center, Classes = { "small" } };
     private readonly PictureView _picture = new() { IsVisible = false };
     private bool _isPicture;
+    private bool _isPdf;
+    private int _pdfPage;
+    private int _pictureDisplayedPdfPage = -1;
+    private int _pdfRequestGeneration;
+    private CancellationTokenSource? _pdfLoadCts;
     private Task? _pictureLoad;
     // Decoded pictures, structure reports and loaded pages are snapshots. Reader refreshes must not describe them as current.
     private long _sourceGeneration, _pictureGeneration, _infoGeneration, _pageGeneration;
@@ -103,16 +118,22 @@ public sealed class ViewerWindow : Window
     private readonly CheckBox _follow = new() { Content = "Follow end", VerticalAlignment = VerticalAlignment.Center };
     private readonly DispatcherTimer _changeTimer;
     private bool _checkingChanges;
-    private readonly string _displayName;
+    private string _displayName;
+    internal PictureBrowseContext? BrowseContext { get; set; }
+    private string? _pictureBrowseFeedback;
     private EncodingGuess _guess = new(new UTF8Encoding(false), 0, "not yet examined", false);
     private bool _isHex;
     private CancellationTokenSource? _searchCts;
+    private readonly DispatcherTimer _findTimer = new(DispatcherPriority.Background)
+        { Interval = TimeSpan.FromMilliseconds(250) };
     private CancellationTokenSource? _countCts;
     private SearchIdentity? _countIdentity;
     private ContentSearch.MatchCount? _countResult;
     private bool _countFailed;
     private bool _countCanceled;
+    private bool _knownMatch;
     private bool _pageFoundMatch;
+    private bool _pageWholePageNoMatch;
     private bool _pageTriedFind;
     private bool _pageFindUnavailable;
     private PageFindResult? _pageCountResult;
@@ -142,15 +163,8 @@ public sealed class ViewerWindow : Window
     private CancellationTokenSource? _lineCts;
     private readonly CancellationTokenSource _closing = new();
     private static readonly List<ViewerWindow> s_open = [];
-    private Size _initialWindowSize;
-    private Size _lastNormalWindowSize;
-    private bool _windowOpened, _userSizedWindow;
-    private bool _restoringWindowState;
-    private bool _normalSizePending;
-    private readonly DispatcherTimer _restoreSizeTimer = new(DispatcherPriority.Background)
-        { Interval = TimeSpan.FromMilliseconds(250) };
-    private readonly DispatcherTimer _normalSizeTimer = new(DispatcherPriority.Background)
-        { Interval = TimeSpan.FromMilliseconds(250) };
+    private static readonly Size DefaultWindowSize = new(980, 700);
+    private static readonly Size MinimumWindowSize = new(480, 300);
     private bool _readyForRefresh;
 
     /// <summary>Open viewer windows, oldest first: the window list in the command palette (plan §4.1).</summary>
@@ -182,63 +196,13 @@ public sealed class ViewerWindow : Window
             ? ct => ViewerLauncher.ReopenSourceAsync(services, _deviceKey, () => new FileContentSource(localPath), ct)
             : null);
         Title = $"{Path.GetFileName(displayName.TrimEnd('\\', '/'))} — FileCat Viewer";
-        Size usable = ViewerWorkingArea();
-        Size restored = RestoreViewerSize(services.Settings.ViewerWidth, services.Settings.ViewerHeight, usable);
-        MinWidth = Math.Min(480, Math.Max(1, usable.Width - 24));
-        MinHeight = Math.Min(300, Math.Max(1, usable.Height - 24));
-        Width = restored.Width;
-        Height = restored.Height;
-        Opened += (_, _) =>
-        {
-            if (Math.Abs(Width - restored.Width) < 1 && Math.Abs(Height - restored.Height) < 1)
+        WindowFit.RememberSize(this, DefaultWindowSize, MinimumWindowSize,
+            () => (services.Settings.ViewerWidth, services.Settings.ViewerHeight), size =>
             {
-                // Screen information may first become available when the native window opens.
-                Size currentArea = ViewerWorkingArea();
-                Size currentSize = RestoreViewerSize(services.Settings.ViewerWidth, services.Settings.ViewerHeight, currentArea);
-                MinWidth = Math.Min(480, Math.Max(1, currentArea.Width - 24));
-                MinHeight = Math.Min(300, Math.Max(1, currentArea.Height - 24));
-                Width = currentSize.Width;
-                Height = currentSize.Height;
-            }
-            _initialWindowSize = new Size(Width, Height);
-            _lastNormalWindowSize = _initialWindowSize;
-            _windowOpened = true;
-        };
-        _restoreSizeTimer.Tick += (_, _) =>
-        {
-            _restoreSizeTimer.Stop();
-            _restoringWindowState = false;
-        };
-        // Neither a fit to a smaller screen nor the resize a scaling change brings is the user's: the size they chose
-        // stays for later, larger screens. (A change to 200% with the viewer open saved its fitted size instead.)
-        void NotTheUsersSize(bool ongoing)
-        {
-            _normalSizeTimer.Stop();
-            _normalSizePending = false;
-            _restoringWindowState = true;
-            _restoreSizeTimer.Stop();
-            if (!ongoing) _restoreSizeTimer.Start();
-        }
-        WindowFit.Attach(this, NotTheUsersSize);
-        ScalingChanged += (_, _) => NotTheUsersSize(false);
-        _normalSizeTimer.Tick += (_, _) =>
-        {
-            _normalSizeTimer.Stop();
-            _normalSizePending = false;
-            if (!_restoringWindowState && WindowState == WindowState.Normal)
-                RememberNormalViewerSize(Bounds.Size);
-        };
-        PropertyChanged += (_, change) =>
-        {
-            if (!_windowOpened || change.Property != WindowStateProperty) return;
-            // Some native backends send the maximized SizeChanged before
-            // publishing WindowState. Discard that uncommitted candidate.
-            _normalSizeTimer.Stop();
-            _normalSizePending = false;
-            _restoringWindowState = true;
-            _restoreSizeTimer.Stop();
-            if (WindowState == WindowState.Normal) _restoreSizeTimer.Start();
-        };
+                services.Settings.ViewerWidth = size.Width;
+                services.Settings.ViewerHeight = size.Height;
+                services.SaveSettings();
+            });
         SizeChanged += (_, args) =>
         {
             // The docked checksum result must leave room for the toolbar,
@@ -253,19 +217,6 @@ public sealed class ViewerWindow : Window
             _checksumSourceName.IsVisible = !compactChecksum;
             _checksumBody.Spacing = compactChecksum ? 2 : 6;
             _checksumPanel.Padding = compactChecksum ? new Thickness(4) : new Thickness(10);
-            if (!_windowOpened || _restoringWindowState || WindowState != WindowState.Normal ||
-                !ValidViewerDimension(args.NewSize.Width) || !ValidViewerDimension(args.NewSize.Height)) return;
-            _normalSizePending = true;
-            _normalSizeTimer.Stop();
-            _normalSizeTimer.Start();
-        };
-        Closed += (_, _) =>
-        {
-            _restoreSizeTimer.Stop();
-            _normalSizeTimer.Stop();
-            if (_normalSizePending && !_restoringWindowState && WindowState == WindowState.Normal)
-                RememberNormalViewerSize(Bounds.Size);
-            SaveViewerSize();
         };
         TextDecoding.EnsureCodePages();
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }
@@ -286,6 +237,9 @@ public sealed class ViewerWindow : Window
         var toolbar = new WrapPanel { Margin = new Thickness(8, 4), ItemSpacing = 8, LineSpacing = 4 };
         toolbar.Children.Add(_modePage);
         toolbar.Children.Add(_modePicture);
+        toolbar.Children.Add(_previousPdfPage);
+        toolbar.Children.Add(_pdfPageLabel);
+        toolbar.Children.Add(_nextPdfPage);
         ToolTip.SetTip(_modePage, "The page as a browser draws it, with its scripts off and nothing fetched from the web");
         Avalonia.Automation.AutomationProperties.SetName(_pageView, "Web page");
         toolbar.Children.Add(_modeText);
@@ -311,6 +265,10 @@ public sealed class ViewerWindow : Window
         Avalonia.Automation.AutomationProperties.SetAutomationId(_pictureLimit, "Picture decode limit");
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_pictureLimit, Avalonia.Automation.AutomationLiveSetting.Polite);
         Avalonia.Automation.AutomationProperties.SetName(_picture, "Picture");
+        Avalonia.Automation.AutomationProperties.SetName(_previousPdfPage, "Previous PDF page");
+        Avalonia.Automation.AutomationProperties.SetName(_nextPdfPage, "Next PDF page");
+        Avalonia.Automation.AutomationProperties.SetAutomationId(_pdfPageLabel, "PDF page position");
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_pdfPageLabel, Avalonia.Automation.AutomationLiveSetting.Polite);
         ToolTip.SetTip(_modeInfo, "Structure of executables and images: headers, sections, imports, version, EXIF (Ctrl+I)");
         Avalonia.Automation.AutomationProperties.SetName(_info, "File information");
         ShowInfoText("");
@@ -325,6 +283,10 @@ public sealed class ViewerWindow : Window
         _findToggle.Click += (_, _) => SetFindOpen(!_findOpen, focus: !_findOpen);
         toolbar.Children.Add(_findToggle);
         _findBar.Children.Add(_search);
+        Avalonia.Automation.AutomationProperties.SetName(_closeFind, "Close viewer Find bar");
+        ToolTip.SetTip(_closeFind, "Close Find (Esc); the query stays for next time");
+        _closeFind.Click += (_, _) => { SetFindOpen(false); FocusContent(); };
+        _findBar.Children.Add(_closeFind);
         _findBar.Children.Add(_matchCase);
         _findBar.Children.Add(_hexSearch);
         Avalonia.Automation.AutomationProperties.SetName(_smallerText, "Decrease text and hex size");
@@ -351,6 +313,8 @@ public sealed class ViewerWindow : Window
         ToolTip.SetTip(_stopCount, "Stop counting matches in the background");
         _stopCount.Click += (_, _) => _countCts?.Cancel();
         _findBar.Children.Add(_stopCount);
+        _findBar.Children.Add(_wrapNotice);
+        Avalonia.Automation.AutomationProperties.SetAutomationId(_wrapNotice, "Find wrap notice");
         ToolTip.SetTip(_refresh, _reopen is null ? "This source cannot be reopened from this viewer"
             : "Reopen this source and refresh the current view (F5)");
         Avalonia.Automation.AutomationProperties.SetName(_refresh, "Refresh viewer content");
@@ -436,8 +400,15 @@ public sealed class ViewerWindow : Window
         _modeHex.Click += (_, _) => SetMode(true);
         _modeInfo.Click += async (_, _) => await ShowInfoAsync();
         _modePicture.Click += (_, _) => ShowPicture();
+        _previousPdfPage.Click += (_, _) => ChangePdfPage(-1);
+        _nextPdfPage.Click += (_, _) => ChangePdfPage(1);
         _modePage.Click += (_, _) => ShowPage();
         _pageView.Changed += () => { if (_isPage) UpdateStatus(); };
+        _pageView.LoadCompleted += (ok, _) =>
+        {
+            if (ok && _isPage && !_refreshing && !string.IsNullOrEmpty(_search.Text) && !_pageTriedFind &&
+                !_findTimer.IsEnabled && _searchCts is null) ScheduleFind();
+        };
         _pageView.Failed += why =>
         {
             if (_refreshing && _isPage)
@@ -453,12 +424,46 @@ public sealed class ViewerWindow : Window
             _status.Text = why + " Its source is shown instead.";
         };
         _pageView.KeyRequested = OnPageKey;
-        _pageView.LinkedMarkdown += async path =>
+        _pageView.LinkedMarkdown += async (page, target) =>
         {
-            if (!_isPage || _closing.IsCancellationRequested) return;
-            bool opened = await ViewerLauncher.TryOpenPath(_services, path);
+            if (!_isPage || _closing.IsCancellationRequested || !ReferenceEquals(_htmlPage, page)) return;
+            if (target.RequiresConfirmation)
+            {
+                if (_linkedMarkdownReviewOpen) return;
+                _linkedMarkdownReviewOpen = true;
+                // Native page surfaces can cover Avalonia overlays even when the overlay is
+                // visually later in the tree. Hide the page for this owned review so the path
+                // and Cancel action are actually visible and receive Escape/keyboard input.
+                bool pageWasVisible = _pageView.IsVisible;
+                _pageView.ReturnKeyboardToViewer();
+                _pageView.IsVisible = false;
+                bool approved;
+                try
+                {
+                    approved = await _dialogs.ConfirmAsync("Open linked Markdown file?",
+                        "This link uses a parent directory. Review the resolved local file before opening it once. " +
+                        "FileCat will not remember this choice.\n\n" + target.Path,
+                        "Open this file", danger: true);
+                }
+                finally
+                {
+                    if (pageWasVisible && !_closing.IsCancellationRequested && _isPage && ReferenceEquals(_htmlPage, page))
+                    {
+                        _pageView.IsVisible = true;
+                        _pageView.FocusPage();
+                    }
+                    _linkedMarkdownReviewOpen = false;
+                }
+                if (!approved || !_isPage || _closing.IsCancellationRequested || !ReferenceEquals(_htmlPage, page)) return;
+                if (!page.TryLinkedMarkdownTarget(target.RequestAddress, out var current) || current != target)
+                {
+                    _status.Text = "The linked Markdown target changed. Open it again to review its current path.";
+                    return;
+                }
+            }
+            bool opened = await ViewerLauncher.TryOpenPath(_services, target.Path);
             if (!opened && !_closing.IsCancellationRequested)
-                _status.Text = "The linked Markdown file could not be opened: " + path;
+                _status.Text = "The linked Markdown file could not be opened: " + target.Path;
         };
         _fitPicture.Click += (_, _) => { _picture.Fit = true; UpdatePictureZoomControls(); };
         _actualSize.Click += (_, _) => { _picture.ShowActualSize(); UpdatePictureZoomControls(); };
@@ -495,6 +500,7 @@ public sealed class ViewerWindow : Window
             else if (e.Key == Key.Escape)
             {
                 e.Handled = true;
+                _findTimer.Stop();
                 _searchCts?.Cancel();
                 _countCts?.Cancel();
                 FocusContent();
@@ -507,19 +513,24 @@ public sealed class ViewerWindow : Window
             if (e.Property != TextBox.TextProperty) return;
             if (!string.IsNullOrEmpty(_search.Text)) SetFindOpen(true);
             InvalidateSearch();
+            _text.SetHighlight(null, false);
+            _info.SetHighlight(null, false);
             UpdateStatus();
+            ScheduleFind();
         };
         _matchCase.PropertyChanged += (_, e) =>
         {
             if (e.Property != ToggleButton.IsCheckedProperty) return;
             InvalidateSearch();
             UpdateStatus();
+            ScheduleFind();
         };
         _hexSearch.PropertyChanged += (_, e) =>
         {
             if (e.Property != ToggleButton.IsCheckedProperty) return;
             InvalidateSearch();
             UpdateStatus();
+            ScheduleFind();
         };
         _text.PositionChanged += () => SearchPositionChanged(_text);
         _info.PositionChanged += () => SearchPositionChanged(_info);
@@ -534,6 +545,7 @@ public sealed class ViewerWindow : Window
         // detection has finished, so a refresh cannot race the reader's opening request.
         _changeTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1.5) };
         _changeTimer.Tick += (_, _) => { _ = CheckForChanges(); };
+        _findTimer.Tick += (_, _) => { _findTimer.Stop(); _ = FindCoreAsync(forward: true, automatic: true); };
         Opened += async (_, _) =>
         {
             if (!s_open.Contains(this)) s_open.Add(this);
@@ -549,7 +561,11 @@ public sealed class ViewerWindow : Window
         {
             _dialogs.CancelAll();
             _changeTimer.Stop();
+            _findTimer.Stop();
             _refreshCts?.Cancel();
+            if (_pendingPagePositionRestore is { } restore)
+                _pageView.LoadCompleted -= restore;
+            _pendingPagePositionRestore = null;
             _searchCts?.Cancel();
             _countCts?.Cancel();
             _closing.Cancel();
@@ -562,50 +578,13 @@ public sealed class ViewerWindow : Window
         };
     }
 
-    private Size ViewerWorkingArea()
-    {
-        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
-        if (screen is null) return new Size(3840, 2160);
-        double scale = double.IsFinite(screen.Scaling) && screen.Scaling > 0 ? screen.Scaling : 1;
-        double width = screen.WorkingArea.Width / scale, height = screen.WorkingArea.Height / scale;
-        return new Size(double.IsFinite(width) && width > 0 ? width : 3840,
-            double.IsFinite(height) && height > 0 ? height : 2160);
-    }
-
     private void OnContentPageLoaded()
     {
         if (_reader.ReadError is not null) Dispatcher.UIThread.Post(UpdateStatus);
     }
 
-    internal static Size RestoreViewerSize(double? width, double? height, Size usableArea)
-    {
-        double availableWidth = double.IsFinite(usableArea.Width) && usableArea.Width > 0 ? usableArea.Width : 3840;
-        double availableHeight = double.IsFinite(usableArea.Height) && usableArea.Height > 0 ? usableArea.Height : 2160;
-        double maximumWidth = Math.Min(8192, Math.Max(1, availableWidth - 24));
-        double maximumHeight = Math.Min(8192, Math.Max(1, availableHeight - 24));
-        bool stored = width is { } w && height is { } h && ValidViewerDimension(w) && ValidViewerDimension(h);
-        return new Size(Math.Clamp(stored ? width!.Value : 980, Math.Min(480, maximumWidth), maximumWidth),
-            Math.Clamp(stored ? height!.Value : 700, Math.Min(300, maximumHeight), maximumHeight));
-    }
-
-    private static bool ValidViewerDimension(double value) => double.IsFinite(value) && value is >= 240 and <= 8192;
-
-    private void RememberNormalViewerSize(Size size)
-    {
-        if (!ValidViewerDimension(size.Width) || !ValidViewerDimension(size.Height)) return;
-        _lastNormalWindowSize = size;
-        if (Math.Abs(size.Width - _initialWindowSize.Width) > 1 ||
-            Math.Abs(size.Height - _initialWindowSize.Height) > 1) _userSizedWindow = true;
-    }
-
-    private void SaveViewerSize()
-    {
-        if (!_userSizedWindow || !ValidViewerDimension(_lastNormalWindowSize.Width) ||
-            !ValidViewerDimension(_lastNormalWindowSize.Height)) return;
-        _services.Settings.ViewerWidth = _lastNormalWindowSize.Width;
-        _services.Settings.ViewerHeight = _lastNormalWindowSize.Height;
-        _services.SaveSettings();
-    }
+    internal static Size RestoreViewerSize(double? width, double? height, Size usableArea) =>
+        WindowFit.RestoreSize(width, height, usableArea, DefaultWindowSize, MinimumWindowSize);
 
     private async Task<byte[]> ReadOpeningPrefixAsync()
     {
@@ -662,7 +641,9 @@ public sealed class ViewerWindow : Window
         if (_closing.IsCancellationRequested || _services.Io.IsStopped) return;
         _encodingInfo.Text = $"{_guess.Encoding.WebName}: {_guess.Evidence}";
         // A picture opens as the picture (Alt+F3 asked for the bytes: those stay, and the picture is a click away).
-        _modePicture.IsVisible = PictureDecoder.Recognize(prefix) is not null;
+        _isPdf = IsPdf(prefix);
+        _modePicture.Content = _isPdf ? "PDF" : "Picture";
+        _modePicture.IsVisible = _isPdf || PictureDecoder.Recognize(prefix) is not null;
         // A Markdown file opens drawn, as a page does (release issue I25); its text is an F4 away.
         _modePage.IsVisible = HtmlPage.IsHtml(_displayName, prefix) || Markdown.IsMarkdown(_displayName);
         if (Markdown.IsMarkdown(_displayName)) ToolTip.SetTip(_modePage, "The Markdown drawn as a page: its HTML shown as text, pictures only from its folder, nothing fetched from the web");
@@ -686,6 +667,8 @@ public sealed class ViewerWindow : Window
         return little is 0xFEEDFACE or 0xFEEDFACF or 0xCEFAEDFE or 0xCFFAEDFE || big is 0xCAFEBABE or 0xCAFEBABF;
     }
 
+    private static bool IsPdf(ReadOnlySpan<byte> prefix) => prefix.StartsWith("%PDF-"u8);
+
     /// <summary>The picture mode: decoded once, by the worker, while the window stays responsive.</summary>
     public void ShowPicture()
     {
@@ -694,7 +677,8 @@ public sealed class ViewerWindow : Window
         _copyCts?.Cancel();
         LeavePage();
         _isPicture = true;
-        _modeLabel.Text = "Mode: Picture";
+        _picture.DocumentPage = _isPdf;
+        _modeLabel.Text = _isPdf ? "Mode: PDF" : "Mode: Picture";
         _findToggle.IsVisible = false;
         _findBar.IsVisible = false;
         _isInfo = false;
@@ -703,6 +687,8 @@ public sealed class ViewerWindow : Window
         _modePicture.IsChecked = true;
         _modeText.IsChecked = _modeHex.IsChecked = _modeInfo.IsChecked = false;
         _fitPicture.IsVisible = _actualSize.IsVisible = _pictureZoom.IsVisible = _zoomLevels.IsVisible = true;
+        _previousPdfPage.IsVisible = _nextPdfPage.IsVisible = _pdfPageLabel.IsVisible = _isPdf;
+        UpdatePdfPageControls();
         UpdatePictureZoomControls();
         foreach (var part in _textOnly) part.IsVisible = false;
         _wrap.IsEnabled = false;
@@ -714,38 +700,84 @@ public sealed class ViewerWindow : Window
 
     /// <summary>The picture once it has loaded (tests).</summary>
     public Task? PictureLoad => _pictureLoad;
+    internal bool ReadyForRefresh => _readyForRefresh;
+    internal bool PictureRefreshBusy => _refreshing;
 
     public DecodedPicture? Picture => _picture.Picture;
 
-    private async Task LoadPictureAsync()
+    private async Task LoadPictureAsync(int? previousPdfPage = null)
     {
         var reader = _reader;
-        _pictureGeneration = _sourceGeneration;
-        _picture.ShowMessage("Decoding the picture…");
+        int page = _pdfPage;
+        int request = ++_pdfRequestGeneration;
+        _pdfLoadCts?.Cancel();
+        using var pending = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        _pdfLoadCts = pending;
+        _picture.ShowMessage(_isPdf ? $"Rendering PDF page {page + 1}…" : "Decoding the picture…");
+        string? pageFailure = null;
         try
         {
-            var picture = await PictureDecoder.DecodeAsync(reader, _services.Io, _deviceKey, PictureSide, _closing.Token);
-            if (_closing.IsCancellationRequested || !ReferenceEquals(reader, _reader))
+            var picture = _isPdf
+                ? await PictureDecoder.DecodePdfAsync(reader, _services.Io, _deviceKey, page, PictureSide, pending.Token)
+                : await PictureDecoder.DecodeAsync(reader, _services.Io, _deviceKey, PictureSide, pending.Token);
+            if (_closing.IsCancellationRequested || request != _pdfRequestGeneration || !ReferenceEquals(reader, _reader))
             {
                 picture.Bitmap.Dispose();
                 return;
             }
             _picture.Show(picture);
+            _pictureDisplayedPdfPage = _isPdf ? page : -1;
+            _pictureGeneration = _sourceGeneration;
+            UpdatePdfPageControls();
         }
-        catch (Exception) when (_closing.IsCancellationRequested)
+        catch (Exception) when (_closing.IsCancellationRequested || pending.IsCancellationRequested)
         {
             return; // the window closed meanwhile
         }
-        catch (Exception) when (!ReferenceEquals(reader, _reader))
+        catch (Exception) when (request != _pdfRequestGeneration || !ReferenceEquals(reader, _reader))
         {
             return; // a newer source owns the picture view
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or TimeoutException or InvalidOperationException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
             if (ReferenceEquals(reader, _reader))
-                _picture.ShowMessage($"This picture cannot be shown: {ex.Message}. Text and Hex (F4) show its bytes; Info (Ctrl+I) reads its headers.");
+            {
+                if (_isPdf && previousPdfPage is { } prior && _picture.Picture is not null)
+                {
+                    _pdfPage = prior;
+                    _picture.ShowCurrent();
+                    UpdatePdfPageControls();
+                    pageFailure = $"Page {page + 1} could not be shown: {ex.Message}";
+                }
+                else _picture.ShowMessage($"This {(_isPdf ? "PDF page" : "picture")} cannot be shown: {ex.Message}. Text and Hex (F4) show its bytes; Info (Ctrl+I) describes the file.");
+            }
         }
-        if (ReferenceEquals(reader, _reader)) UpdateStatus();
+        finally { if (ReferenceEquals(_pdfLoadCts, pending)) _pdfLoadCts = null; }
+        if (ReferenceEquals(reader, _reader))
+        {
+            UpdateStatus();
+            if (pageFailure is not null) _status.Text = pageFailure + " · " + _status.Text;
+        }
+    }
+
+    private void UpdatePdfPageControls()
+    {
+        if (!_isPdf) return;
+        int count = _picture.Picture?.Frames ?? 0;
+        _pdfPageLabel.Text = count > 0 ? $"Page {_pdfPage + 1} of {count}" : $"Page {_pdfPage + 1}";
+        _previousPdfPage.IsEnabled = _pdfPage > 0;
+        _nextPdfPage.IsEnabled = count > 0 && _pdfPage + 1 < count;
+    }
+
+    private void ChangePdfPage(int delta)
+    {
+        if (!_isPdf || !_isPicture || _picture.Picture is not { } current) return;
+        int next = _pdfPage + delta;
+        if (next < 0 || next >= current.Frames) return;
+        int prior = _pdfPage;
+        _pdfPage = next;
+        UpdatePdfPageControls();
+        _pictureLoad = LoadPictureAsync(prior);
     }
 
     /// <summary>The page mode: the page drawn by the system's browser engine (a native view over the window's content).</summary>
@@ -781,6 +813,7 @@ public sealed class ViewerWindow : Window
         _pageView.FocusPage();
         UpdateStatus();
         UpdateCopyActions();
+        ScheduleFind();
     }
 
     /// <summary>Whether the page mode is shown (tests).</summary>
@@ -823,10 +856,12 @@ public sealed class ViewerWindow : Window
 
     private void LeavePicture()
     {
+        _pictureBrowseFeedback = null;
         LeavePage();
         _isPicture = false;
         _picture.IsVisible = false;
         _modePicture.IsChecked = false;
+        _previousPdfPage.IsVisible = _nextPdfPage.IsVisible = _pdfPageLabel.IsVisible = false;
         _findToggle.IsVisible = true;
         _findBar.IsVisible = _findOpen;
         _fitPicture.IsVisible = _actualSize.IsVisible = _pictureZoom.IsVisible = _zoomLevels.IsVisible =
@@ -888,6 +923,23 @@ public sealed class ViewerWindow : Window
         ShowInfoText("Reading the file's structure…");
         try
         {
+            if (_isPdf)
+            {
+                DecodedPicture? temporary = null;
+                try
+                {
+                    var pdf = _pictureGeneration == _sourceGeneration && _pictureDisplayedPdfPage == _pdfPage &&
+                        _picture.Picture is { } visible
+                        ? visible
+                        : temporary = await PictureDecoder.DecodePdfAsync(reader, _services.Io, _deviceKey,
+                            _pdfPage, PictureSide, _closing.Token);
+                    if (!_closing.IsCancellationRequested && ReferenceEquals(reader, _reader))
+                        ShowInfoText(PdfInfoText(pdf, reader.Length, _pdfPage));
+                }
+                finally { temporary?.Bitmap.Dispose(); }
+                if (ReferenceEquals(reader, _reader)) UpdateStatus();
+                return;
+            }
             var text = await Task.Run(() =>
             {
                 string result = "";
@@ -914,6 +966,15 @@ public sealed class ViewerWindow : Window
         }
         if (ReferenceEquals(reader, _reader)) UpdateStatus();
     }
+
+    private static string PdfInfoText(DecodedPicture pdf, long length, int page) =>
+        $"PDF document\n\nVersion: {pdf.Format}\nPages: {pdf.Frames:N0}\nCurrent page: {page + 1:N0}\n" +
+        $"Current page size: {pdf.Width:N0} × {pdf.Height:N0} points " +
+        $"({pdf.Width / 72.0:0.##} × {pdf.Height / 72.0:0.##} inches)\n" +
+        $"File size: {Formatters.ExactSize(length)}\n\n" +
+        "Preview renders pages without running document actions or opening links. " +
+        "Title, author, attachments and form fields are not interpreted in this view. " +
+        "Text and Hex show the original bytes (F4).";
 
     // A borrowed inspector source observes close between calls, including an inspector's short-read loop.
     // The reader retains ownership until the inspection returns.
@@ -961,6 +1022,7 @@ public sealed class ViewerWindow : Window
         // Its pages count against the shared content budget until it is disposed.
         old?.Dispose();
         _lastHit = -1;
+        if (_isInfo) ScheduleFind();
     }
 
     public string InfoText => _infoText;
@@ -996,6 +1058,7 @@ public sealed class ViewerWindow : Window
         FocusContent();
         UpdateStatus();
         UpdateCopyActions();
+        ScheduleFind();
     }
 
     private void FocusContent()
@@ -1051,6 +1114,7 @@ public sealed class ViewerWindow : Window
         if (focus && _findBar.IsVisible)
         {
             _search.Focus();
+            if (_isPage) _pageView.ReturnKeyboardToViewer();
             _search.SelectAll();
         }
     }
@@ -1074,17 +1138,31 @@ public sealed class ViewerWindow : Window
         UpdateRefreshFeedback();
         if (_isPicture)
         {
+            if (_isPdf)
+            {
+                _status.Text = _picture.Picture is { } pdf
+                    ? $"{pdf.Format} · page {_pdfPage + 1:N0} of {pdf.Frames:N0} · " +
+                      $"{pdf.Width:N0} × {pdf.Height:N0} points · " +
+                      $"{(_picture.Fit ? "fitted, " : "")}{_picture.Zoom * 100:0}% · " +
+                      Formatters.ExactSize(_reader.Length) + " · Page Up/Down changes page; F4 shows bytes"
+                    : $"PDF page {_pdfPage + 1:N0} · {Formatters.ExactSize(_reader.Length)}";
+                if (_pictureGeneration != _sourceGeneration)
+                    _status.Text = "The file changed; Refresh (F5) to update this PDF. " + _status.Text;
+                return;
+            }
             _status.Text = _picture.Picture is { } p
                 ? $"{p.Format} · {p.Width:N0} × {p.Height:N0} pixels · {(_picture.Fit ? "fitted, " : "")}{_picture.Zoom * 100:0}%" +
                   (p.Frames > 1 ? $" · animated, {p.Frames:N0} frames: the first is shown" : "") +
                   (p.Incomplete ? " · the file ends early: the rest of the picture is blank" : "") +
                   $" · {Formatters.ExactSize(_reader.Length)}" +
+                  (BrowseContext is not null ? " · Space next; Backspace previous" : string.Empty) +
                   (p.Bitmap.PixelSize.Width < p.Width || p.Bitmap.PixelSize.Height < p.Height
                       ? $" · detail limited: decoded to {p.Bitmap.PixelSize.Width:N0} × {p.Bitmap.PixelSize.Height:N0} pixels ({PictureSide:N0}-pixel side cap)"
                       : string.Empty)
                 : Formatters.ExactSize(_reader.Length);
             if (_pictureGeneration != _sourceGeneration)
                 _status.Text = "The file changed; Refresh (F5) to update this picture. " + _status.Text;
+            if (_pictureBrowseFeedback is { } feedback) _status.Text += " · " + feedback;
             return;
         }
         if (_isInfo)
@@ -1092,6 +1170,7 @@ public sealed class ViewerWindow : Window
             _status.Text = $"The file's structure: {_infoLineCount.ToString("N0", CultureInfo.CurrentCulture)} lines · Ctrl+F finds in it · F4 shows the bytes · {Formatters.ExactSize(_reader.Length)}";
             if (_infoGeneration != _sourceGeneration)
                 _status.Text = "The file changed; Refresh (F5) to update this structure report. " + _status.Text;
+            else if (_wrapNotice.IsVisible) _status.Text = _wrapNotice.Text + " · " + _status.Text;
             return;
         }
         if (_isPage)
@@ -1107,6 +1186,7 @@ public sealed class ViewerWindow : Window
                 _status.Text = "The file changed; Refresh (F5) to update this page. " + _status.Text;
             else if (_pageSearchStatus is { } searchStatus)
                 _status.Text = searchStatus + " · " + _status.Text;
+            else if (_wrapNotice.IsVisible) _status.Text = _wrapNotice.Text + " · " + _status.Text;
             return;
         }
         long len = _reader.Length;
@@ -1116,6 +1196,7 @@ public sealed class ViewerWindow : Window
         _status.Text = (_reader.ReadError is { } error ? "Not all of the content could be read: " + error + " · " : string.Empty) +
                        $"{Formatters.ExactSize(len)} · offset 0x{pos:X} ({pos.ToString("N0", CultureInfo.CurrentCulture)}) · {pct:0.#}%" +
                        (_isHex && sel.Length > 1 ? $" · selected {sel.Length.ToString("N0", CultureInfo.CurrentCulture)} bytes" : string.Empty);
+        if (_wrapNotice.IsVisible) _status.Text = _wrapNotice.Text + " · " + _status.Text;
     }
 
     private async Task CheckForChanges()
@@ -1177,9 +1258,11 @@ public sealed class ViewerWindow : Window
     }
 
     /// <summary>Reopens the exact provider item and prepares its visible snapshot before retiring the old source.</summary>
-    internal async Task RefreshAsync()
+    internal async Task RefreshAsync(Func<CancellationToken, Task<IContentSource?>>? replacementReopen = null,
+        string? replacementName = null)
     {
-        if (_reopen is null)
+        var reopen = replacementReopen ?? _reopen;
+        if (reopen is null)
         {
             _status.Text = "This source cannot be reopened here; open it again from its provider to refresh.";
             return;
@@ -1194,16 +1277,18 @@ public sealed class ViewerWindow : Window
         var oldReader = _reader;
         long oldGeneration = _sourceGeneration;
         bool pictureMode = _isPicture, infoMode = _isInfo, pageMode = _isPage, hexMode = _isHex;
+        int refreshedPdfPage = _pdfPage;
         IContentSource? opened = null;
         PagedReader? prepared = null;
         DecodedPicture? decoded = null;
         bool replacementPageShown = false;
         HtmlPage? previousPage = _htmlPage;
+        (double X, double Y)? pagePosition = null;
         try
         {
             if (pageMode && !_pageView.PageLoaded)
                 throw new InvalidOperationException("Wait for the current page to finish loading before refreshing");
-            opened = await _reopen(ct) ?? throw new IOException("This provider cannot reopen the selected item");
+            opened = await reopen(ct) ?? throw new IOException("This provider cannot reopen the selected item");
             // Provider metadata may touch a remote device. Keep it off the UI thread and await
             // completion even after close, so the source cannot be disposed under an active call.
             var admitted = opened;
@@ -1222,13 +1307,40 @@ public sealed class ViewerWindow : Window
             HtmlPage? page = null;
             if (pictureMode)
             {
-                if (PictureDecoder.Recognize(prefix) is null)
-                    throw new InvalidDataException("The new version is not a supported picture");
-                decoded = await PictureDecoder.DecodeAsync(reader, _services.Io, _deviceKey, PictureSide, ct);
+                if (_isPdf)
+                {
+                    if (!IsPdf(prefix)) throw new InvalidDataException("The new version is not a PDF");
+                    try { decoded = await PictureDecoder.DecodePdfAsync(reader, _services.Io, _deviceKey, refreshedPdfPage, PictureSide, ct); }
+                    catch (InvalidDataException) when (refreshedPdfPage > 0)
+                    {
+                        decoded = await PictureDecoder.DecodePdfAsync(reader, _services.Io, _deviceKey, 0, PictureSide, ct);
+                        refreshedPdfPage = 0;
+                    }
+                }
+                else
+                {
+                    if (PictureDecoder.Recognize(prefix) is null)
+                        throw new InvalidDataException("The new version is not a supported picture");
+                    decoded = await PictureDecoder.DecodeAsync(reader, _services.Io, _deviceKey, PictureSide, ct);
+                }
             }
             else if (infoMode)
             {
-                report = await Task.Run(() =>
+                if (_isPdf && IsPdf(prefix))
+                {
+                    DecodedPicture pdf;
+                    try { pdf = await PictureDecoder.DecodePdfAsync(reader, _services.Io, _deviceKey,
+                        refreshedPdfPage, PictureSide, ct); }
+                    catch (InvalidDataException) when (refreshedPdfPage > 0)
+                    {
+                        pdf = await PictureDecoder.DecodePdfAsync(reader, _services.Io, _deviceKey,
+                            0, PictureSide, ct);
+                        refreshedPdfPage = 0;
+                    }
+                    try { report = PdfInfoText(pdf, reader.Length, refreshedPdfPage); }
+                    finally { pdf.Bitmap.Dispose(); }
+                }
+                else report = await Task.Run(() =>
                 {
                     string result = "";
                     reader.WithSource(source =>
@@ -1260,12 +1372,15 @@ public sealed class ViewerWindow : Window
 
             if (page is not null)
             {
-                await LoadReplacementPageAsync(page, ct);
+                pagePosition = await _pageView.CaptureScrollPositionAsync(ct);
+                await LoadReplacementPageAsync(page, pagePosition, ct);
                 replacementPageShown = true;
             }
             ct.ThrowIfCancellationRequested();
             if (page is not null && await _services.Io.Run(_deviceKey, IoPriority.Interactive, token => reader.Refresh(token), ct))
                 throw new IOException("The page changed again while it was loading");
+            if (pagePosition is { } position)
+                await _pageView.RestoreScrollPositionAsync(position, ct);
 
             long textTop = _text.TopOffset, infoTop = _info.TopOffset, hexCursor = _hex.CursorOffset;
             var textSelection = _text.HasSelection ? _text.Selection : (Start: 0L, Length: 0L);
@@ -1284,6 +1399,12 @@ public sealed class ViewerWindow : Window
             prepared = null;
             _reader.PageLoaded += OnContentPageLoaded;
             _sourceGeneration++;
+            if (replacementName is not null)
+            {
+                _displayName = replacementName;
+                _reopen = reopen;
+                Title = $"{Path.GetFileName(replacementName.TrimEnd('\\', '/'))} — FileCat Viewer";
+            }
             var previousGuess = _guess;
             var chosenEncoding = _text.Encoding.WebName == previousGuess.Encoding.WebName ? guess.Encoding : _text.Encoding;
             _guess = guess;
@@ -1301,18 +1422,25 @@ public sealed class ViewerWindow : Window
             if (sameRevision && hexSelection.Length > 0)
                 _hex.GoTo(hexSelection.Start, select: true, length: hexSelection.Length);
             else _hex.GoTo(hexCursor);
-            _modePicture.IsVisible = PictureDecoder.Recognize(prefix) is not null;
+            _isPdf = IsPdf(prefix);
+            _pdfPage = _isPdf ? refreshedPdfPage : 0;
+            _modePicture.Content = _isPdf ? "PDF" : "Picture";
+            _modePicture.IsVisible = _isPdf || PictureDecoder.Recognize(prefix) is not null;
             _modePage.IsVisible = HtmlPage.IsHtml(_displayName, prefix) || Markdown.IsMarkdown(_displayName);
             if (pictureMode && decoded is not null)
             {
-                _picture.ReplacePreservingView(decoded);
+                if (replacementName is null) _picture.ReplacePreservingView(decoded);
+                else _picture.Show(decoded); // a new photo starts fitted, without the previous photo's pan
                 decoded = null;
+                _pictureDisplayedPdfPage = _isPdf ? _pdfPage : -1;
                 _pictureGeneration = _sourceGeneration;
                 _pictureLoad = Task.CompletedTask;
+                UpdatePdfPageControls();
             }
             else
             {
                 _picture.Clear();
+                _pictureDisplayedPdfPage = -1;
                 _pictureLoad = null;
             }
             if (infoMode && report is not null)
@@ -1336,6 +1464,9 @@ public sealed class ViewerWindow : Window
             oldReader.Dispose(); // active source calls retire through PagedReader's ownership gate
             UpdateStatus();
             FocusContent();
+            // Refresh changes the bytes under a retained query. Re-evaluate it on the
+            // published reader so the count and border describe this version.
+            if (_findOpen) ScheduleFind();
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested || _closing.IsCancellationRequested) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or
@@ -1350,7 +1481,7 @@ public sealed class ViewerWindow : Window
         finally
         {
             if (replacementPageShown && prepared is not null && previousPage is not null && !_closing.IsCancellationRequested)
-                _pageView.Show(previousPage);
+                RestorePreviousPage(previousPage, pagePosition);
             decoded?.Bitmap.Dispose();
             prepared?.Dispose();
             opened?.Dispose();
@@ -1360,7 +1491,45 @@ public sealed class ViewerWindow : Window
         }
     }
 
-    private async Task LoadReplacementPageAsync(HtmlPage next, CancellationToken ct)
+    /// <summary>Space and Backspace follow the source panel's visible picture order without creating another window.</summary>
+    private async Task StepPictureAsync(int direction)
+    {
+        if (BrowseContext is null)
+        {
+            _pictureBrowseFeedback = "Open a picture from a file panel to browse its folder with Space.";
+            UpdateStatus();
+            return;
+        }
+        if (_refreshing || _closing.IsCancellationRequested) return;
+        if (!_readyForRefresh)
+        {
+            _pictureBrowseFeedback = "Wait for the current picture to finish loading, then browse the folder.";
+            UpdateStatus();
+            return;
+        }
+        var next = BrowseContext.Step(direction, out var reason);
+        if (next is null)
+        {
+            _pictureBrowseFeedback = reason;
+            UpdateStatus();
+            return;
+        }
+        _pictureBrowseFeedback = null;
+        var provider = _services.Providers.For(next.Parent);
+        Task<IContentSource?> Reopen(CancellationToken ct) => ViewerLauncher.ReopenSourceAsync(
+            _services, _deviceKey, () => provider.OpenContent(next), ct);
+        var name = next.FileSystemPath ?? _services.Providers.Display(next.Parent).TrimEnd('\\', '/') + "/" + next.Name;
+        long previousGeneration = _sourceGeneration;
+        await RefreshAsync(Reopen, name);
+        if (!_closing.IsCancellationRequested && previousGeneration == _sourceGeneration)
+        {
+            _pictureBrowseFeedback = $"Could not show {Formatters.SafeName(next.Name)}. The current picture remains; " +
+                (direction > 0 ? "Space tries the following picture." : "Backspace tries the preceding picture.");
+            UpdateStatus();
+        }
+    }
+
+    private async Task LoadReplacementPageAsync(HtmlPage next, (double X, double Y)? previousPosition, CancellationToken ct)
     {
         var previous = _htmlPage ?? throw new InvalidOperationException("The current page is not ready");
         var completion = new TaskCompletionSource<(bool Ok, string? Why)>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1380,14 +1549,46 @@ public sealed class ViewerWindow : Window
         }
         catch
         {
-            if (!_closing.IsCancellationRequested) _pageView.Show(previous);
+            if (!_closing.IsCancellationRequested) RestorePreviousPage(previous, previousPosition);
             throw;
         }
         finally { _pageView.LoadCompleted -= Completed; }
     }
 
+    private void RestorePreviousPage(HtmlPage previous, (double X, double Y)? position)
+    {
+        if (_pendingPagePositionRestore is { } pending)
+            _pageView.LoadCompleted -= pending;
+        _pendingPagePositionRestore = null;
+        if (position is { } anchor)
+        {
+            void Loaded(bool ok, string? why)
+            {
+                _pageView.LoadCompleted -= Loaded;
+                _pendingPagePositionRestore = null;
+                if (ok && !_closing.IsCancellationRequested && ReferenceEquals(_htmlPage, previous))
+                    _ = RestorePreviousPagePositionAsync(anchor);
+            }
+            _pendingPagePositionRestore = Loaded;
+            _pageView.LoadCompleted += Loaded;
+        }
+        _pageView.Show(previous);
+    }
+
+    private async Task RestorePreviousPagePositionAsync((double X, double Y) position)
+    {
+        try { await _pageView.RestoreScrollPositionAsync(position, _closing.Token); }
+        catch (OperationCanceledException) { }
+    }
+
     private async void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
+        if (_linkedMarkdownReviewOpen && _dialogs.IsOpen && e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None)
+        {
+            e.Handled = true;
+            _dialogs.CancelAll();
+            return;
+        }
         if (_dialogs.IsOpen) return;
         bool ctrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
@@ -1409,6 +1610,15 @@ public sealed class ViewerWindow : Window
             else if (_countCts is not null) _countCts.Cancel();
             else if (_checksumCts is not null) _checksumCts.Cancel();
             else _copyCts?.Cancel();
+            e.Handled = true;
+            return;
+        }
+        if (e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None && _findOpen &&
+            focused is Visual findControl && _findBar.IsVisualAncestorOf(findControl))
+        {
+            _findTimer.Stop();
+            SetFindOpen(false);
+            FocusContent();
             e.Handled = true;
             return;
         }
@@ -1440,6 +1650,20 @@ public sealed class ViewerWindow : Window
             case Key.Z when e.KeyModifiers == KeyModifiers.None && _isPicture:
                 if (_picture.Fit || Math.Abs(_picture.Zoom - 1) > 0.001) _picture.ShowActualSize();
                 else _picture.Fit = true;
+                break;
+            case Key.Space when e.KeyModifiers == KeyModifiers.None && _isPicture && !_isPdf &&
+                                focused is not (Button or ToggleButton or TextBox or ComboBox):
+                await StepPictureAsync(1);
+                break;
+            case Key.Back when e.KeyModifiers == KeyModifiers.None && _isPicture && !_isPdf &&
+                               focused is not (Button or ToggleButton or TextBox or ComboBox):
+                await StepPictureAsync(-1);
+                break;
+            case Key.PageDown when _isPdf && _isPicture:
+                ChangePdfPage(1);
+                break;
+            case Key.PageUp when _isPdf && _isPicture:
+                ChangePdfPage(-1);
                 break;
             case Key.I when e.KeyModifiers == KeyModifiers.Control:
                 _ = ShowInfoAsync();
@@ -1494,8 +1718,19 @@ public sealed class ViewerWindow : Window
         if (HexEditorWindow.OpenOrActivate(_services, _reader.Source.LocalPath!, offset) is { } error) _status.Text = error;
     }
 
-    private async Task FindAsync(bool forward)
+    private void ScheduleFind()
     {
+        _findTimer.Stop();
+        if (!_closing.IsCancellationRequested && !_isPicture && !string.IsNullOrEmpty(_search.Text))
+            _findTimer.Start();
+    }
+
+    private Task FindAsync(bool forward) => FindCoreAsync(forward, automatic: false);
+
+    private async Task FindCoreAsync(bool forward, bool automatic)
+    {
+        _findTimer.Stop();
+        ClearWrapNotice();
         if (_closing.IsCancellationRequested) return;
         var pattern = _search.Text ?? string.Empty;
         if (pattern.Length == 0)
@@ -1505,7 +1740,7 @@ public sealed class ViewerWindow : Window
         }
         if (_isPage)
         {
-            await FindPageAsync(pattern, forward);
+            await FindPageAsync(pattern, forward, automatic);
             return;
         }
         _searchCts?.Cancel();
@@ -1525,7 +1760,7 @@ public sealed class ViewerWindow : Window
         bool matchCase = _matchCase.IsChecked == true;
         var identity = new SearchIdentity(pattern, hexMode, enc.CodePage, matchCase, reader, _isHex && !info);
         bool continuing = _lastHit >= 0 && _lastSearch == identity;
-        long from = continuing ? (forward ? _lastHit + (hexMode ? 1 : TextDecoding.UnitSize(enc)) : _lastHit)
+        long from = automatic ? 0 : continuing ? (forward ? _lastHit + (hexMode ? 1 : TextDecoding.UnitSize(enc)) : _lastHit)
             : info ? _info.TopOffset : _isHex ? _hex.CursorOffset : _text.TopOffset;
         using var cts = _searchCts = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         var ct = cts.Token;
@@ -1534,24 +1769,35 @@ public sealed class ViewerWindow : Window
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_status, Avalonia.Automation.AutomationLiveSetting.Off);
         _status.Text = $"Searching {(forward ? "forward" : "backward")} from 0x{from:X}… (Esc stops)";
         long found;
+        bool wrapped, searchedWhole;
         try
         {
-            found = await Task.Run(() =>
+            (found, wrapped, searchedWhole) = await Task.Run(() =>
             {
-                if (bytes is not null)
-                    return forward ? ContentSearch.FindBytes(reader, from, bytes, ct) : ContentSearch.FindBytesBackward(reader, from, bytes, ct);
-                if (!forward) return ContentSearch.FindTextBackward(reader, enc, from, pattern, matchCase, ct);
-                return ContentSearch.FindText(reader, enc, from, pattern, matchCase, ct);
+                long SearchAt(long offset) => bytes is not null
+                    ? forward ? ContentSearch.FindBytes(reader, offset, bytes, ct)
+                        : ContentSearch.FindBytesBackward(reader, offset, bytes, ct)
+                    : forward ? ContentSearch.FindText(reader, enc, offset, pattern, matchCase, ct)
+                        : ContentSearch.FindTextBackward(reader, enc, offset, pattern, matchCase, ct);
+                long first = SearchAt(from);
+                if (first >= 0) return (first, false, false);
+                if (automatic || forward && from <= 0 || !forward && from >= reader.Length)
+                    return (-1L, false, true);
+                long around = SearchAt(forward ? 0 : reader.Length);
+                return (around, around >= 0, true);
             }, ct);
             if (_closing.IsCancellationRequested || !ReferenceEquals(_searchCts, cts)) return;
             ct.ThrowIfCancellationRequested();
             if (found < 0)
             {
-                ShowSearchOutcome($"\"{pattern}\" was not found {(forward ? "after" : "before")} this position.");
+                ShowSearchOutcome(searchedWhole ? $"\"{pattern}\" was not found in this file."
+                    : $"\"{pattern}\" was not found {(forward ? "after" : "before")} this position.",
+                    announce: !automatic);
                 EnsureMatchCount(identity, reader, bytes, enc, matchCase);
                 return;
             }
             _lastHit = found;
+            _knownMatch = true;
             _lastSearch = identity;
             _lastHitLength = bytes?.Length ?? Math.Max(1, enc.GetByteCount(pattern));
             view.SetHighlight(bytes is null ? pattern : null, matchCase);
@@ -1567,6 +1813,11 @@ public sealed class ViewerWindow : Window
             }
             finally { _revealingSearch = false; }
             UpdateStatus();
+            if (wrapped)
+            {
+                SetWrapNotice($"Wrapped to {(forward ? "the beginning" : "the end")}. Found \"{pattern}\".");
+                ShowSearchOutcome(_wrapNotice.Text!);
+            }
             EnsureMatchCount(identity, reader, bytes, enc, matchCase);
         }
         catch (OperationCanceledException)
@@ -1593,15 +1844,28 @@ public sealed class ViewerWindow : Window
         }
     }
 
-    private void ShowSearchOutcome(string message)
+    private void ShowSearchOutcome(string message, bool announce = true)
     {
         // The visible status text is also its accessible name. A fixed AutomationProperties.Name
         // would suppress the name-change event used by screen readers for live announcements.
-        Avalonia.Automation.AutomationProperties.SetLiveSetting(_status, Avalonia.Automation.AutomationLiveSetting.Polite);
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_status, announce
+            ? Avalonia.Automation.AutomationLiveSetting.Polite : Avalonia.Automation.AutomationLiveSetting.Off);
         _status.Text = message;
     }
 
-    private async Task FindPageAsync(string pattern, bool forward)
+    private void SetWrapNotice(string message)
+    {
+        _wrapNotice.Text = message;
+        _wrapNotice.IsVisible = true;
+    }
+
+    private void ClearWrapNotice()
+    {
+        _wrapNotice.Text = null;
+        _wrapNotice.IsVisible = false;
+    }
+
+    private async Task FindPageAsync(string pattern, bool forward, bool automatic)
     {
         _searchCts?.Cancel();
         _searchCts = null;
@@ -1624,23 +1888,41 @@ public sealed class ViewerWindow : Window
         UpdateStatus();
         try
         {
-            PageFindResult? result = await _pageView.FindAsync(pattern, _matchCase.IsChecked == true, forward, cts.Token);
+            PageFindResult? result = await _pageView.FindAsync(pattern, _matchCase.IsChecked == true, forward,
+                cts.Token, wrap: automatic);
+            bool wrapped = false, searchedWhole = automatic;
+            if (!automatic && result is { Found: false } &&
+                result is not { MatchCount: 0, CountComplete: true })
+            {
+                PageFindResult? around = await _pageView.FindAsync(pattern, _matchCase.IsChecked == true, forward,
+                    cts.Token, wrap: true);
+                if (around is not null)
+                {
+                    result = around;
+                    wrapped = around.Value.Found;
+                    searchedWhole = true;
+                }
+            }
             if (_closing.IsCancellationRequested || !ReferenceEquals(_searchCts, cts) || !_isPage ||
                 !ReferenceEquals(page, _htmlPage) || generation != _sourceGeneration) return;
             _pageSearchStatus = result switch
             {
+                { Found: true } when wrapped => $"Wrapped to {(forward ? "the page start" : "the page end")}. Found \"{pattern}\".",
                 { Found: true } => $"Found \"{pattern}\" in the page.",
-                { Found: false } => $"\"{pattern}\" was not found in this page.",
+                { Found: false } when searchedWhole => $"\"{pattern}\" was not found in this page.",
+                { Found: false } => $"No {(forward ? "later" : "earlier")} match; wrapping was unavailable.",
                 null => _pageView.PageLoaded ? "Page search is unavailable in this browser engine." : "The page is still loading; try search again.",
             };
+            if (wrapped) SetWrapNotice(_pageSearchStatus);
             _pageTriedFind = result is not null;
             _pageFindUnavailable = result is null;
             _pageFoundMatch |= result?.Found == true;
+            if (searchedWhole) _pageWholePageNoMatch = result is { Found: false, MatchCount: null or 0 };
             if (result is { MatchCount: not null }) _pageCountResult = result;
             UpdateMatchControls();
             UpdateStatus();
             // A page does not tell which match is selected: Next and Previous speak each outcome (Orca heard nothing).
-            ShowSearchOutcome(_pageSearchStatus);
+            ShowSearchOutcome(_pageSearchStatus, announce: !automatic);
         }
         catch (OperationCanceledException)
         {
@@ -1663,6 +1945,7 @@ public sealed class ViewerWindow : Window
 
     private void InvalidateSearch(bool keepCount = false)
     {
+        _findTimer.Stop();
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_status, Avalonia.Automation.AutomationLiveSetting.Off);
         if (_isPage) _pageView.ClearFind();
         _searchCts?.Cancel();
@@ -1671,6 +1954,7 @@ public sealed class ViewerWindow : Window
         _lastHit = -1;
         _lastSearch = null;
         _pageSearchStatus = null;
+        if (!keepCount) ClearWrapNotice();
         if (!keepCount)
         {
             _countCts?.Cancel();
@@ -1679,8 +1963,10 @@ public sealed class ViewerWindow : Window
             _countResult = null;
             _countFailed = false;
             _countCanceled = false;
+            _knownMatch = false;
             _pageTriedFind = false;
             _pageFoundMatch = false;
+            _pageWholePageNoMatch = false;
             _pageFindUnavailable = false;
             _pageCountResult = null;
             _stopCount.IsVisible = false;
@@ -1746,6 +2032,18 @@ public sealed class ViewerWindow : Window
 
     private void UpdateMatchControls()
     {
+        bool? feedback = null;
+        if (!string.IsNullOrEmpty(_search.Text) && !_isPicture)
+        {
+            if (_isPage)
+            {
+                if (_pageFoundMatch || _pageCountResult is { MatchCount: > 0 }) feedback = true;
+                else if (_pageCountResult is { MatchCount: 0, CountComplete: true } || _pageWholePageNoMatch) feedback = false;
+            }
+            else if (_knownMatch || _countResult is { Matches: > 0 }) feedback = true;
+            else if (_countResult is { Matches: 0, Complete: true }) feedback = false;
+        }
+        ViewerSearchFeedback.Set(_search, feedback);
         _stopCount.IsVisible = _countCts is not null && !_isPicture && !_isPage;
         if (_countResult is null)
         {
@@ -1762,10 +2060,11 @@ public sealed class ViewerWindow : Window
         }
         if (_isPage)
         {
-            bool found = _pageCountResult is not null || _pageFoundMatch;
+            bool found = _pageCountResult is { MatchCount: > 0 } || _pageFoundMatch;
             ShowMatchCount(_pageCountResult is { MatchCount: { } total } pageCount
                 ? pageCount.CountComplete ? $"{total:N0} {(total == 1 ? "match" : "matches")}" : $"At least {total:N0} matches · count limited"
                 : _pageFoundMatch ? "At least 1 match · total unavailable in Page mode"
+                : _pageWholePageNoMatch ? "0 matches in page"
                 : _searchCts is not null ? "Searching page…"
                 : _pageFindUnavailable ? "Page search or count unavailable"
                 : _pageTriedFind ? "0 matches from here · total unavailable in Page mode"
@@ -2241,13 +2540,22 @@ public sealed class ViewerWindow : Window
 public static class ViewerLauncher
 {
     /// <summary>Admits initial metadata off the UI thread; transfers the source to a shown window or disposes it on failure.</summary>
-    public static async Task Open(AppServices services, ItemRef item, IContentSource source, bool hex)
+    public static Task Open(AppServices services, ItemRef item, IContentSource source, bool hex) =>
+        OpenCore(services, item, source, hex, null);
+
+    /// <summary>Open from a panel with its current order available for same-window picture browsing.</summary>
+    public static Task OpenWithBrowsing(AppServices services, ItemRef item, IContentSource source, bool hex, TabViewModel tab) =>
+        OpenCore(services, item, source, hex, tab);
+
+    private static async Task OpenCore(AppServices services, ItemRef item, IContentSource source, bool hex, TabViewModel? tab)
     {
+        ProviderReadLease? readLease = null;
         PagedReader? reader = null;
         ViewerWindow? window = null;
         bool transferred = false;
         try
         {
+            readLease = ProviderReadLease.Capture(services.Providers, [item.Parent]);
             var name = item.FileSystemPath ?? services.Providers.Display(item.Parent).TrimEnd('\\', '/') + "/" + item.Name;
             string deviceKey = services.Providers.For(item.Parent).GetDeviceKey(item.Parent);
             reader = await services.Io.Run(deviceKey, IoPriority.Interactive, _ => new PagedReader(source, services.Io, deviceKey));
@@ -2255,17 +2563,26 @@ public static class ViewerLauncher
             var provider = services.Providers.For(item.Parent);
             Task<IContentSource?> Reopen(CancellationToken ct) => ReopenProviderAsync(services, provider, item, deviceKey, ct);
             window = new ViewerWindow(services, source, name, hex, deviceKey, reader, Reopen);
+            var keptReadLease = readLease;
+            window.Closed += (_, _) => keptReadLease?.Dispose();
+            if (tab is not null && item.Kind == EntryKind.File && PictureBrowseContext.IsPictureName(item.Name))
+                window.BrowseContext = new PictureBrowseContext(tab, item);
             window.Show();
             transferred = true;
+            readLease = null;
         }
         finally
         {
-            if (!transferred)
+            try
             {
-                window?.Close();
-                if (reader is not null) reader.Dispose();
-                else source.Dispose();
+                if (!transferred)
+                {
+                    window?.Close();
+                    if (reader is not null) reader.Dispose();
+                    else source.Dispose();
+                }
             }
+            finally { readLease?.Dispose(); }
         }
     }
 

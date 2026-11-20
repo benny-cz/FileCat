@@ -1,0 +1,28 @@
+  FileCat.Core -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\bin\Debug\net10.0\FileCat.Core.dll
+  FileCat.Recovery -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Recovery\bin\Debug\net10.0\FileCat.Recovery.dll
+  FileCat.Platform.Windows -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Platform.Windows\bin\Debug\net10.0\FileCat.Platform.Windows.dll
+  FileCat.Remote -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Remote\bin\Debug\net10.0\FileCat.Remote.dll
+  FileCat.Archives.Rar15 -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives.Rar15\bin\Debug\net10.0\FileCat.Archives.Rar15.dll
+  FileCat.SharpCompress -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\ThirdParty\SharpCompress\bin\Debug\net10.0\FileCat.SharpCompress.dll
+  FileCat.Archives -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives\bin\Debug\net10.0\FileCat.Archives.dll
+  FileCat.ShellHost -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.ShellHost\bin\Debug\net10.0\FileCat.ShellHost.dll
+  FileCat.App -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\bin\Debug\net10.0\FileCat.dll
+  FileCat.PrivilegedHost -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.PrivilegedHost\bin\Debug\net10.0\FileCat.PrivilegedHost.dll
+  Native bootstrap built: 229 reported headers, 11 searched libraries, 7 reported tool components.
+  FileCat.App.Tests -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.App.Tests\bin\Debug\net10.0\FileCat.App.Tests.dll
+  FileCat.CoreCrashHarness -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.CoreCrashHarness\bin\Debug\net10.0\FileCat.CoreCrashHarness.dll
+E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisInventoryStageTests.Dataset.cs(18,23): error CS1729: 'AnalysisIssue' does not contain a constructor that takes 4 arguments [E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\FileCat.Core.Tests.csproj]
+  FileCat.NativeAcceptance -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.NativeAcceptance\bin\Debug\net10.0\FileCat.NativeAcceptance.dll
+  FileCat.WorkerProbe -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.WorkerProbe\bin\Debug\net10.0\FileCat.WorkerProbe.dll
+  FileCat.Platform.Windows.Tests -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Platform.Windows.Tests\bin\Debug\net10.0\FileCat.Platform.Windows.Tests.dll
+  FileCat.RemoteCrashHarness -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.RemoteCrashHarness\bin\Debug\net10.0\FileCat.RemoteCrashHarness.dll
+  FileCat.Remote.Tests -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Remote.Tests\bin\Debug\net10.0\FileCat.Remote.Tests.dll
+  FileCat.Rendering.Tests -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\bin\Debug\net10.0\FileCat.Rendering.Tests.dll
+
+Build FAILED.
+
+E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisInventoryStageTests.Dataset.cs(18,23): error CS1729: 'AnalysisIssue' does not contain a constructor that takes 4 arguments [E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\FileCat.Core.Tests.csproj]
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:03:12.46

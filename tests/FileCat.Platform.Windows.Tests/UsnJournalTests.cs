@@ -1,4 +1,5 @@
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 
 namespace FileCat.Platform.Windows.Tests;
 
@@ -13,16 +14,34 @@ public sealed class UsnJournalTests
     }
 
     [Fact]
+    public async Task The_journal_requests_administrator_review_at_medium_integrity()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || WindowsTokenAuthority.IsHighIntegrity,
+            "Requires an ordinary Windows process.");
+        var provider = new UsnJournalProvider();
+        var location = UsnJournalProvider.Of(Path.GetPathRoot(Path.GetTempPath())!);
+        var sink = new ListSink();
+
+        var refusal = await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            provider.EnumerateAsync(location, sink, TestContext.Current.CancellationToken));
+
+        Assert.Contains("Change journal of this drive", refusal.Message, StringComparison.Ordinal);
+        Assert.Empty(sink.Entries);
+    }
+
+    [Fact]
     public async Task The_journal_lists_an_item_made_and_renamed_with_its_folder_and_finds_it_where_it_is()
     {
-        if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) Assert.Skip("Reading the change journal needs Windows and administrator rights.");
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || !WindowsTokenAuthority.IsHighIntegrity,
+            "Reading the change journal requires a high-integrity Windows process.");
         string dir = Path.Combine(Path.GetTempPath(), "filecat-journal-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
-            if (UsnJournalProvider.WhyNot(dir) is { } why)
+            var (location, problem) = UsnJournalProvider.Resolve(dir);
+            if (location is null)
             {
-                Assert.Skip(why);
+                Assert.Skip(problem!);
                 return;
             }
             string name = "journal-" + Guid.NewGuid().ToString("N")[..8] + ".txt";
@@ -31,7 +50,10 @@ public sealed class UsnJournalTests
             string renamed = Path.ChangeExtension(file, ".log");
             File.Move(file, renamed);
             var provider = new UsnJournalProvider();
-            var location = UsnJournalProvider.ForPath(dir);
+            Assert.StartsWith(@"\\?\Volume{", location.Session);
+            var changed = new Location(location.Scheme, location.Path, session: @"\\?\Volume{00000000-0000-0000-0000-000000000000}");
+            var refused = await Assert.ThrowsAsync<IOException>(() => provider.EnumerateAsync(changed, new ListSink(), TestContext.Current.CancellationToken));
+            Assert.Contains("changed", refused.Message, StringComparison.Ordinal);
             Assert.Equal($"{Path.GetPathRoot(dir)!.ToUpperInvariant()} › change journal", provider.GetDisplayPath(location).Replace("c:", "C:", StringComparison.Ordinal));
             var sink = new ListSink();
             try

@@ -1,0 +1,126 @@
+{
+  "sources": [
+    {
+      "file": "rardecode-tag.json",
+      "url": "https://api.github.com/repos/nwaples/rardecode/git/ref/tags/v2.4.5",
+      "bytes": 343,
+      "sha256": "814eb81e17be3dc384e7c5a32ed4303de2e8a5b7edab23e3c1b11dbf21958115"
+    },
+    {
+      "file": "rardecode-LICENSE",
+      "url": "https://raw.githubusercontent.com/nwaples/rardecode/ad22ba91a2ab0d3ff6bca20cd978b33ee78faab1/LICENSE",
+      "bytes": 1298,
+      "sha256": "a853785796b4bd072bbc63afd3a510c8918198b4f778351b5a6ed71a3448f1e1"
+    },
+    {
+      "file": "rardecode-decode50.go",
+      "url": "https://raw.githubusercontent.com/nwaples/rardecode/ad22ba91a2ab0d3ff6bca20cd978b33ee78faab1/decode50.go",
+      "bytes": 6673,
+      "sha256": "3d817e71da716c1b02a1e54094f14822fa273bd3e8069a47b72d4ea84c6d4f1c"
+    },
+    {
+      "file": "rardecode-huffman.go",
+      "url": "https://raw.githubusercontent.com/nwaples/rardecode/ad22ba91a2ab0d3ff6bca20cd978b33ee78faab1/huffman.go",
+      "bytes": 4034,
+      "sha256": "86e72132824a142270e96472ff642143a0c9ed9b32b10b7e3c581dd2251d6975"
+    },
+    {
+      "file": "rardecode-bit_reader.go",
+      "url": "https://raw.githubusercontent.com/nwaples/rardecode/ad22ba91a2ab0d3ff6bca20cd978b33ee78faab1/bit_reader.go",
+      "bytes": 3647,
+      "sha256": "2460e33dad1d7f98048ec32ec3331374cca68c764c0d052a69be9e749f1a6e69"
+    },
+    {
+      "file": "rardecode-README.md",
+      "url": "https://raw.githubusercontent.com/nwaples/rardecode/ad22ba91a2ab0d3ff6bca20cd978b33ee78faab1/README.md",
+      "bytes": 333,
+      "sha256": "b278b86232aa53b184a9ccc97ee0e589331bbd81155ebedefc97391fa27d3b5a"
+    },
+    {
+      "file": "libarchive-tag.json",
+      "url": "https://api.github.com/repos/libarchive/libarchive/git/ref/tags/v3.8.3",
+      "bytes": 341,
+      "sha256": "23885c1ccb63c82c18f35b10c13dd29e9990afe40a026dbdb1e93b8fd1ce6e8b"
+    },
+    {
+      "file": "libarchive-tag-object-0.json",
+      "url": "https://api.github.com/repos/libarchive/libarchive/git/tags/86cd6dd984faea4c0f65765046bec8dd3e6903ce",
+      "bytes": 2536,
+      "sha256": "d5e5cc6e7e9955d849108b9540e7e492ddf9cde07b2fb74f980a0170377a9a1e"
+    },
+    {
+      "file": "libarchive-COPYING",
+      "url": "https://raw.githubusercontent.com/libarchive/libarchive/1368b08875351df8aa268237b882c8f4ceb0882d/COPYING",
+      "bytes": 3089,
+      "sha256": "30e556b3959e3985d66efefec5eaac51d4995053caa1d3cffe6eb916f146f229"
+    },
+    {
+      "file": "libarchive-libarchive-archive_read_support_format_rar5.c",
+      "url": "https://raw.githubusercontent.com/libarchive/libarchive/1368b08875351df8aa268237b882c8f4ceb0882d/libarchive/archive_read_support_format_rar5.c",
+      "bytes": 118584,
+      "sha256": "cd93d6c53036752d78caf78533ea6620e431dd440c71d5e3a674e718a23d1eeb"
+    },
+    {
+      "file": "rar5-technote.html",
+      "url": "https://www.rarlab.com/technote.htm",
+      "bytes": 33182,
+      "sha256": "37fe890e2c02c4d3bc6f5e8c617f368175ebbb924e0608c52a99b986cea4dc96"
+    },
+    {
+      "file": "rar-eula.html",
+      "url": "https://www.rarlab.com/license.htm",
+      "bytes": 9648,
+      "sha256": "370d2961ca494ba887baeee544253bd6c0e1185d5acbed3b62623af3b428668c"
+    }
+  ],
+  "restricted_unrar_sources_fetched": false,
+  "schema": 1,
+  "source_base_commit": "685fe564",
+  "encoder_origin": "Original FileCat fixed-table LZ/Huffman encoder; wire compatibility facts from published BSD-2-Clause readers and public container documentation; not a clean-room claim",
+  "vendor_binaries_used": false,
+  "production_backend_qualified": false,
+  "private_oracle": {
+    "url": "https://github.com/libarchive/libarchive/releases/download/v3.8.11/libarchive-3.8.11.tar.xz",
+    "bytes": 6754236,
+    "sha256": "a3dc0872b1b39da34dc18ef1b944f0f11ffd37425d70ae04be679279f1cf43d2",
+    "release_metadata_sha256": "c841e7256e7e3503d3b3ade5700e30a6b1c589f50e0ae2e458f3f65d855195c7",
+    "role": "private independent test reader; not production dependency"
+  },
+  "existing_reference_files": [
+    {
+      "path": "src/FileCat.Archives/Rar/Rar5Decoder.cs",
+      "sha256": "259b6d33d65ab64aaeb301e5e4eb8584fc1474a30eca3817682b846f8c1ffd80"
+    },
+    {
+      "path": "src/FileCat.Archives/Rar/RarHuffman.cs",
+      "sha256": "668aaa7bf2cf52553f2bfe86f5e0f10741cc94e35a1cb734d6732b57073f75f7"
+    },
+    {
+      "path": "src/FileCat.Archives/Rar/RarBitReader.cs",
+      "sha256": "1ce37474d7512623af79ea2ce206c7b8ffaf83b5b918ea10561f3d12640d0efe"
+    },
+    {
+      "path": "src/FileCat.Archives/Rar/RarArchive.cs",
+      "sha256": "c3a48f63a6339b02f529598f6a4c54bff6600482504c1a0d10f653ec45d50083"
+    },
+    {
+      "path": "licenses/rardecode/LICENSE",
+      "sha256": "11c05890faae812ab44bce620051759c4434bf691b75c63747b4704b003d0196"
+    },
+    {
+      "path": "licenses/rardecode/README.md",
+      "sha256": "f8bd9038b2c7582848ab457b241d4e6094a34fb04af128c6df77df9d7e1e51f3"
+    }
+  ],
+  "precision_diagnostic_source": {
+    "url": "https://raw.githubusercontent.com/libarchive/libarchive/v3.7.4/libarchive/archive_read_support_format_rar5.c",
+    "bytes": 113773,
+    "sha256": "6353d454265d3582ffe4a00ebebf2eb7efcaa3c383446dbe17d06e7a4f53e09c"
+  },
+  "current_oracle_reader_source": {
+    "url": "https://raw.githubusercontent.com/libarchive/libarchive/v3.8.11/libarchive/archive_read_support_format_rar5.c",
+    "bytes": 129492,
+    "sha256": "0a21cc37ef7ae0f83bbffdac1b08414380787ddf1cddae7b8539985e4b28e3ab",
+    "pin": "official release asset digest in private_oracle; oracle only"
+  }
+}

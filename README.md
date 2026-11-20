@@ -6,10 +6,12 @@ FileCat puts local disks, removable storage, archives and remote servers in a mu
 multi-tab workspace on Windows, Ubuntu and macOS. See the destination before an operation and
 its result afterward; inspect unfamiliar files or recover deleted data when the work goes deeper.
 
-**Release status:** FileCat 1.0.0 is still in validation, and no public binary release is
-available yet. [See the release dashboard](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md).
+**Release status:** The [unsigned 1.0.0-preview.11](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.11)
+is available for Windows, Ubuntu and macOS. Stable 1.0.0 is still in validation. Read the
+[preview notes](docs/release/1.0.0/PREVIEW11_RELEASE_NOTES.md) and
+[asset hashes](docs/release/1.0.0/evidence/E-PREVIEW11-TAG-20261116.md) before installing.
 
-**Start here:** [**Build from source**](#try-a-local-build) · [Recovery](#recover-deleted-files) · [Safety](#work-with-visible-outcomes) · [Screenshots](#make-it-yours) · [Capabilities](docs/CAPABILITIES.md)
+**Start here:** [**Download the preview**](docs/DOWNLOAD.md) · [Build from source](#try-a-local-build) · [Recovery](#recover-deleted-files) · [Safety](#work-with-visible-outcomes) · [Screenshots](#make-it-yours) · [Capabilities](docs/CAPABILITIES.md) · [Code signing policy](docs/DOWNLOAD.md#code-signing-policy) · [Privacy](docs/PRIVACY.md)
 
 [![FileCat on Windows: Architecture.md selected in Projects, Documents marked as target, four panels with three tabs each](docs/screenshots/windows/WorkspaceSelected-20261030.png)](docs/screenshots/windows/WorkspaceSelected-20261030.png)
 
@@ -21,11 +23,11 @@ on Windows, not an installed-package test.*
 
 | When you need to… | FileCat gives you… |
 |---|---|
-| Keep several places in view | Dockable panels, tabs, bookmarks, named workspaces and an explicit source and destination for each operation. |
-| Get a large job done without losing track | Per-drive queues, progress and results for individual items, a durable job journal, and a review of work interrupted by a crash. |
-| Rescue deleted files | Read-only NTFS, FAT and exFAT scans of disks or images, lost-partition search, evidence-based recovery states and partial-byte reporting. |
-| Understand a file before acting | Built-in text, hex, picture, page and structured-info viewers; checksums and signatures; streams, attributes and filesystem-record reports. |
-| Work outside a local folder | Archives, SMB, SFTP, FTPS, FTP, and Windows phones/cameras, with each location's supported actions explained in the UI. |
+| [Keep several places in view](#arrange-the-workspace-around-the-task) | Dockable panels, tabs, bookmarks, named workspaces and an explicit source and destination for each operation. |
+| [Get a large job done without losing track](#work-with-visible-outcomes) | Per-drive queues, progress and results for individual items, a durable job journal, and a review of work interrupted by a crash. |
+| [Rescue deleted files](#recover-deleted-files) | Read-only NTFS, FAT and exFAT scans of disks or images, lost-partition search, evidence-based recovery states and partial-byte reporting. |
+| [Understand a file before acting](#look-inside-files-not-just-at-their-names) | Built-in text, hex, picture, page and structured-info viewers; checksums and signatures; streams, attributes and filesystem-record reports. |
+| [Work outside a local folder](#go-beyond-a-local-directory) | Archives, SMB, SFTP, FTPS, FTP, and Windows phones/cameras, with each location's supported actions explained in the UI. |
 
 ## Inspect a program without running it
 
@@ -68,8 +70,10 @@ on another disk so FileCat's state cannot write to the source.
 
 - Start with two panels or dock more beside and above them. Each panel keeps its own tabs,
   target and history. Lock a tab, reopen a closed one, save a workspace, or jump to a bookmark.
-- Browse very large folders with virtualized listings. Search names as you type, filter with masks,
-  switch column profiles, and request expensive metadata only when you need it.
+- Browse very large folders with virtualized listings. Switch **View → Show pictures** to a thumbnail
+  grid that still includes folders and other files, with the same selection and file actions.
+  Search names as you type, filter with masks, switch column profiles, and request expensive
+  metadata only when you need it.
 - Find files by name, content or metadata (Alt+F7). Results act on the original files. Flat view,
   persistent working sets and duplicate finding give different ways to assemble a task.
 - Compare files in text or binary; compare folder trees and preview **Update** or **Mirror**
@@ -109,19 +113,41 @@ must remain byte-identical. Recovery is not guaranteed, and ext4/APFS undelete i
   through a helper for the displayed plan, with an administrator approval for that plan.
   The portable and framework-dependent ZIPs have no such helper.
 
+On Windows, **Tools → Open FileCat as administrator** opens a separate administrator
+window after Windows approval. **Tools → Change journal of this drive** offers the same
+approval when needed and opens the selected NTFS or ReFS journal. An access-denied local
+folder offers **Reopen folder as administrator**. In **Create link**, **Review as administrator**
+brings a local symbolic link, hard link or junction into the new window for a fresh preview.
+The viewer, checksums, Find, Registry and portable recovery also offer administrator review
+when needed. Find retries the blocked local folders with the original criteria. Bulk Rename
+can review its prepared changes, and the Operations pane can retry a denied empty-file creation
+or recursive attribute and timestamp change.
+For local copy, same-drive move, rename and folder creation, **Review denied items as administrator**
+in the access-denied dialog waits for the ordinary operation to finish, then opens one retry review.
+The installed broker handles plans that fit its operations. Portable FileCat reviews the retry in
+a separate administrator window, which also handles transfers that need the original conflict prompts.
+Canceling that review makes the original retry available again in Operations.
+
+On Linux and macOS, **Permissions and times → Review permissions as administrator** asks the
+system to approve mode changes to selected files and folders. It supports read, write, execute
+and sticky permissions on those items. **Tools → Recover deleted files → Authorize and scan**
+requests read-only access to the selected device.
+
 Untrusted content crosses narrower boundaries where implemented: pictures decode in a worker,
 HTML Page preview has scripts and network requests disabled, and Windows Shell extensions run
 outside the main process. These boundaries differ by platform; the
 [capability matrix](docs/CAPABILITIES.md) and [security policy](SECURITY.md) state their limits.
-Some Unix workers still have the ordinary user's filesystem access; process separation alone
-does not make every parser a full sandbox.
+Other parser and helper routes have different OS boundaries; process separation alone does not
+make every parser a full sandbox.
 
 ### Look inside files, not just at their names
 
 - **Built-in viewers:** F3 reads text and hex from very large files without loading the whole
   file. Search, go to line or byte offset, follow a growing file, inspect encodings and checksums,
-  or use Ctrl+Q for quick view. Picture view supports zoom and pan. Page view renders local HTML
-  and Markdown without fetching from the web; a contained Markdown link opens in another viewer.
+  or use Ctrl+Q for quick view. Picture view supports zoom and pan; Space and Backspace move through
+  the panel's visible pictures without opening another window. PDFs open as visual pages with
+  page navigation and document details in Info. Page view renders local HTML and Markdown without
+  fetching from the web; a contained Markdown link opens in another viewer.
 - **Inspectors:** Info view reports PE, ELF, Mach-O, APK/AAB, image, audio, video and HTML
   structure without executing or playing the file. A fixed-length hex editor offers a protected
   baseline, bounded undo, journaled save, Save As and patch export; in-place saves are not atomic.
@@ -135,8 +161,15 @@ does not make every parser a full sandbox.
 ### Go beyond a local directory
 
 - Browse nested **ZIP, 7z, RAR 1.5–7, TAR/compressed TAR, single compressed files and ISO/UDF**
-  images. Damaged members are reported. ZIP changes rebuild and verify a replacement archive;
-  other archive formats are read-only.
+  images. Damaged members are reported. On Windows x64 (NTFS), Linux x64 (ext4) and macOS (APFS),
+  create and change TAR (plain, gzip, bzip2 and Zstandard), 7z, RAR5 and ZIP archives and single
+  `.gz`, `.bz2` and `.zst` files: a confined worker rebuilds the archive beside the original and
+  checks it before replacing it. An archive FileCat cannot write back exactly stays read-only and
+  says why. So does one in a place FileCat cannot write safely (such as a cloud-synced folder, or
+  a file with another hard link), except a ZIP, which keeps the old ZIP route there.
+  The new worker needs a supported package: Windows x64 setup or self-contained portable,
+  Linux `.deb` or an extracted portable payload, or the macOS app. See the
+  [package restrictions](docs/DOWNLOAD.md#which-package-fits-your-workflow).
 - Work with **SMB shares, SFTP, FTPS and FTP** from panels, including explicit remote edit
   sessions. Remote uploads use temporary names where supported; FileCat reports providers that
   cannot replace atomically. An SSH terminal opens from an SFTP panel.
@@ -186,14 +219,16 @@ above. Classic, Psychedelic, DOS Commander and macOS Classic Dark are shown imme
 | [![FileCat High Contrast theme on Windows, four panels with three tabs each](docs/screenshots/windows/HighContrast.png)](docs/screenshots/windows/HighContrast.png) | [![FileCat Classic Dark theme on Ubuntu, four panels with three tabs each](docs/screenshots/ubuntu/ClassicDark.png)](docs/screenshots/ubuntu/ClassicDark.png) |
 
 These are real MainWindow renders from development source on their named operating systems.
-The [capture record](docs/screenshots/CAPTURE-2026-10-29.md) documents their producers; they do
-not establish installed-package or native-interaction acceptance.
+The [gallery capture record](docs/screenshots/CAPTURE-2026-10-29.md) documents the original set;
+the [updated Steampunk capture](docs/screenshots/CAPTURE-2026-11-02-STEAMPUNK.md) shows its
+connected-glass header. They do not establish installed-package or native-interaction acceptance.
 
 ## Platforms
 
 For 1.0.0, **Windows 11 x64 is the planned stable tier**. Windows 11 ARM64,
 Ubuntu 24.04/26.04 x64 with GNOME, and macOS 26+ on Apple silicon are planned previews.
-These labels describe validation targets, not currently available public packages. Windows
+The public preview packages are unsigned; these labels describe the validation targets for
+stable 1.0.0. Windows
 provides MTP, Registry and native Shell actions; the Unix builds use their own trash,
 permission, keyring and device-authorization paths. [What works where](docs/CAPABILITIES.md)
 lists the differences by platform and location.
@@ -220,6 +255,9 @@ covered in the [developer build guide](docs/BUILDING.md).
 
 ## Documentation
 
+- [Downloads and package choices](docs/DOWNLOAD.md) — preview packages, verification and signing status
 - [What works where](docs/CAPABILITIES.md) — supported platforms, locations and actions
+- [Create a file list](docs/CREATE_FILE_LIST.md) — reusable formats, fields and output choices
+- [Privacy policy](docs/PRIVACY.md)
 - [Third-party notices](THIRD-PARTY-NOTICES.md)
 - [Security policy and vulnerability reporting](SECURITY.md)

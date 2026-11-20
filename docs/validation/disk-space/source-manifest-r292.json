@@ -1,0 +1,141 @@
+{
+  "purpose": "Exact indexed logical-size and numeric directions, retained focused identity, query/order publication coherence and pre-fix negative control",
+  "gitBase": "3fccf0e5",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "8a331c7dafb09cc9974aa81d6424e8b9ecfd551ccc4ddaa591c8bf9e8de54536"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "7e8e1e43545c0c19e256b1a278c4e3fd1f713e67171a651b214ab3c3554175a6"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+      "sha256": "c60b8d47c744f607e6b69d426b4054063a1c5f379680a4565cddd3b4dfa96452"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetExplorer.cs",
+      "sha256": "cc2bf2ba489a622b6fd9ad9e05e7731072f195ae624a65d1114e7ab055cac664"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+      "sha256": "18c034d0561483b02991004411d7cb9404c728a2bfd909471095d6bf1662eb33"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.Ordering.cs",
+      "sha256": "326f58611c5272498c2b6f6f5e4cc2e29a6b0505840a01d9bc27217cfe5cb4f2"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Indexed.cs",
+      "sha256": "fe42282d0febd3e976d9984eca5c548fa28ebb6fe481b0d23b4ba10724aee1ca"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r290.tgz",
+      "sha256": "66c336a24bc7128e27d4d434458e0595f4ac2f32761914e9fc83be880974e70b"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r292.tgz",
+      "sha256": "43e8a5ce4e683d1222f7da3998b9f69d9ab0e73a2956e53bff521c26964c2a73"
+    },
+    {
+      "path": ".tmp/dsa-render-linux-r292.tgz",
+      "sha256": "f9da1ca5723b159f712872110303482b52afc2a8d0485d3fe155954a600d1e9a"
+    },
+    {
+      "path": ".tmp/dsa-render-windows-r292.tgz",
+      "sha256": "44da9b2a21ac5916de711591e36f8dc1a679d60a35db57b88b2aecc16659c55d"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r293.tgz",
+      "sha256": "413d2c61a6d761810f5b56c813dd4d18567a2fbbbde46e3e85df300f05571fe2"
+    }
+  ],
+  "assemblies": [
+    {
+      "path": ".tmp/core-r290/FileCat.Core.dll",
+      "sha256": "4d6f1e34bad96beee8f9eda9977066c316d43ec8cf6134cf1e9eadfd6ed90b50"
+    },
+    {
+      "path": ".tmp/core-r290/FileCat.Core.Tests.dll",
+      "sha256": "295383066a08bf4f009d14f657525ab5a2e68b6569b7fdabf0ac81e84e71c335"
+    },
+    {
+      "path": ".tmp/render-r292-mac/FileCat.Core.dll",
+      "sha256": "4d6f1e34bad96beee8f9eda9977066c316d43ec8cf6134cf1e9eadfd6ed90b50"
+    },
+    {
+      "path": ".tmp/render-r292-mac/FileCat.dll",
+      "sha256": "1bea8603e1eaae9b44d49e6ce72ed5bba2e8c76fe659589420ab24b3e71241d0"
+    },
+    {
+      "path": ".tmp/render-r292-mac/FileCat.Rendering.Tests.dll",
+      "sha256": "2ca40f507df39079cb223497d7b12337bdc9e7f0987208eaa01fbfd1d5912d26"
+    },
+    {
+      "path": ".tmp/render-r290-mac/FileCat.dll",
+      "sha256": "3ae0d8a63778ed8dc03d1ed2ac24832df1f5c64304d8042f126fe783ad3b7241"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r290.sh",
+      "sha256": "7b203e21017a16f5d8e9bc71375f25c3a723b52a1d5d450325304863b327bcbc"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r290.ps1",
+      "sha256": "48cc4da232dee61d01fc5720ff1f314efe06bad9b4c6b1ec0381f011ff5b9a40"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-mac-r292.sh",
+      "sha256": "39b98533518151ea187be748fe273ee0ea872469b0423c4643b0ff99cdc27da0"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-linux-r292.sh",
+      "sha256": "47833458805d30311f2b8500fcdb856e09b9dd5b135ed32430bb94732724f773"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-render-r292.ps1",
+      "sha256": "279fae94493bafe88bce4be28f7e405ff4ad6ed10deace83bb04db94099c3d4c"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-mac-r293.sh",
+      "sha256": "2e48ce74f4bc0358e169b6647b568eeaeb832be1126e86187a047474c3f62ecc"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-occupancy-r292.ps1",
+      "sha256": "4de749bd91a2a36922786af644ae4710d075ac47cc061641e24127056876328d"
+    }
+  ],
+  "reports": [
+    "mac-core-r290.xml",
+    "ubuntu-core-r290.xml",
+    "mac-render-r290.xml",
+    "ubuntu-render-r290.xml",
+    "mac-render-r292.xml",
+    "ubuntu-render-r292.xml",
+    "mac-render-r293.xml",
+    "mac-post-order-r292.txt",
+    "ubuntu-post-order-r292.txt",
+    "windows-deferred-r292.json",
+    "indexed-order-build-r291.txt"
+  ],
+  "renders": [
+    {
+      "path": "docs/validation/disk-space/renders/indexed-r292/mac-Classic-1180-0.png",
+      "sha256": "7b70ca6169d185d51f739d29dac64192a5a16e39a3927c65f94335efb6512f01"
+    },
+    {
+      "path": "docs/validation/disk-space/renders/indexed-r292/mac-HighContrast-380-1.png",
+      "sha256": "40365feb4a99b4e831682c43d0317bfbf2a4b6079a86e065dfdf1263ae73540c"
+    }
+  ],
+  "negativeControl": "r293 uses final regression/Core with r290 App; its one held-gesture pending-query-order test fails. Final r292 suites pass. No rejected binary is represented as final source.",
+  "hostWindowsReceiptUtc": "2026-11-06T11:43:25.1295947+00:00",
+  "windowsStatus": "Deferred for another implementor FileCat and ShellHost; no latest Windows test run.",
+  "nativeDesktopInputTested": false,
+  "remaining": "Windows numeric-order regressions after occupancy clears; indexed Name/State/group/selection; public acquisition/profile-domain integration/fallback; persistence and all remaining mandatory native/scale/resource/package/desktop qualifications; final independent review. Public spill/product/action/helper gates remain off."
+}

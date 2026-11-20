@@ -14,6 +14,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsTrimmable>true</IsTrimmable>
     <IsAotCompatible>true</IsAotCompatible>
+    <RuntimeIdentifiers>$(RuntimeIdentifiers);linux-musl-arm64</RuntimeIdentifiers>
     <GenerateAssemblyTitleAttribute>false</GenerateAssemblyTitleAttribute>
     <Product>SharpCompress (FileCat build without RAR)</Product>
     <Copyright>Copyright (c) Adam Hathcock and SharpCompress contributors</Copyright>
@@ -21,6 +22,7 @@
   <ItemGroup>
     <!-- FileCat's RAR reader decodes RAR 3 PPMd with the shared PPMd variant H model (Compressors/PPMd/PpmdModelH.cs). -->
     <InternalsVisibleTo Include="FileCat.Archives" />
+    <InternalsVisibleTo Include="FileCat.Archives.Writing" />
     <InternalsVisibleTo Include="FileCat.Core.Tests" />
   </ItemGroup>
 </Project>

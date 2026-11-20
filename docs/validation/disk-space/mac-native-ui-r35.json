@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native Mac sizing fix and scan/save/compare/query/preserving-close subset, not full qualification",
+  "controlReport": "mac-native-ui-control-r35.json",
+  "harnessReport": "mac-native-ui-report-r35.json",
+  "sourcePathsUnchanged": 509,
+  "ownedProcessExited": true,
+  "deadlineClosed": false,
+  "clientDip": {
+    "height": 763,
+    "width": 1180
+  },
+  "renderScale": 2,
+  "screenCoordinateScale": 1,
+  "screenWorkingArea": "0,30,1440,791",
+  "windowFrame": "1180,791",
+  "windowPosition": "130,30",
+  "cause": "Window fitting divided native screen coordinates by the Retina render backing scale. It now uses Screen.Scaling.",
+  "frameworkSource": "https://github.com/AvaloniaUI/Avalonia/blob/12.1.4/native/Avalonia.Native/src/OSX/Screens.mm",
+  "limitations": [
+    "Two earlier runs targeted the tooltip as window1; the final driver targets the observed main window title. Failed attempts closed their owned instances and are not complete acceptance.",
+    "Full keyboard/screen-reader/theme/DPI/multi-display and feature qualification remain pending."
+  ]
+}

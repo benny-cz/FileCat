@@ -95,6 +95,55 @@ public sealed class LinuxPageEngineTests
     }
 
     [Fact]
+    public async Task WebKitGTK_restores_a_page_viewport_without_running_page_scripts()
+    {
+        if (!OperatingSystem.IsLinux()) { Assert.Skip("WebKitGTK is Linux's."); return; }
+        bool required = Environment.GetEnvironmentVariable("FILECAT_REQUIRE_WEBKIT") == "1";
+        if (!required && Environment.GetEnvironmentVariable("DISPLAY") is null) { Assert.Skip("No X display."); return; }
+        if (LinuxPageEngine.Unavailable is { } why)
+        {
+            if (required) Assert.Fail(why);
+            Assert.Skip(why);
+            return;
+        }
+
+        using var engine = LinuxPageEngine.Create(offscreen: true, out string? unavailable);
+        Assert.NotNull(engine);
+        Assert.True(engine.SandboxEnabled, unavailable);
+        var ct = TestContext.Current.CancellationToken;
+        async Task Load(string html)
+        {
+            var loaded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Completed(bool ok, string? reason) => loaded.TrySetResult(ok);
+            engine.Loaded += Completed;
+            try
+            {
+                engine.Show(new HtmlPage(new MemoryContentSource("scroll.html", System.Text.Encoding.UTF8.GetBytes(html)), "scroll.html"));
+                Assert.True(await loaded.Task.WaitAsync(TimeSpan.FromSeconds(30), ct));
+            }
+            finally { engine.Loaded -= Completed; }
+        }
+
+        await Load("<html><title>Safe page</title><body onload=\"document.title='SCRIPT RAN'\">" +
+                   "<script>document.title='SCRIPT RAN'</script><div style='height:6000px'>Long page</div></body></html>");
+        for (int i = 0; i < 100 && engine.Title is null; i++) await Task.Delay(20, ct);
+        Assert.Equal("Safe page", engine.Title);
+        Assert.True(await engine.RestoreScrollPositionAsync((0, 1200), ct));
+        var before = await engine.CaptureScrollPositionAsync(ct);
+        Assert.NotNull(before);
+        Assert.InRange(before.Value.Y, 1100, 1300);
+
+        await Load("<html><title>Short safe page</title><body><p>Short page</p>" +
+                   "<script>document.title='SCRIPT RAN'</script></body></html>");
+        for (int i = 0; i < 100 && engine.Title != "Short safe page"; i++) await Task.Delay(20, ct);
+        Assert.Equal("Short safe page", engine.Title);
+        Assert.True(await engine.RestoreScrollPositionAsync(before.Value, ct));
+        var after = await engine.CaptureScrollPositionAsync(ct);
+        Assert.NotNull(after);
+        Assert.InRange(after.Value.Y, 0, 100);
+    }
+
+    [Fact]
     public async Task WebKitGTK_draws_a_markdown_file_and_asks_the_web_for_nothing()
     {
         // Release issue I25 in WebKitGTK: the file drawn (its title is the file's name; its script is text), the picture
@@ -157,10 +206,13 @@ public sealed class LinuxPageEngineTests
         string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-page-links", Guid.NewGuid().ToString("N"))).FullName;
         try
         {
-            string current = Path.Combine(root, "index.md");
-            string next = Path.Combine(root, "next.md");
-            File.WriteAllText(current, "# Index\n\n[Next](next.md)");
+            string site = Directory.CreateDirectory(Path.Combine(root, "site")).FullName;
+            string current = Path.Combine(site, "index.md");
+            string next = Path.Combine(site, "next.md");
+            string reviewed = Path.Combine(root, "review.md");
+            File.WriteAllText(current, "# Index\n\n[Next](next.md) [Review](../review.md)");
             File.WriteAllText(next, "# Next");
+            File.WriteAllText(reviewed, "# Review");
             using var source = new FileContentSource(current);
             using var engine = LinuxPageEngine.Create(offscreen: true, out string? unavailable);
             Assert.NotNull(engine);
@@ -171,11 +223,16 @@ public sealed class LinuxPageEngineTests
             var linkLoadFailures = new System.Collections.Concurrent.ConcurrentQueue<string>();
             engine.Loaded += (ok, why) => { if (!ok) linkLoadFailures.Enqueue(why ?? "unknown"); };
             var requested = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-            engine.LinkedMarkdown += (_, path) => requested.TrySetResult(path);
+            engine.LinkedMarkdown += (_, target) => requested.TrySetResult(target.Path);
             await engine.RequestAddressForTestsAsync("filecat://page/index.md?filecat-open=next.md");
             Assert.Equal(next, await requested.Task.WaitAsync(TimeSpan.FromSeconds(15), ct));
             Assert.Equal("index.md", engine.Title);
             Assert.Equal(0, engine.BlockedCount);
+            var review = new TaskCompletionSource<LinkedMarkdownTarget>(TaskCreationOptions.RunContinuationsAsynchronously);
+            engine.LinkedMarkdown += (_, target) => { if (target.RequiresConfirmation) review.TrySetResult(target); };
+            await engine.RequestAddressForTestsAsync("filecat://page/index.md?filecat-open=..%2Freview.md");
+            Assert.Equal(reviewed, (await review.Task.WaitAsync(TimeSpan.FromSeconds(15), ct)).Path);
+            Assert.Equal("index.md", engine.Title);
             await engine.RequestAddressForTestsAsync("filecat://page/index.md?filecat-open=missing.md");
             for (int i = 0; i < 100 && engine.BlockedCount == 0; i++) await Task.Delay(50, ct);
             Assert.Equal(1, engine.BlockedCount);

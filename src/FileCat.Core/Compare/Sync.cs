@@ -34,6 +34,22 @@ public sealed class SyncItem(TreeDiffEntry entry, SyncAction action, bool includ
     public string Reason { get; } = reason;
     public bool Include { get; set; } = include && action != SyncAction.None;
     public bool CanInclude => Action != SyncAction.None;
+
+    // Native ListBox peers use the item text as the row name. Describe the reviewed
+    // step and its current choice instead of exposing this class name to screen readers.
+    public override string ToString()
+    {
+        string action = Action switch
+        {
+            SyncAction.Copy => "copy",
+            SyncAction.ReplaceOlder => "replace older",
+            SyncAction.Replace => "replace",
+            SyncAction.Remove => "remove",
+            _ => "leave",
+        };
+        return $"{action} {Entry.RelativePath}{(Entry.IsFolder ? "/" : "")}, " +
+            $"{(Include ? "included" : "excluded")}, {Reason}";
+    }
 }
 
 /// <summary>

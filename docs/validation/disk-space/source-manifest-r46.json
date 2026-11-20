@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Bounded table order, captured breadcrumbs and Enter/Space fixes development provenance, not capability authorization",
+  "gitBase": "37c380c2",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTableOrder.cs",
+      "sha256": "6051d2bf16c97fb5b194ddbd3ef43774b2ef7623f4f05f24395d78b3c026789e"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "7a7a60d5c158f9143f76ceffa8374bbf79a37136588bd58584397ff03673cb09"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Navigation.cs",
+      "sha256": "4fa58f82e8e9223fba33fe85032f0a6f88d1bf435d7291251d27dabf26d68f60"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "c990de47af06a68bbcbb19bd0a8626675fe0d1f167e7bd97514d599d2da0a0d2"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Navigation.cs",
+      "sha256": "d1228ec7ad286e85e6c6be282b0732ee16c4848b797ec15df94dc838e772c27c"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Program.cs",
+      "sha256": "a749ca326fb37325f25650d67048497f127f15763c34e08666b2bf326ae78c2f"
+    },
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "1d7b658040ddb306a1e363b369cc64fe72447ae6bdf358a8f3aea79223701fa4"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-render-windows-r46.tgz",
+      "sha256": "6f995e22806eaeb847f8f0833b5be454ea94d15bc4e1c481b8dc4c5715845332"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r46.tgz",
+      "sha256": "a29a3de5d1703896a15f080712bc243bb5475a2451ad9770261ab538d114a46e"
+    },
+    {
+      "path": ".tmp/dsa-render-linux-r46.tgz",
+      "sha256": "ec20678d57eb0006f51b9dbd8697b7f9bb2211a40ea6e6065f410b7869161fdd"
+    },
+    {
+      "path": ".tmp/desktop-r46-mac.tgz",
+      "sha256": "16785b73ab486701500d3f0239678e75d64baa594e6f71cfbe39f62c82ee0bf1"
+    },
+    {
+      "path": ".tmp/desktop-r46-linux.tgz",
+      "sha256": "3b7aa6c4a78b7c31124bbf14f4fa2389af8c9e4c36fa540744531ae59eba74fb"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".tmp/render-r46-mac/FileCat.Core.dll",
+      "sha256": "ff32cb54a78f6b67ed68f7ea066c53f81f1ff6fdc50a74e5ac436d5e230dbd88"
+    },
+    {
+      "path": ".tmp/render-r46-mac/FileCat.dll",
+      "sha256": "9e4d834a8d4502619cdcfaf80864ee28d7033d53f521ed09bb587b6485e022cd"
+    },
+    {
+      "path": ".tmp/render-r46-mac/FileCat.Rendering.Tests.dll",
+      "sha256": "2ef0519c52324cbac9771b575ca3838774f13eafdb3df56cb9c244074779913a"
+    },
+    {
+      "path": ".tmp/desktop-r46-mac/FileCat.Core.dll",
+      "sha256": "95bd1b6e32be343844f929e0dffdb11e7437e067803e2d5a7f51f0a5aa04b885"
+    },
+    {
+      "path": ".tmp/desktop-r46-mac/FileCat.dll",
+      "sha256": "4c100cb073b0b9af4f6584d9e7f1887f232c74faa56d7f0847bd51b231c5380a"
+    },
+    {
+      "path": ".tmp/desktop-r46-mac/DiskSpaceHarness.dll",
+      "sha256": "1f9c525c5483dfa8d9eeee1fd70bb4e0e10fb255642834e648b59a14c432554c"
+    },
+    {
+      "path": ".tmp/desktop-r46-linux/FileCat.Core.dll",
+      "sha256": "5b94ff3ed9eccb652834f88b766033f295677233fbd0160b4579df5005094a00"
+    },
+    {
+      "path": ".tmp/desktop-r46-linux/FileCat.dll",
+      "sha256": "9f06b99a5be2bd732bb572d1fd0e74fd058fa75e56e0fb83c7960b311a2358da"
+    },
+    {
+      "path": ".tmp/desktop-r46-linux/DiskSpaceHarness.dll",
+      "sha256": "6055d460349910ebaab049b1c42f8beeb41cf8c03a281a3b6dab19bb6888589c"
+    }
+  ],
+  "nativeAcceptance": "Ubuntu physical pointer/keyboard subset and Mac AX selection/keyboard subset pass. Mac physical pointer, Windows native input and full accessibility/display/theme/resource/feature qualification remain pending. Controllers reject competing FileCat/test processes and close owned instances."
+}

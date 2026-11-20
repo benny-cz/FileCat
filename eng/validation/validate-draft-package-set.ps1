@@ -7,11 +7,11 @@ $Parent=[IO.Path]::GetFullPath((Join-Path $TemporaryBase 'FileCatValidation'))
 [void][IO.Directory]::CreateDirectory($Parent)
 $Root=Join-Path $Parent ('filecat-draft-set-'+[guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($Root)
-$Source='0123456789abcdef0123456789abcdef01234567';$Version='1.0.0-rc.1'
+$Source='0123456789abcdef0123456789abcdef01234567';$Version='1.0.0-preview.3'
 $Contract=@{
-    windows=@('FileCat-1.0.0-win-x64-setup.exe','FileCat-1.0.0-rc.1-win-x64-portable.zip','FileCat-1.0.0-rc.1-win-x64-fdd.zip','sbom-1.0.0-rc.1-win-x64-setup-payload.spdx.json','sbom-1.0.0-rc.1-win-x64-portable.spdx.json','sbom-1.0.0-rc.1-win-x64-fdd.spdx.json','FileCat-1.0.0-win-arm64-setup.exe','FileCat-1.0.0-rc.1-win-arm64-portable.zip','FileCat-1.0.0-rc.1-win-arm64-fdd.zip','sbom-1.0.0-rc.1-win-arm64-setup-payload.spdx.json','sbom-1.0.0-rc.1-win-arm64-portable.spdx.json','sbom-1.0.0-rc.1-win-arm64-fdd.spdx.json')
-    linux=@('FileCat-1.0.0-rc.1-linux-x64.tar.gz','filecat_1.0.0-rc.1_amd64.deb','FileCat-1.0.0-rc.1-x86_64.AppImage','FileCat-1.0.0-rc.1-linux-x64-appimage-runtime-source.tar.gz','sbom-1.0.0-rc.1-linux-x64-tar.spdx.json','sbom-1.0.0-rc.1-linux-x64-deb.spdx.json','sbom-1.0.0-rc.1-linux-x64-appimage.spdx.json')
-    macos=@('FileCat-1.0.0-rc.1-osx-arm64.zip','sbom-1.0.0-rc.1-osx-arm64-macos-app.spdx.json')
+    windows=@('FileCat-1.0.0-win-x64-setup.exe','FileCat-1.0.0-preview.3-win-x64-portable.zip','FileCat-1.0.0-preview.3-win-x64-fdd.zip','sbom-1.0.0-preview.3-win-x64-setup-payload.spdx.json','sbom-1.0.0-preview.3-win-x64-portable.spdx.json','sbom-1.0.0-preview.3-win-x64-fdd.spdx.json','FileCat-1.0.0-win-arm64-setup.exe','FileCat-1.0.0-preview.3-win-arm64-portable.zip','FileCat-1.0.0-preview.3-win-arm64-fdd.zip','sbom-1.0.0-preview.3-win-arm64-setup-payload.spdx.json','sbom-1.0.0-preview.3-win-arm64-portable.spdx.json','sbom-1.0.0-preview.3-win-arm64-fdd.spdx.json')
+    linux=@('FileCat-1.0.0-preview.3-linux-x64.tar.gz','filecat_1.0.0-preview.3_amd64.deb','FileCat-1.0.0-preview.3-x86_64.AppImage','FileCat-1.0.0-preview.3-linux-x64-appimage-runtime-source.tar.gz','sbom-1.0.0-preview.3-linux-x64-tar.spdx.json','sbom-1.0.0-preview.3-linux-x64-deb.spdx.json','sbom-1.0.0-preview.3-linux-x64-appimage.spdx.json')
+    macos=@('FileCat-1.0.0-preview.3-osx-arm64.zip','sbom-1.0.0-preview.3-osx-arm64-macos-app.spdx.json')
 }
 $Cases=@(
     @{Name='preflight-complete'},@{Name='upload-complete';Verify=$true},
@@ -25,7 +25,8 @@ $Cases=@(
     @{Name='upload-cross-platform-name';Verify=$true;Error='Combined action upload contains duplicate'},
     @{Name='upload-wrong-platform';Verify=$true;Error='The action did not upload the complete'},
     @{Name='upload-remote-last-platform-hash';Verify=$true;Error='Remote asset identity or bytes differ'},
-    @{Name='stable-ref';Error='Stable references cannot invoke a producer'}
+    @{Name='stable-ref';Error='Stable references cannot invoke a producer'},
+    @{Name='rc-ref';Error='Draft package checks require a 1.0.0 preview tag'}
 )
 $OriginalToken=$env:GH_TOKEN
 $Observations=[Collections.Generic.List[object]]::new()
@@ -36,7 +37,7 @@ function Invoke-RestMethod($Uri,$Headers,$Method,$TimeoutSec){
     if($Suffix -ceq 'releases?per_page=100&page=1'){return @([pscustomobject]@{id=51;tag_name="v$Version";draft=$true;prerelease=$true;immutable=$false})}
     if($Suffix -ceq 'releases/51/assets?per_page=100&page=1'){
         if($Case.ContainsKey('Verify')){return $Remote}
-        if($Case.Name -eq 'existing-last-platform'){return @($Remote | Where-Object {$_.name -ceq 'FileCat-1.0.0-rc.1-osx-arm64.zip'})}
+        if($Case.Name -eq 'existing-last-platform'){return @($Remote | Where-Object {$_.name -ceq 'FileCat-1.0.0-preview.3-osx-arm64.zip'})}
         Write-Output -NoEnumerate -InputObject ([object[]]@()); return
     }
     throw 'Unexpected substituted API path.'
@@ -67,7 +68,7 @@ try{
         if($Case.Name -eq 'upload-cross-platform-name'){$Uploaded[13].name=$Uploaded[0].name}
         if($Case.Name -eq 'upload-wrong-platform'){$Uploaded[13].name='wrong-platform.zip'}
         if($Case.Name -eq 'upload-remote-last-platform-hash'){$Remote[-1].digest='sha256:'+('0'*64)}
-        $Arguments=@{ArtifactDirectory=$Directory;SourceCommit=$Source;Reference=$(if($Case.Name -eq 'stable-ref'){'refs/tags/v1.0.0'}else{"refs/tags/v$Version"});Repository='owned/fixture';WindowsManifestSHA256=$Hashes.windows;LinuxManifestSHA256=$Hashes.linux;MacOSManifestSHA256=$Hashes.macos;ReceiptDirectory=(Join-Path $Directory 'receipts')}
+        $Arguments=@{ArtifactDirectory=$Directory;SourceCommit=$Source;Reference=$(if($Case.Name -eq 'stable-ref'){'refs/tags/v1.0.0'}elseif($Case.Name -eq 'rc-ref'){'refs/tags/v1.0.0-rc.1'}else{"refs/tags/v$Version"});Repository='owned/fixture';WindowsManifestSHA256=$Hashes.windows;LinuxManifestSHA256=$Hashes.linux;MacOSManifestSHA256=$Hashes.macos;ReceiptDirectory=(Join-Path $Directory 'receipts')}
         $Output=Join-Path $Directory 'github-output.txt'
         if($Case.ContainsKey('Verify')){$Arguments.VerifyUpload=$true;$Arguments.ExpectedReleaseID=51;$Arguments.UploadedAssetsJson=ConvertTo-Json -InputObject @($Uploaded.ToArray()) -Depth 7}
         else{$Arguments.GitHubOutputPath=$Output}

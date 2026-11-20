@@ -1,0 +1,45 @@
+{
+  "revision": "r1084",
+  "baseline": "r1083",
+  "scope": "TestOnly",
+  "testPhases": [
+    "render"
+  ],
+  "productSourceBaseline": null,
+  "elapsedSeconds": 6.2076228,
+  "platforms": [
+    {
+      "archiveBytes": 567732,
+      "verifiedInputs": 235,
+      "sha256": "7b0e35c117ca63764071cb515b46865d25027a3fb2ae47117ad151df508b09cb",
+      "platform": "windows",
+      "guestReuse": true,
+      "changed": [
+        "render/FileCat.Rendering.Tests.dll",
+        "render/FileCat.Rendering.Tests.pdb"
+      ]
+    },
+    {
+      "archiveBytes": 566978,
+      "verifiedInputs": 168,
+      "sha256": "4bc891f68e67d6fe18fd3199cea4b61644ec1cbd22ed5b1b627bbf10d910b898",
+      "platform": "mac",
+      "guestReuse": true,
+      "changed": [
+        "render/FileCat.Rendering.Tests.dll",
+        "render/FileCat.Rendering.Tests.pdb"
+      ]
+    },
+    {
+      "archiveBytes": 566901,
+      "verifiedInputs": 167,
+      "sha256": "46e5e7a696a4573e892c652d09f231576bc889679b997bd7f243e3f0ad1d8eb6",
+      "platform": "linux",
+      "guestReuse": true,
+      "changed": [
+        "render/FileCat.Rendering.Tests.dll",
+        "render/FileCat.Rendering.Tests.pdb"
+      ]
+    }
+  ]
+}

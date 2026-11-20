@@ -23,12 +23,32 @@ public readonly record struct CommandAvailability(bool Enabled, string? Reason =
 /// </summary>
 public sealed partial class MainViewModel
 {
+    internal bool AdvertisesEfsCommand(string id) => id switch
+    {
+        CommandIds.EfsProtection => Services.Jobs.EfsSelectionUnavailable is null,
+        CommandIds.EfsFileBackup => Services.Jobs.EfsFileBackupUnavailable is null,
+        _ => true,
+    };
+
     public CommandAvailability GetAvailability(string id)
     {
-        if (Services.Commands.Get(id)?.Context is CommandContext.Find or CommandContext.FindCriteria or CommandContext.FindResults)
+        if (!MainMenuModel.IsPlatformApplicable(id))
+            return CommandAvailability.No(id == CommandIds.CopyUncPaths
+                ? "UNC paths are available on Windows network shares and mapped drives."
+                : "This command is available on Windows.");
+        if (id == CommandIds.OpenAdministratorWindow)
+            return Services.Shell.IsElevated ? CommandAvailability.No("This FileCat window is already running as administrator.") : CommandAvailability.Yes;
+        if (id == CommandIds.DiskSpace && Environment.IsPrivilegedProcess)
+            return CommandAvailability.No("Start an ordinary, unelevated FileCat to analyze storage.");
+        var context = Services.Commands.Get(id)?.Context;
+        if (context is CommandContext.Find or CommandContext.FindCriteria or CommandContext.FindResults)
             return CommandAvailability.No("Open Find to use this action; its shortcut can be changed in the keyboard reference.");
+        if (context is CommandContext.DiskSpace or CommandContext.DiskSpaceReview)
+            return CommandAvailability.No("Open Disk space to use this action. Its shortcut can be changed in the keyboard reference.");
         var tab = ActiveTab;
         var loc = tab?.Location;
+        if (loc?.Scheme == Schemes.AnalysisFolder && id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal))
+            return CommandAvailability.No(AnalysisPanelFolderProvider.BookmarkRefusal);
         var caps = loc is null ? LocationCapabilities.None : Services.Providers.For(loc).GetCapabilities(loc);
         bool hasItem = tab is not null && tab.Listing.TryGetFocused(out var f) && f.Kind != EntryKind.Parent || tab?.Listing.HasMarks == true;
         bool registryItem = TryGetFocusedRegistryItem(out var focusedRegistry);
@@ -46,11 +66,39 @@ public sealed partial class MainViewModel
         }
         switch (id)
         {
+            case CommandIds.StorageAttributes:
+                if (Scope?.StorageAvailability?.Invoke() is { Enabled: false } storageGate) return storageGate;
+                if (Services.Jobs.CompressionUnavailable is { } storageUnavailable) return CommandAvailability.No(storageUnavailable.Message);
+                if (tab is null || loc is null || !hasItem) return CommandAvailability.No("Focus or mark files or folders to change NTFS compression.");
+                return loc.IsFileSystem || loc.Scheme == Schemes.ResultSet
+                    ? CommandAvailability.Yes : CommandAvailability.No("NTFS compression acts on local filesystem originals, including local search results and working sets.");
+            case CommandIds.EfsProtection:
+            case CommandIds.EfsFileBackup:
+                if (Scope?.StorageAvailability?.Invoke() is { Enabled: false })
+                    return CommandAvailability.No("Wait for these results to finish updating before reviewing EFS protection.");
+                var efsProblem = id == CommandIds.EfsProtection ? Services.Jobs.EfsSelectionUnavailable : Services.Jobs.EfsFileBackupUnavailable;
+                if (efsProblem is not null) return CommandAvailability.No(efsProblem.Message);
+                if (WindowsTokenAuthority.IsHighIntegrity) return CommandAvailability.No("Open FileCat as your usual Windows user to review EFS protection and keys.");
+                if (id == CommandIds.EfsFileBackup && _reviewingEfsFileBackup) return CommandAvailability.No("An EFS key backup review is already open.");
+                if (tab is null || loc is null || !hasItem) return CommandAvailability.No("Focus or mark items to review their EFS protection.");
+                return loc.IsFileSystem || loc.Scheme == Schemes.ResultSet
+                    ? CommandAvailability.Yes : CommandAvailability.No("EFS review requires ordinary local filesystem originals.");
+            case CommandIds.FileRecord:
+            case CommandIds.HiddenData:
+                if (id == CommandIds.FileRecord && !Services.Platform.FileRecords.IsSupported)
+                    return CommandAvailability.No("File-system details are unsupported on this system.");
+                if (id == CommandIds.HiddenData && (!Services.Providers.TryGet(Schemes.HiddenData, out var supplementaryProvider) ||
+                    supplementaryProvider is not Core.HiddenData.HiddenDataProvider { Data.IsSupported: true }))
+                    return CommandAvailability.No("Supplementary file data is unsupported on this system.");
+                return tab is not null && tab.Listing.TryGetFocused(out var detailsItem) && detailsItem.Kind != EntryKind.Parent &&
+                    tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex).FileSystemPath is not null
+                    ? CommandAvailability.Yes : CommandAvailability.No("Focus a file or folder on a filesystem; archive, remote and virtual display paths are not local objects.");
             case CommandIds.RemoveFromSet:
                 return (caps & LocationCapabilities.ReferenceContainer) != 0 && hasItem
                     ? CommandAvailability.Yes
                     : CommandAvailability.No("Remove from set works in search results and working sets; it never deletes anything.");
             case CommandIds.AddToWorkingSet:
+                if (loc?.Scheme == Schemes.AnalysisFolder) return CommandAvailability.No(AnalysisPanelFolderProvider.WorkingSetRefusal);
                 return hasItem || Core.Search.ResultSetProvider.IsWorkingSetList(loc) ? CommandAvailability.Yes : CommandAvailability.No("Nothing is focused or marked.");
             case CommandIds.RegistryExport:
                 return registryItem || loc?.Scheme == Schemes.Registry && loc.Path.Length > 0
@@ -97,6 +145,10 @@ public sealed partial class MainViewModel
                         ? "A working set holds references to items elsewhere; create folders in a real location. F7 in the list of working sets (Backspace) creates another set."
                         : "Result sets hold references to items elsewhere; create folders in a real location.");
                 return (caps & LocationCapabilities.CreateDirectory) != 0 ? CommandAvailability.Yes : CommandAvailability.No(Explain(LocationCapabilities.CreateDirectory));
+            case CommandIds.CreateFileList:
+                return loc is not null && loc.Scheme is Schemes.FileSystem or Schemes.Zip or Schemes.Archive or Schemes.Ftp or Schemes.Sftp or Schemes.Mtp &&
+                       (caps & LocationCapabilities.Enumerate) != 0
+                    ? CommandAvailability.Yes : CommandAvailability.No("Open a folder, archive, or connected file panel to create a list.");
             case CommandIds.EditNew:
                 return (caps & LocationCapabilities.CreateFile) != 0 ? CommandAvailability.Yes : CommandAvailability.No(Explain(LocationCapabilities.CreateFile));
             case CommandIds.OpenInNewTab:
@@ -115,6 +167,8 @@ public sealed partial class MainViewModel
                 return CommandAvailability.No(Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.MoveSource) + " Copy items to the clipboard (Ctrl+C) instead.");
             case CommandIds.Edit when loc?.Scheme == Schemes.Recovery:
                 return CommandAvailability.No(Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.ExternalEdit) + " View it with F3.");
+            case CommandIds.Edit when loc?.Scheme == Schemes.Archive && (caps & LocationCapabilities.ExternalEdit) == 0:
+                return CommandAvailability.No(Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.ExternalEdit));
             case CommandIds.Rename when loc is not null && (caps & LocationCapabilities.Rename) == 0:
                 return CommandAvailability.No(Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.Rename));
             case CommandIds.Copy or CommandIds.Move or CommandIds.Delete or CommandIds.DeletePermanent or CommandIds.View or CommandIds.Edit
@@ -195,7 +249,9 @@ public sealed partial class MainViewModel
                 return;
             }
             tab.ColumnProfile = profile;
-            Notify($"Columns: {Services.Columns.NameOf(profile)} (Alt+{profile})");
+            Notify(tab.UsesColumnProfiles
+                ? $"Columns: {Services.Columns.NameOf(profile)} (Alt+{profile})"
+                : $"This view keeps its own columns; {Services.Columns.NameOf(profile)} (Alt+{profile}) applies when this tab shows a folder, an archive or a connection.");
             return;
         }
 
@@ -224,6 +280,7 @@ public sealed partial class MainViewModel
                 tab?.GoForward();
                 break;
             case CommandIds.Refresh:
+                Services.PrincipalNames.Invalidate();
                 Services.Metadata.Invalidate(); // Reread means every column, permissions and versions too
                 if (tab?.Location is { Scheme: Schemes.Recovery } scanned) Services.Recovery.Forget(scanned); // and a fresh scan
                 tab?.Refresh();
@@ -424,6 +481,13 @@ public sealed partial class MainViewModel
                 break;
 
             // ---- View --------------------------------------------------------------------------------
+            case CommandIds.PictureView:
+                if (tab is not null)
+                {
+                    tab.PictureView = !tab.PictureView;
+                    Notify(tab.PictureView ? "Pictures: thumbnail grid in this tab." : "Pictures: file list in this tab.");
+                }
+                break;
             case CommandIds.SortName:
                 tab?.SortBy(SortField.Name);
                 break;
@@ -453,6 +517,9 @@ public sealed partial class MainViewModel
             case CommandIds.CopyPaths:
                 await CopyTextAsync(sel => string.Join(Environment.NewLine, sel.Select(DisplayPathOf)));
                 break;
+            case CommandIds.CreateFileList:
+                await CreateFileListAsync();
+                break;
 
             // ---- Application ---------------------------------------------------------------------------
             case CommandIds.Palette:
@@ -464,6 +531,9 @@ public sealed partial class MainViewModel
                 break;
             case CommandIds.Help:
                 await ShowKeyboardReferenceAsync();
+                break;
+            case CommandIds.ChangeShortcut:
+                await ShowKeyboardReferenceForSearchAsync(remapOnly: true);
                 break;
             case CommandIds.Menu:
                 View.OpenMenuBar();
@@ -572,7 +642,11 @@ public sealed partial class MainViewModel
 
     internal void ShowPropertiesForPath(string path)
     {
-        if (!Services.Shell.ShowProperties(path, NativeOwner())) Notify("System properties could not be opened for this item.", true);
+        if (Services.Shell.ShowProperties(path, NativeOwner())) return;
+        // Only Windows supplies a native property sheet. On Mac/Linux, use the exact
+        // selected or context-menu path for FileCat's mode/owner/metadata report.
+        if (!OperatingSystem.IsWindows() && ShowFileRecordForPath(path)) return;
+        Notify("System properties could not be opened for this item.", true);
     }
 
     private string DisplayPathOf(ItemRef item) =>
@@ -587,23 +661,73 @@ public sealed partial class MainViewModel
         ClearNotification();
         if (r.Newer && r.Url is { } url)
         {
-            if (await Dialogs.ConfirmAsync("Update available", $"FileCat {r.Latest} is available; this is {r.Current}.\n\nFileCat never downloads or installs updates itself. Open the release page?", "Open release page"))
-                Services.Shell.Open(url);
+            await ShowAvailableUpdateAsync(r, url);
             return;
         }
         await Dialogs.AlertAsync("Check for updates", r.Error ?? $"FileCat {r.Current} is the latest release.");
     }
 
-    /// <summary>The daily check at startup, only when enabled in Settings → Privacy.</summary>
-    public async Task CheckForUpdatesOnStartupAsync()
+    private bool _updatePromptShowing;
+    private string? _sessionUpdateVersionPresented;
+
+    internal async Task ShowAvailableUpdateAsync(UpdateCheck.Result result, string url)
     {
-        var r = await UpdateCheck.RunScheduledAsync(Services.Settings, Services.SaveSettings);
-        if (r is { Newer: true }) Notify($"FileCat {r.Latest} is available (this is {r.Current}). Help → Check for updates opens its release page.");
+        if (_updatePromptShowing) return;
+        _updatePromptShowing = true;
+        _sessionUpdateVersionPresented = result.Latest;
+        try
+        {
+            var answer = await Dialogs.ShowCustomAsync("Update available",
+                new Avalonia.Controls.TextBlock
+                {
+                    Text = $"FileCat {result.Latest} is available; this is {result.Current}.\n\nFileCat never downloads or installs updates itself.",
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                    MaxWidth = 560,
+                },
+                [new DialogButton("Not now", "later", IsDefault: true, IsCancel: true),
+                 new DialogButton("Skip this version", "skip")
+                 {
+                     HelpText = $"Do not show FileCat {result.Latest} in automatic startup checks. A newer version or a manual check can still be shown.",
+                 },
+                 new DialogButton("Open release page", "open")]);
+            if (answer is "skip" && result.Latest is { } latest)
+            {
+                Services.Settings.SkippedUpdateVersion = latest;
+                Services.SaveSettings();
+            }
+            else if (answer is "open") Services.Shell.Open(url);
+        }
+        finally { _updatePromptShowing = false; }
+    }
+
+    /// <summary>The daily check at startup, only when enabled in Settings → Privacy.</summary>
+    public async Task CheckForUpdatesOnStartupAsync(CancellationToken ct = default)
+    {
+        UpdateCheck.Result? r;
+        try { r = await UpdateCheck.RunScheduledAsync(Services.Settings, Services.SaveSettings, ct); }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return; }
+        if (!UpdateCheck.ShouldOfferOnStartup(Services.Settings, r) || r?.Url is not { } url) return;
+        try
+        {
+            // A startup result must not replace a dialog the user is already working in.
+            while (Dialogs.IsOpen && !ct.IsCancellationRequested) await Task.Delay(250, ct);
+            if (!ct.IsCancellationRequested && UpdateCheck.ShouldOfferOnStartup(Services.Settings, r) &&
+                !string.Equals(_sessionUpdateVersionPresented, r.Latest, StringComparison.OrdinalIgnoreCase))
+                await ShowAvailableUpdateAsync(r, url);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
     }
     private void OpenFocused(bool withSystem)
     {
         var tab = ActiveTab;
         if (tab is null) return;
+        // The parent row remains available when enumeration is denied. Let it
+        // escape the failed location before treating Open as a retry or sign-in.
+        if (tab.Listing.TryGetFocused(out var focused) && focused.Kind == EntryKind.Parent)
+        {
+            tab.GoUp();
+            return;
+        }
         if (tab.Listing.State == ListingState.Failed)
         {
             // A share that needs credentials: Enter opens the Windows sign-in prompt, then retries (NET-004).
@@ -946,7 +1070,7 @@ public sealed partial class MainViewModel
             History = Services.MaskSuggestions(),
             Validate = t => Mask.TryParse(t, out _, out var err) ? null : err,
             CheckboxText = "Include folders",
-            CheckboxValue = false,
+            CheckboxValue = true,
         });
         if (r is null) return;
         AppServices.RememberText(Services.History.Masks, r.Text);
@@ -977,16 +1101,28 @@ public sealed partial class MainViewModel
         Notify($"Copied {Formatters.Plural(sel.Count, "entry", "entries")} to the clipboard.");
     }
 
-    private void InsertIntoCommandLine(bool full)
+    /// <summary>Insert at the command-line selection when its editor owns the keyboard.</summary>
+    internal int InsertFocusedNameAtCaret(bool full, int selectionStart, int selectionEnd) =>
+        InsertIntoCommandLine(full, selectionStart, selectionEnd);
+
+    private int InsertIntoCommandLine(bool full, int? selectionStart = null, int? selectionEnd = null)
     {
         var tab = ActiveTab;
-        if (tab is null || !tab.Listing.TryGetFocused(out var f) || f.Kind == EntryKind.Parent) return;
+        if (tab is null || !tab.Listing.TryGetFocused(out var f) || f.Kind == EntryKind.Parent)
+            return Math.Clamp(selectionStart ?? CommandLineText.Length, 0, CommandLineText.Length);
         var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
         var text = full ? DisplayPathOf(item) : f.Name;
         var quoted = Core.Tools.ShellQuoting.Quote(text, Services.Settings.Terminal.Shell);
         var current = CommandLineText;
-        CommandLineText = current.Length == 0 || current.EndsWith(' ') ? current + quoted + " " : current + " " + quoted + " ";
+        int start = Math.Clamp(selectionStart ?? current.Length, 0, current.Length);
+        int end = Math.Clamp(selectionEnd ?? start, 0, current.Length);
+        if (end < start) (start, end) = (end, start);
+        string before = current[..start], after = current[end..];
+        string prefix = before.Length > 0 && !char.IsWhiteSpace(before[^1]) ? " " : "";
+        string suffix = after.Length == 0 || !char.IsWhiteSpace(after[0]) ? " " : "";
+        CommandLineText = before + prefix + quoted + suffix + after;
         ShowCommandLine = true;
+        return before.Length + prefix.Length + quoted.Length + suffix.Length;
     }
 
     private void SetBookmark(int slot)

@@ -6,6 +6,8 @@ namespace FileCat.Platform.Windows;
 /// <summary>Bounded, lossless Registry export. A .reg file does not carry WOW64 view or ACLs.</summary>
 public static class RegistryInterchange
 {
+    public sealed record Selection(Location Key, string? Value, string? ExportPath = null);
+
     public static void Export(Location keyLocation, string? valueName, string destination, CancellationToken ct = default) =>
         ExportMany([(keyLocation, valueName)], destination, ct);
 
@@ -13,34 +15,37 @@ public static class RegistryInterchange
     /// Exports several keys (with their subtrees) and single values of one view into one .reg file. Everything is read
     /// twice, and nothing is published if any part changed meanwhile.
     /// </summary>
-    public static void ExportMany(IReadOnlyList<(Location Key, string? Value)> items, string destination, CancellationToken ct = default)
+    public static void ExportMany(IReadOnlyList<(Location Key, string? Value)> items, string destination, CancellationToken ct = default) =>
+        ExportSelections(items.Select(item => new Selection(item.Key, item.Value)).ToArray(), destination, ct);
+
+    public static void ExportSelections(IReadOnlyList<Selection> items, string destination, CancellationToken ct = default)
     {
         if (items.Count == 0) throw new ArgumentException("Choose something to export.", nameof(items));
-        foreach (var (key, _) in items)
-            if (key.Scheme != Schemes.Registry || key.Path.Length == 0)
+        foreach (var item in items)
+            if (item.Key.Scheme != Schemes.Registry || item.Key.Path.Length == 0)
                 throw new ArgumentException("Choose a concrete Registry key.", nameof(items));
         if (items.Select(i => i.Key.Session ?? "default").Distinct().Count() > 1)
             throw new ArgumentException("A .reg file holds one Registry view; export each view separately.", nameof(items));
         if (Path.GetExtension(destination).Equals(".reg", StringComparison.OrdinalIgnoreCase) is false)
             throw new ArgumentException("Registry export requires a .reg destination.", nameof(destination));
 
-        var parts = new List<(Location Key, string? Value, RegistryTreeSnapshot? Tree, RegistryValueData? Data)>();
-        foreach (var (keyLocation, valueName) in items)
+        var parts = new List<(Selection Item, RegistryTreeSnapshot? Tree, RegistryValueData? Data)>();
+        foreach (var item in items)
         {
             ct.ThrowIfCancellationRequested();
-            if (valueName is null)
+            if (item.Value is null)
             {
-                var tree = RegistryTree.Scan(keyLocation, ct);
+                var tree = RegistryTree.Scan(item.Key, ct);
                 if (tree.LinkCount > 0)
-                    throw new NotSupportedException($"{keyLocation.Path} contains Registry links. Exporting them as ordinary .reg keys would change their meaning.");
-                parts.Add((keyLocation, null, tree, null));
+                    throw new NotSupportedException($"{item.Key.Path} contains Registry links. Exporting them as ordinary .reg keys would change their meaning.");
+                parts.Add((item, tree, null));
             }
             else
             {
-                using var key = WindowsRegistryProvider.Open(keyLocation, false);
-                var value = RegistryRaw.Read(key, valueName);
+                using var key = WindowsRegistryProvider.Open(item.Key, false);
+                var value = RegistryRaw.Read(key, item.Value);
                 if (value.Data.Length != value.Length) throw new IOException("A selected Registry value exceeds the 64 MiB export limit.");
-                parts.Add((keyLocation, valueName, null, value));
+                parts.Add((item, null, value));
             }
         }
 
@@ -59,22 +64,23 @@ public static class RegistryInterchange
                 writer.WriteLine("; Security descriptors are not included.");
                 writer.WriteLine();
 
-                foreach (var (keyLocation, valueName, tree, data) in parts)
+                foreach (var (item, tree, data) in parts)
                 {
+                    string exportPath = item.ExportPath ?? item.Key.Path;
                     if (tree is null)
                     {
-                        WriteKeyHeader(writer, keyLocation.Path);
-                        WriteValue(writer, valueName!, data!);
+                        WriteKeyHeader(writer, exportPath);
+                        WriteValue(writer, item.Value!, data!);
                         writer.WriteLine();
                         continue;
                     }
                     foreach (var entry in tree.Keys)
                     {
                         ct.ThrowIfCancellationRequested();
-                        var location = entry.RelativePath.Length == 0 ? keyLocation :
-                            keyLocation.WithPath(keyLocation.Path + "\\" + entry.RelativePath);
+                        string suffix = entry.RelativePath.Length == 0 ? string.Empty : "\\" + entry.RelativePath;
+                        var location = item.Key.WithPath(item.Key.Path + suffix);
                         using var key = WindowsRegistryProvider.Open(location, false);
-                        WriteKeyHeader(writer, location.Path);
+                        WriteKeyHeader(writer, exportPath + suffix);
                         foreach (var name in RegistryRaw.ValueNames(key))
                         {
                             ct.ThrowIfCancellationRequested();
@@ -91,14 +97,14 @@ public static class RegistryInterchange
             }
 
             ct.ThrowIfCancellationRequested();
-            foreach (var (keyLocation, valueName, tree, data) in parts)
+            foreach (var (item, tree, data) in parts)
             {
-                if (tree is not null && RegistryTree.Digest(RegistryTree.Scan(keyLocation, ct)) != RegistryTree.Digest(tree))
-                    throw new RegistryConflictException($"{keyLocation.Path} changed during export. No file was published.");
+                if (tree is not null && RegistryTree.Digest(RegistryTree.Scan(item.Key, ct)) != RegistryTree.Digest(tree))
+                    throw new RegistryConflictException($"{item.Key.Path} changed during export. No file was published.");
                 if (data is not null)
                 {
-                    using var key = WindowsRegistryProvider.Open(keyLocation, false);
-                    var now = RegistryRaw.Read(key, valueName!);
+                    using var key = WindowsRegistryProvider.Open(item.Key, false);
+                    var now = RegistryRaw.Read(key, item.Value!);
                     if (now.Type != data.Type || !now.Data.AsSpan().SequenceEqual(data.Data))
                         throw new RegistryConflictException("A Registry value changed during export. No file was published.");
                 }

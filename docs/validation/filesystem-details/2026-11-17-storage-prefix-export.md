@@ -1,0 +1,25 @@
+# Captured-prefix export reader and inactive call pages — 17 November 2026
+
+Continues the [call-page checkpoint](2026-11-17-storage-call-pages.md) on `main`, parent `35a392dc`. This checkpoint implements the whole-prefix **reader/staging API** and inactive page navigation. The live report's save picker, bound final publication and its end-to-end cancellation/cleanup qualification remain open; there is no new live-export UI button yet.
+
+Subsequent implementation: the [bound-export checkpoint](2026-11-17-storage-bound-export.md) supplies the new-file picker and same-object output publication/cleanup, with focused native/App checks. The statements above describe this earlier checkpoint's boundary.
+
+`JobManager.CopyStorageCalls` opens the private read-only history authority for the captured durable endpoint. It validates every record, sequence, job association, framing and SHA-256 before invoking the output factory. The output is charged before opening against the same independent three-handle evidence envelope, and remains owned through actual return/disposal. The copying pass uses one 64 KiB buffer, writes exactly the captured byte length, rechecks its digest and flushes the staging stream. Later appends are excluded. Failure after creation can leave tentative staging bytes: the API explicitly requires a private staging destination and publication only after success. It does not acknowledge, prune, replay or access a historical user-file path.
+
+Inactive storage reports now offer **View recorded calls…** for an intact, bounded reviewed journal. A retained summary offers it only while the detailed journal was present at capture. Each page still reopens and validates the exact prefix, owns no stream during a user wait, and displays missing results as unestablished effects. Missing/pruned or changed evidence on a later request produces the existing explicit read failure. Damaged/oversized summaries retain their existing exact raw-evidence export and do not pretend to provide parsed pages.
+
+Verification ran on the supplied Windows 11 x64 VM at medium integrity, Ubuntu x64 VM and macOS ARM64. No test executed on the workstation. All final builds passed with zero warnings/errors. The initial host native-test build refused the environment's long temporary path; a workspace-local short compiler temporary directory resolved that build prerequisite without changing product code.
+
+| Selection | Windows VM | Ubuntu VM | macOS |
+| --- | --- | --- | --- |
+| Core call evidence/cursor/ownership, 35 cases | 35 passed | 35 passed | 35 passed |
+| App call-page/operations/history selection, 23 cases | Initial run: 22 passed, one new fixture error; corrected affected case: 1 passed | 22 passed, one Windows-only skip | 22 passed, one Windows-only skip |
+| Native private-reader export during a blocked later flush | 1 passed | Not applicable | Not applicable |
+
+The initial Windows history fixture incorrectly used child paths under a selected-file scope; the collector rejected it before the new UI path. Its corrected 71-call fixture records valid repeated no-call attempts on the captured file, verifies calls 1–64 then 65–71, preserves the missing-result warning, acknowledges the history, verifies page availability from its retained summary, restarts after pruning and verifies that no parsed-page action remains. Only that affected App case was repeated. The other 22 App cases were unchanged and passed in the initial Windows run.
+
+Core export cases verify more than one page of exact records plus a pending intent, exclusion of later appended outcomes, rejection before output creation for corrupt/short/digest/sequence failures, detection of source mutation between validation and copying, and output/envelope retirement when cancellation arrives from the factory. The native blocked-flush case uses the real private Windows backend and verifies the exported endpoint/hash while the live writer remains blocked. These checks do not close broad performance, crash, ARM64-native or UI qualification gates.
+
+Final source archive SHA-256 `4E3C5A45AF333D526D1DACF3EC2241A100A8983A17B7362773A89089A42C39CE`; Windows App patch `CA2FF4D27D50912873EF148483050B4B7E4027561F08FB448C6136E94ED6095D`; Core patch `7883F9EF90CA135E5BCCC790B49B76FEB71BEA6E0DBBFFEB40916E5B3D941C79`; native patch `1F1B52817EEB1F4DAD4DD6885CF43A8A8400C42FB638C0F7743C3643FE4D7208`. Scratch scripts/logs are `.tmp/filecat-storage-prefix-*` and remote `/tmp/filecat-storage-prefix.log`. The final source differs from the portable-tested source only in the corrected Windows-only fixture.
+
+Hosted run `44124547539` passed Core on Ubuntu and Windows ARM64 and continued into later suites at this writing; its macOS job was canceled. No full-green CI or completed-plan claim is made. Product mutation remains gated, and EFS identity/key/output/consent implementation remains part of the active required objective.

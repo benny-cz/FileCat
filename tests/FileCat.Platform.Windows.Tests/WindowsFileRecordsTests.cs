@@ -37,6 +37,24 @@ public sealed partial class WindowsFileRecordsTests
         System.Text.RegularExpressions.Regex.IsMatch(TimestampChecksText(report), BackdatedCreationPattern);
 
     [Fact]
+    public void Summary_preserves_the_native_missing_target_status()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Requires Windows native metadata.");
+        string dir = NewFolder();
+        try
+        {
+            var reader = new WindowsFileRecords();
+            var ct = TestContext.Current.CancellationToken;
+            foreach (string path in new[] { Path.Combine(dir, "missing.txt"), Path.Combine(dir, "missing-folder", "child.txt") })
+            {
+                var missing = Assert.Throws<FileNotFoundException>(() => reader.ReadSummary(path, ct));
+                Assert.Equal(path, missing.FileName);
+            }
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
     public void Live_log_gate_requires_its_own_time_change_not_other_timestamp_signs()
     {
         var unrelated = new InspectionReport("test",
@@ -95,7 +113,7 @@ public sealed partial class WindowsFileRecordsTests
                     {
                         Assert.Null(layout.Table);
                         Assert.DoesNotContain(layout.Fields, f => f.Name == "Fragments");
-                        Assert.Contains(layout.Lines, l => l == "Its clusters could not be listed: " + new Win32Exception(error).Message);
+                        Assert.Contains(layout.Lines, l => l.Contains($"Windows error {error}", StringComparison.Ordinal));
                     }
                     else
                     {
@@ -278,7 +296,7 @@ public sealed partial class WindowsFileRecordsTests
             var report = Read(junction, privileged: false);
             Assert.Equal("junction (mount point)", Field(Section(report, "Item"), "Kind"));
             var reparse = Section(report, "Reparse point");
-            Assert.StartsWith("0xA0000003 mount point (junction)", Field(reparse, "Tag"), StringComparison.Ordinal);
+            Assert.StartsWith("0xA0000003 junction or volume mount", Field(reparse, "Tag"), StringComparison.Ordinal);
             Assert.Equal(target, Field(reparse, "Says"));
 
             string sparse = Path.Combine(dir, "sparse.bin");
@@ -290,7 +308,21 @@ public sealed partial class WindowsFileRecordsTests
                 stream.Write(new byte[4096].Select(_ => (byte)1).ToArray());
             }
             string ranges = Field(Section(Read(sparse, privileged: false), "Layout on disk"), "Sparse");
-            Assert.Contains("stored, in 1 range", ranges, StringComparison.Ordinal);
+            if (ranges.Contains("range query omitted:", StringComparison.Ordinal))
+            {
+                Assert.StartsWith("yes (range query omitted: Cloud sync-root membership could not be ruled out;", ranges, StringComparison.Ordinal);
+                Assert.DoesNotContain("bytes in returned allocated ranges", ranges, StringComparison.Ordinal);
+            }
+            else Assert.Contains("bytes in returned allocated ranges, in 1 range", ranges, StringComparison.Ordinal);
+
+            string unallocated = Path.Combine(dir, "unallocated.bin");
+            using (var stream = new FileStream(unallocated, FileMode.CreateNew, FileAccess.ReadWrite))
+            {
+                Assert.True(DeviceIoControl(stream.SafeFileHandle, 0x000900C4 /* FSCTL_SET_SPARSE */, 0, 0, 0, 0, out _, 0));
+                stream.SetLength(10 << 20);
+            }
+            var unallocatedLayout = Section(Read(unallocated, privileged: false), "Layout on disk");
+            Assert.DoesNotContain(unallocatedLayout.Fields, field => field.Name == "Resident" && field.Value.StartsWith("probably", StringComparison.Ordinal));
         }
         finally
         {

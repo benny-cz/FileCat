@@ -84,16 +84,19 @@ public sealed class ChangeMonitor : IDisposable
             if (_disposed) return;
             var now = DateTime.UtcNow;
             if (_firstPending == DateTime.MaxValue) _firstPending = now;
-            // Coalesce bursts: a quarter second after the last change, but no later than two seconds after the first, so a
-            // folder that keeps changing (a file being written into it) is still read again every two seconds; and no
-            // sooner than MinInterval after the last reread. Re-arming at every change without that cap put the reread
-            // off for as long as the changes went on (release issue I87).
-            var due = now + TimeSpan.FromMilliseconds(250);
-            if (due > _firstPending + TimeSpan.FromSeconds(2)) due = _firstPending + TimeSpan.FromSeconds(2);
-            if (_lastFire != DateTime.MinValue && due < _lastFire + MinInterval) due = _lastFire + MinInterval;
-            var wait = due - now;
-            _debounce.Change(wait > TimeSpan.Zero ? wait : TimeSpan.Zero, Timeout.InfiniteTimeSpan);
+            _debounce.Change(RefreshDelay(now, _firstPending, _lastFire, MinInterval), Timeout.InfiniteTimeSpan);
         }
+    }
+
+    internal static TimeSpan RefreshDelay(DateTime now, DateTime firstPending, DateTime lastFire, TimeSpan minInterval)
+    {
+        // Coalesce bursts within a quarter second of the latest change and cap the burst at two seconds (I87).
+        // A long preceding scan can require a later refresh through the minimum interval.
+        var due = now + TimeSpan.FromMilliseconds(250);
+        if (due > firstPending + TimeSpan.FromSeconds(2)) due = firstPending + TimeSpan.FromSeconds(2);
+        if (lastFire != DateTime.MinValue && due < lastFire + minInterval) due = lastFire + minInterval;
+        var wait = due - now;
+        return wait > TimeSpan.Zero ? wait : TimeSpan.Zero;
     }
 
     private void OnError(ErrorEventArgs e)

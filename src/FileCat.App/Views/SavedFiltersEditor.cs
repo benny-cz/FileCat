@@ -30,9 +30,12 @@ internal sealed class SavedFiltersEditor
     private readonly StackPanel _structured = new() { Spacing = 6 };
     private readonly StackPanel _rawPanel = new() { Spacing = 6, IsVisible = false };
     private bool _updating;
+    /// <summary>Settings that cannot be saved (read-only): the filters can be looked through, not changed.</summary>
+    private readonly bool _readOnly;
 
-    public SavedFiltersEditor(IEnumerable<SavedFilter> filters)
+    public SavedFiltersEditor(IEnumerable<SavedFilter> filters, bool readOnly = false)
     {
+        _readOnly = readOnly;
         _draft = filters.Select(f => new SavedFilter { Name = f.Name, Mask = f.Mask }).ToList();
         AutomationProperties.SetName(_list, "Saved filter list");
         AutomationProperties.SetName(_name, "Selected filter name");
@@ -49,6 +52,7 @@ internal sealed class SavedFiltersEditor
             _draft.Add(new SavedFilter { Name = UniqueName("new-filter"), Mask = "*" });
             Refresh(_draft.Count - 1);
             _name.Focus();
+            _name.SelectAll();
         };
         _duplicate.Click += (_, _) =>
         {
@@ -56,6 +60,7 @@ internal sealed class SavedFiltersEditor
             _draft.Insert(_list.SelectedIndex + 1, new SavedFilter { Name = UniqueName(f.Name + "-copy"), Mask = f.Mask });
             Refresh(_list.SelectedIndex + 1);
             _name.Focus();
+            _name.SelectAll();
         };
         _remove.Click += (_, _) =>
         {
@@ -80,8 +85,12 @@ internal sealed class SavedFiltersEditor
         _advanced.IsCheckedChanged += (_, _) => SwitchMode();
         View = new StackPanel
         {
-            Margin = new Thickness(8), Spacing = 6,
-            Children = { _advanced, _structured, _rawPanel },
+            Margin = new Thickness(0, 6, 0, 10), Spacing = 6,
+            Children =
+            {
+                new TextBlock { Text = "Saved filters", FontWeight = FontWeight.SemiBold },
+                _advanced, _structured, _rawPanel,
+            },
         };
         Refresh(_draft.Count > 0 ? 0 : -1);
     }
@@ -160,7 +169,7 @@ internal sealed class SavedFiltersEditor
 
     private void RefreshButtons()
     {
-        bool selected = Selected is not null;
+        bool selected = Selected is not null && !_readOnly;
         _duplicate.IsEnabled = _remove.IsEnabled = selected;
         _up.IsEnabled = selected && _list.SelectedIndex > 0;
         _down.IsEnabled = selected && _list.SelectedIndex < _draft.Count - 1;

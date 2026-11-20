@@ -23,12 +23,22 @@ public sealed class FreedesktopIconsTests
             // suspend this test process for seconds after the 500 ms kill has already worked.
             File.WriteAllText(helper, "#!/bin/sh\nprintf '%s\\n' \"$$\" > '" + pidFile + "'\nexec /bin/sleep 15\n");
             File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-            var clock = Stopwatch.StartNew();
-            Assert.Null(FreedesktopIcons.QueryGsettings(helper, "org.gnome.desktop.interface", "icon-theme", 500));
-            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(10), $"Theme detection waited {clock.Elapsed} for a stalled helper.");
-            Assert.True(File.Exists(pidFile), "The owned helper did not reach its sleep control.");
-            int pid = int.Parse(File.ReadAllText(pidFile));
-            Assert.Throws<ArgumentException>(() => Process.GetProcessById(pid));
+            bool reachedControl = false;
+            for (int attempt = 0; attempt < 10; attempt++)
+            {
+                File.Delete(pidFile);
+                var clock = Stopwatch.StartNew();
+                Assert.Null(FreedesktopIcons.QueryGsettings(helper, "org.gnome.desktop.interface", "icon-theme", 500));
+                Assert.True(clock.Elapsed < TimeSpan.FromSeconds(10), $"Theme detection waited {clock.Elapsed} for a stalled helper.");
+                // A loaded host can kill the new shell before it is scheduled to write its PID.
+                // Retry only that missing startup control; every attempt keeps the short deadline,
+                // and a started control must still prove that its process was actually reaped.
+                if (!File.Exists(pidFile) || !int.TryParse(File.ReadAllText(pidFile), out int pid)) continue;
+                Assert.Throws<ArgumentException>(() => Process.GetProcessById(pid));
+                reachedControl = true;
+                break;
+            }
+            Assert.True(reachedControl, "No owned helper reached its sleep control in ten bounded startup attempts.");
         }
         finally { Directory.Delete(root, recursive: true); }
     }

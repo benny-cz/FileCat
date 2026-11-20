@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.FileSystem;
 
@@ -31,6 +32,17 @@ public sealed class FileCopyOptions
     /// still in the write cache would be lost with it on power failure.
     /// </summary>
     public bool FlushDestination { get; init; }
+}
+
+/// <summary>Holds the actual EFS source and output parent while the job asks about a single clear-copy attempt.</summary>
+internal interface IDecryptedCopyReviewProvider
+{
+    IDecryptedCopyReview PrepareDecryptedCopy(string source, string destination, bool followLink, CancellationToken ct);
+}
+
+internal interface IDecryptedCopyReview : IDisposable
+{
+    void Copy(FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct);
 }
 
 /// <summary>Native identity and metadata of one file-system item.</summary>
@@ -156,6 +168,12 @@ public interface IFileSystemOperations
     /// </summary>
     void Move(string source, string destination, bool replaceExisting, bool writeThrough = false);
 
+    /// <summary>Whether a rename may retain the conflicting item under a free sibling name.</summary>
+    bool CanRetainRenameTarget(string destination) => CanReplaceReviewed(destination);
+
+    /// <summary>Claims a free name without falling back to a rename that may overwrite it.</summary>
+    void MoveToFreeName(string source, string destination) => Move(source, destination, replaceExisting: false, writeThrough: true);
+
     /// <summary>
     /// Atomically avoid overwriting a different destination object after its review: its complete content
     /// (<paramref name="expectedSha256"/>), or, for a file beyond the content-review budget or one a cloud provider keeps
@@ -181,10 +199,21 @@ public interface IFileSystemOperations
     BoundDeletion? DeleteReviewedFile(string path, string? expectedIdentity, string expectedSha256,
         long expectedLength, CancellationToken ct);
 
+    /// <summary>
+    /// Deletes a file FileCat itself created, whose identity it recorded, through a handle bound to that identity (its
+    /// bytes may be partial). Null means this adapter has no handle-bound deletion; callers must not fall back to a bare
+    /// pathname outside a folder only FileCat can change (risk R21).
+    /// </summary>
+    BoundDeletion? DeleteOwnedFile(string path, string expectedIdentity) => null;
+
+    /// <summary>Delete an owned stage only after checking that its held object remains clear of EFS.</summary>
+    BoundDeletion? DeleteClearOwnedFile(string path, string expectedIdentity) => null;
+
     BoundTreeDeletion? DeleteReviewedTree(string path, IReadOnlyList<BoundDeletionEntry> reviewed,
         Action checkpoint, CancellationToken ct);
 
     void CreateDirectory(string path);
+    void CreateDirectoryForCopy(string path, UnixFileMode mode) => CreateDirectory(path);
 
     /// <summary>Permanently deletes one file or link (never follows it).</summary>
     void DeleteFile(string path);
@@ -215,10 +244,17 @@ public interface IFileSystemOperations
     /// <summary>Mark-of-the-Web / quarantine origin data, or null.</summary>
     string? ReadOriginMark(string path);
 
+    /// <summary>Reads the download mark of a captured archive input under the platform's output admission policy.</summary>
+    string? ReadArchiveSourceOriginMark(string path, string? identity, CancellationToken ct) => ReadOriginMark(path);
+
+    /// <summary>Holds the already opened archive payload against a change in native encryption state while it is read.</summary>
+    IDisposable? HoldArchivePackingInput(SafeFileHandle source) => null;
+
     /// <summary>Writes origin data; returns false when the destination cannot store it (reported as a security loss).</summary>
     bool WriteOriginMark(string path, string mark);
 
-    /// <summary>Names of alternate data streams (without the default stream); empty where the platform has none.</summary>
+    /// <summary>Names of alternate data streams (without the default stream); empty where the platform has none.
+    /// Throws when the platform's stream inventory cannot be completed, including a missing source.</summary>
     IReadOnlyList<string> GetAlternateStreams(string path);
 
     /// <summary>True when <see cref="CopyFile"/> itself keeps attributes, times, and streams (native copy engines).</summary>
@@ -245,12 +281,25 @@ public interface IFileSystemOperations
     /// <summary>A stable identity of the file (volume and file ID), without following links; null where unavailable.</summary>
     string? GetFileIdentity(string path);
 
+    /// <summary>Identity of the actual file open for reading, when the platform can establish it.</summary>
+    string? GetOpenedFileIdentity(SafeFileHandle file) => null;
+
     /// <summary>
     /// Where <paramref name="path"/> really is: its full path with every link on the way and at its end resolved
     /// (junctions, symbolic links, and on Windows mapped drives, as a UNC path). Null where the platform cannot tell or the
     /// path does not exist.
     /// </summary>
     string? GetFinalPath(string path);
+
+    /// <summary>
+    /// Observe the file reached by a path, following links. Implementations may obtain its identity without
+    /// materializing the final path; a missing identity is never evidence that an existing file is safe to replace.
+    /// </summary>
+    ResolvedFileObservation ObserveResolvedFile(string path)
+    {
+        var final = GetFinalPath(path);
+        return new(final, GetFileIdentity(final ?? path));
+    }
 
     /// <summary>
     /// Whether another file system is mounted at this folder (a drive, a share, a bind mount). On Linux and macOS such a
@@ -269,6 +318,8 @@ public enum LinkKind
     Hard,
 }
 
+public readonly record struct ResolvedFileObservation(string? FinalPath, string? Identity);
+
 /// <summary>
 /// Portable implementation over System.IO: streamed copy with progress, links via .NET link APIs, and the
 /// freedesktop.org trash (Linux) or ~/.Trash (macOS).
@@ -285,6 +336,11 @@ public class PortableFileOperations : IFileSystemOperations
 
     public virtual bool CanReplaceReviewed(string destination) => false;
 
+    public virtual bool CanRetainRenameTarget(string destination) => CanReplaceReviewed(destination);
+
+    public virtual void MoveToFreeName(string source, string destination) =>
+        Move(source, destination, replaceExisting: false, writeThrough: true);
+
     public virtual bool HeldDirectoryRedirected(IDisposable lease) => false;
 
     public virtual string? PrepareReviewedReplacement(string source, string destination) => null;
@@ -292,11 +348,15 @@ public class PortableFileOperations : IFileSystemOperations
     public virtual BoundDeletion? DeleteReviewedFile(string path, string? expectedIdentity, string expectedSha256,
         long expectedLength, CancellationToken ct) => null;
 
+    public virtual BoundDeletion? DeleteOwnedFile(string path, string expectedIdentity) => null;
+    public virtual BoundDeletion? DeleteClearOwnedFile(string path, string expectedIdentity) => null;
+
     public virtual BoundTreeDeletion? DeleteReviewedTree(string path, IReadOnlyList<BoundDeletionEntry> reviewed,
         Action checkpoint, CancellationToken ct) => null;
 
     public virtual IDisposable HoldRegularFile(string path, string? root = null)
     {
+        PathUtil.RefuseAmbiguousUnixName(path);
         string full = Path.GetFullPath(path);
         RefuseLinks(full, FollowableComponents(full, root, file: true), "The source path contains a link; it was not added to the archive.");
         if ((File.GetAttributes(full) & FileAttributes.Directory) != 0) throw new IOException("The source is a folder, not a regular file.");
@@ -305,6 +365,7 @@ public class PortableFileOperations : IFileSystemOperations
 
     public virtual IDisposable HoldDirectory(string path, string? root = null)
     {
+        PathUtil.RefuseAmbiguousUnixName(path);
         string full = Path.GetFullPath(path);
         RefuseLinks(full, FollowableComponents(full, root, file: false), "The destination folder path contains a link; nothing was written there.");
         if ((File.GetAttributes(full) & FileAttributes.Directory) == 0) throw new IOException("The destination is not a folder.");
@@ -367,6 +428,7 @@ public class PortableFileOperations : IFileSystemOperations
     {
         try
         {
+            PathUtil.RefuseAmbiguousUnixName(path);
             FileSystemInfo fi = new FileInfo(path);
             if (!fi.Exists)
             {
@@ -393,6 +455,7 @@ public class PortableFileOperations : IFileSystemOperations
     /// </summary>
     public static FileSystemItemInfo FromInfo(FileSystemInfo fi, string? path = null)
     {
+        PathUtil.RefuseAmbiguousUnixName(path ?? fi.FullName);
         bool isDir = fi is DirectoryInfo;
         string? linkTarget = (fi.Attributes & FileAttributes.ReparsePoint) != 0 ? fi.LinkTarget : null;
         return new FileSystemItemInfo(path ?? fi.FullName, isDir, linkTarget is not null, isDir ? -1 : ((FileInfo)fi).Length,
@@ -476,6 +539,8 @@ public class PortableFileOperations : IFileSystemOperations
 
     public virtual void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct)
     {
+        PathUtil.RefuseAmbiguousUnixName(source);
+        PathUtil.RefuseAmbiguousUnixName(destination);
         var info = new FileInfo(source);
         if (options.CopyLinkAsLink && info.LinkTarget is not null)
         {
@@ -484,37 +549,55 @@ public class PortableFileOperations : IFileSystemOperations
         }
         long total = info.Length;
         bool created = false;
-        // Unix: while it is written, the copy is readable by no one the source excludes (a private key stays private).
+        // An ACL may deny someone whom the mode bits allow. Keep a new Unix file owner-only until its
+        // final mode and any POSIX ACL have both been applied through the held destination handle.
         var create = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None, BufferSize = 1, Options = FileOptions.SequentialScan };
         UnixFileMode mode = 0;
         if (!OperatingSystem.IsWindows())
         {
             mode = File.GetUnixFileMode(source);
-            create.UnixCreateMode = UnixPermissions.WhileCopying(mode, isDirectory: false);
+            create.UnixCreateMode = UnixPermissions.WhileCopying(isDirectory: false);
         }
+        bool linuxModeSet = false;
         try
         {
             using (var src = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan))
             using (var dst = new FileStream(destination, create))
             {
                 created = true;
-                if (total > 0 && !options.DisablePreallocation) dst.SetLength(total);
                 var buffer = new byte[BufferSize];
-                long done = 0;
-                int n;
-                while ((n = src.Read(buffer, 0, buffer.Length)) > 0)
+                void Advanced(long done)
                 {
                     ct.ThrowIfCancellationRequested();
-                    dst.Write(buffer, 0, n);
-                    done += n;
                     if (progress?.Invoke(done, total) == CopyProgressAction.Cancel) throw new OperationCanceledException(ct);
                 }
-                if (dst.Length != done) dst.SetLength(done);
+                bool sparseCopied = (OperatingSystem.IsWindows() && (info.Attributes & FileAttributes.SparseFile) != 0 &&
+                    WindowsSparseCopy.TryCopy(src, dst, total, buffer, options.DisablePreallocation, Advanced, ct)) ||
+                    UnixSparseCopy.TryCopy(src, dst, total, buffer, Advanced, ct);
+                if (!sparseCopied)
+                {
+                    src.Position = 0; // extent probing may have moved the shared native descriptor
+                    if (total > 0 && !options.DisablePreallocation) dst.SetLength(total);
+                    long done = 0;
+                    int n;
+                    while ((n = src.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        dst.Write(buffer, 0, n);
+                        done += n;
+                        Advanced(done);
+                    }
+                    if (dst.Length != done) dst.SetLength(done);
+                }
+                // On macOS the resource fork is an extended attribute, not part of FileStream's data fork.
+                // Copy it (and the other xattrs) between the already-open files before the new name is published.
+                // A failure must discard this destination rather than report a complete copy with missing bytes.
+                if (OperatingSystem.IsMacOS()) MacExtendedAttributes.Copy(src, dst, ct);
+                if (OperatingSystem.IsLinux()) linuxModeSet = LinuxPosixAcl.CopyFile(src, dst, ct);
                 dst.Flush(flushToDisk: options.FlushDestination);
             }
             File.SetLastWriteTimeUtc(destination, info.LastWriteTimeUtc);
             File.SetCreationTimeUtc(destination, info.CreationTimeUtc);
-            if (!OperatingSystem.IsWindows())
+            if (!OperatingSystem.IsWindows() && !linuxModeSet)
             {
                 // Drives without permissions (FAT, some network shares) refuse or ignore this; the copy itself is complete.
                 try { File.SetUnixFileMode(destination, UnixPermissions.ForCopy(mode, isDirectory: false)); }
@@ -538,6 +621,8 @@ public class PortableFileOperations : IFileSystemOperations
 
     public virtual void Move(string source, string destination, bool replaceExisting, bool writeThrough = false)
     {
+        PathUtil.RefuseAmbiguousUnixName(source);
+        PathUtil.RefuseAmbiguousUnixName(destination);
         if (Directory.Exists(source) && new DirectoryInfo(source).LinkTarget is null)
         {
             if (replaceExisting) throw new IOException("Directories are merged item by item, never replaced wholesale.");
@@ -551,14 +636,28 @@ public class PortableFileOperations : IFileSystemOperations
 
     public virtual void CreateDirectory(string path)
     {
+        PathUtil.RefuseAmbiguousUnixName(path);
         if (Directory.Exists(path) || File.Exists(path)) throw new IOException($"An item named \"{Path.GetFileName(path)}\" already exists.");
         Directory.CreateDirectory(path);
     }
 
-    public virtual void DeleteFile(string path) => File.Delete(path);
+    public virtual void CreateDirectoryForCopy(string path, UnixFileMode mode)
+    {
+        PathUtil.RefuseAmbiguousUnixName(path);
+        if (OperatingSystem.IsWindows()) { CreateDirectory(path); return; }
+        if (Directory.Exists(path) || File.Exists(path)) throw new IOException($"An item named \"{Path.GetFileName(path)}\" already exists.");
+        Directory.CreateDirectory(path, mode);
+    }
+
+    public virtual void DeleteFile(string path)
+    {
+        PathUtil.RefuseAmbiguousUnixName(path);
+        File.Delete(path);
+    }
 
     public virtual void DeleteDirectory(string path)
     {
+        PathUtil.RefuseAmbiguousUnixName(path);
         var di = new DirectoryInfo(path);
         if (di.LinkTarget is not null)
         {
@@ -569,10 +668,15 @@ public class PortableFileOperations : IFileSystemOperations
         Directory.Delete(path, recursive: false);
     }
 
-    public virtual void SetAttributes(string path, FileAttributes attributes) => File.SetAttributes(path, attributes);
+    public virtual void SetAttributes(string path, FileAttributes attributes)
+    {
+        PathUtil.RefuseAmbiguousUnixName(path);
+        File.SetAttributes(path, attributes);
+    }
 
     public virtual void SetTimes(string path, DateTime? createdUtc, DateTime? modifiedUtc)
     {
+        PathUtil.RefuseAmbiguousUnixName(path);
         bool dir = Directory.Exists(path);
         if (createdUtc is { } c)
         {
@@ -591,6 +695,8 @@ public class PortableFileOperations : IFileSystemOperations
         error = null;
         try
         {
+            PathUtil.RefuseAmbiguousUnixName(source);
+            PathUtil.RefuseAmbiguousUnixName(destination);
             var target = isDirectory ? new DirectoryInfo(source).LinkTarget : new FileInfo(source).LinkTarget;
             if (target is null)
             {
@@ -633,6 +739,7 @@ public class PortableFileOperations : IFileSystemOperations
             }
             try
             {
+                PathUtil.RefuseAmbiguousUnixName(p);
                 results.Add(new RecycleResult(p, RecycleOutcome.Recycled, UnixTrash.Put(p, trash)));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -648,6 +755,8 @@ public class PortableFileOperations : IFileSystemOperations
         error = null;
         try
         {
+            PathUtil.RefuseAmbiguousUnixName(recycledId);
+            PathUtil.RefuseAmbiguousUnixName(originalPath);
             if (File.Exists(originalPath) || Directory.Exists(originalPath))
             {
                 error = "An item already exists at the original location.";
@@ -672,12 +781,18 @@ public class PortableFileOperations : IFileSystemOperations
 
     public virtual string? ReadOriginMark(string path) => null;
 
+    public virtual string? ReadArchiveSourceOriginMark(string path, string? identity, CancellationToken ct) => ReadOriginMark(path);
+
+    public virtual IDisposable? HoldArchivePackingInput(SafeFileHandle source) => null;
+
     public virtual bool WriteOriginMark(string path, string mark) => false;
 
     public virtual IReadOnlyList<string> GetAlternateStreams(string path) => [];
 
     public virtual void CreateLink(string linkPath, string target, LinkKind kind, bool isDirectory)
     {
+        PathUtil.RefuseAmbiguousUnixName(linkPath);
+        PathUtil.RefuseAmbiguousUnixName(target);
         if (File.Exists(linkPath) || Directory.Exists(linkPath) || new FileInfo(linkPath).LinkTarget is not null)
             throw new IOException($"An item named \"{Path.GetFileName(linkPath)}\" already exists.");
         switch (kind)
@@ -729,15 +844,31 @@ public class PortableFileOperations : IFileSystemOperations
     }
 
     /// <summary>Linux and macOS: the device and inode of the path's own entry (Windows overrides with volume and file ID).</summary>
-    public virtual string? GetFileIdentity(string path) => UnixFiles.Stat(path) is { } s ? s.Identity.ToString() : null;
+    public virtual string? GetFileIdentity(string path) =>
+        PathUtil.HasAmbiguousUnixName(path) ? null : UnixFiles.Stat(path) is { } s ? s.Identity.ToString() : null;
+
+    public virtual string? GetOpenedFileIdentity(SafeFileHandle file) => UnixFiles.Stat(file)?.Identity.ToString();
 
     /// <summary>Linux and macOS: realpath (Windows overrides with the handle's final path).</summary>
-    public virtual string? GetFinalPath(string path) => UnixFiles.RealPath(path);
+    public virtual string? GetFinalPath(string path) =>
+        PathUtil.HasAmbiguousUnixName(path) ? null : UnixFiles.RealPath(path);
+
+    public virtual ResolvedFileObservation ObserveResolvedFile(string path)
+    {
+        // Exact built-in Unix implementations can obtain the resolved object's device/inode in one stat call.
+        // Keep virtual GetFinalPath/GetFileIdentity observations for subclasses that model changes or failures.
+        if (!OperatingSystem.IsWindows() &&
+            (GetType() == typeof(PortableFileOperations) || GetType() == typeof(UnixFileOperations)))
+            return new(null, UnixFiles.Stat(path, followLinks: true) is { } s ? s.Identity.ToString() : null);
+        var final = GetFinalPath(path);
+        return new(final, GetFileIdentity(final ?? path));
+    }
 
     /// <summary>Hashes the finite file length observed at opening; growth or truncation refuses the result.</summary>
     public static byte[] HashFile(string path, HashAlgorithmName algorithm, CancellationToken ct, Action<long>? progress = null, long? expectedLength = null)
     {
         ct.ThrowIfCancellationRequested();
+        PathUtil.RefuseAmbiguousUnixName(path);
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
         long length = fs.Length;
         if (expectedLength is { } expected && expected != length) throw new IOException("The file length changed before verification.");

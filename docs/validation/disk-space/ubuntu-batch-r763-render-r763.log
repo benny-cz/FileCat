@@ -1,0 +1,22 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+    FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerNativeWindowKeepsCanonicalMembershipThroughFocusSortHistoryAndCatalogRestore(mode: "Treemap") [FAIL]
+      The requested view state was not published.
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Navigation.cs(141,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.Until(Func`1 predicate, Func`1 diagnostic)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.OtherExplorer.cs(82,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerNativeWindowKeepsCanonicalMembershipThroughFocusSortHistoryAndCatalogRestore(String mode)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.OtherExplorer.cs(108,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerNativeWindowKeepsCanonicalMembershipThroughFocusSortHistoryAndCatalogRestore(String mode)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.OtherExplorer.cs(109,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerNativeWindowKeepsCanonicalMembershipThroughFocusSortHistoryAndCatalogRestore(String mode)
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerNativeWindowKeepsCanonicalMembershipThroughFocusSortHistoryAndCatalogRestore(mode: "Sunburst") [FAIL]
+      The requested view state was not published.
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Navigation.cs(141,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.Until(Func`1 predicate, Func`1 diagnostic)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.OtherExplorer.cs(82,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerNativeWindowKeepsCanonicalMembershipThroughFocusSortHistoryAndCatalogRestore(String mode)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.OtherExplorer.cs(108,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerNativeWindowKeepsCanonicalMembershipThroughFocusSortHistoryAndCatalogRestore(String mode)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.OtherExplorer.cs(109,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerNativeWindowKeepsCanonicalMembershipThroughFocusSortHistoryAndCatalogRestore(String mode)
+        --- End of stack trace from previous location ---
+  Finished:    FileCat.Rendering.Tests (ID = '7ab3f6856a3409ba89f53f97cda055b8af2daa68d7fba7a565cfd89a2a0cbb40')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 213, Errors: 0, Failed: 2, Skipped: 0, Not Run: 0, Time: 102.340s

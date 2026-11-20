@@ -159,18 +159,21 @@ public sealed class NtfsViewIndex(ViewIndexKind kind, Func<ViewIndexEntry, bool>
 
         // Left behind, 8 bytes apart after the node's last entry: entries whose header survived, and keys whose header an
         // end entry was written over (NTFS removes a node's last entry so, and the entry's key and data stay after it).
-        int size = kind == ViewIndexKind.ObjectIds ? ObjectIdEntry : ReparseEntry;
         int bare = kind == ViewIndexKind.ObjectIds ? ObjectIdKey + ObjectIdData : ReparseKey;
         for (int offset = (Math.Max(at, first) + 7) & ~7; offset + bare <= allocated; offset += 8)
         {
-            if (Parse(data[offset..allocated], inSlack: true, strict: false) is { } entry) offset += size - 8;
+            if (Parse(data[offset..allocated], inSlack: true, strict: false) is { } entry)
+            {
+                // A complete, well-shaped entry for an NTFS system record still occupies its full space.
+                // Do not reinterpret its intact header as a bare key after the preceding end mark.
+                if (Plausible(entry)) Carved(entry);
+                offset += BinaryPrimitives.ReadUInt16LittleEndian(data[(offset + 8)..]) - 8;
+            }
             else if (Bare(data[..allocated], offset, header) is { } key)
             {
-                entry = key;
+                Carved(key);
                 offset += (bare + 7 & ~7) - 8;
             }
-            else continue;
-            Carved(entry);
         }
     }
 
@@ -262,7 +265,9 @@ public sealed class NtfsViewIndex(ViewIndexKind kind, Func<ViewIndexEntry, bool>
             if (!strict && (dataLength != 0 || length != ((flags & 1) != 0 ? ReparseEntry + 8 : ReparseEntry))) return null;
             found = ReparseOf(entry.Slice(EntryHeader, ReparseKey), inSlack);
         }
-        return strict || Plausible(found) ? found : null;
+        // Plausibility applies to inclusion, not shape: an intact system-record entry must be skipped
+        // as a whole so its header cannot be reinterpreted as a headerless entry.
+        return found;
     }
 
     private void Problem(string text)

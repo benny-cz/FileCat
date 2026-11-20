@@ -1,0 +1,820 @@
+{
+  "purpose": "Actual native source-name and saved-Other qualification plus measured workflow improvements; full W0-W8 remains open",
+  "observedUtc": "2026-11-07T16:11:37.247687+00:00",
+  "gitBase": "8b35ed7bb66b0dbabd26ae00acb264d4e5aae694",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.NativeNames.cs",
+      "sha256": "40ad535934fcc68ef24c2d6844c2af1f4282db78c4cd900e2a3f6357deeaa115"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.NativeNames.Fixture.cs",
+      "sha256": "048ec78877899011a4d50c3defa31f65dc24b8cd4fa7176fe741269f99dcf4f3"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r812.txt",
+      "sha256": "ed3109b3e586714d8fa4864bbb99690756a86b04e72593386c90d07b7fcd7067"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r813.txt",
+      "sha256": "98ede2ea46db08b5161e8c8911936bf0770060c49c44bb0386f71a159e79074d"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r817.txt",
+      "sha256": "055ec2ca224ff7618bb605f5644e6fdfac3e061407c8fcdd0d223fc16d45c8e7"
+    },
+    {
+      "path": "docs/validation/disk-space/pack-timing-r821.json",
+      "sha256": "0314f1174b95d099d58a002e9629502dc7ced24d64a53e0b39299aaffbf3d589"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-focused-r823-results.tgz",
+      "sha256": "8b36acc12cd81983e2854103319c2c5dd6c62fef89c9e12778462bc26bf9c675"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-pre-r823.json",
+      "sha256": "2fbc19476cb410a5ad605033bd1e62daf45644ff2af5334ef62ff08996af7a68"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-pre-r823post.json",
+      "sha256": "e4e2d5f9e7aa35572bb7b56e55541368f4e0e3538d1cd3f33b266757d219857a"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r818-core-r818.xml",
+      "sha256": "1e419b791090c8cfefa2e7165f10344317ca62c34f91300a0cebb6b69d4cb532"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r818-core-r818.log",
+      "sha256": "b8090eb5fb6e378f5aafae42488884ad3fbe3b2f948fdc5e3ac3d2bfe88f9d45"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r818-render-r818.xml",
+      "sha256": "325e4a62e7fda78bc90f379f5da238bbb540706ad069869220748ea7ecad2df2"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r818-render-r818.log",
+      "sha256": "9dc4fd72c5a8fbd4d9ac9a221c82014f2481f94b28f9d0c5f8692fae2f602b93"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r818-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r818-post.json",
+      "sha256": "dcaf3483119c0dd56204b0762c002c379d576e712220bd3aaec0899966389384"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-pre-r818.json",
+      "sha256": "8b151db701439575c681202240dc8477dad938a975c30666abf118f03745bd64"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r818-core-r818.xml",
+      "sha256": "da03a41d05803a656ba2f5bf0fb59c468cba72cd9d91aa8a2c84b4dba0e815e9"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r818-core-r818.log",
+      "sha256": "58abfb9d39dc3d81f2eeb7aa1e46f42d1816fb049efdfbfdcf59286aecddf08f"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r818-render-r818.xml",
+      "sha256": "974064bb2a7f403422132211d55df537437053ec0404259b2506813502c32b53"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r818-render-r818.log",
+      "sha256": "2af47b8858e80ab1fd91d9ac8b2c90b4495d54bcf49ff9b15f105f1377e5a610"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r818-state.txt",
+      "sha256": "8c55364535dd24e23b2bc7634300d570199001b59fa364b714efae9f1e48cced"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r818-post.json",
+      "sha256": "d4504b6f84acc58e8743767da674bf5521722d3318c82abaa7e1a7580752967a"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-pre-r818.json",
+      "sha256": "d369862f2002c51dea5e9ebe6e75f10bc1007fe1204c7c9b5b497f9bcc92828f"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r818-core-r818.xml",
+      "sha256": "2106406abe9b0cd87371556a3ca97271fd3f130bad2a02ce5b6c22b63effe722"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r818-core-r818.log",
+      "sha256": "a6d24bb29fc94205bccf577b084401e8160d9b18896417a97fed66210a15d410"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r818-native-r818.xml",
+      "sha256": "c48ea0e3aa7505ff3d3c2267476508f7d134dd533d5beeed33b849ccb67c4ebf"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r818-native-r818.log",
+      "sha256": "b517c1a2eda77eda6e3479fb0e71330314c8c507f842c3de53f5aa253db76410"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r818-render-r818.xml",
+      "sha256": "a16d4c681746371640a630128f363c5cd5229cbd59fca6cae1853f58305463a0"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r818-render-r818.log",
+      "sha256": "c06453e40c7f1d792e9ac15a9fccac4f8ce3da9aff289d04817bf1c2102f24a1"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r818-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r818-post.json",
+      "sha256": "adb18fc3b41b9d2d8f8d4ebe7882e7340aab0a16c5503aec7bdead1966625bbb"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-pre-r818.json",
+      "sha256": "0c247c3813b8fb990e766a0140475605efd1ff1b1449964c3a9ad1dafeb8b639"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r814-core-r814.xml",
+      "sha256": "fb4be486a9a7d3cbee914c86d4768dd9f089ffb9feb84cfccc6f20e38d435741"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r814-core-r814.log",
+      "sha256": "63d361763c3a8551c6a7b5f2ca7bdae33c82e4099b200e6b45b07feeb5195795"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r814-render-r814.xml",
+      "sha256": "47340ae0f0f66bbcade90f79c7c38f2269f8ee735e6f8212b34e3807ef945a5f"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r814-render-r814.log",
+      "sha256": "8512e0f4a33a609d8e967f221415a0941bc1640bb0298f3eebe30fe845c16087"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r814-state.txt",
+      "sha256": "8c55364535dd24e23b2bc7634300d570199001b59fa364b714efae9f1e48cced"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r814-post.json",
+      "sha256": "689bc53d25169a5dd2dca50e4b9806314ca6c1d26fc559d75422cd977fb957fa"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-pre-r814.json",
+      "sha256": "a9389b02e3c7655226d67f21bc559a5e9f5b97edc93dd57273f95206961c3eea"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r814-core-r814.xml",
+      "sha256": "16f3ef1879888289f955f42be72a19b3188430e52230adbcd4e33afe8b70f7b3"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r814-core-r814.log",
+      "sha256": "09130fb61d38a27031daa59c55ef14a0e16024134d2a7d3bae93ed11a1437eb6"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r814-render-r814.xml",
+      "sha256": "588dffe702daee9785c4d4edc6838227774154b171eb08d1d8916d8ecd6f4b51"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r814-render-r814.log",
+      "sha256": "3536af1062e25bc8bfd598073bfaf7e278d6c79759895b0cd2a4c298fb92b012"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r814-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r814-post.json",
+      "sha256": "45a405745814c9ee4f998cb9e39d30e942c98463567b75c35ef3f78558ed83de"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-pre-r814.json",
+      "sha256": "8d2cb40b1b4fdcaf5373e998046cab1c69b5d27fa36d4d1a6a7fa8472b306987"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r814-core-r814.xml",
+      "sha256": "1c395190272b02f171ebfee9c7f16e020a3ed7f6bc8c3e47b94b02806f2c0069"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r814-core-r814.log",
+      "sha256": "cc47f5fd6d950206b55ca2d97c2dd9d15d6a5530e5dedd64449f27c5570b6b63"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r814-native-r814.xml",
+      "sha256": "e5cfea51b82bed75291bcd4e8ab3898a7866875c3f28f7163515162df65fbbe5"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r814-native-r814.log",
+      "sha256": "a227772fa9c5a15d6ea91515f29025e2db86c8f78aca58b9d1f1bb5e5cbedf72"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r814-render-r814.xml",
+      "sha256": "8bbd64c4efc08c4495dcdc7162a88dea010f349a9ac08b60ac6cbd9568205f12"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r814-render-r814.log",
+      "sha256": "5bb92452338bc3b11cac452a15be5d0f6ab39ad5557591bf5f0b3a65fd1c6641"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r814-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r814-post.json",
+      "sha256": "06d01e3d1036c238e58a4554d18373fc52477ff9fce99982ee7b4d2f357c2253"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-pre-r814.json",
+      "sha256": "56645269d8154c771024d902b45a3d83db5a663696427c204567f7540ead0cc6"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/preflight-indexed-r732.ps1",
+      "sha256": "74594887c0fb548b398b8e6f5794ec0f2e757fce942f88cb9e711407646c4aa5"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/deploy-batch.ps1",
+      "sha256": "8ce277c94e470b75424b010ee2a0170634028fb488d3c96798fba247c3b686ce"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/collect-batch.ps1",
+      "sha256": "442692a6d4fbbbcbd80f84ca598bfdbe462487f27874dc1547b0f41c8f18f624"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/finalize-native-source-names.py",
+      "sha256": "5b60da0eda1190eeb52b568398eeb4e45e9132243ed75bfbd334ea676c30f713"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r818.sh",
+      "sha256": "ebf3c01bedafb20823780d61042565f0fcca6fb6f3cfe73054390d6a8c5ba146"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r818.sh",
+      "sha256": "06497d225a44c9bb9c319c3b763612b74fcd468a1b01ff57fa45221dd1239b6c"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r818.ps1",
+      "sha256": "22cdcc4079a44979655bb3538a5d2fd54d0b8e836ddad812f4b9a59422694245"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r814.sh",
+      "sha256": "27b7506a0226d9efb4bcae82ec113798856a98b250b340e789025640a9c00648"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r814.sh",
+      "sha256": "9ef75605069bf2b05231bda9831c0b08ca11488e73dbdaabae0143d7c4e02f5f"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r814.ps1",
+      "sha256": "c7343420413138cbb904e5c23c9448d5c6f3573e49a30ba06304234959e4333a"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/pack-batch-direct.ps1",
+      "sha256": "44ff1c130ccf5395d97a05ae94327845a33cbf5f483da85ac4fd516c99ed5715"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-focused-unix.ps1",
+      "sha256": "f1b72bc919defe2f355f6019bf2a855f1593dc4e3e5f5a000e68aca3c4311db8"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/run-focused-unix.py",
+      "sha256": "98584b4acf82a37ee65746b2663a265acf8c3bd24e1e5295970503d26a095a2e"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r818.tgz",
+      "sha256": "8de99967fd399e91d659ebf98fcd1faffc260899cf8574b34200a144ee5f0262"
+    },
+    {
+      "name": "dsa-batch-linux-r818.tgz",
+      "sha256": "7fd9ea285e4de46eeaa11c4ee1f6b77f86560be5ac6308bfa472d88cc185444a"
+    },
+    {
+      "name": "dsa-batch-windows-r818.tgz",
+      "sha256": "9f3920b090b4a5b729eee5b69217686c739a3bdab3ecbcad8ea7e402950ea253"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r818": "f6807b3a2805dd935dea8739208a2dabefd1bcddfa01a78a2ee63569fd3b5ea9",
+    "native-r818": "f6807b3a2805dd935dea8739208a2dabefd1bcddfa01a78a2ee63569fd3b5ea9",
+    "render-r819-mac": "f6807b3a2805dd935dea8739208a2dabefd1bcddfa01a78a2ee63569fd3b5ea9",
+    "render-r819-linux": "f6807b3a2805dd935dea8739208a2dabefd1bcddfa01a78a2ee63569fd3b5ea9",
+    "render-r819-windows": "f6807b3a2805dd935dea8739208a2dabefd1bcddfa01a78a2ee63569fd3b5ea9"
+  },
+  "productionAppHashes": {
+    "render-r819-mac": "c3fc75f33ef06adc70a3fba0074cd14fcaf5eb6cb162959bdbeb7e9996d34f74",
+    "render-r819-linux": "c3fc75f33ef06adc70a3fba0074cd14fcaf5eb6cb162959bdbeb7e9996d34f74",
+    "render-r819-windows": "c3fc75f33ef06adc70a3fba0074cd14fcaf5eb6cb162959bdbeb7e9996d34f74"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r818": "1e61242450ed043d3290dff1c3ddb7ab9c67859f07389044d26617728a9ccb86",
+    "render-r819-mac": "1e61242450ed043d3290dff1c3ddb7ab9c67859f07389044d26617728a9ccb86",
+    "render-r819-linux": "1e61242450ed043d3290dff1c3ddb7ab9c67859f07389044d26617728a9ccb86",
+    "render-r819-windows": "1e61242450ed043d3290dff1c3ddb7ab9c67859f07389044d26617728a9ccb86"
+  },
+  "nativeCreationReports": {
+    "mac": [
+      {
+        "platform": "Mac",
+        "createdFiles": 12,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": [
+          92,
+          92
+        ]
+      },
+      {
+        "platform": "Mac",
+        "createdFiles": 12,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": [
+          92,
+          92
+        ]
+      },
+      {
+        "platform": "Mac",
+        "createdFiles": 12,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": [
+          92,
+          92
+        ]
+      },
+      {
+        "platform": "Mac",
+        "createdFiles": 12,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": [
+          92,
+          92
+        ]
+      },
+      {
+        "platform": "Mac",
+        "createdFiles": 12,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": [
+          92,
+          92
+        ]
+      },
+      {
+        "platform": "Mac",
+        "createdFiles": 12,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": [
+          92,
+          92
+        ]
+      },
+      {
+        "platform": "Mac",
+        "createdFiles": 12,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": [
+          92,
+          92
+        ]
+      },
+      {
+        "platform": "Mac",
+        "createdFiles": 12,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": [
+          92,
+          92
+        ]
+      },
+      {
+        "platform": "Mac",
+        "createdFiles": 12,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": [
+          92,
+          92
+        ]
+      },
+      {
+        "platform": "Mac",
+        "createdFiles": 12,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": [
+          92,
+          92
+        ]
+      },
+      {
+        "platform": "Mac",
+        "createdFiles": 12,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": [
+          92,
+          92
+        ]
+      },
+      {
+        "platform": "Mac",
+        "createdFiles": 12,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": [
+          92,
+          92
+        ]
+      }
+    ],
+    "ubuntu": [
+      {
+        "platform": "Ubuntu",
+        "createdFiles": 15,
+        "caseDistinct": true,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Ubuntu",
+        "createdFiles": 15,
+        "caseDistinct": true,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Ubuntu",
+        "createdFiles": 15,
+        "caseDistinct": true,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Ubuntu",
+        "createdFiles": 15,
+        "caseDistinct": true,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Ubuntu",
+        "createdFiles": 15,
+        "caseDistinct": true,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Ubuntu",
+        "createdFiles": 15,
+        "caseDistinct": true,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Ubuntu",
+        "createdFiles": 15,
+        "caseDistinct": true,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Ubuntu",
+        "createdFiles": 15,
+        "caseDistinct": true,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Ubuntu",
+        "createdFiles": 15,
+        "caseDistinct": true,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Ubuntu",
+        "createdFiles": 15,
+        "caseDistinct": true,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Ubuntu",
+        "createdFiles": 15,
+        "caseDistinct": true,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Ubuntu",
+        "createdFiles": 15,
+        "caseDistinct": true,
+        "invalidUnixCreationErrors": []
+      }
+    ],
+    "windows": [
+      {
+        "platform": "Windows",
+        "createdFiles": 14,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Windows",
+        "createdFiles": 14,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Windows",
+        "createdFiles": 14,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Windows",
+        "createdFiles": 14,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Windows",
+        "createdFiles": 14,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Windows",
+        "createdFiles": 14,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Windows",
+        "createdFiles": 14,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Windows",
+        "createdFiles": 14,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Windows",
+        "createdFiles": 14,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Windows",
+        "createdFiles": 14,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Windows",
+        "createdFiles": 14,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": []
+      },
+      {
+        "platform": "Windows",
+        "createdFiles": 14,
+        "caseDistinct": false,
+        "invalidUnixCreationErrors": []
+      }
+    ]
+  },
+  "focusedRegression": {
+    "state": {
+      "status": "FINISHED",
+      "observedUtc": "2026-11-07T16:05:07.510037+00:00",
+      "exitCode": 0,
+      "verifiedFiles": 104,
+      "baseRevision": "r818",
+      "methods": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerNativeWindowKeepsCanonicalMembershipThroughFocusSortHistoryAndCatalogRestore"
+      ]
+    },
+    "total": "2",
+    "passed": "2",
+    "time": "15.383"
+  },
+  "matrix": {
+    "mac-batch-r818-core-r818.xml": {
+      "total": "1360",
+      "passed": "1356",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "31.627"
+    },
+    "mac-batch-r818-render-r818.xml": {
+      "total": "266",
+      "passed": "266",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "97.883"
+    },
+    "ubuntu-batch-r818-core-r818.xml": {
+      "total": "1360",
+      "passed": "1356",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "112.290"
+    },
+    "ubuntu-batch-r818-render-r818.xml": {
+      "total": "266",
+      "passed": "265",
+      "failed": "1",
+      "skipped": "0",
+      "errors": "0",
+      "time": "183.742"
+    },
+    "windows-batch-r818-core-r818.xml": {
+      "total": "1378",
+      "passed": "1330",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "58.372"
+    },
+    "windows-batch-r818-native-r818.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "52.041"
+    },
+    "windows-batch-r818-render-r818.xml": {
+      "total": "266",
+      "passed": "265",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "188.596"
+    }
+  },
+  "targetedControls": {
+    "mac": {
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: FileSize, indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: UniqueFileSize, indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: OnDisk, indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: Files, indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: FileSize, indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: UniqueFileSize, indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: OnDisk, indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: Files, indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Treemap\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Sunburst\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Treemap\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Sunburst\\\", grouped: True)"
+      ]
+    },
+    "ubuntu": {
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: FileSize, indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: UniqueFileSize, indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: OnDisk, indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: Files, indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: FileSize, indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: UniqueFileSize, indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: OnDisk, indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: Files, indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Treemap\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Sunburst\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Treemap\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Sunburst\\\", grouped: True)"
+      ]
+    },
+    "windows": {
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: FileSize, indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: UniqueFileSize, indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: OnDisk, indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: Files, indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: FileSize, indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: UniqueFileSize, indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: OnDisk, indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: Files, indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Treemap\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Sunburst\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Treemap\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Sunburst\\\", grouped: True)"
+      ]
+    }
+  },
+  "postCollectionProcesses": {
+    "mac": [],
+    "ubuntu": [],
+    "windows": []
+  },
+  "newCoreControls": 0,
+  "newRenderingControls": 12,
+  "supersededFailedBatches": [
+    {
+      "candidate": "r814",
+      "sources": [
+        {
+          "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.NativeNames.cs",
+          "sha256": "40ad535934fcc68ef24c2d6844c2af1f4282db78c4cd900e2a3f6357deeaa115"
+        },
+        {
+          "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.NativeNames.Fixture.cs",
+          "sha256": "2be42c3ca3265cb330c9fce2f33cf5e48b9fddae9de2f792870d4c3410d62146"
+        }
+      ],
+      "matrix": {
+        "mac-batch-r814-core-r814.xml": {
+          "total": "1360",
+          "passed": "1356",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "30.710"
+        },
+        "mac-batch-r814-render-r814.xml": {
+          "total": "266",
+          "passed": "264",
+          "failed": "2",
+          "skipped": "0",
+          "errors": "0",
+          "time": "96.960"
+        },
+        "ubuntu-batch-r814-core-r814.xml": {
+          "total": "1360",
+          "passed": "1356",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "104.114"
+        },
+        "ubuntu-batch-r814-render-r814.xml": {
+          "total": "266",
+          "passed": "266",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "182.542"
+        },
+        "windows-batch-r814-core-r814.xml": {
+          "total": "1378",
+          "passed": "1330",
+          "failed": "0",
+          "skipped": "48",
+          "errors": "0",
+          "time": "56.267"
+        },
+        "windows-batch-r814-native-r814.xml": {
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "36.789"
+        },
+        "windows-batch-r814-render-r814.xml": {
+          "total": "266",
+          "passed": "265",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "203.037"
+        }
+      },
+      "targetedControls": {
+        "mac": {},
+        "ubuntu": {},
+        "windows": {}
+      },
+      "postCollectionProcesses": {
+        "mac": [],
+        "ubuntu": [],
+        "windows": []
+      },
+      "failures": {
+        "mac": [
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: FileSize, indexed: False)",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Treemap\\\", grouped: False)"
+        ],
+        "ubuntu": [],
+        "windows": []
+      },
+      "qualified": false,
+      "allRunnersAndCollectorsTerminal": true
+    }
+  ],
+  "finalBuild": "build-r817.txt: full solution zero warnings/errors",
+  "testScope": "Actual ordinary guest runtimes, native private saved stores and headless window controls, managed reference/ownership controls and applicable suites. Full physical desktop, complete accounting/interaction and 1M/10M/resource qualification remain pending.",
+  "batchWorkflow": "One immutable bundle/platform, sequential applicable suites, integrity and per-phase foreign-instance gates, one collection/completed machine.",
+  "ownedProcessExitEvidence": "Every original runner and collector terminal; post inventories contain no owned candidate instances. Identifiable foreign processes were preserved. No host application/input tests.",
+  "qualification": {
+    "nativeSourceNamesMemoryAndIndexedControlsPassedAllThree": true,
+    "nativeSourceNamesSavedOtherControlsPassedAllThree": true,
+    "nativeHardlinkAndCaseCollisionEvidenceCaptured": true,
+    "macInvalidUnixByteCreationRefusalEvidenced": true,
+    "targetedControlsPassedAllThree": true,
+    "allApplicableSuitesPassedInThisBatch": false,
+    "ubuntuSavedViewTimeoutRetainedAndFocusedUnchangedBuildPassed": true,
+    "fullNativeDesktopOtherQualified": false,
+    "fullResourceGateQualified": false,
+    "fullMillionTenMillionQualificationComplete": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

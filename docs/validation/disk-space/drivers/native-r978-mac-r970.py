@@ -1,0 +1,110 @@
+"""One native window, both storage modes, batched frames/results; no OS input injection."""
+import hashlib
+import json
+import os
+import pathlib
+import re
+import shlex
+import subprocess
+import sys
+import tarfile
+import time
+
+base = pathlib.Path(sys.argv[1]).resolve()
+expected = sys.argv[2]
+assert re.fullmatch('dsa-native-r[0-9]+', base.name)
+assert base.parent == pathlib.Path.home() / 'FileCatValidation'
+assert re.fullmatch('[0-9a-f]{64}', expected)
+
+def observed():
+    rows = []
+    for args in (['pgrep', '-x', 'FileCat([.].*)?'], ['pgrep', '-f', r'^[^ ]*dotnet +.*FileCat']):
+        p = subprocess.run(args, text=True, capture_output=True)
+        assert p.returncode in (0, 1), p.stderr
+        rows += p.stdout.split()
+    return sorted(set(rows))
+
+assert not observed(), 'BUSY: postpone native desktop testing'
+assert hashlib.sha256((base / 'app.tgz').read_bytes()).hexdigest() == expected
+app = base / 'app'
+app.mkdir(mode=0o700, exist_ok=False)
+with tarfile.open(base / 'app.tgz') as archive:
+    members = archive.getmembers()
+    assert len(members) < 3000 and sum(m.size for m in members) < 1024**3
+    assert all(not pathlib.PurePosixPath(m.name).is_absolute() and '..' not in pathlib.PurePosixPath(m.name).parts and (m.isfile() or m.isdir()) for m in members)
+    archive.extractall(app, filter='data')
+(app / 'FileCat').chmod(0o700)
+env = dict(os.environ, DOTNET_ROOT=str(pathlib.Path.home() / '.dotnet'))
+if sys.platform != 'darwin':
+    rows = subprocess.check_output(['ps', '-u', str(os.getuid()), '-o', 'args='], text=True).splitlines()
+    servers = [shlex.split(row) for row in rows if re.search(r'(^|/)Xwayland\s', row)]
+    assert len(servers) == 1, 'Expected one observed Xwayland session'
+    server = servers[0]
+    auth = server[server.index('-auth') + 1]
+    displays = [arg for arg in server if re.fullmatch(r':[0-9]+', arg)]
+    assert len(displays) == 1 and pathlib.Path(auth).is_file()
+    env.update(DISPLAY=displays[0], XAUTHORITY=auth, XDG_RUNTIME_DIR='/run/user/' + str(os.getuid()), DBUS_SESSION_BUS_ADDRESS='unix:path=/run/user/' + str(os.getuid()) + '/bus')
+assert not observed(), 'BUSY: postpone before launch'
+with (base / 'desktop.log').open('wb') as log:
+    child = subprocess.Popen(['./FileCat', '--replacement-ui-probe'], cwd=app, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+(base / 'owned.pid').write_text(str(child.pid) + '\n')
+result = {'purpose': 'Native window control-event and filesystem subset; OS input/a11y/compositor/package coverage remains open', 'pid': child.pid, 'bundleSha256': expected, 'passed': False}
+run = None
+
+def report():
+    for _ in range(20):
+        try:
+            return json.loads((run / 'report.json').read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            time.sleep(.025)
+    raise RuntimeError('The owned report remained unreadable')
+
+try:
+    until = time.monotonic() + 360
+    while time.monotonic() < until:
+        assert observed() == [str(child.pid)], 'Owned child ended or another tester appeared'
+        runs = list((app / 'native-validation').glob('dsa-*'))
+        if len(runs) == 1 and (runs[0] / 'report.json').is_file():
+            run = runs[0]
+            data = report()
+            probe = data.get('replacementUiProbe')
+            if probe and probe.get('finished'):
+                result['finished'] = data
+                assert probe['passed'], probe.get('error')
+                assert len(probe['cases']) == 4 and probe['sessions'] == 8
+                result['passed'] = True
+                break
+        time.sleep(.1)
+    else:
+        raise TimeoutError('The native replacement batch did not finish')
+except BaseException as error:
+    result['error'] = type(error).__name__ + ': ' + str(error)
+finally:
+    if run is not None and child.poll() is None:
+        (run / 'close.request').write_text('Close only this task-owned native fixture\n')
+    try:
+        child.wait(timeout=30)
+    except subprocess.TimeoutExpired:
+        child.kill()
+        child.wait(timeout=15)
+        result['forcedOwnedTermination'] = True
+        result['passed'] = False
+    result['exitCode'] = child.returncode
+    if run is not None:
+        data = report()
+        result['closed'] = data
+        if data['state'] != 'closed' or data['sourceUnchanged'] is not True or data['deadlineClosed'] is not False or data.get('indexedProbeError'):
+            result['passed'] = False
+    result['postProcesses'] = observed()
+    if result['postProcesses']:
+        result['passed'] = False
+    (base / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
+    with tarfile.open(base / 'results.tgz', 'w:gz') as archive:
+        for name in ('result.json', 'desktop.log', 'owned.pid'):
+            archive.add(base / name, arcname=name)
+        if run is not None:
+            archive.add(run / 'report.json', arcname='report.json')
+            for frame in run.glob('replacement-*.png'):
+                archive.add(frame, arcname=frame.name)
+print(json.dumps({k: result.get(k) for k in ('passed', 'error', 'exitCode', 'postProcesses')}))
+sys.exit(0 if result['passed'] and child.returncode == 0 else 1)

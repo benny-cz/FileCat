@@ -10,34 +10,41 @@ namespace FileCat.Core.Tests;
 public sealed class CloudFilesTests
 {
     [Fact]
-    public void Attributes_tell_the_state_Explorer_shows()
+    public void Listing_hints_keep_pin_intent_and_residency_separate()
     {
-        const FileAttributes placeholder = FileAttributes.Archive | FileAttributes.ReparsePoint;
-        Assert.Equal(CloudState.OnlineOnly, CloudFiles.StateOf(placeholder | CloudFiles.RecallOnDataAccess, inSyncRoot: true));
-        Assert.Equal(CloudState.OnlineOnly, CloudFiles.StateOf(placeholder | CloudFiles.RecallOnOpen, inSyncRoot: true));
-        Assert.Equal(CloudState.OnlineOnly, CloudFiles.StateOf(FileAttributes.Directory | CloudFiles.Unpinned, inSyncRoot: true));
-        Assert.Equal(CloudState.AlwaysAvailable, CloudFiles.StateOf(placeholder | CloudFiles.Pinned, inSyncRoot: true));
-        Assert.Equal(CloudState.AlwaysAvailable, CloudFiles.StateOf(FileAttributes.Directory | CloudFiles.Pinned, inSyncRoot: true));
-        Assert.Equal(CloudState.Available, CloudFiles.StateOf(placeholder, inSyncRoot: true));
-        Assert.Equal(CloudState.Available, CloudFiles.StateOf(FileAttributes.Archive, inSyncRoot: true));
+        var pinned = CloudFiles.Observe(CloudFiles.Pinned, true);
+        Assert.Equal(CloudState.Managed, pinned.Indicator);
+        Assert.Equal("keep locally", pinned.PinPolicy);
+        Assert.Equal("not established", pinned.LocalContent);
+        Assert.Equal("not inspected", pinned.Synchronization);
+        var unpinned = CloudFiles.Observe(CloudFiles.Unpinned, true);
+        Assert.Equal(CloudState.Managed, unpinned.Indicator);
+        Assert.Equal("allow removal", unpinned.PinPolicy);
+        Assert.Equal("not established", unpinned.LocalContent);
+        var partial = CloudFiles.Observe(CloudFiles.Pinned | CloudFiles.RecallOnDataAccess, true);
+        Assert.Equal(CloudState.RecallPossible, partial.Indicator);
+        Assert.Equal("keep locally", partial.PinPolicy);
+        Assert.Equal("not fully present", partial.LocalContent);
+        Assert.Equal(CloudState.Managed, CloudFiles.StateOf(FileAttributes.Archive, true));
+        Assert.Equal(CloudState.None, CloudFiles.StateOf(FileAttributes.Archive, false));
+        Assert.Equal(CloudState.None, CloudFiles.StateOf(CloudFiles.Pinned | CloudFiles.Unpinned, true));
+        Assert.Equal("not established", CloudFiles.Observe(CloudFiles.RecallOnOpen, false, enumerationAttributes: false).LocalContent);
+        Assert.Equal("not fully present", CloudFiles.Observe(CloudFiles.RecallOnOpen, false).LocalContent);
+    }
 
-        // Pinned and unpinned at once is "excluded": the provider does not sync it (seen on Dropbox's own .dropbox,
-        // .dropbox.cache and desktop.ini as 0x00180022 and 0x00180032), so it gets no mark at all.
-        Assert.Equal(CloudState.None, CloudFiles.StateOf((FileAttributes)0x00180022, inSyncRoot: true));
-        Assert.Equal(CloudState.None, CloudFiles.StateOf((FileAttributes)0x00180032, inSyncRoot: true));
-        // The others seen there: an online-only file (0x00501620), a folder set to free up space (0x00100430), and a
-        // file that is down and not pinned (0x00000420).
-        Assert.Equal(CloudState.OnlineOnly, CloudFiles.StateOf((FileAttributes)0x00501620, inSyncRoot: true));
-        Assert.Equal(CloudState.OnlineOnly, CloudFiles.StateOf((FileAttributes)0x00100430, inSyncRoot: true));
-        Assert.Equal(CloudState.Available, CloudFiles.StateOf((FileAttributes)0x00000420, inSyncRoot: true));
-
-        // Kept, but asked for and not yet down: still only in the cloud until it arrives.
-        Assert.Equal(CloudState.OnlineOnly, CloudFiles.StateOf(placeholder | CloudFiles.Pinned | CloudFiles.RecallOnDataAccess, inSyncRoot: true));
-
-        // Outside a sync root only what a provider alone sets says anything: an ordinary file gets no mark.
-        Assert.Equal(CloudState.None, CloudFiles.StateOf(FileAttributes.Archive, inSyncRoot: false));
-        Assert.Equal(CloudState.None, CloudFiles.StateOf(FileAttributes.Directory | FileAttributes.ReparsePoint, inSyncRoot: false));
-        Assert.Equal(CloudState.OnlineOnly, CloudFiles.StateOf(placeholder | CloudFiles.RecallOnDataAccess, inSyncRoot: false));
+    [Fact]
+    public void A_recognized_placeholder_type_is_cloud_evidence_without_a_sync_root_or_recall_hint()
+    {
+        const uint cloudTag = 0x9000F01A;
+        const FileAttributes reparse = FileAttributes.ReparsePoint;
+        var cloud = CloudFiles.Observe(reparse, inSyncRoot: false, cloudTag);
+        Assert.Equal(CloudState.Managed, cloud.Indicator);
+        Assert.Equal("unspecified", cloud.PinPolicy);
+        Assert.Equal("not established", cloud.LocalContent);
+        Assert.Equal("not inspected", cloud.Synchronization);
+        Assert.Equal(CloudState.Managed, CloudFiles.StateOf(reparse, inSyncRoot: false, cloudTag));
+        Assert.Equal(CloudState.None, CloudFiles.StateOf(FileAttributes.Archive, inSyncRoot: false, cloudTag));
+        Assert.Equal(CloudState.None, CloudFiles.StateOf(reparse, inSyncRoot: false, ReparseLinks.AppExecutionAliasTag));
     }
 
     [Fact]

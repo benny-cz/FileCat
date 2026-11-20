@@ -1,0 +1,68 @@
+{
+    "purpose":  "Native Windows saved table order/process restart subset; no native input qualification",
+    "pass":  1,
+    "savedPayloadBytesPreserved":  true,
+    "savedOrderingProbe":  {
+                               "created":  true,
+                               "reopenedAfterProcessRestart":  false,
+                               "filenameOnlyUsesDefaultView":  true,
+                               "results":  [
+                                               {
+                                                   "Name":  "ascending.fcdsa",
+                                                   "Sort":  1,
+                                                   "SortDescending":  false,
+                                                   "scope":  "n:1",
+                                                   "rows":  [
+                                                                ".hidden.bin",
+                                                                "Aliases",
+                                                                "Archives",
+                                                                "large.bin",
+                                                                "link-outside",
+                                                                "Package.app",
+                                                                "Photos",
+                                                                "report.csv",
+                                                                "Shared hard-linked files",
+                                                                "Small files",
+                                                                "Unicode",
+                                                                "zero.bin"
+                                                            ],
+                                                   "offline":  true,
+                                                   "emptyMarksAndBasket":  true
+                                               },
+                                               {
+                                                   "Name":  "descending.fcdsa",
+                                                   "Sort":  1,
+                                                   "SortDescending":  true,
+                                                   "scope":  "n:1",
+                                                   "rows":  [
+                                                                "zero.bin",
+                                                                "Unicode",
+                                                                "Small files",
+                                                                "Shared hard-linked files",
+                                                                "report.csv",
+                                                                "Photos",
+                                                                "Package.app",
+                                                                "link-outside",
+                                                                "large.bin",
+                                                                "Archives",
+                                                                "Aliases",
+                                                                ".hidden.bin"
+                                                            ],
+                                                   "offline":  true,
+                                                   "emptyMarksAndBasket":  true
+                                               }
+                                           ]
+                           },
+    "processId":  4044,
+    "finished":  true,
+    "hasQualifiedHostProfile":  true,
+    "continuityNotice":  null,
+    "privateBytesPreserved":  true,
+    "fixtureRegularPaths":  509,
+    "appSha256":  "1e3cc4e809277933529a2dbe3e8dd0de9cfd7d511a23ef4c11f6ef8120367df5",
+    "harnessSha256":  "43a72ada3529e19d9078c5e8b1c99dbb0767d753d72817ac6e64ecdf81d86ed2",
+    "ownedProcessExited":  true,
+    "state":  "closed",
+    "sourceUnchanged":  true,
+    "deadlineClosed":  false
+}

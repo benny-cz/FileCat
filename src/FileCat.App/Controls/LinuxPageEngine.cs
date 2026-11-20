@@ -21,6 +21,9 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     private const uint MaxFindMatches = 1024;
     private static readonly ConcurrentDictionary<nint, LinuxPageEngine> Live = new();
     private static long s_nextId;
+    private static long s_nextScriptId;
+    private static readonly ConcurrentDictionary<nint, ScriptRequest> ScriptRequests = new();
+    private sealed record ScriptRequest(TaskCompletionSource<string?> Done);
     private static readonly Lazy<string?> s_missing = new(() => Native.Load());
 
     private readonly nint _id;
@@ -39,12 +42,14 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     private volatile TaskCompletionSource<PageFindResult?>? _findPending;
     private string? _findPattern;
     private bool _findCase;
+    private bool _findWrap;
     private bool _findFresh;
     private PageFindResult? _findTotal;
     private volatile HtmlPage? _page;
     private volatile string? _title;
     private int _blocked;
     private int _disposed;
+    private long _navigationGeneration;
 
     private const string AppArmorProfileMessage =
         "Web page preview is unavailable because this system restricts sandbox user namespaces and FileCat has no AppArmor profile. " +
@@ -143,7 +148,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     internal bool SandboxEnabled => _sandboxEnabled;
     public event Action? Changed;
     public event Action<bool, string?>? Loaded;
-    public event Action<HtmlPage, string>? LinkedMarkdown;
+    public event Action<HtmlPage, LinkedMarkdownTarget>? LinkedMarkdown;
 
     /// <summary>Raised on the GTK thread when the page is clicked.</summary>
     public event Action? FocusRequested;
@@ -157,6 +162,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     public void Show(HtmlPage page)
     {
         _page = page;
+        Interlocked.Increment(ref _navigationGeneration);
         ClearFind();
         string address = $"{Scheme}://page/{Uri.EscapeDataString(page.Name)}";
         _ = OnGtk(() =>
@@ -228,13 +234,16 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     private nuint KeyTarget => _keyTarget != 0 ? _keyTarget : _plug;
 
     public Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) =>
-        FindCoreAsync(text, matchCase, forward, ct);
+        FindCoreAsync(text, matchCase, forward, ct, wrap: false);
 
-    private int BeginFindOnGtk(string text, bool matchCase, bool forward, TaskCompletionSource<PageFindResult?> done)
+    public Task<PageFindResult?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct, bool wrap) =>
+        FindCoreAsync(text, matchCase, forward, ct, wrap);
+
+    private int BeginFindOnGtk(string text, bool matchCase, bool forward, bool wrap, TaskCompletionSource<PageFindResult?> done)
     {
         if (_disposed != 0 || _findController == 0) { done.TrySetResult(null); return 0; }
         _findPending = done;
-        if (_findPattern == text && _findCase == matchCase)
+        if (_findPattern == text && _findCase == matchCase && _findWrap == wrap)
         {
             _findFresh = false;
             if (forward) Native.webkit_find_controller_search_next(_findController);
@@ -244,9 +253,10 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         {
             _findPattern = text;
             _findCase = matchCase;
+            _findWrap = wrap;
             _findFresh = true;
             _findTotal = null;
-            uint options = (matchCase ? 0u : 1u) | (forward ? 0u : 8u);
+            uint options = (matchCase ? 0u : 1u) | (forward ? 0u : 8u) | (wrap ? 16u : 0u);
             fixed (byte* utf8 = Utf8(text)) Native.webkit_find_controller_search(_findController, utf8, options, MaxFindMatches);
         }
         return 0;
@@ -280,6 +290,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        Interlocked.Increment(ref _navigationGeneration);
         Live.TryRemove(_id, out _);
         _findPending?.TrySetResult(null);
         _ = OnGtk(() =>
@@ -440,8 +451,8 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
                 var owner = Of(data);
                 nint newAction = Native.webkit_navigation_policy_decision_get_navigation_action(decision);
                 string newUri = Native.String(Native.webkit_uri_request_get_uri(Native.webkit_navigation_action_get_request(newAction))) ?? "";
-                if (owner?._page is { } linkedPage && linkedPage.TryLinkedMarkdownPath(newUri, out string? linkedPath) && linkedPath is not null)
-                    owner.LinkedMarkdown?.Invoke(linkedPage, linkedPath);
+                if (owner?._page is { } linkedPage && linkedPage.TryLinkedMarkdownTarget(newUri, out var linkedTarget))
+                    owner.LinkedMarkdown?.Invoke(linkedPage, linkedTarget);
                 else owner?.Refused();
                 return 1;
             }
@@ -449,10 +460,10 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
             nint action = Native.webkit_navigation_policy_decision_get_navigation_action(decision);
             string uri = Native.String(Native.webkit_uri_request_get_uri(Native.webkit_navigation_action_get_request(action))) ?? "";
             var engine = Of(data);
-            if (engine?._page is { } page && page.TryLinkedMarkdownPath(uri, out string? path) && path is not null)
+            if (engine?._page is { } page && page.TryLinkedMarkdownTarget(uri, out var target))
             {
                 Native.webkit_policy_decision_ignore(decision);
-                engine.LinkedMarkdown?.Invoke(page, path);
+                engine.LinkedMarkdown?.Invoke(page, target);
                 return 1;
             }
             if (engine?._page?.IsLinkedMarkdownRequest(uri) == true)
@@ -805,6 +816,11 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         public static delegate* unmanaged[Cdecl]<nint, int, nint, void> webkit_web_context_set_network_proxy_settings;
         public static delegate* unmanaged[Cdecl]<nint, nint> webkit_web_view_new_with_context;
         public static delegate* unmanaged[Cdecl]<nint, nint> webkit_web_view_get_settings;
+        public static delegate* unmanaged[Cdecl]<nint, byte*, long, byte*, byte*, nint, nint, nint, void> webkit_web_view_evaluate_javascript;
+        public static delegate* unmanaged[Cdecl]<nint, nint, nint*, nint> webkit_web_view_evaluate_javascript_finish;
+        public static delegate* unmanaged[Cdecl]<nint, nint> jsc_value_to_string;
+        public static delegate* unmanaged[Cdecl]<nint, void> g_free;
+        public static bool HostScriptAvailable { get; private set; }
         public static delegate* unmanaged[Cdecl]<nint, nint> webkit_web_view_get_find_controller;
         public static delegate* unmanaged[Cdecl]<nint, byte*, uint, uint, void> webkit_find_controller_search;
         public static delegate* unmanaged[Cdecl]<nint, void> webkit_find_controller_search_next;
@@ -877,6 +893,7 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
                 g_quark_from_string = (delegate* unmanaged[Cdecl]<byte*, uint>)NativeLibrary.GetExport(glib, "g_quark_from_string");
                 g_error_new_literal = (delegate* unmanaged[Cdecl]<uint, int, byte*, nint>)NativeLibrary.GetExport(glib, "g_error_new_literal");
                 g_error_free = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(glib, "g_error_free");
+                g_free = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(glib, "g_free");
                 g_memory_input_stream_new_from_bytes = (delegate* unmanaged[Cdecl]<nint, nint>)NativeLibrary.GetExport(gio, "g_memory_input_stream_new_from_bytes");
                 gtk_plug_new = (delegate* unmanaged[Cdecl]<nuint, nint>)NativeLibrary.GetExport(gtk, "gtk_plug_new");
                 gtk_plug_get_id = (delegate* unmanaged[Cdecl]<nint, nuint>)NativeLibrary.GetExport(gtk, "gtk_plug_get_id");
@@ -926,6 +943,18 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
                 webkit_network_proxy_settings_free = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(webkit, "webkit_network_proxy_settings_free");
                 webkit_web_view_new_with_context = (delegate* unmanaged[Cdecl]<nint, nint>)NativeLibrary.GetExport(webkit, "webkit_web_view_new_with_context");
                 webkit_web_view_get_settings = (delegate* unmanaged[Cdecl]<nint, nint>)NativeLibrary.GetExport(webkit, "webkit_web_view_get_settings");
+                nint jsc = 0;
+                foreach (string name in new[] { "libjavascriptcoregtk-4.1.so.0", "libjavascriptcoregtk-4.0.so.18" })
+                    if (NativeLibrary.TryLoad(name, out jsc)) break;
+                if (jsc != 0 &&
+                    NativeLibrary.TryGetExport(webkit, "webkit_web_view_evaluate_javascript", out nint evaluate) &&
+                    NativeLibrary.TryGetExport(webkit, "webkit_web_view_evaluate_javascript_finish", out nint finish) &&
+                    NativeLibrary.TryGetExport(jsc, "jsc_value_to_string", out nint toString))
+                {
+                    webkit_web_view_evaluate_javascript = (delegate* unmanaged[Cdecl]<nint, byte*, long, byte*, byte*, nint, nint, nint, void>)evaluate;
+                    webkit_web_view_evaluate_javascript_finish = (delegate* unmanaged[Cdecl]<nint, nint, nint*, nint>)finish;
+                    jsc_value_to_string = (delegate* unmanaged[Cdecl]<nint, nint>)toString;
+                }
                 webkit_web_view_get_find_controller = (delegate* unmanaged[Cdecl]<nint, nint>)NativeLibrary.GetExport(webkit, "webkit_web_view_get_find_controller");
                 webkit_find_controller_search = (delegate* unmanaged[Cdecl]<nint, byte*, uint, uint, void>)NativeLibrary.GetExport(webkit, "webkit_find_controller_search");
                 webkit_find_controller_search_next = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(webkit, "webkit_find_controller_search_next");
@@ -1013,6 +1042,16 @@ internal sealed unsafe partial class LinuxPageEngine : IPageEngine
         {
             foreach (var (name, value) in SafeSettings)
                 if (Setters.TryGetValue(name, out nint setter)) ((delegate* unmanaged[Cdecl]<nint, int, void>)setter)(settings, value);
+            // WebKitGTK will not evaluate even app-owned scripts while JavaScript is disabled. When the
+            // markup-strip setting is available, keep page scripts/handlers removed during parsing and
+            // enable only the engine needed for fixed, isolated-world viewport queries. Older WebKit
+            // stays fully script-disabled and simply cannot preserve Page scroll on Refresh.
+            nint enable = 0;
+            HostScriptAvailable = webkit_web_view_evaluate_javascript != null &&
+                                  Setters.TryGetValue("webkit_settings_set_enable_javascript_markup", out _) &&
+                                  Setters.TryGetValue("webkit_settings_set_enable_javascript", out enable);
+            if (HostScriptAvailable)
+                ((delegate* unmanaged[Cdecl]<nint, int, void>)enable)(settings, 1);
         }
 
         public static void Finish(nint request, byte[] bytes, string mimeType)

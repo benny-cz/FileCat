@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native desktop development validation; no capability qualification",
+  "state": "closed",
+  "sourceUnchanged": true,
+  "deadlineClosed": false,
+  "processId": 4524,
+  "platform": "Microsoft Windows 10.0.26340",
+  "architecture": "X64",
+  "run": "C:\\FileCatDsa20261104R2\\desktop-r95-input\\app\\native-validation\\dsa-db1f55cc085c498c89c8e4f56de0d5c3",
+  "fixture": "C:\\FileCatDsa20261104R2\\desktop-r95-input\\app\\native-validation\\dsa-db1f55cc085c498c89c8e4f56de0d5c3\\fixture",
+  "fixtureRegularPaths": 509,
+  "fixtureLimitations": [],
+  "nativeWindowVisible": false,
+  "lastVisibleWidth": 1180,
+  "lastVisibleHeight": 780,
+  "lastVisibleScale": 1,
+  "lastScreen": {
+    "bounds": "0, 0, 1534, 1193",
+    "workingArea": "0, 0, 1534, 1145",
+    "Scaling": 1,
+    "position": "52, 52",
+    "frameSize": "1196, 819"
+  },
+  "largeText": false,
+  "compact": false,
+  "sharedProfile": false,
+  "sessions": 0,
+  "createdSessions": 1,
+  "lastObservation": null,
+  "selectedTab": 0,
+  "tabHeaders": [
+    "Analysis 1"
+  ],
+  "appSha256": "fa3a38aac62535f85dcb7c86c2b456f24eacc8e42261f9f5b37563e558f19863",
+  "harnessSha256": "ef7dcb4d10c0a224b33705577624582da72eb1e39bcac248b2d73cf41113f949",
+  "profileProbe": false,
+  "profileProbeFinished": false,
+  "profileProbeError": null,
+  "profileProbeCaptureError": null,
+  "savedOrderingProbe": null
+}

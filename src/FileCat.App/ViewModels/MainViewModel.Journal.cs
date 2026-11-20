@@ -6,15 +6,12 @@ namespace FileCat.App.ViewModels;
 /// <summary>A drive's change journal (D-56) as a list in the panel: what changed, when, and where.</summary>
 public sealed partial class MainViewModel
 {
-    private void OpenChangeJournal()
+    private async Task OpenChangeJournalAsync()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            Notify("Change journals are NTFS's and ReFS's: this system keeps none to list.", true);
-            return;
-        }
+        if (!OperatingSystem.IsWindows()) return;
         var tab = ActiveTab;
-        string? folder = tab?.Location switch
+        var location = tab?.Location;
+        string? folder = location switch
         {
             { IsFileSystem: true } l => l.Path,
             { Scheme: Schemes.Journal } l => l.Path,
@@ -25,12 +22,21 @@ public sealed partial class MainViewModel
             Notify("Open a folder on the drive whose change journal you want to see.", true);
             return;
         }
-        if (UsnJournalProvider.WhyNot(folder) is { } why)
+        var (journal, problem) = await Task.Run(() => UsnJournalProvider.Resolve(folder));
+        if (ActiveTab != tab || tab.Location != location || Dialogs.IsOpen) return;
+        if (journal is null)
         {
-            Notify(why, true);
+            Notify(problem!, true);
             return;
         }
-        tab.Navigate(UsnJournalProvider.ForPath(folder));
-        if (!Environment.IsPrivilegedProcess) Notify("Reading a drive's change journal needs administrator rights: run FileCat as administrator.", true);
+        if (Services.Shell.IsElevated) tab.Navigate(journal);
+        else await OpenAdministratorWindowAsync(journal);
+    }
+
+    private void OpenStartupChangeJournal(string root, string volume)
+    {
+        if (!OperatingSystem.IsWindows() || !Services.Shell.IsElevated || Workspace.ActivePanel is not { } panel) return;
+        // The provider rechecks the selected mount before opening the captured volume device.
+        panel.OpenTab(new Location(Schemes.Journal, root, session: volume));
     }
 }

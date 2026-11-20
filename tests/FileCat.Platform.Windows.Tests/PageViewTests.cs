@@ -31,6 +31,87 @@ public sealed class PageViewTests : IDisposable
     }
 
     [Fact]
+    public void The_first_page_reports_a_browser_profile_startup_failure()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("WebView2 is Windows'.");
+        string profile = Path.Combine(Directory.CreateDirectory(_dir).FullName, "profile");
+        File.WriteAllText(profile, "This path is an ordinary file.");
+        StaPump.Run(async () =>
+        {
+            nint parent = StaPump.CreateHiddenWindow();
+            try
+            {
+                using var view = new WebView2Page(parent, profile);
+                using var source = new MemoryContentSource("test.html", "<p>Test page</p>"u8.ToArray());
+                var completion = new TaskCompletionSource<(bool Success, string? Error)>(TaskCreationOptions.RunContinuationsAsynchronously);
+                view.Loaded += (ok, why) => completion.TrySetResult((ok, why));
+                view.Show(new HtmlPage(source, "test.html"));
+                var first = await completion.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                Assert.False(first.Success);
+                Assert.False(string.IsNullOrWhiteSpace(first.Error));
+
+                completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                view.Show(new HtmlPage(source, "test.html"));
+                Assert.Equal(first, await completion.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+            }
+            finally { StaPump.DestroyWindow(parent); }
+        }, TimeSpan.FromSeconds(15));
+    }
+
+    [Fact]
+    public void Host_restores_a_rendered_page_viewport_and_clamps_it_when_the_new_page_is_shorter()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("WebView2 is Windows'.");
+        if (WebView2Page.RuntimeVersion is null) Assert.Skip("The WebView2 runtime is not installed here.");
+        (double X, double Y)? before = null, after = null, shortened = null;
+        StaPump.Run(async () =>
+        {
+            nint parent = StaPump.CreateHiddenWindow();
+            using var view = new WebView2Page(parent, Path.Combine(_dir, "webview-scroll"));
+            using var longSource = new MemoryContentSource("scroll.html",
+                System.Text.Encoding.UTF8.GetBytes("<html><body><div style='width:1800px'>" +
+                    string.Concat(Enumerable.Range(0, 160).Select(i => $"<p>Section {i:D3}</p>")) +
+                    "</div><script>document.title='script ran'</script></body></html>"));
+            using var shortSource = new MemoryContentSource("scroll.html",
+                "<html><body>short replacement</body></html>"u8.ToArray());
+            var loaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            view.Loaded += (ok, why) =>
+            {
+                if (ok) loaded.TrySetResult();
+                else loaded.TrySetException(new InvalidOperationException(why));
+            };
+            view.SetSize(640, 480);
+            view.Show(new HtmlPage(longSource, "scroll.html"));
+            await loaded.Task;
+            Assert.NotEqual("script ran", view.Title); // page-authored script remains disabled
+            Assert.True(await view.RestoreScrollPositionAsync((200, 1200), TestContext.Current.CancellationToken));
+            before = await view.CaptureScrollPositionAsync(TestContext.Current.CancellationToken);
+            Assert.NotNull(before);
+            Assert.InRange(before.Value.X, 195, 205);
+            Assert.InRange(before.Value.Y, 1195, 1205);
+
+            loaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            view.Show(new HtmlPage(longSource, "scroll.html"));
+            await loaded.Task;
+            Assert.True(await view.RestoreScrollPositionAsync(before.Value, TestContext.Current.CancellationToken));
+            after = await view.CaptureScrollPositionAsync(TestContext.Current.CancellationToken);
+            Assert.NotNull(after);
+            Assert.InRange(after.Value.X, 195, 205);
+            Assert.InRange(after.Value.Y, 1195, 1205);
+
+            loaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            view.Show(new HtmlPage(shortSource, "scroll.html"));
+            await loaded.Task;
+            Assert.True(await view.RestoreScrollPositionAsync(before.Value, TestContext.Current.CancellationToken));
+            shortened = await view.CaptureScrollPositionAsync(TestContext.Current.CancellationToken);
+            StaPump.DestroyWindow(parent);
+        }, TimeSpan.FromSeconds(60));
+        Assert.NotNull(shortened);
+        Assert.Equal(0, shortened.Value.Y);
+        Assert.Equal(0, shortened.Value.X);
+    }
+
+    [Fact]
     public void Clicking_a_local_markdown_link_requests_another_viewer_without_navigating_the_page()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("WebView2 is Windows'.");
@@ -38,9 +119,12 @@ public sealed class PageViewTests : IDisposable
         string site = Directory.CreateDirectory(Path.Combine(_dir, "markdown-links")).FullName;
         string current = Path.Combine(site, "index.md");
         string linked = Path.Combine(site, "next.md");
-        File.WriteAllText(current, "# Index\n\n[Next](next.md) [Missing](missing.md)");
+        string reviewed = Path.Combine(_dir, "review.md");
+        File.WriteAllText(current, "# Index\n\n[Next](next.md) [Missing](missing.md) [Review](../review.md)");
         File.WriteAllText(linked, "# Next");
+        File.WriteAllText(reviewed, "# Review");
         var requests = new ConcurrentQueue<string>();
+        var reviews = new ConcurrentQueue<LinkedMarkdownTarget>();
         var served = new ConcurrentQueue<string>();
         var completions = new ConcurrentQueue<(bool Ok, string? Why)>();
         StaPump.Run(async () =>
@@ -49,7 +133,11 @@ public sealed class PageViewTests : IDisposable
             using var source = new FileContentSource(current);
             using var view = new WebView2Page(parent, Path.Combine(_dir, "webview-markdown"));
             var loaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            view.LinkedMarkdown += (_, path) => requests.Enqueue(path);
+            view.LinkedMarkdown += (_, target) =>
+            {
+                requests.Enqueue(target.Path);
+                if (target.RequiresConfirmation) reviews.Enqueue(target);
+            };
             view.Served += (path, found) => { if (found) served.Enqueue(path); };
             view.Loaded += (ok, why) =>
             {
@@ -68,6 +156,11 @@ public sealed class PageViewTests : IDisposable
             Assert.Equal(1, view.BlockedCount);
             Assert.Equal(new[] { linked }, requests.ToArray());
             Assert.DoesNotContain("/missing.md", served);
+            await view.ClickLinkForTestsAsync(2);
+            for (int i = 0; i < 100 && reviews.IsEmpty; i++) await Task.Delay(50);
+            Assert.Equal(new[] { linked, reviewed }, requests.ToArray());
+            Assert.True(reviews.TryPeek(out var review) && review.Path == reviewed && review.RequiresConfirmation);
+            Assert.DoesNotContain("/review.md", served);
             await Task.Delay(200);
             Assert.DoesNotContain(completions, result => !result.Ok);
             Assert.Equal("index.md", view.Title);
@@ -279,25 +372,34 @@ public sealed class PageViewTests : IDisposable
         StaPump.Run(async () =>
         {
             nint parent = StaPump.CreateHiddenWindow();
-            using var source = new FileContentSource(readme);
-            using var view = new WebView2Page(parent, Path.Combine(_dir, "webview"));
-            var done = new TaskCompletionSource();
-            view.Served += (path, found) => served.Enqueue((path, found));
-            view.Blocked += blocked.Enqueue;
-            view.Loaded += (ok, why) =>
+            try
             {
-                loaded = (ok, why);
-                done.TrySetResult();
-            };
-            view.SetSize(900, 1000);
-            view.Show(HtmlPage.ForMarkdown(source, readme));
-            await done.Task;
-            for (int i = 0; i < 100 && !served.Any(s => s.Path == "/pic.png"); i++) await Task.Delay(50);
-            await Task.Delay(500); // anything else the page would ask for
-            title = view.Title;
-            if (!string.IsNullOrEmpty(capture))
-                await using (var png = File.Create(capture)) await view.CaptureAsync(png);
-            StaPump.DestroyWindow(parent);
+                using var source = new FileContentSource(readme);
+                using var view = new WebView2Page(parent, Path.Combine(_dir, "webview"));
+                var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                view.Served += (path, found) => served.Enqueue((path, found));
+                view.Blocked += blocked.Enqueue;
+                view.Loaded += (ok, why) =>
+                {
+                    loaded = (ok, why);
+                    done.TrySetResult();
+                };
+                view.SetSize(900, 1000);
+                view.Show(HtmlPage.ForMarkdown(source, readme));
+                try { await done.Task.WaitAsync(TimeSpan.FromSeconds(55)); }
+                catch (TimeoutException error)
+                {
+                    string requests = served.IsEmpty ? "none" : string.Join(", ", served.Select(resource => resource.Path));
+                    throw new TimeoutException($"WebView2 {WebView2Page.RuntimeVersion} did not report Markdown navigation completion. " +
+                        $"Served requests: {requests}. {view.LoadDiagnostics}", error);
+                }
+                for (int i = 0; i < 100 && !served.Any(s => s.Path == "/pic.png"); i++) await Task.Delay(50);
+                await Task.Delay(500); // anything else the page would ask for
+                title = view.Title;
+                if (!string.IsNullOrEmpty(capture))
+                    await using (var png = File.Create(capture)) await view.CaptureAsync(png);
+            }
+            finally { StaPump.DestroyWindow(parent); }
         }, TimeSpan.FromSeconds(60));
 
         Assert.True(loaded is { Ok: true }, $"The page did not load: {loaded?.Why}");

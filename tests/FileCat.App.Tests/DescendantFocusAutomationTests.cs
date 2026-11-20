@@ -167,6 +167,45 @@ public sealed class DescendantFocusAutomationTests
     {
         Assert.NotNull(NativeLiveRegionBridges.UiaNodeMember(Type.GetType(NativeLiveRegionBridges.UiaNodeType, throwOnError: true)));
         Assert.NotNull(NativeLiveRegionBridges.InvalidateChildrenMember());
+        Assert.NotNull(UiaValueChanges.RaiseMember(Type.GetType(UiaValueChanges.ApiType, throwOnError: true)));
+    }
+
+    /// <summary>
+    /// NVDA said nothing when Down chose "Protect contents" in the closed password protection box: Avalonia's Windows
+    /// bridge raises no value change. The box's own node now raises it, once per keyboard change of a focused, closed box.
+    /// </summary>
+    [AvaloniaFact]
+    public void A_keyboard_change_of_a_closed_combo_box_raises_its_value_change_on_Windows()
+    {
+        if (!OperatingSystem.IsWindows()) { Assert.Skip("UI Automation is Windows'."); return; }
+        ComboBoxAnnouncements.Install();
+        var box = new ComboBox { ItemsSource = new[] { "No password", "Protect contents", "Protect contents and names" }, SelectedIndex = 0 };
+        var other = new ComboBox { ItemsSource = new[] { "One", "Two" }, SelectedIndex = 0 };
+        var window = new FocusWindow { Width = 400, Height = 200, Content = new StackPanel { Children = { box, other } } };
+        var raised = new List<(object Node, string? Previous, string? Value, int Result)>();
+        window.Show();
+        UiaValueChanges.Raised = (node, previous, value, result) => raised.Add((node, previous, value, result));
+        try
+        {
+            box.Focus(); Dispatcher.UIThread.RunJobs();
+            window.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
+            Assert.Equal(1, box.SelectedIndex);
+            var change = Assert.Single(raised);
+            Assert.Same(NativeLiveRegionBridges.TrackOnWindows(ControlAutomationPeer.CreatePeerForElement(box)), change.Node);
+            Assert.Equal(("No password", "Protect contents", 0), (change.Previous, change.Value, change.Result));
+
+            // A change to a box without keyboard focus, and one made while the list is open, raise nothing more.
+            other.SelectedIndex = 1; Dispatcher.UIThread.RunJobs();
+            box.IsDropDownOpen = true; Dispatcher.UIThread.RunJobs();
+            box.SelectedIndex = 2; Dispatcher.UIThread.RunJobs();
+            box.IsDropDownOpen = false; Dispatcher.UIThread.RunJobs();
+            Assert.Single(raised);
+        }
+        finally
+        {
+            UiaValueChanges.Raised = null;
+            window.Close();
+        }
     }
 
     [AvaloniaFact]

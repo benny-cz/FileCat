@@ -34,7 +34,7 @@ evidence, not a signature, notarization receipt, legal determination, or candida
 2. `FileCat.exe --benchmark 1000000 --benchmark-panels 4` stays within the recorded TV-01 budgets.
 3. Version bumped (`VersionPrefix` in `Directory.Build.props`). Tag `v<version>`.
 4. CI builds the artifacts and signs them. Verify the signatures on a clean machine with Smart App Control enforcing (TV-13).
-5. Publish the GitHub release and its notes. The opt-in update check reads `releases/latest`.
+5. Publish the GitHub release and its notes. The startup update check is on for new profiles unless disabled in Privacy; stable builds read `releases/latest` and preview builds consider published prereleases.
 
 ## How users upgrade
 

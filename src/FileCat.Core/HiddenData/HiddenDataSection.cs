@@ -25,7 +25,7 @@ public static class HiddenDataSection
         {
             string said;
             try { said = HiddenDataDecoder.Describe(item, hidden.Read(path, item, ReadBytes)).Summary; }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { said = "not read: " + ex.Message; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { said = "not read: " + ex.Message; }
             rows.Add([item.Name, item.KindText, item.Size >= 0 ? item.Size.ToString("N0", CultureInfo.CurrentCulture) : "?", said.Length > 100 ? said[..99] + "…" : said]);
         }
         return new InspectionSection($"Streams and attributes ({items.Count})", [])

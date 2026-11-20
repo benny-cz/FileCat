@@ -5,8 +5,10 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using FileCat.App.Controls;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.FileSystem;
@@ -19,6 +21,75 @@ namespace FileCat.App.Tests;
 
 public sealed class OperationsDrawerLayoutTests
 {
+    [AvaloniaFact]
+    public async Task Open_drawer_follows_newest_work_and_scrolls_history_instead_of_occupying_the_workspace()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1200, height: 800);
+        try
+        {
+            var center = vm.Operations;
+            center.IsOpen = true;
+            Layout(window);
+            var folder = Directory.CreateDirectory(Path.Combine(root, "operations-target")).FullName;
+            Job Submit(int number) => services.Jobs.Submit(new JobRequest
+            {
+                Kind = JobKind.CreateDirectory,
+                Destination = Location.FileSystem(folder),
+                NewName = $"folder-{number}",
+            });
+
+            var first = Submit(0);
+            for (int i = 0; i < 300 && !(first.State.IsFinished() && center.Jobs.Count == 1); i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            Layout(window);
+            Assert.Same(first, center.Selected?.Job);
+
+            var newer = Enumerable.Range(1, 5).Select(Submit).ToArray();
+            for (int i = 0; i < 300 && !(newer.All(job => job.State.IsFinished()) && center.Jobs.Count == 6); i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            Layout(window);
+            Assert.Equal(6, center.Jobs.Count);
+            Assert.Same(newer[^1], center.Selected?.Job);
+            var view = window.GetVisualDescendants().OfType<OperationsView>().Single();
+            var drawer = view.FindControl<Border>("DetailsDrawer")!;
+            var history = view.FindControl<ListBox>("HistoryList")!;
+            var scroll = history.GetVisualDescendants().OfType<ScrollViewer>().First();
+            var details = view.FindControl<ScrollViewer>("DetailsScroll")!;
+            Assert.True(details.IsEffectivelyVisible);
+            Assert.True(drawer.Bounds.Height <= 324, $"Six short jobs consumed {drawer.Bounds.Height} DIP.");
+            Assert.True(scroll.Extent.Height > scroll.Viewport.Height + 1,
+                $"History must scroll: extent {scroll.Extent.Height}, viewport {scroll.Viewport.Height} DIP.");
+            Assert.Contains(scroll.GetVisualDescendants().OfType<ScrollBar>(), bar =>
+                bar.Orientation == Avalonia.Layout.Orientation.Vertical && bar.IsEffectivelyVisible);
+            history.ScrollIntoView(5);
+            Layout(window);
+            Assert.True(history.ContainerFromIndex(5)?.TranslatePoint(new Point(0, 0), history) is { } position &&
+                        position.Y < history.Bounds.Height,
+                "The oldest retained operation must be reachable by scrolling.");
+
+            center.Selected = center.Jobs.Single(row => row.Job == first);
+            var last = Submit(6);
+            for (int i = 0; i < 300 && !(last.State.IsFinished() && center.Jobs.Count == 7); i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            Layout(window);
+            Assert.Same(first, center.Selected?.Job); // A deliberate older selection stays put.
+
+            services.Jobs.Remove(first);
+            for (int i = 0; i < 300 && center.Jobs.Count != 6; i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            Layout(window);
+            Assert.Same(last, center.Selected?.Job);
+            Assert.Same(center.Selected, history.SelectedItem);
+            Assert.True(details.IsEffectivelyVisible);
+            center.Selected = center.Jobs.Single(row => row.Job == newer[0]);
+            center.IsOpen = false;
+            center.IsOpen = true;
+            Layout(window);
+            Assert.Same(last, center.Selected?.Job);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaTheory]
     [InlineData(1)]
     [InlineData(5)]
@@ -58,6 +129,7 @@ public sealed class OperationsDrawerLayoutTests
             {
                 window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
                 window.KeyRelease(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+                Layout(window); // Let keyboard focus and virtualized row realization retire before the next input.
             }
             Layout(window);
             Assert.Same(center.Interrupted[^1], center.SelectedInterrupted);
@@ -98,10 +170,13 @@ public sealed class OperationsDrawerLayoutTests
             if (height > 420)
             {
                 handle.Focus();
-                window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
-                window.KeyRelease(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+                bool atMinimum = before < 156;
+                var key = atMinimum ? Key.Up : Key.Down;
+                var physical = atMinimum ? PhysicalKey.ArrowUp : PhysicalKey.ArrowDown;
+                window.KeyPress(key, RawInputModifiers.None, physical, null);
+                window.KeyRelease(key, RawInputModifiers.None, physical, null);
                 Layout(window);
-                Assert.True(drawer.Bounds.Height <= before - 15);
+                Assert.True(atMinimum ? drawer.Bounds.Height >= before + 15 : drawer.Bounds.Height <= before - 15);
                 Assert.Equal(drawer.Bounds.Height, services.Settings.OperationsDrawerHeight, 1);
                 var saved = JsonFileStore.Load(services.Paths.SettingsFile, StateJsonContext.Default.AppSettings,
                     AppSettings.CurrentSchema, () => new AppSettings(), out var status);
@@ -111,6 +186,64 @@ public sealed class OperationsDrawerLayoutTests
             Assert.True(window.WorkspaceViewport!.Value.Height >= 90);
         }
         finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public void Completed_history_fits_its_content_and_grows_until_the_user_resizes()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1200, height: 800);
+        try
+        {
+            var center = vm.Operations;
+            center.IsOpen = true;
+            var first = Finished(0);
+            center.Jobs.Add(first);
+            center.Selected = first;
+            Layout(window);
+            var view = window.GetVisualDescendants().OfType<OperationsView>().Single();
+            var drawer = view.FindControl<Border>("DetailsDrawer")!;
+            double one = drawer.Bounds.Height;
+            Assert.InRange(one, 140, 230);
+
+            for (int i = 1; i < 6; i++) center.Jobs.Add(Finished(i));
+            Layout(window);
+            double several = drawer.Bounds.Height;
+            Assert.InRange(several, one, one + 90);
+            var history = view.FindControl<ListBox>("HistoryList")!;
+            var historyScroll = history.GetVisualDescendants().OfType<ScrollViewer>().First();
+            Assert.True(historyScroll.Extent.Height > historyScroll.Viewport.Height + 1,
+                $"Six history rows should scroll in a compact drawer: one {one} DIP, six {several} DIP.");
+            Assert.True(window.WorkspaceViewport!.Value.Height >= 90);
+
+            var handle = view.FindControl<Border>("DrawerResizeHandle")!;
+            handle.Focus();
+            window.KeyPress(Key.PageUp, RawInputModifiers.None, PhysicalKey.PageUp, null);
+            window.KeyRelease(Key.PageUp, RawInputModifiers.None, PhysicalKey.PageUp, null);
+            Layout(window);
+            double chosen = drawer.Bounds.Height;
+            Assert.True(chosen >= several + 63);
+            center.Jobs.RemoveAt(5);
+            Layout(window);
+            Assert.Equal(chosen, drawer.Bounds.Height, 1);
+            Assert.Equal(chosen, services.Settings.OperationsDrawerHeight, 1);
+
+            var fit = view.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Fit height");
+            fit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            while (center.Jobs.Count > 1) center.Jobs.RemoveAt(center.Jobs.Count - 1);
+            Layout(window);
+            Assert.InRange(drawer.Bounds.Height, 140, 230);
+            Assert.Equal(300, services.Settings.OperationsDrawerHeight);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+
+        static JobViewModel Finished(int index)
+        {
+            var job = new Job(new JobRequest { Kind = JobKind.Delete }, $"Deleted item {index}", "local", [], []);
+            job.SetState(JobState.Completed);
+            var view = new JobViewModel(job);
+            view.Refresh();
+            return view;
+        }
     }
 
     [AvaloniaFact]
@@ -273,6 +406,79 @@ public sealed class OperationsDrawerLayoutTests
     }
 
     [AvaloniaTheory]
+    [InlineData(640, 420)]
+    [InlineData(1200, 800)]
+    [InlineData(2800, 1193)]
+    public async Task Speed_history_is_a_compact_optional_disclosure_and_expanded_graph_remains_scrollable(int width, int height)
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: width, height: height);
+        try
+        {
+            var center = vm.Operations;
+            center.IsOpen = true;
+            var job = services.Jobs.Submit(new JobRequest
+            {
+                Kind = JobKind.CreateDirectory,
+                Destination = Location.FileSystem(root),
+                NewName = "speed-history-fixture",
+            });
+            for (int i = 0; i < 300 && !(job.State.IsFinished() && center.Jobs.Count > 0); i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            Assert.True(job.State.IsFinished());
+            center.Selected = center.Jobs.Single(row => row.Job == job);
+            center.Selected.HasSpeedHistory = true;
+            center.Selected.SpeedHistory = [new Point(1, 10), new Point(2, 0), new Point(3, 20)];
+            center.Selected.GraphCaption = "Last 90 s · peak 20 items/s";
+            Layout(window);
+
+            var view = window.GetVisualDescendants().OfType<OperationsView>().Single();
+            var drawer = view.FindControl<Border>("DetailsDrawer")!;
+            var details = view.FindControl<ScrollViewer>("DetailsScroll")!;
+            var disclosure = view.FindControl<Button>("SpeedHistoryDisclosure")!;
+            var graphPanel = view.FindControl<StackPanel>("SpeedHistoryGraph")!;
+            Assert.True(disclosure.IsEffectivelyVisible);
+            Assert.False(graphPanel.IsEffectivelyVisible);
+            Assert.Equal("▸ Speed history", disclosure.Content);
+            Assert.Equal("Show speed history", AutomationProperties.GetName(disclosure));
+            Assert.True(disclosure.Bounds.Height >= 28 && disclosure.Bounds.Height <= 36,
+                $"Collapsed speed history consumed {disclosure.Bounds.Height} DIP.");
+            Assert.True(disclosure.Focus(), "The disclosure must be keyboard reachable.");
+
+            double collapsedHeight = drawer.Bounds.Height;
+            disclosure.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Layout(window);
+            Assert.Equal("▾ Speed history", disclosure.Content);
+            Assert.Equal("Hide speed history", AutomationProperties.GetName(disclosure));
+            var graph = graphPanel.GetVisualDescendants().OfType<SpeedGraph>().Single();
+            Assert.True(graph.IsEffectivelyVisible && graph.Bounds.Width >= 140 && graph.Bounds.Height is >= 40 and <= 48);
+            Assert.True(graph.Bounds.Width <= details.Viewport.Width + 1,
+                $"Graph width {graph.Bounds.Width} exceeds the report viewport {details.Viewport.Width} DIP.");
+            if (width >= 2800)
+                Assert.InRange(graph.Bounds.Width, 800, 841);
+            if (height >= 800)
+                Assert.True(drawer.Bounds.Height > collapsedHeight + 20,
+                    $"Drawer did not grow for the expanded graph: {collapsedHeight} to {drawer.Bounds.Height} DIP.");
+            Assert.True(drawer.Bounds.Height <= window.Bounds.Height - 96,
+                $"Expanded speed history consumed too much workspace: {drawer.Bounds.Height} of {window.Bounds.Height} DIP.");
+            Assert.Equal(ScrollBarVisibility.Auto, details.VerticalScrollBarVisibility);
+            if (details.Extent.Height > details.Viewport.Height + 1)
+            {
+                double graphInContent = graph.TranslatePoint(new Point(0, 0), details)!.Value.Y + details.Offset.Y;
+                details.Offset = new Vector(0, Math.Clamp(graphInContent, 0, details.Extent.Height - details.Viewport.Height));
+                Layout(window);
+                double top = graph.TranslatePoint(new Point(0, 0), details)!.Value.Y;
+                Assert.True(top >= -1 && top < details.Viewport.Height,
+                    $"Expanded graph is not reachable within the report scroller: top {top}, viewport {details.Viewport.Height} DIP.");
+            }
+            center.Selected.HasSpeedHistory = false;
+            Layout(window);
+            Assert.False(disclosure.IsEffectivelyVisible);
+            Assert.False(graphPanel.IsEffectivelyVisible);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaTheory]
     [InlineData(1)]
     [InlineData(20)]
     public async Task Small_window_keeps_an_operation_row_and_full_report_action(int interruptions)
@@ -302,10 +508,24 @@ public sealed class OperationsDrawerLayoutTests
             var history = view.GetVisualDescendants().OfType<ListBox>()
                 .Single(e => AutomationProperties.GetName(e) == "Operations history");
             var report = view.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open report");
+            var details = view.FindControl<ScrollViewer>("DetailsScroll")!;
             Assert.True(history.Bounds.Height >= 45, $"Operation history height was {history.Bounds.Height} DIP.");
             Assert.True(report.Bounds.Height >= 20 && report.IsEffectivelyVisible);
             Assert.True(report.TranslatePoint(new Point(0, report.Bounds.Height), view)!.Value.Y <= view.Bounds.Height + 1,
                 "The report action must stay within the drawer.");
+            Assert.True(details.Extent.Height > details.Viewport.Height + 1,
+                $"The selected report needs scrolling: extent {details.Extent.Height}, viewport {details.Viewport.Height} DIP.");
+            Assert.Equal(ScrollBarVisibility.Auto, details.VerticalScrollBarVisibility);
+            Assert.Contains(details.GetVisualDescendants().OfType<ScrollBar>(), bar =>
+                bar.Orientation == Avalonia.Layout.Orientation.Vertical && bar.IsEffectivelyVisible);
+            var save = view.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Save report…");
+            double saveInContent = save.TranslatePoint(new Point(0, 0), details)!.Value.Y + details.Offset.Y;
+            details.Offset = new Vector(0, Math.Clamp(saveInContent, 0, details.Extent.Height - details.Viewport.Height));
+            Layout(window);
+            var saveTop = save.TranslatePoint(new Point(0, 0), details)!.Value.Y;
+            var saveBottom = save.TranslatePoint(new Point(0, save.Bounds.Height), details)!.Value.Y;
+            Assert.True(saveTop >= -1 && saveBottom <= details.Viewport.Height + 1,
+                $"Save report is outside the scrollable details viewport: {saveTop}..{saveBottom} in {details.Viewport.Height} DIP.");
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }

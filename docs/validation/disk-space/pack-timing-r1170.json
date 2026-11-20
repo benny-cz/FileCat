@@ -1,0 +1,27 @@
+{
+  "revision": "r1170",
+  "mode": "full-product-r1168-plus-verified-render-and-core-test-pairs",
+  "buildLog": ".tmp/input-case-capacity-core-helper-build-r1170.txt",
+  "sourceManifest": ".tmp/source-candidate-r1170.json",
+  "archiveCount": 3,
+  "archives": [
+    {
+      "platform": "windows",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r1170.tgz",
+      "sha256": "152cbfa069a2dee15e2a1c230edcea44bd14978bacea24e49ca88c8f2db0633d",
+      "bytes": 95953453
+    },
+    {
+      "platform": "mac",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r1170.tgz",
+      "sha256": "d132d7a0b0c71aedc59e75cb31a4aa006bcebb00daa931995e79cb05b4201446",
+      "bytes": 3735843
+    },
+    {
+      "platform": "linux",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r1170.tgz",
+      "sha256": "715f470d68cdf7ad87b7286f242c2eb27f0f05fb754b9c7fe42c004e00721d55",
+      "bytes": 3735753
+    }
+  ]
+}

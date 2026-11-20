@@ -78,7 +78,7 @@ public sealed class CloudWriteTests : IDisposable
             // provider makes it a placeholder once it is uploaded, which the attributes that recall it say.
             var clock = System.Diagnostics.Stopwatch.StartNew();
             File.SetAttributes(moved, (File.GetAttributes(moved) & ~Pinned) | Unpinned);
-            Assert.Equal(CloudState.OnlineOnly, CloudFiles.StateOf(File.GetAttributes(moved), inSyncRoot: true));
+            Assert.Equal(CloudState.RecallPossible, CloudFiles.StateOf(File.GetAttributes(moved), inSyncRoot: true));
             const FileAttributes recall = (FileAttributes)0x440000;
             while ((File.GetAttributes(moved) & (recall | FileAttributes.Offline)) == 0 && clock.Elapsed < TimeSpan.FromMinutes(4))
                 await Task.Delay(1000, ct);

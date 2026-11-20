@@ -1,0 +1,390 @@
+{
+  "date": "2026-11-07",
+  "production_profile_registered": false,
+  "production_backend_qualified": false,
+  "full_source_packet": {
+    "files": 4057,
+    "bytes": 30168482,
+    "sha256": "dff9c8d2b39596340d40e55d4aeb3a7f18b585c4b58b3c27b4a5e8a437197c06"
+  },
+  "supplement_source_packets": {
+    "mac_ubuntu": {
+      "files": 4061,
+      "bytes": 30176393,
+      "sha256": "42e65701918bba8fc66eda280663ae7a659aa5fb5336a74f58f16aa0fc016074"
+    },
+    "windows": {
+      "files": 4063,
+      "bytes": 30178670,
+      "sha256": "a3c4d57c40e16eafeb787670289814f512d900733513a1f8ae515e0387fbf51d"
+    }
+  },
+  "sdk_tool_packet": {
+    "bytes": 139920,
+    "sha256": "9fc7b0edf4748630e164d6efe4ee712b2d78c7bb27e7069b92404e685c604c6f",
+    "files": 24
+  },
+  "platforms": {
+    "mac": {
+      "evidence": {
+        "full": {
+          "archive": "mac-sevenzip-bcj2-evidence-v2.tar.gz",
+          "bytes": 88633649,
+          "sha256": "a11dd16b385d950cf8013db22fd28c9e127bd26c457ce520110e28801be8d456",
+          "manifest_rows": 2678,
+          "cases": {
+            "Passed": 844,
+            "NotExecuted": 2
+          },
+          "compiler_source_documents": 1324,
+          "compiler_source_bytes": 12549442,
+          "final_census": {
+            "busy": false,
+            "owned_filecat_or_test_processes": 0,
+            "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+          }
+        },
+        "supplement": {
+          "archive": "mac-sevenzip-bcj2-supplement-evidence-v1.tar.gz",
+          "bytes": 49910663,
+          "sha256": "b03c86ac98e156a1f4d5dae4f85ad7416079f31281405065d9f9cfc51761e8c4",
+          "manifest_rows": 1674,
+          "cases": {
+            "Passed": 81
+          },
+          "compiler_source_documents": 1324,
+          "compiler_source_bytes": 12550445,
+          "final_census": {
+            "owned_filecat_or_test_processes": 0,
+            "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+            "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+          }
+        }
+      },
+      "observations": {
+        "native_reader_not_qualified": {
+          "-30: b'Damaged 7-Zip archive'": 16,
+          "-30: b'The archive header is encrypted, but currently not supported'": 14,
+          "-30: b'Unsupported form of BCJ2 streams'": 12
+        },
+        "official_archives": 36,
+        "official_exact_payloads": 72,
+        "py7zr_metadata_records": 126,
+        "official_zstandard_extension_gaps": 6,
+        "artifact_sbom_controls": {
+          "Controls": 35,
+          "Allowed": 11,
+          "Refused": 24,
+          "Passed": 35
+        },
+        "sbom_compiler_source_documents": 4,
+        "sbom_compiler_source_bytes": 45458,
+        "bcj2_archive_sha256": {
+          "archive-0-0-0": "fc69e686422a5f58a48eda04a08405142907dee6ca376589216c072a7d0dcb5e",
+          "archive-0-0-1": "faf6bbea1d1bc421e0a38a3a35fb65786b4ee3e0c94b1bc83fc9f1c74c12e26c",
+          "archive-0-0-2": "9e5367b4513429325a4398e404bce145cb65cd7bdb7d3a3c813cfd110953a588",
+          "archive-0-1-0": "ec6f6a243baf272d354aea2c0c94943ab14addc323b763c0a3f365b88747d5af",
+          "archive-0-1-1": "e5557435efe870b8267f56bf5dc3482040f1607d99321161adb2d7bba29fdc25",
+          "archive-0-1-2": "4f4ef2da726190216953db3656088ff1b595f7554d92b228061c8700c8c90315",
+          "archive-1-0-0": "6466f67e062a9e1deff4932a14e02339e73041db2e9a6c7a853874c5b17853b4",
+          "archive-1-0-1": "2651394820f82ae65bee24ca0ffbcbd1b0089049f64ba6c7c701864705d0ec25",
+          "archive-1-0-2": "6f72fa8d4c81b8409eeed219d11e4ff3482fc695f101374599d4aa50b8c0fcb3",
+          "archive-1-1-0": "8aab3b0f8d4eb96005e7736460dac6ee34e5a69bf6cf597e51ed450e1a105160",
+          "archive-1-1-1": "49b83a0d5449eb30e32c561acf7854fa14829d57c50a5c5b88049c25a54ba364",
+          "archive-1-1-2": "bd294fa6e8b0b212d97e6644201dcf3acf174b1ce547be6fd165b9f230664ef9",
+          "archive-2-0-0": "3653124fb098940d0922952fe5921787aa3a73351c5da01982fc081041d6677d",
+          "archive-2-0-1": "06ea70f4497bed737df9efca58e496177d5c74613d1c08677ecd532e71427a54",
+          "archive-2-0-2": "4fadb15f1e09c5bbadc42511abe462f54d06ae49cac1bfbe749e4174d93f73d7",
+          "archive-2-1-0": "dcfaa8d7e2b95252d4f5f383e228af8dc798126774e4e31c45560cad393a0296",
+          "archive-2-1-1": "2d655862f5189726a4ca301831ed673b625c8aee13efbaa5f5c0b8bde42536d3",
+          "archive-2-1-2": "dc88474544118d81c13258c57ae7911923ef1fa07352cf23140b746d80a8acdc",
+          "archive-3-0-0": "96ddc305e640095807a72811d0f792d8a91c47ce713de5e114708c8abdadc37b",
+          "archive-3-0-1": "197bedbe83ff1d52fac6f4d0ab4a32b75a932272b0f6430ee64a1facd29f14f1",
+          "archive-3-0-2": "4755dd99ed161dfa8fedf69bab81b276b11c480680f4cb77bfb5b048ac265c2f",
+          "archive-3-1-0": "b994590e5d921e0de7396b952255ea968782b2b8bd9c22df99b1bcc2731a91e4",
+          "archive-3-1-1": "db7d0fd8b474664be86b1481b3c1e2b9f75253fc51194fab353d60c1d589d0cd",
+          "archive-3-1-2": "fb1e08acc1ba13964570d222579bcc45acfd79df9d3a4d3fec05000e9701c613",
+          "archive-4-0-0": "d673f572ea6e4b1e9cd792a5f0e1613c55373bd522d53d074bb085e09930b912",
+          "archive-4-0-1": "cc79eb50d1eaab8b47d033a72c3de19449a1dd4428db884850f5db4c5fa8edac",
+          "archive-4-0-2": "e6493e96c0882949e2f97243f3cb719cd5d5be77bc5b9ed96921beb6685d7a0d",
+          "archive-4-1-0": "9db630204e20bd88d9cdc161f67e01ca4626b5b60890f9182d6579e43e30905b",
+          "archive-4-1-1": "5b66b8564ce9be17c91bc28f851b4fee7808812b0094706995cfa39d3cde390e",
+          "archive-4-1-2": "db1506147666138d8bef7fb9472cc140ab1b2b021082e5e5b192331ded465596",
+          "archive-5-0-0": "c40272aeb67481e90163ce7bb14ec95a50b81c340eca71a166530fc5bebad4b6",
+          "archive-5-0-1": "6db84274de989d9d0527fbde700979550c306181da8dee558cbb6ebdc6bb26f9",
+          "archive-5-0-2": "2c29b9253a3ed4f2432fe7b19e14ca181072ee6ea72396c3bcb4ef8489f267d7",
+          "archive-5-1-0": "989f3b86741a598ed49d4b20785164f20d1c5d3a999c045de80c6f209e9f94d0",
+          "archive-5-1-1": "4d03efdabe2b685d953f48ac8abb9b8debdbe292c1a4c328476a598bf3366594",
+          "archive-5-1-2": "42f5633d517ec88a802a205d8f4b2e464a1f0045a4a438873af22edecf886da0",
+          "archive-6-0-0": "fe97fc29b7860b2fed9845c9689bde9f038c1d30dc8d22129f11e1df65a85b9e",
+          "archive-6-0-1": "9cc4057f4a3ab09b019673fb185cf93c9f98d3229e3e112463a448a0e1e3c1c4",
+          "archive-6-0-2": "32386f6ab4cebc211e9f79cb8ac1931f7c29cce3fa3683c25cdff4bec08ebd36",
+          "archive-6-1-0": "3196f5a87e39ae316dd1c41eba0dd2a9745f6a98b0b46ebcb6ca5e9582b5305e",
+          "archive-6-1-1": "260b5b841a1230e628ed88be54f40afcca41c8337f5e1b6581aa10468050a2f8",
+          "archive-6-1-2": "02297e4f886fbff2941d17317e5681002ad1085252e7fa81caa26d7b65a54067"
+        },
+        "previous_30_unencrypted_archives_unchanged": true,
+        "independent_graph_payloads": 42,
+        "independent_zstandard_graph_payloads": 6,
+        "graph_oracle_sha256": "5656bfae915f4b3216ec15ce2762c8f2eba80c2dceb699aa47257e11c6948af6",
+        "current_compiler_inputs_matched": [
+          "src/FileCat.Archives/Writing/SevenZipBcj2Encoder.cs",
+          "src/FileCat.Archives/Writing/SevenZipBcj2Packing.cs",
+          "src/FileCat.Archives/Writing/SevenZipArchiveWriter.cs",
+          "src/FileCat.Archives/Writing/SevenZipCodecEncoder.cs",
+          "src/ThirdParty/SharpCompress/Compressors/Deflate/ZlibBaseStream.cs",
+          "src/ThirdParty/SharpCompress/Compressors/LZMA/Bcj2DecoderStream.cs",
+          "tests/FileCat.Core.Tests/SevenZipBcj2WritingTests.cs"
+        ]
+      }
+    },
+    "ubuntu": {
+      "evidence": {
+        "full": {
+          "archive": "ubuntu-sevenzip-bcj2-evidence-v2.tar.gz",
+          "bytes": 88629352,
+          "sha256": "073d63780a7bf80a969ffe1f61f2b8ab41529d38c9e1b7d5068ebf1af01cc9cc",
+          "manifest_rows": 2678,
+          "cases": {
+            "Passed": 843,
+            "NotExecuted": 3
+          },
+          "compiler_source_documents": 1324,
+          "compiler_source_bytes": 12549442,
+          "final_census": {
+            "busy": false,
+            "owned_filecat_or_test_processes": 0
+          }
+        },
+        "supplement": {
+          "archive": "ubuntu-sevenzip-bcj2-supplement-evidence-v1.tar.gz",
+          "bytes": 49902224,
+          "sha256": "136c5d3ec8860f4347d67540bddadadb9d4c183adfb5320081e1cc27fa8af9d8",
+          "manifest_rows": 1674,
+          "cases": {
+            "Passed": 81
+          },
+          "compiler_source_documents": 1324,
+          "compiler_source_bytes": 12550445,
+          "final_census": {
+            "owned_filecat_or_test_processes": 0,
+            "platform": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39"
+          }
+        }
+      },
+      "observations": {
+        "native_reader_not_qualified": {
+          "-30: b'Damaged 7-Zip archive'": 16,
+          "-30: b'The archive header is encrypted, but currently not supported'": 14,
+          "-30: b'Unsupported form of BCJ2 streams'": 12
+        },
+        "official_archives": 36,
+        "official_exact_payloads": 72,
+        "py7zr_metadata_records": 126,
+        "official_zstandard_extension_gaps": 6,
+        "artifact_sbom_controls": {
+          "Controls": 35,
+          "Allowed": 11,
+          "Refused": 24,
+          "Passed": 35
+        },
+        "sbom_compiler_source_documents": 4,
+        "sbom_compiler_source_bytes": 45458,
+        "bcj2_archive_sha256": {
+          "archive-0-0-0": "fc69e686422a5f58a48eda04a08405142907dee6ca376589216c072a7d0dcb5e",
+          "archive-0-0-1": "f43c0289b9d53ed38fb1e050ff6e82f7cfae7b7d29c844d46ecc6d1222037d11",
+          "archive-0-0-2": "0a02364d1957e7240e933a545527bbfaaa9859c4af8d1c801ae5e428a4c88909",
+          "archive-0-1-0": "ec6f6a243baf272d354aea2c0c94943ab14addc323b763c0a3f365b88747d5af",
+          "archive-0-1-1": "5fa4c0b16f8bf8cb5494109974dc2e1f6c619f25288faad96ba12aed2f26e5a3",
+          "archive-0-1-2": "fff4349e061393dd0d29e9bdf7ba8a273c7ba8716ca0f8cf2698ffad37c4c772",
+          "archive-1-0-0": "6466f67e062a9e1deff4932a14e02339e73041db2e9a6c7a853874c5b17853b4",
+          "archive-1-0-1": "c7fb6f0c170a4dd30ba43549fdae6ce52a1476818f1f9fcb1b3b1b946e51ef18",
+          "archive-1-0-2": "ccab5d1da119c02e8a65ad582d8e505e43778a6a429d5c507e54260db90fd8d0",
+          "archive-1-1-0": "8aab3b0f8d4eb96005e7736460dac6ee34e5a69bf6cf597e51ed450e1a105160",
+          "archive-1-1-1": "0d47cfa3e809731b7d33a15cdc59edf887b370ddc49f1646542bcb8f77607d65",
+          "archive-1-1-2": "7625a585c5146e237f249a3a0e98edc2bb7408d4225ccb3123bc27fb2cbba600",
+          "archive-2-0-0": "3653124fb098940d0922952fe5921787aa3a73351c5da01982fc081041d6677d",
+          "archive-2-0-1": "cb2a7946cec5402f34bc5d9b7e7033c8433d6738979633aa74e124b3e0ec7da7",
+          "archive-2-0-2": "fa467e87d0e5be98f02f5fbf91459424723dbb3be6ccbf7ab567e290465eaa8c",
+          "archive-2-1-0": "dcfaa8d7e2b95252d4f5f383e228af8dc798126774e4e31c45560cad393a0296",
+          "archive-2-1-1": "c7ab083e0e5dae075994885c84462ced312b320424a96d4ff7d34024975f2c97",
+          "archive-2-1-2": "ccbc7f36011f1108f3c99f5a4c8915c4bb4ef5358d966937967d09df8bae7ac0",
+          "archive-3-0-0": "96ddc305e640095807a72811d0f792d8a91c47ce713de5e114708c8abdadc37b",
+          "archive-3-0-1": "440421b8c8a244739b4b1ab30b81b7bfe0f9db5ea303fc81e7982946974105ce",
+          "archive-3-0-2": "e178a9a86046a69868f84b7500e2938a9ff218ae965f12f82089604c457dbd0d",
+          "archive-3-1-0": "b994590e5d921e0de7396b952255ea968782b2b8bd9c22df99b1bcc2731a91e4",
+          "archive-3-1-1": "406fcb9a3e4b7753db827853021a50e15c422d519df40b2e1a3fb64b898b95fa",
+          "archive-3-1-2": "ae13cef63c11f0670ffb3cfb8b7dae6bf1eb38e7fcd04eb906da375cecf0558b",
+          "archive-4-0-0": "d673f572ea6e4b1e9cd792a5f0e1613c55373bd522d53d074bb085e09930b912",
+          "archive-4-0-1": "95a3bbd3e83833b3dcbdb8b23e42401b42086bcb400fb833d82fb84f1adacad3",
+          "archive-4-0-2": "cf3d61bb2702d56d4ca21ef1a2de5abd48f2934da448803fc1db9c17906006a5",
+          "archive-4-1-0": "9db630204e20bd88d9cdc161f67e01ca4626b5b60890f9182d6579e43e30905b",
+          "archive-4-1-1": "95b3dc56addc9f1a7b0a3d8196878e3d0eb01ceb1bac3dab8407a94f86adc5f6",
+          "archive-4-1-2": "6c989866e3818ac105052a3028ebf875acf3b71599c682b0e1807d4e009ef361",
+          "archive-5-0-0": "c40272aeb67481e90163ce7bb14ec95a50b81c340eca71a166530fc5bebad4b6",
+          "archive-5-0-1": "37ea18e3478fc31ab39a73bf527cacb85ee0ccadaa2d3a88066ddece41fcb15c",
+          "archive-5-0-2": "d67b4579ef80af3da8ca2c020f529235de1c56f31ba010c7b464d3ba1b3354b5",
+          "archive-5-1-0": "989f3b86741a598ed49d4b20785164f20d1c5d3a999c045de80c6f209e9f94d0",
+          "archive-5-1-1": "8dabc40587c92d77519991b0db7f9cb6b48f47d3569cc13757358f34ae694be3",
+          "archive-5-1-2": "29ca7fdfc38e9b1295b262d4163bb8d43cc04a046d9d0a8b4fcbd8c22a69d133",
+          "archive-6-0-0": "fe97fc29b7860b2fed9845c9689bde9f038c1d30dc8d22129f11e1df65a85b9e",
+          "archive-6-0-1": "77394f478f4e2c085b41ace073fcb442f13eea1bc0783880cf59b49b8008aa22",
+          "archive-6-0-2": "13cdd21d48a9f3f41f9f6584962aae25833ea4acfa6c8be88d5b87b3151dd98b",
+          "archive-6-1-0": "3196f5a87e39ae316dd1c41eba0dd2a9745f6a98b0b46ebcb6ca5e9582b5305e",
+          "archive-6-1-1": "bcb418be7b08829909591e062c0421f864357bf03a92c29b05c79ee7e0ce8fcd",
+          "archive-6-1-2": "914252d069d1346d04e319a40d6eba28d962ee7dd388c7702c421e6b401affdf"
+        },
+        "previous_30_unencrypted_archives_unchanged": true,
+        "independent_graph_payloads": 42,
+        "independent_zstandard_graph_payloads": 6,
+        "graph_oracle_sha256": "50ba524866c94eedcbe368ae14e8fecefc69d12463f534cb33dbaa83e2ea6493",
+        "current_compiler_inputs_matched": [
+          "src/FileCat.Archives/Writing/SevenZipBcj2Encoder.cs",
+          "src/FileCat.Archives/Writing/SevenZipBcj2Packing.cs",
+          "src/FileCat.Archives/Writing/SevenZipArchiveWriter.cs",
+          "src/FileCat.Archives/Writing/SevenZipCodecEncoder.cs",
+          "src/ThirdParty/SharpCompress/Compressors/Deflate/ZlibBaseStream.cs",
+          "src/ThirdParty/SharpCompress/Compressors/LZMA/Bcj2DecoderStream.cs",
+          "tests/FileCat.Core.Tests/SevenZipBcj2WritingTests.cs"
+        ]
+      }
+    },
+    "windows": {
+      "evidence": {
+        "full": {
+          "archive": "windows-sevenzip-bcj2-evidence-v2.tar.gz",
+          "bytes": 88483770,
+          "sha256": "dd1047a42030537d78647178cf4897843e63fd24e2e7854904dd860a50e3cd21",
+          "manifest_rows": 2578,
+          "cases": {
+            "Passed": 725,
+            "NotExecuted": 121
+          },
+          "compiler_source_documents": 1324,
+          "compiler_source_bytes": 12564143,
+          "final_census": {
+            "Processes": [],
+            "CollectedUtc": "2026-11-07T05:31:02.3867274Z"
+          }
+        },
+        "supplement": {
+          "archive": "windows-sevenzip-bcj2-supplement-evidence-v3.tar.gz",
+          "bytes": 45370500,
+          "sha256": "54716bf4f59aea9b6027b1447b1ca272876bc09b6ff8637335b0e561a8ef1ea8",
+          "manifest_rows": 1609,
+          "cases": {
+            "Passed": 81
+          },
+          "compiler_source_documents": 1324,
+          "compiler_source_bytes": 12565146,
+          "final_census": {
+            "owned_filecat_or_test_processes": 0,
+            "CollectedUtc": "2026-11-07T05:44:21.8694377Z"
+          }
+        }
+      },
+      "observations": {
+        "native_reader_not_qualified": {
+          "-30: b'Damaged 7-Zip archive'": 16,
+          "-30: b'The archive header is encrypted, but currently not supported'": 14,
+          "-30: b'Unsupported form of BCJ2 streams'": 12
+        },
+        "official_archives": 36,
+        "official_exact_payloads": 72,
+        "py7zr_metadata_records": 126,
+        "official_zstandard_extension_gaps": 6,
+        "artifact_sbom_controls": {
+          "Controls": 33,
+          "Allowed": 10,
+          "Refused": 23,
+          "Passed": 33
+        },
+        "sbom_compiler_source_documents": 4,
+        "sbom_compiler_source_bytes": 45495,
+        "bcj2_archive_sha256": {
+          "archive-0-0-0": "fc69e686422a5f58a48eda04a08405142907dee6ca376589216c072a7d0dcb5e",
+          "archive-0-0-1": "ebdcc6b9b7bf1da90958021e3a0fbe40c140854c31bd444e67d396b16f4a6e90",
+          "archive-0-0-2": "e82f670e62b7bee9719d9baaf5c24e99b5f2f878d29ee43e61a1221e5e0bf8f6",
+          "archive-0-1-0": "ec6f6a243baf272d354aea2c0c94943ab14addc323b763c0a3f365b88747d5af",
+          "archive-0-1-1": "2fefe485d0c4258779da76733849afe2293263ba91c943103da5a4eaa3f1dcd1",
+          "archive-0-1-2": "95254cf5d378c1d11a64a3ebc962da52b14349cf426272c4aff336613456e03b",
+          "archive-1-0-0": "6466f67e062a9e1deff4932a14e02339e73041db2e9a6c7a853874c5b17853b4",
+          "archive-1-0-1": "52995455e036a482f13fbe9759f8fe957d14463dd3dba6acb0f721a2df82b36c",
+          "archive-1-0-2": "e0adcc22bc8b3f0b9b9693bdeef0485cfb453ad3618ea181961c9a94ec25ed82",
+          "archive-1-1-0": "8aab3b0f8d4eb96005e7736460dac6ee34e5a69bf6cf597e51ed450e1a105160",
+          "archive-1-1-1": "9da4b8539998286604f6db504c6cace9e5d3238d51bc894ee3d281e6dfee2a88",
+          "archive-1-1-2": "cc33f7bcbe33bcbbf5966a8429f249499247d4f325f14866f2a5a8164f08bd97",
+          "archive-2-0-0": "3653124fb098940d0922952fe5921787aa3a73351c5da01982fc081041d6677d",
+          "archive-2-0-1": "b8dc88fe2000271c6e027bd9ee38acb67fa24cb6aed720db980ed9baf10890e6",
+          "archive-2-0-2": "03e6140dfeee5aca9a278d7243621636a591a10963cfc794cc3da590d2895b15",
+          "archive-2-1-0": "dcfaa8d7e2b95252d4f5f383e228af8dc798126774e4e31c45560cad393a0296",
+          "archive-2-1-1": "243153672cfb0cfc12e939a728cd1c33c2ebd2ef513d470ccc36ae1807981bee",
+          "archive-2-1-2": "dfc359764d15a92bb5834178703d2410e13a21775ad5e8a6dc7dec519814d710",
+          "archive-3-0-0": "96ddc305e640095807a72811d0f792d8a91c47ce713de5e114708c8abdadc37b",
+          "archive-3-0-1": "a84b31ef4b2758cfb4f89d175125fa79d00ea377eb926546914c9bb72a2a6b19",
+          "archive-3-0-2": "fd46b40bc8f7ca10a764fc0b8b037b990e4107f721e1e157ab36f343ba5a30d0",
+          "archive-3-1-0": "b994590e5d921e0de7396b952255ea968782b2b8bd9c22df99b1bcc2731a91e4",
+          "archive-3-1-1": "bf4898167eb2a32166f608d477d0936533a245b4fcb51db0711b5d9aa99b796d",
+          "archive-3-1-2": "504534d47ea76610971db4eed7bd320fb114fff063526f21fcaa4e9bbc6d43ca",
+          "archive-4-0-0": "d673f572ea6e4b1e9cd792a5f0e1613c55373bd522d53d074bb085e09930b912",
+          "archive-4-0-1": "3e4f1c5807c1a026424fc6f07f3018312af04dddf2802b818afeeaad7a1175a2",
+          "archive-4-0-2": "f55884f88b52fd0210a307f94d85e7b731acdd1f69a67cfa2fabab642a828cc4",
+          "archive-4-1-0": "9db630204e20bd88d9cdc161f67e01ca4626b5b60890f9182d6579e43e30905b",
+          "archive-4-1-1": "e4096286d15c7229ebae160b5fd8221225873f423cbcd3276f472ac67e258399",
+          "archive-4-1-2": "e0dde0ba0242cf1cccd90a2be5c22e4a5060fe53aaed327a9cb8d8c7993058ef",
+          "archive-5-0-0": "c40272aeb67481e90163ce7bb14ec95a50b81c340eca71a166530fc5bebad4b6",
+          "archive-5-0-1": "3c32d042b39e512971a72a3a32744ff42b6fc536e1f10e3865c770df240f5729",
+          "archive-5-0-2": "5a213f337e1a277bdc999cbbb471507212639ce84baad72facaa101e7c65d7f6",
+          "archive-5-1-0": "989f3b86741a598ed49d4b20785164f20d1c5d3a999c045de80c6f209e9f94d0",
+          "archive-5-1-1": "f8a1ae6e3f03a434bb4455b7ea8a1c69fd72d2fc1edc596bd9a3f21605777376",
+          "archive-5-1-2": "bc5d3d4c622f2dabbe11d5fa02fa840aad6fc60d578060f66c97169b2d08339e",
+          "archive-6-0-0": "fe97fc29b7860b2fed9845c9689bde9f038c1d30dc8d22129f11e1df65a85b9e",
+          "archive-6-0-1": "2789e025b1808922e7e746c73ce0629fcdca487186f87852c62c251d4643509d",
+          "archive-6-0-2": "ff2d5dfe0849ed86fc3924f81e7a06d614e4abb23745dabc51ca36792df91e38",
+          "archive-6-1-0": "3196f5a87e39ae316dd1c41eba0dd2a9745f6a98b0b46ebcb6ca5e9582b5305e",
+          "archive-6-1-1": "200559628e72fb4847691d546a9f538de3c19adcfd4f67bf9d26ea6784e8aa2a",
+          "archive-6-1-2": "3a7b57e519f57003db1a9ec068c99e987761b79b1507210d5429417ebc4b5a6e"
+        },
+        "previous_30_unencrypted_archives_unchanged": true,
+        "independent_graph_payloads": 42,
+        "independent_zstandard_graph_payloads": 6,
+        "graph_oracle_sha256": "172c4f63495aaadd4f83b3581b614c2367932130d23e7844dbfc5fdab42e3a93",
+        "current_compiler_inputs_matched": [
+          "src/FileCat.Archives/Writing/SevenZipBcj2Encoder.cs",
+          "src/FileCat.Archives/Writing/SevenZipBcj2Packing.cs",
+          "src/FileCat.Archives/Writing/SevenZipArchiveWriter.cs",
+          "src/FileCat.Archives/Writing/SevenZipCodecEncoder.cs",
+          "src/ThirdParty/SharpCompress/Compressors/Deflate/ZlibBaseStream.cs",
+          "src/ThirdParty/SharpCompress/Compressors/LZMA/Bcj2DecoderStream.cs",
+          "tests/FileCat.Core.Tests/SevenZipBcj2WritingTests.cs"
+        ]
+      }
+    }
+  },
+  "remaining_gates": [
+    "strict complete raw source/update/verification catalogs and preservation contracts",
+    "typed password-aware worker requests, native secret-role admission, parent job/view/edit ownership",
+    "parent accounting for every BCJ2 source/decode/CPU/wire pass and aggregate codec/capture memory",
+    "full shared transactions, creation/update/edit/move/password UI and exact unavailable states",
+    "method/preset/version/filter resource/negative inventories, crash and coverage-guided fuzz gates",
+    "six RID and installed package/payload/license qualification; final independent UX/UI/function/security review"
+  ],
+  "unencrypted_bcj2_archive_sha256": {
+    "archive-0-0-0": "fc69e686422a5f58a48eda04a08405142907dee6ca376589216c072a7d0dcb5e",
+    "archive-0-1-0": "ec6f6a243baf272d354aea2c0c94943ab14addc323b763c0a3f365b88747d5af",
+    "archive-1-0-0": "6466f67e062a9e1deff4932a14e02339e73041db2e9a6c7a853874c5b17853b4",
+    "archive-1-1-0": "8aab3b0f8d4eb96005e7736460dac6ee34e5a69bf6cf597e51ed450e1a105160",
+    "archive-2-0-0": "3653124fb098940d0922952fe5921787aa3a73351c5da01982fc081041d6677d",
+    "archive-2-1-0": "dcfaa8d7e2b95252d4f5f383e228af8dc798126774e4e31c45560cad393a0296",
+    "archive-3-0-0": "96ddc305e640095807a72811d0f792d8a91c47ce713de5e114708c8abdadc37b",
+    "archive-3-1-0": "b994590e5d921e0de7396b952255ea968782b2b8bd9c22df99b1bcc2731a91e4",
+    "archive-4-0-0": "d673f572ea6e4b1e9cd792a5f0e1613c55373bd522d53d074bb085e09930b912",
+    "archive-4-1-0": "9db630204e20bd88d9cdc161f67e01ca4626b5b60890f9182d6579e43e30905b",
+    "archive-5-0-0": "c40272aeb67481e90163ce7bb14ec95a50b81c340eca71a166530fc5bebad4b6",
+    "archive-5-1-0": "989f3b86741a598ed49d4b20785164f20d1c5d3a999c045de80c6f209e9f94d0",
+    "archive-6-0-0": "fe97fc29b7860b2fed9845c9689bde9f038c1d30dc8d22129f11e1df65a85b9e",
+    "archive-6-1-0": "3196f5a87e39ae316dd1c41eba0dd2a9745f6a98b0b46ebcb6ca5e9582b5305e"
+  },
+  "raw_bcj2_sdk_streams_identical_across_platforms": 72,
+  "encrypted_bcj2_fixtures_have_distinct_archive_salts_ivs_across_platforms": 28
+}

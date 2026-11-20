@@ -1,0 +1,547 @@
+using System.Buffers.Binary;
+using System.Runtime.InteropServices;
+using System.Text;
+using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
+using FileCat.Core.Resources;
+using FileCat.Core.State;
+using FileCat.Platform.Windows.Analysis;
+using FileCat.Platform.Windows.Elevation;
+using Microsoft.Win32.SafeHandles;
+
+namespace FileCat.Platform.Windows.Tests;
+
+public sealed unsafe partial class WindowsEfsPathTests
+{
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+    private static void NativeFixture()
+    {
+        Assert.SkipUnless(WindowsStorageTransforms.SupportsHost(WindowsStorageAbiTests.QualifyNativeArm64Jobs)
+            && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Explicit EFS qualification on a disposable Windows 11 host with a prepared user profile.");
+        Assert.False(WindowsTokenAuthority.IsHighIntegrity, "The EFS fixture must run as the normal invoking user.");
+    }
+    private static WindowsStorageTransforms Adapter() => new(qualifyNativeArm64: WindowsStorageAbiTests.QualifyNativeArm64Jobs);
+
+    private static IStorageReviewLease Pin(WindowsStorageTransforms adapter, string path, bool directory, StorageAction action)
+    {
+        var target = StoragePaths.Capture([ItemRef.ForFileSystemPath(path, directory ? EntryKind.Directory : EntryKind.File)])[0];
+        using var inspection = StorageReviewResources.EnterRootInspection(target);
+        return adapter.InspectEfsRoot(target, action, Ct);
+    }
+    private static StorageEfsConsent Consent(IStorageReviewLease pin, StorageAction action) =>
+        StorageEfsConsent.Capture(Guid.NewGuid(), action, StorageScope.SelectedItems, [pin.Observation.Identity], new(true, action == StorageAction.EncryptEfs));
+    private static StorageMutationResult Apply(IStorageObjectLease item, StorageAction action)
+    {
+        Assert.Null(item.PrepareMutation(action, Ct).Ineligible);
+        return item.ApplyAdmitted(action); // Native-only protocol fixture; no claim of product job/key/output admission.
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Complete_stream_parser_rejects_truncation_duplicates_invalid_names_and_missing_main(bool directory)
+    {
+        var good = Inventory("::$DATA", ":名前:$DATA");
+        Assert.Equal(2, WindowsEfsStreams.Parse(good, directory).Length);
+        int last = (int)BinaryPrimitives.ReadUInt32LittleEndian(good);
+        int truncated = last + 24 + (int)BinaryPrimitives.ReadUInt32LittleEndian(good.AsSpan(last + 4)) - 1;
+        Assert.Throws<StorageInspectionException>(() => WindowsEfsStreams.Parse(good.AsSpan(0, truncated), directory));
+        Assert.Throws<StorageInspectionException>(() => WindowsEfsStreams.Parse(Inventory("::$DATA", "::$DATA"), directory));
+        Assert.Throws<StorageInspectionException>(() => WindowsEfsStreams.Parse(Inventory(":bad:stream:$DATA"), directory));
+        Assert.Throws<StorageInspectionException>(() => WindowsEfsStreams.Parse(Inventory(":bad\\stream:$DATA"), directory));
+        Assert.Throws<StorageInspectionException>(() => WindowsEfsStreams.Parse([.. Inventory("::$DATA"), .. new byte[16]], directory));
+        var malformed = Inventory("::$DATA"); BinaryPrimitives.WriteUInt32LittleEndian(malformed.AsSpan(4), 3);
+        Assert.Throws<StorageInspectionException>(() => WindowsEfsStreams.Parse(malformed, directory));
+        var brokenUtf16 = Inventory("::$DATA"); BinaryPrimitives.WriteUInt16LittleEndian(brokenUtf16.AsSpan(24), 0xD800);
+        Assert.Throws<StorageInspectionException>(() => WindowsEfsStreams.Parse(brokenUtf16, directory));
+        if (directory) Assert.Empty(WindowsEfsStreams.Parse([], true));
+        else
+        {
+            Assert.Throws<StorageInspectionException>(() => WindowsEfsStreams.Parse([], false));
+            Assert.Throws<StorageInspectionException>(() => WindowsEfsStreams.Parse(Inventory(":only:$DATA"), false));
+        }
+    }
+    [Fact]
+    public void Complete_stream_parser_has_a_finite_limit_and_never_returns_an_omitted_prefix()
+    {
+        string[] names = ["::$DATA", .. Enumerable.Range(0, 1023).Select(i => ":s" + i + ":$DATA")];
+        Assert.Equal(1024, WindowsEfsStreams.Parse(Inventory(names), false).Length);
+        Assert.Equal("stream-inventory-limit", Assert.Throws<StorageInspectionException>(() => WindowsEfsStreams.Parse(Inventory([.. names, ":extra:$DATA"]), false)).Problem.Code);
+        string[] oversized = ["::$DATA", .. Enumerable.Range(0, 600).Select(i => ":" + new string('x', 1000) + i + ":$DATA")];
+        Assert.Equal("stream-inventory-limit", Assert.Throws<StorageInspectionException>(() => WindowsEfsStreams.Parse(Inventory(oversized), false)).Problem.Code);
+        byte[] beyond = Inventory("::$DATA", ":second:$DATA"); BinaryPrimitives.WriteUInt32LittleEndian(beyond, uint.MaxValue - 7);
+        Assert.Throws<StorageInspectionException>(() => WindowsEfsStreams.Parse(beyond, false));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Supported_physical_path_round_trips_main_and_named_stream_payload_with_explicit_decompression_consent(bool directory)
+    {
+        NativeFixture(); string root = Directory.CreateTempSubdirectory("filecat-efs-binding-").FullName;
+        string path = Path.Join(root, "reviewed 名前");
+        try
+        {
+            if (directory) Directory.CreateDirectory(path); else File.WriteAllText(path, "synthetic main payload");
+            File.WriteAllText(path + ":named", "synthetic named payload");
+            SetCompression(path, true); SetCompression(path + ":named", true);
+            if (directory) File.SetAttributes(path, File.GetAttributes(path) | FileAttributes.ReadOnly);
+            using var reserve = StorageReviewResources.ReservePins(1);
+            using var native = StorageReviewResources.EnterNative(Ct);
+            var adapter = Adapter();
+            foreach (var action in new[] { StorageAction.EncryptEfs, StorageAction.DecryptEfs })
+            {
+                using var pin = Pin(adapter, path, directory, action);
+                using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, action), Ct);
+                Assert.Null(held.Observe(Ct).Ineligible);
+                using (var raw = OpenMetadata(path))
+                {
+                    var streams = WindowsEfsStreams.Read(raw, pin.Observation.Identity, directory, Ct);
+                    Assert.Contains(streams, item => item.NativeName == ":named:$DATA");
+                    if (!directory) Assert.Contains(streams, item => item.NativeName == "::$DATA");
+                }
+                var result = Apply(held, action);
+                Assert.Equal(StorageEffect.Changed, result.Effect); Assert.True(result.NativeCallAttempted); Assert.Null(result.Problem);
+                Assert.Equal(action == StorageAction.EncryptEfs ? StorageObservationState.Enabled : StorageObservationState.Disabled, result.After!.Efs);
+                Assert.Equal(StorageEffect.AlreadySatisfied, Apply(held, action).Effect);
+                Assert.Equal("synthetic named payload", File.ReadAllText(path + ":named"));
+                if (!directory) Assert.Equal("synthetic main payload", File.ReadAllText(path));
+                else Assert.True((File.GetAttributes(path) & FileAttributes.ReadOnly) != 0);
+            }
+            using var stream = OpenMetadata(path + ":named");
+            // Directory ADS are not necessarily decompressed by EncryptFileW; consent permits
+            // removal but never promises it. Record the independently observed stream state.
+            Assert.Equal(directory ? StorageObservationState.Enabled : StorageObservationState.Disabled, WindowsCompression.Query(stream).State);
+        }
+        finally { File.SetAttributes(path, File.GetAttributes(path) & ~FileAttributes.ReadOnly); Directory.Delete(root, true); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Extended_drive_and_volume_guid_spellings_keep_one_identity_or_refuse_an_unknown_long_path(bool longPath)
+    {
+        NativeFixture();
+        string root = Directory.CreateTempSubdirectory("filecat-efs-long-path-").FullName;
+        try
+        {
+            string parent = longPath ? Path.Join(root, new string('a', 96), new string('b', 96), new string('c', 96)) : root;
+            string path = Path.Join(parent, "reviewed 名前.bin");
+            if (longPath) Assert.True(path.Length > 260);
+            string extendedPath = @"\\?\" + path;
+            Directory.CreateDirectory(@"\\?\" + parent);
+            const string payload = "long path main stream", stream = "long path named stream";
+            File.WriteAllText(extendedPath, payload);
+            File.WriteAllText(extendedPath + ":named", stream);
+            string drive = Path.GetPathRoot(path)!;
+            string volumePath = NtfsMetadataVolume.Native.FromMount(drive) + path[drive.Length..];
+            using var reserve = StorageReviewResources.ReservePins(1);
+            using var native = StorageReviewResources.EnterNative(Ct);
+            var adapter = Adapter();
+            StorageObjectIdentity identity;
+            using (var pin = Pin(adapter, extendedPath, false, StorageAction.EncryptEfs))
+            using (var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.EncryptEfs), Ct))
+            {
+                identity = held.Identity;
+                StorageMutationResult result;
+                try { result = Apply(held, StorageAction.EncryptEfs); }
+                catch (StorageInspectionException error) when (longPath && error.Problem.Code == "efs-status-5")
+                {
+                    Assert.Equal(StorageReasonKind.Unknown, error.Problem.Kind);
+                    Assert.Equal(0, (int)(File.GetAttributes(extendedPath) & FileAttributes.Encrypted));
+                    Assert.Equal(payload, File.ReadAllText(extendedPath));
+                    Assert.Equal(stream, File.ReadAllText(extendedPath + ":named"));
+                    TestContext.Current.TestOutputHelper!.WriteLine("EFS_LONG_PATH status=FILE_UNKNOWN nativeCallAttempted=False");
+                    return;
+                }
+                Assert.True(result.NativeCallAttempted);
+                Assert.Equal(StorageEffect.Changed, result.Effect);
+                Assert.Equal(StorageObservationState.Enabled, result.After?.Efs);
+                Assert.Equal(payload, File.ReadAllText(extendedPath));
+                Assert.Equal(stream, File.ReadAllText(extendedPath + ":named"));
+            }
+            using (var pin = Pin(adapter, volumePath, false, StorageAction.DecryptEfs))
+            using (var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.DecryptEfs), Ct))
+            {
+                Assert.Equal(identity, held.Identity);
+                var result = Apply(held, StorageAction.DecryptEfs);
+                Assert.True(result.NativeCallAttempted);
+                Assert.Equal(StorageEffect.Changed, result.Effect);
+                Assert.Equal(StorageObservationState.Disabled, result.After?.Efs);
+            }
+            Assert.Equal(payload, File.ReadAllText(extendedPath));
+            Assert.Equal(stream, File.ReadAllText(extendedPath + ":named"));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void A_native_inventory_over_the_stream_limit_refuses_encryption_before_the_call()
+    {
+        NativeFixture();
+        string root = Directory.CreateTempSubdirectory("filecat-efs-stream-limit-").FullName;
+        string path = Path.Join(root, "owned.bin");
+        try
+        {
+            File.WriteAllText(path, "original main data");
+            // Include the unnamed stream: 1,024 native named streams exceed the total limit by one.
+            for (int i = 0; i < 1024; i++)
+            {
+                Ct.ThrowIfCancellationRequested();
+                using var stream = new FileStream(path + ":stream-" + i, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                if (i is 0 or 1023) stream.WriteByte(37);
+            }
+
+            using var reserve = StorageReviewResources.ReservePins(1);
+            using var native = StorageReviewResources.EnterNative(Ct);
+            var adapter = Adapter();
+            using var pin = Pin(adapter, path, false, StorageAction.EncryptEfs);
+            using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.EncryptEfs), Ct,
+                (_, _) => throw new InvalidOperationException("An incomplete inventory must never reach EncryptFileW."));
+            var refusal = Assert.Throws<StorageInspectionException>(() => held.PrepareMutation(StorageAction.EncryptEfs, Ct));
+            Assert.Equal("stream-inventory-limit", refusal.Problem.Code);
+            Assert.Throws<InvalidOperationException>(() => held.ApplyAdmitted(StorageAction.EncryptEfs));
+            Assert.False(File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal("original main data", File.ReadAllText(path));
+            Assert.Equal(new byte[] { 37 }, File.ReadAllBytes(path + ":stream-0"));
+            Assert.Equal(new byte[] { 37 }, File.ReadAllBytes(path + ":stream-1023"));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData("main")]
+    [InlineData("existing")]
+    [InlineData("new")]
+    public void Approved_encryption_preserves_bytes_when_stream_compression_changes_after_final_inspection(string lateStream)
+    {
+        NativeFixture();
+        string root = Directory.CreateTempSubdirectory("filecat-efs-late-compression-").FullName;
+        string path = Path.Join(root, "owned.bin"), existing = path + ":existing", added = path + ":added";
+        string subject = lateStream switch { "main" => path, "existing" => existing, "new" => added, _ => throw new ArgumentOutOfRangeException(nameof(lateStream)) };
+        try
+        {
+            const string mainData = "original main data", existingData = "original named data", addedData = "late named data";
+            File.WriteAllText(path, mainData);
+            File.WriteAllText(existing, existingData);
+            SetCompression(path, false);
+            SetCompression(existing, false);
+            var operations = new WindowsFileOperations();
+            string identity = Assert.IsType<string>(operations.GetFileIdentity(path));
+            int attempts = 0;
+
+            using (var reserve = StorageReviewResources.ReservePins(1))
+            using (var native = StorageReviewResources.EnterNative(Ct))
+            {
+                var adapter = Adapter();
+                using var pin = Pin(adapter, path, false, StorageAction.EncryptEfs);
+                var consent = Consent(pin, StorageAction.EncryptEfs);
+                using var held = adapter.OpenEfsPathForQualification(pin, consent, Ct, (apiPath, action) =>
+                {
+                    attempts++;
+                    Assert.Equal(StorageAction.EncryptEfs, action);
+                    if (lateStream == "new") File.WriteAllText(added, addedData);
+                    SetCompression(subject, true);
+                    using (var stream = OpenMetadata(subject))
+                        Assert.Equal(StorageObservationState.Enabled, WindowsCompression.Query(stream).State);
+                    bool encrypted = Encrypt(apiPath);
+                    return new(encrypted, encrypted ? 0 : Marshal.GetLastPInvokeError());
+                });
+                var result = Apply(held, StorageAction.EncryptEfs);
+                Assert.Equal(1, attempts);
+                Assert.True(result.NativeCallAttempted);
+                Assert.True(result.Effect == StorageEffect.Changed, $"{result.Effect}: {result.Problem?.Code} {result.Problem?.Message}");
+                Assert.Null(result.Problem);
+                Assert.Equal(StorageObservationState.Enabled, result.After!.Efs);
+                using var stream = OpenMetadata(subject);
+                Assert.Equal(StorageObservationState.Disabled, WindowsCompression.Query(stream).State);
+            }
+
+            Assert.Equal(identity, operations.GetFileIdentity(path));
+            Assert.Equal(mainData, File.ReadAllText(path));
+            Assert.Equal(existingData, File.ReadAllText(existing));
+            if (lateStream == "new") Assert.Equal(addedData, File.ReadAllText(added));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public void Efs_consents_are_independent_and_identity_action_bound_before_a_binding_can_call_Windows()
+    {
+        NativeFixture(); string root = Directory.CreateTempSubdirectory("filecat-efs-consent-").FullName;
+        try
+        {
+            string path = Path.Join(root, "file"); File.WriteAllText(path, "untouched");
+            using var reserve = StorageReviewResources.ReservePins(1); using var native = StorageReviewResources.EnterNative(Ct);
+            var adapter = Adapter(); using var pin = Pin(adapter, path, false, StorageAction.EncryptEfs);
+            var valid = Consent(pin, StorageAction.EncryptEfs);
+            foreach (var refused in new[] { valid with { Acknowledgments = valid.Acknowledgments with { AcceptConcurrentLinkChange = false } },
+                valid with { Acknowledgments = valid.Acknowledgments with { AcceptAllStreamDecompression = false } }, valid with { ReviewRevision = Guid.Empty },
+                valid with { Action = StorageAction.DecryptEfs }, valid with { RootIdentities = [pin.Observation.Identity with { ObjectId = new string('0', 32) }] } })
+                Assert.Equal("efs-consent", Assert.Throws<StorageInspectionException>(() => adapter.OpenEfsPathForQualification(pin, refused, Ct)).Problem.Code);
+            Assert.Equal("efs-consent", Assert.Throws<StorageInspectionException>(() => adapter.OpenEfsPathForQualification(pin, valid, Ct, sourceIndex: 1)).Problem.Code);
+            Assert.Equal((FileAttributes)0, File.GetAttributes(path) & FileAttributes.Encrypted);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Held_guards_block_ordinary_leaf_and_ancestor_replacement_and_a_disposed_review_pin_cannot_be_rebound()
+    {
+        NativeFixture(); string root = Directory.CreateTempSubdirectory("filecat-efs-guards-").FullName;
+        try
+        {
+            string parent = Directory.CreateDirectory(Path.Join(root, "parent")).FullName;
+            string path = Path.Join(parent, "file"); File.WriteAllText(path, "untouched");
+            using var reserve = StorageReviewResources.ReservePins(1); using var native = StorageReviewResources.EnterNative(Ct);
+            var adapter = Adapter(); using var pin = Pin(adapter, path, false, StorageAction.EncryptEfs);
+            using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.EncryptEfs), Ct);
+            Assert.Null(held.PrepareMutation(StorageAction.EncryptEfs, Ct).Ineligible);
+            Assert.Throws<IOException>(() => File.Move(path, path + ".moved"));
+            Assert.Throws<IOException>(() => File.Delete(path));
+            Assert.Throws<IOException>(() => Directory.Move(parent, parent + ".moved"));
+            Assert.Equal("untouched", File.ReadAllText(path));
+            pin.Dispose(); Assert.Equal("review-pin", Assert.Throws<StorageInspectionException>(() => adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.EncryptEfs), Ct)).Problem.Code);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void A_new_hard_link_is_blocked_or_refused_before_the_native_efs_call()
+    {
+        NativeFixture();
+        string root = Directory.CreateTempSubdirectory("filecat-efs-new-alias-").FullName;
+        try
+        {
+            const string payload = "synthetic main data";
+            const string stream = "synthetic named data";
+            string path = Path.Join(root, "reviewed");
+            string alias = Path.Join(root, "unselected-alias");
+            File.WriteAllText(path, payload);
+            File.WriteAllText(path + ":fixture", stream);
+            Assert.True(CreateHardLink(alias, path, 0), Marshal.GetLastPInvokeError().ToString());
+            Assert.Equal(payload, File.ReadAllText(alias));
+            File.Delete(alias);
+
+            using var reservation = StorageReviewResources.ReservePins(1);
+            using var native = StorageReviewResources.EnterNative(Ct);
+            var adapter = Adapter();
+            using var pin = Pin(adapter, path, false, StorageAction.EncryptEfs);
+            using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.EncryptEfs), Ct,
+                (_, _) => throw new InvalidOperationException("The refused alias fixture must not call Windows."));
+            Assert.Null(held.PrepareMutation(StorageAction.EncryptEfs, Ct).Ineligible);
+
+            bool added = CreateHardLink(alias, path, 0);
+            int error = added ? 0 : Marshal.GetLastPInvokeError();
+            TestContext.Current.TestOutputHelper!.WriteLine($"EFS_HARD_LINK_BEFORE_CALL added={added} win32={error}");
+            if (added)
+            {
+                var result = held.ApplyAdmitted(StorageAction.EncryptEfs);
+                Assert.False(result.NativeCallAttempted);
+                Assert.Equal(StorageEffect.NotProcessed, result.Effect);
+                Assert.Equal("efs-path-changed", result.Problem?.Code);
+                Assert.Equal(payload, File.ReadAllText(alias));
+                Assert.Equal(stream, File.ReadAllText(alias + ":fixture"));
+            }
+            else
+            {
+                Assert.Contains(error, new[] { 5, 32 });
+                Assert.False(File.Exists(alias));
+            }
+            Assert.Equal(0, (int)(File.GetAttributes(path) & FileAttributes.Encrypted));
+            Assert.Equal(payload, File.ReadAllText(path));
+            Assert.Equal(stream, File.ReadAllText(path + ":fixture"));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void An_existing_writer_that_denies_read_refuses_the_efs_call_until_a_fresh_preparation()
+    {
+        NativeFixture();
+        string root = Directory.CreateTempSubdirectory("filecat-efs-writer-").FullName;
+        try
+        {
+            const StorageAction action = StorageAction.EncryptEfs;
+            string path = Path.Join(root, "file");
+            string stream = path + ":details";
+            File.WriteAllText(path, "main payload");
+            File.WriteAllText(stream, "stream payload");
+            using var reserve = StorageReviewResources.ReservePins(1);
+            using var native = StorageReviewResources.EnterNative(Ct);
+            var adapter = Adapter();
+            using var pin = Pin(adapter, path, false, action);
+            using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, action), Ct);
+
+            using (File.OpenHandle(path, access: FileAccess.Write, share: FileShare.Write | FileShare.Delete))
+            {
+                var refused = Assert.Throws<StorageInspectionException>(() => held.PrepareMutation(action, Ct));
+                Assert.Equal("efs-guard-open", refused.Problem.Code);
+                Assert.Throws<InvalidOperationException>(() => held.ApplyAdmitted(action));
+                Assert.False(File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
+            }
+
+            var result = Apply(held, action);
+            Assert.True(result.NativeCallAttempted);
+            Assert.Equal(StorageEffect.Changed, result.Effect);
+            Assert.Equal(StorageObservationState.Enabled, result.After?.Efs);
+            Assert.Equal("main payload", File.ReadAllText(path));
+            Assert.Equal("stream payload", File.ReadAllText(stream));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Native_returns_require_an_observed_held_effect_and_each_preparation_can_be_consumed_once(bool nativeSucceeded)
+    {
+        NativeFixture(); string root = Directory.CreateTempSubdirectory("filecat-efs-postcondition-").FullName;
+        try
+        {
+            string path = Path.Join(root, "file"); File.WriteAllText(path, "untouched");
+            using var reserve = StorageReviewResources.ReservePins(1); using var native = StorageReviewResources.EnterNative(Ct);
+            var adapter = Adapter(); using var pin = Pin(adapter, path, false, StorageAction.EncryptEfs);
+            int calls = 0;
+            using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.EncryptEfs), Ct, (_, _) => { calls++; return new(nativeSucceeded, nativeSucceeded ? 0 : 5); });
+            Assert.Throws<InvalidOperationException>(() => held.ApplyAdmitted(StorageAction.EncryptEfs));
+            var result = Apply(held, StorageAction.EncryptEfs);
+            Assert.Equal(nativeSucceeded ? StorageEffect.Uncertain : StorageEffect.Failed, result.Effect); Assert.Equal("efs-postcondition", result.Problem!.Code); Assert.Equal(1, calls);
+            Assert.Throws<InvalidOperationException>(() => held.ApplyAdmitted(StorageAction.EncryptEfs));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void ReadOnly_noop_needs_no_data_guard_or_Efs_call_and_a_later_needed_change_requires_fresh_preparation()
+    {
+        NativeFixture(); string root = Directory.CreateTempSubdirectory("filecat-efs-noop-").FullName;
+        string path = Path.Join(root, "file"); File.WriteAllText(path, "untouched");
+        try
+        {
+            File.SetAttributes(path, FileAttributes.ReadOnly);
+            using var reserve = StorageReviewResources.ReservePins(1); using var native = StorageReviewResources.EnterNative(Ct);
+            var adapter = Adapter(); using var pin = Pin(adapter, path, false, StorageAction.DecryptEfs);
+            using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.DecryptEfs), Ct, (_, _) => throw new InvalidOperationException("A no-op cannot invoke EFS."));
+            var noop = Apply(held, StorageAction.DecryptEfs);
+            Assert.Equal(StorageEffect.AlreadySatisfied, noop.Effect); Assert.False(noop.NativeCallAttempted);
+            Assert.True((File.GetAttributes(path) & FileAttributes.ReadOnly) != 0);
+            Assert.Null(held.PrepareMutation(StorageAction.DecryptEfs, Ct).Ineligible);
+            File.SetAttributes(path, FileAttributes.Normal); File.Encrypt(path);
+            var changed = held.ApplyAdmitted(StorageAction.DecryptEfs);
+            Assert.Equal(StorageEffect.NotProcessed, changed.Effect); Assert.False(changed.NativeCallAttempted);
+            Assert.Equal("new-preparation-required", changed.Problem!.Code);
+            Assert.True((File.GetAttributes(path) & FileAttributes.Encrypted) != 0);
+        }
+        finally { File.SetAttributes(path, File.GetAttributes(path) & ~FileAttributes.ReadOnly); File.Decrypt(path); Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Cancel_before_preparation_admits_no_call_and_cancel_during_call_still_observes_effect_after_a_failed_return()
+    {
+        NativeFixture(); string root = Directory.CreateTempSubdirectory("filecat-efs-stop-").FullName;
+        string path = Path.Join(root, "file"); File.WriteAllText(path, "untouched");
+        try
+        {
+            using var reserve = StorageReviewResources.ReservePins(1); using var native = StorageReviewResources.EnterNative(Ct);
+            using var stop = new CancellationTokenSource(); using var alreadyStopped = new CancellationTokenSource(); alreadyStopped.Cancel();
+            var adapter = Adapter(); using var pin = Pin(adapter, path, false, StorageAction.EncryptEfs);
+            using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.EncryptEfs), Ct, (apiPath, action) =>
+            { stop.Cancel(); Assert.True(Encrypt(apiPath)); return new(false, 5); });
+            Assert.Throws<OperationCanceledException>(() => held.PrepareMutation(StorageAction.EncryptEfs, alreadyStopped.Token));
+            Assert.Throws<InvalidOperationException>(() => held.ApplyAdmitted(StorageAction.EncryptEfs));
+            Assert.Null(held.PrepareMutation(StorageAction.EncryptEfs, stop.Token).Ineligible);
+            var result = held.ApplyAdmitted(StorageAction.EncryptEfs);
+            Assert.True(stop.IsCancellationRequested); Assert.True(result.NativeCallAttempted); Assert.Equal(StorageEffect.Changed, result.Effect);
+            Assert.Equal(StorageObservationState.Enabled, result.After!.Efs); Assert.Equal("efs-native-5", result.Problem!.Code);
+        }
+        finally { File.Decrypt(path); Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void A_replacement_at_the_reviewed_spelling_is_refused_without_borrowing_the_original_pin_identity()
+    {
+        NativeFixture(); string root = Directory.CreateTempSubdirectory("filecat-efs-stale-").FullName;
+        try
+        {
+            string path = Path.Join(root, "file"); File.WriteAllText(path, "original");
+            using var reserve = StorageReviewResources.ReservePins(1); using var native = StorageReviewResources.EnterNative(Ct);
+            var adapter = Adapter(); using var pin = Pin(adapter, path, false, StorageAction.EncryptEfs);
+            File.Move(path, path + ".original"); File.WriteAllText(path, "replacement");
+            Assert.Equal("review-stale", Assert.Throws<StorageInspectionException>(() => adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.EncryptEfs), Ct)).Problem.Code);
+            Assert.Equal("replacement", File.ReadAllText(path)); Assert.Equal((FileAttributes)0, File.GetAttributes(path) & FileAttributes.Encrypted);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void An_in_place_junction_after_the_final_check_is_disclosed_and_reported_uncertain_without_undoing_other_objects()
+    {
+        NativeFixture(); string root = Directory.CreateTempSubdirectory("filecat-efs-disclosed-race-").FullName;
+        string path = Directory.CreateDirectory(Path.Join(root, "reviewed")).FullName;
+        string other = Directory.CreateDirectory(Path.Join(root, "unselected")).FullName;
+        bool redirected = false;
+        try
+        {
+            using var reserve = StorageReviewResources.ReservePins(1); using var native = StorageReviewResources.EnterNative(Ct);
+            var adapter = Adapter(); using var pin = Pin(adapter, path, true, StorageAction.EncryptEfs);
+            using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.EncryptEfs), Ct, (apiPath, selectedAction) =>
+            {
+                using var adversary = NtFile.OpenOrThrow(null, @"\??\" + path, NtFile.WriteAttributes | NtFile.Synchronize,
+                    NtFile.ShareAll, NtFile.Open, NtFile.DirectoryFile | NtFile.OpenReparsePoint, "Disposable attribute-only junction competitor");
+                byte[] bytes = Junction(other);
+                fixed (byte* buffer = bytes) Assert.True(Control(adversary, 0x900A4, buffer, (uint)bytes.Length, null, 0, out _, 0), "Native junction conversion must actually be attempted.");
+                redirected = true; bool result = Encrypt(apiPath);
+                return new(result, result ? 0 : Marshal.GetLastPInvokeError());
+            });
+            var result = Apply(held, StorageAction.EncryptEfs);
+            Assert.True(redirected); Assert.True(result.NativeCallAttempted); Assert.Equal(StorageEffect.Uncertain, result.Effect);
+            Assert.Equal("efs-postcondition-unreadable", result.Problem!.Code);
+            Assert.True((File.GetAttributes(other) & FileAttributes.Encrypted) != 0, "This fixture records the admitted pathname limitation, not a prevention claim.");
+        }
+        finally
+        {
+            if (redirected) Directory.Delete(path); // Delete the owned link itself after all guards retire; never recurse through it.
+            if ((File.GetAttributes(other) & FileAttributes.Encrypted) != 0) File.Decrypt(other);
+            Directory.Delete(root, true);
+        }
+    }
+
+    private static byte[] Inventory(params string[] names)
+    {
+        int length = names.Sum(name => (24 + Encoding.Unicode.GetByteCount(name) + 7) & ~7); byte[] result = new byte[length]; int at = 0;
+        for (int i = 0; i < names.Length; i++)
+        {
+            byte[] name = Encoding.Unicode.GetBytes(names[i]); int step = (24 + name.Length + 7) & ~7;
+            BinaryPrimitives.WriteUInt32LittleEndian(result.AsSpan(at), i == names.Length - 1 ? 0 : (uint)step);
+            BinaryPrimitives.WriteUInt32LittleEndian(result.AsSpan(at + 4), (uint)name.Length); name.CopyTo(result, at + 24); at += step;
+        }
+        return result;
+    }
+    private static SafeFileHandle OpenMetadata(string path) => NtFile.OpenOrThrow(null, @"\??\" + path,
+        NtFile.ReadAttributes | NtFile.Synchronize, NtFile.ShareAll, NtFile.Open, NtFile.OpenReparsePoint, "Inspect disposable stream metadata");
+    private static void SetCompression(string path, bool enable)
+    {
+        using var file = NtFile.OpenOrThrow(null, @"\??\" + path, NtFile.ReadData | NtFile.WriteData | NtFile.ReadAttributes | NtFile.Synchronize,
+            NtFile.ShareAll, NtFile.Open, NtFile.OpenReparsePoint, "Prepare disposable compression fixture");
+        ushort format = enable ? (ushort)2 : (ushort)0; Assert.True(Control(file, 0x9C040, &format, 2, null, 0, out _, 0));
+    }
+    private static byte[] Junction(string target)
+    {
+        byte[] substitute = Encoding.Unicode.GetBytes(@"\??\" + target), print = Encoding.Unicode.GetBytes(target);
+        byte[] data = new byte[16 + substitute.Length + 2 + print.Length + 2];
+        BinaryPrimitives.WriteUInt32LittleEndian(data, 0xA0000003);
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(4), checked((ushort)(data.Length - 8)));
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(10), (ushort)substitute.Length);
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(12), (ushort)(substitute.Length + 2));
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(14), (ushort)print.Length);
+        substitute.CopyTo(data, 16); print.CopyTo(data, 18 + substitute.Length); return data;
+    }
+    [LibraryImport("kernel32.dll", EntryPoint = "DeviceIoControl", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)] private static partial bool Control(SafeFileHandle file, uint code, void* input, uint inputLength, void* output, uint outputLength, out uint returned, nint overlapped);
+    [LibraryImport("advapi32.dll", EntryPoint = "EncryptFileW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)] private static partial bool Encrypt(string path);
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateHardLinkW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)] private static partial bool CreateHardLink(string name, string existing, nint security);
+}

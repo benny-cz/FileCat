@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Globalization;
 using System.Text.Json;
 using FileCat.Core.Content;
 using Microsoft.Web.WebView2.Core;
@@ -19,9 +20,13 @@ public sealed class WebView2Page : IDisposable
     private HtmlPage? _page;
     private (int Width, int Height) _size = (1, 1);
     private bool _disposed;
+    private bool _starting;
+    private string? _startupError;
     private bool _focusPending;
     private bool _nativeHasFocus;
     private long _navigationGeneration;
+    private int _ownRequestsStarted, _canceledNavigations;
+    private CoreWebView2ProcessFailedKind? _lastProcessFailure;
 
     /// <summary>The installed WebView2 runtime's version, or null when there is none (the view is then unavailable).</summary>
     public static string? RuntimeVersion
@@ -38,7 +43,6 @@ public sealed class WebView2Page : IDisposable
     {
         Handle = Native.CreateHost(parent);
         DataFolder = dataFolder;
-        _ = StartAsync();
     }
 
     /// <summary>The child window the page is drawn in.</summary>
@@ -62,7 +66,7 @@ public sealed class WebView2Page : IDisposable
     public event Action<bool, string?>? Loaded;
 
     /// <summary>A contained Markdown link clicked in this page; the host opens it in another viewer.</summary>
-    public event Action<HtmlPage, string>? LinkedMarkdown;
+    public event Action<HtmlPage, LinkedMarkdownTarget>? LinkedMarkdown;
 
     /// <summary>A key FileCat's viewer may want (Esc, function keys, Ctrl and Alt combinations): the handler says whether it took it.</summary>
     public Func<uint, bool, bool, bool, bool>? KeyPressed { get; set; }
@@ -74,6 +78,10 @@ public sealed class WebView2Page : IDisposable
     public int BlockedCount { get; private set; }
 
     public string? Title => _controller?.CoreWebView2.DocumentTitle;
+
+    internal string LoadDiagnostics => $"Environment created: {_environment is not null}. Controller created: {_controller is not null}. " +
+        $"Accepted navigations: {_navigationGeneration}. Canceled navigations: {_canceledNavigations}. " +
+        $"Page requests started: {_ownRequestsStarted}. Browser process failure: {_lastProcessFailure?.ToString() ?? "none"}.";
 
     private async Task StartAsync()
     {
@@ -88,6 +96,7 @@ public sealed class WebView2Page : IDisposable
                 AreBrowserExtensionsEnabled = false,
             };
             _environment = await CoreWebView2Environment.CreateAsync(null, DataFolder, options);
+            if (_disposed) return;
             var controllerOptions = _environment.CreateCoreWebView2ControllerOptions();
             controllerOptions.IsInPrivateModeEnabled = true;
             controllerOptions.ProfileName = "FileCatPage";
@@ -118,9 +127,9 @@ public sealed class WebView2Page : IDisposable
             core.NewWindowRequested += (_, e) =>
             {
                 e.Handled = true;
-                if (_page is { } page && page.TryLinkedMarkdownPath(e.Uri, out string? path) && path is not null)
+                if (_page is { } page && page.TryLinkedMarkdownTarget(e.Uri, out var target))
                 {
-                    LinkedMarkdown?.Invoke(page, path);
+                    LinkedMarkdown?.Invoke(page, target);
                     return;
                 }
                 Refuse(e.Uri);
@@ -135,11 +144,16 @@ public sealed class WebView2Page : IDisposable
             };
             core.PermissionRequested += (_, e) => e.State = CoreWebView2PermissionState.Deny;
             core.DocumentTitleChanged += (_, _) => TitleChanged?.Invoke(core.DocumentTitle);
+            core.ProcessFailed += (_, e) => _lastProcessFailure = e.ProcessFailedKind;
             core.NavigationCompleted += (_, e) =>
             {
                 // A refused or host-handled link reports OperationCanceled after the original page has loaded.
                 // Treating that cancellation as a page-load failure makes the viewer leave Page mode permanently.
-                if (!e.IsSuccess && e.WebErrorStatus == CoreWebView2WebErrorStatus.OperationCanceled) return;
+                if (!e.IsSuccess && e.WebErrorStatus == CoreWebView2WebErrorStatus.OperationCanceled)
+                {
+                    _canceledNavigations++;
+                    return;
+                }
                 Loaded?.Invoke(e.IsSuccess, e.IsSuccess ? null : e.WebErrorStatus.ToString());
             };
             _controller.AcceleratorKeyPressed += OnAcceleratorKey;
@@ -160,7 +174,8 @@ public sealed class WebView2Page : IDisposable
         }
         catch (Exception ex) when (ex is COMException or WebView2RuntimeNotFoundException or UnauthorizedAccessException or IOException or InvalidOperationException or ArgumentException)
         {
-            Loaded?.Invoke(false, ex.Message);
+            _startupError = ex.Message;
+            if (!_disposed) Loaded?.Invoke(false, _startupError);
         }
     }
 
@@ -175,8 +190,16 @@ public sealed class WebView2Page : IDisposable
     /// <summary>Shows a page (at once, or once the view is ready).</summary>
     public void Show(HtmlPage page)
     {
+        if (_disposed) return;
         _page = page;
-        _controller?.CoreWebView2.Navigate(page.Address);
+        if (_startupError is { } failure) Loaded?.Invoke(false, failure);
+        else if (_controller is { } controller) controller.CoreWebView2.Navigate(page.Address);
+        else if (!_starting)
+        {
+            // Show follows the host's event registration, including for synchronous startup failures.
+            _starting = true;
+            _ = StartAsync();
+        }
     }
 
     /// <summary>The view's size in physical pixels (the child window's; the host sizes that window).</summary>
@@ -194,8 +217,13 @@ public sealed class WebView2Page : IDisposable
         else _focusPending = true;
     }
 
-    /// <summary>A toolbar or Find control took focus before the browser controller was ready.</summary>
-    public void CancelPendingFocus() => _focusPending = false;
+    /// <summary>The viewer took logical focus from the page. Its native window must take Win32 keyboard focus too,
+    /// otherwise the next typed characters still go into WebView2 despite Find appearing focused.</summary>
+    public void ReturnFocus(nint window)
+    {
+        _focusPending = false;
+        if (window != 0) Native.SetFocus(window);
+    }
 
     /// <summary>Scrolls a rendered page when its parent window, rather than WebView2, received a Page key.</summary>
     public async Task<bool> ScrollByPageAsync(int direction)
@@ -210,14 +238,62 @@ public sealed class WebView2Page : IDisposable
         catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException) { return false; }
     }
 
+    /// <summary>Reads the page's actual viewport, including mouse-wheel and scrollbar movement.</summary>
+    public async Task<(double X, double Y)?> CaptureScrollPositionAsync(CancellationToken ct)
+    {
+        if (_disposed || _controller is not { } controller) return null;
+        long navigation = _navigationGeneration;
+        ct.ThrowIfCancellationRequested();
+        try
+        {
+            string result = await controller.CoreWebView2.ExecuteScriptAsync("[window.scrollX, window.scrollY]");
+            ct.ThrowIfCancellationRequested();
+            if (_disposed || navigation != _navigationGeneration) return null;
+            double[]? coordinates = JsonSerializer.Deserialize<double[]>(result);
+            return coordinates is { Length: 2 } &&
+                   double.IsFinite(coordinates[0]) && coordinates[0] >= 0 &&
+                   double.IsFinite(coordinates[1]) && coordinates[1] >= 0
+                ? (coordinates[0], coordinates[1]) : null;
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Reapplies the prior viewport; the browser clamps it if the new page is shorter.</summary>
+    public async Task<bool> RestoreScrollPositionAsync((double X, double Y) position, CancellationToken ct)
+    {
+        if (_disposed || _controller is not { } controller ||
+            !double.IsFinite(position.X) || position.X < 0 ||
+            !double.IsFinite(position.Y) || position.Y < 0) return false;
+        long navigation = _navigationGeneration;
+        ct.ThrowIfCancellationRequested();
+        try
+        {
+            string x = position.X.ToString("R", CultureInfo.InvariantCulture);
+            string y = position.Y.ToString("R", CultureInfo.InvariantCulture);
+            await controller.CoreWebView2.ExecuteScriptAsync($"window.scrollTo({x}, {y})");
+            ct.ThrowIfCancellationRequested();
+            return !_disposed && navigation == _navigationGeneration;
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>Searches the rendered document using host-controlled script; page-authored scripts remain disabled.</summary>
-    public async Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct)
+    public Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct) =>
+        FindAsync(text, matchCase, forward, ct, wrap: false);
+
+    public async Task<bool?> FindAsync(string text, bool matchCase, bool forward, CancellationToken ct, bool wrap)
     {
         if (_disposed || _controller is not { } controller) return null;
         long navigation = _navigationGeneration;
         ct.ThrowIfCancellationRequested();
         // JSON encoding keeps even quotes, backslashes and line breaks inside one string literal.
-        string script = $"window.find({JsonSerializer.Serialize(text)}, {JsonSerializer.Serialize(matchCase)}, {JsonSerializer.Serialize(!forward)}, false, false, false, false)";
+        string script = $"window.find({JsonSerializer.Serialize(text)}, {JsonSerializer.Serialize(matchCase)}, {JsonSerializer.Serialize(!forward)}, {JsonSerializer.Serialize(wrap)}, false, false, false)";
         string result;
         try { result = await controller.CoreWebView2.ExecuteScriptAsync(script); }
         catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException) { return null; }
@@ -259,6 +335,7 @@ public sealed class WebView2Page : IDisposable
             return;
         }
         var deferral = e.GetDeferral();
+        _ownRequestsStarted++;
         try
         {
             string path = new Uri(uri).AbsolutePath;
@@ -283,10 +360,10 @@ public sealed class WebView2Page : IDisposable
     /// <summary>The page may go to other pages in its folder (a link, an anchor); anywhere else is refused.</summary>
     private void OnNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
     {
-        if (_page is { } page && page.TryLinkedMarkdownPath(e.Uri, out string? path) && path is not null)
+        if (_page is { } page && page.TryLinkedMarkdownTarget(e.Uri, out var target))
         {
             e.Cancel = true;
-            LinkedMarkdown?.Invoke(page, path);
+            LinkedMarkdown?.Invoke(page, target);
             return;
         }
         if (_page?.IsLinkedMarkdownRequest(e.Uri) == true)
@@ -374,6 +451,9 @@ public sealed class WebView2Page : IDisposable
 
         [DllImport("user32.dll")]
         private static extern short GetKeyState(int virtualKey);
+
+        [DllImport("user32.dll")]
+        public static extern nint SetFocus(nint window);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
         private static extern nint GetModuleHandleW(string? name);

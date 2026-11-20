@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plan §16.1: writes the archive-writing release manifest of one candidate from the build's own facts. Never shipped. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>FileCat.ArchiveReleaseManifest</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\FileCat.Core\FileCat.Core.csproj" />
+  </ItemGroup>
+</Project>

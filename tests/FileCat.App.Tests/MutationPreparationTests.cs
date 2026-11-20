@@ -136,7 +136,25 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
         using var f = new Fixture(); await f.Load(false); var task = f.Vm.ExecuteAsync(CommandIds.CreateLink); await Wait(() => f.Button("Create")?.IsEnabled == true);
         string link = f.PathBox("Link path").Text!;
         if (navigate) { f.Right.Navigate(Location.FileSystem(f.Root)); f.Left.Navigate(Location.FileSystem(f.Root)); }
-        f.Click("Create"); await task.WaitAsync(TimeSpan.FromSeconds(15)); var job = Assert.Single(f.Services.Jobs.Jobs); await Wait(() => job.State.IsFinished());
+        f.Click("Create");
+        var elapsed = Stopwatch.StartNew();
+        try { await task.WaitAsync(TimeSpan.FromSeconds(15)); }
+        catch (TimeoutException)
+        {
+            // I529 has recurred on loaded macOS CI after many clean focused runs. Capture the phase
+            // before fixture disposal so a future failure distinguishes a live preview/dialog from
+            // an already submitted job. This retains the original finite response guard.
+            Emit("actual-hard-link-command-timeout", f, new
+            {
+                navigate, elapsedMs = elapsed.ElapsedMilliseconds, taskCompleted = task.IsCompleted,
+                dialogOpen = f.Button("Cancel") is not null,
+                createEnabled = f.Button("Create")?.IsEnabled,
+                link, jobs = f.Services.Jobs.Jobs.Select(j => new { state = j.State.ToString(), j.Request.Kind }).ToArray(),
+            });
+            throw;
+        }
+        var job = Assert.Single(f.Services.Jobs.Jobs);
+        await Wait(() => job.State.IsFinished());
         Assert.Equal(JobState.Completed, job.State); Assert.Equal(f.Target, job.Request.Destination!.Path); Assert.Equal(Path.Join(f.Folder, "source.txt"), Assert.Single(job.Request.Sources).FileSystemPath);
         File.WriteAllText(Path.Join(f.Folder, "source.txt"), "changed through the actual hard link"); Assert.Equal("changed through the actual hard link", File.ReadAllText(link));
         Emit("actual-hard-link", f, new { navigate, link, state = job.State.ToString() });
@@ -191,7 +209,24 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
         if (operation == "pack")
         {
             await Wait(() => f.Button("Pack") is not null);
+            var first = f.Button("Pack");
             f.PathBox("Archive path").Text = f.Archive; f.Click("Pack");
+            if (outcome != "plain")
+            {
+                await Wait(() => f.Button("Pack") is { IsEnabled: false } current && !ReferenceEquals(current, first) &&
+                    f.Window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
+                        text.Text?.Contains("Cannot read this archive path", StringComparison.Ordinal) == true));
+                Assert.False(task.IsCompleted); AssertWorkers(f.Gate, "info");
+                Assert.Contains(f.Window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.Contains("Cannot read this archive path", StringComparison.Ordinal) == true);
+                Assert.Equal(f.Archive, f.PathBox("Archive path").Text);
+                f.Click("Cancel"); await task.WaitAsync(TimeSpan.FromSeconds(15));
+                Assert.Empty(f.Services.Jobs.Jobs); Assert.Equal(f.Before, f.Hash());
+                Emit("archive-admission-draft-retained", f, new { operation, outcome });
+                return;
+            }
+            // The archive path names the existing ZIP: it is changed only after an explicit "Add to this archive".
+            await Wait(() => task.IsCompleted || f.Button("Add") is not null);
+            Assert.False(task.IsCompleted); f.Click("Add");
         }
         await Wait(() => task.IsCompleted || f.Button(operation == "delete" ? "Delete" : "Create") is not null);
         bool shown = !task.IsCompleted; if (shown) f.Click("Cancel"); await task.WaitAsync(TimeSpan.FromSeconds(15));
@@ -235,12 +270,25 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
     [InlineData("selection")]
     public async Task Link_defaults_capture_the_target_and_selection_before_capability_preparation(string change)
     {
-        using var f = new Fixture("capability"); await f.Load(false); var task = f.Vm.ExecuteAsync(CommandIds.CreateLink);
+        using var f = new Fixture("capability");
+        // This test changes focus or the target tab. A delayed native folder notification would also
+        // refresh the source generation and exercise the separate cancellation contract.
+        f.Left.IsActiveTab = f.Right.IsActiveTab = false;
+        await f.Load(false);
+        Assert.False(f.Left.IsWatching);
+        Assert.False(f.Right.IsWatching);
+        int generation = f.Left.Listing.Generation;
+        var task = f.Vm.ExecuteAsync(CommandIds.CreateLink);
         try
         {
-            await Wait(() => f.Gate.Active == 1);
+            await Wait(() => f.Gate.Active == 1 || task.IsCompleted);
+            AssertWorkers(f.Gate, "capability");
+            Assert.False(task.IsCompleted, "The command finished before the test could change the captured selection.");
             if (change == "target") f.Right.Navigate(Location.FileSystem(f.Root)); else Assert.True(f.Left.Listing.FocusName("second.txt"));
-            f.Gate.Release.Set(); await Wait(() => f.Button("Create") is not null);
+            f.Gate.Release.Set();
+            await Wait(() => f.Button("Create") is not null || task.IsCompleted);
+            Assert.Equal(generation, f.Left.Listing.Generation);
+            Assert.False(task.IsCompleted, "The command finished without showing the captured link review.");
             string proposed = f.PathBox("Link path").Text!; Emit("captured-default", f, new { change, proposed });
             Assert.Equal(Path.Join(f.Target, "source.txt"), proposed); f.Click("Cancel"); await task;
         }

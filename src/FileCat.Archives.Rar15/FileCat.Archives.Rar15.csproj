@@ -8,7 +8,7 @@
   <PropertyGroup>
     <RootNamespace>FileCat.Archives.Rar15</RootNamespace>
     <Description>RAR 1.5 decompression ported from XADMaster's XADRAR15Handle; LGPL-2.1-or-later.</Description>
-    <Copyright>Copyright (c) 2017-present MacPaw Way Ltd. (XADMaster, originally by Dag Ågren); C# port Copyright (c) 2026 Benny and FileCat contributors. LGPL-2.1-or-later.</Copyright>
+    <Copyright>Copyright (c) 2017-present MacPaw Way Ltd. (XADMaster, originally by Dag Ågren); C# port Copyright (c) 2026 Marek Střihavka &lt;marek.strihavka@gmail.com&gt; and FileCat contributors. LGPL-2.1-or-later.</Copyright>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="FileCat.Core.Tests" />

@@ -1,0 +1,49 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+    [Test Case Cleanup Failure (FileCat.Rendering.Tests.AnalysisRenderingTests.SavedBrowserInspectsActualPrivateBytesByGeneratedIdentityAndHandlesCorruption)] System.IO.InvalidDataException
+      System.IO.InvalidDataException : Inventory checksum does not match.
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisInventoryRecordDecoder.cs(57,0): at FileCat.Core.Analysis.AnalysisInventoryFormat.RecordDecoder.Read(ReadOnlyMemory`1 line, CancellationToken cancellation)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisInventoryInspection.cs(46,0): at FileCat.Core.Analysis.AnalysisInventoryFormat.<>c__DisplayClass31_2.<InspectContainerAsync>b__0()
+           at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+        --- End of stack trace from previous location ---
+           at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+           at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+        --- End of stack trace from previous location ---
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisInventoryInspection.cs(41,0): at FileCat.Core.Analysis.AnalysisInventoryFormat.InspectContainerAsync(DatasetRead input, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\OwnedAnalysisStore.cs(63,0): at FileCat.Core.Analysis.OwnedAnalysisStore.<>c__DisplayClass9_0.<<InspectAsync>b__0>d.MoveNext()
+        --- End of stack trace from previous location ---
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\OwnedAnalysisStore.cs(77,0): at FileCat.Core.Analysis.OwnedAnalysisStore.<>c__DisplayClass9_0.<<InspectAsync>b__0>d.MoveNext()
+        --- End of stack trace from previous location ---
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisDataset.cs(160,0): at FileCat.Core.Analysis.AnalysisOwnedDatasetIo`1.<>c__DisplayClass10_0`1.<<UseAsync>g__Execute|0>d.MoveNext()
+        --- End of stack trace from previous location ---
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisDataset.cs(166,0): at FileCat.Core.Analysis.AnalysisOwnedDatasetIo`1.<>c__DisplayClass10_0`1.<<UseAsync>g__Execute|0>d.MoveNext()
+        --- End of stack trace from previous location ---
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\Services\AnalysisOwnedStoreAccess.cs(17,0): at FileCat.App.Services.AnalysisOwnedStoreAccess.InspectAsync(AppServices services, Guid inventory, CancellationToken cancellation)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\Services\AnalysisOwnedStoreAccess.cs(17,0): at FileCat.App.Services.AnalysisOwnedStoreAccess.InspectAsync(AppServices services, Guid inventory, CancellationToken cancellation)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\ViewModels\DiskSpaceViewModel.Persistence.cs(95,0): at FileCat.App.ViewModels.DiskSpaceViewModel.InspectSavedAsync(Guid inventoryId, CancellationToken cancellation)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\Views\SavedAnalysisInspectionPanel.cs(48,0): at FileCat.App.Views.SavedAnalysisInspectionPanel.InspectAsync()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\Views\SavedAnalysisInspectionPanel.cs(31,0): at FileCat.App.Views.SavedAnalysisInspectionPanel.<.ctor>b__12_0(Object _, RoutedEventArgs _)
+           at System.Threading.Tasks.Task.<>c.<ThrowAsync>b__124_0(Object state)
+           at Avalonia.Threading.SendOrPostCallbackDispatcherOperation.InvokeCore()
+           at Avalonia.Threading.DispatcherOperation.<>c.<Execute>b__56_0(Object s)
+           at Avalonia.Threading.CulturePreservingExecutionContext.CallbackWrapper(Object obj)
+           at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+        --- End of stack trace from previous location ---
+           at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+           at Avalonia.Threading.CulturePreservingExecutionContext.Run(CulturePreservingExecutionContext executionContext, ContextCallback callback, Object state)
+           at Avalonia.Threading.DispatcherOperation.Execute()
+           at Avalonia.Threading.Dispatcher.ExecuteJob(DispatcherOperation job)
+           at Avalonia.Threading.Dispatcher.ExecuteJobsCore(Boolean fromExplicitBackgroundProcessingCallback)
+           at Avalonia.Controls.Platform.ManagedDispatcherImpl.RunLoop(CancellationToken token)
+           at Avalonia.Threading.DispatcherFrame.Run(IControlledDispatcherImpl impl)
+           at Avalonia.Threading.Dispatcher.PushFrame(DispatcherFrame frame)
+           at Avalonia.Headless.HeadlessUnitTestSession.<>c__DisplayClass12_0`1.<DispatchCore>b__0()
+        --- End of stack trace from previous location ---
+           at Avalonia.Headless.XUnit.AvaloniaTestRunner.Run(IXunitTest test, IMessageBus messageBus, Object[] constructorArguments, ExplicitOption explicitOption, ExceptionAggregator aggregator, CancellationTokenSource cancellationTokenSource, IReadOnlyCollection`1 beforeAfterAttributes, HeadlessUnitTestSession session)
+           at Avalonia.Headless.XUnit.AvaloniaTestRunner.Run(IXunitTest test, IMessageBus messageBus, Object[] constructorArguments, ExplicitOption explicitOption, ExceptionAggregator aggregator, CancellationTokenSource cancellationTokenSource, IReadOnlyCollection`1 beforeAfterAttributes, HeadlessUnitTestSession session)
+  Finished:    FileCat.Rendering.Tests (ID = '35ede2ed006613889cb337bfd62aaef466af1ad39571d837e0716f4b6cbdefc1')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 2, Errors: 1, Failed: 0, Skipped: 0, Not Run: 0, Time: 2.388s

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native Ubuntu explicit mapping/query/selected-row Enter/close subset, not full qualification",
+  "controlReport": "ubuntu-native-ui-control-r34.json",
+  "harnessReport": "ubuntu-native-ui-report-r34.json",
+  "ownedProcessExited": true,
+  "deadlineClosed": false,
+  "sourcePathsUnchanged": 509,
+  "appSha256": "217e340c96aef26bf4ba471325568be2d18e2abf4302d26b2037f85eb1a720c4",
+  "harnessSha256": "629db88d786c31ad562cc7d511c5802b13484b227f18f407a42ae92ffe72f0f1",
+  "limitations": [
+    "Broader native desktop/theme/DPI/screen-reader and complete comparison feature matrix remain open."
+  ]
+}

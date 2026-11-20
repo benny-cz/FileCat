@@ -29,11 +29,15 @@ public sealed class SpeedGraph : Control
         double width = Bounds.Width, height = Bounds.Height;
         if (width < 10 || height < 4) return;
         var accent = this.TryFindResource("FcActiveAccent", ActualThemeVariant, out var found) && found is ISolidColorBrush solid ? solid.Color : Colors.SteelBlue;
-        context.DrawRectangle(null, new Pen(new SolidColorBrush(accent, 0.35), 1), new Rect(0.5, 0.5, width - 1, height - 1));
+        var ink = this.TryFindResource("FcText", ActualThemeVariant, out var textBrush) && textBrush is ISolidColorBrush textSolid ? textSolid.Color : Colors.Black;
         var points = Project(values, width, height);
         if (points.Length == 0) return;
-        context.DrawLine(new Pen(new SolidColorBrush(accent, 0.18), 1), new Point(1, height / 2), new Point(width - 1, height / 2));
-        context.DrawLine(new Pen(new SolidColorBrush(accent, 0.28), 1), new Point(1, height - 1), new Point(width - 1, height - 1));
+        context.DrawLine(new Pen(new SolidColorBrush(ink, 0.2), 1), new Point(1, height - 1), new Point(width - 1, height - 1));
+        if (points.Length == 1)
+        {
+            context.DrawEllipse(new SolidColorBrush(ink, 0.85), null, points[0], 3, 3);
+            return;
+        }
         var area = new StreamGeometry();
         using (var g = area.Open())
         {
@@ -42,7 +46,7 @@ public sealed class SpeedGraph : Control
             g.LineTo(new Point(points[^1].X, height - 1));
             g.EndFigure(true);
         }
-        context.DrawGeometry(new SolidColorBrush(accent, 0.25), null, area);
+        context.DrawGeometry(new SolidColorBrush(accent, 0.11), null, area);
         var line = new StreamGeometry();
         using (var g = line.Open())
         {
@@ -50,7 +54,7 @@ public sealed class SpeedGraph : Control
             foreach (var point in points.Skip(1)) g.LineTo(point);
             g.EndFigure(false);
         }
-        context.DrawGeometry(null, new Pen(new SolidColorBrush(accent), 1.4), line);
+        context.DrawGeometry(null, new Pen(new SolidColorBrush(ink, 0.85), 1.6), line);
     }
 
     /// <summary>Projects timestamped samples into pixels; kept pure so stalls and window limits can be tested.</summary>

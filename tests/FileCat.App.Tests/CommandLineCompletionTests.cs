@@ -77,4 +77,87 @@ public sealed class CommandLineCompletionTests
             AccessibilityTests.Close(services, window, root);
         }
     }
+
+    [AvaloniaFact]
+    public async Task Ctrl_Enter_inserts_the_focused_name_at_the_caret_or_selection()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var listing = vm.ActiveTab!.Listing;
+            for (int i = 0; i < 250 && listing.VisibleCount < 3; i++) await Task.Delay(20, ct);
+            listing.SetFocus(2); // b.txt, after the synthetic parent and a.txt
+            vm.Execute(CommandIds.CommandLineFocus);
+            var line = window.GetVisualDescendants().OfType<Avalonia.Controls.TextBox>().Single(t => t.Name == "CommandLine");
+            for (int i = 0; i < 100 && !line.IsFocused; i++) await Task.Delay(20, ct);
+            Assert.True(line.IsFocused);
+
+            line.Text = "echo before after";
+            line.CaretIndex = 12;
+            window.KeyPress(Key.Enter, RawInputModifiers.Control, PhysicalKey.Enter, null);
+            for (int i = 0; i < 100 && line.Text != "echo before b.txt after"; i++) await Task.Delay(20, ct);
+            Assert.Equal("echo before b.txt after", line.Text);
+            Assert.Equal("echo before b.txt ".Length, line.CaretIndex);
+
+            line.Text = "cat placeholder > out";
+            line.SelectionStart = 4;
+            line.SelectionEnd = 15;
+            window.KeyPress(Key.Enter, RawInputModifiers.Control, PhysicalKey.Enter, null);
+            for (int i = 0; i < 100 && line.Text != "cat b.txt > out"; i++) await Task.Delay(20, ct);
+            Assert.Equal("cat b.txt > out", line.Text);
+
+            line.Text = "echo done";
+            vm.Execute(CommandIds.InsertName); // shortcut from the panel still appends
+            Assert.Equal("echo done b.txt ", line.Text);
+
+            line.Text = "cat ";
+            line.CaretIndex = 4;
+            window.KeyPress(Key.Enter, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.Enter, null);
+            string fullPath = Path.Combine(root, "files", "b.txt");
+            string quotedPath = FileCat.Core.Tools.ShellQuoting.Quote(fullPath, services.Settings.Terminal.Shell);
+            for (int i = 0; i < 100 && line.Text != $"cat {quotedPath} "; i++) await Task.Delay(20, ct);
+            Assert.Equal($"cat {quotedPath} ", line.Text);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Command_history_down_restores_the_unsubmitted_draft()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            services.History.CommandLine.Insert(0, "cd");
+            vm.Execute(CommandIds.CommandLineFocus);
+            var line = window.GetVisualDescendants().OfType<Avalonia.Controls.TextBox>().Single(t => t.Name == "CommandLine");
+            var ct = TestContext.Current.CancellationToken;
+            for (int i = 0; i < 100 && !line.IsFocused; i++) await Task.Delay(20, ct);
+            Assert.True(line.IsFocused);
+
+            line.Text = "echo unfinished";
+            window.KeyPress(Key.Up, RawInputModifiers.None, PhysicalKey.ArrowUp, null);
+            for (int i = 0; i < 100 && line.Text != "cd"; i++) await Task.Delay(20, ct);
+            Assert.Equal("cd", line.Text);
+
+            window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            for (int i = 0; i < 100 && line.Text != "echo unfinished"; i++) await Task.Delay(20, ct);
+            Assert.Equal("echo unfinished", line.Text);
+
+            line.Text = string.Empty;
+            window.KeyPress(Key.Up, RawInputModifiers.None, PhysicalKey.ArrowUp, null);
+            for (int i = 0; i < 100 && line.Text != "cd"; i++) await Task.Delay(20, ct);
+            Assert.Equal("cd", line.Text);
+            window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            for (int i = 0; i < 100 && line.Text != string.Empty; i++) await Task.Delay(20, ct);
+            Assert.Equal(string.Empty, line.Text);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
 }

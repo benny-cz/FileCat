@@ -1,0 +1,29 @@
+{
+  "revision": "r1096",
+  "renderRevision": "r1096",
+  "buildLog": ".tmp/chart-csv-build-r1096.txt",
+  "sourceManifest": ".tmp/source-candidate-r1096.json",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 19.1706289,
+  "archives": [
+    {
+      "platform": "mac",
+      "sha256": "02f0070146a386e42bb9f79edab33371fca568261ba10448242d2f4a4dd8c16c",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r1096.tgz",
+      "bytes": 45151243
+    },
+    {
+      "platform": "linux",
+      "sha256": "992084e9d875cb3cf082646d5e1ca485ae0fb7580dd4d8729bf3dcc6eb9d17d0",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r1096.tgz",
+      "bytes": 42481062
+    },
+    {
+      "platform": "windows",
+      "sha256": "efd434775e3e0b1a34e58ebf48d33234df6dfac9ea09c67923bf70732f2ab3d9",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r1096.tgz",
+      "bytes": 81747583
+    }
+  ]
+}

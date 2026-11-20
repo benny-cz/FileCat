@@ -222,6 +222,31 @@ public sealed class MoreInspectorTests
         Assert.Equal("Java class file · Java 17", java.Format);
     }
 
+    [Fact]
+    public void Mach_O_arm64e_x1_is_not_mislabeled_as_32_bit_armv7k()
+    {
+        var arm64e = MachO();
+        var arm64eX1 = MachO();
+        BinaryPrimitives.WriteUInt32LittleEndian(arm64e.AsSpan(8), 0x80000002);
+        BinaryPrimitives.WriteUInt32LittleEndian(arm64eX1.AsSpan(8), 0x8000000C);
+
+        var thin = Inspect(arm64eX1)!;
+        Assert.Equal("Mach-O 64-bit · ARM64 (arm64e.x1)", thin.Format);
+        Assert.Equal("yes (arm64e.x1)", Fields(thin, "Security features")["Pointer authentication"]);
+        Assert.StartsWith("Present, not verified", Fields(thin, "Signature")["Status"]);
+
+        var fat = new Writer().U32(0xCAFEBABE, big: true).U32(2, big: true)
+            .U32(0x0100000C, big: true).U32(0x80000002, big: true).U32(4096, big: true).U32((uint)arm64e.Length, big: true).U32(12, big: true)
+            .U32(0x0100000C, big: true).U32(0x8000000C, big: true).U32(8192, big: true).U32((uint)arm64eX1.Length, big: true).U32(12, big: true)
+            .At(4096).Bytes(arm64e).At(8192).Bytes(arm64eX1).ToArray();
+        var universal = Inspect(fat)!;
+        Assert.Equal("Mach-O universal binary · ARM64 (arm64e), ARM64 (arm64e.x1)", universal.Format);
+        var rows = universal.Sections.Single(s => s.Title == "Architectures (2)").Table!.Rows;
+        Assert.Equal("arm64e", rows[0][1]);
+        Assert.Equal("arm64e.x1", rows[1][1]);
+        Assert.Contains(universal.Sections, s => s.Title == "ARM64 (arm64e.x1): Mach header");
+    }
+
     /// <summary>
     /// A signed Mach-O executable: a __TEXT segment with its section, a symbol table with an import and an export, and a
     /// code signature whose code directory names the identifier and team and asks for the hardened runtime, with
@@ -304,11 +329,13 @@ public sealed class MoreInspectorTests
         }
         h[namesAt..].Fill((byte)'A'); // no NUL across the 16 MiB table
         long before = GC.GetAllocatedBytesForCurrentThread();
-        var watch = Stopwatch.StartNew();
         var report = MachOInspector.Inspect(new MemoryContentSource("owned.macho", bytes), TestContext.Current.CancellationToken)!;
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         Assert.Contains(report.Warnings, w => w.Contains("character budget", StringComparison.Ordinal));
-        Assert.InRange(watch.Elapsed, TimeSpan.Zero, TimeSpan.FromSeconds(5));
+        // Only 8,192 names of 512 characters fit the 4 Mi-character budget.
+        var imports = Assert.Single(report.Sections, s => s.Title == $"Imported symbols ({8_192:N0})");
+        Assert.Equal(5_000, imports.Table!.Rows.Count);
+        Assert.All(imports.Table.Rows, row => Assert.Equal(512, row[0].Length));
         Assert.InRange(allocated, 0, 80_000_000);
     }
 

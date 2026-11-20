@@ -1,0 +1,69 @@
+{
+    "observedUtc":  "2026-11-08T09:33:38.8813349Z",
+    "root":  "C:\\FileCatDsa20261104R2",
+    "beforeBytes":  1425563648,
+    "afterBytes":  8672247808,
+    "removed":  [
+                    "C:\\FileCatDsa20261104R2\\render-r100",
+                    "C:\\FileCatDsa20261104R2\\render-r248",
+                    "C:\\FileCatDsa20261104R2\\render-r256",
+                    "C:\\FileCatDsa20261104R2\\render-r259",
+                    "C:\\FileCatDsa20261104R2\\render-r264",
+                    "C:\\FileCatDsa20261104R2\\render-r320",
+                    "C:\\FileCatDsa20261104R2\\render-r330",
+                    "C:\\FileCatDsa20261104R2\\render-r346",
+                    "C:\\FileCatDsa20261104R2\\render-r351",
+                    "C:\\FileCatDsa20261104R2\\render-r359",
+                    "C:\\FileCatDsa20261104R2\\render-r369",
+                    "C:\\FileCatDsa20261104R2\\render-r38",
+                    "C:\\FileCatDsa20261104R2\\render-r394",
+                    "C:\\FileCatDsa20261104R2\\render-r40",
+                    "C:\\FileCatDsa20261104R2\\render-r403",
+                    "C:\\FileCatDsa20261104R2\\render-r40b",
+                    "C:\\FileCatDsa20261104R2\\render-r411",
+                    "C:\\FileCatDsa20261104R2\\render-r419",
+                    "C:\\FileCatDsa20261104R2\\render-r42",
+                    "C:\\FileCatDsa20261104R2\\render-r423",
+                    "C:\\FileCatDsa20261104R2\\render-r432",
+                    "C:\\FileCatDsa20261104R2\\render-r438",
+                    "C:\\FileCatDsa20261104R2\\render-r44",
+                    "C:\\FileCatDsa20261104R2\\render-r441",
+                    "C:\\FileCatDsa20261104R2\\render-r45",
+                    "C:\\FileCatDsa20261104R2\\render-r450",
+                    "C:\\FileCatDsa20261104R2\\render-r453",
+                    "C:\\FileCatDsa20261104R2\\render-r46",
+                    "C:\\FileCatDsa20261104R2\\render-r461",
+                    "C:\\FileCatDsa20261104R2\\render-r47",
+                    "C:\\FileCatDsa20261104R2\\render-r472",
+                    "C:\\FileCatDsa20261104R2\\render-r47k",
+                    "C:\\FileCatDsa20261104R2\\render-r48",
+                    "C:\\FileCatDsa20261104R2\\render-r480",
+                    "C:\\FileCatDsa20261104R2\\render-r491",
+                    "C:\\FileCatDsa20261104R2\\render-r501",
+                    "C:\\FileCatDsa20261104R2\\render-r53",
+                    "C:\\FileCatDsa20261104R2\\render-r57",
+                    "C:\\FileCatDsa20261104R2\\render-r59",
+                    "C:\\FileCatDsa20261104R2\\render-r61",
+                    "C:\\FileCatDsa20261104R2\\render-r68"
+                ],
+    "baselineBefore":  [
+                           {
+                               "name":  "batch-r1071",
+                               "productSha256":  "1F3949F705CF244FAB7B59FF19DD5DBB31E70F058DDF00684D3049D604BB3048"
+                           },
+                           {
+                               "name":  "batch-r1072",
+                               "productSha256":  "1F3949F705CF244FAB7B59FF19DD5DBB31E70F058DDF00684D3049D604BB3048"
+                           }
+                       ],
+    "baselineAfter":  [
+                          {
+                              "name":  "batch-r1071",
+                              "productSha256":  "1F3949F705CF244FAB7B59FF19DD5DBB31E70F058DDF00684D3049D604BB3048"
+                          },
+                          {
+                              "name":  "batch-r1072",
+                              "productSha256":  "1F3949F705CF244FAB7B59FF19DD5DBB31E70F058DDF00684D3049D604BB3048"
+                          }
+                      ]
+}

@@ -12,6 +12,76 @@ namespace FileCat.Core.Tests;
 public sealed class BackingArchiveTargetTests(ITestOutputHelper output)
 {
     [Theory]
+    [InlineData("hard", "portable")]
+    [InlineData("symbolic", "portable")]
+    [InlineData("hard", "unix")]
+    [InlineData("symbolic", "unix")]
+    public async Task Extraction_preserves_a_link_to_its_backing_archive(string link, string operations)
+    {
+        if (operations == "unix" && OperatingSystem.IsWindows()) Assert.Skip("Unix file operations are unavailable on Windows.");
+        using var root = new TempDir();
+        string destination = root.Dir("destination");
+        string archive = Path.Combine(root.Path, "source.zip");
+        string alias = Path.Combine(destination, "alias.zip");
+        using (var zipFile = ZipFile.Open(archive, ZipArchiveMode.Create))
+        using (var entry = zipFile.CreateEntry("alias.zip").Open()) entry.Write("entry bytes"u8);
+        byte[] before = File.ReadAllBytes(archive);
+        IFileSystemOperations fs = OperatingSystem.IsWindows() ? new IdentityAwareTestFiles()
+            : operations == "unix" ? new UnixFileOperations() : new PortableFileOperations();
+        if (link == "symbolic" && fs.CanCreateSymbolicLinks != true)
+            Assert.Skip("Symbolic-link creation is unavailable on this guest.");
+        fs.CreateLink(alias, archive, link == "hard" ? LinkKind.Hard : LinkKind.Symbolic, false);
+        string backingIdentity = Assert.IsType<string>(fs.ObserveResolvedFile(archive).Identity);
+        // The Windows Core fixture reports the link entry's identity; the production Windows adapter resolves it.
+        if (!OperatingSystem.IsWindows() || link == "hard")
+            Assert.Equal(backingIdentity, fs.ObserveResolvedFile(alias).Identity);
+
+        var zip = new ZipProvider(root.Dir("spool"));
+        var providers = new ProviderRegistry(); providers.Register(new LocalFileSystemProvider()); providers.Register(zip);
+        var location = ZipProvider.ForFile(archive); var sink = new Sink();
+        await zip.EnumerateAsync(location, sink, TestContext.Current.CancellationToken);
+        var item = zip.GetItemRef(location, Assert.Single(sink.Entries));
+        var jobs = new JobManager(fs, providers, Path.Combine(root.Path, "journal"));
+        var decisions = new List<DecisionRequest>();
+        jobs.DecisionRequested += pending => { decisions.Add(pending.Request); pending.Resolve(new Decision(DecisionAction.Skip)); };
+        try
+        {
+            var job = jobs.Submit(new JobRequest
+            {
+                Kind = JobKind.Extract, Sources = [item], Destination = Location.FileSystem(destination),
+                Options = new TransferOptions { Conflicts = ConflictPolicy.Replace },
+            });
+            var clock = Stopwatch.StartNew();
+            while (!job.State.IsFinished() || jobs.HasActiveWork)
+            {
+                Assert.True(clock.Elapsed < TimeSpan.FromSeconds(20), "Owned job did not finish.");
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            }
+            if (OperatingSystem.IsWindows() && link == "hard")
+            {
+                Assert.Equal(JobState.Failed, job.State);
+                Assert.Empty(decisions);
+                Assert.Contains(job.Issues, i => i.Message.Contains("source image or container file", StringComparison.Ordinal));
+            }
+            else
+            {
+                Assert.Equal(JobState.CompletedWithIssues, job.State);
+                Assert.Single(decisions);
+            }
+            Assert.Equal(0, job.BytesDone);
+            Assert.Equal(before, File.ReadAllBytes(archive));
+            Assert.Equal(before, File.ReadAllBytes(alias));
+            Assert.Equal([alias], Directory.GetFiles(destination));
+        }
+        finally
+        {
+            foreach (var job in jobs.Jobs) job.Cancel();
+            Assert.True(SpinWait.SpinUntil(() => !jobs.HasActiveWork, TimeSpan.FromSeconds(5)));
+            zip.Release(archive);
+        }
+    }
+
+    [Theory]
     [InlineData("replace")]
     [InlineData("keep-both")]
     [InlineData("sibling")]

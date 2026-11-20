@@ -38,6 +38,32 @@ public sealed class JobProgressViewTests
     }
 
     [Fact]
+    public void Archive_writes_show_their_phases_withdraw_cancel_while_saving_and_announce_each_phase_once()
+    {
+        var job = DisplayJob(JobKind.ArchiveUpdate); job.SetState(JobState.Running);
+        var view = new JobViewModel(job);
+        var expected = new (ArchiveJobPhase Phase, string Text, bool Deferred)[]
+        {
+            (ArchiveJobPhase.Preparing, "Preparing", false), (ArchiveJobPhase.ReadingArchive, "Reading archive", false),
+            (ArchiveJobPhase.Rebuilding, "Rebuilding", false), (ArchiveJobPhase.Checking, "Checking", false),
+            (ArchiveJobPhase.Saving, "Saving", true), (ArchiveJobPhase.FinishingSafely, "Finishing safely", true),
+        };
+        var announcements = new List<string>();
+        view.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(JobViewModel.PhaseAnnouncement)) announcements.Add(view.PhaseAnnouncement); };
+        foreach (var (phase, text, deferred) in expected)
+        {
+            job.SetArchivePhase(phase); job.DeferCancellation(deferred);
+            view.Refresh(); view.Refresh(); // A repeated refresh in the same phase says nothing new.
+            Assert.Equal(text, view.PhaseText);
+            Assert.Equal(!deferred, view.CanCancel);
+            Assert.Equal(deferred ? "Finishing this archive update safely." : "Stops at the next safe step; completed steps are kept", view.CancelTooltip);
+        }
+        Assert.Equal(expected.Select(step => "ArchiveUpdate: " + step.Text), announcements);
+        job.DeferCancellation(false); job.SetArchivePhase(null); view.Refresh();
+        Assert.True(view.CanCancel); Assert.DoesNotContain(view.PhaseText, expected.Select(step => step.Text));
+    }
+
+    [Fact]
     public void Current_file_bar_stays_below_100_until_the_file_step_ends()
     {
         var job = DisplayJob();

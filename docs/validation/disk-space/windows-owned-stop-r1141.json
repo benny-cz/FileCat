@@ -1,0 +1,9 @@
+{
+    "observedUtc":  "2026-11-16T18:34:06.1290760Z",
+    "pid":  4664,
+    "parent":  12112,
+    "owner":  "filecatdsa_r2",
+    "command":  "\"C:\\Program Files\\dotnet\\dotnet.exe\" C:\\FileCatDsa20261104R2\\batch-r1141\\payload\\tests\\FileCat.Core.Tests\\bin\\Debug\\net10.0\\FileCat.Core.Tests.dll -method *IndexedComparison* -method *ExactKeyCompaction* -noLogo -noColor -maxThreads 2 -xml C:\\FileCatDsa20261104R2\\batch-r1141\\smoke-r1141.xml",
+    "reason":  "Diagnosed retained unexpected query after assertion; exact owned preflight child terminated",
+    "forced":  true
+}

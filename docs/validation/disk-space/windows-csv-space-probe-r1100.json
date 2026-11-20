@@ -1,0 +1,32 @@
+{
+    "available":  3493916672,
+    "capacity":  213660311552,
+    "root":  "C:\\FileCatDsa20261104R2",
+    "rootAttributes":  "Directory",
+    "candidates":  [
+                       {
+                           "revision":  "r1090",
+                           "files":  244,
+                           "bytes":  318437332,
+                           "runnerSha256":  "90B6B2D6C5D1740D6101BC99810F3C88E3F64D2F470C620DE68CB8258CBE2D8F"
+                       },
+                       {
+                           "revision":  "r1091",
+                           "files":  419,
+                           "bytes":  331447205,
+                           "runnerSha256":  "76F7F31EE1E06F8E3143F42B710CFAD7D493376137CA72CB8827B4549031E1F2"
+                       },
+                       {
+                           "revision":  "r1093",
+                           "files":  244,
+                           "bytes":  318599308,
+                           "runnerSha256":  "749EF98FC74CA1C4A01A399C5D68CD88E62F9C5F3D28152D2D4D7AB87696A366"
+                       },
+                       {
+                           "revision":  "r1094",
+                           "files":  248,
+                           "bytes":  244840884,
+                           "runnerSha256":  "448392B062402BE0E299D6637FFFB7AF980C4B924103E160B28680CD6E841823"
+                       }
+                   ]
+}

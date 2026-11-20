@@ -37,8 +37,21 @@ public static class EntrySorter
     public static Comparison<int> CreateComparison(EntryStore store, SortSpec spec, MetadataKeyProvider? metadata = null)
     {
         if (spec.Field == SortField.Metadata && metadata is not null && spec.MetadataId is { } id)
-            return (x, y) => CompareMetadata(store, spec, metadata, id, x, y);
+        {
+            var comparer = new EntryComparer(store, spec, metadata, store.Count);
+            var lifetime = new ComparisonLifetime(comparer);
+            return (x, y) =>
+            {
+                int result = comparer.Comparison(x, y);
+                GC.KeepAlive(lifetime);
+                return result;
+            };
+        }
         return (x, y) => Compare(store[x], store[y], spec, x, y);
+    }
+    private sealed class ComparisonLifetime(EntryComparer comparer)
+    {
+        ~ComparisonLifetime() => comparer.Dispose();
     }
 
     /// <summary>
@@ -46,8 +59,8 @@ public static class EntrySorter
     /// mappings of its spill files, so a sort costs no system call or name string per comparison (a million-entry
     /// spilled sort drops from about a minute to seconds). Dispose the result when the sort is done.
     /// </summary>
-    public static EntryComparer CreateComparer(EntryStore store, SortSpec spec, MetadataKeyProvider? metadata, int count) =>
-        new(store, spec, metadata, count);
+    public static EntryComparer CreateComparer(EntryStore store, SortSpec spec, MetadataKeyProvider? metadata, int count,
+        bool metadataFrozen = false) => new(store, spec, metadata, count, metadataFrozen);
 
     private static int CompareMetadata(EntryStore store, SortSpec spec, MetadataKeyProvider provider, string id, int x, int y) =>
         CompareMetadata(new EntryView(store[x]), new EntryView(store[y]), store, spec, provider, id, x, y);
@@ -126,15 +139,17 @@ public sealed class EntryComparer : IDisposable
     private readonly string? _metadataId;
     private readonly int _count;
     private EntryStore.SpillReader? _reader;
+    private MetadataOrderSnapshot? _ownedMetadata;
 
-    internal EntryComparer(EntryStore store, SortSpec spec, MetadataKeyProvider? metadata, int count)
+    internal EntryComparer(EntryStore store, SortSpec spec, MetadataKeyProvider? metadata, int count, bool metadataFrozen = false)
     {
         _store = store;
         _spec = spec;
         _count = count;
         if (spec.Field == SortField.Metadata && metadata is not null && spec.MetadataId is { } id)
         {
-            _metadata = metadata;
+            _metadata = metadataFrozen ? metadata :
+                (_ownedMetadata = MetadataOrderSnapshot.Capture(store, count, id, metadata, IndexMemoryBudget.Shared, default)).Keys;
             _metadataId = id;
         }
         Comparison = Compare;
@@ -157,7 +172,12 @@ public sealed class EntryComparer : IDisposable
             : EntrySorter.Compare(new EntryView(_store[x]), new EntryView(_store[y]), _spec, x, y);
     }
 
-    public void Dispose() => Interlocked.Exchange(ref _reader, null)?.Dispose();
+    public void Dispose()
+    {
+        Interlocked.Exchange(ref _reader, null)?.Dispose();
+        Interlocked.Exchange(ref _ownedMetadata, null)?.Dispose();
+        GC.SuppressFinalize(this);
+    }
 }
 
 /// <summary>The fields sorting and filtering read, with the name as a span (spilled names stay in place).</summary>
@@ -172,9 +192,10 @@ internal readonly ref struct EntryView
         Modified = e.Modified;
         Created = e.Created;
         Attributes = e.Attributes;
+        NativeReparseTag = e.NativeReparseTag;
     }
 
-    public EntryView(ReadOnlySpan<char> name, EntryKind kind, EntryFlags flags, long size, long modified, long created, uint attributes)
+    public EntryView(ReadOnlySpan<char> name, EntryKind kind, EntryFlags flags, long size, long modified, long created, uint attributes, uint nativeReparseTag = 0)
     {
         Name = name;
         Kind = kind;
@@ -183,6 +204,7 @@ internal readonly ref struct EntryView
         Modified = modified;
         Created = created;
         Attributes = attributes;
+        NativeReparseTag = nativeReparseTag;
     }
 
     public ReadOnlySpan<char> Name { get; }
@@ -192,6 +214,7 @@ internal readonly ref struct EntryView
     public long Modified { get; }
     public long Created { get; }
     public uint Attributes { get; }
+    public uint NativeReparseTag { get; }
 
     public bool IsContainer => Kind is EntryKind.Directory or EntryKind.Parent or EntryKind.Drive
         or EntryKind.Server or EntryKind.Share or EntryKind.RegistryKey;

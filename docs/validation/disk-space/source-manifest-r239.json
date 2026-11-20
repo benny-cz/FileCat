@@ -1,0 +1,68 @@
+{
+  "purpose": "Bounded captured indexed explorer pages and inspector with latest-request admission and actual-I/O ownership",
+  "gitBase": "83344d90",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "eb073f42ccc9157e6cd0173af71ca07ee8ecf33f479ac9bfccabc271b0894764"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "89e795b22d35aed41f051fbeff0f84c0bb6767d6333b9dfcb6ea7cf40f15a07e"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetExplorer.cs",
+      "sha256": "6587cb22b56065e605e0ce0dc08951b13e1bc7b51f7df5497322887e4924397b"
+    },
+    {
+      "path": "tests/AnalysisObservationCaptureFixture.cs",
+      "sha256": "8b8e1e4b3a47904dedd3ab7d8960d812a196ccaa0c8c8401143df3f08e6ad8da"
+    },
+    {
+      "path": "tests/AnalysisSourceFrontierFixture.cs",
+      "sha256": "3084d24f3d3b64a5215b310d06f326d8eb5cc5b6a84b06a09d9ae3ef5e1f01b2"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.cs",
+      "sha256": "268147097505af1364759d965241cf2414cb4bf57cc27e8732928c874c4997c6"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.Explorer.cs",
+      "sha256": "604e559e0ce7bf0bf57a0d0f3b871f436ec2a6a8a4b12f0cf959d927c6cc315e"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r239.tgz",
+      "sha256": "d9529e9302c31073844953735228bf17080d7d294ab68ecbd4853220e446025b"
+    },
+    {
+      "path": ".tmp/dsa-native-r239.tgz",
+      "sha256": "1afb8e554d89f74542684e795b718ba32f70ce7e67148cb0a3324e2c2c332e65"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r239.sh",
+      "sha256": "bf1d551f1f7c453550e046f1d38a5aa25b055af6a6f874cb5054a6af9884235b"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r239.ps1",
+      "sha256": "b82cb97268426e3891ae8a129951830bd26fcf47ad68d70258122f702940b7d0"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r239.ps1",
+      "sha256": "ac162f45e03dec76f8dcecc84647370591bd0a42f1b22e23c4e6d5c409b10112"
+    }
+  ],
+  "reports": [
+    "mac-core-r239.xml",
+    "ubuntu-core-r239.xml",
+    "indexed-explorer-build-r238.txt",
+    "mac-post-explorer-r239.txt",
+    "ubuntu-post-explorer-r239.txt",
+    "windows-deferred-r239.json"
+  ],
+  "remaining": "Indexed window/chart/table adoption, same-predicate logical columns, sorting/grouping/scoped selection, original inventory IDs and streaming persistence, cross-process quota, native scale/resource and Windows/platform/UI qualification, remaining mandatory packets and final independent review."
+}

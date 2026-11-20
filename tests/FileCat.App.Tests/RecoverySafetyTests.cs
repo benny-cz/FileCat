@@ -46,14 +46,11 @@ public sealed class RecoverySafetyTests
             var selected = Platform.Windows.Recovery.DeviceTopology.Disks().FirstOrDefault(d =>
                 d.InterfacePath is not null && d.Identity is not null && d.Length > 0);
             if (selected is null) Assert.Skip("The test host has no verifiable disk interface.");
-            if (!Environment.IsPrivilegedProcess &&
-                Platform.Windows.Elevation.ElevationBroker.Locate(services.Paths.IsPortable, out _) is null)
-                Assert.Skip("The recording reader requires elevation or an installed helper to pass preflight.");
-
             var reader = new ReplacedReader(selected.Identity!, selected.Length);
             int opens = 0;
             services.Recovery.SharesDisk = (_, _) => false;
             services.Recovery.OpenDevice = (_, _, _) => { Interlocked.Increment(ref opens); return reader; };
+            vm.HasWindowsRecoveryBroker = _ => true;
             vm.Dialogs = new AdmissionDialogs(() => { });
             var panel = vm.Workspace.Panels[0];
             var original = panel.ActiveTab;
@@ -87,10 +84,6 @@ public sealed class RecoverySafetyTests
                 : null;
             if (Platform.Windows.Recovery.SelectedDiskInterfaceSource.VolumeSelectionIdentity(selected) is null)
                 Assert.Skip("The test volume has no verifiable single-disk interface identity.");
-            if (!Environment.IsPrivilegedProcess &&
-                Platform.Windows.Elevation.ElevationBroker.Locate(services.Paths.IsPortable, out _) is null)
-                Assert.Skip("The recording reader requires elevation or an installed helper to pass preflight.");
-
             string replacementIdentity = changedDiskNumber
                 ? Assert.IsType<string>(Platform.Windows.Recovery.SelectedDiskInterfaceSource.VolumeSelectionIdentity(
                     selected! with { Number = selected.Number == int.MaxValue ? selected.Number - 1 : selected.Number + 1 }))
@@ -99,6 +92,7 @@ public sealed class RecoverySafetyTests
             int opens = 0;
             services.Recovery.SharesDisk = (_, _) => false;
             services.Recovery.OpenDevice = (_, _, _) => { Interlocked.Increment(ref opens); return reader; };
+            vm.HasWindowsRecoveryBroker = _ => true;
             vm.Dialogs = new AdmissionDialogs(() => { });
             var panel = vm.Workspace.Panels[0];
             var original = panel.ActiveTab;
@@ -177,16 +171,11 @@ public sealed class RecoverySafetyTests
             Interlocked.Increment(ref opens);
             throw new IOException("Recording fixture reader; no device access.");
         };
+        vm.HasWindowsRecoveryBroker = _ => true;
         var panel = vm.Workspace.Panels[0];
         var original = panel.ActiveTab;
         try
         {
-            if (route.StartsWith("windows-", StringComparison.Ordinal) && OperatingSystem.IsWindows() &&
-                !Environment.IsPrivilegedProcess && Platform.Windows.Elevation.ElevationBroker.Locate(services.Paths.IsPortable, out _) is null)
-            {
-                Assert.Skip("Windows device admission needs elevation or an installed helper; the recording reader prevents real device access.");
-                return;
-            }
             if (route == "windows-drive")
             {
                 string drive = Path.GetPathRoot(root)!;
@@ -230,7 +219,36 @@ public sealed class RecoverySafetyTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
-    private sealed class AdmissionDialogs(Action confirmed) : IDialogService
+    [AvaloniaFact]
+    public async Task A_protected_Unix_device_offers_read_only_authorization_before_the_scan()
+    {
+        if (!(OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) || Environment.IsPrivilegedProcess)
+            Assert.Skip("This tests ordinary Linux or macOS device access.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string path = Path.Combine(root, "protected-device.img");
+            File.WriteAllBytes(path, new byte[1024]);
+            File.SetUnixFileMode(path, UnixFileMode.None);
+            var device = new FileCat.Recovery.Unix.UnixBlockDevice(path, 1024, "fixture", "virtual", false, "fixture-disk", [], null)
+            {
+                Identity = Core.FileSystem.UnixFiles.Stat(path, followLinks: true)?.Identity.ToString(),
+            };
+            var panel = vm.Workspace.Panels[0];
+            var original = panel.ActiveTab;
+            var dialogs = new AdmissionDialogs(() => { }, "Authorize and scan", approve: false);
+            vm.Dialogs = dialogs;
+            services.Recovery.SharesDisk = (_, _) => false;
+            services.Recovery.OpenDevice = (_, _, _) => throw new InvalidOperationException("Cancel must leave the device unopened.");
+            await vm.FindDeletedOnUnixDeviceAsync(panel, device, null, () => false);
+            Assert.Equal(1, dialogs.ScanConfirmations);
+            Assert.Contains(dialogs.KeyPoints, point => point.Contains("read-only access", StringComparison.Ordinal));
+            Assert.Same(original, panel.ActiveTab);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    private sealed class AdmissionDialogs(Action confirmed, string expectedAction = "Scan", bool approve = true) : IDialogService
     {
         public int ScanConfirmations { get; private set; }
         public IReadOnlyList<string> KeyPoints { get; private set; } = [];
@@ -244,10 +262,10 @@ public sealed class RecoverySafetyTests
         }
         public Task<bool> ConfirmAsync(string title, string message, string confirmText = "OK", bool danger = false, string cancelText = "Cancel")
         {
-            Assert.Equal("Scan", confirmText);
+            Assert.Equal(expectedAction, confirmText);
             ScanConfirmations++;
             confirmed();
-            return Task.FromResult(true);
+            return Task.FromResult(approve);
         }
         public Task AlertAsync(string title, string message) { Alerts.Add(message); return Task.CompletedTask; }
         public Task<PromptResult?> PromptAsync(PromptOptions options) => throw new InvalidOperationException("Unexpected prompt");
@@ -255,7 +273,7 @@ public sealed class RecoverySafetyTests
         public Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null, bool remapOnly = false) => throw new InvalidOperationException("Unexpected keyboard dialog");
         public Task<object?> ShowCustomAsync(string title, Avalonia.Controls.Control content, IReadOnlyList<DialogButton> buttons,
             Avalonia.Controls.Control? initialFocus = null, Func<bool>? canConfirm = null, DialogCloser? closer = null,
-            bool resizable = false, Avalonia.Controls.Control? pinnedReview = null) => throw new InvalidOperationException("Unexpected custom dialog");
+            bool resizable = false, Avalonia.Controls.Control? pinnedReview = null, DialogBehavior? behavior = null) => throw new InvalidOperationException("Unexpected custom dialog");
     }
 
     [AvaloniaFact]
@@ -301,6 +319,19 @@ public sealed class RecoverySafetyTests
         {
             try { Directory.Delete(root, recursive: true); } catch (IOException) { }
         }
+    }
+
+    [Fact]
+    public void AnalysisScratchChoiceStaysWithTheLaunch()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "alternate scratch");
+        var options = StartupOptions.Parse(["--analysis-scratch", folder, "files"]);
+        Assert.Equal(folder, options.AnalysisScratchParent);
+        Assert.Single(options.ToForwardArgs());
+        Assert.DoesNotContain(folder, options.ToForwardArgs());
+        var missing = StartupOptions.Parse(["--analysis-scratch", "--data", folder]);
+        Assert.Equal("", missing.AnalysisScratchParent);
+        Assert.Equal(Path.GetFullPath(folder), missing.DataRoot);
     }
 
     [Fact]

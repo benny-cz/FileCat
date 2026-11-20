@@ -93,4 +93,29 @@ public sealed class ApplyCommandTests : IDisposable
         Assert.All(failing.Issues.Where(i => i.Severity == IssueSeverity.Error), i => Assert.Contains("exit code 3", i.Message));
         Assert.Contains(failing.Issues, i => i.Message.Contains("broken one.txt", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public async Task Successful_commands_keep_bounded_per_item_output_separate_from_issues()
+    {
+        _dir.File("log one.txt", "alpha");
+        _dir.File("metric#2.txt", "beta");
+        var items = new[] { Item("log one.txt"), Item("metric#2.txt") };
+        var rows = ApplyCommandPlanner.Plan(new ApplyCommandSpec("echo owned-{index}", ShellMode: true),
+            items, null, ToolLauncher.ResolveExecutable);
+        Assert.All(rows, row => Assert.Null(row.Problem));
+        var job = _jobs.Submit(new JobRequest { Kind = JobKind.ApplyCommand, Sources = items, Invocations = rows });
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(15));
+        while (!job.State.IsFinished()) await Task.Delay(10, timeout.Token);
+
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal(0, job.IssueTotals.Total);
+        Assert.Equal(new JobCommandResultTotals(2, 2, 0), job.CommandResultTotals);
+        var results = job.ReadCommandResults(0, 2);
+        Assert.Equal(items.Select(item => item.FileSystemPath), results.Select(result => result.Path));
+        Assert.All(results, result => Assert.Equal(0, result.ExitCode));
+        Assert.Contains("owned-1", results[0].StandardOutputTail, StringComparison.Ordinal);
+        Assert.Contains("owned-2", results[1].StandardOutputTail, StringComparison.Ordinal);
+        Assert.All(results, result => Assert.Empty(result.StandardErrorTail));
+    }
 }

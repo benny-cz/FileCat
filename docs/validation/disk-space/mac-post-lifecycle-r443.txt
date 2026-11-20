@@ -1,0 +1,3 @@
+36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh
+70454 /Users/benny/.dotnet/sdk/10.0.101/Roslyn/bincore/VBCSCompiler -pipename:ezBbqUIbZT_s45aeLQRyEPXT1DvlubswEbQxQc0Dlac
+70554 zsh -c pgrep -alf 'FileCat|dotnet' || true

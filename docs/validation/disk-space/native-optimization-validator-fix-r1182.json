@@ -1,0 +1,1270 @@
+{
+  "revision": "r1182",
+  "baseline": "r1181",
+  "changedInputs": [
+    "render/validate-native-optimization.py"
+  ],
+  "productRebuilt": false,
+  "allFileCatBinariesByteIdentical": true,
+  "productCoreSha256": "8b402ac651dc1eb8ef3e18ede326390e0748cc37d6da063293f650a28710c180",
+  "inputs": [
+    {
+      "path": "FileCat.slnx",
+      "sha256": "ac46ab49515e0a558db2b06c2973d50a5026e5f221373b6cea6c3d8d076f77d5",
+      "bytes": 1895
+    },
+    {
+      "path": "old-control/.msCoverageSourceRootsMapping_FileCat.Core.Tests",
+      "sha256": "25483661ca883acc1b8f3e5f135e44b5556b1f692ad088f3b9eb24c462c91c58",
+      "bytes": 10986
+    },
+    {
+      "path": "old-control/BouncyCastle.Cryptography.dll",
+      "sha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+      "bytes": 5155728
+    },
+    {
+      "path": "old-control/DiscUtils.Core.dll",
+      "sha256": "6d92db7121a11eab4c72efb3416df752b76e8c40c5aaef2b8f86133caeb85776",
+      "bytes": 310784
+    },
+    {
+      "path": "old-control/DiscUtils.Iso9660.dll",
+      "sha256": "ff8be4630795e8e6ef0c9ae5ced5d8913eade91bc3a1488590e22a6db263c821",
+      "bytes": 76800
+    },
+    {
+      "path": "old-control/DiscUtils.Streams.dll",
+      "sha256": "eea991f90d8a4e1d32d6d387519a4e703de8b9d083bb2cca19d19128e9a4e2a0",
+      "bytes": 152576
+    },
+    {
+      "path": "old-control/DiscUtils.Udf.dll",
+      "sha256": "a12e8b2b1e9147a22c945deae6ce6dafcfa74b6edb8033d3216fb357254756d8",
+      "bytes": 45056
+    },
+    {
+      "path": "old-control/FileCat.Archives.dll",
+      "sha256": "b4362a829764dd447ae4864ecd50e43d4a2d3c18df417c8a6d97d32d179fd556",
+      "bytes": 610816
+    },
+    {
+      "path": "old-control/FileCat.Archives.pdb",
+      "sha256": "4d911ac731e90807a27203daac2ad648d73cd02a96d5999c7e19959366337b81",
+      "bytes": 241064
+    },
+    {
+      "path": "old-control/FileCat.Archives.Rar15.dll",
+      "sha256": "3847bddc85a3145880342e2bee55cdd83e9684ec9620443413667c42846913ca",
+      "bytes": 20992
+    },
+    {
+      "path": "old-control/FileCat.Archives.Rar15.pdb",
+      "sha256": "b55d4e204dc3e6465190a40e415a69833ddc49d9c327a95a02ebeabe62b8cf32",
+      "bytes": 17160
+    },
+    {
+      "path": "old-control/FileCat.Core.dll",
+      "sha256": "88348be62e0deea11bfcb15eb76a534f22991647c5d62b5b758c7e82d246f9a9",
+      "bytes": 5806080
+    },
+    {
+      "path": "old-control/FileCat.Core.pdb",
+      "sha256": "72e6644a4644e866103ef0e650a1a62f603dbef0ec4ced2cc26666642d3e645b",
+      "bytes": 1761760
+    },
+    {
+      "path": "old-control/FileCat.Core.Tests.deps.json",
+      "sha256": "7fd379fa994dc31593b41f20e70c60ed0f0022a49174c9ef88371a8878acb905",
+      "bytes": 20884
+    },
+    {
+      "path": "old-control/FileCat.Core.Tests.dll",
+      "sha256": "dc4c2c4525f9955d0c7275e34ad6421f0953b61510179bfb02bf70fe34a1b374",
+      "bytes": 8879616
+    },
+    {
+      "path": "old-control/FileCat.Core.Tests.exe",
+      "sha256": "2db5320784b1a6eb766205275ffb5d581f733794dd8aaaf4e851e3e23c7ca546",
+      "bytes": 162816
+    },
+    {
+      "path": "old-control/FileCat.Core.Tests.pdb",
+      "sha256": "31d2107e0207b17ca8a91949f0af6d54b963ab06154c7c585297713c34d02dbd",
+      "bytes": 1879184
+    },
+    {
+      "path": "old-control/FileCat.Core.Tests.runtimeconfig.json",
+      "sha256": "f0c3aeb0de8768c419a86c1dc92e79d302ce70a018d1a86de3efb13bd0f00a4c",
+      "bytes": 318
+    },
+    {
+      "path": "old-control/FileCat.CoreCrashHarness.deps.json",
+      "sha256": "21a45b65a6ee6c193ccc9255fcca6f0f9f43ca658c91bfed504e0a341bc04eed",
+      "bytes": 1558
+    },
+    {
+      "path": "old-control/FileCat.CoreCrashHarness.dll",
+      "sha256": "62b2dfb25c475175261ce46da1ce8cbd7fe0c65de16ff62c125754a4dc567908",
+      "bytes": 276992
+    },
+    {
+      "path": "old-control/FileCat.CoreCrashHarness.exe",
+      "sha256": "409f2e6c29623245845a1d18c63dae2f3a03f52ab6a7dc95c6d8660a10db0fa7",
+      "bytes": 162816
+    },
+    {
+      "path": "old-control/FileCat.CoreCrashHarness.pdb",
+      "sha256": "73bab4ab4766117614c543be636ad23836a8ebdaa546c1143d69b15bea419d54",
+      "bytes": 65588
+    },
+    {
+      "path": "old-control/FileCat.CoreCrashHarness.runtimeconfig.json",
+      "sha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+      "bytes": 270
+    },
+    {
+      "path": "old-control/FileCat.Recovery.dll",
+      "sha256": "7dfde5454212f331c524d04cb895edc4e61997ab45b97ee6e952c05f0d8422ad",
+      "bytes": 242688
+    },
+    {
+      "path": "old-control/FileCat.Recovery.pdb",
+      "sha256": "74310a210effed9ef28052d22b3de2600fe192becd27ab31828ef13699241e00",
+      "bytes": 85028
+    },
+    {
+      "path": "old-control/FileCat.SharpCompress.dll",
+      "sha256": "94feef638608de41996a42a5815428ca4ba80cee87b53d6be9905e38fb47c853",
+      "bytes": 1262080
+    },
+    {
+      "path": "old-control/FileCat.SharpCompress.pdb",
+      "sha256": "32e96041122606dbd045e22a4d766e6a5eb327b4c4e59f3b2fa65e9e94b50eec",
+      "bytes": 613668
+    },
+    {
+      "path": "old-control/FileCat.WorkerProbe.deps.json",
+      "sha256": "f23139162848a68927ea1da02a05f83b11f3611b8b5f8fa57524a1cc3d1fb62c",
+      "bytes": 6120
+    },
+    {
+      "path": "old-control/FileCat.WorkerProbe.exe",
+      "sha256": "2bf47bfe3926a526e4f381624b4449b36c37008b69be3fb7e9e3f162f5053f98",
+      "bytes": 162816
+    },
+    {
+      "path": "old-control/FileCat.WorkerProbe.runtimeconfig.json",
+      "sha256": "79d12e54ac614d5fe8cdeb8849ab5f6568250bb7ac1c2647c2bce5876475f20e",
+      "bytes": 377
+    },
+    {
+      "path": "old-control/LTRData.Extensions.dll",
+      "sha256": "eef1e1608fce1df712045682703cdd6242b3a4aee48712c81a72c4623fba31e2",
+      "bytes": 104960
+    },
+    {
+      "path": "old-control/Microsoft.ApplicationInsights.dll",
+      "sha256": "bf9a4b88c7f94267e1cc7ed0700c575d3eb3266ff25bcb76e4f40f1b0fba022d",
+      "bytes": 386080
+    },
+    {
+      "path": "old-control/Microsoft.Bcl.AsyncInterfaces.dll",
+      "sha256": "5705d245072d3eb78400547b32147dbb6e2c8b02ba8bda76729798f5efdeaecb",
+      "bytes": 16000
+    },
+    {
+      "path": "old-control/Microsoft.Testing.Extensions.MSBuild.dll",
+      "sha256": "f6ef5ef03b5c22f7900fb67fe741847e75cf3ce26f652106a27d8cfcc834bb7f",
+      "bytes": 60448
+    },
+    {
+      "path": "old-control/Microsoft.Testing.Extensions.Telemetry.dll",
+      "sha256": "548751ae749bca1e823f1bc3698ac751a0dc0ca47c396a9d32b432bd828848df",
+      "bytes": 44576
+    },
+    {
+      "path": "old-control/Microsoft.Testing.Extensions.TrxReport.Abstractions.dll",
+      "sha256": "acae6c525ead26f77ceab1b1d640fe7e8c07fec2acdfc78bf753b220a49ef3e6",
+      "bytes": 32800
+    },
+    {
+      "path": "old-control/Microsoft.Testing.Platform.dll",
+      "sha256": "519744d3b6321320e366495fbed0d8c37f9b0e11207667eb89eb5c0c425a7462",
+      "bytes": 1153568
+    },
+    {
+      "path": "old-control/Microsoft.TestPlatform.CommunicationUtilities.dll",
+      "sha256": "2eba928c1770209f1fd9f515603a0b4ffbfcadf816681ab36d02b9b36417ab33",
+      "bytes": 138272
+    },
+    {
+      "path": "old-control/Microsoft.TestPlatform.CoreUtilities.dll",
+      "sha256": "7837f9df4b11a9844143fc9419e5752bdd50305436adcbf84f82b8a52d5909d7",
+      "bytes": 99360
+    },
+    {
+      "path": "old-control/Microsoft.TestPlatform.CrossPlatEngine.dll",
+      "sha256": "2f3b463a227b8f30171f8720164b3c0b90451248e0b2f3e8c3da82c23a3fdfcd",
+      "bytes": 318496
+    },
+    {
+      "path": "old-control/Microsoft.TestPlatform.PlatformAbstractions.dll",
+      "sha256": "668c7f0df2c30feac9cea9dce808ccabb72ff575c1e820404124212b4eae1773",
+      "bytes": 51784
+    },
+    {
+      "path": "old-control/Microsoft.TestPlatform.Utilities.dll",
+      "sha256": "886ef3ab15251e57ca9c124e41de3c43ba0520a036b876bb709ed325438501fe",
+      "bytes": 69192
+    },
+    {
+      "path": "old-control/Microsoft.VisualStudio.CodeCoverage.Shim.dll",
+      "sha256": "e590f0095b103c635c7fd45ad5ff537dd221b0bc2db214717940f59faf4767f0",
+      "bytes": 17440
+    },
+    {
+      "path": "old-control/Microsoft.VisualStudio.TestPlatform.Common.dll",
+      "sha256": "96d7b2a7e3f79133e17196fdad189486b59852379385198b5cd857e9947164fb",
+      "bytes": 248904
+    },
+    {
+      "path": "old-control/Microsoft.VisualStudio.TestPlatform.ObjectModel.dll",
+      "sha256": "f6d6bc01a85fd68a0599533fcc0de7357922051bad90012b8ad15de31a4ef5e9",
+      "bytes": 335392
+    },
+    {
+      "path": "old-control/Newtonsoft.Json.dll",
+      "sha256": "22c649f75fce5be7c7ccda8880473b634ef69ecf33f5d1ab8ad892caf47d5a07",
+      "bytes": 712464
+    },
+    {
+      "path": "old-control/SharpCompress.dll",
+      "sha256": "fa67b31d7ab99f10336ba4eaf603bc223ce93d2600ffd31522f4855dfe1d5842",
+      "bytes": 2464768
+    },
+    {
+      "path": "old-control/testhost.dll",
+      "sha256": "f9f95f20f7a99215b50cfd511085b31549b26f87afaeb02c0a3c21f6875817e8",
+      "bytes": 49696
+    },
+    {
+      "path": "old-control/testhost.exe",
+      "sha256": "6a3a6cfca1f99e54bc7d6851009df33c4184d2c65663165b5d5de6c0fe6e5420",
+      "bytes": 161824
+    },
+    {
+      "path": "old-control/xunit.abstractions.dll",
+      "sha256": "3166dc70323fb30ccf1cedb0fe86f2ad122c46d254542342d90386efc4c9285c",
+      "bytes": 21928
+    },
+    {
+      "path": "old-control/xunit.runner.visualstudio.testadapter.dll",
+      "sha256": "384aba4bad96399a7fd2205a5a3517b643a16f4d7e843bd0b92e1e42f81fce2a",
+      "bytes": 1253376
+    },
+    {
+      "path": "old-control/xunit.v3.assert.dll",
+      "sha256": "483aec8a5b7faea0a92d0ae4f11a3479045f8f5e3f551dfc4dac6bedeaafa9ce",
+      "bytes": 214792
+    },
+    {
+      "path": "old-control/xunit.v3.common.dll",
+      "sha256": "e4175bc165d01b9828acdc996776370adf4f8d0a5865e75ec9ded17fb70258a9",
+      "bytes": 191752
+    },
+    {
+      "path": "old-control/xunit.v3.core.dll",
+      "sha256": "b3641e9e80cd8175e2d9995d6fa9750b8fb31740c87ba121e56cfe515f7f06cc",
+      "bytes": 498440
+    },
+    {
+      "path": "old-control/xunit.v3.mtp-v1.dll",
+      "sha256": "69903f4e48e5794350154d97bc911909974469780cd1931e23da3af419a1f2e7",
+      "bytes": 123144
+    },
+    {
+      "path": "old-control/xunit.v3.runner.common.dll",
+      "sha256": "8d9b157ebd8d9240d292ed922f5f26ba4011de5fd07812ceaac7baccfc5e6bc4",
+      "bytes": 978696
+    },
+    {
+      "path": "old-control/xunit.v3.runner.inproc.console.dll",
+      "sha256": "360ef1613c7d4148a715b8495d9f7ad95e4126f75ed86dda6cf81139c28b1431",
+      "bytes": 75528
+    },
+    {
+      "path": "old-control/xunit.v3.runner.utility.netcore.dll",
+      "sha256": "abce062185b0d72b665aae07d76c681aff1cd794525a34cfa1b3b0137af76aff",
+      "bytes": 174856
+    },
+    {
+      "path": "render/.msCoverageSourceRootsMapping_FileCat.Rendering.Tests",
+      "sha256": "ef007487c7d67b7f824a54c127f5b6313dcf464334a4982837ac581a90d2dade",
+      "bytes": 15514
+    },
+    {
+      "path": "render/Avalonia.Base.dll",
+      "sha256": "99bf47f44f8e6b2c91f96f175dcf7efa8ba64267a1acd17faa05266d7210b72e",
+      "bytes": 2361344
+    },
+    {
+      "path": "render/Avalonia.Controls.dll",
+      "sha256": "24d36a48b0033e52313d1f7a2d8b69bcc18e5504d518bf56c23916558c4f1912",
+      "bytes": 1355264
+    },
+    {
+      "path": "render/Avalonia.DesignerSupport.dll",
+      "sha256": "9605daf1df49f8f6a1b5dd009e5d56cb68d0db4479d1adbdd8abc4a066ec554e",
+      "bytes": 214528
+    },
+    {
+      "path": "render/Avalonia.Desktop.dll",
+      "sha256": "c5d2267f29cad93c3aed598083d286262c8fb160c464133b76cd66faefe77e17",
+      "bytes": 15360
+    },
+    {
+      "path": "render/Avalonia.Dialogs.dll",
+      "sha256": "8814546c28ec69c5a9a8874cfbacdfa7fa64ec622a8854231eac51ccf5bbadbb",
+      "bytes": 242688
+    },
+    {
+      "path": "render/Avalonia.dll",
+      "sha256": "c74260e117c6964ae9b7c12e203a9ac2edd9b08aecd22d2c298b2ce1f6457b14",
+      "bytes": 4096
+    },
+    {
+      "path": "render/Avalonia.Fonts.Inter.dll",
+      "sha256": "99c1631309e6b11fe19b8f4b7a668759eb34be9059ab6f12eab821c55ec740b3",
+      "bytes": 1892864
+    },
+    {
+      "path": "render/Avalonia.FreeDesktop.AtSpi.dll",
+      "sha256": "93fdfb9124dfa3491eb728b99560c659e8dfe8a4d00cfbd429e1c1e0ac93c518",
+      "bytes": 563712
+    },
+    {
+      "path": "render/Avalonia.FreeDesktop.dll",
+      "sha256": "eebbfec2de64ea47f91ba138aa749c586deefcd8040c7f0330be9733d552e752",
+      "bytes": 256512
+    },
+    {
+      "path": "render/Avalonia.HarfBuzz.dll",
+      "sha256": "56a922f1dc979f120f2acb569b24ab643346775d74d5eafd1e379a921812574e",
+      "bytes": 22016
+    },
+    {
+      "path": "render/Avalonia.Headless.dll",
+      "sha256": "29cbfa10e0a4631ae9c762eb718d72a82419656419fb513a9d77f1741e8f70de",
+      "bytes": 74752
+    },
+    {
+      "path": "render/Avalonia.Headless.XUnit.dll",
+      "sha256": "ec08c0ce7bf2f7c6aee17190f61844a8823384d675da9d74a1df3a178a6063b2",
+      "bytes": 35840
+    },
+    {
+      "path": "render/Avalonia.Markup.dll",
+      "sha256": "e5a6d499f23845c1199ef4f53a52432e66947d1dc24f4452853561b970cf7f61",
+      "bytes": 45568
+    },
+    {
+      "path": "render/Avalonia.Markup.Xaml.dll",
+      "sha256": "407b2bd896e440e8f2133d55f77f6e83e25603a774a92a1723e7e974f406350d",
+      "bytes": 74752
+    },
+    {
+      "path": "render/Avalonia.Metal.dll",
+      "sha256": "13ba916946ac2ad77eb4588c2f76727e8090356edf294fafd555649b9e52d77c",
+      "bytes": 15360
+    },
+    {
+      "path": "render/Avalonia.MicroCom.dll",
+      "sha256": "fe62d3f49cf4f5a3cb26262d0c1c74057f522deea553c79135b3e3fb5b0d9619",
+      "bytes": 15360
+    },
+    {
+      "path": "render/Avalonia.Native.dll",
+      "sha256": "47972e538a1d73e56570e8c5c68c30e96615ce76ca0a8717997a9945c064f71a",
+      "bytes": 352256
+    },
+    {
+      "path": "render/Avalonia.OpenGL.dll",
+      "sha256": "c14de1359f1cbaf0a67933d2b062f8d9064f457bef8d49870ea44c278c2866d8",
+      "bytes": 128512
+    },
+    {
+      "path": "render/Avalonia.Remote.Protocol.dll",
+      "sha256": "9c002eedc2870fbbd5637b2c49181a26050fccc19ed07bcb4a063341e072136e",
+      "bytes": 75776
+    },
+    {
+      "path": "render/Avalonia.Skia.dll",
+      "sha256": "ab801e03246f8fd39e0681888fed615cbe818313de5f74cf782154871171b334",
+      "bytes": 125952
+    },
+    {
+      "path": "render/Avalonia.Themes.Fluent.dll",
+      "sha256": "66883c8eed675cdefa9f36b103b209b5351e815f579e1abb0e5a0f1299417e56",
+      "bytes": 733184
+    },
+    {
+      "path": "render/Avalonia.Vulkan.dll",
+      "sha256": "c51e72518de1da6af6051b9d39b6aa8e5d70b4003e49b9befeadf6fb0ca494ab",
+      "bytes": 191488
+    },
+    {
+      "path": "render/Avalonia.Win32.Automation.dll",
+      "sha256": "11a8cab62229e76783d2f730f7d277c7ec04493cdd282c6825027617e60a3bad",
+      "bytes": 124928
+    },
+    {
+      "path": "render/Avalonia.Win32.dll",
+      "sha256": "072310bf798d9b19d2b9575c173ad27abe9714808abe8f16c679e643c513c2f5",
+      "bytes": 965120
+    },
+    {
+      "path": "render/Avalonia.X11.dll",
+      "sha256": "7014e30270a67a7be321f6aa582e4bec07c62302a0d31b3b358351f620f24e23",
+      "bytes": 408576
+    },
+    {
+      "path": "render/BouncyCastle.Cryptography.dll",
+      "sha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+      "bytes": 5155728
+    },
+    {
+      "path": "render/CommunityToolkit.Mvvm.dll",
+      "sha256": "7d7eb5c066cfe883b439b1200bf5dcb387b1e5319dd2edbdaa9e23adfe416452",
+      "bytes": 120616
+    },
+    {
+      "path": "render/DiscUtils.Core.dll",
+      "sha256": "6d92db7121a11eab4c72efb3416df752b76e8c40c5aaef2b8f86133caeb85776",
+      "bytes": 310784
+    },
+    {
+      "path": "render/DiscUtils.Iso9660.dll",
+      "sha256": "ff8be4630795e8e6ef0c9ae5ced5d8913eade91bc3a1488590e22a6db263c821",
+      "bytes": 76800
+    },
+    {
+      "path": "render/DiscUtils.Streams.dll",
+      "sha256": "eea991f90d8a4e1d32d6d387519a4e703de8b9d083bb2cca19d19128e9a4e2a0",
+      "bytes": 152576
+    },
+    {
+      "path": "render/DiscUtils.Udf.dll",
+      "sha256": "a12e8b2b1e9147a22c945deae6ce6dafcfa74b6edb8033d3216fb357254756d8",
+      "bytes": 45056
+    },
+    {
+      "path": "render/FileCat.App.Tests.deps.json",
+      "sha256": "5be2b401e0db40ee3c0b689ae929f1b6137a20fd4292af95141e118de92093db",
+      "bytes": 58714
+    },
+    {
+      "path": "render/FileCat.App.Tests.dll",
+      "sha256": "c6aa0f254c79e01bf04adda248d627be411e469c6f4c7c70c82c1d0676104520",
+      "bytes": 5693440
+    },
+    {
+      "path": "render/FileCat.App.Tests.exe",
+      "sha256": "d44a15f290cd8c9316b01045e0303faaf7f6322cb2278fd04b73c1c7957529b9",
+      "bytes": 162816
+    },
+    {
+      "path": "render/FileCat.App.Tests.pdb",
+      "sha256": "5e4e6bcb0a6394bb9e6f27ef1f3ccbc740c74e8c75b56465dd180a02b443e8fe",
+      "bytes": 1158444
+    },
+    {
+      "path": "render/FileCat.App.Tests.runtimeconfig.json",
+      "sha256": "90751b8460971c2289443df1768438644dfc508933067f78211841d2972717f8",
+      "bytes": 385
+    },
+    {
+      "path": "render/FileCat.Archives.dll",
+      "sha256": "ac2468e0f00d281de244985c90fc424926349c39f80993a4cd0a05b70f3eb2aa",
+      "bytes": 610816
+    },
+    {
+      "path": "render/FileCat.Archives.pdb",
+      "sha256": "a0d8cba887eeee49297632a5da418f4ad5199a7c681b00b03ace10997f06da79",
+      "bytes": 241064
+    },
+    {
+      "path": "render/FileCat.Archives.Rar15.dll",
+      "sha256": "79b9f36ea9f6157d4f36d564b1e63c051bd19d1c0555b9f7e2bae0f51a798c2b",
+      "bytes": 20992
+    },
+    {
+      "path": "render/FileCat.Archives.Rar15.pdb",
+      "sha256": "0074441a25e4042befcceb7826a3b0a92b4a36d5f825259e1ca46749884954cc",
+      "bytes": 17164
+    },
+    {
+      "path": "render/FileCat.Core.dll",
+      "sha256": "8b402ac651dc1eb8ef3e18ede326390e0748cc37d6da063293f650a28710c180",
+      "bytes": 5811712
+    },
+    {
+      "path": "render/FileCat.Core.pdb",
+      "sha256": "9ac19dba6196a204dd5d772efd3904fcdd663e7927482359883fdfac91330264",
+      "bytes": 1763552
+    },
+    {
+      "path": "render/FileCat.CoreCrashHarness.deps.json",
+      "sha256": "21a45b65a6ee6c193ccc9255fcca6f0f9f43ca658c91bfed504e0a341bc04eed",
+      "bytes": 1558
+    },
+    {
+      "path": "render/FileCat.CoreCrashHarness.dll",
+      "sha256": "2b0cda3672a05a787a9113e07b26176864fc4c071fc41a184f86bba6cdbf2e99",
+      "bytes": 301056
+    },
+    {
+      "path": "render/FileCat.CoreCrashHarness.exe",
+      "sha256": "ff7e53da04488163f26c5a2b43549d678de0b0a6778174dfbc9c653b8d33f893",
+      "bytes": 162816
+    },
+    {
+      "path": "render/FileCat.CoreCrashHarness.pdb",
+      "sha256": "237fd3779e0ba718201f686ed70fe8bbed0b1489d00097b241fb76acc7e91ee3",
+      "bytes": 69240
+    },
+    {
+      "path": "render/FileCat.CoreCrashHarness.runtimeconfig.json",
+      "sha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+      "bytes": 270
+    },
+    {
+      "path": "render/FileCat.deps.json",
+      "sha256": "a1d0a8bde71eb55062565e446a077697d5adb9709dda64bda82451428de6f105",
+      "bytes": 41316
+    },
+    {
+      "path": "render/FileCat.dll",
+      "sha256": "56194c6ace36bc67b4d349732a97f346c456bef990cf0d6c29ba8df2c4ed58bf",
+      "bytes": 5038080
+    },
+    {
+      "path": "render/FileCat.exe",
+      "sha256": "36918303334f09deab576899046bb08e0576d6109251df7b94288fc3dbea5abf",
+      "bytes": 278016
+    },
+    {
+      "path": "render/FileCat.pdb",
+      "sha256": "015d91cd3da095dbd54fa6554aebab2c0a6b787f7f391c1b121889dc8424f543",
+      "bytes": 1094784
+    },
+    {
+      "path": "render/FileCat.Platform.Windows.dll",
+      "sha256": "505d2677b3eadd1d74192853c3b6bcf55be51824610fa488b7485061f6b48fdf",
+      "bytes": 966656
+    },
+    {
+      "path": "render/FileCat.Platform.Windows.pdb",
+      "sha256": "3c33da0ec8be2e3f6360bf7e56543b4ffa869fe1db15efe34e4f04cf1ddb1715",
+      "bytes": 343748
+    },
+    {
+      "path": "render/FileCat.Recovery.dll",
+      "sha256": "961d656e890ba3021572d5b2a8027c9fbf51c379349fd6b50bef0fd554191e33",
+      "bytes": 242688
+    },
+    {
+      "path": "render/FileCat.Recovery.pdb",
+      "sha256": "4c8a09e41f68904bf3afe1a822f0b216b60c2511278cc52856283737f1eb99ae",
+      "bytes": 85028
+    },
+    {
+      "path": "render/FileCat.Remote.dll",
+      "sha256": "f350fd182ea34cfeb2309184a8613fe1ade8226950cac694384b4fbcdd100827",
+      "bytes": 178176
+    },
+    {
+      "path": "render/FileCat.Remote.pdb",
+      "sha256": "b2b2b4eb28fec3079f10614df8922eeb9b565b53bee61d180a8aae13ab09d710",
+      "bytes": 69320
+    },
+    {
+      "path": "render/FileCat.Rendering.Tests.deps.json",
+      "sha256": "fb6227511d61015e2670a1d193f74056bc3b08b9a6d7016f2e7f6d1da6fed2c8",
+      "bytes": 57892
+    },
+    {
+      "path": "render/FileCat.Rendering.Tests.dll",
+      "sha256": "83c7fbdb17dffdf535356c67c4fd4a773f76171003e82dedc5c1eee0aeaa9561",
+      "bytes": 1883648
+    },
+    {
+      "path": "render/FileCat.Rendering.Tests.exe",
+      "sha256": "f979a787e2ee922c9b303ffb01326c43d21c17abd31210f0d337ed57691a819b",
+      "bytes": 162816
+    },
+    {
+      "path": "render/FileCat.Rendering.Tests.pdb",
+      "sha256": "0f086bd4e6ba056f42e55c2e6dc1c4cda1d04c3c80b53b9d66c0ca0af76278a6",
+      "bytes": 384756
+    },
+    {
+      "path": "render/FileCat.Rendering.Tests.runtimeconfig.json",
+      "sha256": "90751b8460971c2289443df1768438644dfc508933067f78211841d2972717f8",
+      "bytes": 385
+    },
+    {
+      "path": "render/FileCat.runtimeconfig.json",
+      "sha256": "124767319f0fef3a0fa49eb364d9d391c43817c0e9d91d73d3bac12879f498b6",
+      "bytes": 414
+    },
+    {
+      "path": "render/FileCat.SharpCompress.dll",
+      "sha256": "bf708af11f99107b8c8cfc2cbc4bb7891167768a879dad5e9c542baaa267e134",
+      "bytes": 1262080
+    },
+    {
+      "path": "render/FileCat.SharpCompress.pdb",
+      "sha256": "e4b1e6fa4bfbaceb11e191bba86bf94d6e551a00143631e4a69a0267b788ccc7",
+      "bytes": 613668
+    },
+    {
+      "path": "render/FileCat.ShellHost.deps.json",
+      "sha256": "703e88090b73979906d40e77d0f76773ed50e7ebc2959b8df36b15bcf8bc79e0",
+      "bytes": 5412
+    },
+    {
+      "path": "render/FileCat.ShellHost.dll",
+      "sha256": "b7e6ce8f52ffe8a807a92048120847973f689aea4d892b034fbe17dcc4bac9d2",
+      "bytes": 132096
+    },
+    {
+      "path": "render/FileCat.ShellHost.exe",
+      "sha256": "97022d2b11dbb59d6f195a7d9db7dc19c7986d1b911a01f0b087ad2168074033",
+      "bytes": 277504
+    },
+    {
+      "path": "render/FileCat.ShellHost.pdb",
+      "sha256": "3647dbdb6da8d2ac941876db756b4fc10522a8e0e6c62342d3af10f085c45cf2",
+      "bytes": 18160
+    },
+    {
+      "path": "render/FileCat.ShellHost.runtimeconfig.json",
+      "sha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+      "bytes": 270
+    },
+    {
+      "path": "render/FluentFTP.dll",
+      "sha256": "eb7ed8d9d2016c5e0fce0b4fffbb889f4e1797d4ac156ffb0c19da63ab7f77a8",
+      "bytes": 527872
+    },
+    {
+      "path": "render/HarfBuzzSharp.dll",
+      "sha256": "55e72ac23263f8e12484f3435e02ec22fac9eff6e6d169bb0a8c246be6b99d29",
+      "bytes": 122400
+    },
+    {
+      "path": "render/LTRData.Extensions.dll",
+      "sha256": "eef1e1608fce1df712045682703cdd6242b3a4aee48712c81a72c4623fba31e2",
+      "bytes": 104960
+    },
+    {
+      "path": "render/MicroCom.Runtime.dll",
+      "sha256": "2538ec6f3c24e901a90e33c37788b9a4e4b6ae8158cab7328a00a00bb28eab9e",
+      "bytes": 15360
+    },
+    {
+      "path": "render/Microsoft.ApplicationInsights.dll",
+      "sha256": "bf9a4b88c7f94267e1cc7ed0700c575d3eb3266ff25bcb76e4f40f1b0fba022d",
+      "bytes": 386080
+    },
+    {
+      "path": "render/Microsoft.Bcl.AsyncInterfaces.dll",
+      "sha256": "5705d245072d3eb78400547b32147dbb6e2c8b02ba8bda76729798f5efdeaecb",
+      "bytes": 16000
+    },
+    {
+      "path": "render/Microsoft.Extensions.DependencyInjection.Abstractions.dll",
+      "sha256": "67fa4325000db017dc0c35829b416f024f042d24efb868bcf17a895ee6500a93",
+      "bytes": 63768
+    },
+    {
+      "path": "render/Microsoft.Extensions.Logging.Abstractions.dll",
+      "sha256": "bb853130f5afaf335be7858d661f8212ec653835100f5a4e3aa2c66a4d4f685d",
+      "bytes": 65288
+    },
+    {
+      "path": "render/Microsoft.Testing.Extensions.MSBuild.dll",
+      "sha256": "f6ef5ef03b5c22f7900fb67fe741847e75cf3ce26f652106a27d8cfcc834bb7f",
+      "bytes": 60448
+    },
+    {
+      "path": "render/Microsoft.Testing.Extensions.Telemetry.dll",
+      "sha256": "548751ae749bca1e823f1bc3698ac751a0dc0ca47c396a9d32b432bd828848df",
+      "bytes": 44576
+    },
+    {
+      "path": "render/Microsoft.Testing.Extensions.TrxReport.Abstractions.dll",
+      "sha256": "acae6c525ead26f77ceab1b1d640fe7e8c07fec2acdfc78bf753b220a49ef3e6",
+      "bytes": 32800
+    },
+    {
+      "path": "render/Microsoft.Testing.Platform.dll",
+      "sha256": "519744d3b6321320e366495fbed0d8c37f9b0e11207667eb89eb5c0c425a7462",
+      "bytes": 1153568
+    },
+    {
+      "path": "render/Microsoft.TestPlatform.CommunicationUtilities.dll",
+      "sha256": "2eba928c1770209f1fd9f515603a0b4ffbfcadf816681ab36d02b9b36417ab33",
+      "bytes": 138272
+    },
+    {
+      "path": "render/Microsoft.TestPlatform.CoreUtilities.dll",
+      "sha256": "7837f9df4b11a9844143fc9419e5752bdd50305436adcbf84f82b8a52d5909d7",
+      "bytes": 99360
+    },
+    {
+      "path": "render/Microsoft.TestPlatform.CrossPlatEngine.dll",
+      "sha256": "2f3b463a227b8f30171f8720164b3c0b90451248e0b2f3e8c3da82c23a3fdfcd",
+      "bytes": 318496
+    },
+    {
+      "path": "render/Microsoft.TestPlatform.PlatformAbstractions.dll",
+      "sha256": "668c7f0df2c30feac9cea9dce808ccabb72ff575c1e820404124212b4eae1773",
+      "bytes": 51784
+    },
+    {
+      "path": "render/Microsoft.TestPlatform.Utilities.dll",
+      "sha256": "886ef3ab15251e57ca9c124e41de3c43ba0520a036b876bb709ed325438501fe",
+      "bytes": 69192
+    },
+    {
+      "path": "render/Microsoft.VisualStudio.CodeCoverage.Shim.dll",
+      "sha256": "e590f0095b103c635c7fd45ad5ff537dd221b0bc2db214717940f59faf4767f0",
+      "bytes": 17440
+    },
+    {
+      "path": "render/Microsoft.VisualStudio.TestPlatform.Common.dll",
+      "sha256": "96d7b2a7e3f79133e17196fdad189486b59852379385198b5cd857e9947164fb",
+      "bytes": 248904
+    },
+    {
+      "path": "render/Microsoft.VisualStudio.TestPlatform.ObjectModel.dll",
+      "sha256": "f6d6bc01a85fd68a0599533fcc0de7357922051bad90012b8ad15de31a4ef5e9",
+      "bytes": 335392
+    },
+    {
+      "path": "render/Microsoft.Web.WebView2.Core.dll",
+      "sha256": "4a4efdf712ceea4050eb2252ec2a9136cdcf32b9bfbb3ad58d79396f36e9665d",
+      "bytes": 629872
+    },
+    {
+      "path": "render/Microsoft.Web.WebView2.Core.xml",
+      "sha256": "6f49076302322377f2932e599375aedbd58f17cfc9ab189193de0201d2bedd0a",
+      "bytes": 565370
+    },
+    {
+      "path": "render/native-counter-layout.json",
+      "sha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c",
+      "bytes": 264
+    },
+    {
+      "path": "render/Newtonsoft.Json.dll",
+      "sha256": "22c649f75fce5be7c7ccda8880473b634ef69ecf33f5d1ab8ad892caf47d5a07",
+      "bytes": 712464
+    },
+    {
+      "path": "render/PDFtoImage.dll",
+      "sha256": "bebf1ed3ef86674d2eec07b74de88e7bff679f3d4fb00a896b69cd70aa0cb4a3",
+      "bytes": 96096
+    },
+    {
+      "path": "render/Renci.SshNet.dll",
+      "sha256": "1eea433e249e328d60512b72a134961074e059c22cfdf5427d03a893ca46ff1e",
+      "bytes": 544256
+    },
+    {
+      "path": "render/runtimes/osx/native/libAvaloniaNative.dylib",
+      "sha256": "42765b28691538bcfbe6ed3ec39afc5c899b43cc9b7cf0ca550f91a0f1fc6533",
+      "bytes": 1565568
+    },
+    {
+      "path": "render/runtimes/osx/native/libHarfBuzzSharp.dylib",
+      "sha256": "b2d7d39a46954b3d7310540bdf393f398ac4194ee029b995deeb1db0c161c43d",
+      "bytes": 2922800
+    },
+    {
+      "path": "render/runtimes/osx/native/libSkiaSharp.dylib",
+      "sha256": "e09f07ae1df62ded475351f56d8dc8366cd679043f28b65d9dee597a5fd0da6c",
+      "bytes": 15201456
+    },
+    {
+      "path": "render/runtimes/osx-arm64/native/libpdfium.dylib",
+      "sha256": "40720223c09c96b894faa4d6b22fb78a1675b160f10402a25b79d3e31763eba1",
+      "bytes": 5526320
+    },
+    {
+      "path": "render/SkiaSharp.dll",
+      "sha256": "aaaaa18c68ba1f3a3408b00dff28b11d5705198e17ba9d3aa59222bfd35407c8",
+      "bytes": 489824
+    },
+    {
+      "path": "render/System.CodeDom.dll",
+      "sha256": "68c917e53531c6a76e99e89d1bffe62056d9a135f078f26be07f4e3288589773",
+      "bytes": 185104
+    },
+    {
+      "path": "render/System.Management.dll",
+      "sha256": "7515a62492cb215cc7a5a7d7d8351148c2b540102de0925de6eece5b2322941b",
+      "bytes": 74552
+    },
+    {
+      "path": "render/testhost.dll",
+      "sha256": "f9f95f20f7a99215b50cfd511085b31549b26f87afaeb02c0a3c21f6875817e8",
+      "bytes": 49696
+    },
+    {
+      "path": "render/testhost.exe",
+      "sha256": "6a3a6cfca1f99e54bc7d6851009df33c4184d2c65663165b5d5de6c0fe6e5420",
+      "bytes": 161824
+    },
+    {
+      "path": "render/Tmds.DBus.Protocol.dll",
+      "sha256": "60a1c5255731d8ac843cab53108be8ba1ed02759ce3db0da5b49939ebe97bd8a",
+      "bytes": 232960
+    },
+    {
+      "path": "render/validate-native-optimization.py",
+      "sha256": "7e086492a43487bd9bf58f03ea8aaab62bb3106bf478e9ef73e19f0ac6a1dcee",
+      "bytes": 2420
+    },
+    {
+      "path": "render/xunit.abstractions.dll",
+      "sha256": "3166dc70323fb30ccf1cedb0fe86f2ad122c46d254542342d90386efc4c9285c",
+      "bytes": 21928
+    },
+    {
+      "path": "render/xunit.runner.visualstudio.testadapter.dll",
+      "sha256": "384aba4bad96399a7fd2205a5a3517b643a16f4d7e843bd0b92e1e42f81fce2a",
+      "bytes": 1253376
+    },
+    {
+      "path": "render/xunit.v3.assert.dll",
+      "sha256": "483aec8a5b7faea0a92d0ae4f11a3479045f8f5e3f551dfc4dac6bedeaafa9ce",
+      "bytes": 214792
+    },
+    {
+      "path": "render/xunit.v3.common.dll",
+      "sha256": "e4175bc165d01b9828acdc996776370adf4f8d0a5865e75ec9ded17fb70258a9",
+      "bytes": 191752
+    },
+    {
+      "path": "render/xunit.v3.core.dll",
+      "sha256": "b3641e9e80cd8175e2d9995d6fa9750b8fb31740c87ba121e56cfe515f7f06cc",
+      "bytes": 498440
+    },
+    {
+      "path": "render/xunit.v3.mtp-v1.dll",
+      "sha256": "69903f4e48e5794350154d97bc911909974469780cd1931e23da3af419a1f2e7",
+      "bytes": 123144
+    },
+    {
+      "path": "render/xunit.v3.runner.common.dll",
+      "sha256": "8d9b157ebd8d9240d292ed922f5f26ba4011de5fd07812ceaac7baccfc5e6bc4",
+      "bytes": 978696
+    },
+    {
+      "path": "render/xunit.v3.runner.inproc.console.dll",
+      "sha256": "360ef1613c7d4148a715b8495d9f7ad95e4126f75ed86dda6cf81139c28b1431",
+      "bytes": 75528
+    },
+    {
+      "path": "render/xunit.v3.runner.utility.netcore.dll",
+      "sha256": "abce062185b0d72b665aae07d76c681aff1cd794525a34cfa1b3b0137af76aff",
+      "bytes": 174856
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/.msCoverageSourceRootsMapping_FileCat.Core.Tests",
+      "sha256": "25483661ca883acc1b8f3e5f135e44b5556b1f692ad088f3b9eb24c462c91c58",
+      "bytes": 10986
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/BouncyCastle.Cryptography.dll",
+      "sha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+      "bytes": 5155728
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/DiscUtils.Core.dll",
+      "sha256": "6d92db7121a11eab4c72efb3416df752b76e8c40c5aaef2b8f86133caeb85776",
+      "bytes": 310784
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/DiscUtils.Iso9660.dll",
+      "sha256": "ff8be4630795e8e6ef0c9ae5ced5d8913eade91bc3a1488590e22a6db263c821",
+      "bytes": 76800
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/DiscUtils.Streams.dll",
+      "sha256": "eea991f90d8a4e1d32d6d387519a4e703de8b9d083bb2cca19d19128e9a4e2a0",
+      "bytes": 152576
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/DiscUtils.Udf.dll",
+      "sha256": "a12e8b2b1e9147a22c945deae6ce6dafcfa74b6edb8033d3216fb357254756d8",
+      "bytes": 45056
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Archives.dll",
+      "sha256": "ac2468e0f00d281de244985c90fc424926349c39f80993a4cd0a05b70f3eb2aa",
+      "bytes": 610816
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Archives.pdb",
+      "sha256": "a0d8cba887eeee49297632a5da418f4ad5199a7c681b00b03ace10997f06da79",
+      "bytes": 241064
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Archives.Rar15.dll",
+      "sha256": "79b9f36ea9f6157d4f36d564b1e63c051bd19d1c0555b9f7e2bae0f51a798c2b",
+      "bytes": 20992
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Archives.Rar15.pdb",
+      "sha256": "0074441a25e4042befcceb7826a3b0a92b4a36d5f825259e1ca46749884954cc",
+      "bytes": 17164
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.dll",
+      "sha256": "8b402ac651dc1eb8ef3e18ede326390e0748cc37d6da063293f650a28710c180",
+      "bytes": 5811712
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.pdb",
+      "sha256": "9ac19dba6196a204dd5d772efd3904fcdd663e7927482359883fdfac91330264",
+      "bytes": 1763552
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.deps.json",
+      "sha256": "7fd379fa994dc31593b41f20e70c60ed0f0022a49174c9ef88371a8878acb905",
+      "bytes": 20884
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll",
+      "sha256": "dc4c2c4525f9955d0c7275e34ad6421f0953b61510179bfb02bf70fe34a1b374",
+      "bytes": 8879616
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.exe",
+      "sha256": "28f07347765c6aa735cbef39826f2dcd1e129bf3f9f44df88cfdb2a2be4d3fd2",
+      "bytes": 162816
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.pdb",
+      "sha256": "31d2107e0207b17ca8a91949f0af6d54b963ab06154c7c585297713c34d02dbd",
+      "bytes": 1879184
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.runtimeconfig.json",
+      "sha256": "f0c3aeb0de8768c419a86c1dc92e79d302ce70a018d1a86de3efb13bd0f00a4c",
+      "bytes": 318
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.CoreCrashHarness.deps.json",
+      "sha256": "21a45b65a6ee6c193ccc9255fcca6f0f9f43ca658c91bfed504e0a341bc04eed",
+      "bytes": 1558
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.CoreCrashHarness.dll",
+      "sha256": "2b0cda3672a05a787a9113e07b26176864fc4c071fc41a184f86bba6cdbf2e99",
+      "bytes": 301056
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.CoreCrashHarness.exe",
+      "sha256": "ff7e53da04488163f26c5a2b43549d678de0b0a6778174dfbc9c653b8d33f893",
+      "bytes": 162816
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.CoreCrashHarness.pdb",
+      "sha256": "237fd3779e0ba718201f686ed70fe8bbed0b1489d00097b241fb76acc7e91ee3",
+      "bytes": 69240
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.CoreCrashHarness.runtimeconfig.json",
+      "sha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+      "bytes": 270
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Recovery.dll",
+      "sha256": "961d656e890ba3021572d5b2a8027c9fbf51c379349fd6b50bef0fd554191e33",
+      "bytes": 242688
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Recovery.pdb",
+      "sha256": "4c8a09e41f68904bf3afe1a822f0b216b60c2511278cc52856283737f1eb99ae",
+      "bytes": 85028
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.SharpCompress.dll",
+      "sha256": "bf708af11f99107b8c8cfc2cbc4bb7891167768a879dad5e9c542baaa267e134",
+      "bytes": 1262080
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.SharpCompress.pdb",
+      "sha256": "e4b1e6fa4bfbaceb11e191bba86bf94d6e551a00143631e4a69a0267b788ccc7",
+      "bytes": 613668
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.WorkerProbe.deps.json",
+      "sha256": "f23139162848a68927ea1da02a05f83b11f3611b8b5f8fa57524a1cc3d1fb62c",
+      "bytes": 6120
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.WorkerProbe.exe",
+      "sha256": "8870ab773ad74dad696540241da66d7fd7239e84ee526b631c6286a65ed55bc4",
+      "bytes": 162816
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.WorkerProbe.runtimeconfig.json",
+      "sha256": "79d12e54ac614d5fe8cdeb8849ab5f6568250bb7ac1c2647c2bce5876475f20e",
+      "bytes": 377
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/LTRData.Extensions.dll",
+      "sha256": "eef1e1608fce1df712045682703cdd6242b3a4aee48712c81a72c4623fba31e2",
+      "bytes": 104960
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.ApplicationInsights.dll",
+      "sha256": "bf9a4b88c7f94267e1cc7ed0700c575d3eb3266ff25bcb76e4f40f1b0fba022d",
+      "bytes": 386080
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.Bcl.AsyncInterfaces.dll",
+      "sha256": "5705d245072d3eb78400547b32147dbb6e2c8b02ba8bda76729798f5efdeaecb",
+      "bytes": 16000
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.Testing.Extensions.MSBuild.dll",
+      "sha256": "f6ef5ef03b5c22f7900fb67fe741847e75cf3ce26f652106a27d8cfcc834bb7f",
+      "bytes": 60448
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.Testing.Extensions.Telemetry.dll",
+      "sha256": "548751ae749bca1e823f1bc3698ac751a0dc0ca47c396a9d32b432bd828848df",
+      "bytes": 44576
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.Testing.Extensions.TrxReport.Abstractions.dll",
+      "sha256": "acae6c525ead26f77ceab1b1d640fe7e8c07fec2acdfc78bf753b220a49ef3e6",
+      "bytes": 32800
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.Testing.Platform.dll",
+      "sha256": "519744d3b6321320e366495fbed0d8c37f9b0e11207667eb89eb5c0c425a7462",
+      "bytes": 1153568
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.TestPlatform.CommunicationUtilities.dll",
+      "sha256": "2eba928c1770209f1fd9f515603a0b4ffbfcadf816681ab36d02b9b36417ab33",
+      "bytes": 138272
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.TestPlatform.CoreUtilities.dll",
+      "sha256": "7837f9df4b11a9844143fc9419e5752bdd50305436adcbf84f82b8a52d5909d7",
+      "bytes": 99360
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.TestPlatform.CrossPlatEngine.dll",
+      "sha256": "2f3b463a227b8f30171f8720164b3c0b90451248e0b2f3e8c3da82c23a3fdfcd",
+      "bytes": 318496
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.TestPlatform.PlatformAbstractions.dll",
+      "sha256": "668c7f0df2c30feac9cea9dce808ccabb72ff575c1e820404124212b4eae1773",
+      "bytes": 51784
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.TestPlatform.Utilities.dll",
+      "sha256": "886ef3ab15251e57ca9c124e41de3c43ba0520a036b876bb709ed325438501fe",
+      "bytes": 69192
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.VisualStudio.CodeCoverage.Shim.dll",
+      "sha256": "e590f0095b103c635c7fd45ad5ff537dd221b0bc2db214717940f59faf4767f0",
+      "bytes": 17440
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.VisualStudio.TestPlatform.Common.dll",
+      "sha256": "96d7b2a7e3f79133e17196fdad189486b59852379385198b5cd857e9947164fb",
+      "bytes": 248904
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.VisualStudio.TestPlatform.ObjectModel.dll",
+      "sha256": "f6d6bc01a85fd68a0599533fcc0de7357922051bad90012b8ad15de31a4ef5e9",
+      "bytes": 335392
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Newtonsoft.Json.dll",
+      "sha256": "22c649f75fce5be7c7ccda8880473b634ef69ecf33f5d1ab8ad892caf47d5a07",
+      "bytes": 712464
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/SharpCompress.dll",
+      "sha256": "fa67b31d7ab99f10336ba4eaf603bc223ce93d2600ffd31522f4855dfe1d5842",
+      "bytes": 2464768
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/testhost.dll",
+      "sha256": "f9f95f20f7a99215b50cfd511085b31549b26f87afaeb02c0a3c21f6875817e8",
+      "bytes": 49696
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/testhost.exe",
+      "sha256": "6a3a6cfca1f99e54bc7d6851009df33c4184d2c65663165b5d5de6c0fe6e5420",
+      "bytes": 161824
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.abstractions.dll",
+      "sha256": "3166dc70323fb30ccf1cedb0fe86f2ad122c46d254542342d90386efc4c9285c",
+      "bytes": 21928
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.runner.visualstudio.testadapter.dll",
+      "sha256": "384aba4bad96399a7fd2205a5a3517b643a16f4d7e843bd0b92e1e42f81fce2a",
+      "bytes": 1253376
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.v3.assert.dll",
+      "sha256": "483aec8a5b7faea0a92d0ae4f11a3479045f8f5e3f551dfc4dac6bedeaafa9ce",
+      "bytes": 214792
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.v3.common.dll",
+      "sha256": "e4175bc165d01b9828acdc996776370adf4f8d0a5865e75ec9ded17fb70258a9",
+      "bytes": 191752
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.v3.core.dll",
+      "sha256": "b3641e9e80cd8175e2d9995d6fa9750b8fb31740c87ba121e56cfe515f7f06cc",
+      "bytes": 498440
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.v3.mtp-v1.dll",
+      "sha256": "69903f4e48e5794350154d97bc911909974469780cd1931e23da3af419a1f2e7",
+      "bytes": 123144
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.v3.runner.common.dll",
+      "sha256": "8d9b157ebd8d9240d292ed922f5f26ba4011de5fd07812ceaac7baccfc5e6bc4",
+      "bytes": 978696
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.v3.runner.inproc.console.dll",
+      "sha256": "360ef1613c7d4148a715b8495d9f7ad95e4126f75ed86dda6cf81139c28b1431",
+      "bytes": 75528
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.v3.runner.utility.netcore.dll",
+      "sha256": "abce062185b0d72b665aae07d76c681aff1cd794525a34cfa1b3b0137af76aff",
+      "bytes": 174856
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/BouncyCastle.Cryptography.dll",
+      "sha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+      "bytes": 5155728
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/DiscUtils.Core.dll",
+      "sha256": "6d92db7121a11eab4c72efb3416df752b76e8c40c5aaef2b8f86133caeb85776",
+      "bytes": 310784
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/DiscUtils.Iso9660.dll",
+      "sha256": "ff8be4630795e8e6ef0c9ae5ced5d8913eade91bc3a1488590e22a6db263c821",
+      "bytes": 76800
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/DiscUtils.Streams.dll",
+      "sha256": "eea991f90d8a4e1d32d6d387519a4e703de8b9d083bb2cca19d19128e9a4e2a0",
+      "bytes": 152576
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/DiscUtils.Udf.dll",
+      "sha256": "a12e8b2b1e9147a22c945deae6ce6dafcfa74b6edb8033d3216fb357254756d8",
+      "bytes": 45056
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.Archives.dll",
+      "sha256": "ac2468e0f00d281de244985c90fc424926349c39f80993a4cd0a05b70f3eb2aa",
+      "bytes": 610816
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.Archives.pdb",
+      "sha256": "a0d8cba887eeee49297632a5da418f4ad5199a7c681b00b03ace10997f06da79",
+      "bytes": 241064
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.Archives.Rar15.dll",
+      "sha256": "79b9f36ea9f6157d4f36d564b1e63c051bd19d1c0555b9f7e2bae0f51a798c2b",
+      "bytes": 20992
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.Archives.Rar15.pdb",
+      "sha256": "0074441a25e4042befcceb7826a3b0a92b4a36d5f825259e1ca46749884954cc",
+      "bytes": 17164
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.Core.dll",
+      "sha256": "8b402ac651dc1eb8ef3e18ede326390e0748cc37d6da063293f650a28710c180",
+      "bytes": 5811712
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.Core.pdb",
+      "sha256": "9ac19dba6196a204dd5d772efd3904fcdd663e7927482359883fdfac91330264",
+      "bytes": 1763552
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.SharpCompress.dll",
+      "sha256": "bf708af11f99107b8c8cfc2cbc4bb7891167768a879dad5e9c542baaa267e134",
+      "bytes": 1262080
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.SharpCompress.pdb",
+      "sha256": "e4b1e6fa4bfbaceb11e191bba86bf94d6e551a00143631e4a69a0267b788ccc7",
+      "bytes": 613668
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.WorkerProbe.deps.json",
+      "sha256": "f23139162848a68927ea1da02a05f83b11f3611b8b5f8fa57524a1cc3d1fb62c",
+      "bytes": 6120
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.WorkerProbe.dll",
+      "sha256": "025aaa724dd1244bf2e367f18d735945d84250930a279d65705ba80498a55f07",
+      "bytes": 61952
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.WorkerProbe.exe",
+      "sha256": "8870ab773ad74dad696540241da66d7fd7239e84ee526b631c6286a65ed55bc4",
+      "bytes": 162816
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.WorkerProbe.pdb",
+      "sha256": "1e95583780eee309205c025991cebacff5d8039a84de98a5bdb35a78fb6660e8",
+      "bytes": 23656
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.WorkerProbe.runtimeconfig.json",
+      "sha256": "79d12e54ac614d5fe8cdeb8849ab5f6568250bb7ac1c2647c2bce5876475f20e",
+      "bytes": 377
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/LTRData.Extensions.dll",
+      "sha256": "eef1e1608fce1df712045682703cdd6242b3a4aee48712c81a72c4623fba31e2",
+      "bytes": 104960
+    }
+  ],
+  "archiveSha256": "b9a40d5ff8d9e28836bc5ee912ae97c77c31ff1b12b2002a3ae961eb4fcb5b52",
+  "runnerSha256": "f77dc12c2a15031d45f0f50ee3459ec114342bd291c58dd8db9bffe45109a1a0",
+  "validatorSha256": "7e086492a43487bd9bf58f03ea8aaab62bb3106bf478e9ef73e19f0ac6a1dcee"
+}

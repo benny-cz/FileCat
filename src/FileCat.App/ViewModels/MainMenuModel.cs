@@ -14,25 +14,27 @@ public static class MainMenuModel
 
     public static readonly (string Header, object[] Items)[] Layout =
     [
-        ("_File", [CommandIds.View, CommandIds.ViewAlternate, CommandIds.Edit, CommandIds.EditNew, CommandIds.HexEdit, CommandIds.EditSessions, "-", CommandIds.Copy, CommandIds.Duplicate,
+        ("_File", [CommandIds.Open, CommandIds.View, CommandIds.ViewAlternate, CommandIds.Edit, CommandIds.EditNew, CommandIds.HexEdit, CommandIds.EditSessions, "-", CommandIds.Copy, CommandIds.Duplicate,
             CommandIds.Move, CommandIds.Rename, CommandIds.MakeDirectory, CommandIds.Delete, CommandIds.DeletePermanent, "-",
             new Submenu("_Archives", [CommandIds.Pack, CommandIds.Unpack, CommandIds.TestArchive]), "-",
-            new Submenu("_Inspect", [CommandIds.Checksum, CommandIds.VerifyChecksums, CommandIds.Attributes,
+            new Submenu("_Inspect", [CommandIds.Checksum, CommandIds.VerifyChecksums, CommandIds.Attributes, CommandIds.StorageAttributes,
+                CommandIds.EfsProtection, CommandIds.EfsFileBackup,
                 CommandIds.HiddenData, CommandIds.FileRecord]),
             CommandIds.CreateLink, CommandIds.BulkRename, CommandIds.ApplyCommand,
             new Submenu("_Working sets", [CommandIds.AddToWorkingSet, CommandIds.RemoveFromSet]),
             new Submenu("_Registry", [CommandIds.RegistryExport, CommandIds.RegistryImport, CommandIds.RegistrySaveData, CommandIds.RegistryLoadData,
                 CommandIds.RegistryWritable, CommandIds.RegistryView]), "-",
-            CommandIds.Undo, CommandIds.Properties, CommandIds.Reveal, CommandIds.OpenWithSystem, "-", CommandIds.Exit]),
-        ("_Mark", [CommandIds.MarkToggleDown, CommandIds.MarkToggle, CommandIds.CountFolderSizes, CommandIds.MarkSelectMask, CommandIds.MarkUnselectMask,
+            CommandIds.Undo, CommandIds.Properties, CommandIds.Reveal, CommandIds.OpenWithSystem, CommandIds.ContextMenu, "-", CommandIds.Exit]),
+        ("_Mark", [CommandIds.MarkToggleDown, CommandIds.MarkToggle, CommandIds.CountFolderSizes, CommandIds.MarkSelectMask, CommandIds.MarkUnselectMask, CommandIds.MarkAllComplete,
             CommandIds.MarkInvert, CommandIds.MarkInvertAll, CommandIds.MarkAll, CommandIds.MarkNone, "-", CommandIds.MarkSameExt,
             CommandIds.UnmarkSameExt, CommandIds.MarkSameName, CommandIds.UnmarkSameName, "-", CommandIds.MarkRestore, CommandIds.UnmarkHidden, CommandIds.ReviewMarks, "-",
             CommandIds.CopyNames, CommandIds.CopyPaths, CommandIds.CopyUncPaths]),
         ("_Navigate", [CommandIds.Parent, CommandIds.Enter, CommandIds.Root, CommandIds.Back, CommandIds.Forward, CommandIds.Home, "-",
             CommandIds.GoTo, CommandIds.AncestorMenu, CommandIds.LocationMenuSource, CommandIds.LocationMenuTarget, CommandIds.FindFolder, CommandIds.FolderHistory,
             CommandIds.FileHistory, CommandIds.Bookmarks, CommandIds.WorkingSets, "-", CommandIds.Refresh, CommandIds.ToggleHidden]),
-        ("_Commands", [CommandIds.FindFiles, CommandIds.CompareDirectories, CommandIds.CompareFiles, CommandIds.FlatView, CommandIds.QuickFilter, "-",
-            CommandIds.CommandLineFocus, CommandIds.InsertName, CommandIds.InsertPath, CommandIds.OpenTerminal, CommandIds.UserMenu, "-",
+        ("_Commands", [CommandIds.FindFiles, CommandIds.CompareDirectories, CommandIds.CompareFiles, CommandIds.FlatView, CommandIds.QuickFilter,
+            CommandIds.FocusPanelFilter, CommandIds.CreateFileList, "-",
+            CommandIds.CommandLineFocus, CommandIds.CommandHistory, CommandIds.InsertName, CommandIds.InsertPath, CommandIds.OpenTerminal, CommandIds.UserMenu, "-",
             CommandIds.CopyToClipboard, CommandIds.CutToClipboard, CommandIds.PasteFromClipboard, "-",
             CommandIds.ConnectNetworkDrive, CommandIds.DisconnectNetworkDrive, "-", CommandIds.SftpConnect, CommandIds.SftpDisconnect]),
         ("_Panels", [CommandIds.SwitchPanel, CommandIds.SwitchPanelBack, CommandIds.SwapPanels, CommandIds.OpenInTarget, CommandIds.TargetToSource,
@@ -42,13 +44,16 @@ public static class MainMenuModel
                 CommandIds.PanelSwapPlaces, CommandIds.RotatePanels, CommandIds.EqualizePanels, CommandIds.ResizePanel]), "-", CommandIds.NewTab, CommandIds.CloseTab, CommandIds.NextTab, CommandIds.PreviousTab, CommandIds.MoveTabLeft, CommandIds.MoveTabRight, CommandIds.ReopenTab,
             CommandIds.TabList, CommandIds.DuplicateTab, CommandIds.CopyTabToTarget, CommandIds.LockTab, CommandIds.OpenInNewTab,
             CommandIds.OpenInNewTargetTab]),
-        ("_View", [CommandIds.SortName, CommandIds.SortExtension, CommandIds.SortTime, CommandIds.SortSize, CommandIds.SortNone, "-",
+        ("_View", [CommandIds.PictureView, "-", CommandIds.SortName, CommandIds.SortExtension, CommandIds.SortTime, CommandIds.SortSize, CommandIds.SortNone, "-",
             CommandIds.ColumnProfilePrefix + "0", CommandIds.ColumnProfilePrefix + "1", CommandIds.ColumnProfilePrefix + "2", "-",
-            CommandIds.AnalyzeFolder, CommandIds.ColumnProfilePrefix + "3", CommandIds.ColumnProfilePrefix + "4", "-", CommandIds.ThemePick, CommandIds.ThemeCycle, CommandIds.ThemePrevious, "-",
+            CommandIds.AnalyzeFolder, CommandIds.ColumnProfilePrefix + "3", CommandIds.ColumnProfilePrefix + "4",
+            CommandIds.ColumnProfilePrefix + "5", CommandIds.ColumnProfilePrefix + "6", CommandIds.ColumnProfilePrefix + "7",
+            CommandIds.ColumnProfilePrefix + "8", CommandIds.ColumnProfilePrefix + "9", "-", CommandIds.ThemePick, CommandIds.ThemeCycle, CommandIds.ThemePrevious, "-",
             CommandIds.ToggleToolbar, CommandIds.ToggleDriveButtons]),
-        ("_Tools", [CommandIds.FindDeleted, CommandIds.ChangeJournal, "-", CommandIds.Operations, CommandIds.RecentNotifications, CommandIds.Palette, CommandIds.Settings, "-", CommandIds.SaveWorkspace, CommandIds.LoadWorkspace, CommandIds.RestorePreviousWorkspace, "-",
+        ("_Tools", [CommandIds.DiskSpace, CommandIds.FindDeleted, CommandIds.ChangeJournal, CommandIds.OpenAdministratorWindow, "-", CommandIds.Operations, CommandIds.RecentNotifications,
+            CommandIds.ViewerWindows, CommandIds.ClearHistory, CommandIds.Palette, CommandIds.Settings, "-", CommandIds.SaveWorkspace, CommandIds.LoadWorkspace, CommandIds.RestorePreviousWorkspace, "-",
             CommandIds.DiagnosticsExport, CommandIds.HexRecovery]),
-        ("_Help", [CommandIds.Help, CommandIds.CheckUpdates, CommandIds.About]),
+        ("_Help", [CommandIds.Help, CommandIds.ChangeShortcut, CommandIds.CheckUpdates, CommandIds.About]),
     ];
 
     /// <summary>
@@ -106,6 +111,13 @@ public static class MainMenuModel
 
     /// <summary>Where a command is in the menus ("Commands", "File › Registry"), or null when no menu has it.</summary>
     public static string? PathOf(string id) => s_paths.Value.GetValueOrDefault(id);
+
+    /// <summary>Hide commands whose platform capabilities are unavailable.</summary>
+    public static bool IsPlatformApplicable(string id) => id switch
+    {
+        CommandIds.CopyUncPaths or CommandIds.ChangeJournal or CommandIds.OpenAdministratorWindow => OperatingSystem.IsWindows(),
+        _ => true,
+    };
 
     /// <summary>A menu header without its access-key underscore ("_File" is File).</summary>
     private static string Plain(string header) => header.Replace("_", string.Empty, StringComparison.Ordinal);

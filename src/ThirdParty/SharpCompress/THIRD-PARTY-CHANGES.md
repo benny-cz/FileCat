@@ -11,6 +11,56 @@ FileCat's changes, all for release issue I14: only code under OSI-approved licen
 derived from UnRAR. FileCat uses this library for 7z archives and bzip2, xz and zstd streams only, so
 everything else is left out.
 
+- 7z preservation follow-up, 7 November 2026: the existing LZMA encoder properties gain an internal constructor
+  for explicit position/literal context bits. Existing public constructors retain their previous 2/3/0 defaults.
+  This lets the stream-only assembler reproduce admitted source-header properties rather than relabel a default
+  encoding. No new third-party source, encoder family, dependency or notice was introduced.
+
+- Deflate verification follow-up, 7 November 2026: both inflater copy paths check actual produced history and
+  explicit preset dictionaries before backward copies. History resets retain the correct cumulative-counter
+  offset, including inflate synchronization. Pooled windows are cleared on acquisition and before release.
+  The new stream-only verifier uses the existing codec's final-block and consumed-input status. Existing
+  sync/async Deflate disposal now always finalizes and releases the codec, while the captive stream's existing
+  leave-open policy controls only that stream's lifetime. Disposing a compressor without writes emits a complete
+  empty stream. DotNetZip/Ms-PL/JCraft notices remain; no new runtime codec source or dependency was imported.
+
+- Strict PPMd/BCJ2 verification follow-up, 7 November 2026: opt-in known-size PPMd7 and BCJ2 readers validate
+  real range input, prefixes, terminal range state, exact output and borrowed-stream ownership. PPMd's known-size
+  path does not decode a speculative end symbol. Existing tolerant browsing defaults remain. The BSD shared PPMd
+  model clears owned state on growth/disposal; PPMd encoder/reader ownership and failed initialization use that
+  cleanup. The strict stream wrappers additionally verify exact physical input consumption. These are original
+  FileCat changes checked against the pinned public-domain SDK; no UnRAR source or new runtime dependency.
+
+- Password-development follow-up, 7 November 2026: original internal `SevenZipAesDecryptorFactory`/reader-option
+  plumbing lets a FileCat read job own its bounded KDF/cache and mutable password bytes. The existing AES reader
+  validates property/padding/length bounds before crypto setup, accepts the legacy direct-key mode with a zero IV
+  when absent, and clears its private buffer on disposal. Legacy string-provider temporary key/password arrays
+  are cleared; production password/UI/protocol qualification remains unfinished. No new third-party crypto code.
+
+- Archive-writing PPMd/filter follow-up, 7 November 2026: adds bounded symbol-selection hooks to FileCat's
+  existing BSD-2-Clause `PpmdModelH` and a managed PPMd7/7z encoding range sink. No excluded UnRAR model is
+  restored. Range grammar and ARM64/RISC-V replacement scalar ports use the individually public-domain
+  SDK C files pinned in `eng/validation/archive-writing/sevenzip-feasibility/ppmd-filter-sources.json`.
+  Adds original Swap2/Swap4 and their reader registrations. Delta now encodes by subtraction and decodes
+  by addition; the encoding filter wrapper preserves incomplete instructions across writes, avoids mutating
+  caller buffers, and emits the incomplete EOF tail once. BCJ2 encoding was added in the later BCJ2 checkpoint.
+
+- Dedicated archive-worker build, 6 November 2026: `FileCat.SharpCompress.csproj` grants internal access to the
+  writing-only `FileCat.Archives.Writing` assembly and adds the Linux musl ARM64 restore target. Existing encoder
+  sources, package versions and component licences are unchanged. The separate worker excludes the reader-only
+  Rar15 and DiscUtils dependencies; its production registration and packaging remain disabled.
+
+- Archive-writing Zstandard follow-up, 5 November 2026: the unregistered TAR.ZST worker now reaches the existing
+  ZstdSharp/Zstandard encoder and decoder with a pre-codec single-frame/window/block guard, fixed bounded options
+  and checksummed output. No Zstandard source was added, changed, restored or upgraded. Its BSD-3-Clause/MIT
+  provenance and required notices remain those already recorded in `licenses/sharpcompress`.
+
+- Archive-writing follow-up, 5 November 2026: `Compressors/BZip2/CBZip2InputStream.cs` and its `.Async.cs`
+  retain their Apache-2.0 provenance/notices and expose an internal strict single-stream terminal observation:
+  a checked combined-CRC footer, no tolerated truncation/concatenation, and zero final padding bits. Existing
+  tolerant reader behavior is unchanged. The unregistered TAR.BZ2 writer adapter uses the already-present
+  Apache-derived encoder, including its existing bounded block-size constructor; no upstream files were restored.
+
 - Removed RAR support: `Archives/Rar`, `Common/Rar`, `Compressors/Rar` (UnpackV1, UnpackV2017, VM),
   `Readers/Rar` and `Factories/RarFactory.cs`. Upstream ports these decoders from UnRAR (its repository
   keeps the UnRAR source under `reference/unrar`).
@@ -62,3 +112,42 @@ everything else is left out.
 FileCat reads RAR archives with its own reader (`src/FileCat.Archives/Rar`), ZIP with its own reader, gzip
 with .NET's `System.IO.Compression`, and TAR with its own reader; it checks each 7z member's CRC-32 as it
 reads the member (`SevenZipMemberStream` in `src/FileCat.Archives/ArchiveFormats.cs`).
+
+- `Common/SevenZip/ArchiveReader.cs`: a sole substream inherits its folder's CRC when the substream CRC block is
+  omitted. This lets member reads and password checks verify the uncompressed bytes of archives FileCat writes.
+
+- `Compressors/LZMA/Bcj2DecoderStream.cs`: dispose the iterator and all four packed input streams, including the
+  range stream. Nested cleanup also closes the remaining inputs when an earlier disposal throws; encrypted range
+  streams must release their decryptor/buffer ownership with the folder.
+  Construction failure also disposes all four accepted inputs, preserving the original short-range error
+  if an input disposal fails.
+
+- `Compressors/Deflate/ZlibBaseStream.cs`: retain the inflate status separately from the returned byte count in
+  synchronous/asynchronous reads. A one-byte read previously treated its byte count as `Z_STREAM_END` and discarded
+  compressed input still needed for BCJ2 branches (and other callers that read one byte at a time).
+
+- `Compressors/LZMA/DecoderStream.cs`: synchronous and asynchronous graph construction dispose already-created
+  decoder/packed streams if a later coder or graph construction step throws. This closes earlier AES transforms
+  even when the caller never receives a root decoder to own; cleanup preserves the original exception.
+
+- `Compressors/LZMA/LzmaStream.Strict.cs` and selected LZMA/range/window hooks: an internal, opt-in exact-extent
+  verifier checks real required input, the initial range byte, terminal range state, complete compressed-byte
+  consumption, legal marked/markerless LZMA finish and every LZMA2 chunk/reset/property/end rule. Short repeats
+  cannot read missing dictionary history. Strict dictionary storage is cleared before pool return. Existing
+  browsing entrypoints keep their default behavior. The new adapter and verification control flow are FileCat
+  code; contracts and the separate native test oracle use individually pinned public-domain SDK sources listed
+  in `eng/validation/archive-writing/sevenzip-feasibility/lzma-end-sdk-sources.json`. No SDK decoder source is
+  imported into the production assembly, and no package or codec licence is changed.
+
+- `Compressors/LZMA/Registry.cs` and `Compressors/LZMA/DecoderRegistry.Async.cs`: the 7z decoder graph ends a PPMd
+  coder's output at the unpack size its folder records, as 7-Zip does. 7z PPMd has no end marker, so a following
+  Swap or branch filter otherwise read decoder overrun bytes and transformed an incomplete final unit; FileCat's
+  member CRC check then reported such valid archives damaged, including PPMd + Swap 7z archives FileCat wrote.
+  Found by the `sevenzip-writer` fuzz target on 11 November 2026; `SevenZipFilterEncodingTests` covers every filter.
+
+- `IO/SourceStream.cs` and `IO/SourceStream.Async.cs`: a read never asks the current part for a negative count. A part
+  that shrank below the read position (another program truncated the archive while FileCat reads it) is at its end, so
+  the formats report damage; the raw difference made `FileStream.Read` throw `ArgumentOutOfRangeException` ("Offset and
+  length were out of bounds") instead. Seen on 13 November 2026 when another test in the same process replaced a 7z
+  archive's descriptor with a 17-byte file in mid-read (that test no longer does); `SevenZipWritingTests` truncates an
+  archive under a member read.

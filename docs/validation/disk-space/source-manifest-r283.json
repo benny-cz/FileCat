@@ -1,0 +1,145 @@
+{
+  "purpose": "Cross-process opt-in profile quota, kernel-only Unix environment-bypass correction, actual retained-reader lifetime and foreign IPC refusal controls",
+  "gitBase": "1af4e2a7",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_PROFILE_QUOTA.md",
+      "sha256": "47dcb0b0a3cefdeb47dada47c45ea029a76fa459068fb8b808bac1e1ecd62a9f"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "3b2619a60d389102456f92c139d5f46ba972c377790cd5ed4466acadb756ce03"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisCoordinator.Indexed.cs",
+      "sha256": "1c6a75fe2ba04556a3a0c9d945e5e48d358aa7aa972580c58bf8a630bd37c75c"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObservationWriter.cs",
+      "sha256": "59f40d4dd22f4ad68bf5e96a7c6ad07cb0a06bc05559e5765d2ca74afed4da44"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisProfileQuota.cs",
+      "sha256": "21a549252bba7755499e8389221a5cfb972fcc4b01fae7e46411c2c94016c7a0"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchArena.cs",
+      "sha256": "d0ffa0de044bb887cd9b0c9f430891b6b49bbfd87116bba7c27712ecbe77e9ca"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchWorkspace.cs",
+      "sha256": "41f3e267b3c660b3b332a8983e3ec69cde4cedc466fe9ddf7500ea55feb900b7"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisUnixProfileCapacity.cs",
+      "sha256": "79e8db4c7e6cfc258aae6ba066a79903808f3298c8d4f759496813234763676a"
+    },
+    {
+      "path": "tests/AnalysisObservationCaptureFixture.cs",
+      "sha256": "849d113312c543a8b078c093b6e450957c1007faedb4500a3a86219df4f5602d"
+    },
+    {
+      "path": "tests/AnalysisSourceFrontierFixture.cs",
+      "sha256": "7c6bad42c6363b0e4b58ce06c22257bacbcfc320b0fb2bae01e0fae982d3e024"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.cs",
+      "sha256": "f8b74556ad0762a12fd71f5651f493d164baf6dd15c5f42573ad581087e4e550"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.ProfileQuota.cs",
+      "sha256": "94647db93311568d225be6fe4a2e6e46d69d6f3501fdd860a9eecd145a260e84"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisProfileQuotaTests.cs",
+      "sha256": "83cbe699a5c1524828790b288a44f21e25e13bb059fe1d1ce3587f86c3491690"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisProfileQuotaTests.Unix.cs",
+      "sha256": "02cef12997e6db77f4d1f07f40aa3783835b68a757c6b50c9ddd9be9385c024d"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/AnalysisQuotaHold.cs",
+      "sha256": "06204bf57fa12c2d76cad0dc3566a39cd6700d9e2e44dc52bf66eeee1794544a"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/FileCat.CoreCrashHarness.csproj",
+      "sha256": "ebee66d1d2624aea3559a30b71ebf85e5b70892e2d4e47d6638b80779155a8cd"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+      "sha256": "aa247b888c8413bae4e10b69d2b6e963c4e3fdbdc7a8370e4c8594bedbe3ad12"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r283.tgz",
+      "sha256": "419f5108795a09f5ee704b987f9c56786d5a0a304edecdc388fffe51ac3968e5"
+    },
+    {
+      "path": ".tmp/dsa-native-r283.tgz",
+      "sha256": "94a6f7d217204ce73919c896a6b1031ced065101e6c9fed451a08672a4d9b208"
+    },
+    {
+      "path": ".tmp/dsa-core-r271.tgz",
+      "sha256": "710088dee9219894f77670d3588d476a35f367989a56f826c36000bd889b7f5c"
+    }
+  ],
+  "assemblies": [
+    {
+      "path": ".tmp/core-r283/FileCat.Core.dll",
+      "sha256": "f3c76047b7508e90c91990da00d81aaff6d6713d0e5256366742cf3a840b89c0"
+    },
+    {
+      "path": ".tmp/core-r283/FileCat.Core.Tests.dll",
+      "sha256": "d499d6e8144fe1879f27c5e7f64f72fe5a86354d15f08b50ffa3ae674dd82a7f"
+    },
+    {
+      "path": ".tmp/core-r283/FileCat.CoreCrashHarness.dll",
+      "sha256": "8b7522bf883add456048597c6a91c83079de171781aa8e5036ea7bed4ae9e4aa"
+    },
+    {
+      "path": ".tmp/core-r271/FileCat.Core.dll",
+      "sha256": "74afa126bada66dd71801db81adfdf98774a75767812575c28df2e2045932a2d"
+    },
+    {
+      "path": ".tmp/core-r271/FileCat.Core.Tests.dll",
+      "sha256": "394f001fe052b00e0f52c4f2c4eeb84bb83578935735ee48aaef67c9ec9ae245"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r283.sh",
+      "sha256": "159db8312faca5b00834c5112f23bfca8eb4a0d92e8e90ce6ed06e3d1d7f6ccf"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r283.ps1",
+      "sha256": "b9a3b05338fd6a24212d6caf9ff7c82d43c894bca0a3b1e3f44c85b357ed6501"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r283.ps1",
+      "sha256": "0fe3eb5b9ee472cda0c8b8ce10fc617bed9468987e111859e8c89df083b50ee3"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-occupancy-r284.ps1",
+      "sha256": "77ca95c245154e11169b109b8fbcae7b19a7b6846ad4abbe1adbe0ff4162354d"
+    }
+  ],
+  "reports": [
+    "mac-core-r283.xml",
+    "ubuntu-core-r283.xml",
+    "windows-core-r283.xml",
+    "windows-native-r283.xml",
+    "ubuntu-core-r271.xml",
+    "ubuntu-core-r279.xml",
+    "profile-quota-build-r282.txt",
+    "mac-post-quota-r283.txt",
+    "ubuntu-post-quota-r283.txt",
+    "windows-post-quota-r283.json"
+  ],
+  "negativeControl": "Ubuntu r271 changed-runtime-environment child obtains an extra managed-mutex ceiling. Exact rejected binaries/archive are hashed, not claimed to match final source. r279 intermediate failures were test-expectation corrections: buffered Create versus first Append, and IOException versus InvalidDataException.",
+  "hostFinalWindowsReceiptUtc": "2026-11-06T11:28:24.6629340+00:00",
+  "nativeDesktopInputTested": false,
+  "remaining": "Trusted private profile and IPC-domain production integration; whole-pipeline scale/resource/package/native desktop qualification; remaining mandatory implementation packets and final independent review. Public spill/product/actions/helper gates remain off."
+}

@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using FileCat.Platform.Windows.Archives;
 using FileCat.Platform.Windows.Shell;
 
 namespace FileCat.Platform.Windows.Tests;
@@ -58,6 +59,8 @@ public sealed partial class WindowsFileRecordsTests
             string photos = Path.Combine(root, "photos");
             Assert.True((File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0, "The sync root is a reparse point.");
             Assert.True((File.GetAttributes(photos) & FileAttributes.ReparsePoint) != 0, "The placeholder folder is a reparse point.");
+            Assert.Equal(WindowsArchiveJobBackend.CloudFolder, WindowsArchiveJobBackend.FolderProblem(root));
+            Assert.Equal(WindowsArchiveJobBackend.CloudFolder, WindowsArchiveJobBackend.FolderProblem(photos));
             File.WriteAllBytes(Path.Combine(photos, "pic.ico"), [0, 0, 1, 0]);
 
             var ops = new WindowsFileOperations();

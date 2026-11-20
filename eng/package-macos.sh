@@ -4,8 +4,10 @@
 #                                 downloaded copy; Open Anyway in System Settings → Privacy & Security runs it)
 # Usage: eng/package-macos.sh [version]      (needs macOS: iconutil, codesign, ditto; and the .NET SDK)
 set -euo pipefail
+# Files the script creates get 644 and folders 755 whatever the caller's umask (see the bundle's chmod below).
+umask 022
 
-VERSION="${1:-0.1.0-preview}"
+VERSION="${1:-1.0.0-dev}"
 PRODUCT_VERSION="${2:-$VERSION}"
 CANDIDATE_REF="${3:-}"
 RID="osx-arm64"
@@ -54,6 +56,9 @@ APP="$OUT/FileCat.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp -a "$PUB/." "$APP/Contents/MacOS/"
+# No group or other write in the bundle, whatever the build user's umask: the sandboxed archive worker refuses an
+# executable or launcher anyone but its owner can change. Folders and executables 755, other files 644 (before signing).
+chmod -R u=rwX,go=rX "$APP"
 cp "$ROOT/LICENSE" "$ROOT/THIRD-PARTY-NOTICES.md" "$APP/Contents/Resources/"
 dotnet run --project "$ROOT/eng/DependencyNotices" -c Release -- \
   "$ROOT/licenses/dependencies" "$ROOT/src/FileCat.App/packages.lock.json" "$PUB" "$APP/Contents/Resources/licenses/dependencies"
@@ -66,7 +71,7 @@ echo "9b872a8a070b8ad329c4bd380fb1bf0000f564c75023ec8e1e6803f15364b9e9  $APP/Con
 # byte for byte: SHA256SUMS has its reviewed hash and lists exactly the folder's other files.
 cp -R "$ROOT/licenses/sharpcompress" "$APP/Contents/Resources/licenses/"
 ( cd "$APP/Contents/Resources/licenses/sharpcompress" \
-  && echo "da9014fb8d4af0cab6ba4e19e1bd03bd88ea4f649e4dc1ac45cdd105c532ce8b  SHA256SUMS" | shasum -a 256 -c - >/dev/null \
+  && echo "b036603dac3e8d14a520defdb0545da9db8f384808f97cfbdf877e70cb05807c  SHA256SUMS" | shasum -a 256 -c - >/dev/null \
   && shasum -a 256 -c SHA256SUMS >/dev/null \
   && [ "$(find . -type f ! -name SHA256SUMS | sed 's|^\./||' | LC_ALL=C sort)" = "$(cut -c67- SHA256SUMS | LC_ALL=C sort)" ] ) \
   || { echo "licenses/sharpcompress differs from its pinned notice set." >&2; exit 2; }
@@ -108,14 +113,28 @@ cat > "$APP/Contents/Info.plist" <<EOF
   <key>LSMinimumSystemVersion</key><string>26.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
   <key>NSHighResolutionCapable</key><true/>
-  <key>NSHumanReadableCopyright</key><string>Copyright (c) 2026 Benny and FileCat contributors. MIT license.</string>
+  <key>NSHumanReadableCopyright</key><string>Copyright (c) 2026 Marek Střihavka &lt;marek.strihavka@gmail.com&gt; and FileCat contributors. MIT license.</string>
 </dict>
 </plist>
 EOF
 
 # Apple silicon runs only signed code: an ad-hoc signature, no Developer ID and no notarization (not approved yet).
 codesign --force --deep --sign - --timestamp=none "$APP"
+# The archive worker launcher keeps its own identifier and its only entitlement, the App Sandbox (route decision of
+# 12 November 2026): the deep signature above re-signed it without them, so sign it again, then seal the bundle over it.
+LAUNCHER="$APP/Contents/MacOS/FileCatArchiveWorker"
+[ -x "$LAUNCHER" ] || { echo "The archive worker launcher is missing from the published application." >&2; exit 2; }
+codesign --force --sign - --timestamp=none --identifier io.github.benny-cz.filecat.archive-worker \
+  --entitlements "$ROOT/src/FileCat.App/MacOS/archive-worker-launcher.entitlements" "$LAUNCHER"
+codesign --force --sign - --timestamp=none "$APP"
 codesign --verify --deep --strict "$APP"
+# Exactly that entitlement and no other: a signature that added, say, network.client or a user-folder entitlement would
+# give the worker what its sandbox exists to deny (review finding of 12 November 2026).
+LAUNCHER_ENTITLEMENTS="$(codesign -d --entitlements - --xml "$LAUNCHER" 2>/dev/null | plutil -convert json -o - - 2>/dev/null || true)"
+[ "$LAUNCHER_ENTITLEMENTS" = '{"com.apple.security.app-sandbox":true}' ] \
+  || { echo "The archive worker launcher must carry exactly the App Sandbox entitlement; it has: ${LAUNCHER_ENTITLEMENTS:-none}" >&2; exit 2; }
+[ "$(codesign -d --entitlements - --xml "$APP/Contents/MacOS/FileCat" 2>/dev/null | grep -c app-sandbox)" = 0 ] \
+  || { echo "Only the archive worker launcher may carry the App Sandbox entitlement." >&2; exit 2; }
 
 ZIP="$OUT/FileCat-$VERSION-$RID.zip"
 SBOM="$OUT/sbom-$VERSION-$RID-macos-app.spdx.json"

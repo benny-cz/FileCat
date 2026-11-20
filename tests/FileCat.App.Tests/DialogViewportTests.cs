@@ -27,6 +27,50 @@ namespace FileCat.App.Tests;
 
 public sealed class DialogViewportTests
 {
+    [AvaloniaFact]
+    public async Task Arrow_keys_cycle_available_dialog_actions_without_intercepting_the_editor()
+    {
+        var host = new Grid();
+        var window = new Window { Width = 720, Height = 540, Content = host };
+        ProductStyles(window);
+        var dialogs = new OverlayDialogService(host, () => null);
+        window.Show();
+        try
+        {
+            var editor = new TextBox { Text = "abc" };
+            var pending = dialogs.ShowCustomAsync("Choose an action", editor,
+                [new("Cancel", "cancel", IsDefault: true, IsCancel: true),
+                 new("Unavailable", "unavailable") { IsAvailable = () => false },
+                 new("Hidden", "hidden"),
+                 new("Continue", "continue")], initialFocus: editor);
+            Layout(window);
+            var buttons = Footer(Card(window)).GetVisualDescendants().OfType<Button>().ToArray();
+            buttons[2].IsVisible = false;
+
+            Assert.True(editor.IsFocused);
+            editor.CaretIndex = 1;
+            window.KeyPress(Key.Right, RawInputModifiers.None, PhysicalKey.ArrowRight, null);
+            Assert.Equal(2, editor.CaretIndex);
+            Assert.True(editor.IsFocused);
+
+            Assert.True(buttons[0].Focus(NavigationMethod.Tab));
+            window.KeyPress(Key.Right, RawInputModifiers.None, PhysicalKey.ArrowRight, null);
+            Assert.True(buttons[3].IsFocused);
+            window.KeyPress(Key.Left, RawInputModifiers.None, PhysicalKey.ArrowLeft, null);
+            Assert.True(buttons[0].IsFocused);
+            window.KeyPress(Key.Up, RawInputModifiers.None, PhysicalKey.ArrowUp, null);
+            Assert.True(buttons[3].IsFocused);
+            window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            Assert.True(buttons[0].IsFocused);
+            Assert.False(pending.IsCompleted);
+            window.KeyPress(Key.Right, RawInputModifiers.None, PhysicalKey.ArrowRight, null);
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            Assert.True(pending.IsCompleted);
+            Assert.Equal("continue", await pending);
+        }
+        finally { dialogs.CancelAll(); window.Close(); }
+    }
+
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
@@ -337,6 +381,28 @@ public sealed class DialogViewportTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    [AvaloniaFact]
+    public async Task Delete_review_names_the_current_systems_actual_trash_service()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            ProductStyles(window);
+            var item = ItemRef.ForFileSystemPath(Path.Combine(root, "owned.txt"), EntryKind.File);
+            var pending = OperationDialogs.ShowDeleteAsync(vm,
+                new DeleteDialogInput([item], "1 item", false, 0, [], false));
+            Layout(window);
+            var text = Card(window).GetVisualDescendants().OfType<TextBlock>()
+                .Select(block => block.Text).ToArray();
+            Assert.Contains($"Move \"owned.txt\" to {RecycleText.Destination}?", text);
+            Assert.DoesNotContain(OperatingSystem.IsWindows() ? "Trash" : "Recycle Bin",
+                string.Join(" ", text));
+            ((OverlayDialogService)vm.Dialogs).CancelAll();
+            Assert.Null(await pending);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaTheory]
     [InlineData("copy", 14)]
     [InlineData("copy", 21)]
@@ -479,6 +545,10 @@ public sealed class DialogViewportTests
             window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
             Assert.True(buttons[3].IsFocused);
             window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+            Assert.True(buttons[4].IsFocused);
+            window.KeyPress(Key.Tab, RawInputModifiers.Shift, PhysicalKey.Tab, null);
+            Assert.True(buttons[3].IsFocused);
+            window.KeyPress(Key.Right, RawInputModifiers.None, PhysicalKey.ArrowRight, null);
             Assert.True(buttons[4].IsFocused);
             var name = Named<SelectableTextBlock>(card, "Keep both: incoming copy name");
             Assert.Equal(incomingDisplay, name.Text);

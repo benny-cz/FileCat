@@ -46,14 +46,20 @@ internal static partial class Program
     private static int Run(BrokerExchange exchange, string hash, string brokerDirectory) =>
         Run(exchange, hash, brokerDirectory, new RunServices(() => DateTime.UtcNow,
             ElevationBroker.CheckRequester, ElevationBroker.TryClaimNonce, ConsentDialog.Ask,
-            ConsentDialog.Refuse, FileCat.Platform.Windows.Recovery.DeviceReadHost.Run));
+            ConsentDialog.Refuse, FileCat.Platform.Windows.Recovery.DeviceReadHost.Run,
+            ElevationBroker.AdmitNtfsMetadata, ConsentDialog.AskMetadata));
 
     // Keep the one-plan orchestration testable without displaying consent or opening a source device.
     // The installed entry point always supplies the real native implementations above.
     internal sealed record RunServices(Func<DateTime> UtcNow,
         Func<ElevationPlan, string, string?> CheckRequester, Func<string, DateTime, bool> ClaimNonce,
         Func<string, string, IReadOnlyList<string>, string, bool> Ask, Action<string> Refuse,
-        Func<string, string, string, int, string> ReadDevice);
+        Func<string, string, string, int, string> ReadDevice,
+        Func<ElevationPlan, string, INtfsMetadataAdmission>? PrepareMetadata = null,
+        AskMetadataConsent? AskMetadata = null);
+
+    internal delegate bool AskMetadataConsent(string instruction, string content, IReadOnlyList<string> pages,
+        string footer, Func<bool> isCurrent, Func<bool> stopRequested);
 
     internal static int Run(BrokerExchange exchange, string hash, string brokerDirectory, RunServices services)
     {
@@ -72,7 +78,9 @@ internal static partial class Program
             var problems = ElevationPlanCodec.Validate(plan, services.UtcNow());
             if (problems.Count > 0) refusal = string.Join(" ", problems);
         }
-        if (refusal is null && plan is not null) refusal = services.CheckRequester(plan, brokerDirectory);
+        bool metadata = plan?.Steps is [{ Verb: ElevatedVerb.EnumerateNtfsMetadata }];
+        using var admission = refusal is null && metadata ? PrepareMetadata(plan!) : null;
+        if (refusal is null && plan is not null && !metadata) refusal = services.CheckRequester(plan, brokerDirectory);
         if (refusal is null && plan is not null && !services.ClaimNonce(plan.Nonce, services.UtcNow()))
             refusal = "This plan was already used once. Ask FileCat again.";
         if (refusal is not null || plan is null)
@@ -88,24 +96,22 @@ internal static partial class Program
                          $"This approval covers only these {ElevationConsent.Kinds(plan)}; the helper exits when they finish." +
                          (pages.Count > 1 ? $" The steps are shown {ElevationConsent.PageSize} at a time: Later steps and Earlier steps show every one of them." : "");
         bool reading = plan.Steps is [{ Verb: ElevatedVerb.ReadDevice }];
-        string footer = reading ? "FileCat reads what it finds itself; this helper only hands it the drive's bytes, and has no way to write."
+        string footer = metadata ? "This read-only scan may include names and metadata you cannot normally access. Approval grants no cleanup or modification rights."
+            : reading ? "FileCat reads what it finds itself; this helper only hands it the drive's bytes, and has no way to write."
             : "Completed steps are kept if a later step fails. Links are never followed." +
               (plan.Steps.Any(s => s.Verb == ElevatedVerb.DeleteTree) ? " Deleted items do not go to the Recycle Bin." : "");
-        if (!services.Ask(plan.Title, content, pages, footer))
-        {
-            Report(exchange, new ElevationResult { Nonce = plan.Nonce, Refused = ElevationMessages.Declined });
-            return 1;
-        }
-        // The dialog can remain open past the plan's lifetime, or after FileCat exits/cancels.
-        // Recheck before reporting consent or entering either the write runner or the device-read session.
-        if (exchange.StopRequested())
-        {
-            Report(exchange, new ElevationResult { Nonce = plan.Nonce, Refused = ElevationMessages.Declined });
-            return 1;
-        }
+        bool accepted = admission is null
+            ? services.Ask(plan.Title, content, pages, footer)
+            : MetadataConsentIsCurrent() && !exchange.StopRequested() && services.AskMetadata is { } askMetadata &&
+                askMetadata(plan.Title, content, pages, footer, MetadataConsentIsCurrent, exchange.StopRequested);
+        // Bind approval again before reporting consent or doing privileged work, including a Stop racing the dialog.
+        if (!accepted || (admission is not null && !MetadataConsentIsCurrent()) || exchange.StopRequested())
+            return Declined(plan.Nonce);
         var currentProblems = ElevationPlanCodec.Validate(plan, services.UtcNow());
         refusal = currentProblems.Count > 0 ? string.Join(" ", currentProblems)
-            : services.CheckRequester(plan, brokerDirectory);
+            : metadata ? VerifyMetadata(admission!) : services.CheckRequester(plan, brokerDirectory);
+        if (admission is not null && (!MetadataConsentIsCurrent() || exchange.StopRequested()))
+            return Declined(plan.Nonce);
         if (refusal is not null)
         {
             Report(exchange, new ElevationResult { Nonce = plan.Nonce, Refused = refusal });
@@ -113,6 +119,15 @@ internal static partial class Program
             return 2;
         }
         Report(exchange, new ElevationResult { Nonce = plan.Nonce, Consented = true });
+        if (admission is not null)
+        {
+            ElevatedStepResult result;
+            try { result = admission.Run(exchange.StopRequested); }
+            catch (Exception error) when (IsExpected(error) || error is TimeoutException or OperationCanceledException)
+            { result = new(0, ElevatedOutcome.Failed, "The NTFS metadata session could not finish."); }
+            Report(exchange, new ElevationResult { Nonce = plan.Nonce, Consented = true, Finished = true, Steps = [result] });
+            return result.Outcome == ElevatedOutcome.Failed ? 2 : 0;
+        }
         if (reading)
         {
             // A read session (P10, ADR-08): bytes of one device to the requesting FileCat, until it closes the session.
@@ -132,6 +147,36 @@ internal static partial class Program
             Steps = results.ToList(),
         });
         return 0;
+
+        int Declined(string nonce)
+        {
+            Report(exchange, new ElevationResult { Nonce = nonce, Refused = ElevationMessages.Declined });
+            return ElevationBroker.ConsentDeclinedExitCode;
+        }
+
+        bool MetadataConsentIsCurrent()
+        {
+            var now = services.UtcNow();
+            return admission!.ConsentIsCurrent && plan!.CreatedUtc <= now && now - plan.CreatedUtc < ElevationPlanCodec.MaxAge;
+        }
+
+        INtfsMetadataAdmission? PrepareMetadata(ElevationPlan request)
+        {
+            try
+            {
+                if (services.PrepareMetadata is { } prepare) return prepare(request, brokerDirectory);
+            }
+            catch (Exception error) when (IsExpected(error)) { }
+            refusal = "The installed requester or whole local NTFS volume could not be verified.";
+            return null;
+        }
+
+        static string? VerifyMetadata(INtfsMetadataAdmission approved)
+        {
+            try { approved.Verify(); return null; }
+            catch (Exception error) when (IsExpected(error))
+            { return "The NTFS metadata consent, requester or volume changed. Start a fresh review."; }
+        }
     }
 
     private static void Report(BrokerExchange exchange, ElevationResult result)

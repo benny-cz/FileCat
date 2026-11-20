@@ -1,0 +1,128 @@
+{
+  "sourceBase": "8ceb5f3c17d715129736e4e6600ebdf6bd519d68",
+  "sources": {
+    "src/FileCat.App/Views/AnalysisRecipeDialog.cs": "b033a7ae0b082f08d8018ae56459f6ae99e384a6298076c69fa593ae036246d5",
+    "src/FileCat.App/Views/DiskSpaceWindow.Recipes.cs": "c301509218abd96745bed910f4db32268355e6a57f832cfee3232a570086ef4f",
+    "src/FileCat.Core/Analysis/AnalysisMemoryRecipes.cs": "a894f1eacc9be2c092f428ffcff8ca7bbae9d2ad73f485f71796302b5ff8f791",
+    "src/FileCat.Core/Analysis/AnalysisRecipePreview.Folders.cs": "2702d1f16e675c5ada444c21d2f630f620c09ab1854ee4da04c672d99239d7bc",
+    "src/FileCat.Core/Analysis/AnalysisRecipePreview.cs": "08608056ccaeb2e41de856132406047932611338b670de5d4a1224bd4ff4d64d",
+    "src/FileCat.Core/Analysis/AnalysisRecipes.cs": "4f694e2e0d49ab29a896b4d8eeed11d434104ed73d4a96e9c9ea0dc4b4e6479c",
+    "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.RecordedInsights.cs": "568208fdc5881701151ea9506ce4e91a498b7b89efff94cd37e7f83f7997a871",
+    "tests/FileCat.NativeAcceptance/DiskSpaceHarness/DuplicateReview.cs": "f829cb050e5677dd82ebd8796fe39a903274ba5983b1d87dbcb0b0dffbedf62e"
+  },
+  "retained": {
+    "batch-linux-r1382.sh": "0bdd82388a7b2d46b6f1de787d0936e78f077ac648556f49137d7b83b720a2f0",
+    "batch-linux-r1384.sh": "9399879c341cf67bba6376a6541405eb5bd8bd798101fe3a0c686a9060c8b97a",
+    "batch-mac-r1382.sh": "2fcc6de343b8d941f497f8db679f035fa3bc4a4d570a6fb6b65b5ef58dbbc710",
+    "batch-mac-r1384.sh": "17d1c767b1f0dec0b17a94c53024a357dbc0127da010a6e7b5d2ef6dfb31562e",
+    "batch-r1384-linux/plan.json": "917698f2449248cd65cb1b40c00db1b7f34c012cee04a3844c4ccbc1ba38f923",
+    "batch-r1384-mac/plan.json": "967382bf88be901e27d623d5f76ea1de8cb0a3c49f7c4c5c3dfb212241f3310d",
+    "batch-r1384-windows/plan.json": "eeceb07cff75cbe0e8fce695391fb6a63b035f94a128d3d98ecce6b8ccb07e5d",
+    "batch-windows-r1382.ps1": "f736846d521165dec6aa29d9227027dee2b7a935a60df421c002e76446a962fa",
+    "batch-windows-r1386.ps1": "911f7748584e1864a1efbf97f99afa4900178def9712fdaf008506efb889b9f6",
+    "mac-batch-r1382-post.json": "c1ca5674ff0bd889d21120ee0b1332ae765e1002f6b54ff565bababe2171a8fb",
+    "mac-batch-r1382-results.tgz": "f6d71813472b1b5880c921f1c8bcdf79d5510b0678dc0ab2fa0e6fc567e084ef",
+    "mac-native-r1383-results/result.json": "d45a364b513a1d60d4268379376018c6864e4b1043fe51e689f066281044f448",
+    "mac-native-r1384-post.json": "d10044e4dfc5414af00eab2a01e7345ad3871278061b4ca5c54ca5d5327a1fe3",
+    "recipe-rendering-proof-r1382.json": "f6c6b33eda3c4bfcb71ba615bd25c8ed1578831a21bcdcf306f2ad819ac90ee8",
+    "recorded-insight-render-build-r1382.txt": "68decf0aa5f6abc3e7dcf934a09d090f12ebdf91a38b6341c7b5c4f5de663643",
+    "recorded-insights-native-build-r1384.txt": "c35930bd6da26990ec928a7cdadd2f462570e70d1e6197c9d188eea9cd3b48d4",
+    "recorded-insights-native-proof-r1384.json": "0b50191f7aca9989c91e85496d1ee8b518b6604fee1b570a046e74de813946d3",
+    "recorded-insights-source-proof-r1382.json": "03025293a063c7f1a2940180fb93f240c1e3ae63620c6c063500723e24d89c2a",
+    "ubuntu-batch-r1382-post.json": "af625fe71b152e8bdae0be416a15881b91a5378212920759ba698ea0ae33041b",
+    "ubuntu-batch-r1382-results.tgz": "a5fd4effc197bbaebdb9e4c93e14db10ee176875bb05629ef8b6ef1fa75af122",
+    "ubuntu-native-r1384-post.json": "6c2bb0b04e55754e88dc592f19cae5952c51f60c520bc03de53eab47871afcac",
+    "ubuntu-native-r1384-results.tgz": "3332e4dff7f370883c07dca7db2467e3513bae5f0946592d323c8450b66e90b5",
+    "windows-batch-r1382-post.json": "47c294188efb6bb2d0d0dffa4ce38e623deddcd3b19619e537ca77a245b7a3c3",
+    "windows-batch-r1382-results.tgz": "484e961810ba7f1d29855c93429c697b44035bb75fb6ed2ce6d063ed8000fcd4",
+    "windows-batch-r1382-task-outcome.json": "485040326bec2a2b450edccbb43c703088c26ef9ba55d025a1f1d9f20a9817d3",
+    "windows-batch-r1384-task-outcome.json": "753f70d1be1b7ef5a79dfe79b8966e4e13866650cd15974db05d9459a14ca0c9",
+    "windows-native-r1386-post.json": "c9099b2dce3609015bdaf7c67160b48a77f88ac554a5caa196bfcb4ac8eba05a",
+    "windows-native-r1386-results.tgz": "30c45bcfc2a873904139b7a2091550cc4624a2f8b51d768f1e0e4c3447b73880",
+    "windows-native-r1386-task-outcome.json": "e9ec7319c84199d9de1c04d5432a2420b8d1fa4750ab532f47135b1bce4e0a28",
+    "mac-native-r1384-results-without-desktop.tgz": "f372bea1c63c62b7e5a5042569465a7821d69791da5d3b15dab4549b0796d9c8"
+  },
+  "nativeResults": {
+    "windows": {
+      "finished": true,
+      "passed": true,
+      "sessions": 2,
+      "candidateObjects": 2,
+      "knownReadBytes": 8,
+      "capturedMarks": 4,
+      "additionalHardLinkNames": 1,
+      "preservingDefault": true,
+      "retainedHiddenMarksAndBasket": true,
+      "contentAvailable": true,
+      "contentGroups": 1,
+      "recordedInsightsPassed": true,
+      "largestFoldersPassed": true
+    },
+    "mac": {
+      "finished": true,
+      "passed": true,
+      "sessions": 2,
+      "candidateObjects": 2,
+      "knownReadBytes": 8,
+      "capturedMarks": 4,
+      "additionalHardLinkNames": 1,
+      "preservingDefault": true,
+      "retainedHiddenMarksAndBasket": true,
+      "contentAvailable": false,
+      "contentGroups": 0,
+      "recordedInsightsPassed": true,
+      "largestFoldersPassed": true
+    },
+    "ubuntu": {
+      "finished": true,
+      "passed": true,
+      "sessions": 2,
+      "candidateObjects": 2,
+      "knownReadBytes": 8,
+      "capturedMarks": 4,
+      "additionalHardLinkNames": 1,
+      "preservingDefault": true,
+      "retainedHiddenMarksAndBasket": true,
+      "contentAvailable": false,
+      "contentGroups": 0,
+      "recordedInsightsPassed": true,
+      "largestFoldersPassed": true
+    }
+  },
+  "archives": {
+    "exact-source-deltas-r1385-largest-folders.tgz": "386e36f81328a00aba942a39dbb4fc5a5036613d937584a67ce2c3a7d18f666d",
+    "exact-receipts-r1385-largest-folders.tgz": "ef24b92c614aadd785f1812978140fffa2a44e94f989f3f13a28a81112a666e3"
+  },
+  "localMacDesktopCapture": {
+    "capture": {
+      "frame": "recorded-insights-largest-folders.png",
+      "ownedWindow": {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 791,
+          "Width": 1180,
+          "X": 130,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowNumber": 433,
+        "kCGWindowOwnerName": "FileCat",
+        "kCGWindowOwnerPID": 95682,
+        "kCGWindowSharingState": 0,
+        "kCGWindowStoreType": 1
+      },
+      "width": 2880,
+      "height": 1800,
+      "sha256": "dbf13121680153b5a14fcc243df6e04bbfc941800c3c8e08beab498d09cf6d2d",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper"
+    },
+    "archiveSha256": "431ce7db146ab1a3aba099e49a46a77bbacc1a841cb4e8945c213f58f763bf6a"
+  },
+  "streamAndForkMeasurementsQualified": false,
+  "publicEntryEnabled": false,
+  "physicalInputQualified": false,
+  "fullGoalComplete": false,
+  "finalIndependentReviewPerformed": false
+}

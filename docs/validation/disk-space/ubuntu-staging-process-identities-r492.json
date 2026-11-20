@@ -1,0 +1,18 @@
+{
+  "observedUtc": "2026-11-06T20:57:13.590091+00:00",
+  "exitCode": 0,
+  "processCommands": [
+    " 702821  702814 dotnet test tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --disable-build-servers -p:NuGetAudit=false --filter FullyQualifiedName~ArchiveCapturedInputsTests|FullyQualifiedName~ArchiveDirectoryWireTests|FullyQualifiedName~ArchiveTransform|FullyQualifiedName~ArchiveCreationOriginTests|FullyQualifiedName~UnixArchiveStorageTests --logger trx;LogFileName=directory-workflow-v2.trx --results-directory results",
+    " 702842  702821 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/MSBuild.dll /noautoresponse /nologo /nodemode:1 /nodeReuse:false /low:false",
+    " 702843  702821 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/MSBuild.dll /noautoresponse /nologo /nodemode:1 /nodeReuse:false /low:false",
+    " 702844  702821 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/MSBuild.dll /noautoresponse /nologo /nodemode:1 /nodeReuse:false /low:false",
+    " 702845  702821 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/MSBuild.dll /noautoresponse /nologo /nodemode:1 /nodeReuse:false /low:false",
+    " 702936  702821 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/MSBuild.dll /noautoresponse /nologo /nodemode:1 /nodeReuse:false /low:false",
+    " 702937  702821 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/MSBuild.dll /noautoresponse /nologo /nodemode:1 /nodeReuse:false /low:false",
+    " 703123  702843 dotnet exec /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/vstest.console.dll --framework:.NETCoreApp,Version=v10.0 --testCaseFilter:FullyQualifiedName~ArchiveCapturedInputsTests|FullyQualifiedName~ArchiveDirectoryWireTests|FullyQualifiedName~ArchiveTransform|FullyQualifiedName~ArchiveCreationOriginTests|FullyQualifiedName~UnixArchiveStorageTests --logger:trx;LogFileName=directory-workflow-v2.trx --resultsDirectory:/home/benny/FileCatValidation/archive-writing-42829297/captured-inputs-v1/results /home/benny/FileCatValidation/archive-writing-42829297/captured-inputs-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll --logger:Console;Verbosity=minimal --artifactsProcessingMode-collect --testSessionCorrelationId:702821_cab7fd2e-5fc0-4f60-b82e-c0cc20239c1b",
+    " 703136  703123 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet exec --runtimeconfig /home/benny/FileCatValidation/archive-writing-42829297/captured-inputs-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.runtimeconfig.json --depsfile /home/benny/FileCatValidation/archive-writing-42829297/captured-inputs-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.deps.json /home/benny/FileCatValidation/archive-writing-42829297/captured-inputs-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/testhost.dll --port 34871 --endpoint 127.0.0.1:034871 --role client --parentprocessid 703123 --telemetryoptedin false",
+    " 703194  703136 /home/benny/FileCatValidation/archive-writing-42829297/captured-inputs-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests @@ /tmp/tmpLTGZ8s.tmp"
+  ],
+  "ownedCoreOrRenderCommands": [],
+  "otherProcessesPreserved": true
+}

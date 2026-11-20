@@ -36,6 +36,10 @@ public enum JobKind
     VerifyBeside,
     /// <summary>A reserved, reviewed filesystem inverse with tracked mutation ownership and retained outcomes.</summary>
     Undo,
+    /// <summary>An explicitly reviewed in-place storage transformation; existing numeric values stay stable.</summary>
+    StorageTransform,
+    /// <summary>Create new copies from an in-process disk-analysis approval.</summary>
+    ReviewedAnalysisCopy,
 }
 
 public enum RegistryAction { SetValue, DeleteValue, CreateKey, RenameKey, DeleteKey, CopyValue, RenameValue, CopyKey }
@@ -138,6 +142,8 @@ public sealed class TransferOptions
 
 public sealed class JobRequest
 {
+    /// <summary>In-process native edit authority; never reconstructed from a source pathname or persisted request.</summary>
+    internal Edit.IRetainedEditUpload? EditUpload { get; init; }
     /// <summary>The immutable captured inverse; ordinary callers obtain it through a Job Undo reservation.</summary>
     public UndoPlan? UndoPlan { get; init; }
     public required JobKind Kind { get; init; }
@@ -150,6 +156,8 @@ public sealed class JobRequest
     public string? Description { get; init; }
     /// <summary>For <see cref="JobKind.Attributes"/>.</summary>
     public AttributeChangeSet? Attributes { get; init; }
+    /// <summary>Immutable approval facts. Native lifetime authority is held separately by JobManager.</summary>
+    public StorageTransformRequest? StorageTransform { get; init; }
     public RegistryChange? Registry { get; init; }
     /// <summary>A previewed import plan, executed in order with per-step journal outcomes.</summary>
     public IReadOnlyList<RegistryChange> RegistryChanges { get; init; } = [];
@@ -175,6 +183,11 @@ public sealed class JobRequest
     /// root mutation. This is a conservative path check, not a content or recursive snapshot or an atomic handle guard.
     /// </summary>
     public IReadOnlyDictionary<ItemRef, SourcePathReview>? ExpectedSources { get; init; }
+    /// <summary>
+    /// A local result-set transfer must still match the size, kind and timestamp displayed when its selection was
+    /// captured. This catches stale Find/working-set rows; it is not a native identity or content guarantee.
+    /// </summary>
+    public bool RequireResultSourceMetadata { get; init; }
     /// <summary>
     /// A bounded interrupted copy/move review of complete ordinary-file bytes and descendant membership.
     /// Each tree must match before destination creation and before its root is processed. Links retain only
@@ -209,6 +222,8 @@ public sealed class JobRequest
     public Archives.ArchivePlan? Archive { get; init; }
     /// <summary>For <see cref="JobKind.Elevated"/>: the plan the administrator broker displays and runs.</summary>
     public ElevationPlan? Elevation { get; init; }
+    /// <summary>A reviewed file operation in the Windows administrator window. Refuse linked paths and cross-volume moves.</summary>
+    internal bool AdministratorFileRetry { get; init; }
     /// <summary>
     /// For <see cref="JobKind.VerifyChecksums"/>: the checksum lines that the check of the same files against everything beside
     /// them (it ran first, for the same command) compared, as it read them: the checksum file, the line, the algorithm, the
@@ -239,6 +254,8 @@ public sealed record JobIssue(IssueSeverity Severity, string Path, string Messag
         : $"{Severity}: {Message} Path: {Path}";
     /// <summary>Error class from <see cref="ErrorText.Classify"/> ("access", "sharing", …) when known.</summary>
     public string? Cause { get; init; }
+    /// <summary>The technical detail behind a plain-language message, when they differ.</summary>
+    public string? Details { get; init; }
     /// <summary>Explicit source and target identities, when the operation can establish them.</summary>
     public string? SourcePath { get; init; }
     public string? TargetPath { get; init; }
@@ -302,9 +319,15 @@ public enum DecisionAction
     CreateJunction,
     /// <summary>Copy instead of moving: the original stays where it is.</summary>
     KeepSource,
+    BackUpEfsKey,
+    DeclareEfsRecovery,
+    AccessEfsKey,
 }
 
-public sealed record Decision(DecisionAction Action, bool ApplyToAll = false);
+public sealed record Decision(DecisionAction Action, bool ApplyToAll = false)
+{
+    internal StorageEfsRecoverySelection? EfsRecovery { get; init; }
+}
 
 public abstract record DecisionRequest(string Title, string Message)
 {
@@ -316,6 +339,7 @@ public sealed record ConflictRequest(string Title, string Message, FileSystemIte
     bool CanReplace, bool SameItem, bool TypeMismatch, bool IncomingIsNewer, string? SuggestedIncomingName, string? SuggestedExistingName) : DecisionRequest(Title, Message)
 {
     public override string ClassKey => TypeMismatch ? "conflict-type" : Incoming.IsDirectory ? "conflict-dir" : "conflict-file";
+    public string? RenameBackupName { get; init; }
 }
 
 public sealed record ErrorRequest(string Title, string Message, string Path, bool CanRetry, string ErrorClass) : DecisionRequest(Title, Message)
@@ -330,6 +354,12 @@ public sealed record ConfirmRequest(string Title, string Message, string Path, s
 
     /// <summary>Button text for <see cref="DecisionAction.Proceed"/> (what proceeding does, in plain words).</summary>
     public string? ProceedLabel { get; init; }
+
+    /// <summary>
+    /// Whether the answer may apply to later questions of the same class in this operation. False for a question that
+    /// covers the whole operation at once, such as an archive review, where "do the same" has nothing to apply to.
+    /// </summary>
+    public bool OffersApplyToAll { get; init; } = true;
 
     public override string ClassKey => "confirm-" + ConfirmClass;
 }
@@ -373,15 +403,21 @@ public enum UndoKind
 public sealed record UndoStep(UndoKind Kind, string From, string To, long Size, long ModifiedTicks, string? RecycledId = null,
     RegistryChange? Registry = null);
 
-/// <summary>Plain-language reasons for items the Recycle Bin cannot take (plan §5.3).</summary>
+/// <summary>Plain-language names and refusal reasons for the current system's recycle/trash service.</summary>
 public static class RecycleText
 {
+    public static string Destination => OperatingSystem.IsWindows() ? "the Recycle Bin" : "Trash";
+    public static string BareDestination => OperatingSystem.IsWindows() ? "Recycle Bin" : "Trash";
+    public static string FromDestination => OperatingSystem.IsWindows() ? "the Recycle Bin" : "Trash";
+
     public static string Explain(FileSystem.RecycleClassification c) => c switch
     {
-        FileSystem.RecycleClassification.NoRecycleBin => "this location has no Recycle Bin (network shares and most removable drives).",
-        FileSystem.RecycleClassification.TooLarge => "the item is larger than the Recycle Bin accepts.",
-        FileSystem.RecycleClassification.NameTooLong => "the path is too long for the Recycle Bin.",
-        _ => "the Recycle Bin cannot take it.",
+        FileSystem.RecycleClassification.NoRecycleBin => OperatingSystem.IsWindows()
+            ? "this location has no Recycle Bin (network shares and most removable drives)."
+            : "this location has no usable Trash (some network and removable locations have none).",
+        FileSystem.RecycleClassification.TooLarge => $"the item is larger than {Destination} accepts.",
+        FileSystem.RecycleClassification.NameTooLong => $"the path is too long for {Destination}.",
+        _ => $"{Destination} cannot take it.",
     };
 }
 

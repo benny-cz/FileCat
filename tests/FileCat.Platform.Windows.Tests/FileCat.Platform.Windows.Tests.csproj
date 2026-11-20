@@ -13,18 +13,62 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\FileCat.Platform.Windows\FileCat.Platform.Windows.csproj" />
+    <ProjectReference Include="..\FileCat.CoreCrashHarness\FileCat.CoreCrashHarness.csproj" />
     <ProjectReference Include="..\..\src\FileCat.PrivilegedHost\FileCat.PrivilegedHost.csproj" />
     <!-- TV-16 tests start the real Shell helper from the test output folder. -->
     <ProjectReference Include="..\..\src\FileCat.ShellHost\FileCat.ShellHost.csproj" />
     <!-- A .NET worker stand-in for restricted-helper tests, started from the same folder. -->
     <ProjectReference Include="..\FileCat.WorkerProbe\FileCat.WorkerProbe.csproj" />
+    <ProjectReference Include="..\FileCat.CoreCrashHarness\FileCat.CoreCrashHarness.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\LiveUsbGuard.cs" Link="LiveUsbGuard.cs" />
+    <Compile Include="..\FileCat.NativeAcceptance\WindowsEfsBackupWizardDriver.cs" Link="WindowsEfsBackupWizardDriver.cs" />
+    <Compile Include="..\TestCleanup.cs" Link="TestCleanup.cs" />
+    <Compile Include="..\ArchiveEditDirectoryCases.cs" Link="ArchiveEditDirectoryCases.cs" />
+    <Compile Include="..\ArchiveEditStorageCases.cs" Link="ArchiveEditStorageCases.cs" />
+    <Compile Include="..\ArchiveEditCreationCases.cs" Link="ArchiveEditCreationCases.cs" />
+    <Compile Include="..\ArchiveEditCreationCrashCases.cs" Link="ArchiveEditCreationCrashCases.cs" />
+    <Compile Include="..\ArchiveEditDualRootCases.cs" Link="ArchiveEditDualRootCases.cs" />
+    <Compile Include="..\ArchiveEditLegacyAdoptionCases.cs" Link="ArchiveEditLegacyAdoptionCases.cs" />
+    <Compile Include="..\ArchiveEditLegacyAdoptionCrashCases.cs" Link="ArchiveEditLegacyAdoptionCrashCases.cs" />
+    <Compile Include="..\ArchiveEditLegacyRetirementCases.cs" Link="ArchiveEditLegacyRetirementCases.cs" />
+    <Compile Include="..\ArchiveEditSnapshotCases.cs" Link="ArchiveEditSnapshotCases.cs" />
+    <Compile Include="..\ArchiveEditSaveCopyPreparationCases.cs" Link="ArchiveEditSaveCopyPreparationCases.cs" />
+    <Compile Include="..\ArchiveEditSaveCopyPublicationCases.cs" Link="ArchiveEditSaveCopyPublicationCases.cs" />
+    <Compile Include="..\ArchiveEditSaveCopySessionCases.cs" Link="ArchiveEditSaveCopySessionCases.cs" />
+    <Compile Include="..\ArchiveEditRecoveredSaveCopyCases.cs" Link="ArchiveEditRecoveredSaveCopyCases.cs" />
+    <Compile Include="..\ArchiveEditStorageAdmissionCases.cs" Link="ArchiveEditStorageAdmissionCases.cs" />
+    <Compile Include="..\ArchiveEditDiscardCases.cs" Link="ArchiveEditDiscardCases.cs" />
+    <Compile Include="..\ArchiveEditCaptureRecoveryCases.cs" Link="ArchiveEditCaptureRecoveryCases.cs" />
+    <Compile Include="..\ArchiveEditLegacyZipCases.cs" Link="ArchiveEditLegacyZipCases.cs" />
+    <Compile Include="..\ArchiveStageCrashAssertions.cs" Link="ArchiveStageCrashAssertions.cs" />
+    <Compile Include="..\ArchiveJournaledTarAssertions.cs" Link="ArchiveJournaledTarAssertions.cs" />
+    <Compile Include="..\ArchiveRar5NativeCases.cs" Link="ArchiveRar5NativeCases.cs" />
+    <Compile Include="..\ArchiveSevenZipNativeCases.cs" Link="ArchiveSevenZipNativeCases.cs" />
+    <Compile Include="..\ArchiveNativeJobCases.cs" Link="ArchiveNativeJobCases.cs" />
+    <Compile Include="..\ArchiveCreationPublicationCases.cs" Link="ArchiveCreationPublicationCases.cs" />
+    <Compile Include="..\ArchiveSidecarCrashAssertions.cs" Link="ArchiveSidecarCrashAssertions.cs" />
+    <Compile Include="..\ArchiveCreationCrashAssertions.cs" Link="ArchiveCreationCrashAssertions.cs" />
+    <Compile Include="..\SettledJournals.cs" Link="SettledJournals.cs" />
+    <Compile Include="..\ArchiveWorkerCancellationAssertions.cs" Link="ArchiveWorkerCancellationAssertions.cs" />
+    <Compile Include="..\ArchiveMoveAcceptance.cs" Link="ArchiveMoveAcceptance.cs" />
     <!-- A disk image with deleted files, for reading drives through the helper's protocol (Core tests' TestData/Recovery). -->
     <None Include="..\FileCat.Core.Tests\TestData\Recovery\fat16.img.gz" Link="TestData\fat16.img.gz" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\AnalysisScratchCrashFixture.cs" Link="AnalysisScratchCrashFixture.cs" />
+    <Compile Include="..\AnalysisIndexedGraphFixture.cs" Link="AnalysisIndexedGraphFixture.cs" />
+    <Compile Include="..\AnalysisObservationCaptureFixture.cs" Link="AnalysisObservationCaptureFixture.cs" />
+    <Compile Include="..\AnalysisSourceFrontierFixture.cs" Link="AnalysisSourceFrontierFixture.cs" />
+    <Compile Include="..\AnalysisFileQuotaCases.cs" Link="AnalysisFileQuotaCases.cs" />
+    <Compile Include="..\AnalysisNativeHandleCases.cs" Link="AnalysisNativeHandleCases.cs" />
+    <Compile Include="..\AnalysisCapacityRetirementCases.cs" Link="AnalysisCapacityRetirementCases.cs" />
+    <Compile Include="..\AnalysisNativeMemoryFallbackCases.cs" Link="AnalysisNativeMemoryFallbackCases.cs" />
+    <Compile Include="..\AnalysisInventoryPathMapCases.cs" Link="AnalysisInventoryPathMapCases.cs" />
+    <Compile Include="..\AnalysisInventoryStageCases.cs" Link="AnalysisInventoryStageCases.cs" />
   </ItemGroup>
 </Project>

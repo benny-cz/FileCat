@@ -14,6 +14,7 @@ public sealed partial class MainViewModel
         private readonly int _generation;
         private readonly DeviceIoScheduler _io;
         private readonly IReadOnlyList<ItemRef>? _selection;
+        private bool _detached;
         public readonly CancellationTokenSource Stop = new();
         public bool SelectionTransferred;
         public PreparationScope(TabViewModel tab, DeviceIoScheduler io, IReadOnlyList<ItemRef>? selection = null)
@@ -25,9 +26,15 @@ public sealed partial class MainViewModel
         private void Changed(object? sender, ListingChange change) { if (!Current) Stop.Cancel(); }
         private void Closed() => Stop.Cancel();
         public void Check() { if (!Current) throw new OperationCanceledException("Preparation no longer belongs to the current listing."); }
+        public void Detach()
+        {
+            if (_detached) return;
+            _detached = true;
+            _tab.Listing.Changed -= Changed; _tab.Closed -= Closed;
+        }
         public void Dispose()
         {
-            _tab.Listing.Changed -= Changed; _tab.Closed -= Closed;
+            Detach();
             if (!SelectionTransferred) ItemSources.Release(_selection);
             Stop.Dispose();
         }

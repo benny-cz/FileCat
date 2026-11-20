@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Automation;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -36,7 +37,12 @@ public sealed class CommandSearchTests
     [InlineData("new folder", CommandIds.MakeDirectory)]
     [InlineData("mkdir", CommandIds.MakeDirectory)]
     [InlineData("zip", CommandIds.Pack)]
-    [InlineData("compres", CommandIds.Pack)] // the start of a keyword
+    [InlineData("compres", CommandIds.StorageAttributes)] // the newly available title outranks Pack's keyword
+    [InlineData("NTFS", CommandIds.StorageAttributes)]
+    [InlineData("uncompress", CommandIds.StorageAttributes)]
+    [InlineData("disk usage", CommandIds.DiskSpace)]
+    [InlineData("disk space", CommandIds.DiskSpace)]
+    [InlineData("analyze disk space", CommandIds.DiskSpace)]
     [InlineData("settings", CommandIds.Settings)]
     [InlineData("preferences", CommandIds.Settings)]
     [InlineData("files find", CommandIds.FindFiles)] // words in any order; the closer title wins
@@ -47,6 +53,9 @@ public sealed class CommandSearchTests
     [InlineData("sha256", CommandIds.Checksum)]
     [InlineData("keyboard resize", CommandIds.ResizePanel)]
     [InlineData("copy ancestor", CommandIds.AncestorMenu)]
+    [InlineData("change shortcut", CommandIds.ChangeShortcut)]
+    [InlineData("edit shortcut", CommandIds.ChangeShortcut)]
+    [InlineData("remap key", CommandIds.ChangeShortcut)]
     public void Finds_commands_by_title_synonym_misspelling_and_shortcut(string query, string expected)
     {
         Assert.Equal(expected, First(query));
@@ -66,6 +75,25 @@ public sealed class CommandSearchTests
     }
 
     [Fact]
+    public void User_facing_panel_and_global_commands_have_a_menu_route()
+    {
+        var infrastructure = new HashSet<string>(StringComparer.Ordinal)
+        {
+            CommandIds.Menu, // F10 focuses the menu bar itself.
+        };
+        var missing = CommandRegistry.CreateDefault().All
+            .Where(c => c.Context is CommandContext.Panel or CommandContext.Global && !infrastructure.Contains(c.Id))
+            // Dynamic bookmark slots live in Navigate → Bookmarks, rather than twenty-four top-level menu rows.
+            .Where(c => !c.Id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal) &&
+                        !c.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal) &&
+                        !c.Id.StartsWith(CommandIds.BookmarkTargetPrefix, StringComparison.Ordinal))
+            .Where(c => MainMenuModel.PathOf(c.Id) is null)
+            .Select(c => c.Title).ToArray();
+        Assert.Empty(missing);
+        Assert.Equal("Commands", MainMenuModel.PathOf(CommandIds.CreateFileList));
+    }
+
+    [Fact]
     public void Nothing_typed_lists_recent_commands_and_recent_use_breaks_ties()
     {
         Assert.Equal(new[] { CommandIds.Settings, CommandIds.Pack },
@@ -76,6 +104,137 @@ public sealed class CommandSearchTests
         // "compare" matches both comparisons equally; the one used last comes first.
         Assert.Equal(CommandIds.CompareFiles, First("compare", CommandIds.CompareFiles));
         Assert.Equal(CommandIds.CompareDirectories, First("compare", CommandIds.CompareDirectories));
+    }
+
+    [AvaloniaFact]
+    public async Task Change_shortcut_search_opens_the_shortcut_editor()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            var box = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(t => AutomationProperties.GetName(t) == "Search commands");
+            Assert.True(window.FocusCommandSearch());
+            await WaitFor(() => box.IsFocused, ct);
+            box.Text = "change shortcut";
+            await WaitFor(() => window.CommandSearch.Selected is not null, ct);
+            Assert.Equal(CommandIds.ChangeShortcut, window.CommandSearch.Selected?.Id);
+            Assert.Contains("Enter opens shortcut editor", window.CommandSearch.Hint);
+
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            await WaitFor(() => dialogs.IsOpen, ct);
+            Assert.True(dialogs.IsOpen);
+            Assert.False(window.GetVisualDescendants().OfType<Button>()
+                .Single(b => Equals(b.Content, "Run command")).IsVisible);
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(),
+                t => t.Text?.Contains("Select a command and press Enter or F2 to change its shortcut", StringComparison.Ordinal) == true);
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(),
+                t => t.Text?.StartsWith("Step 1 of 2 · Choose a command to remap.", StringComparison.Ordinal) == true);
+            Assert.Contains(window.GetVisualDescendants().OfType<Button>(),
+                b => Equals(b.Content, "Next: set shortcut…") && b.IsVisible);
+            var commands = window.GetVisualDescendants().OfType<ListBox>()
+                .Single(l => AutomationProperties.GetName(l) == "Commands and current shortcuts");
+            Assert.DoesNotContain(commands.ItemsSource!.Cast<KeyboardHelpEntry>(), e => e.Id == CommandIds.ChangeShortcut);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await WaitFor(() => !dialogs.IsOpen, ct);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public void Every_applicable_menu_command_can_be_found_by_its_name()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var entries = vm.CommandSearchEntries();
+            static IEnumerable<string> Ids(IEnumerable<object> items)
+            {
+                foreach (var item in items)
+                {
+                    if (item is MainMenuModel.Submenu submenu)
+                    {
+                        foreach (var id in Ids(submenu.Items)) yield return id;
+                    }
+                    else if (item is string id && id != "-") yield return id;
+                }
+            }
+
+            foreach (var id in MainMenuModel.Layout.SelectMany(menu => Ids(menu.Items)).Distinct())
+            {
+                if (!MainMenuModel.IsPlatformApplicable(id) || !vm.AdvertisesEfsCommand(id)) continue;
+                if (id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal)
+                    && int.TryParse(id.AsSpan(CommandIds.ColumnProfilePrefix.Length), out int profile)
+                    && profile >= services.Columns.Count) continue;
+                var matches = entries.Where(e => e.Id == id).ToList();
+                Assert.True(matches.Count == 1, $"Menu command {id} has {matches.Count} search entries.");
+                var entry = matches[0];
+                Assert.Contains(CommandSearch.Rank(entry.Title, entries, [], int.MaxValue), e => e.Id == id);
+            }
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public void Disk_usage_uses_the_same_visible_command_in_Tools_and_search()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var tools = window.MainMenu.Items.OfType<MenuItem>().Single(menu => Equals(menu.Header, "_Tools"));
+            var item = tools.Items.OfType<MenuItem>().Single(command => Equals(command.Tag, CommandIds.DiskSpace));
+            var match = CommandSearch.Rank("disk usage", vm.CommandSearchEntries(), []).First();
+            Assert.Equal(CommandIds.DiskSpace, match.Id);
+            Assert.Equal("Tools", match.MenuPath);
+            Assert.Equal("Disk usage…", match.Title);
+            Assert.Equal(match.Title, item.Header);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Keyboard_reference_finds_the_change_shortcut_command()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            vm.Execute(CommandIds.Help);
+            await WaitFor(() => dialogs.IsOpen, ct);
+            window.UpdateLayout();
+            var search = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(t => AutomationProperties.GetName(t) == "Search keyboard reference");
+            search.Text = "change shortcut";
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            var list = window.GetVisualDescendants().OfType<ListBox>()
+                .Single(l => AutomationProperties.GetName(l) == "Commands and current shortcuts");
+            await WaitFor(() => list.ItemsSource?.Cast<KeyboardHelpEntry>()
+                .Any(e => e.Id == CommandIds.ChangeShortcut) == true, ct);
+            Assert.Equal(CommandIds.ChangeShortcut, Assert.Single(list.ItemsSource!.Cast<KeyboardHelpEntry>()).Id);
+            var choose = window.GetVisualDescendants().OfType<Button>()
+                .Single(b => Equals(b.Content, "Choose a command…"));
+            choose.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            await WaitFor(() => window.GetVisualDescendants().OfType<TextBlock>()
+                .Any(t => t.Text?.StartsWith("Step 1 of 2 · Choose a command to remap.", StringComparison.Ordinal) == true), ct);
+            var targets = window.GetVisualDescendants().OfType<ListBox>()
+                .Single(l => AutomationProperties.GetName(l) == "Commands and current shortcuts");
+            Assert.DoesNotContain(targets.ItemsSource!.Cast<KeyboardHelpEntry>(), e => e.Id == CommandIds.ChangeShortcut);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await WaitFor(() => !dialogs.IsOpen, ct);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
     }
 
     [AvaloniaFact]
@@ -110,7 +269,13 @@ public sealed class CommandSearchTests
             Assert.True(dialogs.IsOpen, "Enter ran Settings");
             Assert.Equal("", box.Text);
             Assert.Equal(CommandIds.Settings, services.History.RecentCommands[0]);
-            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            // This command-search test only needs to close Settings. A read-only settings store
+            // presents Close instead of Cancel; SettingsDialogTests covers editable rollback.
+            await WaitFor(() => window.GetVisualDescendants().OfType<Button>()
+                .Any(button => Equals(button.Content, "Cancel") || Equals(button.Content, "Close")), ct);
+            window.GetVisualDescendants().OfType<Button>()
+                .Single(button => Equals(button.Content, services.SettingsReadOnly ? "Close" : "Cancel"))
+                .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
             await WaitFor(() => !dialogs.IsOpen, ct);
 
             // Next time, with nothing typed, it is listed first.
@@ -312,6 +477,8 @@ public sealed class CommandSearchTests
             var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Commands found");
             await WaitFor(() => list.ContainerFromIndex(0) is ListBoxItem { Bounds.Height: > 0 }, ct);
             var item = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
+            Assert.Equal(window.CommandSearch.Selected?.Title,
+                ControlAutomationPeer.CreatePeerForElement(item).GetName());
             Point Center() => item.TranslatePoint(new Point(item.Bounds.Width / 2, item.Bounds.Height / 2), window)!.Value;
             // The popup settles under the box first.
             var point = Center();
@@ -338,6 +505,41 @@ public sealed class CommandSearchTests
     }
 
     [AvaloniaFact]
+    public async Task Inspection_search_result_exposes_only_the_current_unavailable_reason()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var tab = vm.ActiveTab!;
+            await WaitFor(() => tab.Listing.State == Core.Listing.ListingState.Complete, ct);
+            tab.Listing.FocusName("..");
+
+            async Task<string?> SearchHelp(string query, string command)
+            {
+                Assert.True(window.FocusCommandSearch());
+                Type(window, query);
+                var list = window.GetVisualDescendants().OfType<ListBox>()
+                    .Single(l => AutomationProperties.GetName(l) == "Commands found");
+                await WaitFor(() => list.ContainerFromIndex(0) is ListBoxItem
+                    { Content: CommandSearch.Entry entry } && entry.Id == command, ct);
+                var item = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
+                var help = ControlAutomationPeer.CreatePeerForElement(item).GetHelpText();
+                window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+                return help;
+            }
+
+            var unavailable = vm.GetAvailability(CommandIds.FileRecord);
+            Assert.False(unavailable.Enabled);
+            Assert.NotNull(unavailable.Reason);
+            Assert.Equal(unavailable.Reason, await SearchHelp("file-system details", CommandIds.FileRecord));
+            Assert.True(vm.GetAvailability(CommandIds.Settings).Enabled);
+            Assert.True(string.IsNullOrEmpty(await SearchHelp("settings", CommandIds.Settings)));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task The_palette_dialog_is_the_same_search()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
@@ -356,6 +558,13 @@ public sealed class CommandSearchTests
             await WaitFor(() => list.ContainerFromIndex(0) is not null, ct);
             var firstTitle = list.ContainerFromIndex(0)!.GetVisualDescendants().OfType<TextBlock>().First().Text;
             Assert.StartsWith("Recover deleted files", firstTitle);
+            filter.Text = "change shortcut";
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            await WaitFor(() => list.ContainerFromIndex(0)?.GetVisualDescendants().OfType<TextBlock>()
+                .FirstOrDefault()?.Text?.StartsWith("Change shortcut", StringComparison.Ordinal) == true, ct);
+            Assert.StartsWith("Change shortcut", list.ContainerFromIndex(0)!
+                .GetVisualDescendants().OfType<TextBlock>().First().Text);
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             await WaitFor(() => !dialogs.IsOpen, ct);
         }

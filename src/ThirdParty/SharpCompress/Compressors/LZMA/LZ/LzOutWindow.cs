@@ -21,6 +21,7 @@ internal partial class OutWindow : IDisposable
 
     private long _total;
     private long _limit;
+    internal bool ClearOnReturn;
 
     public long Total => _total;
 
@@ -34,7 +35,7 @@ internal partial class OutWindow : IDisposable
         {
             if (_buffer is not null)
             {
-                ArrayPool<byte>.Shared.Return(_buffer);
+                ArrayPool<byte>.Shared.Return(_buffer, clearArray: ClearOnReturn);
             }
             _buffer = ArrayPool<byte>.Shared.Rent(windowSize);
         }
@@ -54,7 +55,7 @@ internal partial class OutWindow : IDisposable
         {
             return;
         }
-        ArrayPool<byte>.Shared.Return(_buffer);
+        ArrayPool<byte>.Shared.Return(_buffer, clearArray: ClearOnReturn);
         _buffer = null;
     }
 

@@ -65,13 +65,14 @@ public static class MachOInspector
             long offset = is64 ? (long)Math.Min(BinaryPrimitives.ReadUInt64BigEndian(table.AsSpan(i + 8)), long.MaxValue) : BinaryPrimitives.ReadUInt32BigEndian(table.AsSpan(i + 8));
             long size = is64 ? (long)Math.Min(BinaryPrimitives.ReadUInt64BigEndian(table.AsSpan(i + 16)), long.MaxValue) : BinaryPrimitives.ReadUInt32BigEndian(table.AsSpan(i + 12));
             uint align = BinaryPrimitives.ReadUInt32BigEndian(table.AsSpan(i + (is64 ? 24 : 16)));
-            archs.Add((Cpu(cpu), $"{size:N0} bytes at offset {offset:N0}"));
+            string architecture = Architecture(cpu, subtype);
+            archs.Add((architecture, $"{size:N0} bytes at offset {offset:N0}"));
             rows.Add([Cpu(cpu), Subtype(cpu, subtype), $"0x{offset:X}", $"{size:N0}", align < 32 ? $"2^{align}" : $"{align}"]);
             // Every architecture in full, each section named for its architecture.
             if (Thin(r, offset, symbols, ct, out var slice) && slice is not null)
             {
-                sections.AddRange(slice.Sections.Select(s => s with { Title = $"{Cpu(cpu)}: {s.Title}" }));
-                warnings.AddRange(slice.Warnings.Select(w => $"{Cpu(cpu)}: {w}"));
+                sections.AddRange(slice.Sections.Select(s => s with { Title = $"{architecture}: {s.Title}" }));
+                warnings.AddRange(slice.Warnings.Select(w => $"{architecture}: {w}"));
             }
         }
         sections.Insert(0, new InspectionSection($"Architectures ({archs.Count})", archs) { Table = new InspectionTable(["CPU", "Subtype", "Offset", "Size", "Align"], rows) });
@@ -328,7 +329,8 @@ public static class MachOInspector
             ("Hardened runtime", signature is null ? "no (not signed)" : hardened ? "yes" : "no"),
         };
         if (imports.Count > 0) security.Add(("Stack protector", imports.Any(i => i[0] is "___stack_chk_fail" or "___stack_chk_guard") ? "yes (___stack_chk_fail is used)" : "no sign of it"));
-        if (Subtype(cpu, subtype) == "arm64e") security.Add(("Pointer authentication", "yes (arm64e)"));
+        if (Subtype(cpu, subtype) is "arm64e" or "arm64e.x1")
+            security.Add(("Pointer authentication", $"yes ({Subtype(cpu, subtype)})"));
         if (restricted) security.Add(("Restricted segment", "yes: dyld ignores DYLD_ environment variables"));
         sections.Add(new InspectionSection("Security features", security));
         sections.Add(new InspectionSection("Signature", signatureFields) { Children = signatureChildren });
@@ -349,7 +351,7 @@ public static class MachOInspector
             sections.Add(new InspectionSection($"Imported symbols ({imports.Count:N0})", []) { Table = new InspectionTable(["Symbol", "From"], [.. imports.Take(MaxListed)]) { More = imports.Count > MaxListed ? $"{imports.Count - MaxListed:N0} more are not listed" : null } });
         if (exports.Count > 0)
             sections.Add(new InspectionSection($"Exported symbols ({exports.Count:N0})", []) { Table = new InspectionTable(["Symbol", "Address"], [.. exports.Take(MaxListed)]) { More = exports.Count > MaxListed ? $"{exports.Count - MaxListed:N0} more are not listed" : null } });
-        report = new InspectionReport($"Mach-O {(is64 ? "64" : "32")}-bit · {Cpu(cpu)}", sections, warnings);
+        report = new InspectionReport($"Mach-O {(is64 ? "64" : "32")}-bit · {Architecture(cpu, subtype)}", sections, warnings);
         return true;
     }
 
@@ -500,9 +502,13 @@ public static class MachOInspector
         _ => $"cpu {cpu}",
     };
 
+    private static string Architecture(int cpu, int subtype) => Subtype(cpu, subtype) is var sub and not ("all" or "")
+        ? $"{Cpu(cpu)} ({sub})" : Cpu(cpu);
+
     private static string Subtype(int cpu, int subtype) => ((cpu & 0xFFFFFF), subtype & 0xFFFFFF) switch
     {
         (12, 2) when (cpu & 0x01000000) != 0 => "arm64e",
+        (12, 12) when (cpu & 0x01000000) != 0 => "arm64e.x1",
         (12, 1) when (cpu & 0x01000000) != 0 => "arm64 v8",
         (12, 0) => "all",
         (12, 9) => "armv7",

@@ -34,8 +34,8 @@ public sealed class CloudPlaceholderTests
         Assert.Equal((4096L, 4096L, 0L, 12L), (info.OnDiskDataSize, info.ValidatedDataSize, info.ModifiedDataSize, info.PropertiesSize));
         Assert.Equal((0x0003_0000_0000_1234L, 0x0005_0000_0000_0042L), (info.FileId, info.SyncRootFileId));
         Assert.Equal("item-42"u8.ToArray(), info.Identity);
-        Assert.Equal("unpinned (to be freed up: kept online only)", CloudPlaceholderInfo.PinStateText(info.PinState));
-        Assert.Equal("yes", CloudPlaceholderInfo.InSyncText(info.InSyncState));
+        Assert.Equal("allow removal (pin policy; residency is separate)", CloudPlaceholderInfo.PinStateText(info.PinState));
+        Assert.Equal("in sync (provider-reported)", CloudPlaceholderInfo.InSyncText(info.InSyncState));
         Assert.Equal("unknown (9)", CloudPlaceholderInfo.PinStateText(9));
     }
 

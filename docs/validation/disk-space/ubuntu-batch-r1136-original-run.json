@@ -1,0 +1,9 @@
+{
+  "platform": "ubuntu",
+  "revision": "r1136",
+  "sessionId": null,
+  "terminalToolChunk": "b170f2",
+  "terminalExit": 1,
+  "observedUtc": "2026-11-16T17:29:21.213506+00:00",
+  "phase": "cached verification; no test process started"
+}

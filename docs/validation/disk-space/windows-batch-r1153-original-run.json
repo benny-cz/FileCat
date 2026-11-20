@@ -1,0 +1,9 @@
+{
+  "observedUtc": "2026-11-17T01:43:43.575745+00:00",
+  "sessionId": 87109,
+  "terminalExit": 267014,
+  "controllerExit": 1,
+  "completionChunk": "ee3947",
+  "actualOriginalController": true,
+  "qualification": "Setup timed out during cached-input verification; no product phase started"
+}

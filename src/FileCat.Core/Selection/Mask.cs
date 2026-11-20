@@ -281,9 +281,38 @@ public static class Wildcard
     /// <summary>Linear-time greedy matcher with single-star backtracking (names never contain separators here).</summary>
     public static bool IsMatch(string text, string pattern) => IsMatch(text.AsSpan(), pattern);
 
-    /// <summary>Span form of <see cref="IsMatch(string, string)"/>.</summary>
-    public static bool IsMatch(ReadOnlySpan<char> text, string pattern) =>
+    /// <summary>
+    /// Span form of <see cref="IsMatch(string, string)"/>. Keep the allocation-free common path, then allow
+    /// canonically equivalent Unicode spellings (notably macOS decomposed filenames) to match the same glob.
+    /// </summary>
+    public static bool IsMatch(ReadOnlySpan<char> text, string pattern)
+    {
+        if (MatchRaw(text, pattern)) return true;
+        if (!HasNonAscii(text) || !HasNonAscii(pattern)) return false;
+
+        try
+        {
+            string normalizedText = text.ToString().Normalize(NormalizationForm.FormC);
+            string normalizedPattern = pattern.Normalize(NormalizationForm.FormC);
+            if (normalizedText.AsSpan().SequenceEqual(text) && normalizedPattern == pattern) return false;
+            return MatchRaw(normalizedText, normalizedPattern);
+        }
+        catch (ArgumentException)
+        {
+            // An invalid UTF-16 name or mask cannot gain a match through normalization.
+            return false;
+        }
+    }
+
+    private static bool MatchRaw(ReadOnlySpan<char> text, string pattern) =>
         pattern.Contains('?') ? IsBacktrackingMatch(text, pattern) : IsStarMatch(text, pattern);
+
+    private static bool HasNonAscii(ReadOnlySpan<char> value)
+    {
+        foreach (char c in value)
+            if (c > 0x7f) return true;
+        return false;
+    }
 
     /// <summary>The general matcher (any mix of <c>*</c> and <c>?</c>).</summary>
     internal static bool IsBacktrackingMatch(ReadOnlySpan<char> text, string pattern)

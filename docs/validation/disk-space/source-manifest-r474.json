@@ -1,0 +1,323 @@
+{
+  "purpose": "Internal original-inventory-ID to storage-row mapping, bounded external merge and actual native private-file lifetime",
+  "gitBase": "ddbc81d2beda06b1bd30355ad152fbfe834bc05d",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "7110db7ebaf5f61bbcdb58c287eb45e79d419e99bed92778ed48aae2b7468ad6"
+    },
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_STREAMING_INVENTORY.md",
+      "sha256": "34d8e1e07d47f6add88002a47d5c3fc89840b8750b2caffe18171d7c8db98e07"
+    },
+    {
+      "path": "docs/validation/disk-space/README.md",
+      "sha256": "61886f22db3cedcb74f8dbcde6e851155213413ca90dfb7251f07508f3b8745a"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "54abdc8b94897ef2922e0992ef634570ba14d670db66f891649b40da45c6ca39"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisInventoryPathMap.cs",
+      "sha256": "f872aabde6e1d1e79ff023a17c7606a3dd7fbcdb298d8bb873bdc0db5c7708ef"
+    },
+    {
+      "path": "tests/AnalysisInventoryPathMapCases.cs",
+      "sha256": "35b4cbbf7df1c9efdcec4a90eb32501fae0d4c470c97fa933013e6ffec933376"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisInventoryPathMapTests.cs",
+      "sha256": "7e687972ec97904d0cf0664d81c3370adebaa364061340e6f7d9ae3c865c02f4"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj",
+      "sha256": "3fff47167213b8f1f88f57b3fb965a5ac12067323c96e273da1a70ae25a10976"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.InventoryMap.cs",
+      "sha256": "606ecfa730a63042cec4be252aca463b66c047d6739aef01ea7e1c21f4e10532"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj",
+      "sha256": "e05fcecdbaa665036f3ef49803bfc8ef1a409776af4519f74c5e70c05f168b1d"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r470.txt",
+      "sha256": "51313ba78bb4c3ec96942488cc043197797325b2e335a2f8892f3ef9a5dc8b84"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-r471.xml",
+      "sha256": "505d7d0b3268a0db21b417392311603fc3d84ec55740128eb20fbe38e7bb033c"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-r471.log",
+      "sha256": "f9ecac8cbbea825ffd60118e5a0d538e9bde6c3d328fbda64b026b14a95e1db9"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-busy-r471.txt",
+      "sha256": "953f238fb31e85ff8f43af5126b88d805803cb4c13c5d0123b185ce09ed5fce1"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-core-r471.xml",
+      "sha256": "ac1411d354f9b4bf933c45fbcc4646c770811464461ece7a0fe9f94705e6b90c"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-core-r471.log",
+      "sha256": "b7122c50932828d1430d81c7dec0459b3382478a86a614ad76a98747e75bcd06"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-render-r472.xml",
+      "sha256": "422b4af0cfdb5ae276179872d8588b0180a5160bbd8a5706f029407266cd9246"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-render-r472.log",
+      "sha256": "c47998171d25ab862cdf30b6e42c2ece4432f05dbacd22fb88c5d510a31cbd98"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-scheduler-r473.xml",
+      "sha256": "06cb7380d63c0f7dc3b29bb623bcedb9d821b5ff5ab80dba34418a87609fb4af"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-scheduler-r473.log",
+      "sha256": "f743b27c83c17a00e1554460c6baef37c2c734c3ae4650c274e742b43d508673"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-post-map-r474.json",
+      "sha256": "fb312647505770142e8baf83df620a41c5099e877c32bba46960cdc768f6bf09"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r471.xml",
+      "sha256": "0f0f313d424cb4a0e75938e457f62139db3f4504e3901ba2660165fa7148754f"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r471.log",
+      "sha256": "a1a3281cb3ad12bb508c9a30a4a0bd9cf5cdf81436107885e040bdf4cae7a2cb"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-render-r472.xml",
+      "sha256": "72c21880b32fdead83a9ff9d121ca876c17d34e829a8aeb1f1eec1fd71299d56"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-render-r472.log",
+      "sha256": "55fad4531590d49e5d574b1c10d6ee4ad4276a9157a9f91c87afc7eb1f4dfaf7"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-scheduler-r473.xml",
+      "sha256": "2de0d9456b2593f2a0e813a76012105b407fa3b542bfc7371588af36fb60813c"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-scheduler-r473.log",
+      "sha256": "e2cec232601773d6dd44604b22d80a79cc60be833b83380211cc7e20cab8da50"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-post-map-r474.json",
+      "sha256": "b6e0827e7c81098c748e0ec4bff542d1bb77cfa90ee1c49225c59722d171b3f3"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-r471.xml",
+      "sha256": "3d979d62a98350c7abf2897108b209830d711839b382f5eb38d699421c2b1229"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-r471.log",
+      "sha256": "4eae0bcd36b48f68b7597c82f501d2bd3c430f2f5b5c22d9d5443a5f60d058c7"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-render-r472.xml",
+      "sha256": "9e2d7c9812e5d5b7282e103c96c10d082d1bb9a74071a692355c2bb32771e5e9"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-render-r472.log",
+      "sha256": "2b0e648e24f3460e156bf627557c6e4c47fb7a6357ac696d68ccff363de9d645"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-scheduler-r473.xml",
+      "sha256": "08295c4091fb21050b9935b32ea50289c52990ea135d57b903f4ba5b9a4521ce"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-scheduler-r473.log",
+      "sha256": "bff326101ad6ad8acd78ce029764c188ec9400c1885459fd569aaad17387f4dc"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-post-map-r474.json",
+      "sha256": "d34740798f76b271e9e13478decf29b1a10a09e19c9607ebe89523cb164a425f"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r471.sh",
+      "sha256": "f2b22b25b18f94cdb1eaea3dd5e393d09ff4285b57b4d052a2eb3ca284bb0cd7"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r471.ps1",
+      "sha256": "9fde0a09cdb5b9e103cb008722d17d81a0e356cb8b1307141fc701eb9a445658"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r471.ps1",
+      "sha256": "2568d812453ad6e9e6b0bd4e6c01dab5a9f1a8ae7a36384ca5204d03303dd1b7"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-mac-r472.sh",
+      "sha256": "b53867ea5b4cc73b1b9c69cd2c5b233916f65c9fd079f3636e14bb30037b3033"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-linux-r472.sh",
+      "sha256": "79b6f6a841f717a8f72b2b478e8e3d1814a1a0a0046006147037ea2db3a35c1b"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-render-r472.ps1",
+      "sha256": "a64a7e3047b3f65e4e5b454ca392e2c57140267ad8919d8cdeeaa9e2d5e429d7"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-scheduler-r473.sh",
+      "sha256": "dd29e78559e7cfbe6d9430fa5ff01532300e23ce9a66eb4861b9f618cc219bdd"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-scheduler-r473.ps1",
+      "sha256": "b5fe8ee8743667c749d53a5ea5569ee60c4a5efe5bff57e9b8fac8411d4c5aa3"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/collect-map-r474.ps1",
+      "sha256": "77c0178f281724aa46c46d1243a4bd639838af834fe17c4c58846e88c7e55527"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/pack-scratch-r471.ps1",
+      "sha256": "e882d49bba25678e2411d0498299735cf1e955e402b2f0bc3919f809702ecd50"
+    }
+  ],
+  "binaries": [
+    {
+      "path": "src/FileCat.Core/bin/Debug/net10.0/FileCat.Core.dll",
+      "sha256": "666e8b0528f6e7a54954c9f27abd9e17044b273984e859fc103ee6588d82d573"
+    },
+    {
+      "path": "src/FileCat.App/bin/Debug/net10.0/FileCat.dll",
+      "sha256": "b3855f1944e52f24c78055ccc09350fb1c2f5ac480c51878613fff77cb251e66"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll",
+      "sha256": "f8fa73019ff14ad8d5a8b2b63cb36e4bf82326b5154d9210a9bb4a9d04c00797"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/bin/Debug/net10.0/FileCat.Platform.Windows.Tests.dll",
+      "sha256": "c7fe0d08aa7a4258e16932d24f51c5bb75f2da7b348e821631a087d41a3fbe99"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/bin/Debug/net10.0/FileCat.Rendering.Tests.dll",
+      "sha256": "e3656ea81f203edd47ddabaed5f05874c0f9b23d9bf797dc7061c0278aea8e04"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-core-r471.tgz",
+      "sha256": "4b4ca989b54475a7cb515c82f858405fe69d8508ad233c470829714b06fd9a37"
+    },
+    {
+      "name": "dsa-native-r471.tgz",
+      "sha256": "dd88200c8f85abbe4832fee6c0db49133c7604ae03b517bf665c56e722bf77de"
+    },
+    {
+      "name": "dsa-render-mac-r472.tgz",
+      "sha256": "d5df0bf61e91490dd83110db677581c097d9845e9dd45d28c352267fe1feb751"
+    },
+    {
+      "name": "dsa-render-linux-r472.tgz",
+      "sha256": "fd7f670e77a18675bf402641103775499ee31bb0ffb13cd6150bd0dd480ff76e"
+    },
+    {
+      "name": "dsa-render-windows-r472.tgz",
+      "sha256": "8706d4b033330f14de7def1f2f9a1650e9d5f22df7d80f3bef2fba0acce5b9a5"
+    }
+  ],
+  "matrix": {
+    "windows-native-r471.xml": {
+      "total": "38",
+      "passed": "38",
+      "failed": "0",
+      "skipped": "0",
+      "time": "40.454"
+    },
+    "mac-core-r471.xml": {
+      "total": "611",
+      "passed": "609",
+      "failed": "0",
+      "skipped": "2",
+      "time": "15.440"
+    },
+    "mac-render-r472.xml": {
+      "total": "95",
+      "passed": "95",
+      "failed": "0",
+      "skipped": "0",
+      "time": "35.463"
+    },
+    "mac-scheduler-r473.xml": {
+      "total": "6",
+      "passed": "6",
+      "failed": "0",
+      "skipped": "0",
+      "time": "2.020"
+    },
+    "ubuntu-core-r471.xml": {
+      "total": "611",
+      "passed": "609",
+      "failed": "0",
+      "skipped": "2",
+      "time": "65.548"
+    },
+    "ubuntu-render-r472.xml": {
+      "total": "95",
+      "passed": "95",
+      "failed": "0",
+      "skipped": "0",
+      "time": "59.606"
+    },
+    "ubuntu-scheduler-r473.xml": {
+      "total": "6",
+      "passed": "6",
+      "failed": "0",
+      "skipped": "0",
+      "time": "2.526"
+    },
+    "windows-core-r471.xml": {
+      "total": "629",
+      "passed": "587",
+      "failed": "0",
+      "skipped": "42",
+      "time": "14.350"
+    },
+    "windows-render-r472.xml": {
+      "total": "95",
+      "passed": "94",
+      "failed": "0",
+      "skipped": "1",
+      "time": "57.737"
+    },
+    "windows-scheduler-r473.xml": {
+      "total": "6",
+      "passed": "6",
+      "failed": "0",
+      "skipped": "0",
+      "time": "2.095"
+    }
+  },
+  "nativeIdentityCount": 5201,
+  "nativeProbe": "Exact original IDs and parent rows after workspace-owner closure, then empty anonymous scratch directory and zero reservation on Windows, Mac and Ubuntu. Not a desktop/complete inventory import.",
+  "runnerNotes": [
+    "Main Core template omitted six DeviceIoScheduler cases; scheduler-r473 runs only those cases against the same final assembly on each platform. No failure/absence of output caused an app restart.",
+    "Windows initial final Core gate recorded BUSY; no r471 test process launched. Other native/worker processes were left untouched, and the same gated runner succeeded after inventory was empty."
+  ],
+  "finalSolutionBuild": "r470 zero warnings/errors, terminal observed before packaging; all final Core/native/rendering stages contain the same Core assembly",
+  "qualification": {
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "publicIndexedPersistenceEnabled": false,
+    "streamingReaderImplemented": false,
+    "originalIdExplorerAdoptionImplemented": false,
+    "nativeDesktopInputQualified": false,
+    "fullResourceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

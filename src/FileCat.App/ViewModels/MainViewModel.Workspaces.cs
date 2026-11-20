@@ -2,6 +2,8 @@ using FileCat.App.Services;
 using FileCat.Core.Commands;
 using FileCat.Core.Diagnostics;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Resources;
+using FileCat.Core.Search;
 using FileCat.Core.State;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -253,6 +255,114 @@ public sealed partial class MainViewModel
         View.FocusActivePanel();
     }
 
+    internal async Task<bool> UseTransferredWorkspaceAsync(WorkspaceTransfer transfer, bool remember,
+        AppearanceTransferV1? appearance = null)
+    {
+        if (!WindowsTokenAuthority.IsHighIntegrity) return false;
+        var previous = Workspace.ToState(LastPlacement);
+        if (TabCount(previous) > MaxSwitchTabs)
+        {
+            Notify($"Workspace switching supports up to {MaxSwitchTabs} tabs. Close some tabs and try again.", true);
+            return false;
+        }
+        _ = DropUnrestorableTabs(previous);
+        WorkspaceTransfer.Prepared? prepared = null;
+        bool applying = false;
+        AppearanceTransferV1? previousAppearance = null;
+        try
+        {
+            prepared = await Task.Run(() => transfer.Prepare(WorkspaceViewModel.DefaultLocation()));
+            // Keep the accepted directory names pinned while the initial provider reads run.
+            applying = true;
+            Workspace.LoadState(prepared.State);
+            int skipped = prepared.Skipped;
+            if (appearance is not null)
+            {
+                // Elevated appearance consists of the same allowlisted values.
+                previousAppearance = AppearanceTransferV1.Capture(Services.Settings, ThemeManager.Names);
+                appearance.ApplyTo(Services.Settings);
+                RefreshAppearance();
+            }
+            RetainWorkspaceTransferPaths(prepared);
+            prepared = null;
+            SetPreviousWorkspace(previous);
+            string subject = appearance is null ? "Workspace" : "Appearance and workspace";
+            string message = $"{subject} applied to this administrator session.";
+            bool saveFailed = false;
+            if (remember && OperatingSystem.IsWindows() && Services.AdministratorTransfers is { } store)
+            {
+                try
+                {
+                    var workspace = WorkspaceTransfer.Capture(Workspace);
+                    if (appearance is null) store.RememberWorkspace(workspace);
+                    else store.RememberBoth(appearance, workspace);
+                    message = $"{subject} applied and remembered for future administrator launches.";
+                }
+                catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
+                {
+                    saveFailed = true;
+                    message += " Could not save the transfer for future launches. " + Formatters.SafeName(ex.Message);
+                }
+            }
+            Notify(message +
+                (skipped == 0 ? "" : $" Skipped {skipped} unavailable or linked {(skipped == 1 ? "folder" : "folders")}."),
+                saveFailed,
+                actionCommandId: CommandIds.RestorePreviousWorkspace);
+            return true;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            if (applying)
+            {
+                try { Workspace.LoadState(previous); } catch (Exception) { }
+            }
+            if (previousAppearance is not null)
+            {
+                previousAppearance.ApplyTo(Services.Settings);
+                try { RefreshAppearance(); } catch (Exception) { }
+            }
+            Notify("Could not apply the copied transfer. " + Formatters.SafeName(ex.Message), true);
+            return false;
+        }
+        finally { prepared?.Dispose(); }
+    }
+
+    internal WorkspaceTransfer.Prepared? PrepareRememberedWorkspace()
+        => Services.RememberedAdministratorWorkspace?.Prepare(WorkspaceViewModel.DefaultLocation());
+
+    internal void RetainWorkspaceTransferPaths(WorkspaceTransfer.Prepared prepared)
+    {
+        var reads = Workspace.Panels.SelectMany(panel => panel.Tabs).Select(tab => tab.Listing.CurrentEnumeration).ToArray();
+        _ = ReleaseTransferPathsAsync(prepared, reads);
+    }
+
+    private static async Task ReleaseTransferPathsAsync(WorkspaceTransfer.Prepared prepared, Task[] reads)
+    {
+        using (prepared)
+        {
+            try { await Task.WhenAll(reads).ConfigureAwait(false); }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                // Each listing already owns reporting its read failure or cancellation.
+            }
+        }
+    }
+
+    /// <summary>
+    /// Settings, opened on one page by its name (the file list's header menu opens Columns, on the panel's own column
+    /// profile); never over another dialog.
+    /// </summary>
+    internal async Task ShowSettingsAsync(string page, int? columnProfile = null)
+    {
+        if (Dialogs.IsOpen) return;
+        try { await Views.SettingsDialog.ShowAsync(this, page, columnProfile); }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            AppLog.Error("Settings could not open", ex);
+            Notify("Settings could not open: " + Formatters.SafeName(ex.Message), true);
+        }
+    }
+
     private async Task<bool> ExecuteWorkspaceCommandAsync(string id)
     {
         if (ExecuteLayoutCommand(id)) return true;
@@ -284,43 +394,38 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>
-    /// View → Analyze folder (plan §10, META-002): computes a column's value for every item and sorts by it. Sorted by
-    /// such a column already, that one is analyzed; otherwise the columns to choose from, each with what it shows.
+    /// View → Analyze folder (plan §10, META-002): lets the user choose or re-run a column's full analysis,
+    /// even when the panel is already sorted by metadata.
     /// </summary>
     private async Task AnalyzeFolderAsync()
     {
-        if (ActiveTab is not { Location: not null } tab) return;
-        if (tab.Listing.Sort is { Field: Core.Listing.SortField.Metadata, MetadataId: { } current } && current != Controls.ColumnSpec.FolderSortKey)
-        {
-            await tab.AnalyzeAsync(current);
-            return;
-        }
-        var fields = Services.Metadata.Fields.Where(f => OperatingSystem.IsWindows() ? f.Id is not ("permissions" or "owner" or "group") : f.Id != "version")
-            .OrderBy(f => f.Title, StringComparer.CurrentCulture).ToList();
+        if (ActiveTab is not { Location: { } location } tab) return;
+        var current = tab.Listing.Sort is { Field: Core.Listing.SortField.Metadata, MetadataId: { } sorted } &&
+                      sorted != Controls.ColumnSpec.FolderSortKey ? sorted : null;
+        var fields = AnalysisFields(tab);
         if (fields.Count == 0) return;
-        var items = fields.Select(f => new ChoiceItem(f.Title, AnalysisDescription(f.Id))).ToList();
-        var r = await Dialogs.ChooseAsync(new ChoiceOptions("Analyze folder", items)
+        var items = fields.Select(f => new ChoiceItem(f.Title,
+            f.Id == current ? "Current sort · " + AnalysisDescription(f.Id) : AnalysisDescription(f.Id))).ToList();
+        bool resultOrigins = location.Scheme == Schemes.ResultSet && !ResultSetProvider.IsWorkingSetList(location);
+        string title = resultOrigins ? ResultSetProvider.IsWorkingSet(location) ? "Analyze working set" : "Analyze results" : "Analyze folder";
+        var r = await Dialogs.ChooseAsync(new ChoiceOptions(title, items)
         {
-            Hint = "Reads the value for every item in this folder, then sorts by it (Esc stops it) · Enter starts",
+            SelectedIndex = Math.Max(0, fields.FindIndex(f => f.Id == current)),
+            Hint = resultOrigins ? "Choose a field · reads the listed originals · Enter starts · Esc cancels" :
+                "Choose a field or rerun the current sort · reads the whole folder · Enter starts · Esc cancels",
         });
-        if (r.Index < 0 || r.Index >= fields.Count) return;
-        tab.SortByMetadata(fields[r.Index].Id, analyzing: true);
-        await tab.AnalyzeAsync(fields[r.Index].Id);
+        if (r.Index < 0 || r.Index >= fields.Count || tab.Location != location) return;
+        var selected = fields[r.Index].Id;
+        if (!tab.CanAnalyzeMetadata(selected)) return;
+        if (selected != current) tab.SortByMetadata(selected, analyzing: true);
+        await tab.AnalyzeAsync(selected);
     }
 
-    private static string AnalysisDescription(string fieldId) => fieldId switch
-    {
-        "version" => "Program and library versions (.exe, .dll, and similar)",
-        "dimensions" => "Picture sizes in pixels",
-        "linkTarget" => "Where links and junctions point",
-        "zone" => "Where files came from (downloaded from the internet, say)",
-        "permissions" => "Who may read, write, and run each item",
-        "owner" => "The user each item belongs to",
-        "group" => "The group each item belongs to",
-        "hidden" => OperatingSystem.IsWindows() ? "Alternate data streams each file carries, counted" : "Extended attributes each item carries, counted",
-        "verified" => "Whether files match the checksums and signatures beside them (large ones wait for File → Verify)",
-        _ => "A column's value for every item",
-    };
+    internal List<Core.Metadata.MetadataField> AnalysisFields(TabViewModel tab) => Services.Metadata.Fields
+        .Where(f => (OperatingSystem.IsWindows() ? f.Id is not ("permissions" or "group") : f.Id != "version") && tab.CanAnalyzeMetadata(f.Id))
+        .OrderBy(f => f.Title, StringComparer.CurrentCulture).ToList();
+
+    private static string AnalysisDescription(string fieldId) => Controls.ColumnDescriptions.For(fieldId);
 
     /// <summary>A previewable diagnostic bundle without secrets or file contents (plan §19.2).</summary>
     private async Task ExportDiagnosticsAsync()

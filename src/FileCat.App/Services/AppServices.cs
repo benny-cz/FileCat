@@ -15,29 +15,71 @@ namespace FileCat.App.Services;
 /// </summary>
 public sealed class AppServices : IDisposable
 {
-    private AppServices(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null)
+    private AppServices(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null, Core.Archives.ArchiveJobBackends? archiveBackends = null,
+        Func<AppPaths,IFileSystemOperations,Core.Edit.EditSessionStore>? editSessionFactory = null, IOwnership? ownershipOverride = null,
+        int metadataCacheSize = 50_000, Func<long>? metadataClock = null, IStorageTransforms? storageTransforms = null,
+        FileCat.Platform.Windows.AdministratorTransferRegistry? administratorRegistry = null, bool qualifyNativeArm64Storage = false)
     {
         Paths = paths;
         AppLog.Initialize(paths.LogDirectory);
-        Settings = JsonFileStore.Load(paths.SettingsFile, StateJsonContext.Default.AppSettings, AppSettings.CurrentSchema,
-            () => new AppSettings(), out var settingsStatus);
+        StateLoadStatus settingsStatus;
+        if (OperatingSystem.IsWindows() && !WindowsTokenAuthority.IsHighIntegrity)
+        {
+            _windowsSettings = new WindowsSettingsFile(paths.SettingsFile);
+            Settings = _windowsSettings.Load(out settingsStatus);
+        }
+        else
+            Settings = JsonFileStore.Load(paths.SettingsFile, StateJsonContext.Default.AppSettings, AppSettings.CurrentSchema,
+                () => new AppSettings(), out settingsStatus);
         SettingsStatus = settingsStatus;
+        if (OperatingSystem.IsWindows())
+        {
+            try
+            {
+                AdministratorTransfers = AdministratorTransferPreferences.ForProfile(paths, administratorRegistry);
+                if (AdministratorTransfers is { } store)
+                {
+                    var snapshot = store.ReadSnapshot();
+                    try { store.LoadAppearance(Settings, snapshot); }
+                    catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
+                    {
+                        AdministratorTransferWarning = "Could not load remembered appearance. " + ex.Message;
+                    }
+                    try { RememberedAdministratorWorkspace = store.LoadWorkspace(snapshot); }
+                    catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
+                    {
+                        AdministratorWorkspaceWarning = "Could not load the remembered workspace. " + ex.Message;
+                    }
+                }
+            }
+            catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
+            {
+                AdministratorTransferWarning = "Could not load remembered transfers. " + ex.Message;
+            }
+        }
         Settings.Terminal.Upgrade();
         History = JsonFileStore.Load(paths.HistoryFile, StateJsonContext.Default.HistoryState, HistoryState.CurrentSchema,
             () => new HistoryState(), out var historyStatus);
         HistoryStatus = historyStatus;
+        History.Folders?.RemoveAll(entry => entry?.Location?.Scheme == Schemes.AnalysisFolder);
+        History.Files?.RemoveAll(entry => entry?.Location?.Scheme == Schemes.AnalysisFolder);
+        History.Bookmarks?.RemoveAll(entry => entry?.Location?.Scheme == Schemes.AnalysisFolder);
         AppLog.DiagnosticMode = Settings.DiagnosticMode;
         Core.Content.PageCacheBudget.Shared.LimitBytes = Math.Clamp(Settings.ContentCacheMiB, 4, 4096) * 1024L * 1024;
 
         Io = new DeviceIoScheduler();
         Io.HealthChanged += (device, health) => FileCatEventSource.Log.DeviceHealth(device, health.ToString());
+        AnalysisProtection = new(paths, Io);
         Ui = AvaloniaUiDispatcher.Instance;
+        AnalysisSavedReferences = new(Ui);
+        AnalysisHistory = new(this);
         Commands = CommandRegistry.CreateDefault(CommandTranslations.Load(Path.Combine(AppContext.BaseDirectory, "lang"), System.Globalization.CultureInfo.CurrentUICulture));
         Keymap = new Keymap(Commands, Settings.KeyBindings);
         foreach (var c in Keymap.Conflicts) AppLog.Warn("Key binding: " + c);
         Icons = new IconProvider();
         Platform = PlatformFactory.Create();
         Shell = Platform.Shell;
+        CloudSyncRoots = Shell.CloudSyncRoots;
         Providers = new ProviderRegistry();
         Platform.RegisterProviders(Providers);
         Core.Metadata.BuiltInFields.HiddenDataSource = Platform.HiddenData;
@@ -49,6 +91,7 @@ public sealed class AppServices : IDisposable
         }
         ResultSets = new Core.Search.ResultSetProvider(Providers, Platform.FileOperations);
         Providers.Register(ResultSets);
+        Providers.Register(AnalysisPanelFolders);
         WorkingSets = new Core.Search.WorkingSets(paths.WorkingSetsFile, ResultSets);
         WorkingSets.SaveFailed += ex => ReportSaveFailure("working sets", ex);
         // Provider caches identify the actual local source, including a final symlink target.
@@ -68,6 +111,7 @@ public sealed class AppServices : IDisposable
         Task.Run(() =>
         {
             Core.Operations.DragStaging.Sweep(paths.TempDirectory, TimeSpan.FromDays(1));
+            ClipboardVirtualStaging.Sweep(paths.TempDirectory, TimeSpan.FromDays(1));
             paths.SweepTemporaryLeftovers(TimeSpan.FromDays(1));
         });
         // Deleted items of disk images, read-only (P10).
@@ -78,7 +122,7 @@ public sealed class AppServices : IDisposable
             // runs as administrator already has the rights the helper would ask for, and reads them itself.
             string exchange = paths.ElevationExchangeDirectory;
             Recovery.OpenDevice = (device, name, ct) => FileCat.Platform.Windows.Recovery.SelectedDiskInterfaceSource.Bind(
-                device, Environment.IsPrivilegedProcess
+                device, WindowsTokenAuthority.IsHighIntegrity
                     ? FileCat.Platform.Windows.Recovery.DirectDeviceSource.Open(device, name)
                     : FileCat.Platform.Windows.Recovery.BrokeredDeviceSource.Open(device, name, paths.IsPortable, exchange, ct));
             Recovery.SharesDisk = FileCat.Platform.Windows.Recovery.DeviceTopology.SharesDisk;
@@ -97,7 +141,18 @@ public sealed class AppServices : IDisposable
         Zip.SpoolForeignMember = Archives.Spool;
         if (Providers.Get(Schemes.FileSystem) is LocalFileSystemProvider local) local.ContainerDetector = new ContainerDetectors(Zip, Archives);
         Formatters.DateFormat = Settings.DateFormat;
-        Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory);
+        Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory,
+            archiveBackends ?? Core.Archives.ArchiveJobBackends.Empty, storageTransforms ?? Platform.StorageTransforms,
+            qualifyNativeArm64Storage ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateArm64QualificationJournal :
+                FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateJournal : null,
+            qualifyNativeArm64Storage ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.Arm64QualificationBackend :
+                FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.Backend : null);
+        Archives.MutationAvailability = plan => Jobs.CanReviewArchive(plan) ? Jobs.ArchiveAvailability(plan)
+            : Core.Archives.ArchiveJobAvailability.Unqualified;
+        // A ZIP route composed here moves ZIP changes to the worker profile, available or refused with its reason; without
+        // one, ZIP keeps its existing route.
+        Zip.RouteComposed = Jobs.CoversArchive;
+        Zip.MutationAvailability = Archives.MutationAvailability;
         // SFTP (P6): FileCat's own known_hosts beside its state, seeded read-only by OpenSSH's.
         // FTP and FTPS (P8) share the remote stack; FTPS certificates the OS does not accept are pinned only on request.
         Sftp = new Remote.Sftp.SftpConnections(FindRemoteProfile,
@@ -123,8 +178,12 @@ public sealed class AppServices : IDisposable
         // Shell handlers run only in the restricted helper beside FileCat (plan §8.2, TV-16), started on first use.
         if (FileCat.Platform.Windows.Shell.ShellHostClient.FindExecutable() is { } shellHelper)
             ShellPictures = new FileCat.Platform.Windows.Shell.ShellPreviews(new FileCat.Platform.Windows.Shell.ShellHostClient(shellHelper), () => Settings.ShellPicturesOnNetworkAndRemovable);
-        EditSessions = new Core.Edit.EditSessionStore(paths.EditSessionsDirectory, Platform.FileOperations);
-        Metadata = new Core.Metadata.MetadataService(Io);
+        EditSessions = editSessionFactory is null ? ProductionEditSessions(paths, Platform.FileOperations)
+            : editSessionFactory(paths,Platform.FileOperations);
+        var ownership = ownershipOverride ?? Platform.Ownership;
+        PrincipalNames = new PrincipalNames(ownership);
+        Metadata = new Core.Metadata.MetadataService(Io, metadataClock ?? (() => Environment.TickCount64),
+            maxCache: metadataCacheSize, ownership: ownership, names: PrincipalNames, fileRecords: Platform.FileRecords);
         // Checksums and signatures beside files (D-57): results kept in the cache folder; trusted minisign keys in the keys
         // folder (made now, so the advice that names it points to a folder that is there).
         try { Directory.CreateDirectory(KeyDirectory); }
@@ -154,6 +213,7 @@ public sealed class AppServices : IDisposable
     public Controls.ColumnProfileSet Columns { get; }
 
     public Core.Metadata.MetadataService Metadata { get; }
+    public PrincipalNames PrincipalNames { get; }
 
     public FileCat.Recovery.RecoveryProvider Recovery { get; }
 
@@ -166,6 +226,20 @@ public sealed class AppServices : IDisposable
     public FileCat.Archives.ArchiveProvider Archives { get; } = null!;
 
     public Core.Jobs.JobManager Jobs { get; }
+
+    // Native authority is retained by the adapter through the complete approval/action lifetime.
+    internal Func<string, Guid, CancellationToken, Core.Archives.IArchiveContentCleanupRecoveryLease>? ArchiveCleanupLease { get; set; }
+        = OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveCleanupRecovery.OpenCurrentLease : null;
+    internal Func<string, Guid, CancellationToken, Core.Archives.IArchiveCreationCleanupLease>? ArchiveCreationCleanupLease { get; set; }
+        = OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveCreationCleanupRecovery.OpenCurrentLease
+        : OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? Core.Archives.Unix.UnixArchiveCreationCleanupRecovery.OpenCurrentLease : null;
+    // A change that never reached publication: a fresh exclusive journal and folder scope; objects bound by recorded identity.
+    internal Func<string, Guid, CancellationToken, Core.Archives.IArchiveDiscardLease>? ArchiveDiscardLease { get; set; }
+        = OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveDiscard.OpenRecovery
+        : OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? Core.Archives.Unix.UnixArchiveDiscard.OpenRecovery : null;
+    // Unix exchange updates: a fresh exclusive journal/folder scope; inspection and cleanup re-observe every object.
+    internal Func<string, Guid, CancellationToken, Core.Archives.Unix.UnixArchiveExchangeRecovery>? ArchiveExchangeRecovery { get; set; }
+        = OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? (path, nonce, ct) => Core.Archives.Unix.UnixArchiveExchangeRecovery.Open(path, nonce, ct) : null;
 
     /// <summary>SFTP connections (leases, host keys, secrets); the main window supplies the prompts.</summary>
     public Remote.Sftp.SftpConnections Sftp { get; }
@@ -190,6 +264,8 @@ public sealed class AppServices : IDisposable
     /// <summary>Persistent external edits of archive members (plan §14.2).</summary>
     public Core.Edit.EditSessionStore EditSessions { get; }
     public Core.Search.ResultSetProvider ResultSets { get; }
+    internal AnalysisPanelFolderProvider AnalysisPanelFolders { get; } = new();
+    internal Func<AnalysisPanelFolder, bool>? ShowAnalysisPanelFolder { get; set; }
     /// <summary>Shell thumbnails and per-file icons from the restricted helper; null where this build has none.</summary>
     public FileCat.Platform.Windows.Shell.ShellPreviews? ShellPictures { get; }
 
@@ -209,14 +285,23 @@ public sealed class AppServices : IDisposable
     public StateLoadStatus SettingsStatus { get; }
     public HistoryState History { get; }
     public StateLoadStatus HistoryStatus { get; }
-    public IndexMemoryBudget ListingIndexes { get; } = new();
+    public IndexMemoryBudget ListingIndexes { get; internal set; } = IndexMemoryBudget.Shared;
+    internal int MetadataSnapshotMaxRows { get; set; } = 1_000_000;
+    internal int MetadataSnapshotMaxCharacters { get; set; } = 16_000_000;
     public DeviceIoScheduler Io { get; }
+    internal AnalysisProtectedObjects AnalysisProtection { get; }
     public IUiDispatcher Ui { get; }
+    internal AnalysisSavedReferences AnalysisSavedReferences { get; }
+    private DiskSpaceWindowManager? _diskSpace;
+    internal DiskSpaceWindowManager DiskSpace => _diskSpace ??= new(this);
+    internal bool HasTemporaryAnalyses => _diskSpace?.HasTemporaryWork == true;
+    internal AnalysisRollingHistoryController AnalysisHistory { get; }
     public CommandRegistry Commands { get; }
     public Keymap Keymap { get; private set; }
     public IconProvider Icons { get; }
     public IPlatform Platform { get; }
     public IShellServices Shell { get; }
+    internal IReadOnlyList<CloudSyncRoot> CloudSyncRoots { get; }
     public ProviderRegistry Providers { get; }
 
     public bool SettingsReadOnly => SettingsStatus is StateLoadStatus.NewerSchemaReadOnly or StateLoadStatus.OversizedReadOnly or StateLoadStatus.UnavailableReadOnly;
@@ -225,13 +310,152 @@ public sealed class AppServices : IDisposable
     /// <param name="sftpConnector">Tests connect to an in-memory server instead of SSH.NET.</param>
     public static AppServices CreateForPaths(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null) => new(paths, sftpConnector);
 
+    internal static AppServices CreateForPathsWithAdministratorRegistry(AppPaths paths,
+        FileCat.Platform.Windows.AdministratorTransferRegistry registry) => new(paths, administratorRegistry: registry);
+
+    internal static AppServices CreateForPathsWithStorageTransforms(AppPaths paths, IStorageTransforms storageTransforms,
+        bool qualifyNativeArm64Storage = false) =>
+        new(paths, storageTransforms: storageTransforms, qualifyNativeArm64Storage: qualifyNativeArm64Storage);
+
+    internal static AppServices CreateForPathsWithOwnership(AppPaths paths, IOwnership ownership, int cacheSize = 50_000,
+        Func<long>? clock = null) => new(paths, ownershipOverride: ownership, metadataCacheSize: cacheSize, metadataClock: clock);
+
+    // Explicit native-store test composition. Ordinary startup keeps the legacy store until qualification.
+    internal static AppServices CreateForPathsWithEditSessions(AppPaths paths,
+        Func<AppPaths,IFileSystemOperations,Core.Edit.EditSessionStore> factory,
+        Remote.Sftp.ISftpConnector? sftpConnector = null,Core.Archives.ArchiveJobBackends? archiveBackends = null)
+    {ArgumentNullException.ThrowIfNull(factory);return new(paths,sftpConnector,archiveBackends,factory);}
+
+    // Explicit isolated composition for qualifying the real workflows; ordinary startup never adds these backends.
+    internal static AppServices CreateForPathsWithArchiveBackends(AppPaths paths, Core.Archives.ArchiveJobBackends archiveBackends,
+        Remote.Sftp.ISftpConnector? sftpConnector = null) => new(paths, sftpConnector, archiveBackends);
+
     /// <param name="overrideRoot">Isolated state root (the TV-01 benchmark never touches the user's profile).</param>
     /// <param name="dataRoot">--data: everything FileCat writes goes below this folder.</param>
-    public static AppServices Initialize(string? profile, string? overrideRoot = null, string? dataRoot = null)
+    public static AppServices Initialize(string? profile, string? overrideRoot = null, string? dataRoot = null, string? analysisScratchParent = null)
     {
-        Current = new AppServices(AppPaths.Resolve(profile, overrideRoot: overrideRoot, dataRoot: dataRoot));
+        Current = new AppServices(AppPaths.Resolve(profile, overrideRoot: overrideRoot, dataRoot: dataRoot,
+            analysisScratchParent: analysisScratchParent), archiveBackends: ProductionArchiveBackends());
         return Current;
     }
+
+    /// <summary>
+    /// Every native writing format for the qualification host, through each platform's production boundary: AppContainer
+    /// workers on Windows, confined workers on Linux and sandboxed workers on macOS, all from the published application.
+    /// </summary>
+    internal static Core.Archives.ArchiveJobBackends QualificationBackends(string workerExecutable)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(workerExecutable);
+        Core.Archives.ArchiveWriteFormat[] formats = [Core.Archives.ArchiveWriteFormat.Tar, Core.Archives.ArchiveWriteFormat.TarGzip,
+            Core.Archives.ArchiveWriteFormat.TarBzip2, Core.Archives.ArchiveWriteFormat.TarZstd, Core.Archives.ArchiveWriteFormat.Rar5,
+            Core.Archives.ArchiveWriteFormat.SevenZip, Core.Archives.ArchiveWriteFormat.Gzip, Core.Archives.ArchiveWriteFormat.Bzip2,
+            Core.Archives.ArchiveWriteFormat.Zstd];
+        return new(formats.Select(format => PlatformArchiveBackend(format, workerExecutable)));
+    }
+
+    /// <summary>The platform's confined worker backend for one format, with workers from <paramref name="executable"/>.</summary>
+    internal static Core.Archives.IArchiveJobBackend PlatformArchiveBackend(Core.Archives.ArchiveWriteFormat format, string executable) =>
+        OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveJobBackend.Create(format, executable)
+        : OperatingSystem.IsLinux() ? Core.Archives.Linux.LinuxArchiveJobBackend.Create(format, executable)
+        : OperatingSystem.IsMacOS() ? Core.Archives.MacOS.MacArchiveJobBackend.Create(format, executable)
+        : throw new PlatformNotSupportedException("No archive worker launcher exists for this platform.");
+
+    internal static bool CanQualifyNtfsStorage(bool nativeArm64) => (nativeArm64
+        ? FileCat.Platform.Windows.WindowsStorageTransforms.IsNativeArm64QualificationHost
+        : FileCat.Platform.Windows.WindowsStorageTransforms.IsQualifiedHost) && !WindowsTokenAuthority.IsHighIntegrity;
+
+    /// <summary>Creates the native qualification host with isolated state and explicitly selected backends.</summary>
+    internal static AppServices InitializeForQualification(AppPaths paths, Core.Archives.ArchiveJobBackends archiveBackends,
+        bool qualifyNtfsStorage = false, bool nativeArm64Storage = false, Action<bool>? compressionSetReturned = null)
+    {
+        ArgumentNullException.ThrowIfNull(paths); ArgumentNullException.ThrowIfNull(archiveBackends);
+        if ((nativeArm64Storage && !qualifyNtfsStorage) || (qualifyNtfsStorage && !CanQualifyNtfsStorage(nativeArm64Storage)))
+            throw new PlatformNotSupportedException("NTFS storage review qualification requires a non-elevated Windows 11 process on the selected native architecture.");
+        var storage = qualifyNtfsStorage ? new FileCat.Platform.Windows.WindowsStorageTransforms(
+            efsSetupBaseDirectory: () => paths.LocalDirectory, qualifyNativeArm64: nativeArm64Storage,
+            compressionSetReturnedForQualification: compressionSetReturned)
+            .CreateEfsJobCandidate(static show => Avalonia.Threading.Dispatcher.UIThread.Invoke(show),
+                invokeProviderOwner: static compare => Avalonia.Threading.Dispatcher.UIThread.Invoke(compare)) : null;
+        Current = new AppServices(paths, archiveBackends: archiveBackends, storageTransforms: storage, qualifyNativeArm64Storage: nativeArm64Storage);
+        return Current;
+    }
+
+    /// <summary>
+    /// Plan §16.1: only qualified format/runtime/filesystem routes are registered (see <see cref="Core.Archives.ArchiveWriteRoutes"/>);
+    /// with none qualified this is null and native archive writing stays unavailable, with its reason, while reading continues.
+    /// </summary>
+    internal static Core.Archives.ArchiveJobBackends? ProductionArchiveBackends() =>
+        Core.Archives.ArchiveWriteRoutes.Compose(Core.Archives.ArchiveWriteRoutes.Qualified, RouteRuntime(),
+            format => PlatformArchiveBackend(format, Environment.ProcessPath!), FileSystemOf, PlatformTargetProblem);
+
+    /// <summary>
+    /// The runtime the routes are listed for: this process's own, unless it runs emulated (an x64 build on an Arm64
+    /// machine), where no route was qualified, so nothing is composed.
+    /// </summary>
+    internal static string RouteRuntime() =>
+        System.Runtime.InteropServices.RuntimeInformation.OSArchitecture == System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture
+            ? System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier
+            : System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier + "-emulated";
+
+    /// <summary>Why this platform's writer cannot write an archive path at all, or null (see the backends' TargetProblem).</summary>
+    internal static string? PlatformTargetProblem(string archivePath) =>
+        OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveJobBackend.TargetProblem(archivePath)
+        : OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? Core.Archives.Unix.UnixArchiveJobBackend.TargetProblem(archivePath)
+        : null;
+
+    /// <summary>
+    /// Ledger rows 4 and 8: the edit store through its qualification gate (<see cref="Core.Edit.NativeEditStorage"/>). Native
+    /// private storage, in its own root beside the legacy folder, only for a qualified runtime and filesystem; with none
+    /// qualified this is the legacy store and the native-only edit actions keep saying why they are unavailable.
+    /// </summary>
+    internal static Core.Edit.EditSessionStore ProductionEditSessions(AppPaths paths, IFileSystemOperations fileOperations) =>
+        ComposeEditSessions(Core.Edit.NativeEditStorage.Qualified, paths, fileOperations);
+
+    internal static Core.Edit.EditSessionStore ComposeEditSessions(IReadOnlyList<Core.Edit.NativeEditStorage.Route> routes, AppPaths paths,
+        IFileSystemOperations fileOperations)
+    {
+        Func<string, bool, CancellationToken, Core.Edit.EditDirectoryLease>? open = null;
+        Func<string, CancellationToken, Core.Edit.EditSaveCopyDestination>? copyOpen = null;
+        if (OperatingSystem.IsWindows())
+        {
+            open = (path, requirePrivate, ct) => FileCat.Platform.Windows.Archives.WindowsEditDirectoryLease.OpenRoot(path, requirePrivate, ct);
+            copyOpen = FileCat.Platform.Windows.Archives.WindowsEditSaveCopyDestination.Open;
+        }
+        else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        {
+            open = (path, requirePrivate, ct) => Core.Edit.UnixEditDirectoryLease.OpenRoot(path, requirePrivate, ct);
+            copyOpen = Core.Archives.Unix.UnixEditSaveCopyDestination.Open;
+        }
+        return Core.Edit.NativeEditStorage.Compose(routes, RouteRuntime(),
+            paths.EditSessionsDirectory, paths.NativeEditSessionsDirectory, fileOperations, FileSystemOf, open, copyOpen);
+    }
+
+    /// <summary>The filesystem of the mount that holds <paramref name="folder"/>, or null when it cannot be established.</summary>
+    internal static string? FileSystemOf(string folder)
+    {
+        try
+        {
+            string full = Path.GetFullPath(folder);
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            // A mount point contains the folder only at a separator boundary: /home does not contain /home2.
+            var drive = DriveInfo.GetDrives().Where(candidate =>
+            {
+                string mount = Path.TrimEndingDirectorySeparator(candidate.Name);
+                return string.Equals(full, mount, comparison) || full.StartsWith(mount + Path.DirectorySeparatorChar, comparison) ||
+                    Path.EndsInDirectorySeparator(candidate.Name) && full.StartsWith(candidate.Name, comparison);
+            }).MaxBy(candidate => candidate.Name.Length);
+            // A Windows network drive is excluded before anything is asked of it: an unreachable server would hold up the UI.
+            if (drive is null || OperatingSystem.IsWindows() && drive.DriveType == DriveType.Network) return null;
+            return drive.IsReady ? LocalFileSystem(drive.DriveType, drive.DriveFormat) : null;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException) { return null; }
+    }
+
+    /// <summary>
+    /// A mapped network drive reports its server's file system ("NTFS" for a Windows share), but no route or store is
+    /// qualified on a share: it has none here. A ZIP there keeps the old route, as a UNC path does.
+    /// </summary>
+    internal static string? LocalFileSystem(DriveType type, string format) => type == DriveType.Network ? null : format;
 
     public void ReloadKeymap() => Keymap = new Keymap(Commands, Settings.KeyBindings);
 
@@ -296,11 +520,32 @@ public sealed class AppServices : IDisposable
             : $"FileCat could not save its {what}: {ex.Message} It keeps trying; until it can, changes to them will not survive a restart.");
     }
 
+    private readonly WindowsSettingsFile? _windowsSettings;
+    internal AdministratorTransferPreferences? AdministratorTransfers { get; }
+    internal string? AdministratorTransferWarning { get; }
+    internal WorkspaceTransfer? RememberedAdministratorWorkspace { get; }
+    internal string? AdministratorWorkspaceWarning { get; }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    internal WindowsSettingsFile NormalAppearanceSettings => _windowsSettings
+        ?? throw new IOException("Open FileCat normally to access saved appearance settings.");
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    internal string TryReplaceNormalAppearance(WindowsSettingsFile.Review review)
+    {
+        if (SettingsReadOnly) throw new IOException("The normal settings are read-only.");
+        return NormalAppearanceSettings.ReplaceAppearance(review, Settings);
+    }
+
     public void SaveSettings()
     {
         if (!SettingsReadOnly)
         {
-            try { JsonFileStore.Save(Paths.SettingsFile, Settings, StateJsonContext.Default.AppSettings); }
+            try
+            {
+                if (OperatingSystem.IsWindows() && _windowsSettings is not null) _windowsSettings.Save(Settings);
+                else JsonFileStore.Save(Paths.SettingsFile, Settings, StateJsonContext.Default.AppSettings);
+            }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { ReportSaveFailure("settings", ex); }
         }
         Saved?.Invoke();
@@ -338,6 +583,7 @@ public sealed class AppServices : IDisposable
 
     public void RecordFolder(Location location)
     {
+        if (location.Scheme == Schemes.AnalysisFolder) return;
         if (location.Scheme is Schemes.ResultSet && !Core.Search.ResultSetProvider.IsPersistent(location)) return;
         // A drive's deleted items open only from the drive, after its checks (release plan V09): not from the history.
         if (location.Scheme is Schemes.Recovery && FileCat.Recovery.RecoveryProvider.IsDevice(location)) return;
@@ -351,6 +597,7 @@ public sealed class AppServices : IDisposable
 
     public void RecordFile(Location parent, string name)
     {
+        if (parent.Scheme == Schemes.AnalysisFolder) return;
         var list = History.Files;
         list.RemoveAll(h => h.Location == parent && h.Name == name && !h.Pinned);
         if (!list.Any(h => h.Location == parent && h.Name == name))
@@ -379,11 +626,18 @@ public sealed class AppServices : IDisposable
 
     public void Dispose()
     {
+        _diskSpace?.Dispose();
+        _diskSpace = null;
+        // Cancellation requests stop; the controller retains its owner until actual I/O
+        // and release complete, including the existing shutdown-only close worker.
+        _ = AnalysisHistory.StopMaintenanceAsync();
         Drives.Dispose();
         Recovery.CloseAll(); // drives' helper sessions end with FileCat
         WorkingSets.Dispose();
         ShellPictures?.Dispose();
         Sftp.Dispose();
+        Metadata.Dispose();
+        PrincipalNames.Dispose();
         Io.Dispose();
         Platform.Dispose();
     }

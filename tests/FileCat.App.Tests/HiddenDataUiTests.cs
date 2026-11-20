@@ -6,6 +6,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using FileCat.App.Views;
 using FileCat.Core.Commands;
 using FileCat.Core.HiddenData;
 using FileCat.Core.Jobs;
@@ -51,12 +52,7 @@ public sealed class HiddenDataUiTests
             {
                 // The headless services use the portable platform. This native-stream job also needs
                 // actual Windows file identities for its backing-file safety review.
-                Assert.Empty(services.Jobs.Jobs);
-                Assert.False(services.Jobs.HasActiveWork);
-                typeof(JobManager).GetField("_fs", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
-                    .SetValue(services.Jobs, new FileCat.Platform.Windows.WindowsFileOperations());
-                Assert.IsType<FileCat.Platform.Windows.WindowsFileOperations>(
-                    typeof(JobManager).GetField("_fs", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(services.Jobs));
+                UseWindowsFileOperations(services.Jobs);
                 var nativeStreams = new FileCat.Platform.Windows.WindowsHiddenData();
                 services.Providers.Register(new HiddenDataProvider(nativeStreams));
                 BuiltInFields.HiddenDataSource = nativeStreams;
@@ -83,25 +79,41 @@ public sealed class HiddenDataUiTests
             await Until(() => tab.Listing.State == ListingState.Complete && Rows(tab).Any(e => e.Name == "tool.bin"), "the file is listed");
             var fileEntry = Assert.Single(Rows(tab), e => e.Name == "tool.bin");
             services.Metadata.Forget("hidden", file);
-            await Until(() => services.Metadata.Get("hidden", file, fileEntry, "local", false).State == MetadataState.Available,
+            string device = Core.FileSystem.PathUtil.GetDeviceKey(file);
+            await Until(() => services.Metadata.Get("hidden", file, fileEntry, device, false).State == MetadataState.Available,
                 "the Streams/Attributes count is available");
-            int initialCount = Assert.IsType<int>(services.Metadata.Peek("hidden", file, fileEntry).Value);
-            Assert.True(initialCount >= 2);
+            var initialInventory = Assert.IsType<FileDetailsFields.Cell>(services.Metadata.Peek("hidden", file, fileEntry).Value);
+            Assert.StartsWith("2", initialInventory.Text);
             vm.Workspace.Activate(panels[0]);
             tab.Listing.SetFocus(Rows(tab).FindIndex(e => e.Name == "tool.bin") + (tab.Listing.HasParentRow ? 1 : 0));
-            Assert.Equal(initialCount.ToString(System.Globalization.CultureInfo.CurrentCulture),
+            Assert.Equal(initialInventory.Text,
                 tab.GetMetadataText(fileEntry, tab.Listing.FocusedStoreIndex, "hidden", out _));
 
             // Alt+Shift+Enter: its streams and attributes, each with what it says.
             vm.Execute(CommandIds.HiddenData);
-            await Until(() => tab.Location?.Scheme == Schemes.HiddenData && tab.Listing.State == ListingState.Complete && Rows(tab).Count >= 2, "the hidden data is listed");
+            await Until(() => tab.Location?.Scheme == Schemes.HiddenData && tab.Listing.State == ListingState.Complete && Rows(tab).Count >= 2,
+                () => $"the hidden data is listed (location: {tab.Location}; state: {tab.Listing.State}; inventory: {tab.SupplementaryInventoryText}; notification: {vm.Notification})");
             var markRow = Assert.Single(Rows(tab), e => e.Name == mark);
-            Assert.Matches("Mark of the Web|Quarantined|Downloaded from", tab.GetDetailsText(markRow));
+            Assert.StartsWith("Not read — F3 to view", tab.GetDetailsText(markRow));
             var payloadRow = Assert.Single(Rows(tab), e => e.Name == payload);
-            Assert.Equal("hidden payload", tab.GetDetailsText(payloadRow));
+            Assert.StartsWith("Not read — F3 to view", tab.GetDetailsText(payloadRow));
+            if (OperatingSystem.IsMacOS())
+            {
+                Assert.Contains("Compression backing: not inventoried", tab.SupplementaryInventoryText);
+                Assert.True(payloadRow.Has(EntryFlags.Unavailable));
+                Assert.Throws<NotSupportedException>(() => services.Providers.For(tab.Location!).OpenContent(
+                    services.Providers.For(tab.Location!).GetItemRef(tab.Location!, payloadRow)));
+                return;
+            }
 
             // F5: copied out as a file by a job.
             tab.Listing.SetFocus(Rows(tab).FindIndex(e => e.Name == payload) + (tab.Listing.HasParentRow ? 1 : 0));
+            if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
+            {
+                var report = await OpenSelectedValueReport(window);
+                try { Assert.Contains("hidden payload", report.Text); }
+                finally { report.Close(); }
+            }
             vm.Execute(CommandIds.Copy);
             await Click(window, "Copy");
             await Until(() => services.Jobs.Jobs.Count > 0 && services.Jobs.Jobs[^1].State.IsFinished(), "the copy finishes");
@@ -125,10 +137,11 @@ public sealed class HiddenDataUiTests
             await Until(() => tab.Location?.IsFileSystem == true && tab.Listing.State == ListingState.Complete, "back in the folder");
             Assert.True(tab.Listing.TryGetFocused(out var focused));
             Assert.Equal("tool.bin", focused.Name);
-            await Until(() => services.Metadata.Get("hidden", file, focused, "local", false).State == MetadataState.Available,
+            await Until(() => services.Metadata.Get("hidden", file, focused, device, false).State == MetadataState.Available,
                 "the parent file's Streams/Attributes count refreshes");
-            Assert.Equal(initialCount - 1, Assert.IsType<int>(services.Metadata.Peek("hidden", file, focused).Value));
-            Assert.Equal((initialCount - 1).ToString(System.Globalization.CultureInfo.CurrentCulture),
+            var after = Assert.IsType<FileDetailsFields.Cell>(services.Metadata.Peek("hidden", file, focused).Value);
+            Assert.StartsWith("1", after.Text);
+            Assert.Equal(after.Text,
                 tab.GetMetadataText(focused, tab.Listing.FocusedStoreIndex, "hidden", out _));
         }
         finally
@@ -136,6 +149,122 @@ public sealed class HiddenDataUiTests
             BuiltInFields.HiddenDataSource = previousHiddenSource;
             AccessibilityTests.Close(services, window, root);
         }
+    }
+
+    [AvaloniaFact]
+    public async Task Delete_confirmation_keeps_the_file_identity_from_before_a_refresh()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), "Requires a bound supplementary-data adapter.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string file = Path.Combine(root, "files", "reviewed.bin");
+            string previous = Path.Combine(root, "files", "previous.bin");
+            string name = OperatingSystem.IsWindows() ? "payload" : "user.filecat.payload";
+            IHiddenData adapter = OperatingSystem.IsWindows() ? new FileCat.Platform.Windows.WindowsHiddenData() : new UnixHiddenData();
+            if (OperatingSystem.IsWindows()) services.Providers.Register(new HiddenDataProvider(adapter));
+            WriteFixture("original");
+
+            var tab = vm.ActiveTab!;
+            tab.Navigate(HiddenDataProvider.Of(file));
+            await Until(HasPayload, "the original supplementary item is listed");
+            var original = tab.Listing.SupplementaryInventory!.Identity;
+            Assert.NotNull(original);
+            tab.Listing.SetFocus(Rows(tab).FindIndex(e => e.Name == name) + (tab.Listing.HasParentRow ? 1 : 0));
+            window.KeyPress(Key.Delete, RawInputModifiers.None, PhysicalKey.Delete, null);
+            await Until(() => ((OverlayDialogService)vm.Dialogs).IsOpen, "the delete confirmation is open");
+
+            File.Move(file, previous);
+            WriteFixture("replacement");
+            tab.Refresh();
+            await Until(() => HasPayload() && tab.Listing.SupplementaryInventory!.Identity != original,
+                "the inventory refreshed to the replacement file while confirmation was open");
+            await Click(window, "Delete");
+            await Until(() => vm.Notification?.Contains("different file", StringComparison.Ordinal) == true,
+                "the stale delete was refused");
+
+            var item = new HiddenItem(name, OperatingSystem.IsWindows() ? HiddenKind.Stream : HiddenKind.Attribute, -1);
+            Assert.Equal("original", Encoding.UTF8.GetString(adapter.Read(previous, item, 32)));
+            Assert.Equal("replacement", Encoding.UTF8.GetString(adapter.Read(file, item, 32)));
+
+            bool HasPayload() => tab.Listing.State == ListingState.Complete && !tab.Listing.IsRefreshing &&
+                Rows(tab).Any(e => e.Name == name);
+
+            void WriteFixture(string value)
+            {
+                File.WriteAllText(file, value + " main bytes");
+                if (OperatingSystem.IsWindows()) File.WriteAllText(file + ":" + name, value);
+                else Assert.Equal(0, SetAttribute(file, name, Encoding.UTF8.GetBytes(value)));
+            }
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Copying_a_protected_stream_refuses_before_creating_any_output()
+    {
+        Assert.SkipUnless(FileCat.Platform.Windows.WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires a disposable Windows VM with EFS enabled.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string file = Path.Combine(root, "files", "protected.bin");
+            string destination = Directory.CreateDirectory(Path.Combine(root, "out")).FullName;
+            File.WriteAllText(file, "original main data");
+            File.WriteAllText(file + ":payload", "protected supplementary data");
+            File.Encrypt(file);
+            UseWindowsFileOperations(services.Jobs);
+            services.Providers.Register(new HiddenDataProvider(new FileCat.Platform.Windows.WindowsHiddenData()));
+            var sourcePanel = vm.Workspace.Panels[0];
+            var tab = sourcePanel.ActiveTab!;
+            vm.Workspace.Panels[1].ActiveTab!.Navigate(Location.FileSystem(destination));
+            tab.Navigate(HiddenDataProvider.Of(file));
+            vm.Workspace.Activate(sourcePanel);
+            await Until(() => tab.Listing.State == ListingState.Complete && Rows(tab).Any(row => row.Name == "payload"),
+                () => "the protected stream is listed. " + tab.SupplementaryInventoryText);
+            tab.Listing.SetFocus(Rows(tab).FindIndex(row => row.Name == "payload") + (tab.Listing.HasParentRow ? 1 : 0));
+
+            var report = await OpenSelectedValueReport(window);
+            try
+            {
+                Assert.Contains("Windows EFS", report.Text);
+                Assert.DoesNotContain("protected supplementary data", report.Text);
+                Assert.False(Assert.Single(report.GetVisualDescendants().OfType<Button>(), button => button.Content as string == "Copy all").IsEnabled);
+            }
+            finally { report.Close(); }
+
+            vm.Execute(CommandIds.Copy);
+            await Click(window, "Copy");
+            await Until(() => services.Jobs.Jobs.Count > 0 && services.Jobs.Jobs[^1].State.IsFinished(), "the EFS copy refusal finishes");
+
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(JobState.Failed, job.State);
+            Assert.Contains(job.Issues, issue => issue.Message.Contains("Windows EFS", StringComparison.Ordinal));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(destination));
+            Assert.True(File.GetAttributes(file).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal("protected supplementary data", File.ReadAllText(file + ":payload"));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    private static async Task<ReportWindow> OpenSelectedValueReport(Window window)
+    {
+        await Until(() => window.GetVisualDescendants().OfType<Button>().Any(ReportButton), "the focused supplementary-report action is enabled");
+        Assert.Single(window.GetVisualDescendants().OfType<Button>(), ReportButton).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        var report = Assert.Single(window.OwnedWindows.OfType<ReportWindow>());
+        await Until(() => report.Reading?.IsCompleted == true, "the supplementary report finishes");
+        return report;
+
+        static bool ReportButton(Button button) => button.Content as string == "Report selected value…" && button.IsEffectivelyEnabled;
+    }
+
+    private static void UseWindowsFileOperations(JobManager jobs)
+    {
+        Assert.Empty(jobs.Jobs);
+        Assert.False(jobs.HasActiveWork);
+        var field = typeof(JobManager).GetField("_fs", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        field.SetValue(jobs, new FileCat.Platform.Windows.WindowsFileOperations());
+        Assert.IsType<FileCat.Platform.Windows.WindowsFileOperations>(field.GetValue(jobs));
     }
 
     private static List<EntryData> Rows(FileCat.App.ViewModels.TabViewModel tab) =>

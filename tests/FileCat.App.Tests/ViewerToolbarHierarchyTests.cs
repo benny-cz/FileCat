@@ -40,12 +40,18 @@ public sealed class ViewerToolbarHierarchyTests
             Assert.True(findBar.IsVisible);
             Assert.True(search.IsFocused);
             search.Text = "alpha";
-            find.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Named<Button>(viewer, "Close viewer Find bar").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.False(findBar.IsVisible);
+            Assert.Equal("alpha", search.Text);
+            Assert.True(Field<TextViewer>(viewer, "_text").IsFocused);
+            viewer.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, null);
+            Assert.True(findBar.IsVisible);
+            Assert.Equal("alpha", search.Text);
+            viewer.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             Assert.False(findBar.IsVisible);
             Assert.Equal("alpha", search.Text);
             find.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.True(findBar.IsVisible);
-            Assert.Equal("alpha", search.Text);
             var menuItems = Assert.IsAssignableFrom<IEnumerable<Control>>(more.ContextMenu!.ItemsSource)
                 .OfType<MenuItem>().ToArray();
             var actions = menuItems.Select(item => item.Header as string).ToArray();
@@ -95,10 +101,15 @@ public sealed class ViewerToolbarHierarchyTests
             Assert.True(findBar.IsVisible);
             Assert.True(search.IsFocused);
             search.Text = "01 02";
-            find.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Named<Button>(editor, "Close hex editor Find bar").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.False(findBar.IsVisible);
+            Assert.True(Field<HexView>(editor, "_hex").IsFocused);
             find.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal("01 02", search.Text);
+            editor.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            Assert.False(findBar.IsVisible);
+            Assert.Equal("01 02", search.Text);
+            find.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var menuItems = Assert.IsAssignableFrom<IEnumerable<Control>>(more.ContextMenu!.ItemsSource)
                 .OfType<MenuItem>().ToArray();
             var actions = menuItems.Select(item => item.Header as string).ToArray();

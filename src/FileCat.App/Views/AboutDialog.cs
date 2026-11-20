@@ -38,16 +38,16 @@ internal static class AboutDialog
         var logoImage = new Image { Source = logo, Width = 84, Height = 84 };
         try
         {
-            var body = new StackPanel { Spacing = 14, Width = 600 };
+            var body = new StackPanel { Spacing = 14, MaxWidth = 600 };
             body.Children.Add(Header(palette, version, logoImage));
-            var made = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+            var made = new WrapPanel { ItemSpacing = 6, LineSpacing = 2 };
             made.Children.Add(new TextBlock { Text = "Made by " + Author, VerticalAlignment = VerticalAlignment.Center });
             var mail = new HyperlinkButton { Content = AuthorMail, NavigateUri = new Uri("mailto:" + AuthorMail), Padding = new Thickness(2, 0) };
             Avalonia.Automation.AutomationProperties.SetName(mail, "Write to " + Author);
             made.Children.Add(mail);
             body.Children.Add(made);
             body.Children.Add(FactsGrid(facts));
-            var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            var actions = new WrapPanel { ItemSpacing = 8, LineSpacing = 6 };
             var status = new TextBlock { IsVisible = false, Classes = { "muted" } };
             AutomationProperties.SetAutomationId(status, "About support action status");
             AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
@@ -92,14 +92,14 @@ internal static class AboutDialog
         }
     }
 
-    /// <summary>The version as built ("0.1.0-preview"), with the commit it was built from when the build recorded one.</summary>
+    /// <summary>The build's informational version, with its recorded source commit when available.</summary>
     internal static string Version()
     {
         var assembly = typeof(MainViewModel).Assembly;
         string? informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         if (string.IsNullOrEmpty(informational)) return assembly.GetName().Version?.ToString() ?? "?";
         int plus = informational.IndexOf('+');
-        // "0.1.0-preview+0874b79c…" reads as "0.1.0-preview (0874b79)".
+        // "1.0.0-dev+0874b79c…" reads as "1.0.0-dev (0874b79)".
         return plus < 0 ? informational : $"{informational[..plus]} ({informational[(plus + 1)..Math.Min(informational.Length, plus + 8)]})";
     }
 
@@ -213,7 +213,8 @@ internal static class AboutDialog
                 layers.Children.Add(new ThemeBackdrop { GlassBands = (26, 106) });
                 break;
         }
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18, Margin = new Thickness(20, 0), VerticalAlignment = VerticalAlignment.Center };
+        var row = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 18,
+            Margin = new Thickness(20, 0), VerticalAlignment = VerticalAlignment.Center };
         row.Children.Add(logoImage);
         var words = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
         var name = new TextBlock { Text = "FileCat", FontSize = 30, FontWeight = FontWeight.Bold };
@@ -249,12 +250,15 @@ internal static class AboutDialog
                 _ => "Version " + version,
             },
             Classes = { "muted" },
+            TextWrapping = TextWrapping.Wrap,
         });
         words.Children.Add(new TextBlock { Text = Tagline, TextWrapping = TextWrapping.Wrap, MaxWidth = 440 });
         // Over drifting light or riveted iron the words sit on a dark glass, so they stay readable.
-        row.Children.Add(palette.Effect is ThemeEffect.Psychedelic or ThemeEffect.Steampunk
+        var wordHost = palette.Effect is ThemeEffect.Psychedelic or ThemeEffect.Steampunk
             ? new Border { Background = new SolidColorBrush(Color.FromArgb(0x8C, 0x10, 0x08, 0x18)), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 6), Child = words }
-            : words);
+            : (Control)words;
+        Grid.SetColumn(wordHost, 1);
+        row.Children.Add(wordHost);
         layers.Children.Add(row);
         return band;
     }

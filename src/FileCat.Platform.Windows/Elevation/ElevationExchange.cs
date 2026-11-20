@@ -24,15 +24,31 @@ public sealed class ElevationExchange : IDisposable
     /// <summary>The plan's volume-GUID path, which the broker walks without following links.</summary>
     public string VolumePlanPath { get; }
 
-    public static ElevationExchange Create(string root, ElevationPlan plan)
+    public static ElevationExchange Create(string root, ElevationPlan plan) =>
+        Create(root, plan.Nonce, ElevationPlanCodec.Serialize(plan));
+
+    /// <summary>Stage bounded read-only input for an administrator window. The requester owns its cleanup.</summary>
+    public static ElevationExchange StageReadOnlyRequest(string root, byte[] bytes) =>
+        Create(root, ElevationPlanCodec.NewNonce(), bytes);
+
+    private static ElevationExchange Create(string root, string nonce, byte[] bytes)
     {
-        string directory = Path.Combine(root, plan.Nonce);
+        if (bytes.Length > ElevationPlanCodec.MaxPlanBytes) throw new InvalidDataException("The administrator request is too large.");
+        string directory = Path.Combine(root, nonce);
         System.IO.Directory.CreateDirectory(directory);
-        var bytes = ElevationPlanCodec.Serialize(plan);
         string planPath = Path.Combine(directory, PlanFile);
-        using (var stream = new FileStream(planPath, FileMode.CreateNew, FileAccess.Write, FileShare.Read))
-            stream.Write(bytes);
-        return new ElevationExchange(directory, ElevationPlanCodec.Hash(bytes), ElevationPaths.ToVolumePath(planPath));
+        try
+        {
+            using (var stream = new FileStream(planPath, FileMode.CreateNew, FileAccess.Write, FileShare.Read))
+                stream.Write(bytes);
+            return new ElevationExchange(directory, ElevationPlanCodec.Hash(bytes), ElevationPaths.ToVolumePath(planPath));
+        }
+        catch
+        {
+            try { System.IO.Directory.Delete(directory, recursive: true); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            throw;
+        }
     }
 
     /// <summary>The broker's latest report, or null when it wrote none (it did not start, or ended before any step).</summary>

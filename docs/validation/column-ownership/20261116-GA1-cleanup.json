@@ -1,0 +1,7 @@
+{
+    "TaskRemoved":  true,
+    "FileCatOrNvdaRunning":  false,
+    "Users":  [
+                  " USERNAME              SESSIONNAME        ID  STATE   IDLE TIME  LOGON TIME\r\n admin                                     1  Disc         3:52  15.11.2026 18:47\r\n filecatdsa_r2         console             2  Active      none   16.11.2026 13:42\r\n"
+              ]
+}

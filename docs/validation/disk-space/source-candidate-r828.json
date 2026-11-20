@@ -1,0 +1,46 @@
+[
+  {
+    "path": "src/FileCat.App/Controls/DiskSpace/AnalysisChartPalette.cs",
+    "sha256": "ede22e1dc4e01cfe533f6e3ad158469c1c0a170b29f9f315207ae7e94543d805"
+  },
+  {
+    "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Comparison.cs",
+    "sha256": "5165895c2431e0a5e0dc5ef86e514adb9f0ad9878157bc09e93e1f42731cc0df"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Comparison.cs",
+    "sha256": "05e0f814d98220435e1598542bc678cd08ebfc000bb93c67a789c333ef477978"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.ComparisonChart.cs",
+    "sha256": "25b90d4a5c813bf597b15448f16a1f5f018e7253fe87e7fae80b442b0c4729d1"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisComparison.cs",
+    "sha256": "35c2f2e8eb42b381fcdbff470266e152d9477fb54a77c217fa8284b3558fa8be"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisComparisonChart.cs",
+    "sha256": "c31cffeb238f6449ba6fa751d59ad83bf0f56fd7e55462d75d5051ab2abcdeae"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisChartColors.cs",
+    "sha256": "798bf19153bdc65f3594d2c8025845ce36b1988ec2bdc149692706cac5aa2ea4"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.cs",
+    "sha256": "f7186322dfff9bea65664b296a7c4e37395388f1ae52a36531369325cb5d4665"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+    "sha256": "d3d41fddf59a1607461fcf2ba595df18f6a734f7a8e329f76a904b238c38083d"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisComparisonTests.Close.cs",
+    "sha256": "ab97c77aa096859b0c8d0d67a58933bbb3a6a3b8012d7a00e4520add1101ae25"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.ComparisonChart.cs",
+    "sha256": "938947f420edec8914ee2c6d844f1c2ba9cb00bd58dce36146a2dfb64470331e"
+  }
+]

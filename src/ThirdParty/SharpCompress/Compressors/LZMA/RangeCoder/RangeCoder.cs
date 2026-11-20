@@ -88,6 +88,14 @@ internal partial class Decoder
     public Stream _stream;
     public long _total;
     private byte[] _singleByteBuffer;
+    // FileCat's strict archive verifier cannot substitute synthetic 0xFF bytes for required compressed input.
+    internal bool RequireValidInput;
+    internal byte ReadInputByte()
+    {
+        int value = _stream.ReadByte();
+        if (RequireValidInput && value < 0) throw new EndOfStreamException("The range-coded stream ends early.");
+        return (byte)value;
+    }
 
     public void Init(Stream stream)
     {
@@ -97,7 +105,9 @@ internal partial class Decoder
         _range = 0xFFFFFFFF;
         for (var i = 0; i < 5; i++)
         {
-            _code = (_code << 8) | (byte)_stream.ReadByte();
+            byte value = ReadInputByte();
+            if (RequireValidInput && i == 0 && value != 0) throw new InvalidDataException("The range-coded stream has an invalid prefix.");
+            _code = (_code << 8) | value;
         }
         _total = 5;
     }
@@ -110,7 +120,7 @@ internal partial class Decoder
     {
         while (_range < K_TOP_VALUE)
         {
-            _code = (_code << 8) | (byte)_stream.ReadByte();
+            _code = (_code << 8) | ReadInputByte();
             _range <<= 8;
             _total++;
         }
@@ -121,7 +131,7 @@ internal partial class Decoder
     {
         if (_range < K_TOP_VALUE)
         {
-            _code = (_code << 8) | (byte)_stream.ReadByte();
+            _code = (_code << 8) | ReadInputByte();
             _range <<= 8;
             _total++;
         }
@@ -150,7 +160,7 @@ internal partial class Decoder
 
             if (range < K_TOP_VALUE)
             {
-                code = (code << 8) | (byte)_stream.ReadByte();
+                code = (code << 8) | ReadInputByte();
                 range <<= 8;
                 _total++;
             }

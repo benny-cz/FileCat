@@ -1,0 +1,180 @@
+using FileCat.Core.Jobs;
+
+namespace FileCat.Core.Archives;
+
+/// <summary>Unpublished native preparation. The caller continues to own every source lease.</summary>
+internal sealed class ArchivePreparedContainer<T>(T stage, ArchiveVerifiedNativeStage verified, ArchiveTransactionFacts facts,
+    IReadOnlyList<ArchiveSealedSidecar<T>> sidecars, ArchiveSpaceReview space, ArchiveArtifactReservation? creationMetadata) : IDisposable where T : class, IArchiveRetainedStage
+{
+    internal T Stage { get; } = stage;
+    internal ArchiveVerifiedNativeStage Verified { get; } = verified;
+    internal ArchiveTransactionFacts Facts { get; } = facts;
+    internal ArchiveSpaceReview Space { get; } = space;
+    internal ArchiveArtifactReservation? CreationMetadata { get; } = creationMetadata;
+    internal IReadOnlyList<ArchiveSealedSidecar<T>> Sidecars { get; } = Array.AsReadOnly(sidecars.ToArray());
+    public void Dispose() { try { Stage.Dispose(); } finally { foreach (var sidecar in Sidecars) sidecar.Dispose(); } }
+}
+
+/// <summary>
+/// Unregistered container preparation with private native sidecars and journal phase ordering. No publication, cleanup,
+/// replacement or ReadyToPublish claim. Exact Unix update origin and creation origin are applied before verification;
+/// capture/global budgets and final platform qualification remain gates.
+/// </summary>
+internal static class ArchiveJournaledContainerPreparation
+{
+    internal static async Task<ArchivePreparedContainer<T>> PrepareAsync<T>(JobJournal journal, string archivePath,
+        ArchiveContainerTransformPlan plan, ArchiveRetainedBinding? original, IReadOnlyDictionary<int, ArchiveRetainedBinding> captured,
+        Func<Guid, ArchiveArtifactKind, long, ArchiveArtifactReservation> reserve, Func<ArchiveArtifactReservation, T> create,
+        ArchiveTransformClient transform, ArchiveVerificationClient verifier, CancellationToken ct, long knownSnapshotBytes = 0,
+        ArchiveJobPassword? password = null, Action<Jobs.ArchiveJobPhase>? phase = null, Action<string>? reading = null)
+        where T : class, IArchiveRetainedStage
+    {
+        ArgumentNullException.ThrowIfNull(journal); ArgumentNullException.ThrowIfNull(plan); ArgumentNullException.ThrowIfNull(captured);
+        ArgumentNullException.ThrowIfNull(reserve); ArgumentNullException.ThrowIfNull(create); ArgumentNullException.ThrowIfNull(transform); ArgumentNullException.ThrowIfNull(verifier);
+        ct.ThrowIfCancellationRequested(); ArchiveTransactionFacts.ValidatePath(archivePath);
+        ArchiveRetainedContainerPipeline.RequirePassword(plan, transform, verifier, password);
+        string targetLeaf = Path.GetFileName(archivePath);
+        var pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        if (string.IsNullOrEmpty(targetLeaf) || original is not null && !string.Equals(original.Reviewed.LeafName, targetLeaf, pathComparison)) throw Invalid();
+        if (captured.Count != plan.Inputs.Count || captured.Count > ArchiveWritePolicy.MaxMembers || (original is null) != (plan.Source is null)) throw Invalid();
+        ArchiveCapturedInputs.RequirePlanCost(plan, captured);
+        var inputs = captured.ToDictionary(); var sidecars = new List<ArchiveSealedSidecar<T>>(); T? stage = null;
+        ArchiveTransactionFacts? facts = null; ArchiveSpaceReview? space = null;
+        try
+        {
+            var setup = await Task.Run(() =>
+            {
+                ReviewInputs();
+                Guid nonce = Guid.NewGuid(); var profile = plan.Expected.Profile;
+                var records = new List<ArchiveOriginEvidenceRecord>(inputs.Count + plan.Directories.Count + (original is null ? 0 : 1));
+                if (original is not null) records.Add(new(ArchiveOriginSourceKind.OriginalArchive, original.Reviewed.Version, original.Reviewed.Origin));
+                foreach (var pair in inputs.OrderBy(p => p.Key)) { ct.ThrowIfCancellationRequested(); records.Add(new(ArchiveOriginSourceKind.File, pair.Value.Reviewed.Version, pair.Value.Reviewed.Origin)); }
+                foreach (var pair in plan.Directories.OrderBy(p => p.Key)) { ct.ThrowIfCancellationRequested(); records.Add(new(ArchiveOriginSourceKind.Directory, pair.Value.Reviewed.Version, pair.Value.Reviewed.Origin)); }
+                var originScope = new ArchiveOriginEvidenceScope(nonce, profile, original is null ? ArchiveOriginOperation.Create : ArchiveOriginOperation.Update, records.Count);
+                long expectedLength = ArchiveManifestSidecar.EncodedLength(plan.Expected, ct);
+                long assessedLength = plan.Source is null ? 0 : ArchiveManifestSidecar.EncodedLength(plan.Source.Manifest, ct);
+                long originLength = ArchiveOriginEvidenceWriter.EncodedLength(originScope, records, ct);
+                long evidenceLength = checked(2 * expectedLength + assessedLength + originLength + (original is null ? ArchiveCreationMetadata.MaximumBytes : 0));
+                if (evidenceLength > ArchiveWritePolicy.MaxMetadataBytes) throw ArchiveWriteBudget.Limit();
+                long stageBound = ArchiveTransformWire.OutputBound(plan, ct);
+                var stageName = reserve(nonce, ArchiveArtifactKind.Stage, stageBound);
+                var expectedName = reserve(nonce, ArchiveArtifactKind.Manifest, expectedLength);
+                var originName = reserve(nonce, ArchiveArtifactKind.Provenance, originLength);
+                var verifiedName = reserve(nonce, ArchiveArtifactKind.Manifest, expectedLength);
+                var assessedName = plan.Source is null ? null : reserve(nonce, ArchiveArtifactKind.Manifest, assessedLength);
+                var metadataName = original is not null ? null : reserve(nonce, ArchiveArtifactKind.Manifest, ArchiveCreationMetadata.MaximumBytes);
+                // A creator-private stage folder below the archive folder publishes into that reviewed folder, for a new
+                // archive by an exclusive move and for an update by the recorded two-folder exchange.
+                string destination = stageName.PublicParentIdentity ?? stageName.ParentIdentity;
+                if (original is not null && original.Reviewed.ParentIdentity != destination ||
+                    inputs.Values.Any(b => b.Reviewed.ParentIdentity == destination && string.Equals(b.Reviewed.LeafName, targetLeaf, pathComparison)) ||
+                    plan.Directories.Values.Any(d => d.Reviewed.Version.Identity == destination || d.Reviewed.Version.Identity == stageName.ParentIdentity ||
+                        d.Reviewed.ParentIdentity == destination && string.Equals(d.Reviewed.LeafName, targetLeaf, pathComparison)))
+                    throw Invalid();
+                CheckReservation(stageName, ArchiveArtifactKind.Stage, stageBound);
+                plan.CaptureOwner?.ReviewSelectionDestination(Path.GetDirectoryName(stageName.Path)!, stageName.ParentIdentity, ct);
+                CheckReservation(expectedName, ArchiveArtifactKind.Manifest, expectedLength);
+                CheckReservation(originName, ArchiveArtifactKind.Provenance, originLength);
+                CheckReservation(verifiedName, ArchiveArtifactKind.Manifest, expectedLength);
+                if (assessedName is not null) CheckReservation(assessedName, ArchiveArtifactKind.Manifest, assessedLength);
+                if (metadataName is not null) CheckReservation(metadataName, ArchiveArtifactKind.Manifest, ArchiveCreationMetadata.MaximumBytes);
+                space = stageName.ReviewSpace(new(original?.Reviewed.Version.Length ?? 0, stageBound, evidenceLength, knownSnapshotBytes), ct);
+                var reservedSidecars = new List<ArchiveSidecarFacts>
+                {
+                    new(ArchiveSidecarRole.ExpectedOutput, expectedName.Path, expectedLength),
+                    new(ArchiveSidecarRole.OriginEvidence, originName.Path, originLength, originSources: records.Count),
+                    new(ArchiveSidecarRole.VerifiedOutput, verifiedName.Path, expectedLength),
+                };
+                if (assessedName is not null) reservedSidecars.Add(new(ArchiveSidecarRole.AssessedSource, assessedName.Path, assessedLength));
+                if (metadataName is not null) reservedSidecars.Add(new(ArchiveSidecarRole.CreationMetadata, metadataName.Path, metadataName.MaximumLength));
+                facts = new(nonce, 1, profile, ArchiveTransactionPhase.Reserved, archivePath, stageName.ParentIdentity, original?.Reviewed.Version,
+                    stageName.Path, null, stageMaximumLength: stageName.MaximumLength, sidecars: reservedSidecars);
+                stage = ArchiveJournaledStage.Create(journal, facts, stageName, create, ct); facts = journal.CurrentArchiveTransaction(nonce);
+                if (assessedName is not null)
+                    Keep(ArchiveJournaledSidecar.WriteManifest(journal, facts, assessedName, create, ArchiveManifestPurpose.AssessedSource, plan.Source!.Manifest, ct));
+                Keep(ArchiveJournaledSidecar.WriteManifest(journal, facts, expectedName, create, ArchiveManifestPurpose.ExpectedOutput, plan.Expected, ct));
+                Keep(ArchiveJournaledSidecar.WriteOrigin(journal, facts, originName, create, originScope, records, ct));
+                return (Verified: verifiedName, Metadata: metadataName, Origin: originScope);
+
+                void CheckReservation(ArchiveArtifactReservation name, ArchiveArtifactKind kind, long bound)
+                {
+                    if (name.Nonce != nonce || name.Kind != kind || name.MaximumLength != bound || name.ParentIdentity != stageName.ParentIdentity) throw Invalid();
+                }
+            }, ct).ConfigureAwait(false);
+            var verified = await ArchiveRetainedContainerPipeline.RebuildAndVerifyAsync(plan, original, inputs, stage!, transform, verifier, ct,
+                beforeRebuild: () => { ReviewSidecars(); Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Rebuilding)); phase?.Invoke(Jobs.ArchiveJobPhase.Rebuilding); },
+                beforeVerification: sealedStage =>
+                {
+                    ReviewSidecars(); Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Verifying, finalizedStage: sealedStage.Version));
+                    phase?.Invoke(Jobs.ArchiveJobPhase.Checking);
+                },
+                beforeFinalizing: () => Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Finalizing)),
+                finalizeMetadata: original is null ? sealedStage =>
+                {
+                    ReviewInputs(); ReviewSidecars();
+                    if (stage is not IArchiveCreatePublicationStage publication) throw Invalid();
+                    var evidence = sidecars.Single(s => s.Observation.Version.Identity == facts!.OriginEvidenceIdentity);
+                    var version = evidence.Observation.Version;
+                    var origin = ArchiveCreationOrigin.Review(evidence.File.OpenReadView(evidence.Observation, ct), new(version.Length, version.Sha256),
+                        new(facts!.Nonce, facts.Profile, ArchiveOriginOperation.Create, checked(inputs.Count + plan.Directories.Count)),
+                        inputs.OrderBy(p => p.Key).Select(p => p.Value.Reviewed), sealedStage.Origin.Format, ct,
+                        plan.Directories.OrderBy(p => p.Key).Select(p => p.Value.Reviewed));
+                    return publication.ApplyCreationOrigin(sealedStage, origin, ct);
+                } : original is not null && !OperatingSystem.IsWindows() ? sealedStage =>
+                {
+                    ReviewInputs(); ReviewSidecars();
+                    if (stage is not IArchiveCreatePublicationStage publication) throw Invalid();
+                    var evidence = sidecars.Single(s => s.Observation.Version.Identity == facts!.OriginEvidenceIdentity);
+                    var version = evidence.Observation.Version;
+                    var origin = ArchiveUpdateOrigin.ReviewUnixExact(evidence.File.OpenReadView(evidence.Observation, ct),
+                        new(version.Length, version.Sha256), setup.Origin, original.Reviewed,
+                        inputs.OrderBy(p => p.Key).Select(p => p.Value.Reviewed), ct,
+                        plan.Directories.OrderBy(p => p.Key).Select(p => p.Value.Reviewed));
+                    return publication.ApplyCreationOrigin(sealedStage, origin, ct);
+                } : null, password: password, reading: reading).ConfigureAwait(false);
+            await Task.Run(() =>
+            {
+                Keep(ArchiveJournaledSidecar.WriteVerifiedManifest(journal, facts!, setup.Verified, create, verified.Verification, ct));
+                stage!.Review(verified.Stage, ct); ReviewInputs(); ReviewSidecars();
+                Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Verifying, verified.Stage.Version));
+            }, ct).ConfigureAwait(false);
+            return new(stage!, verified, facts!, sidecars, space!, setup.Metadata);
+        }
+        catch
+        {
+            // Unpublished: the original is untouched. The job may now discard this transaction's own objects exactly.
+            if (facts is not null) journal.RequirePreparationReview();
+            if (stage is not null) { try { stage.StopWrites(); } finally { stage.Dispose(); } }
+            foreach (var sidecar in sidecars) sidecar.Dispose();
+            throw;
+        }
+
+        void Append(ArchiveTransactionFacts next) { journal.ArchiveTransaction(next); facts = next; }
+        void Keep(ArchiveSealedSidecar<T> evidence) { sidecars.Add(evidence); facts = evidence.Facts; }
+        void ReviewSidecars() { foreach (var evidence in sidecars) { ct.ThrowIfCancellationRequested(); evidence.File.Review(evidence.Observation, ct); } }
+        void ReviewInputs()
+        {
+            var identities = new HashSet<string>(StringComparer.Ordinal);
+            if (original is not null)
+            {
+                if (original.Reviewed.Version.Length != plan.Source!.SourceLength || original.Reviewed.Version.Sha256 != plan.Source.SourceSha256 ||
+                    !identities.Add(original.Reviewed.Version.Identity)) throw Invalid();
+                original.File.ReviewMetadata(original.Reviewed, ct);
+            }
+            // Structural checks only: capture observed every input completely, the transform checks each input as it opens
+            // it, and publication rechecks them once immediately before its claim (plan §7.1 ReadyToPublish). Reopening
+            // every input at each preparation step cost one pass over all of them per step (AT18).
+            foreach (var (id, binding) in inputs)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (binding is null || !plan.Inputs.TryGetValue(id, out var expected) || binding.Reviewed.Input(id) != expected || !identities.Add(binding.Reviewed.Version.Identity)) throw Invalid();
+            }
+            foreach (var directory in plan.Directories.Values)
+            {
+                ct.ThrowIfCancellationRequested(); if (!identities.Add(directory.Reviewed.Version.Identity)) throw Invalid();
+            }
+        }
+    }
+
+    private static ArchiveWriteException Invalid() => new(ArchiveWriteReason.InvalidRequest, "The reviewed TAR capture differs from its frozen preparation plan.");
+}

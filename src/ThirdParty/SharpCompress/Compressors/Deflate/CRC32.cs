@@ -1,7 +1,7 @@
 // FileCat replacement for DotNetZip's CRC32 class, whose header says it is based on example code from vbAccelerator: a
 // plain table-driven CRC-32 (IEEE 802.3, reflected polynomial 0xEDB88320) with only the members ZlibBaseStream's gzip
 // flavour uses, so the shipped library carries no code of unestablished provenance. See THIRD-PARTY-CHANGES.md.
-// Copyright (c) 2026 Benny and FileCat contributors. MIT license.
+// Copyright (c) 2026 Marek Střihavka <marek.strihavka@gmail.com> and FileCat contributors. MIT license.
 
 using System;
 

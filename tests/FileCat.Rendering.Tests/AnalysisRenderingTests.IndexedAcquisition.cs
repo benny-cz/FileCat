@@ -1,0 +1,150 @@
+using Avalonia.Headless.XUnit;
+using FileCat.App.Services;
+using FileCat.App.Views;
+using FileCat.Core.Analysis;
+using FileCat.Core.FileSystem;
+using FileCat.Platform.Windows;
+using FileCat.Platform.Windows.Analysis;
+
+namespace FileCat.Rendering.Tests;
+
+public sealed partial class AnalysisRenderingTests
+{
+    [AvaloniaFact]
+    public async Task AlternateScratchUsesOnlyItsOwnLeafAndPreservesBothPrivateBoundaries()
+    {
+        OrdinaryPreparation();
+        string? mountedFixture = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_SCRATCH_VOLUME_FIXTURE");
+        using var fixture = new PreparationFixture(alternateScratch: true, createScratchParent: mountedFixture is null, preparedRoot: mountedFixture);
+        var paths = fixture.Services.Paths;
+        var token = TestContext.Current.CancellationToken;
+        string old = paths.DefaultAnalysisScratchDirectory;
+        using (AnalysisPrivateDirectory previous = OperatingSystem.IsWindows()
+            ? new WindowsAnalysisPrivateDirectory(paths.ListingScratchDirectory, Path.GetFileName(old))
+            : new UnixAnalysisPrivateDirectory(paths.ListingScratchDirectory, Path.GetFileName(old)))
+        { }
+        string original = Path.Combine(old, "old-scratch-canary.bin");
+        File.WriteAllText(original, "old private contents");
+        string nearby = Path.Combine(Path.GetDirectoryName(paths.AnalysisScratchDirectory)!, "ordinary-neighbor.txt");
+        File.WriteAllText(nearby, "ordinary source contents");
+
+        await using (var acquisition = await AnalysisIndexedAcquisition.PrepareAsync(fixture.Services, token))
+        {
+            Assert.Null(acquisition.MemoryPreparationNotice);
+            var sources = new List<IAnalysisBackend>();
+            AnalysisSession session;
+            try
+            {
+                sources.Add(await AnalysisIo.Run(fixture.Services.Io, PathUtil.GetDeviceKey(fixture.Root), _ => NativeRoot(fixture.Root), token));
+                if (mountedFixture is not null)
+                {
+                    string mount = Path.GetDirectoryName(nearby)!;
+                    sources.Add(await AnalysisIo.Run(fixture.Services.Io, PathUtil.GetDeviceKey(mount), _ => NativeRoot(mount), token));
+                }
+                session = acquisition.Start(sources); sources.Clear();
+            }
+            finally { await Task.WhenAll(sources.Select(source => AnalysisIo.ReleaseAsync(fixture.Services.Io, source))); }
+            await session.Completion.WaitAsync(TimeSpan.FromSeconds(45), token);
+            Assert.Equal(0UL, session.SourceCloseFailures);
+            Assert.True(session.ScratchReservedBytes > 0);
+            Assert.True(Directory.Exists(paths.AnalysisScratchDirectory));
+            await using var lease = await session.AcquireDatasetAsync(token);
+            Assert.NotNull(lease);
+            var rows = await lease.ReadPathsAsync(0, maximum: 128, cancellation: token);
+            Assert.Contains(rows.Rows, row => row.Name == "ordinary-neighbor.txt" && row.IncludedByPolicy);
+            Assert.DoesNotContain(rows.Rows, row => row.Name == Path.GetFileName(original));
+            Assert.Contains(rows.Rows, row => row.Name == Path.GetFileName(paths.AnalysisScratchDirectory) && !row.IncludedByPolicy);
+        }
+        Assert.Empty(Directory.GetFiles(paths.AnalysisScratchDirectory));
+        Assert.Equal("old private contents", File.ReadAllText(original));
+        Assert.Equal("ordinary source contents", File.ReadAllText(nearby));
+    }
+
+    [AvaloniaFact]
+    public async Task UnavailableAlternateScratchLeavesBothLocationsUntouched()
+    {
+        OrdinaryPreparation(); using var fixture = new PreparationFixture(alternateScratch: true, createScratchParent: false);
+        var paths = fixture.Services.Paths;
+        string parent = Path.GetDirectoryName(paths.AnalysisScratchDirectory)!;
+        await using var acquisition = await AnalysisIndexedAcquisition.PrepareAsync(fixture.Services, TestContext.Current.CancellationToken);
+        Assert.Contains("The selected private scratch folder is unavailable", acquisition.MemoryPreparationNotice);
+        Assert.Contains("Using bounded memory", acquisition.MemoryPreparationNotice);
+        Assert.False(Directory.Exists(parent));
+        Assert.False(Directory.Exists(paths.DefaultAnalysisScratchDirectory));
+    }
+
+    [AvaloniaFact]
+    public async Task PreparedPrivateProfileFeedsTheFullIndexedWindowAfterAcquisitionOwnerCloses()
+    {
+        OrdinaryPreparation(); using var styles = new ProductStyles(); using var fixture = new PreparationFixture();
+        var paths = fixture.Services.Paths;
+        await using (var initial = await AnalysisIndexedAcquisition.PrepareAsync(fixture.Services, TestContext.Current.CancellationToken)) { }
+        byte[] state = File.ReadAllBytes(paths.AnalysisPrivateStateFile);
+        string canary = Path.Combine(paths.AnalysisSnapshotsDirectory, "PRIVATE_PROFILE_NAME_CANARY.txt"); File.WriteAllText(canary, "private payload");
+        string scratchCanary = Path.Combine(paths.AnalysisScratchDirectory, "PRIVATE_SCRATCH_NAME_CANARY.txt"); File.WriteAllText(scratchCanary, "preserve this neighbor");
+        string sourcePath = Path.Combine(fixture.Root, "source"); Directory.CreateDirectory(sourcePath);
+        for (int at = 0; at < 4_100; at++) File.WriteAllBytes(Path.Combine(sourcePath, $"row-{at:D4}.bin"), [17]);
+        await using var acquisition = await AnalysisIndexedAcquisition.PrepareAsync(fixture.Services, TestContext.Current.CancellationToken);
+        string device = PathUtil.GetDeviceKey(fixture.Root); IAnalysisBackend? source = await AnalysisIo.Run(fixture.Services.Io, device, _ => NativeRoot(fixture.Root), TestContext.Current.CancellationToken);
+        AnalysisDatasetLease? lease = null; var window = new DiskSpaceWindow();
+        try
+        {
+            var session = acquisition.Start([source]); source = null;
+            await session.Completion.WaitAsync(TimeSpan.FromMinutes(3), TestContext.Current.CancellationToken);
+            Assert.Equal(AnalysisPhase.Finished, session.Snapshot().Phase); Assert.True(session.DatasetDescriptor!.Paths > 4_096);
+            Assert.True(session.Snapshot().Nodes.Length <= 4_096); Assert.Equal(0UL, session.SourceCloseFailures);
+            Assert.NotNull(acquisition.Profile); Assert.Equal(acquisition.Profile.ProfileId, session.DatasetDescriptor.Identity.HostProfileIdentity!.ProfileId);
+            Assert.Throws<InvalidOperationException>(() => acquisition.Start([]));
+            lease = await session.AcquireDatasetAsync(TestContext.Current.CancellationToken); Assert.NotNull(lease);
+            ulong offset = 0; int excluded = 0;
+            do
+            {
+                var page = await lease.ReadPathsAsync(offset, maximum: 128, cancellation: TestContext.Current.CancellationToken);
+                Assert.DoesNotContain(page.Rows, node => node.Name.Contains("PRIVATE_", StringComparison.Ordinal));
+                excluded += page.Rows.Count(node => !node.IncludedByPolicy && node.MetadataState == MeasurementState.Excluded && node.Kind == AnalysisKind.Directory);
+                offset = page.NextOffset;
+            } while (offset < lease.Descriptor.Paths);
+            Assert.True(excluded >= 2);
+            // The acquisition closes first; the displayed dataset keeps its native store and quota.
+            await acquisition.DisposeAsync();
+            var explorer = await window.AddIndexedSessionAsync(lease, AnalysisMetric.Files, new("name:row-"), cancellation: TestContext.Current.CancellationToken);
+            await lease.DisposeAsync(); lease = null; window.Show(); Frame(window);
+            Assert.Equal(4_100UL, explorer.LogicalTotals.Files);
+            Assert.Equal(state, File.ReadAllBytes(paths.AnalysisPrivateStateFile)); Assert.Equal("private payload", File.ReadAllText(canary));
+            Assert.Equal("preserve this neighbor", File.ReadAllText(scratchCanary));
+        }
+        finally
+        {
+            window.ForceClose(); await window.WaitForIndexedCloseAsync();
+            if (lease is not null) await lease.DisposeAsync();
+            if (source is not null) await AnalysisIo.ReleaseAsync(fixture.Services.Io, source);
+            await acquisition.DisposeAsync();
+        }
+        Assert.Equal(new[] { scratchCanary }, Directory.GetFiles(paths.AnalysisScratchDirectory));
+    }
+
+    [AvaloniaFact]
+    public async Task UnstartedIndexedPreparationClosesNativeCapabilitiesAfterSchedulerShutdown()
+    {
+        OrdinaryPreparation(); using var fixture = new PreparationFixture();
+        var acquisition = await AnalysisIndexedAcquisition.PrepareAsync(fixture.Services, TestContext.Current.CancellationToken);
+        byte[] state = File.ReadAllBytes(fixture.Services.Paths.AnalysisPrivateStateFile);
+        fixture.Services.Io.Dispose(); await acquisition.DisposeAsync(); await acquisition.DisposeAsync();
+        Assert.Equal(state, File.ReadAllBytes(fixture.Services.Paths.AnalysisPrivateStateFile));
+        Assert.Empty(Directory.GetFiles(fixture.Services.Paths.AnalysisScratchDirectory));
+        Assert.Throws<ObjectDisposedException>(() => acquisition.Start([]));
+    }
+
+    [AvaloniaFact]
+    public async Task CorruptPrivateIdentityPreservesBytesAndPreparesMemoryWithoutCreatingScratch()
+    {
+        OrdinaryPreparation(); using var fixture = new PreparationFixture();
+        await using (var initial = await AnalysisIndexedAcquisition.PrepareAsync(fixture.Services, TestContext.Current.CancellationToken)) { }
+        string path = fixture.Services.Paths.AnalysisPrivateStateFile; const string corrupt = "{\"schema\":\"future\",\"profile\":\"private-canary\"}";
+        File.WriteAllText(path, corrupt); Directory.Delete(fixture.Services.Paths.AnalysisScratchDirectory, recursive: false);
+        await using var fallback = await AnalysisIndexedAcquisition.PrepareAsync(fixture.Services, TestContext.Current.CancellationToken);
+        Assert.Null(fallback.Profile); Assert.StartsWith("ephemeral:", fallback.ProfileIdentity); Assert.NotNull(fallback.MemoryPreparationNotice);
+        Assert.Equal(corrupt, File.ReadAllText(path)); Assert.False(Directory.Exists(fixture.Services.Paths.AnalysisScratchDirectory));
+    }
+    private static IAnalysisBackend NativeRoot(string path) => OperatingSystem.IsWindows() ? new WindowsAnalysisBackend(path) : new UnixAnalysisBackend(path);
+}

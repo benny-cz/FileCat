@@ -1,0 +1,430 @@
+{
+  "purpose": "Process-wide eight-session admission, pending Open/Compare reservation, actual view/acquisition work closure, retained explicit saves and preserving failed-close ownership.",
+  "gitBase": "d94593355c6e529d7dfddfcb033e0b84c6dea273",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "9fd2875c1d43c38ca6aa23a1e6513851103d3989aa7f13388cde15f8530e5c8c"
+    },
+    {
+      "path": "docs/validation/disk-space/README.md",
+      "sha256": "647270e3b9427bb9dbebce5bf1f634fdb0d490fe7802b3568c6bbc42249bf72c"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "5cccc70f9d95b80a585bc67f6d6773718ff4928fa4abc73021f5e2061aa26e44"
+    },
+    {
+      "path": "src/FileCat.App/Services/AnalysisSessionAdmission.cs",
+      "sha256": "051a1a4d593351f3139b83bd809330545268465d6b6e76a3789f77d261ad012b"
+    },
+    {
+      "path": "src/FileCat.App/Services/AnalysisViewWork.cs",
+      "sha256": "56741279b7056729738e7075044c85bd78359c34e1206ffd3702a7a5eb57ae69"
+    },
+    {
+      "path": "src/FileCat.App/Services/DiskSpaceWindowManager.cs",
+      "sha256": "cdd0ee13851fc39838a8bda623044d3fbc064c020c8e6bdf65e9297427bb4940"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Acquisition.cs",
+      "sha256": "8b9941e65396fdf69b59514c149ad7d571997778320e1c39a9f9a78f43b282fa"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Comparison.cs",
+      "sha256": "eb5c90ef616290ccb1408c4d363e3e14ec21eee1e7ac8383680466c4619bcd28"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Persistence.cs",
+      "sha256": "0c250077aa3213be6ec8479e8ca25ee2b1ac7f9b7bcbfd9ad47652c0809aea7a"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "f25bf1ffce39654075811424502ba5e7e827f7b03ad9bc845f56ab5965b785a7"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Comparison.cs",
+      "sha256": "e200f1cbf81716377a97a587235947e3d2121cdf90adb3649e93de42fc9b13db"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+      "sha256": "ccf7e29212df24c57dca2f79592f125302d9c764c7c89dee5d5e29747b887cf1"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Persistence.cs",
+      "sha256": "a28fadee64dc5b538988bb762631a69c2135c44eccfc7cdea35fe3d8bea081a3"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "bf1533f0c585f08ad755172b180020d88ca8eecab4182bd29df6027453c94d7c"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/MemoryFallback.cs",
+      "sha256": "f864cda3c72784278ad0467dce4c23d0a2179a209fd76c0186e1269f05664aa2"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Program.cs",
+      "sha256": "5c4ce8c24dd0c676df93a1ba545fc0f279fef29e55c93d9df498a8d295a21923"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/README.md",
+      "sha256": "3481c5f5d6a98e9997a1af3e4e950f6e44c8b1e435f2bc8accd3bf8b2e3e4eb2"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/ViewLifetime.cs",
+      "sha256": "93a19c2b2dd28bbb7294957da2ea66169c66f10ad7d2200bb4c5713be0f84750"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Comparison.cs",
+      "sha256": "c8bdc70071e0f0e6437c51c397d681029ceee0a0d21eaa675fd949e6b4f98481"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.ComparisonQuery.cs",
+      "sha256": "b04d1ce4c7c19ecbf0df7fffde1548b438ae661feb922eebcddba56eab1b0fc9"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.MemoryLifecycle.cs",
+      "sha256": "f520b4b3e4b32e15aff7df4a32ed850fc46a5b14353acbeffbcd50e067f79571"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Navigation.cs",
+      "sha256": "ac6690705a50a594554847d780eb6bc7aca171ab711e4046563a039a7d5f6061"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.NonFileEntries.cs",
+      "sha256": "43e4c5c634697206d876de3ef810b0cd9104ecda8859f9add6b0244d69830980"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Persistence.cs",
+      "sha256": "5a3164d89afabde3053c120ba8a87fa0b52118ccef3046c07dccdd64d74a49db"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Preparation.cs",
+      "sha256": "582d200996d846a57f46514391eb7c718b067407337d7631441c4e9ea88055a4"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Range.cs",
+      "sha256": "63ead1858bca2f731e6d9d428defef452903286b379f6713727be94ccca6f6df"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Setup.cs",
+      "sha256": "a15c512b8d84d4402d9a03ea45aafad75b4113b762f733c4808173d28a3cb571"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.TableFocus.cs",
+      "sha256": "835b7ce2d46142bf932d684580736503c6b6c733d77621e1ea15964e2cf09b67"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Tabs.cs",
+      "sha256": "0e508a0eb97e3403ea78c9fe4bf8b3c21d87218d9cd1e18c11214bc83fc39efc"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.WorkLifetime.cs",
+      "sha256": "1891cbec6fa0ddefde9478b12352602fdcc6b37d80150fa06ad81cd48999ab35"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.cs",
+      "sha256": "6b4a1e850f493c936820582ec7cfa64f9d8fe86d404374932e7ddf900eb4f8da"
+    }
+  ],
+  "binaries": {
+    "FileCat.dll": "a1914957ef5659c8504e184b69e13f755921b0fdca73056b9e0b645ec45ee280",
+    "FileCat.Core.dll": "45be807eb23af91b98242c3e65434cc5a907127ca7bf1b987cdc38b7eb55a1b3",
+    "DiskSpaceHarness.dll": "a39d2bb4a6a6f4a974fb0227934f3038e472dfc95a29265f6e12ae285f4b0211",
+    "FileCat.Rendering.Tests.dll": "5f9507ea8fe37def184946771dae6633e67db0b0d480006bbd108015da85e26a"
+  },
+  "archiveSha256": {
+    "render": {
+      "mac": "a80cb13d92ce121660234db389a55535f3ff66220618189bce8cba6e8e23355c",
+      "linux": "c920b1020167be395309cc8f8e418e3ee5b6dd47754b24038227a11867010a95",
+      "windows": "780c93ccee7d9ad96f4a01d85544673d3b4057d22a75b311aa37d79e351937f1"
+    },
+    "native": {
+      "mac": "cdb91fd400940fba6f056f98a6e285eefc70327cf2936d7c55d388bf94125a8d",
+      "linux": "95d7d56f6b3ee139d93803240e7816e2376fe79eec58aca6e036f952839ec78f",
+      "windows": "6c515f686e783c80246deaab91365ae47bd862e7dd8e88cdc7952d119c538a26"
+    }
+  },
+  "coreArchiveSha256": "d7805abbf2010ed3376fcf18a3f54e0232bffd150b73ca8574669da387d3b805",
+  "windowsNativeArchiveSha256": "f1951c2be8c322f4c18681642bf7502c32e97d5a935758ed913df663678fe820",
+  "validation": {
+    "status": "process-wide-admission-and-actual-work-native-functional-subset-passed",
+    "render": {
+      "mac": {
+        "total": 94,
+        "passed": 94,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 36.12,
+        "evidence": "mac-render-r453.xml"
+      },
+      "ubuntu": {
+        "total": 94,
+        "passed": 94,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 59.453,
+        "evidence": "ubuntu-render-r453.xml"
+      },
+      "windows": {
+        "total": 94,
+        "passed": 93,
+        "failed": 0,
+        "skipped": 1,
+        "seconds": 50.987,
+        "evidence": "windows-render-r453.xml"
+      }
+    },
+    "core": {
+      "mac": {
+        "total": 597,
+        "passed": 595,
+        "failed": 0,
+        "skipped": 2,
+        "seconds": 16.882,
+        "evidence": "mac-core-r449.xml"
+      },
+      "ubuntu": {
+        "total": 597,
+        "passed": 595,
+        "failed": 0,
+        "skipped": 2,
+        "seconds": 65.181,
+        "evidence": "ubuntu-core-r449.xml"
+      },
+      "windows": {
+        "total": 615,
+        "passed": 574,
+        "failed": 0,
+        "skipped": 41,
+        "seconds": 13.411,
+        "evidence": "windows-core-r449.xml"
+      }
+    },
+    "windowsNative": {
+      "total": 37,
+      "passed": 37,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 27.384,
+      "evidence": "windows-native-r449.xml"
+    },
+    "native": {
+      "mac": {
+        "passed": true,
+        "pid": 72627,
+        "processWideSessionCapAndActualProjectionCloseVerified": true,
+        "matchingPaths": 509,
+        "queryMatches": 1,
+        "unavailableRoots": 1,
+        "sourceUnchanged": true,
+        "ownedProcessExited": true,
+        "evidence": "mac-native-memory-r454.json"
+      },
+      "ubuntu": {
+        "passed": true,
+        "pid": 682156,
+        "processWideSessionCapAndActualProjectionCloseVerified": true,
+        "matchingPaths": 509,
+        "queryMatches": 1,
+        "unavailableRoots": 1,
+        "sourceUnchanged": true,
+        "ownedProcessExited": true,
+        "evidence": "ubuntu-native-memory-r454.json"
+      },
+      "windows": {
+        "passed": true,
+        "pid": 5468,
+        "processWideSessionCapAndActualProjectionCloseVerified": true,
+        "matchingPaths": 509,
+        "queryMatches": 1,
+        "unavailableRoots": 1,
+        "sourceUnchanged": true,
+        "ownedProcessExited": true,
+        "evidence": "windows-native-memory-r454.json"
+      }
+    },
+    "builds": [
+      "build-r446.txt",
+      "build-render-r453.txt",
+      "harness-build-r454.txt",
+      "build-final-r456.txt"
+    ],
+    "postChecks": [
+      "mac-post-lifetime-r455.json",
+      "ubuntu-post-lifetime-r455.json",
+      "windows-post-lifetime-r455.json"
+    ],
+    "manifest": "source-manifest-r454.json",
+    "processWideEightSessionAdmission": true,
+    "pendingOpenAdmissionReserved": true,
+    "actualProjectionNavigationPersistenceTracked": true,
+    "failedCloseRetainsAdmission": true,
+    "captureScope": "Only the actual owned FileCat window visual tree, inspected on all3. No compositor, physical-input, complete accessibility or full resource qualification.",
+    "publicAcquisitionEnabled": false,
+    "publicSpillEnabled": false,
+    "nativeInputQualified": false,
+    "fullResourceGateQualified": false,
+    "finalIndependentReviewPerformed": false
+  },
+  "nativeStaging": "Known RID-native apphost/dependencies from r95; all managed DLL/PDB/JSON from terminal r454 harness build. App matches final r453 rendering, Core matches r449. Not installation/publish/package qualification.",
+  "ongoingReviewFixes": [
+    "Unverified failed close retains its slot and supplies accurate restart wording.",
+    "Pending Open/Compare reserves destination before loading.",
+    "Navigation retention refusal is handled instead of escaping async void.",
+    "Late catalog click after disposal is ignored."
+  ],
+  "fixtureNotes": "Existing window tests now await actual close between cases, including eight-tab theme loops. An initial mechanical await edit had compilation errors and was corrected before guest execution. Intermediate r450 presentation and r448 Mac/Ubuntu native controls passed; final evidence is r453/r454.",
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r446.txt",
+      "sha256": "8fca41c76d1e27ff4c6442dd1b526ae2a7d0fb7c5371fef34ffa7f8cc8d3b3c3"
+    },
+    {
+      "path": "docs/validation/disk-space/build-render-r453.txt",
+      "sha256": "cb6a25eac9049dbae7c0361214cf674b26d2d4ff0815bc81f7ccb5b65c37b26a"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r449.sh",
+      "sha256": "64a213f29778cdd52dc20471d163988a385c36ade8af18ce568c71e22c4562fd"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-native-memory-r454.py",
+      "sha256": "90fb0e23c0d7c8d0fda115a4c03847bf0effdc00e21e3eecb919bb94af87c494"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-linux-r453.sh",
+      "sha256": "6449566e531ede9ec8015428f32b802327865f549df9e9bd81cafb6e8b7e9133"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-mac-r453.sh",
+      "sha256": "3d556d53a8bf15c2004d11069aac0fc91fae9ecbf19ff091d9c8c070fc462a14"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r449.ps1",
+      "sha256": "244f490ad9207d02ba5843a61c2643db934e7081cb233382f03bf975f41ed361"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-memory-r454.ps1",
+      "sha256": "94188fbe542fa35d6008b83cd21ba92e12b4f18a4205611e3404842ba4db70c3"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r449.ps1",
+      "sha256": "b3a1ae309436083825ba6604265199e34cb789160207887c1efd5e58451c92a3"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-render-r453.ps1",
+      "sha256": "328256e4026843e4db6a37c11c30e11fb945e3b922ea2d6fd1aa650a8fa8c64c"
+    },
+    {
+      "path": "docs/validation/disk-space/harness-build-r454.txt",
+      "sha256": "78b8d746626750c6a7fba22322caa5ef4444d9e46977efb79df81732fa739eba"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-core-r449.log",
+      "sha256": "8e809f78b947f15133f55f394e079b189a51e9f37c1b623736e7a627eb19d32a"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-core-r449.xml",
+      "sha256": "6f6e6c56f70ac6020fff10e25599f854cfb5050a904e9aa655cba2e364018e76"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-native-memory-r454.json",
+      "sha256": "ce22799bedf95a18b5cda4afa334d9994d92825a51409ba64a62801dd2d26457"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-post-lifetime-r455.json",
+      "sha256": "4d18c3322ee5171c15b7393cec3e7ed8e594ce4d4a022001f3f23097b7be2d1b"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-render-r453.log",
+      "sha256": "6984cf0d12e9018b009e92954dd56c709c1e17dcf212b72f52e842d927156d5f"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-render-r453.xml",
+      "sha256": "655f864059e138b548264b90758ab5cc8ad79f28299f5a04ad2571c42537919d"
+    },
+    {
+      "path": "docs/validation/disk-space/renders/mac-native-memory-r454.png",
+      "sha256": "ed2427150b2fcbd3147fdc9c85e1564022a1c216ee75286d4c72a812e5b6abef"
+    },
+    {
+      "path": "docs/validation/disk-space/renders/ubuntu-native-memory-r454.png",
+      "sha256": "1e6965ef956c499251a0747cec83f1a2acd4a1baea30a622895a85fa09c1b5e8"
+    },
+    {
+      "path": "docs/validation/disk-space/renders/windows-native-memory-r454.png",
+      "sha256": "9b286d6e4953cebd539f47fbb93c1e4a8ff1c6cc2d32b1e68e4793846efd7666"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r449.log",
+      "sha256": "d3bcb6027b469a3a71efec08e6d083ef50d0be0c567381e1ea54235bfca61462"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r449.xml",
+      "sha256": "63c1c1fbd114fb9238543ab01455427e0c99ea9bd295400f096bcf34a823ad56"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-native-memory-r454.json",
+      "sha256": "735ec4bdb517fc893910d758c1e72e0e162f212a140114a558887064aee53a96"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-post-lifetime-r455.json",
+      "sha256": "fd54f866508dbf05a76fd06005f031ee61aed5dc9f1c822528fb3d3773a3d6bc"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-render-r453.log",
+      "sha256": "01795494edc4108c832a553b165bb161cf97c56d85783d77a0167a539c9ffb93"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-render-r453.xml",
+      "sha256": "09542122620c3a44bf9d4b879eb1644cc38e51efb7b5ef606b713d3b654e8186"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-r449.xml",
+      "sha256": "915a6bf93d7b681580b5a8723936f883d437d7719986ef0cbe540b69fe417302"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-memory-r454.json",
+      "sha256": "ba819a29e55066ef6842d0605f352155cef8dd2cfbd13cb1138ad83d075b6fac"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-r449.xml",
+      "sha256": "b220c7b11461aea8d9224fe54c5897d9bb6ffef03d8774e2ac047be1fe28e91d"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-post-lifetime-r455.json",
+      "sha256": "b424ef2bd63ee8db27ad7be8d9ae13d2eea9406c97a84a793b57c3c9fc39ae24"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-render-r453.log",
+      "sha256": "f9beba96163e9f47e533781f7cdbda5b505222289f1ec14a87403e9e8935956d"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-render-r453.xml",
+      "sha256": "e94c7e0d2fa5c5b3033d210a1bbc77c8f9fd399a59a01530d5d1f9115d1f3126"
+    },
+    {
+      "path": "docs/validation/disk-space/build-final-r456.txt",
+      "sha256": "87b9696741092d6a8c6a3afe03c8f4333d9ed31d2677a8c94a156c2ce86cc92b"
+    }
+  ],
+  "remaining": [
+    "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, bounded queue/CPU admission, actual mixed-volume/native-device identity, package/session/domain agreement, original inventory IDs/streaming persistence, end-to-end1M/10M and every resource limit remain required.",
+    "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
+    "W2: grouping/color dimensions, scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
+    "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
+    "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
+    "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",
+    "W1: epoch refresh, native unresponsive-device and shared-memory/indexed private-store budget qualification remain. Shared eight-request actual-I/O ownership and worker cleanup now have regressions; this is not full resource qualification.",
+    "Ubuntu: CLI regression coverage now passes after the other process exited. Continue process gates before every run and postpone whenever another FileCat session appears; broader native desktop, filesystem/resource and package qualification remain.",
+    "W2: actual native desktop/assistive-technology testing; safe raw-name/path and unknown-value display; grouping/sort/breadcrumbs/details/tooltips; complete lifecycle and lazy tools.diskSpace registration.",
+    "W4/W5: qualified live source and exact-entry typed operations, protected objects, immutable review/submission, preserving defaults and accurate outcomes. Unsupported needs feasibility evidence. Early native sharing/oplock/descriptor counterexamples are recorded; a complete qualified adapter or fully evidenced prescribed unsupported path still remains.",
+    "W6/W7: declarative recipes and explicitly qualified content work; closed NTFS metadata helper or prescribed standard-scan fallback.",
+    "W8: native platform/theme/DPI/a11y/package matrix, 1M/10M measurements, negative controls, actual diagnostics ZIP leakage, documentation and final requirement-by-requirement audit.",
+    "After the complete implementation/testing loop: independent UX/UI/functional/security review using FINAL_REVIEW_CHECKLIST.md, fix every finding and repeat relevant native checks before completion."
+  ],
+  "hostReceiptUtc": "2026-11-06T18:39:36.260100+00:00",
+  "finalSolutionBuild": "Zero warnings/errors at r456; final App/Core/harness/render-test binaries remain byte-identical to guest-tested outputs."
+}

@@ -1,0 +1,902 @@
+{
+  "purpose": "Ordinary private root-ID query restoration across memory/indexed views and repeated saves; visible identifier consistency; handled unavailable indexed storage",
+  "observedUtc": "2026-11-07T19:22:02.299970+00:00",
+  "gitBase": "f57e3938cfbc6d8b87741469a4dc735f15eb76e2",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Comparison.cs",
+      "sha256": "f863dcfb7f3cd781b31b62942176925eed70f288e279831c5c94728ec7fb290e"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.ComparisonPersistence.cs",
+      "sha256": "2488b71d4e25a67539742d1152ecca27ade016abe5bb2d07358275f71230702b"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Persistence.cs",
+      "sha256": "13c92a6c53736be9e2a3fa431becf45b96eb1f902bd09c003b2dd38fe014d9e0"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Projection.cs",
+      "sha256": "25a5273527afbe0b8753745bd8e635e298b6954e0b4c5db8c9eddbdc3431b47b"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "968c12fe3c3333c54c165cd67590651aab470317ae6e3e01c2889b13a4fe0303"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Comparison.cs",
+      "sha256": "d3c6c18c43f44c37dfc1acbd420b2b87493110c28c9673fa6ef29684f912c254"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.ComparisonChart.cs",
+      "sha256": "cda846b8926bc886ca9874eb6d462e1208eefb6f49d30e3f6e484307eb37cc86"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.ComparisonPersistence.cs",
+      "sha256": "d554bad1029a482f9318eac8bbe3af3fd543ff4cd0a98d9db5479f19377cb65f"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+      "sha256": "89a1795b604551998de0392035a766ccdf5cce13640948f6e811e33fbfdf5b27"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedCapturedFolder.cs",
+      "sha256": "0164b72478df01f27fa3e3adb7db1ca2052643586fe28e6c35881787e2a01821"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedPersistence.cs",
+      "sha256": "3a156e4070df37056f9c0fa4e9624fce02c06b7839d243f676c94e07ac41fce0"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "c19caa322d4c885753ae3a9b94961ab836b157edd0dc1b9fc9894209e7ed18bc"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisComparisonFormat.Metadata.cs",
+      "sha256": "bd5c20a5a8c11f8494186aa71906b530c3d86c265b81d5b544eb624bd7a34ba6"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisComparisonFormat.Streams.cs",
+      "sha256": "07f45074ffd2ed6e9cf01a1af67e449a89a417280bf9487ce7e8bdbfd432c0ef"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisComparisonFormat.cs",
+      "sha256": "c564dc2df9090d022c24693b198fd5c99dad3b63ebf4313fc4d3add0808e20e7"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisComparisonQuery.cs",
+      "sha256": "1615bc37d5ce26358b64acc25b33f574f1a10373f8da3c2375e31e56f3f59216"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisFilter.cs",
+      "sha256": "3892fdcf8beb511bdf32561eeca08ee390d2d643b744bb24957213a6ebcb9da0"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedFilter.cs",
+      "sha256": "6907cec0d07ffbf8735f85cb70158bf5782f33fb3ab47714955344d80ac9ad41"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisPrivateInventoryStore.Comparison.cs",
+      "sha256": "d5927beb552cfc0e13da34f3b45967cbd0e62211fd3e93bb645e10261e946d5e"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisPrivateNames.cs",
+      "sha256": "bac8b607a8de889d6b6b488b030c46f53f68ea5c80250d8ec751d2b3701010e1"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisRootDisplayIds.cs",
+      "sha256": "886db12aec1434da8f396fd0908dfa964f05e8fddb79ebc540924622eb5e5a1d"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.Grouping.cs",
+      "sha256": "046312c746cedf7e242daed24c8867c9cc7dc7219d0fbb248898fc397da74e5c"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.RootIds.cs",
+      "sha256": "3cc2ddaa474bdf52b4c0d41086f97ca873438404f9503b39ca053f889c0ad231"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.cs",
+      "sha256": "d43c01700c98cfa7b91b475b2f3014022d0715f860e35957c36e92c7dbf1e153"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSavedComparison.cs",
+      "sha256": "666fbbe99960878058c7e725d7b687baeef41aa6a1dfca415123399787da2695"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisCatalogTests.Grouping.cs",
+      "sha256": "d29ed536a25c8a1c994c75c7cda0df1a8b30c734ec0885ed83a71c32d954f10c"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisCatalogTests.RootIds.cs",
+      "sha256": "b9041d656560590f67835f95742c2421958afaa2053111ef90015efca31a408e"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisComparisonTests.Persistence.cs",
+      "sha256": "9b936cffaa37c14fd294c0551ea15ff6353ab53eb39f5ffd887f47398875e4ad"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetTests.NamedInventory.cs",
+      "sha256": "169c85ac6c438a31b80097e2df0df00d4dfacca383c081df829a797a4a5a8eff"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.ComparisonPersistence.cs",
+      "sha256": "ec577f1676c037fbde39e6db5056de1f7c4254f9107af7dca064afca17b25474"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.RootQueryPersistence.cs",
+      "sha256": "dea50079683e2ae5835d0892bbb40cab86c41ca86eeebd8b960ed614a46c2caa"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r854.txt",
+      "sha256": "d890546ad9d79884d1e1a2d807c92fdbe64e1d100be64fedd216bba3ddf31827"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r855.txt",
+      "sha256": "a50e69eb341ae3d5bd1e36098c33278081137f5badf10bf130af87ed12146ea7"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r858.txt",
+      "sha256": "71d4c7d4795efed3cdfb0abc663df6bed49553538b8daa6974a4033ecce4ee9a"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r859.txt",
+      "sha256": "752d810f3f2558aaabef38fbe231f2077aec8acd15600bc86801cd8b156c46f3"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r862.txt",
+      "sha256": "2dbbeb4fe9298c33728e444e30fa4ccbaf28c67381d6ccb364dd937158868dc5"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r864.txt",
+      "sha256": "3411a1ae83bde6910b379f34205ea43f9159b66c4061428e72e637b71548a5ed"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r867.txt",
+      "sha256": "585d4ff7254a3f1a0bd8e61943eae698375aa365cd4983f36a5f410b241193af"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r860-observed.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r860-post.json",
+      "sha256": "76de640d862019edf36878c6634f4d42b8e7b7abf806f37acee27f3230648aa3"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r860-preview-r860.log",
+      "sha256": "6132de613c763d7d9a387052656f89a677c12dbda02e6f5fcc27a354d5b82d49"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r860-preview-r860.xml",
+      "sha256": "d07416d11a6aeaf8de75dbf27a66035c37412f05d68a08464bddf70ff304b3e4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r860-results.tgz",
+      "sha256": "bcd5b51c3384f51ff1b6723aaff990278ca2fde5e8fa107af3695b058224381c"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r860-smoke-r860.log",
+      "sha256": "3177318231353a7fe5960a0dd1e8e7ccf60513a12c13d61487a99b0c353eb1e4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r860-smoke-r860.xml",
+      "sha256": "0eb7ed9b5d7504f283e5811207aaf09f418a6f3a9dba4b7b78ad3461c22700d5"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r860-state.txt",
+      "sha256": "5de1d723831a2f4db134a12e936c4b11b6f4a02d081fa90eeeb25a6dc4535c60"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r868-core-r868.log",
+      "sha256": "b4c636fbee69ad688ad407efd15f2ac5b5c3152b21cbb4cebf48667304cd299f"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r868-core-r868.xml",
+      "sha256": "69bee6dbeece227f3481d7a2c00f4a9b47c40e0ed99281f2cff2e47c81a28661"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r868-observed.txt",
+      "sha256": "7de1c7fe6f7edfe3ac53defc3b345fa8ba4cdf306cbbed6d9abf5fb15fd9e0c2"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r868-post.json",
+      "sha256": "745726c0621410eb0a35ed56b4ff57cbb0377f1c4cef5685af45218e128115c2"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r868-preview-r868.log",
+      "sha256": "91c0d0eca6d9d7f7f8a55515f9efc3cb3397f702886c475af73ea1a725b91410"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r868-preview-r868.xml",
+      "sha256": "6e27fca648ab5388930a3c0a1f4a3467ad8468ecd0c8bd9ebf8cc902ce7a28aa"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r868-render-r868.log",
+      "sha256": "c17dae4e57d64c8f8f2d68cd54afabb3c5c51bd9d2d50f0a34a89efd497067b2"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r868-render-r868.xml",
+      "sha256": "3b081f9bd482732abcb474ef338d417abf55d993265dbdb5f09a57eb7c6e6e25"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r868-results.tgz",
+      "sha256": "79cbf2ea4bf97b1eca82ee944dea934e82e56e23ba572dbee7720b88a9366dd7"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r868-smoke-r868.log",
+      "sha256": "86ffe97957091d6dc363ca29c1e9395c56f1ebf1b3121419b7fc987c14c18fe2"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r868-smoke-r868.xml",
+      "sha256": "09c79c9b6d5052b096eecdfb671c921beed22c305a0d38e85a7debbce608f291"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r868-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-pre-r854.json",
+      "sha256": "a4c1c85e3b7f11708115ca12df1fd9a73b42ba7dc8a1f6a83141b50e70ce1dee"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-pre-r858.json",
+      "sha256": "94010416ce4f35cc11fee71d9a4cc4ad6d043feed8851438cd543fc8aeb03f9a"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-pre-r860.json",
+      "sha256": "e0c766fc06e4acec6678f1d1c70b84640d171ecf65738bb2de9e0131e37b8a6e"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-pre-r861.json",
+      "sha256": "777c9f83449c45a812bcd428e5ada18774aa9c6976165d600692213744bd7d0b"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-pre-r865.json",
+      "sha256": "08430d40dd594b8944288626b49adc6889f5d42b20274e9446f386b27ecc2751"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-pre-r868.json",
+      "sha256": "d1a4f4e0ccc3246b1c30e7d469e8a08c0d06cb2c8a951012a12893f6252a0ab2"
+    },
+    {
+      "path": "docs/validation/disk-space/pack-timing-r856.json",
+      "sha256": "b893dbc6145bd257fa3ca9ec30ec19cff38089c8bfcdcdeaf2988d16509d9320"
+    },
+    {
+      "path": "docs/validation/disk-space/pack-timing-r865.json",
+      "sha256": "b9939878486cf46271ce09c0803a542da612568fa1c949d8f48d9d2287ebafef"
+    },
+    {
+      "path": "docs/validation/disk-space/source-candidate-r856.json",
+      "sha256": "0cf50afa97c9bd62f8ef11cf2be7f87bc440cfbafa49e40647f7792df992cc26"
+    },
+    {
+      "path": "docs/validation/disk-space/source-candidate-r860.json",
+      "sha256": "0acfda0aea20b74194fcc928b3d99ac8636bbcae6e031f83f2de280cdb1b9943"
+    },
+    {
+      "path": "docs/validation/disk-space/source-candidate-r863.json",
+      "sha256": "ae690a211b5a40ffbfe9024badc45ecee4a4211900cc27ed68067eaf39d10c15"
+    },
+    {
+      "path": "docs/validation/disk-space/source-candidate-r865.json",
+      "sha256": "47eaf4e4a6cf1935e422197371807748677fda60405a33fd9aff36673bf80263"
+    },
+    {
+      "path": "docs/validation/disk-space/source-candidate-r868.json",
+      "sha256": "004529794ff80c1751b5d8739c8a51e8528182e2cc880adac1f80f4136d9d3ad"
+    },
+    {
+      "path": "docs/validation/disk-space/test-fix-proof-r860.json",
+      "sha256": "7e63b4b4129dfee54a3b45f8e1ff37981115d2bcd15befb93fbe8295ff413cef"
+    },
+    {
+      "path": "docs/validation/disk-space/test-fix-proof-r868.json",
+      "sha256": "180e283c8b1ffa5551b991b54396579f54b97a573e257a59c9501d8690df97fc"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r868-core-r868.log",
+      "sha256": "34e035f7946d2547b406c18609ca0b48c1260cc67dc452d53dd35b55ad39e332"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r868-core-r868.xml",
+      "sha256": "a8bdd36fb17cdee62dd4470702a26f49674f218a32cac5cd9bee4c02116bae30"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r868-observed.txt",
+      "sha256": "7de1c7fe6f7edfe3ac53defc3b345fa8ba4cdf306cbbed6d9abf5fb15fd9e0c2"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r868-post.json",
+      "sha256": "6c4591a7904a8ced8ff1ed08227ea610990525898eb76cc57f2a6885a71efb8d"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r868-preview-r868.log",
+      "sha256": "65f6b1c390a2e4c2dd3215c86b364c785bd2acc84e3eaef261d9312f3f2db79a"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r868-preview-r868.xml",
+      "sha256": "22fa47f7b4bc20af5b303d2bf19034e3f9237d60f9eeedd7fa2b75e0a4896e6c"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r868-render-r868.log",
+      "sha256": "78ddc679f4cf4df76826bf7d2e5723873198a204f375248ea170450752fae25e"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r868-render-r868.xml",
+      "sha256": "f31aaa15a2546673d3917f8c44ed2cfcbe69787eabce7073c6a88477216fe6bd"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r868-results.tgz",
+      "sha256": "0e0a1a4f793c83b78a9b64d1a67a8ae37aaf7a0084e91d3041b6a361accaee9e"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r868-smoke-r868.log",
+      "sha256": "a68564b43398b3082b7a58347eb405496e1e336302af8b7fc2c16dea3dd09f0b"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r868-smoke-r868.xml",
+      "sha256": "cb355a8da120d52739771d4b7ddb7b60803f3f0e6cad309130e07aa1a7df92ec"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r868-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-pre-r854.json",
+      "sha256": "f18c5b0d72392c849ec80ac6742212e8f3f3c79e68007dccc9d830dad772c8f6"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-pre-r858.json",
+      "sha256": "a32d9a59c82870d80c6c9fcd96b1a1b6c49bab8a99b2d54be6decb7c6e7090cf"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-pre-r861.json",
+      "sha256": "9315766eb561a37eced5e4199f5fe2722583a9e8eb9fe197fceafbcc5f897b57"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-pre-r865.json",
+      "sha256": "8d7ce7dd023812e237240a5cac31e03d5aa2787e22be54e5d4f6a52eb029f7bc"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-pre-r868.json",
+      "sha256": "6828be3d936b3b70b983aafcbbff27b64cdfa64be639e7f965e7360b5b21a2c2"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r856-observed.txt",
+      "sha256": "a6fea987faab7c4f4b9e1b643671e9af307584dcb6cb71ebd70e11fd5f20e07b"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r856-post.json",
+      "sha256": "291dcd506cde2df4e2b252a47a78256f73286a51d321c0cebd66f5e3938979b9"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r856-preview-r856.log",
+      "sha256": "22399178768817a4fdf94a831a00b018dc3493b7d4dcd160707d343f6f5da6b8"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r856-preview-r856.xml",
+      "sha256": "7a8e5c949c81660629ddcd83e4f50c231fc2218d87984820a955dedff360c75b"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r856-results.tgz",
+      "sha256": "8eb53bc76cbb1f2b7ec603ae6e1b17e8d927cfaa672a4d8f0a4b81690e998169"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r856-smoke-r856.log",
+      "sha256": "5518769e9dc59b553457909d2f54c5e716c2df7d5687d6c7b0c4b74c89032231"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r856-smoke-r856.xml",
+      "sha256": "82c41110495fa2564f975d909f6d23c062c59202fce007ae38cbaafb95d3da51"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r856-state.txt",
+      "sha256": "6806f0ffbb2900681c5741e21a1d618cf159fc1b8055dad1d518fa26bb1a452d"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r865-observed.txt",
+      "sha256": "a6fea987faab7c4f4b9e1b643671e9af307584dcb6cb71ebd70e11fd5f20e07b"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r865-post.json",
+      "sha256": "ca49a86d0eb03a42f275ccc3b186af5a6f3b8f79fcc0bfcdaae0515b6f198405"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r865-preview-r865.log",
+      "sha256": "fe0da3b272b5446ddb276fc010ac52b1ac61721394cff087eabc068325c9f5e2"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r865-preview-r865.xml",
+      "sha256": "e3127954c9937923fddaf51a00b81389900f3258ad2d4bb97aceaf02751e5c69"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r865-results.tgz",
+      "sha256": "b41828f538ed8faacbcd376dd13b153b49d4917e7580928aa11f1da3e6bd45be"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r865-smoke-r865.log",
+      "sha256": "48956f220dccd68a3b69a1004338047d0b23c062643da6ff191744d474120d34"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r865-smoke-r865.xml",
+      "sha256": "3a7e788bb1063235533b689fc92e5601c4a1572a7e44980087959e42baef309d"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r865-state.txt",
+      "sha256": "6806f0ffbb2900681c5741e21a1d618cf159fc1b8055dad1d518fa26bb1a452d"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r868-cache-proof.txt",
+      "sha256": "4a2cee6a74ebf850491cc11f0bec4a07dd4eb764597a87d3f9d7e7a0b80540a3"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r868-core-r868.log",
+      "sha256": "1f69fc2ab037fcdbda646339c817b6a6e8c2b21f557ddd2e7929c6b2fc5753ad"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r868-core-r868.xml",
+      "sha256": "b6c6082c2742603764bea82ff6bf4684df0a3af1f07130d07a32c08899607032"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r868-native-r868.log",
+      "sha256": "23e3b2f2f31671bad982bbe2702b998d7bbc0f896530203386612da6c26a8e75"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r868-native-r868.xml",
+      "sha256": "08804574fb964dfa71f10ce83c4d04cbbeaaa3ccc50edce0f4e7110bd34b1213"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r868-observed.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r868-post.json",
+      "sha256": "c004b71d597a7b7a82b3bfdff415ad8f47247090c09f3af1ae2fa8ed8d5a920c"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r868-preview-r868.log",
+      "sha256": "f115af19b797979e44e9fbdcfdcf96cc9e38f3b838bed7cc9670efc5d49a79b7"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r868-preview-r868.xml",
+      "sha256": "1e12412a172b0f0a21a211b55241137b77de22a1b6793d200f9418f96414049c"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r868-render-r868.log",
+      "sha256": "27c37bc33deed3079a88f423db07fc020d08bf318b1aaf0c263da22b383206c5"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r868-render-r868.xml",
+      "sha256": "5c8e15635f2f07fbd7ce3fab9e21d83494b4a79fd51dbed50c4d79b70796384c"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r868-results.tgz",
+      "sha256": "aa8d6db86b8452843bccddfa2200104e9896052f90df6113e7b553149f0865c4"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r868-smoke-r868.log",
+      "sha256": "5f56cd2a74f5e2858982a6c2ba4bd6ad33eb8da67f5265dd443e1fac534df03e"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r868-smoke-r868.xml",
+      "sha256": "62f2f4e6edaa27fc0b8ec9e4bbc64ef72b8c144fe6d84620e826bc02e4055311"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r868-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-pre-r854.json",
+      "sha256": "8b46a43f19e01631756ceb44a32705956c7ec5b40317106f7f92fe9154cac76a"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-pre-r856.json",
+      "sha256": "4b6b282adbc98248812881582f384ec527249a96365b628727b488d7a4c0e9f8"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-pre-r860.json",
+      "sha256": "fb91b1db385908aae6b9f657e87581f87352959334da2ba4256909573c8edb94"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-pre-r861.json",
+      "sha256": "13441153943ceb41bf624804e25526e686e456f0e46bc9075870e8014abbbad2"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-pre-r865.json",
+      "sha256": "ea662d451811ed9f14a445d8dd3f813fb192b1ddc472a6828a94832b82863bb5"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-pre-r868.json",
+      "sha256": "0571188eb493f3cdce18095de86ce095c0c26db872181a374f9f882ce012c82c"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/add-unix-previews.ps1",
+      "sha256": "87b7c35322bbd6cc3f9e5d14b5beebe7bbb6a80b47d78cc3c72228198d877fa9"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/add-windows-previews.ps1",
+      "sha256": "636b0b5ad2e6bcc747804267b640259bcc241396101b9a4c4e08fa9c3e8af291"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r856.sh",
+      "sha256": "17f032750bfbb925f155b77368ea7604e9a4e9646f7c0e95bcf662247455c5ae"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r860.sh",
+      "sha256": "23d67c75b84bd369283567bfd68811f5f77c60e87b057f2ac9bdccf96eee30e6"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r865.sh",
+      "sha256": "3c81cd4bea246ca1be6891ffd1d2bb155ec7522419d936132c10084169706f62"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r868.sh",
+      "sha256": "a1e9e9b9991efcad5a50f4b3dba2d8c6dc4805c219a6f3c0d1f87e3a580d385f"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r856.sh",
+      "sha256": "c76e1a7e11930450dbba84985338f4572ad82514be5c68186412837942ab8a25"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r860.sh",
+      "sha256": "7f9149df078a2c9fef7cb050ad1ed419a1c7339337f69f40651cde95e084885c"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r865.sh",
+      "sha256": "bcb92c388ad0f8c9519e8d0684835d32da4987be49f8c2e11a190bebcac3dc1e"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r868.sh",
+      "sha256": "7caae9ac335b88f9042a266e732dea4b30a13fce1a35219630429f0585ea9068"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r856.ps1",
+      "sha256": "b0b3e5713786da233f80822e24ac65933d6c7b7d41e0af5d7513c9dc7ffc86c7"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r860.ps1",
+      "sha256": "96f4ad906971f4674ea7fb7c3f37ff58d7c590ebdf59e005cb589fa4384d332f"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r865.ps1",
+      "sha256": "0825180cb5c22a0a35474e77586aeab684e8cf53d69dd4a074eb514499a8d60d"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r868.ps1",
+      "sha256": "ecd7965267dd515eeecca8b639ef785fe79e03aa8c0e16e4f2fb58e4248ba9dc"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/collect-batch-archive.ps1",
+      "sha256": "f8babc30cb02ac5e0a122b847f827c380d8b18a9e401790dbeda18b2d8482afc"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/deploy-batch.ps1",
+      "sha256": "8ce277c94e470b75424b010ee2a0170634028fb488d3c96798fba247c3b686ce"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/finalize-root-query.py",
+      "sha256": "a519d5b904319f2b96b20606a970ad3c8ead3a03190264b0b9f8d24665284c77"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/pack-batch-direct.ps1",
+      "sha256": "44ff1c130ccf5395d97a05ae94327845a33cbf5f483da85ac4fd516c99ed5715"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/preflight-indexed-r732.ps1",
+      "sha256": "74594887c0fb548b398b8e6f5794ec0f2e757fce942f88cb9e711407646c4aa5"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-test-fix-batch.ps1",
+      "sha256": "b65373a6f1a0874b12819603c20192d7f7b56707dbcbaa7bcfcf5d833aff3ba1"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-windows-r856.tgz",
+      "bytes": 78565699,
+      "sha256": "ac97c3fcdfdf8f40ad887d937b83fec94a6372cf50d9e36580e281e64af036b4"
+    },
+    {
+      "name": "dsa-batch-mac-r856.tgz",
+      "bytes": 42176113,
+      "sha256": "aa8c41edcfafa2d48602226a9d67c9c179072d2a3865c84e0f8e161d3fa032fd"
+    },
+    {
+      "name": "dsa-batch-linux-r856.tgz",
+      "bytes": 39504569,
+      "sha256": "6494285c3af1afd7d92b381b62f3e733f56c88bf97581644fcc3ecb04c5a08c1"
+    },
+    {
+      "name": "dsa-batch-windows-r860.tgz",
+      "bytes": 386661,
+      "sha256": "176b849cf860387066daab9e7d8facc786e5d4437b44da2bfcb6f3bda65d682d"
+    },
+    {
+      "name": "dsa-batch-mac-r860.tgz",
+      "bytes": 42177018,
+      "sha256": "954c26fdeb9ed84642c29034249fa8c598f750dfa9650dcf815eb15320b1eb38"
+    },
+    {
+      "name": "dsa-batch-linux-r860.tgz",
+      "bytes": 39504935,
+      "sha256": "9b4cd9f49d4e7a66c3fedc44310c6d09853f61989d0c6405a1f493ba00403427"
+    },
+    {
+      "name": "dsa-batch-windows-r865.tgz",
+      "bytes": 78568792,
+      "sha256": "cb38b2176081c9a6440b1b182a8d515077f4958fabff2e6e11837ef71aa91d1e"
+    },
+    {
+      "name": "dsa-batch-mac-r865.tgz",
+      "bytes": 42177926,
+      "sha256": "736fedffd790b9de8591020b62848a1883e01a26a2fcfbb01ab8f4dbd2e7579d"
+    },
+    {
+      "name": "dsa-batch-linux-r865.tgz",
+      "bytes": 39506016,
+      "sha256": "c44a25b47bd51c526cb98df0bfc1d46b9161586b4599baf9b04628f2e54f21b3"
+    },
+    {
+      "name": "dsa-batch-windows-r868.tgz",
+      "bytes": 388992,
+      "sha256": "b2e44951f944b22565710f743da30969fd27fec07aac213ab199141aa16398cf"
+    },
+    {
+      "name": "dsa-batch-mac-r868.tgz",
+      "bytes": 42178273,
+      "sha256": "ae3d2c555971070f75755b9327d71036b724e6b283cdef908f58196f3c5c78b4"
+    },
+    {
+      "name": "dsa-batch-linux-r868.tgz",
+      "bytes": 39506001,
+      "sha256": "0039da3de2993a8612dc31ae5eccf8b03aa246720a25a614e2a12b130b24355d"
+    }
+  ],
+  "matrix": {
+    "windows/smoke": {
+      "total": "18",
+      "passed": "18",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "0.426"
+    },
+    "windows/preview": {
+      "total": "7",
+      "passed": "7",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "13.069"
+    },
+    "windows/core": {
+      "total": "1418",
+      "passed": "1370",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "54.799"
+    },
+    "windows/native": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "37.906"
+    },
+    "windows/render": {
+      "total": "288",
+      "passed": "287",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "172.161"
+    },
+    "mac/smoke": {
+      "total": "18",
+      "passed": "18",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "0.195"
+    },
+    "mac/preview": {
+      "total": "7",
+      "passed": "7",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "6.749"
+    },
+    "mac/core": {
+      "total": "1400",
+      "passed": "1396",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "32.614"
+    },
+    "mac/render": {
+      "total": "288",
+      "passed": "288",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "101.224"
+    },
+    "ubuntu/smoke": {
+      "total": "18",
+      "passed": "18",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "0.434"
+    },
+    "ubuntu/preview": {
+      "total": "7",
+      "passed": "7",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "12.122"
+    },
+    "ubuntu/core": {
+      "total": "1400",
+      "passed": "1396",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "102.071"
+    },
+    "ubuntu/render": {
+      "total": "288",
+      "passed": "288",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "160.299"
+    }
+  },
+  "newCoreControls": 18,
+  "newRenderingCases": 7,
+  "preflightControls": {
+    "windows/smoke": [
+      "FileCat.Core.Tests.AnalysisCatalogTests.MaximumEscapedQueryAndAllRootIdentifiersFitTheBoundedCatalogEntry",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"missing\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"null\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"array\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"empty\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"duplicate-key\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"duplicate-value\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"wrong-key\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"empty-id\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"nul-id\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"long-id\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"non-string\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"excessive\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"unknown-field\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"future\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.SavedRootQueriesKeepTheirCapturedIdentifiersAcrossTwoSaves(rootId: \\\"r\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.SavedRootQueriesKeepTheirCapturedIdentifiersAcrossTwoSaves(rootId: \\\"2\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.SavedRootQueriesKeepTheirCapturedIdentifiersAcrossTwoSaves(rootId: \\\"source \\\\\\\"quoted\\\\\\\" 😀\\\")"
+    ],
+    "windows/preview": [
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeMemoryRootQuerySurvivesPrivateSaveReopenAndSecondSave(metric: FileSize)",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeMemoryRootQuerySurvivesPrivateSaveReopenAndSecondSave(metric: UniqueFileSize)",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeMemoryRootQuerySurvivesPrivateSaveReopenAndSecondSave(metric: OnDisk)",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeMemoryRootQuerySurvivesPrivateSaveReopenAndSecondSave(metric: Files)",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeIndexedRootQuerySurvivesReapplyGroupingAndSecondSave(grouped: False)",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeIndexedRootQuerySurvivesReapplyGroupingAndSecondSave(grouped: True)",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSaveUnavailablePrivateStorageShowsFailureAndPreservesExistingPath"
+    ],
+    "mac/smoke": [
+      "FileCat.Core.Tests.AnalysisCatalogTests.SavedRootQueriesKeepTheirCapturedIdentifiersAcrossTwoSaves(rootId: \\\"r\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.SavedRootQueriesKeepTheirCapturedIdentifiersAcrossTwoSaves(rootId: \\\"2\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.SavedRootQueriesKeepTheirCapturedIdentifiersAcrossTwoSaves(rootId: \\\"source \\\\\\\"quoted\\\\\\\" 😀\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.MaximumEscapedQueryAndAllRootIdentifiersFitTheBoundedCatalogEntry",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"missing\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"null\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"array\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"empty\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"duplicate-key\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"duplicate-value\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"wrong-key\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"empty-id\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"nul-id\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"long-id\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"non-string\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"excessive\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"unknown-field\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"future\\\")"
+    ],
+    "mac/preview": [
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSaveUnavailablePrivateStorageShowsFailureAndPreservesExistingPath",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeIndexedRootQuerySurvivesReapplyGroupingAndSecondSave(grouped: False)",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeIndexedRootQuerySurvivesReapplyGroupingAndSecondSave(grouped: True)",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeMemoryRootQuerySurvivesPrivateSaveReopenAndSecondSave(metric: FileSize)",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeMemoryRootQuerySurvivesPrivateSaveReopenAndSecondSave(metric: UniqueFileSize)",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeMemoryRootQuerySurvivesPrivateSaveReopenAndSecondSave(metric: OnDisk)",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeMemoryRootQuerySurvivesPrivateSaveReopenAndSecondSave(metric: Files)"
+    ],
+    "ubuntu/smoke": [
+      "FileCat.Core.Tests.AnalysisCatalogTests.MaximumEscapedQueryAndAllRootIdentifiersFitTheBoundedCatalogEntry",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"missing\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"null\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"array\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"empty\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"duplicate-key\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"duplicate-value\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"wrong-key\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"empty-id\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"nul-id\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"long-id\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"non-string\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"excessive\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"unknown-field\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.PoisonedRootQueryContextRefusesCatalogWithoutChangingAnyFile(fault: \\\"future\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.SavedRootQueriesKeepTheirCapturedIdentifiersAcrossTwoSaves(rootId: \\\"r\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.SavedRootQueriesKeepTheirCapturedIdentifiersAcrossTwoSaves(rootId: \\\"2\\\")",
+      "FileCat.Core.Tests.AnalysisCatalogTests.SavedRootQueriesKeepTheirCapturedIdentifiersAcrossTwoSaves(rootId: \\\"source \\\\\\\"quoted\\\\\\\" 😀\\\")"
+    ],
+    "ubuntu/preview": [
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeMemoryRootQuerySurvivesPrivateSaveReopenAndSecondSave(metric: FileSize)",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeMemoryRootQuerySurvivesPrivateSaveReopenAndSecondSave(metric: UniqueFileSize)",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeMemoryRootQuerySurvivesPrivateSaveReopenAndSecondSave(metric: OnDisk)",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeMemoryRootQuerySurvivesPrivateSaveReopenAndSecondSave(metric: Files)",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSaveUnavailablePrivateStorageShowsFailureAndPreservesExistingPath",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeIndexedRootQuerySurvivesReapplyGroupingAndSecondSave(grouped: False)",
+      "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeIndexedRootQuerySurvivesReapplyGroupingAndSecondSave(grouped: True)"
+    ]
+  },
+  "supersededFailures": [
+    {
+      "platform": "windows",
+      "candidate": "r856",
+      "passed": 0,
+      "failed": 6
+    },
+    {
+      "platform": "mac",
+      "candidate": "r860",
+      "passed": 5,
+      "failed": 1
+    },
+    {
+      "platform": "windows",
+      "candidate": "r865",
+      "passed": 3,
+      "failed": 4
+    }
+  ],
+  "verifiedCacheProof": "VERIFIED cachedFiles=226 changedFiles=2",
+  "unchangedProductionHashesForTestFix": {
+    "FileCat.Core.dll": "3dabf69c804e29124912dad3f56168bb180f056e5cf806f5f89c6699f1f1955f",
+    "FileCat.dll": "74513ee15c2c5591cfc1880f01fda8fb49409d41da945093aa0f3735c91a4abf",
+    "FileCat.Platform.Windows.dll": "19f40f9438b673b9eda9ab617d57a474fdcc426625d4747382188d475949d67a"
+  },
+  "postCollectionProcesses": {
+    "windows": [],
+    "mac": [],
+    "ubuntu": []
+  },
+  "qualification": {
+    "rootQueryPrivateMemoryAndIndexedSubsetPassedAllThree": true,
+    "unavailableStorageHandledWithoutAsyncUiEscapeAllThree": true,
+    "allApplicableBroadSuitesPassed": true,
+    "fullNativeDesktopQualified": false,
+    "fullResourceGateQualified": false,
+    "managedReplacementDeletionHistoryQualified": false,
+    "generalExportImportQualified": false,
+    "publicFeatureRegistered": false,
+    "finalIndependentReviewPerformed": false
+  },
+  "scope": "Actual VM/Mac native captures and private stores plus headless UI workflows. Physical desktop, scale, complete W0-W8 and the final fresh independent review remain open."
+}

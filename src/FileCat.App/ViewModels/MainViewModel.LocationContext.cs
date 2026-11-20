@@ -18,6 +18,69 @@ public sealed partial class MainViewModel
         return null;
     }
 
+    /// <summary>The name under a listing's cursor, as a menu's caller records it before the menu opens.</summary>
+    internal static string? CursorName(ListingModel listing) => listing.TryGetFocused(out var focused) ? focused.Name : null;
+
+    /// <summary>
+    /// After the Shell's New command in a folder's own menu made an item (New → Folder, Text Document, …): once the
+    /// folder's listing has it, it is focused and its name opened for editing with the stem selected, as Explorer does.
+    /// Only while the user has done nothing else since the menu opened: the cursor on the item it was on then
+    /// (<paramref name="cursor"/>) and as many marks (<paramref name="marks"/>), the same folder and active tab, no dialog
+    /// open, no name already being edited, the view's own conditions met (<paramref name="undisturbed"/>: the keyboard still
+    /// in that list, no other menu opened), and within five seconds of the command. Anything they did meanwhile wins, and
+    /// a late or unrelated reread never starts an edit.
+    /// </summary>
+    internal void RenameCreatedItem(PanelViewModel panel, TabViewModel tab, Location location, string name, string? cursor, int marks,
+        Func<bool>? undisturbed = null)
+    {
+        if (!panel.Tabs.Contains(tab) || tab.Listing.IsDisposed || tab.Location != location) return;
+        var listing = tab.Listing;
+        long started = System.Diagnostics.Stopwatch.GetTimestamp();
+        bool reread = false;
+        void Handler(object? sender, ListingChange change)
+        {
+            bool current = !listing.IsDisposed && tab.Location == location && panel.Tabs.Contains(tab) &&
+                           ReferenceEquals(ActiveTab, tab) && !Dialogs.IsOpen && _inlineRenames == 0 &&
+                           System.Diagnostics.Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(5) &&
+                           undisturbed?.Invoke() != false;
+            if (!current)
+            {
+                listing.Changed -= Handler;
+                return;
+            }
+            // A load or reread replaces the rows it lists, moving the cursor and marks back by name: the item is looked
+            // for once one has finished, not while rows still arrive, and only if the cursor and marks are as they were.
+            if (listing.State != ListingState.Complete || listing.IsRefreshing ||
+                (change & (ListingChange.RefreshComplete | ListingChange.State)) == 0) return;
+            if (listing.MarkedCount != marks || cursor is not null && CursorName(listing) != cursor)
+            {
+                listing.Changed -= Handler;
+                return;
+            }
+            if (listing.FocusName(name))
+            {
+                listing.Changed -= Handler;
+                // The ordinary Rename command, with its checks, as F2 would run it on the new item.
+                Execute(CommandIds.Rename);
+                return;
+            }
+            // Not listed yet (that load or reread ran before the Shell made it): one reread is asked for.
+            if (!reread)
+            {
+                reread = true;
+                listing.Refresh();
+            }
+        }
+        listing.Changed += Handler;
+        // A folder still loading is not restarted (its marks and progress would go): its load's end is waited for. A
+        // reread is the listing's own, as the folder watcher asks for one, without a tab's other refresh work.
+        if (listing.State == ListingState.Complete)
+        {
+            reread = true;
+            listing.Refresh();
+        }
+    }
+
     /// <summary>Runs a background-menu action against the captured folder, never the current item selection.</summary>
     internal async Task ExecuteLocationContextAsync(string id, PanelViewModel panel, TabViewModel tab, Location location)
     {
@@ -47,7 +110,7 @@ public sealed partial class MainViewModel
                     await PasteAsync(tab);
                     break;
                 case CommandIds.MakeDirectory:
-                    if (location.Scheme is not (Schemes.FileSystem or Schemes.Zip or Schemes.Sftp or Schemes.Mtp) ||
+                    if (location.Scheme is not (Schemes.FileSystem or Schemes.Zip or Schemes.Archive or Schemes.Sftp or Schemes.Mtp) ||
                         (caps & LocationCapabilities.CreateDirectory) == 0)
                     {
                         Notify(provider.ExplainUnavailable(location, LocationCapabilities.CreateDirectory), true);
@@ -56,6 +119,7 @@ public sealed partial class MainViewModel
                     await MakeDirectoryAsync(tab);
                     break;
                 case CommandIds.Refresh:
+                    Services.PrincipalNames.Invalidate();
                     Services.Metadata.Invalidate();
                     if (location.Scheme == Schemes.Recovery) Services.Recovery.Forget(location);
                     tab.Refresh();

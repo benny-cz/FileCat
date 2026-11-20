@@ -15,6 +15,16 @@ public class UnixFileOperations : PortableFileOperations
     public const string QuarantineAttribute = "com.apple.quarantine";
     public const string OriginAttribute = "user.xdg.origin.url";
 
+    public override bool CanRetainRenameTarget(string destination) => true;
+
+    public override void MoveToFreeName(string source, string destination)
+    {
+        PathUtil.RefuseAmbiguousUnixName(source);
+        PathUtil.RefuseAmbiguousUnixName(destination);
+        int errno = UnixRename.NoReplace(source, destination);
+        if (errno != 0) throw UnixRename.Failure(errno, source, destination);
+    }
+
     /// <summary>
     /// A rename, never a copy: .NET's File.Move copies and deletes when a rename crosses file systems (btrfs subvolumes,
     /// bind mounts, overlays), unguarded, which the job engine then does itself, verified and journaled. Without
@@ -24,6 +34,8 @@ public class UnixFileOperations : PortableFileOperations
     /// </summary>
     public override void Move(string source, string destination, bool replaceExisting, bool writeThrough = false)
     {
+        PathUtil.RefuseAmbiguousUnixName(source);
+        PathUtil.RefuseAmbiguousUnixName(destination);
         if (replaceExisting && Directory.Exists(source) && new DirectoryInfo(source).LinkTarget is null)
             throw new IOException("Directories are merged item by item, never replaced wholesale.");
         if (!replaceExisting)
@@ -66,6 +78,7 @@ public class UnixFileOperations : PortableFileOperations
 
     public override string? ReadOriginMark(string path)
     {
+        PathUtil.RefuseAmbiguousUnixName(path);
         if (OperatingSystem.IsMacOS())
             return Xattr.Get(path, QuarantineAttribute) is { Length: > 0 } q ? $"[ZoneTransfer]\r\nZoneId=3\r\nQuarantine={q}\r\n" : null;
         if (OperatingSystem.IsLinux())
@@ -75,6 +88,7 @@ public class UnixFileOperations : PortableFileOperations
 
     public override bool WriteOriginMark(string path, string mark)
     {
+        PathUtil.RefuseAmbiguousUnixName(path);
         var (zone, hostUrl, quarantine) = Parse(mark);
         // Only content from the internet (zone 3) or an untrusted zone (4) is marked, as on Windows.
         if (zone < 3 && quarantine is null) return true;

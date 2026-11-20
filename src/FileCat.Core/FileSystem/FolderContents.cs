@@ -35,9 +35,15 @@ public sealed record FolderContents(long Files, long Folders, long Bytes, ulong 
             while (stack.TryPop(out var folder))
             {
                 ct.ThrowIfCancellationRequested();
+                PathUtil.RefuseAmbiguousUnixName(folder.Path);
                 var entries = new FileSystemEnumerable<(string Name, bool Folder, bool Link, long Length, long Ticks)>(folder.Path,
-                    (ref FileSystemEntry e) => (e.FileName.ToString(), e.IsDirectory, (e.Attributes & FileAttributes.ReparsePoint) != 0,
-                        e.IsDirectory ? 0 : e.Length, e.LastWriteTimeUtc.UtcTicks), Options);
+                    (ref FileSystemEntry e) =>
+                    {
+                        string name = e.FileName.ToString();
+                        PathUtil.RefuseAmbiguousUnixName(name);
+                        return (name, e.IsDirectory, (e.Attributes & FileAttributes.ReparsePoint) != 0,
+                            e.IsDirectory ? 0 : e.Length, e.LastWriteTimeUtc.UtcTicks);
+                    }, Options);
                 foreach (var e in entries)
                 {
                     if (++items > limit) return null;

@@ -38,7 +38,7 @@ public sealed class ToolbarAvailabilityTests
     }
 
     [AvaloniaFact]
-    public void Back_and_forward_follow_the_active_tabs_history()
+    public async Task Back_and_forward_follow_the_active_tabs_history()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
@@ -48,6 +48,8 @@ public sealed class ToolbarAvailabilityTests
             Assert.True(first.CanGoBack); // The window opened the test folder from This PC.
             Matches(vm, window, CommandIds.Back);
             first.GoBack();
+            for (int i = 0; i < 250 && !first.CanGoForward; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
             Matches(vm, window, CommandIds.Forward);
 
             var second = panel.OpenTab(Location.FileSystem(Path.Combine(root, "files")));

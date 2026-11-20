@@ -27,9 +27,19 @@ public enum MetadataState
     /// <summary>Not computed here (slow location, unsupported item kind).</summary>
     Unsupported,
     Failed,
+    /// <summary>The system refused access to the requested metadata.</summary>
+    Denied,
 }
 
-public readonly record struct MetadataValue(MetadataState State, object? Value = null, string? Detail = null)
+public enum MetadataObservation
+{
+    Current,
+    LastKnown,
+    Gone,
+}
+
+public readonly record struct MetadataValue(MetadataState State, object? Value = null, string? Detail = null,
+    MetadataObservation Observation = MetadataObservation.Current)
 {
     public static readonly MetadataValue Pending = new(MetadataState.Pending);
     public static readonly MetadataValue Absent = new(MetadataState.Absent);
@@ -50,19 +60,34 @@ public sealed record MetadataField(
     bool RightAlign = false,
     Func<object?, IComparable?>? SortKey = null,
     bool Folders = false,
-    TimeSpan? RefreshAfter = null);
+    TimeSpan? RefreshAfter = null,
+    Func<object?, string>? Detail = null,
+    Func<object?, bool>? NeedsExplanation = null,
+    bool ObservationLane = false,
+    bool MetadataOnlyOnOffline = false,
+    Func<EntryData, bool>? AppliesToEntry = null)
+{
+    public IComparable? CaptureKey(MetadataValue value) => value.State == MetadataState.Available &&
+        (!ObservationLane || value.Observation == MetadataObservation.Current) ? SortKey?.Invoke(value.Value) ?? value.Value as IComparable : null;
+}
 
 /// <summary>
 /// Demand-driven metadata (plan §10): values are produced for rows the user can see, bounded per device,
 /// coalesced, cached by path + revision + field, and requests for rows scrolled away are dropped. Zero or
 /// empty text is a real value; "pending", "absent", and "unsupported" are states, never fabricated values.
 /// </summary>
-public sealed class MetadataService
+public sealed partial class MetadataService : IDisposable
 {
     private const int MaxCache = 50_000;
     private const int MaxOutstandingPerDevice = 4;
     private readonly DeviceIoScheduler _io;
+    private readonly Func<long> _milliseconds;
+    private readonly int _maxCache;
+    private readonly bool _ownsNames;
+    private bool _disposed;
+    public PrincipalNames? Names { get; }
     private readonly ConcurrentDictionary<string, MetadataValue> _cache = new(StringComparer.Ordinal);
+    private int _cacheCount; // All writes already hold _publicationLock; avoid acquiring every dictionary stripe per row.
     private readonly ConcurrentDictionary<string, long> _producedAt = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<string> _order = new();
     private readonly ConcurrentDictionary<string, byte> _inFlight = new(StringComparer.Ordinal);
@@ -73,16 +98,41 @@ public sealed class MetadataService
     private int _notifyPending;
 
     /// <summary>An invalidated producer may finish its current call, but must not republish its old value.</summary>
-    private sealed class Production(string key)
+    private sealed class Production(string key, string fieldId, object? origin)
     {
         public string Key { get; } = key;
+        public string FieldId { get; } = fieldId;
+        public object? Origin { get; } = origin;
+        public bool HadAvailableValue; // captured when production starts, under the publication lock
         public bool Current = true; // guarded with cache publication and invalidation
     }
 
-    public MetadataService(DeviceIoScheduler io)
+    public MetadataService(DeviceIoScheduler io) : this(io, () => Environment.TickCount64) { }
+
+    public MetadataService(DeviceIoScheduler io, IOwnership ownership, PrincipalNames names)
+        : this(io, () => Environment.TickCount64, ownership: ownership, names: names) { }
+
+    internal MetadataService(DeviceIoScheduler io, Func<long> milliseconds, int maxCache = MaxCache, int maxSnapshots = 64,
+        IOwnership? ownership = null, PrincipalNames? names = null, Records.IFileRecords? fileRecords = null)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxCache, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxSnapshots, 1);
         _io = io;
+        _milliseconds = milliseconds;
+        _maxCache = maxCache;
+        _maxSnapshots = maxSnapshots;
         foreach (var f in BuiltInFields.All) _fields[f.Id] = f;
+        if (fileRecords is not null)
+            foreach (var field in FileDetailsFields.Create(fileRecords, OperatingSystem.IsWindows())) Register(field);
+        if (_fields.ContainsKey("owner") || ownership is not null || !OperatingSystem.IsWindows())
+        {
+            ownership ??= OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new UnixOwnership() : new NoOwnership();
+            Names = names ?? new PrincipalNames(ownership);
+            _ownsNames = names is null;
+            if (_fields.ContainsKey("owner")) Register(OwnershipFields.CreateOwner(ownership, Names));
+            if (_fields.ContainsKey("group")) Register(OwnershipFields.CreateGroup(ownership, Names));
+            Names.Changed += NotifyValuesChanged;
+        }
     }
 
     /// <summary>Raised (throttled, on a pool thread) when new values are available.</summary>
@@ -97,46 +147,106 @@ public sealed class MetadataService
     private static string Key(string path, in EntryData e, string fieldId) => $"{fieldId}|{e.Modified}|{e.Size}|{path}";
 
     /// <summary>
-    /// Returns the cached value or schedules its production. <paramref name="demandEpoch"/> identifies the
-    /// caller's current viewport; <paramref name="isStillWanted"/> lets queued work be skipped once rows scroll away.
+    /// Returns the cached value or schedules its production. <paramref name="isStillWanted"/> lets queued work
+    /// be skipped once rows scroll away.
     /// </summary>
     public MetadataValue Get(string fieldId, string path, in EntryData entry, string deviceKey, bool slowLocation, Func<bool>? isStillWanted = null)
     {
-        if (!_fields.TryGetValue(fieldId, out var field)) return new MetadataValue(MetadataState.Unsupported, null, "unknown field");
-        if (!Applies(field, entry)) return MetadataValue.Absent;
-        if (entry.Has(EntryFlags.Offline)) return new MetadataValue(MetadataState.Unsupported, null, "not read from cloud placeholders");
-        // Expensive columns never run automatically on network or removable locations (plan §10).
-        if (slowLocation && field.Cost >= MetadataCost.Expensive) return new MetadataValue(MetadataState.Unsupported, null, "not computed on slow locations");
-        var key = Key(path, entry, fieldId);
-        if (_cache.TryGetValue(key, out var v))
+        var value = SelectCached(fieldId, path, entry, slowLocation, out var field, out var key);
+        if (key is null || field is null || slowLocation && field.Cost >= MetadataCost.Expensive) return value;
+        var refresh = EffectiveRefresh(field, slowLocation);
+        if (value.State != MetadataState.NotRequested)
         {
             // Read again when due; the old value stays on screen until the new one arrives.
-            if (field.RefreshAfter is { } refresh && _producedAt.TryGetValue(key, out var at) && Environment.TickCount64 - at > refresh.TotalMilliseconds)
-                Schedule(key, field, path, deviceKey, isStillWanted);
-            return v;
+            if (AutomaticallyDue(key, value, refresh)) Schedule(key, field, path, deviceKey, refresh, isStillWanted);
+            return value;
         }
-        Schedule(key, field, path, deviceKey, isStillWanted);
+        Schedule(key, field, path, deviceKey, refresh, isStillWanted);
         return MetadataValue.Pending;
     }
 
     /// <summary>Reads already produced metadata without requesting I/O, for bounded accessibility inspection.</summary>
-    public MetadataValue Peek(string fieldId, string path, in EntryData entry) =>
-        _cache.TryGetValue(Key(path, entry, fieldId), out var value) ? value : new MetadataValue(MetadataState.NotRequested);
+    public MetadataValue Peek(string fieldId, string path, in EntryData entry)
+    {
+        string key = Key(path, entry, fieldId);
+        return _cache.TryGetValue(key, out var value) ? _fields.TryGetValue(fieldId, out var field) ? QualifyCached(field, key, value, false) : value
+            : new MetadataValue(MetadataState.NotRequested);
+    }
 
-    private static bool Applies(MetadataField field, in EntryData entry) =>
-        (entry.Kind == EntryKind.File || entry.Kind == EntryKind.Directory && field.Folders) && field.AppliesToName(entry.Name);
+    /// <summary>Memory-only selection with the same applicability, placeholder and slow-location gates as Get.</summary>
+    public MetadataValue Peek(string fieldId, string path, in EntryData entry, bool slowLocation) =>
+        SelectCached(fieldId, path, entry, slowLocation, out _, out _);
+
+    private MetadataValue SelectCached(string fieldId, string path, in EntryData entry, bool slowLocation,
+        out MetadataField? field, out string? key)
+    {
+        key = null;
+        if (!TryEligibleField(fieldId, entry, out field, out var rejection)) return rejection;
+        key = Key(path, entry, fieldId);
+        if (_cache.TryGetValue(key, out var value)) return QualifyCached(field!, key, value, slowLocation);
+        return slowLocation && field!.Cost >= MetadataCost.Expensive
+            ? new MetadataValue(MetadataState.Unsupported, Detail: "Not computed automatically on slow locations.")
+            : _inFlight.ContainsKey(key) ? MetadataValue.Pending : new MetadataValue(MetadataState.NotRequested);
+    }
+
+    private bool TryEligibleField(string fieldId, in EntryData entry, out MetadataField? field, out MetadataValue rejection)
+    {
+        rejection = MetadataValue.Absent;
+        if (Volatile.Read(ref _disposed)) { field = null; rejection = new(MetadataState.NotRequested); return false; }
+        if (!_fields.TryGetValue(fieldId, out field))
+            rejection = new MetadataValue(MetadataState.Unsupported, Detail: "Unknown field.");
+        else if (!Applies(field, entry)) return false;
+        else if (entry.Has(EntryFlags.Offline) && !field.MetadataOnlyOnOffline)
+            rejection = new MetadataValue(MetadataState.Unsupported, Detail: "Not read for a detected cloud placeholder.");
+        else return true;
+        return false;
+    }
+
+    private static TimeSpan? EffectiveRefresh(MetadataField field, bool slowLocation) =>
+        field.RefreshAfter is { } refresh ? TimeSpan.FromTicks(refresh.Ticks * (slowLocation ? 6 : 1)) : null;
+
+    private bool Fresh(string key, TimeSpan? refresh) => refresh is null ||
+        _producedAt.TryGetValue(key, out var at) && at != long.MinValue && _milliseconds() - at < refresh.Value.TotalMilliseconds;
+
+    private MetadataValue QualifyCached(MetadataField field, string key, MetadataValue value, bool slowLocation) =>
+        field.ObservationLane && value.State == MetadataState.Available && !Fresh(key, EffectiveRefresh(field, slowLocation))
+            ? value with { Observation = MetadataObservation.LastKnown, Detail = value.Detail ?? "The observation interval expired; refresh is required for a current value." }
+            : value;
+
+    private bool AutomaticallyDue(string key, MetadataValue value, TimeSpan? refresh) =>
+        refresh is not null && value.State is not (MetadataState.Denied or MetadataState.Unsupported) && !Fresh(key, refresh);
+
+    public static bool Applies(MetadataField field, in EntryData entry) =>
+        (entry.Kind == EntryKind.File || entry.Kind == EntryKind.Directory && field.Folders) && field.AppliesToName(entry.Name) &&
+        (field.AppliesToEntry?.Invoke(entry) ?? true);
 
     /// <summary>Synchronous production for explicit analysis jobs (background threads only).</summary>
-    public MetadataValue Compute(string fieldId, string path, in EntryData entry, CancellationToken ct)
+    public MetadataValue Compute(string fieldId, string path, in EntryData entry, CancellationToken ct,
+        bool slowLocation = false, object? origin = null)
     {
-        if (!_fields.TryGetValue(fieldId, out var field) || !Applies(field, entry)) return MetadataValue.Absent;
+        if (!TryEligibleField(fieldId, entry, out var field, out var rejection)) return rejection;
+        if (ct.IsCancellationRequested) return new MetadataValue(MetadataState.NotRequested);
+        if (field!.ObservationLane && Records.FileObservationRequests.HasAdmission && !Records.FileObservationRequests.IsAdmittedFor(PathUtil.GetDeviceKey(path)))
+            return new(MetadataState.Unsupported, Detail: "The observation admission belongs to a different device.");
+        if (field!.ObservationLane && !Records.FileObservationRequests.HasAdmission)
+        {
+            if (DeviceIoScheduler.IsDeviceWorker) return new(MetadataState.Unsupported, Detail: "The native observation requires admission on the original device before entering a worker.");
+            var captured = entry;
+            return Records.FileObservationRequests.RunOwned(_io, PathUtil.GetDeviceKey(path), IoPriority.Background,
+                token => Compute(fieldId, path, captured, token, slowLocation, origin), ct).GetAwaiter().GetResult();
+        }
+        if (ct.IsCancellationRequested) return new MetadataValue(MetadataState.NotRequested);
         var key = Key(path, entry, fieldId);
-        if (_cache.TryGetValue(key, out var v) && v.State is MetadataState.Available or MetadataState.Absent) return v;
-        var production = BeginProduction(key);
+        if (_cache.TryGetValue(key, out var v) && v.State is MetadataState.Available or MetadataState.Absent &&
+            Fresh(key, EffectiveRefresh(field!, slowLocation))) return v;
+        var production = BeginProduction(key, fieldId, origin);
         try
         {
-            var value = Produce(field, path, ct);
-            return Store(production, value, out _) ? value : new MetadataValue(MetadataState.NotRequested);
+            var value = Produce(field!, path, ct);
+            if (!Store(production, value, field!.RefreshAfter is not null, ct, out var stored, out bool changed))
+                return new MetadataValue(MetadataState.NotRequested);
+            if (changed) Notify();
+            return stored;
         }
         finally
         {
@@ -145,7 +255,7 @@ public sealed class MetadataService
         }
     }
 
-    private void Schedule(string key, MetadataField field, string path, string deviceKey, Func<bool>? isStillWanted)
+    private void Schedule(string key, MetadataField field, string path, string deviceKey, TimeSpan? refresh, Func<bool>? isStillWanted)
     {
         if (!_inFlight.TryAdd(key, 0)) return;
         // A previous producer may publish between Get's cache miss and this admission.
@@ -153,10 +263,7 @@ public sealed class MetadataService
         // producer after the first has already removed its in-flight record.
         lock (_publicationLock)
         {
-            if (_cache.ContainsKey(key) &&
-                (field.RefreshAfter is not { } refresh ||
-                 !_producedAt.TryGetValue(key, out var at) ||
-                 Environment.TickCount64 - at <= refresh.TotalMilliseconds))
+            if (_cache.TryGetValue(key, out var cached) && !AutomaticallyDue(key, cached, refresh))
             {
                 _inFlight.TryRemove(key, out _);
                 return;
@@ -170,7 +277,7 @@ public sealed class MetadataService
             _inFlight.TryRemove(key, out _);
             return;
         }
-        var production = BeginProduction(key);
+        var production = BeginProduction(key, field.Id);
         void Finished()
         {
             if (!EndProduction(production)) return;
@@ -178,22 +285,25 @@ public sealed class MetadataService
             ReleaseOutstanding(deviceKey);
             if (!IsCurrent(production)) Notify(); // visible rows can retry now that obsolete demand has ended
         }
-        var work = _io.Run(deviceKey, IoPriority.Background, ct =>
+        void Read(CancellationToken ct)
         {
             try
             {
                 if (isStillWanted is not null && !isStillWanted() || !IsCurrent(production)) return;
                 var value = Produce(field, path, ct);
-                if (Store(production, value, out bool changed, field.RefreshAfter is not null) && changed) Notify();
+                if (Store(production, value, field.RefreshAfter is not null, ct, out _, out bool changed) && changed) Notify();
             }
             finally
             {
                 Finished();
             }
-        });
+        }
+        Task work = field.ObservationLane
+            ? Records.FileObservationRequests.RunOwned(_io, deviceKey, IoPriority.Background, ct => { Read(ct); return true; })
+            : _io.Run(deviceKey, IoPriority.Background, Read);
         // Shutdown cancels queued work without entering its callback; release its demand record in that case too.
         _ = work.ContinueWith(_ => Finished(), CancellationToken.None,
-            TaskContinuationOptions.OnlyOnCanceled | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
     }
 
     private void ReleaseOutstanding(string deviceKey)
@@ -209,22 +319,48 @@ public sealed class MetadataService
         try
         {
             var value = field.Produce(path, ct);
-            return value is null ? MetadataValue.Absent : new MetadataValue(MetadataState.Available, value);
+            ct.ThrowIfCancellationRequested();
+            return value switch
+            {
+                MetadataValue structured => structured,
+                null => MetadataValue.Absent,
+                _ => new MetadataValue(MetadataState.Available, value),
+            };
         }
         catch (OperationCanceledException)
         {
             return new MetadataValue(MetadataState.NotRequested);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or FormatException or ArgumentException)
+        catch (UnauthorizedAccessException ex)
         {
-            return new MetadataValue(MetadataState.Failed, null, ex.Message);
+            return new MetadataValue(MetadataState.Denied, Detail: Sentence(ex.Message));
+        }
+        catch (NotSupportedException ex)
+        {
+            return new MetadataValue(MetadataState.Unsupported, Detail: Sentence(ex.Message));
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or FormatException or ArgumentException)
+        {
+            return new MetadataValue(MetadataState.Failed, Detail: Sentence(ex.Message));
         }
     }
 
-    private Production BeginProduction(string key)
+    private static string Sentence(string text)
     {
-        var production = new Production(key);
-        lock (_publicationLock) _productions.Add(production);
+        if (string.IsNullOrWhiteSpace(text)) return "Could not be read just now.";
+        string trimmed = text.TrimEnd();
+        return trimmed[^1] is '.' or '!' or '?' ? trimmed : trimmed + ".";
+    }
+
+    private Production BeginProduction(string key, string fieldId, object? origin = null)
+    {
+        var production = new Production(key, fieldId, origin);
+        lock (_publicationLock)
+        {
+            production.HadAvailableValue = _cache.TryGetValue(key, out var before) && before.State == MetadataState.Available;
+            production.Current = !_disposed;
+            _productions.Add(production);
+        }
         return production;
     }
 
@@ -238,20 +374,29 @@ public sealed class MetadataService
         lock (_publicationLock) return production.Current;
     }
 
-    private bool Store(Production production, MetadataValue value, out bool changed, bool refreshing = false)
+    private bool Store(Production production, MetadataValue value, bool refreshing, CancellationToken ct,
+        out MetadataValue stored, out bool changed)
     {
         lock (_publicationLock)
         {
             changed = false;
-            if (!production.Current || value.State == MetadataState.NotRequested) return false;
+            stored = new MetadataValue(MetadataState.NotRequested);
+            if (!production.Current || ct.IsCancellationRequested || value.State == MetadataState.NotRequested) return false;
             string key = production.Key;
-            changed = !_cache.TryGetValue(key, out var before) || !before.Equals(value);
-            if (_cache.TryAdd(key, value)) _order.Enqueue(key); // a value read again keeps its place
+            bool hadValue = _cache.TryGetValue(key, out var before);
+            if (refreshing && production.HadAvailableValue && value.State == MetadataState.Failed && hadValue && before.State == MetadataState.Available)
+                value = new MetadataValue(MetadataState.Available, before.Value,
+                    Sentence(value.Detail ?? "Could not be read just now.") + " Showing the last value read.", MetadataObservation.LastKnown);
+            changed = !hadValue || !before.Equals(value);
+            if (changed) RetireSnapshots(production.FieldId, key, production.Origin);
+            if (_cache.TryAdd(key, value)) { _cacheCount++; _order.Enqueue(key); } // a value read again keeps its place
             else _cache[key] = value;
-            if (refreshing) _producedAt[key] = Environment.TickCount64;
-            while (_cache.Count > MaxCache && _order.TryDequeue(out var old))
+            if (refreshing && value.State is not (MetadataState.Denied or MetadataState.Unsupported)) _producedAt[key] = _milliseconds();
+            else _producedAt.TryRemove(key, out _);
+            stored = value;
+            while (_cacheCount > _maxCache && _order.TryDequeue(out var old))
             {
-                _cache.TryRemove(old, out _);
+                if (_cache.TryRemove(old, out _)) _cacheCount--;
                 _producedAt.TryRemove(old, out _);
             }
             return true;
@@ -260,20 +405,40 @@ public sealed class MetadataService
 
     private void Notify()
     {
+        if (Volatile.Read(ref _disposed)) return;
         if (Interlocked.Exchange(ref _notifyPending, 1) == 1) return;
         ThreadPool.QueueUserWorkItem(_ =>
         {
             Thread.Sleep(120);
             Interlocked.Exchange(ref _notifyPending, 0);
-            ValuesChanged?.Invoke();
+            lock (_publicationLock)
+                if (!_disposed) ValuesChanged?.Invoke();
         });
+    }
+
+    /// <summary>Signals a memory-only presentation change, such as a completed principal-name lookup.</summary>
+    public void NotifyValuesChanged() => Notify();
+
+    /// <summary>Makes recorded refreshable values due and requests repaint; performs no production.</summary>
+    public void ExpireRefreshable()
+    {
+        lock (_publicationLock)
+            foreach (string key in _producedAt.Keys) _producedAt[key] = long.MinValue;
+        Notify();
     }
 
     /// <summary>Forgets one field's values for one item (asked again when its row is drawn).</summary>
     public void Forget(string fieldId, string path)
     {
         string prefix = fieldId + "|", suffix = "|" + path;
-        Forget(key => key.StartsWith(prefix, StringComparison.Ordinal) && key.EndsWith(suffix, StringComparison.Ordinal));
+        Forget(fieldId, key => key.StartsWith(prefix, StringComparison.Ordinal) && key.EndsWith(suffix, StringComparison.Ordinal));
+    }
+
+    /// <summary>Retires one producer family, including current generations, without invalidating unrelated fields.</summary>
+    public void ForgetField(string fieldId)
+    {
+        string prefix = fieldId + "|";
+        Forget(fieldId, key => key.StartsWith(prefix, StringComparison.Ordinal));
     }
 
     /// <summary>Forgets one field's values for many items (the files a job just checked) in one pass over what is kept.</summary>
@@ -283,7 +448,7 @@ public sealed class MetadataService
         // A checksum file may spell a name in another letter case than the folder does: forgetting a namesake too only asks again.
         var wanted = new HashSet<string>(paths, StringComparer.OrdinalIgnoreCase);
         string prefix = fieldId + "|";
-        Forget(key => key.StartsWith(prefix, StringComparison.Ordinal) && KeyPath(key) is { } path && wanted.Contains(path));
+        Forget(fieldId, key => key.StartsWith(prefix, StringComparison.Ordinal) && KeyPath(key) is { } path && wanted.Contains(path));
     }
 
     /// <summary>Retire one folder's row claims when its listing is refreshed, even if size and mtime were restored.</summary>
@@ -291,8 +456,9 @@ public sealed class MetadataService
     {
         string prefix = fieldId + "|";
         var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        Forget(key => key.StartsWith(prefix, StringComparison.Ordinal) &&
-            KeyPath(key) is { } path && string.Equals(Path.GetDirectoryName(path), folder, comparison));
+        string normalized = folder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        Forget(fieldId, key => key.StartsWith(prefix, StringComparison.Ordinal) &&
+            KeyPath(key) is { } path && string.Equals(Path.GetDirectoryName(path)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), normalized, comparison), folder);
     }
 
     /// <summary>Show the result of an explicit completed check on a row until its next listing refresh.</summary>
@@ -301,14 +467,16 @@ public sealed class MetadataService
         string key = Key(path, entry, "verified");
         lock (_publicationLock)
         {
+            var value = new MetadataValue(MetadataState.Available, result);
+            if (!_cache.TryGetValue(key, out var before) || before != value) RetireSnapshots("verified", key, null);
             foreach (var production in _productions)
                 if (production.Key == key) production.Current = false;
-            if (_cache.TryAdd(key, new MetadataValue(MetadataState.Available, result))) _order.Enqueue(key);
-            else _cache[key] = new MetadataValue(MetadataState.Available, result);
+            if (_cache.TryAdd(key, value)) { _cacheCount++; _order.Enqueue(key); }
+            else _cache[key] = value;
             _producedAt.TryRemove(key, out _);
-            while (_cache.Count > MaxCache && _order.TryDequeue(out var old))
+            while (_cacheCount > _maxCache && _order.TryDequeue(out var old))
             {
-                _cache.TryRemove(old, out _);
+                if (_cache.TryRemove(old, out _)) _cacheCount--;
                 _producedAt.TryRemove(old, out _);
             }
         }
@@ -323,16 +491,17 @@ public sealed class MetadataService
         return key[(at + 1)..];
     }
 
-    private void Forget(Func<string, bool> matches)
+    private void Forget(string fieldId, Func<string, bool> matches, string? folder = null)
     {
         lock (_publicationLock)
         {
+            RetireSnapshots(fieldId, null, null, folder);
             foreach (var production in _productions)
                 if (matches(production.Key)) production.Current = false;
             foreach (string key in _cache.Keys)
                 if (matches(key))
                 {
-                    _cache.TryRemove(key, out _);
+                    if (_cache.TryRemove(key, out _)) _cacheCount--;
                     _producedAt.TryRemove(key, out _);
                 }
             // Retire the ordering slots too: repeatedly forgetting one field must not accumulate old path keys.
@@ -349,12 +518,35 @@ public sealed class MetadataService
     {
         lock (_publicationLock)
         {
+            RetireSnapshots(null, null, null);
             foreach (var production in _productions) production.Current = false;
             _cache.Clear();
+            _cacheCount = 0;
             _producedAt.Clear();
             _order.Clear();
         }
         Notify();
+    }
+
+    public void Dispose()
+    {
+        lock (_publicationLock)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            ValuesChanged = null;
+            RetireSnapshots(null, null, null);
+            foreach (var production in _productions) production.Current = false;
+            _cache.Clear();
+            _cacheCount = 0;
+            _producedAt.Clear();
+            _order.Clear();
+        }
+        if (Names is not null)
+        {
+            Names.Changed -= NotifyValuesChanged;
+            if (_ownsNames) Names.Dispose();
+        }
     }
 }
 
@@ -395,18 +587,19 @@ public static class BuiltInFields
         (p, _) => UnixPermissions.Stat(p)?.Mode,
         v => v is UnixFileMode m ? UnixPermissions.Format(m) : string.Empty,
         SortKey: v => v is UnixFileMode m ? (int)m : null,
-        Folders: true, RefreshAfter: TimeSpan.FromSeconds(5));
+        Folders: true, RefreshAfter: TimeSpan.FromSeconds(5),
+        Detail: v => v is UnixFileMode mode ? $"Octal {UnixPermissions.Octal(mode)} · mode bits only; an ACL or the mount can allow or deny more." : string.Empty);
 
     public static readonly MetadataField Owner = new("owner", "Owner", MetadataCost.Cheap,
         _ => true,
-        (p, _) => UnixPermissions.Stat(p) is { } s ? UnixPermissions.UserName(s.Uid) : null,
-        v => v as string ?? string.Empty,
+        (_, _) => new MetadataValue(MetadataState.Unsupported, Detail: "An ownership source is required."),
+        v => v is Principal p ? p.DisplayId : string.Empty,
         Folders: true, RefreshAfter: TimeSpan.FromSeconds(5));
 
     public static readonly MetadataField Group = new("group", "Group", MetadataCost.Cheap,
         _ => true,
-        (p, _) => UnixPermissions.Stat(p) is { } s ? UnixPermissions.GroupName(s.Gid) : null,
-        v => v as string ?? string.Empty,
+        (_, _) => new MetadataValue(MetadataState.Unsupported, Detail: "An ownership source is required."),
+        v => v is Principal p ? p.DisplayId : string.Empty,
         Folders: true, RefreshAfter: TimeSpan.FromSeconds(5));
 
     /// <summary>Where a file came from: Windows zones; the quarantine mark on macOS; a browser's origin URL on Linux.</summary>
@@ -464,11 +657,19 @@ public static class BuiltInFields
     /// How many streams and attributes a file or folder carries beside its contents (D-55): alternate data streams and
     /// NTFS attributes on Windows, extended attributes on Linux and macOS. Alt+Shift+Enter lists them.
     /// </summary>
-    public static readonly MetadataField Hidden = new("hidden", OperatingSystem.IsWindows() ? "Streams" : "Attributes", MetadataCost.Cheap,
+    public static readonly MetadataField Hidden = new("hidden", "Extra data", MetadataCost.Cheap,
         _ => true,
-        (p, _) => HiddenDataSource is { IsSupported: true } source ? source.List(p).Count : null,
-        v => v is int n && n > 0 ? n.ToString(System.Globalization.CultureInfo.CurrentCulture) : string.Empty,
-        RightAlign: true, SortKey: v => v as int?, Folders: true);
+        (p, ct) =>
+        {
+            var inventory = HiddenDataSource is { IsSupported: true } source ? source.ReadInventory(p, new(), ct)
+                : HiddenData.HiddenInventory.Unavailable(p, HiddenData.HiddenInventoryState.Unsupported, "A bounded inventory adapter is unavailable.");
+            return new FileDetailsFields.Cell(inventory.CountText, inventory.Description + $" · Observed {inventory.ObservedAt:O}", inventory.ExactCount, !inventory.IsComplete);
+        },
+        v => (v as FileDetailsFields.Cell)?.Text ?? "Not inspected",
+        RightAlign: true, SortKey: v => (v as FileDetailsFields.Cell)?.Key, Folders: true,
+        RefreshAfter: TimeSpan.FromSeconds(20),
+        Detail: v => (v as FileDetailsFields.Cell)?.Explanation ?? "Not inspected",
+        NeedsExplanation: _ => true, ObservationLane: true);
 
     /// <summary>
     /// Whether the file matches the checksums and signatures beside it (D-57): empty when nothing covers it, "not checked"
@@ -482,7 +683,7 @@ public static class BuiltInFields
 
     /// <summary>The fields this OS can fill: file versions on Windows; permissions and ownership on Linux and macOS.</summary>
     public static IReadOnlyList<MetadataField> All { get; } =
-        OperatingSystem.IsWindows() ? [Version, Dimensions, LinkTarget, Zone, Hidden, Verified] : [Permissions, Owner, Group, Dimensions, LinkTarget, Zone, Hidden, Verified];
+        OperatingSystem.IsWindows() ? [Version, Dimensions, LinkTarget, Zone, Hidden, Verified, Owner] : [Permissions, Owner, Group, Dimensions, LinkTarget, Zone, Hidden, Verified];
 }
 
 /// <summary>Reads image dimensions from bounded headers (never decodes pixels).</summary>

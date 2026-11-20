@@ -67,19 +67,21 @@ internal sealed class RarMemberStream : Stream
     private readonly long _end;
     private readonly CancellationToken _ct;
     private readonly Blake2sp? _blake;
+    private readonly Rar5MemberDecryption? _encryption;
     private uint _crc;
     private long _produced;
     private bool _decoderDone;
     private bool _finished;
 
     private RarMemberStream(RarMember member, Stream? stored, RarDecoder? decoder, RarWindow? window, CancellationToken ct,
-        RarExternalDecoder? external = null)
+        RarExternalDecoder? external = null, Rar5MemberDecryption? encryption = null)
     {
         _member = member;
         _stored = stored;
         _decoder = decoder;
         _window = window;
         _external = external;
+        _encryption = encryption ?? stored as Rar5MemberDecryption;
         _ct = ct;
         _start = window?.Written ?? 0;
         _end = member.UnpackedSize < 0 ? long.MaxValue : _start + member.UnpackedSize;
@@ -88,15 +90,20 @@ internal sealed class RarMemberStream : Stream
 
     public static RarMemberStream Stored(RarMember member, Stream packed, CancellationToken ct)
     {
-        if (member.UnpackedSize >= 0 && member.UnpackedSize != member.PackedSize) throw RarData.Corrupt("stored member sizes differ");
+        if (member.UnpackedSize >= 0 && (member.Encryption is null ? member.UnpackedSize != member.PackedSize :
+            member.PackedSize < member.UnpackedSize || member.PackedSize - member.UnpackedSize > 15))
+        {
+            packed.Dispose(); throw RarData.Corrupt("stored member sizes differ");
+        }
         return new RarMemberStream(member, packed, null, null, ct);
     }
 
     /// <summary>Content decoded by <paramref name="decoder"/> into <paramref name="window"/>, which must have no unread bytes.</summary>
-    public static RarMemberStream Decoded(RarMember member, RarDecoder decoder, RarWindow window, CancellationToken ct)
+    public static RarMemberStream Decoded(RarMember member, RarDecoder decoder, RarWindow window, CancellationToken ct,
+        Rar5MemberDecryption? encryption = null)
     {
         if (window.Read != window.Written || window.HasFilteredOutput) throw new InvalidOperationException("The window still holds an earlier member's output.");
-        return new RarMemberStream(member, null, decoder, window, ct);
+        return new RarMemberStream(member, null, decoder, window, ct, encryption: encryption);
     }
 
     /// <summary>
@@ -164,6 +171,7 @@ internal sealed class RarMemberStream : Stream
         catch (InvalidDataException ex) when (RarData.IsChecksum(ex))
         {
             _finished = true;
+            _encryption?.Dispose();
         }
         catch
         {
@@ -249,11 +257,17 @@ internal sealed class RarMemberStream : Stream
     {
         if (_finished) return;
         if (_member.UnpackedSize >= 0 && _produced != _member.UnpackedSize) throw RarData.Truncated();
-        if (_member.Crc32 is { } expected && _crc != expected)
+        if (_member.Crc32 is { } expected && (_encryption?.ProtectCrc(_crc) ?? _crc) != expected)
             throw RarData.ChecksumMismatch("The member's checksum does not match its data: the archive is damaged.");
-        if (_blake is not null && !_blake.Finish().AsSpan().SequenceEqual(_member.Blake2sp))
-            throw RarData.ChecksumMismatch("The member's BLAKE2sp hash does not match its data: the archive is damaged.");
+        if (_blake is not null)
+        {
+            byte[] hash = _blake.Finish();
+            byte[] final = _encryption?.ProtectHash(hash) ?? hash;
+            if (!final.AsSpan().SequenceEqual(_member.Blake2sp))
+                throw RarData.ChecksumMismatch("The member's BLAKE2sp hash does not match its data: the archive is damaged.");
+        }
         _finished = true;
+        _encryption?.Dispose();
     }
 
     public override void Flush() { }

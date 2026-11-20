@@ -1,7 +1,9 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
@@ -31,7 +33,7 @@ public sealed partial class MainViewModel
         string? target = Workspace.ActiveTarget?.ActiveTab?.Location is { IsFileSystem: true } t ? t.Path : null;
 
         var history = Services.History.ApplyCommands;
-        var command = new TextBox { Text = history.FirstOrDefault() ?? "", MinWidth = 640 };
+        var command = new TextBox { Text = history.FirstOrDefault() ?? "", MinWidth = 240 };
         Avalonia.Automation.AutomationProperties.SetName(command, "Command");
         int historyIndex = history.Count > 0 ? 0 : -1;
         command.KeyDown += (_, e) =>
@@ -47,7 +49,13 @@ public sealed partial class MainViewModel
         };
         string shellName = ApplyCommandPlanner.DefaultShell == "cmd" ? "cmd.exe" : "/bin/sh";
         var shell = new CheckBox { Content = $"Run through the shell ({shellName}: pipes, redirection, built-in commands; names are quoted for it)" };
-        var preview = new ListBox { Height = 220, MinWidth = 640 };
+        var preview = new ListBox
+        {
+            Height = 220,
+            ItemTemplate = DialogLayout.WrappingListText,
+        };
+        // The full expanded path and arguments must remain visible before the user authorizes execution.
+        ScrollViewer.SetHorizontalScrollBarVisibility(preview, ScrollBarVisibility.Disabled);
         Avalonia.Automation.AutomationProperties.SetName(preview, "Commands to run");
         var summary = new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 640 };
         IReadOnlyList<ApplyInvocation> rows = [];

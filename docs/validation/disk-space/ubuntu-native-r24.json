@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native Ubuntu regression provenance, not capability authorization",
+  "gitBase": "0ace4ba4ff04f0b1219ab5c402fbdf4b9055be71",
+  "testedWorkingTreeChanges": false,
+  "sourceManifest": "source-manifest-r23.json",
+  "portableCoreBundleSha256": "9458418fb09cde5bc6b8557cc69e5de7b6b31823460e9c62b49dd4781f6a011b",
+  "platform": "Ubuntu 24.04 x64, ext4, ordinary uid/gid 1000, .NET runtime 10.0.14",
+  "filecatAppProcessAfterTests": "none",
+  "nativeDesktopAcceptance": "unqualified",
+  "deployedArtifacts": [
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.dll",
+      "sha256": "78244cf91400b77523a137cfb4973da2e6e02f0883ebe4c4292d68c1dbc21068"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll",
+      "sha256": "ef1f65600230b2f406bbda36db1e2ee69ed91807cd87d697d8fee7f995bba99c"
+    }
+  ],
+  "evidence": [
+    "ubuntu-core-r24.xml",
+    "ubuntu-stat-consumers-r24.xml"
+  ]
+}

@@ -1,0 +1,300 @@
+{
+  "purpose": "Shared producer pending-payload accounting, actual working headroom, witness release and rejected-enumeration coverage",
+  "observedUtc": "2026-11-07T01:45:54.247354+00:00",
+  "gitBase": "5ecd6aca89b2ed4cd958a879009e9e775a9af2e0",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisCoordinator.Indexed.cs",
+      "sha256": "6467f90edcf12c5cdc6bc458308964431c17645958dd3159476aec123cebfbf3"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisCoordinator.cs",
+      "sha256": "59ffd99cf8e27a59c715da20980a6b7331bb47b78a4baf5219424fdd2ac5aa0e"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisLimits.cs",
+      "sha256": "b0272b8340217a108ca1489edee7c6d2ac3519753388de1ca541398d4a88e372"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObservationWriter.cs",
+      "sha256": "336cdbce7e93f10aceaa133d1c1aa7267b37d05032afe23010faf6886329a4c5"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisPendingPayload.cs",
+      "sha256": "486e1431857e6ad7fd7a2f5e9ef78264d59adadc000120d14b90ed405cbff7c5"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSourceFrontier.cs",
+      "sha256": "d3a7011366cbd5f7ecefd96c3bf3fdb7d42d02f5137dd9ccea4b4fd2237c419b"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetTests.PendingPayload.cs",
+      "sha256": "04293e4ce4c13bd4aa1cf06c22ded2ac8cd719e8cc06ac723e918f6859707b94"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisPendingPayloadTests.cs",
+      "sha256": "2368a33916a918e8e0d2d111a556ba6c4ca1dc6ebf5347e46be0e1b31dbe231b"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r568.txt",
+      "sha256": "cd0b5183f3785c2de06c92592e5ea23a3c33f2f4972af8514f05b2542edba035"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r569-core-r569.xml",
+      "sha256": "07ed5fdba6606a36dbf41a43c0090aa8917d11d05464ce6ead28d1848eaf69e1"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r569-core-r569.log",
+      "sha256": "8d4ed189b48e2dd66ac56e66eaea1a80bd139fb35ac3beb318c1aaec5efc7142"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r569-render-r569.xml",
+      "sha256": "48fabe527b87234370c39a3d00aa55b49dd70d8f8e6052086f7389f25114b867"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r569-render-r569.log",
+      "sha256": "fd527211e74b90b0e7f705f08ca14ff6164154b270d80ac271f6e09807fd07e8"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r569-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r569-post.json",
+      "sha256": "8245000924f8ec98b51d3bb9fb53a408385e7979af2c2c5a77558cf85ac40197"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r569-core-r569.xml",
+      "sha256": "9a1f883ff8f7cb9ffd54816382e7a2b82620f225882421852d4bff502d856666"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r569-core-r569.log",
+      "sha256": "3eb3a7441d33bbe9e3b53227fa8e91656dc3d4e07fc23214c721c1dad322ad6e"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r569-render-r569.xml",
+      "sha256": "37a8ed6f047bb453ff465f1c85568e82605354e7c56de363fa48e4dd0d3e2f04"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r569-render-r569.log",
+      "sha256": "4dd8f4bdeef0301ee232cadfe7eb824e28951006967364dc795093a602733038"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r569-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r569-post.json",
+      "sha256": "475d54f07b5a2e420a27a0c06bd29036dc8341b40166d56b28174fab59d8438e"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r569-core-r569.xml",
+      "sha256": "2b439965051bbbe66d5c14e5707386bad81c76d319198af203c993c9342dc254"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r569-core-r569.log",
+      "sha256": "6dcffff8f814a925c5b2fe8928f0951b64865ed3619b2bf411de92c3491459e7"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r569-native-r569.xml",
+      "sha256": "6fd2196fa20134494fad63d914f78382106e36be77bfb8f5e766b580bd4207c3"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r569-native-r569.log",
+      "sha256": "92780efe78ef73af62e888fcb4bdb41ecc7232b3c0abb70f84d80b4a34f9ec40"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r569-render-r569.xml",
+      "sha256": "962f2ca1c7f1de098814e87ffa7959fcdd536daa40bc1ef19a6b399e38ba51a6"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r569-render-r569.log",
+      "sha256": "833c4af9839d6fedd788b29f7d18de1bfc27d98abec1c9deb37991dcc9d8f6ff"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r569-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r569-post.json",
+      "sha256": "40922c285ac7d286c3c451cba43ee1b8986d3cba88325c65a8fc69857f6e766e"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r569.sh",
+      "sha256": "85e2c7628f3e30e028f4b77d858c7d28bee9a3364c4222c64dcb9ba81042e806"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r569.sh",
+      "sha256": "80261fb691b9246cebce4511aa6c6edb9c521e57928fdf0b9fe9e74a4f7137ea"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r569.ps1",
+      "sha256": "7ad31573492d978b44d656cf3e8f400bae52e427fd807ce97936ef1ac8dba80a"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r569.tgz",
+      "sha256": "ef7f11a139d6cd897d1973e1b7324f9e54bac81b39382088525ec66da4830836"
+    },
+    {
+      "name": "dsa-batch-linux-r569.tgz",
+      "sha256": "ca09b75f5eb666985e6e0e952ee5db070f59de2f44b46956f2b21c956568746d"
+    },
+    {
+      "name": "dsa-batch-windows-r569.tgz",
+      "sha256": "c4c113880d0a907ceedeab01a551f1939409eaf5d808676f90a1b512cf785df1"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r569": "a893ecab49f2ab2db461e2d3a5f68115ada6f193b9de0e0d0a3c81428e266ab5",
+    "native-r569": "a893ecab49f2ab2db461e2d3a5f68115ada6f193b9de0e0d0a3c81428e266ab5",
+    "render-r570-mac": "a893ecab49f2ab2db461e2d3a5f68115ada6f193b9de0e0d0a3c81428e266ab5",
+    "render-r570-linux": "a893ecab49f2ab2db461e2d3a5f68115ada6f193b9de0e0d0a3c81428e266ab5",
+    "render-r570-windows": "a893ecab49f2ab2db461e2d3a5f68115ada6f193b9de0e0d0a3c81428e266ab5"
+  },
+  "productionAppHashes": {
+    "render-r570-mac": "f71b09ac8dd891c672a4a04d26536cdf2e20308a562ad376788daeb5593406e4",
+    "render-r570-linux": "f71b09ac8dd891c672a4a04d26536cdf2e20308a562ad376788daeb5593406e4",
+    "render-r570-windows": "f71b09ac8dd891c672a4a04d26536cdf2e20308a562ad376788daeb5593406e4"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r569": "aa3e138e1a1cc46bdcc8364bb9488d026f498566d6cb7ef2a251582661d75d50",
+    "render-r570-mac": "aa3e138e1a1cc46bdcc8364bb9488d026f498566d6cb7ef2a251582661d75d50",
+    "render-r570-linux": "aa3e138e1a1cc46bdcc8364bb9488d026f498566d6cb7ef2a251582661d75d50",
+    "render-r570-windows": "aa3e138e1a1cc46bdcc8364bb9488d026f498566d6cb7ef2a251582661d75d50"
+  },
+  "matrix": {
+    "mac-batch-r569-core-r569.xml": {
+      "total": "718",
+      "passed": "714",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "23.685"
+    },
+    "mac-batch-r569-render-r569.xml": {
+      "total": "109",
+      "passed": "109",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "36.246"
+    },
+    "ubuntu-batch-r569-core-r569.xml": {
+      "total": "718",
+      "passed": "714",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "55.395"
+    },
+    "ubuntu-batch-r569-render-r569.xml": {
+      "total": "109",
+      "passed": "109",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "45.455"
+    },
+    "windows-batch-r569-core-r569.xml": {
+      "total": "736",
+      "passed": "688",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "19.330"
+    },
+    "windows-batch-r569-native-r569.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "38.136"
+    },
+    "windows-batch-r569-render-r569.xml": {
+      "total": "109",
+      "passed": "108",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "50.819"
+    }
+  },
+  "targetedControls": {
+    "mac": [
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.AllProducerFamiliesShareEightMiBAndReleaseExactlyTheirOwnCharges",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.AnOversizedRuntimeReadWitnessStopsBeforeStartingAnotherEnumeration",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.BothActualProducersKeepWorkingSpaceThroughStopAndAThirdWaitsWithoutCharging",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.SaturatedTraversalAndWritesCannotStarveProducerWorkAndRejectedDirectoriesCountAsFailed",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.OversizedDisplayOrMetadataStringsCannotBypassTheProducerBatchBound(field: \\\"name\\\")",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.OversizedDisplayOrMetadataStringsCannotBypassTheProducerBatchBound(field: \\\"identity\\\")",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.OversizedDisplayOrMetadataStringsCannotBypassTheProducerBatchBound(field: \\\"version\\\")",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.OversizedDisplayOrMetadataStringsCannotBypassTheProducerBatchBound(field: \\\"encoding\\\")",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.OversizedDisplayOrMetadataStringsCannotBypassTheProducerBatchBound(field: \\\"issue\\\")",
+      "FileCat.Core.Tests.AnalysisDatasetTests.SeparateWritersShareQueuedBytesAndClosureWaitsForEveryAcceptedBatch",
+      "FileCat.Core.Tests.AnalysisDatasetTests.OversizedEncodingAndIssueStringsAreRejectedBeforeChangingCaptureOrQueueAdmission",
+      "FileCat.Core.Tests.AnalysisDatasetTests.QueuedCaptureDoesNotRetainLiveReadWitnessesAndCancellationKeepsItsByteChargeUntilActualReturn"
+    ],
+    "ubuntu": [
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.AnOversizedRuntimeReadWitnessStopsBeforeStartingAnotherEnumeration",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.SaturatedTraversalAndWritesCannotStarveProducerWorkAndRejectedDirectoriesCountAsFailed",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.OversizedDisplayOrMetadataStringsCannotBypassTheProducerBatchBound(field: \\\"name\\\")",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.OversizedDisplayOrMetadataStringsCannotBypassTheProducerBatchBound(field: \\\"identity\\\")",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.OversizedDisplayOrMetadataStringsCannotBypassTheProducerBatchBound(field: \\\"version\\\")",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.OversizedDisplayOrMetadataStringsCannotBypassTheProducerBatchBound(field: \\\"encoding\\\")",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.OversizedDisplayOrMetadataStringsCannotBypassTheProducerBatchBound(field: \\\"issue\\\")",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.BothActualProducersKeepWorkingSpaceThroughStopAndAThirdWaitsWithoutCharging",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.AllProducerFamiliesShareEightMiBAndReleaseExactlyTheirOwnCharges",
+      "FileCat.Core.Tests.AnalysisDatasetTests.OversizedEncodingAndIssueStringsAreRejectedBeforeChangingCaptureOrQueueAdmission",
+      "FileCat.Core.Tests.AnalysisDatasetTests.SeparateWritersShareQueuedBytesAndClosureWaitsForEveryAcceptedBatch",
+      "FileCat.Core.Tests.AnalysisDatasetTests.QueuedCaptureDoesNotRetainLiveReadWitnessesAndCancellationKeepsItsByteChargeUntilActualReturn"
+    ],
+    "windows": [
+      "FileCat.Core.Tests.AnalysisDatasetTests.QueuedCaptureDoesNotRetainLiveReadWitnessesAndCancellationKeepsItsByteChargeUntilActualReturn",
+      "FileCat.Core.Tests.AnalysisDatasetTests.OversizedEncodingAndIssueStringsAreRejectedBeforeChangingCaptureOrQueueAdmission",
+      "FileCat.Core.Tests.AnalysisDatasetTests.SeparateWritersShareQueuedBytesAndClosureWaitsForEveryAcceptedBatch",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.OversizedDisplayOrMetadataStringsCannotBypassTheProducerBatchBound(field: \\\"name\\\")",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.OversizedDisplayOrMetadataStringsCannotBypassTheProducerBatchBound(field: \\\"identity\\\")",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.OversizedDisplayOrMetadataStringsCannotBypassTheProducerBatchBound(field: \\\"version\\\")",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.OversizedDisplayOrMetadataStringsCannotBypassTheProducerBatchBound(field: \\\"encoding\\\")",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.OversizedDisplayOrMetadataStringsCannotBypassTheProducerBatchBound(field: \\\"issue\\\")",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.BothActualProducersKeepWorkingSpaceThroughStopAndAThirdWaitsWithoutCharging",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.SaturatedTraversalAndWritesCannotStarveProducerWorkAndRejectedDirectoriesCountAsFailed",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.AnOversizedRuntimeReadWitnessStopsBeforeStartingAnotherEnumeration",
+      "FileCat.Core.Tests.AnalysisPendingPayloadTests.AllProducerFamiliesShareEightMiBAndReleaseExactlyTheirOwnCharges"
+    ]
+  },
+  "newCoreControls": 12,
+  "finalBuild": "build-r568.txt: full solution zero warnings/errors",
+  "excludedAttempts": [
+    "r560: test backend omitted required ValidateReadScope member",
+    "r564: superseded before packaging by captured effective-policy additions"
+  ],
+  "testScope": "Actual scheduler, blocked/queued work, forced GC and generated/fake providers with in-memory private scratch. This proves admission/estimation/lifetime behavior, not complete native private-memory peaks, all CPU/dataset queues or physical desktop behavior.",
+  "batchWorkflow": "One immutable bundle per platform; sequential applicable suites, integrity/occupancy gates, authoritative final inventories.",
+  "processExitEvidence": "All original runners terminal, guest states FINISHED exit=0 and final inventories empty all3. No host app/input test or other tester termination.",
+  "qualification": {
+    "sharedProducerPayloadAdmissionImplemented": true,
+    "producerPayloadControlsPassedAllThree": true,
+    "queuedWitnessReleaseControlsPassedAllThree": true,
+    "rejectedTraversalCoverageControlsPassedAllThree": true,
+    "fullProcessPrivateMemoryQualificationComplete": false,
+    "allDatasetQueuesAndCpuAdmissionQualified": false,
+    "fullNativeConstructorRollbackFaultMatrixQualified": false,
+    "fullResourceGateQualified": false,
+    "globalPendingCpuDeviceAliasGateQualified": false,
+    "nativeDesktopInputQualified": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

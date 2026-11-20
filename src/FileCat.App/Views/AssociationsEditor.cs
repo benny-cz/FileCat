@@ -24,7 +24,7 @@ internal sealed class AssociationsEditor
     private readonly List<Entry> _draft;
     private readonly Func<IReadOnlyList<SavedFilter>> _savedFilters;
     private readonly ListBox _list = new() { Height = 160 };
-    private readonly TextBox _name = new();
+    private readonly TextBox _name = new() { PlaceholderText = "New association" };
     private readonly TextBox _mask = new();
     private readonly ComboBox _intent = new() { ItemsSource = new[] { Associations.View, Associations.Edit, Associations.Open }, MinWidth = 140 };
     private readonly TextBox _program = new();
@@ -45,9 +45,13 @@ internal sealed class AssociationsEditor
     private readonly ToolInvocationPreview _invocation;
     private Action? _retirePreview;
     private bool _updating;
+    /// <summary>Settings that cannot be saved (read-only): the associations can be looked through, not changed.</summary>
+    private readonly bool _readOnly;
 
-    public AssociationsEditor(IEnumerable<ToolDefinition> associations, Func<IReadOnlyList<SavedFilter>> savedFilters, string sampleFolder)
+    public AssociationsEditor(IEnumerable<ToolDefinition> associations, Func<IReadOnlyList<SavedFilter>> savedFilters, string sampleFolder,
+        bool readOnly = false)
     {
+        _readOnly = readOnly;
         _savedFilters = savedFilters;
         _draft = Clone(associations).Select(t => new Entry(t)).ToList();
         _invocation = new ToolInvocationPreview("Association", _arguments, SnapshotInvocation, sampleFolder);
@@ -73,11 +77,11 @@ internal sealed class AssociationsEditor
         {
             _draft.Add(new Entry(new ToolDefinition
             {
-                Name = "New association", Mask = "*.txt", Intent = Associations.View,
+                Name = string.Empty, Mask = "*.txt", Intent = Associations.View,
                 Arguments = ["{file}"],
             }));
             Refresh(_draft.Count - 1);
-            _mask.Focus();
+            _name.Focus();
         };
         _duplicate.Click += (_, _) =>
         {
@@ -178,7 +182,11 @@ internal sealed class AssociationsEditor
         AdvancedTextFileExchange.AddTo(_rawPanel, _raw, "association");
         _rawPanel.Children.Add(_rawError);
         _advanced.IsCheckedChanged += (_, _) => SwitchMode();
-        View = new StackPanel { Margin = new Thickness(8), Spacing = 6, Children = { _advanced, _structured, _rawPanel } };
+        View = new StackPanel { Margin = new Thickness(0, 6, 0, 10), Spacing = 6, Children =
+        {
+            new TextBlock { Text = "Associations", FontWeight = FontWeight.SemiBold },
+            _advanced, _structured, _rawPanel,
+        } };
         Refresh(_draft.Count > 0 ? 0 : -1);
         _retirePreview = () => preview.Text = "Preview out of date. Choose Preview first match again.";
     }
@@ -257,7 +265,8 @@ internal sealed class AssociationsEditor
     private void Refresh(int index, bool show = true)
     {
         _updating = true;
-        _list.ItemsSource = _draft.Select((e, i) => $"{i + 1}. {e.Tool.Mask} · {e.Tool.Intent} → {e.Tool.Name}").ToList();
+        _list.ItemsSource = _draft.Select((e, i) => $"{i + 1}. {e.Tool.Mask} · {e.Tool.Intent} → " +
+            (string.IsNullOrWhiteSpace(e.Tool.Name) ? "New association (enter a name)" : e.Tool.Name)).ToList();
         _list.SelectedIndex = index >= 0 && _draft.Count > 0 ? Math.Min(index, _draft.Count - 1) : -1;
         _updating = false;
         _retirePreview?.Invoke();
@@ -279,15 +288,17 @@ internal sealed class AssociationsEditor
         _directory.Text = tool?.WorkingDirectory ?? string.Empty;
         _hotkey.Text = tool?.Hotkey ?? string.Empty;
         _shell.IsChecked = tool?.ShellMode ?? false;
-        foreach (var control in new Control[] { _name, _mask, _intent, _program, _arguments, _directory, _hotkey, _shell })
+        // Read-only text stays selectable; the action and the shell switch stay off.
+        foreach (var control in new Control[] { _name, _mask, _program, _arguments, _directory, _hotkey })
             control.IsEnabled = entry is not null;
+        _intent.IsEnabled = _shell.IsEnabled = entry is not null && !_readOnly;
         _updating = false;
         RefreshButtons();
     }
 
     private void RefreshButtons()
     {
-        bool selected = Selected is not null;
+        bool selected = Selected is not null && !_readOnly;
         _duplicate.IsEnabled = _remove.IsEnabled = selected;
         _up.IsEnabled = selected && _list.SelectedIndex > 0;
         _down.IsEnabled = selected && _list.SelectedIndex < _draft.Count - 1;

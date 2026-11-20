@@ -180,11 +180,11 @@ public sealed class DependentControlsTests
     }
 
     /// <summary>
-    /// An action used by keyboard until it stops being available keeps the keyboard in the editor and says why: with
-    /// NVDA on Windows, New profile pressed up to the limit dropped focus to the main window without a word.
+    /// An action used by keyboard until it stops being available keeps the keyboard in the editor and says why. New
+    /// profile now focuses its suggested name for immediate typing, including the last profile at the limit.
     /// </summary>
     [AvaloniaFact]
-    public void An_action_that_becomes_unavailable_under_the_keyboard_hands_focus_to_its_list_and_says_why()
+    public void An_action_that_becomes_unavailable_under_the_keyboard_keeps_focus_in_its_editor_and_says_why()
     {
         var set = new ColumnProfileSet(null);
         var editor = new ColumnProfilesEditor(set);
@@ -198,17 +198,19 @@ public sealed class DependentControlsTests
                 .Single(t => AutomationProperties.GetAutomationId(t) == "Column editor action status");
             var profileList = editor.View.GetVisualDescendants().OfType<ListBox>()
                 .Single(l => AutomationProperties.GetName(l) == "Column profiles");
+            var profileName = editor.View.GetVisualDescendants().OfType<TextBox>()
+                .Single(t => AutomationProperties.GetName(t) == "Profile name");
             var newProfile = Action("New profile");
-            Assert.True(newProfile.Focus());
             while (newProfile.IsEnabled)
             {
+                Assert.True(newProfile.Focus());
                 Assert.True(newProfile.IsFocused);
                 newProfile.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Assert.True(profileName.IsFocused);
             }
             var focused = window.FocusManager?.GetFocusedElement() as Visual;
             Assert.NotNull(focused);
-            Assert.True(ReferenceEquals(focused, profileList) || profileList.IsVisualAncestorOf(focused!),
-                $"Focus went to {focused}");
+            Assert.Same(profileName, focused);
             Assert.True(Status().IsVisible);
             Assert.Equal("Maximum profiles reached (10).", Status().Text);
             Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(Status()));

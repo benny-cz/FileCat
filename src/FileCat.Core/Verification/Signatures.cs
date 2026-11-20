@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text;
 using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Math.EC.Rfc8032;
+using FileCat.Core.FileSystem;
 using FileCat.Core.State;
 
 namespace FileCat.Core.Verification;
@@ -66,6 +67,7 @@ public static class Minisign
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { continue; }
             foreach (string file in files)
             {
+                if (PathUtil.HasAmbiguousUnixName(file)) continue;
                 try
                 {
                     if (ReadBoundedText(file) is { } text && ParsePublicKey(text, file) is { } key)

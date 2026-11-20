@@ -83,7 +83,7 @@ public sealed class UndoReport
         string from = display(outcome.From), to = display(outcome.To), reason = display(outcome.Reason);
         if (outcome.Outcome == UndoOutcomeKind.Restored)
             return outcome.Kind == UndoKind.RenameBatchBack ? $"Renamed \"{from}\" back to \"{to}\"."
-                : outcome.Kind == UndoKind.RestoreRecycled ? $"Restored \"{to}\" from the Recycle Bin." : $"Restored \"{from}\" to \"{to}\".";
+                : outcome.Kind == UndoKind.RestoreRecycled ? $"Restored \"{to}\" from {RecycleText.FromDestination}." : $"Restored \"{from}\" to \"{to}\".";
         if (outcome.Outcome == UndoOutcomeKind.Removed)
             return outcome.Kind switch
             {
@@ -134,7 +134,7 @@ public sealed partial class Job
             reservation = new UndoReservation(this, new UndoPlan(Id, Title, _undo, _undoRemainder, _undoRemainderCount));
             _undoReservation = reservation;
         }
-        Changed?.Invoke(this);
+        NotifyChanged();
         return reservation;
     }
 
@@ -151,17 +151,17 @@ public sealed partial class Job
         }
     }
 
-    internal void UndoAdmissionChanged() => Changed?.Invoke(this);
+    internal void UndoAdmissionChanged() => NotifyChanged();
     internal void ReleaseUndo(UndoReservation reservation)
     {
         bool changed;
         lock (_lock) { changed = ReferenceEquals(_undoReservation, reservation); if (changed) _undoReservation = null; }
-        if (changed) Changed?.Invoke(this);
+        if (changed) NotifyChanged();
     }
     internal void RecordUndoRemainder(string path, string reason)
     {
         lock (_lock) { _undoRemainderCount++; if (_undoRemainder.Count < 1000) _undoRemainder.Add(new(path, reason)); }
     }
     internal UndoPlan SnapshotUndo() { lock (_lock) return new(Id, Title, _undo, _undoRemainder, _undoRemainderCount); }
-    internal void SetUndoReport(UndoReport report) { Volatile.Write(ref _undoReport, report); SetSummary(report.Summary); Changed?.Invoke(this); }
+    internal void SetUndoReport(UndoReport report) { Volatile.Write(ref _undoReport, report); SetSummary(report.Summary); NotifyChanged(); }
 }

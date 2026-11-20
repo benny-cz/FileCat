@@ -35,7 +35,6 @@ public sealed class PagedReaderCoalescingTests(ITestOutputHelper output)
             if (backgroundPeer) Assert.False(reader.TryRead(0, second, out _));
             else peer = Task.Factory.StartNew(() => { peerThread = Thread.CurrentThread; return reader.Read(0, second); }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             if (peer is not null) await Wait(() => peer.IsCompleted || peerThread is not null && (peerThread.ThreadState & System.Threading.ThreadState.WaitSleepJoin) != 0);
-            else await Task.Delay(100, TestContext.Current.CancellationToken); // asynchronous request is already admitted by TryRead
             int before = source.Reads; bool ownerPending = owner is null || !owner.IsCompleted;
             if (outcome == "close") reader.Dispose();
             int disposalWhileHeld = source.Disposals; source.Release.Set(); if (owner is not null) await owner.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken); if (peer is not null) await peer.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken); await Wait(() => reader.PendingLoads == 0);
@@ -104,6 +103,54 @@ public sealed class PagedReaderCoalescingTests(ITestOutputHelper output)
             Assert.True(completedWhileHeld); Assert.True(ownerPending); Assert.True(waiterPending); Assert.Equal(2, callsBeforeRelease); Assert.Equal(2, source.Reads); Assert.Single(source.Calls, c => c.Offset == 0); Assert.Equal(source.Bytes.AsSpan(PagedReader.PageSize, 32).ToArray(), bytes); Assert.Equal(1, source.Disposals); Assert.False(source.DisposedDuringRead);
         }
         finally { source.Release.Set(); await owner; if (healthy is not null) await healthy; reader.Dispose(); await Wait(() => reader.PendingLoads == 0); source.Cleanup(); }
+    }
+
+    [Fact]
+    public async Task A_visible_request_joins_a_failing_blocking_read_while_the_device_worker_is_busy()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var timeout = TimeSpan.FromSeconds(10);
+        var source = new Source(true);
+        using var io = new DeviceIoScheduler(TimeSpan.FromMinutes(1), threadsPerDevice: 1, maxThreadsPerDevice: 1);
+        using var reader = new PagedReader(source, io, "busy-device");
+        using var releaseWorker = new ManualResetEventSlim();
+        var workerEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var worker = io.Run("busy-device", IoPriority.Interactive, token =>
+        {
+            workerEntered.SetResult();
+            releaseWorker.Wait(token);
+        }, ct);
+        var owner = Task.Factory.StartNew(() => reader.Read(0, new byte[32]),
+            CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        var pageLoaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        reader.PageLoaded += () => pageLoaded.TrySetResult();
+        try
+        {
+            await workerEntered.Task.WaitAsync(timeout, ct);
+            await source.Entered.Task.WaitAsync(timeout, ct);
+            Assert.False(reader.TryRead(0, new byte[32], out _));
+            Assert.Equal(1, reader.PendingLoads);
+
+            source.Release.Set();
+            Assert.Equal(0, await owner.WaitAsync(timeout, ct));
+            await pageLoaded.Task.WaitAsync(timeout, ct);
+            Assert.False(worker.IsCompleted);
+            Assert.Equal(0, reader.PendingLoads);
+            Assert.Equal(1, source.Reads);
+            Assert.NotNull(reader.ReadError);
+        }
+        finally
+        {
+            source.Release.Set();
+            releaseWorker.Set();
+            try { await Task.WhenAll(owner, worker).WaitAsync(timeout, ct); }
+            finally
+            {
+                reader.Dispose();
+                await Wait(() => reader.PendingLoads == 0);
+                source.Cleanup();
+            }
+        }
     }
 
     [Fact]

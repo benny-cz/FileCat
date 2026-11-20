@@ -1,0 +1,125 @@
+{
+  "purpose": "Private indexed scratch foundation and storage-only scale; no feature/capability authorization",
+  "gitBase": "9af8d5dd8f148166f8774c049a102a648bdf64b4",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "25a5a98299e33791a282b689c4549cd76cc9847752b4e095114d66f54ab83365"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "a58876ddf2ec48450db7e1ff8c6160a334dac4f048c87d2a0e14079ff0a3f57e"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisPrivateInventoryStore.cs",
+      "sha256": "14036f25f0488bf0aa065fce0f5de1903a308ab0d1b56542cff7854e8262d9fe"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisPrivateScratchFile.cs",
+      "sha256": "230a0666d771251a998e12fa7b06b9369457b4c30f8d1b03070e3c6aac6bc2a9"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchArena.cs",
+      "sha256": "9d6185787550cf4305c70a73a9546b4711ada9f076d6323aa238a8e34a565eee"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchVector.cs",
+      "sha256": "761124172c5f97ac47b6d5b3ab5e993bc1e0fa6caa10acd1781aeb652da9aecc"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/UnixAnalysisPrivateDirectory.cs",
+      "sha256": "aa3a6cc5b49f3a8857f0d0f21c52c3a1a1d274d198861c4b0f93a4a7adfa60ae"
+    },
+    {
+      "path": "src/FileCat.Core/FileCat.Core.csproj",
+      "sha256": "8a022edb1ff06dca9821e6b350663246707dfc08f84d19fd1ce1fc642045d242"
+    },
+    {
+      "path": "src/FileCat.Platform.Windows/WindowsAnalysisPrivateDirectory.cs",
+      "sha256": "443b18df31f9b205c865aedcb744408a67124df4a67f09c6b1ce15db4cd28e3c"
+    },
+    {
+      "path": "tests/AnalysisScratchCrashFixture.cs",
+      "sha256": "c97f31249954c750ab931740902f4a601c34eabb04681b477deea28a9c0f0243"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisPrivateStorageTests.Scratch.cs",
+      "sha256": "0385185e941f9529057a9ce3cbad313732733fb37922da94fdfdc2a7aa47857f"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisScratchArenaTests.cs",
+      "sha256": "892c333fc23b74bc8c705c8d67e77609073be39d7eda5d3108ebbd1281373982"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisScratchVectorTests.cs",
+      "sha256": "2cd17f12f5b8a7cbc4a8910cd1f6d38a12f6f2f45ea1a944f1b4448005574a4b"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj",
+      "sha256": "731191fdba4fcab84a530ace43c969d737ecd78be930cea9aaacb3dd92d6a421"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+      "sha256": "8aade4cf62118451890d687e2f161776b9daf9dd6a9d9e8eafed3f627e783ca8"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/ScratchScale.cs",
+      "sha256": "771912dac47880479e4e46ca7235515cfe245a3f5884f899896fcb3bb3b44037"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.Scratch.cs",
+      "sha256": "c1ac908885ff7b0d2146cd46f92e701d17362e71e198e63e6a8802a410e9b42d"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj",
+      "sha256": "4d9327d50bba1559a0d3c96f3d38d4c19cf1b474036edc561d9bae8a84d6f3b4"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r116.tgz",
+      "sha256": "14c2cd6253d85997cfbd8cd5b5d71f64c4decc80714b8eb3755896052b3c2231"
+    },
+    {
+      "path": ".tmp/dsa-native-r116.tgz",
+      "sha256": "2e0bc58cb506b0356db12816ef31af1ed3217476eba90c36320d04e404a9fb0f"
+    },
+    {
+      "path": ".tmp/scratch-scale-r117.tgz",
+      "sha256": "3b1726a39295a88aac1fd9f43951591fc5c38a2b0259c4345338ad16518d37d9"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "drivers/unix-core-r116.sh",
+      "sha256": "67b8e46f7e51d86c236add898e7eb3c986911c369d09e003a5516151f0405490"
+    },
+    {
+      "path": "drivers/windows-core-r116.ps1",
+      "sha256": "973cffc6e840138cee436edf9dbf8c7a972af3a7a364cda41bea016373d82937"
+    },
+    {
+      "path": "drivers/windows-native-tests-r116.ps1",
+      "sha256": "0c24d1e9406f1beafe8522dc36a9e7c1baa72970238196aca51af14aeafb87f6"
+    },
+    {
+      "path": "drivers/unix-scratch-scale-r117.py",
+      "sha256": "f926b47b0fb7072f683a1ead65c4cae5fffb91aff8651e953ab47349faf975a3"
+    },
+    {
+      "path": "drivers/windows-scratch-scale-r117.ps1",
+      "sha256": "857f4c584eda377731d3be0efacedbe3980ace5f113232c51741cf0e0e15e95f"
+    }
+  ],
+  "reports": [
+    "windows-core-r116.xml",
+    "mac-core-r116.xml",
+    "ubuntu-core-r116.xml",
+    "windows-native-r116.xml",
+    "windows-scratch-scale-r117.json",
+    "mac-scratch-scale-r117.json",
+    "ubuntu-scratch-scale-r117.json"
+  ],
+  "remaining": "Typed indexed analysis store/reader/projection integration, cross-process quota/own-artifact exclusion and complete resource/native qualification; all remaining plan packets; final independent review pending."
+}

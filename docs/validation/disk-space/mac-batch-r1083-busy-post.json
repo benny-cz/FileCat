@@ -1,0 +1,10 @@
+{
+  "observedUtc": "2026-11-08T11:05:32.817176+00:00",
+  "exitCode": 0,
+  "filecatOrDotnet": [
+    "18804 18708 /Users/benny/.dotnet/dotnet test /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --no-build --disable-build-servers -p:NuGetAudit=false -m:1 --filter FullyQualifiedName~FileCat.Core.Tests --logger trx;LogFileName=core-regressions.trx --results-directory /Users/benny/FileCatValidation/archive-writing-42829297/awp-v1/results",
+    "18805 18804 dotnet exec /Users/benny/.dotnet/sdk/10.0.101/vstest.console.dll --framework:.NETCoreApp,Version=v10.0 --testCaseFilter:FullyQualifiedName~FileCat.Core.Tests --logger:trx;LogFileName=core-regressions.trx --resultsDirectory:/Users/benny/FileCatValidation/archive-writing-42829297/awp-v1/results /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll --logger:Console;Verbosity=minimal --artifactsProcessingMode-collect --testSessionCorrelationId:18804_74c1a625-d5f9-423b-a731-8a386bb3ef16",
+    "18806 18805 /Users/benny/.dotnet/dotnet exec --runtimeconfig /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.runtimeconfig.json --depsfile /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.deps.json /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/testhost.dll --port 53464 --endpoint 127.0.0.1:053464 --role client --parentprocessid 18805 --telemetryoptedin false",
+    "18814 18806 /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests @@ /var/folders/zy/bsrr65210bj1s85fr6g0l0dr0000gn/T/tmpH8I6Am.tmp"
+  ]
+}

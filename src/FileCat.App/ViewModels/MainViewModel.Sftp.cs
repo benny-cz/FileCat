@@ -5,6 +5,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using FileCat.App.Services;
 using FileCat.Core.Diagnostics;
+using FileCat.Core.Jobs;
 using FileCat.Core.State;
 using FileCat.Remote.Sftp;
 using Location = FileCat.Core.Resources.Location;
@@ -315,7 +316,7 @@ public sealed partial class MainViewModel
         auth.SelectedIndex = existing?.Auth switch { RemoteAuth.Key => 1, RemoteAuth.KeyboardInteractive => 2, RemoteAuth.Agent => 3, _ => 0 };
         var keyFile = Box(existing?.KeyFile ?? DefaultKeyFile(), "Private key file", 360);
         var browse = new Button { Content = "Browse…" };
-        var keyRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { keyFile, browse } };
+        var keyRow = new WrapPanel { ItemSpacing = 8, LineSpacing = 4, Children = { keyFile, browse } };
         var folder = Box(existing?.InitialPath, "Start folder", 360);
         folder.PlaceholderText = "Home folder";
         bool persistent = Services.Platform.Secrets.IsPersistent;
@@ -389,7 +390,7 @@ public sealed partial class MainViewModel
                 Row("Name (optional):", name),
                 Row("Protocol:", protocol),
                 plainWarning,
-                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { Row("Server:", host), Row("Port:", port), Row("User:", user) } },
+                new WrapPanel { ItemSpacing = 8, LineSpacing = 4, Children = { Row("Server:", host), Row("Port:", port), Row("User:", user) } },
                 authRow,
                 keyRow,
                 Row("Start folder (optional):", folder),
@@ -493,7 +494,7 @@ public sealed partial class MainViewModel
         var names = items.Take(8).Select(i => "• " + Formatters.SafeName(i.Name)).ToList();
         if (items.Count > 8) names.Add($"… and {items.Count - 8:N0} more");
         if (!await Dialogs.ConfirmAsync("Delete permanently?",
-                $"{(device ? "Phones and cameras" : "Servers")} have no Recycle Bin. Delete {summary} permanently from {server}?\n" + string.Join("\n", names),
+                $"{(device ? "Phones and cameras" : "Servers")} have no {RecycleText.BareDestination}. Delete {summary} permanently from {server}?\n" + string.Join("\n", names),
                 "Delete permanently", danger: true))
             return;
         var job = Services.Jobs.Submit(new Core.Jobs.JobRequest { Kind = Core.Jobs.JobKind.Delete, Sources = items });

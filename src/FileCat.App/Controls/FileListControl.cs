@@ -24,7 +24,7 @@ namespace FileCat.App.Controls;
 /// selection, active panel, and target panel each have a non-color cue (outline, mark bar + bold,
 /// accent header, dashed outline) in addition to color (PI-04).
 /// </summary>
-public sealed class FileListControl : Control
+public sealed partial class FileListControl : Control
 {
     public static readonly StyledProperty<TabViewModel?> TabProperty =
         AvaloniaProperty.Register<FileListControl, TabViewModel?>(nameof(Tab));
@@ -40,6 +40,9 @@ public sealed class FileListControl : Control
 
     public static readonly StyledProperty<bool> ComfortableRowsProperty =
         AvaloniaProperty.Register<FileListControl, bool>(nameof(ComfortableRows));
+
+    public static readonly StyledProperty<bool> PictureModeProperty =
+        AvaloniaProperty.Register<FileListControl, bool>(nameof(PictureMode));
 
     private const double Padding = 6;
     private const double IconSize = 16;
@@ -62,7 +65,11 @@ public sealed class FileListControl : Control
     private readonly Dictionary<long, CellText> _textCache = new();
     // Only cells in the most recently drawn viewport. Pointer hover never starts provider or metadata work.
     private readonly Dictionary<(int Row, int Column), RenderedCell> _renderedCells = new();
-    private sealed record RenderedCell(int StoreIndex, string Name, EntryKind Kind, string Text, bool Clipped);
+    private sealed record RenderedCell(int StoreIndex, string Name, EntryKind Kind, string Text, bool Clipped,
+        string? Detail = null, bool NeedsExplanation = false, bool SuppressTooltip = false);
+    private readonly Dictionary<int, MetadataRowContext> _metadataContexts = [];
+    private MetadataRowContext? _focusedMetadataContext;
+    private EntryStore? _inspectionStore;
     private SimpleGlyphs? _glyphs;
     private SimpleGlyphs? _boldGlyphs;
 
@@ -94,7 +101,15 @@ public sealed class FileListControl : Control
     private int _resizingColumn = -1;
     private double _resizeStartX;
     private double _resizeStartWidth;
-    // Live widths while dragging a border, by column position (cleared when the profile stores them).
+    /// <summary>The dragged column's scale, taken when its border was pressed (the columns may be replaced meanwhile).</summary>
+    private double _resizeScale = 1;
+    /// <summary>The pointer holding a border, so the drag can let it go when it stops early.</summary>
+    private IPointer? _resizePointer;
+    /// <summary>The dragged column's own width before the drag (a view with columns of its own keeps one), put back if the drag stops.</summary>
+    private double? _resizeOldOverride;
+    // Widths dragged in this list, by column position, at the default font's scale as profiles keep theirs (so they follow
+    // the font and the date format): live while a border is dragged, then stored in the profile and cleared, or kept for
+    // this view only when its columns are its own.
     private readonly Dictionary<int, double> _widthOverrides = new();
 
     /// <summary>
@@ -125,10 +140,17 @@ public sealed class FileListControl : Control
     private Point? _dragStart;
     private PointerPressedEventArgs? _pressArgs;
     private int _pressedRow = -1;
+    private EntryStore? _nameClickStore;
+    private int _nameClickStoreIndex = -1;
+    private string? _nameClickName;
+    private long _nameClickAt;
+    private bool _secondNameClick;
     private DispatcherTimer? _loadingHintTimer;
     private bool _showLoadingHint;
     private readonly Action _metadataHandler;
     private Core.Metadata.MetadataService? _metadataSource;
+    /// <summary>The icons this list draws (its tab's): when they are made anew or arrive, the list draws them again.</summary>
+    private IconProvider? _iconSource;
     private GitStatusSnapshot? _gitStatuses;
     private string? _gitStatusFolder;
     private CancellationTokenSource? _gitStatusCancel;
@@ -156,6 +178,7 @@ public sealed class FileListControl : Control
     // Brushes resolved from theme tokens.
     private IBrush _bg = Brushes.White, _bgInactive = Brushes.White, _header = Brushes.LightGray, _text = Brushes.Black;
     private IBrush _muted = Brushes.Gray, _dim = Brushes.Gray, _dir = Brushes.Black, _archive = Brushes.Brown, _exec = Brushes.Green, _link = Brushes.Blue;
+    private IBrush _compressed = Brushes.Blue, _encrypted = Brushes.Green;
     private IBrush _markedText = Brushes.Red, _markedBg = Brushes.MistyRose, _focusBg = Brushes.LightBlue, _focusText = Brushes.Black;
     private IBrush _focusBorder = Brushes.Blue, _focusInactive = Brushes.Gray, _grid = Brushes.LightGray, _headerText = Brushes.Black;
     private IBrush _accent = Brushes.Blue, _error = Brushes.Red;
@@ -177,9 +200,16 @@ public sealed class FileListControl : Control
                 int top = (int)Math.Round(_vbar.Value);
                 if (top != _topRow)
                 {
+                    _listing?.CancelVisitViewport();
+                    ClearNameClick();
                     ClearTip();
                     _viewportIntentGeneration++;
                     _topRow = top;
+                    if (PictureMode)
+                    {
+                        ClampTop();
+                        UpdateScrollBar();
+                    }
                     if (_refreshTopRow.HasValue) _refreshTopRow = top;
                     if (IsRenaming) InvalidateArrange();
                     _automationPeer?.QueueUpdate(ListingChange.Rows);
@@ -281,10 +311,18 @@ public sealed class FileListControl : Control
         set => SetValue(ComfortableRowsProperty, value);
     }
 
+    public bool PictureMode
+    {
+        get => GetValue(PictureModeProperty);
+        set => SetValue(PictureModeProperty, value);
+    }
+
     private double HorizontalBarHeight => _hbar.DesiredSize.Height > 0 ? _hbar.DesiredSize.Height : 12;
-    public int VisibleRowCapacity => Math.Max(1, (int)(((_layoutHeight > 0 ? _layoutHeight : Bounds.Height) - _headerHeight - (_hbar.IsVisible ? HorizontalBarHeight : 0)) / _rowHeight));
+    public int VisibleRowCapacity => PictureMode
+        ? _pictureColumns * Math.Max(1, (int)((_layoutHeight > 0 ? _layoutHeight : Bounds.Height) / PictureTileHeight))
+        : Math.Max(1, (int)(((_layoutHeight > 0 ? _layoutHeight : Bounds.Height) - _headerHeight - (_hbar.IsVisible ? HorizontalBarHeight : 0)) / _rowHeight));
     internal double HorizontalOffset => _horizontalOffset;
-    internal double HorizontalExtent => _contentExtent;
+    internal double HorizontalExtent => PictureMode ? _horizontalViewport : _contentExtent;
     internal double HorizontalViewport => _horizontalViewport;
     internal bool HorizontalScrollBarVisible => _hbar.IsVisible;
     internal bool VerticalScrollBarVisible => _vbar.IsVisible;
@@ -292,14 +330,26 @@ public sealed class FileListControl : Control
     /// <summary>Raised when the user asks to open the focused row (double click).</summary>
     public event EventHandler? OpenRequested;
 
+    /// <summary>Raised after a second, separate click on the same filename.</summary>
+    public event EventHandler? RenameRequested;
+
     /// <summary>Raised when the control is clicked so the owning panel becomes active.</summary>
     public event EventHandler? ActivateRequested;
 
-    public event EventHandler<Point>? ContextMenuRequested;
+    public event EventHandler<(Point Point, int StoreIndex)>? ContextMenuRequested;
     /// <summary>Keyboard inspection of the focused row's already-rendered safe values.</summary>
     public event EventHandler<string>? InspectRequested;
     /// <summary>A right click on listing whitespace, independent of focused or marked rows.</summary>
     public event EventHandler<Point>? BackgroundContextRequested;
+
+    /// <summary>A right click on the column header row: its menu sets up the columns (Settings → Columns).</summary>
+    public event EventHandler<Point>? HeaderContextRequested;
+
+    /// <summary>
+    /// Whether Shift was held for the right click that raised the latest <see cref="ContextMenuRequested"/> or
+    /// <see cref="BackgroundContextRequested"/>: Windows then adds its extended verbs, as Explorer does.
+    /// </summary>
+    public bool ContextWithShift { get; private set; }
 
     /// <summary>Raised when a drag starts; carries the original press, which drag-and-drop requires.</summary>
     public event EventHandler<PointerPressedEventArgs>? DragRequested;
@@ -309,6 +359,7 @@ public sealed class FileListControl : Control
     /// <summary>Edits the focused name in its row. Null means the user canceled or the row vanished.</summary>
     public Task<string?>? BeginRename(PromptOptions options)
     {
+        ClearNameClick();
         if (_listing is null || !_listing.TryGetFocused(out var entry) || entry.Kind == EntryKind.Parent)
             return null;
         _renameRestoredStore = null;
@@ -438,6 +489,31 @@ public sealed class FileListControl : Control
         if (!IsRenaming || _listing is null) return;
         int row = _listing.GetVisibleIndex(_renameStoreIndex);
         if (row < 0) { FinishRename(null, restoreFocus: false); return; }
+        if (PictureMode)
+        {
+            var tile = PictureTileBounds(row);
+            double pictureEditorWidth = Math.Max(80, Math.Min(tile.Width - 12, finalSize.Width - scrollWidth - tile.X - 6));
+            if (_renameOverlay is null) _renameEditor.Arrange(new Rect(tile.X + 6, tile.Bottom - 34, pictureEditorWidth, 26));
+            else
+            {
+                Canvas.SetLeft(_renameEditor, tile.X + 6);
+                Canvas.SetTop(_renameEditor, tile.Bottom - 34);
+                _renameEditor.Width = pictureEditorWidth;
+                _renameEditor.Height = 26;
+            }
+            if (_renameErrorBox.IsVisible)
+            {
+                if (_renameOverlay is null) _renameErrorBox.Arrange(new Rect(tile.X + 6, Math.Max(0, tile.Y - 42), pictureEditorWidth, 40));
+                else
+                {
+                    Canvas.SetLeft(_renameErrorBox, tile.X + 6);
+                    Canvas.SetTop(_renameErrorBox, Math.Max(0, tile.Y - 42));
+                    _renameErrorBox.Width = pictureEditorWidth;
+                    _renameErrorBox.Height = 40;
+                }
+            }
+            return;
+        }
         int nameColumn = Array.FindIndex(_columns, c => c.Field == ColumnField.Name);
         if (nameColumn < 0) nameColumn = 0;
         double y = _headerHeight + (row - _topRow) * _rowHeight;
@@ -477,13 +553,17 @@ public sealed class FileListControl : Control
         if (change.Property == FontSizeProperty) _wheelRows.Reset();
         if (change.Property == TabProperty)
         {
+            ClearPictureThumbnails();
+            ClearMetadataContexts();
             _wheelRows.Reset();
             _sortReveal = null;
             _viewportIntentGeneration++;
             FinishRename(null, restoreFocus: false);
             ResetSelectionGesture();
+            CancelColumnResize();
             if (change.OldValue is TabViewModel oldTab)
             {
+                oldTab.DetachHistoryViewport(ReadHistoryTopItem);
                 oldTab.Listing.Changed -= OnListingChanged;
                 oldTab.ColumnsChanged -= OnColumnsChanged;
                 oldTab.ExplicitSortRequested -= OnExplicitSortRequested;
@@ -494,6 +574,7 @@ public sealed class FileListControl : Control
             if (change.NewValue is TabViewModel tab)
             {
                 _listing = tab.Listing;
+                if (_viewEventsAttached) tab.ReadHistoryTop = ReadHistoryTopItem;
                 _listing.Changed += OnListingChanged;
                 if (!ReferenceEquals(_metadataSource, tab.Services.Metadata))
                 {
@@ -501,16 +582,24 @@ public sealed class FileListControl : Control
                     _metadataSource = tab.Services.Metadata;
                     if (_viewEventsAttached) _metadataSource.ValuesChanged += _metadataHandler;
                 }
+                if (!ReferenceEquals(_iconSource, tab.Services.Icons))
+                {
+                    DetachIconEvents();
+                    _iconSource = tab.Services.Icons;
+                    if (_viewEventsAttached) AttachIconEvents();
+                }
                 tab.ColumnsChanged += OnColumnsChanged;
                 tab.ExplicitSortRequested += OnExplicitSortRequested;
                 _identityPanel = tab.Panel;
                 if (_viewEventsAttached) _identityPanel.PropertyChanged += OnPanelIdentityChanged;
                 _columns = tab.Columns;
             }
-            else if (_metadataSource is not null)
+            else
             {
-                _metadataSource.ValuesChanged -= _metadataHandler;
+                if (_metadataSource is not null) _metadataSource.ValuesChanged -= _metadataHandler;
                 _metadataSource = null;
+                DetachIconEvents();
+                _iconSource = null;
             }
             _widthOverrides.Clear();
             ClearTextCache();
@@ -519,6 +608,7 @@ public sealed class FileListControl : Control
             _horizontalOffset = 0;
             _refreshTopRow = null;
             EnsureFocusVisible();
+            RestoreVisitViewport();
             RefreshGitStatuses();
             _automationPeer?.QueueUpdate(ListingChange.Reset);
             InvalidateMeasure();
@@ -527,6 +617,19 @@ public sealed class FileListControl : Control
         else if (change.Property == IsActivePanelProperty)
         {
             _automationPeer?.QueueUpdate(ListingChange.State);
+            InvalidateVisual();
+        }
+        else if (change.Property == PictureModeProperty)
+        {
+            CancelColumnResize(); // the pictures have no columns to drag
+            ClearPictureThumbnails();
+            _topRow = 0;
+            _horizontalOffset = 0;
+            ClearTip();
+            AutomationProperties.SetName(this, PictureMode ? "Pictures, thumbnail grid" : "File list");
+            EnsureFocusVisible();
+            _automationPeer?.QueueUpdate(ListingChange.Reset);
+            InvalidateArrange();
             InvalidateVisual();
         }
         else if (change.Property == FontFamilyProperty || change.Property == FontSizeProperty || change.Property == ComfortableRowsProperty)
@@ -550,11 +653,15 @@ public sealed class FileListControl : Control
             _automationPeer?.QueueUpdate(ListingChange.State);
     }
 
-    private void OnColumnsChanged(object? sender, EventArgs e)
+    private void OnColumnsChanged(object? sender, ColumnsChangedEventArgs e)
     {
         if (Tab is null) return;
+        // A drag stops when its columns are replaced; the same ones at other widths still hold the column it is on.
+        if (!e.WidthsOnly) CancelColumnResize();
         _columns = Tab.Columns;
-        _horizontalOffset = 0;
+        // Other columns start from the first; the same ones at other widths (a border dragged here or in another list on
+        // the profile, a width set in Settings) stay where they are scrolled, kept within the new widths on arrange.
+        if (!e.WidthsOnly) _horizontalOffset = 0;
         _widthOverrides.Clear();
         ClearTextCache();
         InvalidateArrange();
@@ -569,11 +676,41 @@ public sealed class FileListControl : Control
         InvalidateVisual();
     }
 
+    /// <summary>
+    /// The icons were made anew (Settings applied: Shell pictures on or off, say) or the platform's arrived (in a Find
+    /// window as in a panel): drawn again where the list is, its scroll and widths kept.
+    /// </summary>
+    private void OnIconsChanged()
+    {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(OnIconsChanged);
+            return;
+        }
+        InvalidateVisual();
+    }
+
+    private void AttachIconEvents()
+    {
+        if (_iconSource is null) return;
+        _iconSource.Cleared += OnIconsChanged;
+        _iconSource.Loaded += OnIconsChanged;
+    }
+
+    private void DetachIconEvents()
+    {
+        if (_iconSource is null) return;
+        _iconSource.Cleared -= OnIconsChanged;
+        _iconSource.Loaded -= OnIconsChanged;
+    }
+
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
         _viewEventsAttached = true;
+        if (Tab is { } tab) tab.ReadHistoryTop = ReadHistoryTopItem;
         if (_metadataSource is not null) _metadataSource.ValuesChanged += _metadataHandler;
+        AttachIconEvents();
         if (_identityPanel is not null) _identityPanel.PropertyChanged += OnPanelIdentityChanged;
         _focusWindow = TopLevel.GetTopLevel(this) as Window;
         if (_focusWindow is not null) _focusWindow.Deactivated += OnWindowDeactivated;
@@ -583,14 +720,17 @@ public sealed class FileListControl : Control
         UpdateDateScale(); // the format may have changed while this list was not shown
         ResolveBrushes();
         RefreshGitStatuses();
+        RestoreVisitViewport();
         _automationPeer?.QueueUpdate(ListingChange.Rows | ListingChange.Focus | ListingChange.Marks);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        Tab?.DetachHistoryViewport(ReadHistoryTopItem);
         base.OnDetachedFromVisualTree(e);
         _viewEventsAttached = false;
         if (_metadataSource is not null) _metadataSource.ValuesChanged -= _metadataHandler;
+        DetachIconEvents();
         if (_identityPanel is not null) _identityPanel.PropertyChanged -= OnPanelIdentityChanged;
         if (_focusWindow is not null) _focusWindow.Deactivated -= OnWindowDeactivated;
         _focusWindow = null;
@@ -601,6 +741,7 @@ public sealed class FileListControl : Control
         _gitStatusCancel = null;
         _gitStatuses = null;
         _gitStatusFolder = null;
+        ClearPictureThumbnails();
         _loadingHintTimer?.Stop();
         ResetSelectionGesture();
         FinishRename(null, restoreFocus: false);
@@ -658,6 +799,7 @@ public sealed class FileListControl : Control
         if (_listing is null || _listing.FocusedIndex < 0) return null;
         int row = _listing.FocusedIndex - _topRow;
         if (row < 0 || row >= VisibleRowCapacity) return null;
+        if (PictureMode) return PictureTileBounds(_listing.FocusedIndex);
         return new Rect(0, _headerHeight + row * _rowHeight, _horizontalViewport, _rowHeight);
     }
 
@@ -682,6 +824,8 @@ public sealed class FileListControl : Control
         _dir = B("FcTextDirectory", _text);
         _archive = B("FcTextArchive", _text);
         _exec = B("FcTextExecutable", _text);
+        _compressed = B("FcTextCompressed", _text);
+        _encrypted = B("FcTextEncrypted", _text);
         _link = B("FcTextLink", _text);
         _markedText = B("FcTextMarked", Brushes.Red);
         _markedBg = B("FcMarkedBackground", Brushes.Transparent);
@@ -709,7 +853,11 @@ public sealed class FileListControl : Control
         if (!ReferenceEquals(sender, _listing)) return;
         if ((change & (ListingChange.Rows | ListingChange.Reset | ListingChange.RefreshRows)) != 0)
         {
+            // A refresh creates a new entry store, but unchanged files keep the same
+            // thumbnail key (item, size, modification time). Only navigation resets it.
+            if ((change & ListingChange.Reset) != 0) ClearPictureThumbnails();
             _renderedCells.Clear();
+            if (!ReferenceEquals(_inspectionStore, _listing?.Store)) ClearMetadataContexts();
             ClearTip();
         }
         if ((change & ListingChange.Focus) != 0 && (change & ListingChange.Rows) == 0)
@@ -761,6 +909,7 @@ public sealed class FileListControl : Control
         {
             _refreshTopRow ??= _topRow;
             _topRow = Math.Min(_refreshTopRow.Value, Math.Max(0, _listing!.VisibleCount - VisibleRowCapacity));
+            if (PictureMode) ClampTop();
         }
         else if ((change & (ListingChange.Focus | ListingChange.Reset)) != 0)
         {
@@ -784,6 +933,7 @@ public sealed class FileListControl : Control
             }
         }
         if ((change & ListingChange.RefreshComplete) != 0) _refreshTopRow = null;
+        RestoreVisitViewport();
         bool hadVerticalBar = _vbar.IsVisible;
         UpdateScrollBar();
         if (hadVerticalBar != _vbar.IsVisible) InvalidateArrange();
@@ -874,8 +1024,10 @@ public sealed class FileListControl : Control
         int f = _listing.FocusedIndex;
         if (f < 0) return;
         int cap = VisibleRowCapacity;
-        if (f < _topRow) _topRow = f;
-        else if (f >= _topRow + cap) _topRow = f - cap + 1;
+        if (f < _topRow) _topRow = PictureMode ? f / _pictureColumns * _pictureColumns : f;
+        else if (f >= _topRow + cap) _topRow = PictureMode
+            ? Math.Max(0, (f / _pictureColumns - Math.Max(1, cap / _pictureColumns) + 1) * _pictureColumns)
+            : f - cap + 1;
         ClampTop();
         UpdateScrollBar();
         _automationPeer?.QueueUpdate(ListingChange.Rows);
@@ -884,7 +1036,9 @@ public sealed class FileListControl : Control
     private void ClampTop()
     {
         int count = _listing?.VisibleCount ?? 0;
-        _topRow = Math.Clamp(_topRow, 0, Math.Max(0, count - VisibleRowCapacity));
+        int maximum = Math.Max(0, count - VisibleRowCapacity);
+        if (PictureMode) maximum = (int)Math.Ceiling(maximum / (double)_pictureColumns) * _pictureColumns;
+        _topRow = Math.Clamp(PictureMode ? _topRow / _pictureColumns * _pictureColumns : _topRow, 0, maximum);
     }
 
     private void UpdateScrollBar()
@@ -894,9 +1048,11 @@ public sealed class FileListControl : Control
         _updatingScrollBar = true;
         try
         {
-            _vbar.Maximum = Math.Max(0, count - cap);
+            _vbar.Maximum = PictureMode
+                ? Math.Max(0, (int)Math.Ceiling(Math.Max(0, count - cap) / (double)_pictureColumns) * _pictureColumns)
+                : Math.Max(0, count - cap);
             _vbar.ViewportSize = cap;
-            _vbar.SmallChange = 1;
+            _vbar.SmallChange = PictureMode ? _pictureColumns : 1;
             _vbar.LargeChange = Math.Max(1, cap - 1);
             _vbar.Value = _topRow;
             _vbar.IsVisible = count > cap;
@@ -955,6 +1111,31 @@ public sealed class FileListControl : Control
         double sbw = _vbar.DesiredSize.Width > 0 ? _vbar.DesiredSize.Width : 12;
         double hbh = HorizontalBarHeight;
         _layoutHeight = finalSize.Height;
+        if (PictureMode)
+        {
+            int previousColumns = _pictureColumns;
+            _hbar.IsVisible = false;
+            _horizontalOffset = 0;
+            for (int i = 0; i < 3; i++)
+            {
+                bool wasVisible = _vbar.IsVisible;
+                _horizontalViewport = Math.Max(0, finalSize.Width - (wasVisible ? sbw : 0));
+                _pictureColumns = Math.Max(1, (int)(_horizontalViewport / 184));
+                ClampTop();
+                UpdateScrollBar();
+                if (wasVisible == _vbar.IsVisible) break;
+            }
+            _horizontalViewport = Math.Max(0, finalSize.Width - (_vbar.IsVisible ? sbw : 0));
+            _pictureColumns = Math.Max(1, (int)(_horizontalViewport / 184));
+            ClampTop();
+            if (previousColumns != _pictureColumns) EnsureFocusVisible();
+            UpdateScrollBar();
+            _vbar.Arrange(new Rect(finalSize.Width - sbw, 0, sbw, finalSize.Height));
+            _hbar.Arrange(new Rect(0, finalSize.Height, 0, 0));
+            _automationOwners.Arrange(new Rect(finalSize));
+            ArrangeRename(finalSize, _vbar.IsVisible ? sbw : 0);
+            return finalSize;
+        }
         for (int i = 0; i < 4; i++)
         {
             bool wasVertical = _vbar.IsVisible, wasHorizontal = _hbar.IsVisible;
@@ -988,7 +1169,7 @@ public sealed class FileListControl : Control
         for (int i = 0; i < n; i++)
         {
             var c = _columns[i];
-            double w = _widthOverrides.TryGetValue(i, out var ow) ? ow : c.Star ? c.Width : c.Width * ScaleOf(c);
+            double w = _widthOverrides.TryGetValue(i, out var ow) ? ow * ScaleOf(c) : c.Star ? c.Width : c.Width * ScaleOf(c);
             if (c.Star && !_widthOverrides.ContainsKey(i)) starSum += w;
             else fixedSum += w;
         }
@@ -998,7 +1179,7 @@ public sealed class FileListControl : Control
         for (int i = 0; i < n; i++)
         {
             var c = _columns[i];
-            double w = _widthOverrides.TryGetValue(i, out var ow) ? ow
+            double w = _widthOverrides.TryGetValue(i, out var ow) ? ow * ScaleOf(c)
                 : c.Star ? Math.Max(MinimumStarWidth(c),
                     starSpace * (c.Width / Math.Max(1, starSum))) : c.Width * ScaleOf(c);
             _columnX[i] = x;
@@ -1018,16 +1199,27 @@ public sealed class FileListControl : Control
         if (started != 0) RenderTimed?.Invoke(System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocated);
     }
 
-    private bool _inCloudRoot;
+    internal static bool IsInCloudRoot(TabViewModel? tab) =>
+        OperatingSystem.IsWindows() && tab is { Location: { IsFileSystem: true } location }
+        && Core.FileSystem.CloudFiles.RootOf(location.Path, tab.Services.CloudSyncRoots) is not null;
 
     private void RenderCore(DrawingContext dc)
     {
         _renderedCells.Clear();
+        _metadataContexts.Clear();
+        if (!ReferenceEquals(_inspectionStore, _listing?.Store)) ClearMetadataContexts();
+        _inspectionStore = _listing?.Store;
         // Icons are made for the pixels this display gives a 16-point icon (crisp at 125%, 150%, 200%).
         Tab?.Services.Icons.SetScale(TopLevel.GetTopLevel(this)?.RenderScaling ?? 1);
         var bounds = new Rect(Bounds.Size);
         bool active = IsActivePanel;
+        bool inCloudRoot = IsInCloudRoot(Tab);
         dc.FillRectangle(active ? _bg : _bgInactive, bounds);
+        if (PictureMode)
+        {
+            RenderPictureGrid(dc, bounds, active, inCloudRoot);
+            return;
+        }
         double contentWidth = _horizontalViewport > 0 ? _horizontalViewport : bounds.Width - (_vbar.IsVisible ? _vbar.Bounds.Width : 0);
         // New columns (another tab or location) can reach a frame before the next arrange lays them out.
         if (_columnW.Length != _columns.Length) LayoutColumns(contentWidth);
@@ -1036,9 +1228,6 @@ public sealed class FileListControl : Control
         var listing = _listing;
         if (listing is null) return;
         EnsureCacheStore();
-        // In a cloud provider's folder (OneDrive, Dropbox, …) a file with no cloud attribute is on this computer.
-        _inCloudRoot = Tab is { Location: { IsFileSystem: true } here } shown
-            && Core.FileSystem.CloudFiles.RootOf(here.Path, shown.Services.Shell.CloudSyncRoots) is not null;
         int count = listing.VisibleCount;
         using (dc.PushClip(new Rect(0, _headerHeight, contentWidth,
                    Math.Max(0, bounds.Height - _headerHeight - (_hbar.IsVisible ? HorizontalBarHeight : 0)))))
@@ -1049,13 +1238,14 @@ public sealed class FileListControl : Control
             int focused = listing.FocusedIndex;
             var visible = new HashSet<int>();
             for (int row = _topRow; row < Math.Min(count, _topRow + cap); row++)
-            {
                 visible.Add(listing.GetStoreIndex(row));
+            if (Tab is { } demandTab) demandTab.VisibleStoreIndices = visible;
+            for (int row = _topRow; row < Math.Min(count, _topRow + cap); row++)
+            {
                 double y = _headerHeight + (row - _topRow) * _rowHeight;
-                RenderRow(dc, listing, row, y, contentWidth, row == focused, active);
+                RenderRow(dc, listing, row, y, contentWidth, row == focused, active, inCloudRoot);
             }
             RenderEmptyState(dc, listing, count, contentWidth, bounds.Height);
-            if (Tab is { } tab) tab.VisibleStoreIndices = visible;
         }
     }
 
@@ -1072,7 +1262,7 @@ public sealed class FileListControl : Control
         {
             if (_columnX[i] + _columnW[i] < _horizontalOffset || _columnX[i] > _horizontalOffset + width) continue;
             var c = _columns[i];
-            string title = c.Header;
+            string title = c.DisplayHeader;
             if (c.SortField is { } sf && sf == sort.Field && (sf != SortField.Metadata || sort.MetadataId == c.MetadataId)) title += sort.Descending ? " ▼" : " ▲";
             using var ft = MakeText(title, _headerText, _typeface, _columnW[i] - 2 * Padding);
             double x = c.RightAlign ? _columnX[i] + _columnW[i] - Padding - ft.Width : _columnX[i] + Padding + (i == 0 ? IconSize + MarkGutter + 4 : 0);
@@ -1081,7 +1271,24 @@ public sealed class FileListControl : Control
         }
     }
 
-    private void RenderRow(DrawingContext dc, ListingModel listing, int row, double y, double width, bool focused, bool active)
+    /// <summary>
+    /// A row's name color: marked, then under the active cursor, then unavailable; then NTFS-encrypted and compressed
+    /// (green and blue as Explorer and Open Salamander draw them, in the theme's shades), which a hidden or system item
+    /// keeps too, its icon being dimmed instead; then hidden, folder, archive, and program colors.
+    /// </summary>
+    internal IBrush NameBrush(in EntryData e, bool marked, bool cursor) =>
+        marked ? _markedText
+        : cursor ? _focusText
+        : e.Has(EntryFlags.Unavailable) ? _dim
+        : e.Has(EntryFlags.Encrypted) ? _encrypted
+        : e.Has(EntryFlags.Compressed) ? _compressed
+        : e.Has(EntryFlags.Hidden) || e.Has(EntryFlags.System) ? _dim
+        : e.IsContainer ? _dir
+        : e.Has(EntryFlags.Container) ? _archive
+        : IconProvider.Classify(e) == IconKind.Executable ? _exec
+        : _text;
+
+    private void RenderRow(DrawingContext dc, ListingModel listing, int row, double y, double width, bool focused, bool active, bool inCloudRoot)
     {
         var e = listing.GetVisible(row);
         int storeIndex = listing.GetStoreIndex(row);
@@ -1092,16 +1299,23 @@ public sealed class FileListControl : Control
         if (focused && active) dc.FillRectangle(_focusBg, rowRect);
         if (marked) dc.FillRectangle(_markedText, new Rect(0, y + 1, 3, _rowHeight - 2));
 
-        IBrush textBrush = marked ? _markedText
-            : focused && active ? _focusText
-            : e.Has(EntryFlags.Hidden) || e.Has(EntryFlags.System) || e.Has(EntryFlags.Unavailable) ? _dim
-            : e.IsContainer ? _dir
-            : e.Has(EntryFlags.Container) ? _archive
-            : IconProvider.Classify(e) == IconKind.Executable ? _exec
-            : _text;
+        IBrush textBrush = NameBrush(e, marked, focused && active);
         int style = marked ? 1 : focused && active ? 2 : ReferenceEquals(textBrush, _dim) ? 3 : ReferenceEquals(textBrush, _dir) ? 4
-            : ReferenceEquals(textBrush, _archive) ? 5 : ReferenceEquals(textBrush, _exec) ? 6 : 0;
+            : ReferenceEquals(textBrush, _archive) ? 5 : ReferenceEquals(textBrush, _exec) ? 6
+            : ReferenceEquals(textBrush, _compressed) ? 7 : ReferenceEquals(textBrush, _encrypted) ? 8 : 0;
         var typeface = marked ? _boldTypeface : _typeface;
+        MetadataRowContext? metadataContext = null;
+        MetadataCellPresentation MetadataCell(string id)
+        {
+            if (Tab is not { } owner) return MetadataCellPresentation.Inapplicable;
+            var cell = owner.MetadataPresentation(e, storeIndex, id, metadataContext, demand: true, out metadataContext);
+            if (metadataContext is not null)
+            {
+                _metadataContexts[storeIndex] = metadataContext;
+                if (focused) _focusedMetadataContext = metadataContext;
+            }
+            return cell;
+        }
 
         using (dc.PushTransform(Matrix.CreateTranslation(-_horizontalOffset, 0)))
         for (int i = 0; i < _columns.Length; i++)
@@ -1109,7 +1323,12 @@ public sealed class FileListControl : Control
             var c = _columns[i];
             double colX = _columnX[i];
             double colW = _columnW[i];
-            if (colX + colW < _horizontalOffset || colX > _horizontalOffset + width) continue;
+            if (colX + colW < _horizontalOffset || colX > _horizontalOffset + width)
+            {
+                // Only the focused row that is being painted has this horizontal demand exception.
+                if (focused && c.Field == ColumnField.Metadata && c.MetadataId is { } hiddenId) _ = MetadataCell(hiddenId);
+                continue;
+            }
             double textX = colX + Padding;
             double avail = colW - 2 * Padding;
             if (i == 0)
@@ -1128,16 +1347,16 @@ public sealed class FileListControl : Control
                     {
                         dc.DrawImage(icon, iconRect);
                     }
-                    if (shellOverlay is null && (e.Has(EntryFlags.Link) || IconProvider.IsShortcut(e))) dc.DrawImage(icons!.LinkOverlay, iconRect);
+                    if (shellOverlay is null && (Core.FileSystem.EntryPresentation.IsLink(e, Tab?.Location) || IconProvider.IsShortcut(e))) dc.DrawImage(icons!.LinkOverlay, iconRect);
                     if (shellOverlay is null && e.Kind is EntryKind.File or EntryKind.Directory && icons?.GitOverlay(git) is { } gitOverlay)
                         dc.DrawImage(gitOverlay, iconRect);
                     // What checking it against the checksums and signatures beside it found (D-57): only in folders that have them.
                     if (e.Kind == EntryKind.File && Tab is { HasSidecars: true } checking && checking.Verification(e, storeIndex) is { } verified
                         && icons?.VerificationOverlay(verified.State) is { } verifiedOverlay)
                         dc.DrawImage(verifiedOverlay, iconRect);
-                    // A cloud provider's file: only in the cloud, on this computer, or kept here always (from its attributes).
                     if (e.Kind is EntryKind.File or EntryKind.Directory
-                        && icons?.CloudOverlay(Core.FileSystem.CloudFiles.StateOf((FileAttributes)e.Attributes, _inCloudRoot)) is { } cloudOverlay)
+                        && Core.FileSystem.EntryPresentation.IsWindowsFileSystem(e, Tab?.Location)
+                        && icons?.CloudOverlay(Core.FileSystem.CloudFiles.StateOf((FileAttributes)e.Attributes, inCloudRoot, e.NativeReparseTag)) is { } cloudOverlay)
                         dc.DrawImage(cloudOverlay, iconRect);
                 }
                 textX = iconX + IconSize + 4;
@@ -1147,13 +1366,14 @@ public sealed class FileListControl : Control
             if (c.Field == ColumnField.Metadata && c.MetadataId is { } metadataId)
             {
                 // Metadata changes state (pending -> value), so it is not cached with the static cells.
-                bool pending = false;
-                var mtext = Tab is { } owner ? Formatters.SafeName(owner.GetMetadataText(e, storeIndex, metadataId, out pending)) : string.Empty;
+                var cell = MetadataCell(metadataId);
+                bool pending = cell.State == Core.Metadata.MetadataState.Pending;
+                var mtext = Formatters.SafeName(cell.Text);
                 if (mtext.Length == 0) continue;
                 using var mft = MakeText(mtext, pending ? _muted : textBrush, typeface, avail);
                 double mx = c.RightAlign ? colX + colW - Padding - mft.Width : textX;
                 mft.Draw(dc, new Point(mx, y + (_rowHeight - mft.Height) / 2));
-                _renderedCells[(row, i)] = new RenderedCell(storeIndex, e.Name, e.Kind, mtext, mft.IsTruncated);
+                _renderedCells[(row, i)] = new RenderedCell(storeIndex, e.Name, e.Kind, mtext, mft.IsTruncated, cell.Detail, cell.NeedsExplanation, pending);
                 continue;
             }
             long key = ((long)storeIndex << 16) | ((long)i << 8) | (uint)style;
@@ -1205,6 +1425,8 @@ public sealed class FileListControl : Control
                 ? $"No items match the filter \"{listing.Filter.Text}\".\nEsc clears the filter."
                 : Core.Search.ResultSetProvider.IsWorkingSetList(listing.Location)
                     ? "No working sets yet.\nF7 creates one; Ctrl+Shift+W adds marked items to a set."
+                    : listing.Location?.Scheme == Schemes.HiddenData
+                    ? listing.SupplementaryInventory?.Description ?? "Supplementary inventory not inspected."
                     : "This location is empty.";
         }
         if (message is null) return;
@@ -1228,10 +1450,10 @@ public sealed class FileListControl : Control
     {
         ColumnField.Name => DisplayName(e),
         ColumnField.Extension => e.IsContainer ? string.Empty : Formatters.SafeName(NameParts.GetExtension(e.Name)),
-        ColumnField.Size => Formatters.SizeCell(e),
+        ColumnField.Size => Formatters.SizeCell(e, Tab?.Location),
         ColumnField.Modified => e.Kind == EntryKind.Parent ? string.Empty : Formatters.Date(e, column.Seconds),
         ColumnField.Created => e.Kind == EntryKind.Parent ? string.Empty : Formatters.Date(e.Created),
-        ColumnField.Attributes => Formatters.Attributes(e),
+        ColumnField.Attributes => Formatters.Attributes(e, Tab?.Location),
         ColumnField.Folder => Formatters.SafeName(Tab?.GetFolderText(e) ?? string.Empty),
         ColumnField.Kind => Formatters.SafeName(Tab?.GetKindText(e) ?? string.Empty),
         ColumnField.Details => Formatters.SafeName(Tab?.GetDetailsText(e) ?? string.Empty),
@@ -1253,6 +1475,7 @@ public sealed class FileListControl : Control
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
+        ClearNameClick();
         if (e.Handled || _listing is null || IsRenaming) return;
         if (e.Key == Key.I && e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift))
         {
@@ -1274,8 +1497,10 @@ public sealed class FileListControl : Control
         int cap = VisibleRowCapacity;
         int target = e.Key switch
         {
-            Key.Up => f - 1,
-            Key.Down => f + 1,
+            Key.Left when PictureMode => f - 1,
+            Key.Right when PictureMode => f + 1,
+            Key.Up => f - (PictureMode ? _pictureColumns : 1),
+            Key.Down => f + (PictureMode ? _pictureColumns : 1),
             Key.PageUp => f - Math.Max(1, cap - 1),
             Key.PageDown => f + Math.Max(1, cap - 1),
             Key.Home => 0,
@@ -1330,6 +1555,7 @@ public sealed class FileListControl : Control
         _dragStart = null;
         _pressArgs = null;
         _pressedRow = -1;
+        ClearNameClick();
     }
 
     protected override void OnGotFocus(FocusChangedEventArgs e)
@@ -1346,7 +1572,40 @@ public sealed class FileListControl : Control
         _dragStart = null;
         _pressArgs = null;
         _pressedRow = -1;
+        ClearNameClick();
     }
+
+    private void ClearNameClick()
+    {
+        _nameClickStore = null;
+        _nameClickStoreIndex = -1;
+        _nameClickName = null;
+        _secondNameClick = false;
+    }
+
+    private bool IsOnFilename(Point pos, int row)
+    {
+        if (_listing is null || _listing.GetVisible(row).Kind == EntryKind.Parent) return false;
+        if (PictureMode)
+        {
+            var tile = PictureTileBounds(row);
+            return pos.X >= tile.X + 6 && pos.X < tile.Right - 6 &&
+                   pos.Y >= tile.Bottom - 39 && pos.Y < tile.Bottom - 10;
+        }
+        int col = ColumnAt(pos);
+        if (col < 0 || _columns[col].Field != ColumnField.Name) return false;
+        double left = _columnX[col] + (col == 0 ? MarkGutter + IconSize + 4 : Padding);
+        double available = _columnX[col] + _columnW[col] - Padding - left;
+        if (available <= 0) return false;
+        var entry = _listing.GetVisible(row);
+        double textWidth = Math.Min(available, TextWidth(DisplayName(entry),
+            _listing.IsVisibleMarked(row) ? _boldTypeface : _typeface, FontSize > 0 ? FontSize : 13));
+        double x = pos.X + _horizontalOffset;
+        return x >= left && x <= left + textWidth + 2;
+    }
+
+    internal static bool IsSecondNameClick(bool sameStore, bool sameEntry, int clickCount, TimeSpan elapsed) =>
+        sameStore && sameEntry && clickCount == 1 && elapsed <= TimeSpan.FromSeconds(4);
 
     private int ResolveRangeAnchor()
     {
@@ -1370,6 +1629,13 @@ public sealed class FileListControl : Control
 
     private int RowAt(Point p)
     {
+        if (PictureMode)
+        {
+            if (p.Y < 0 || p.Y >= Bounds.Height || p.X < 0 || p.X >= _horizontalViewport) return -1;
+            int pictureRow = _topRow + (int)(p.Y / PictureTileHeight) * _pictureColumns +
+                      Math.Min(_pictureColumns - 1, (int)(p.X / Math.Max(1, PictureTileWidth)));
+            return _listing is not null && pictureRow < _listing.VisibleCount ? pictureRow : -1;
+        }
         if (p.Y < _headerHeight || p.Y >= Bounds.Height - (_hbar.IsVisible ? HorizontalBarHeight : 0) ||
             p.X < 0 || p.X >= _horizontalViewport) return -1;
         int row = _topRow + (int)((p.Y - _headerHeight) / _rowHeight);
@@ -1385,6 +1651,7 @@ public sealed class FileListControl : Control
     private int ResizeTargetAt(Point p, out bool inverse)
     {
         inverse = false;
+        if (PictureMode) return -1;
         if (p.Y >= _headerHeight || p.X < 0 || p.X >= _horizontalViewport) return -1;
         double x = p.X + _horizontalOffset;
         for (int i = 0; i < _columns.Length; i++)
@@ -1404,6 +1671,7 @@ public sealed class FileListControl : Control
 
     private int ColumnAt(Point p)
     {
+        if (PictureMode) return p.X >= 0 && p.X < _horizontalViewport ? 0 : -1;
         if (p.X < 0 || p.X >= _horizontalViewport) return -1;
         double x = p.X + _horizontalOffset;
         for (int i = 0; i < _columns.Length; i++)
@@ -1416,6 +1684,13 @@ public sealed class FileListControl : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
+        // A border is being dragged: a press meanwhile (a pen's barrel button, a finger) neither takes the drag over nor
+        // starts another gesture. (Another button of the same mouse arrives as a move, not a press.)
+        if (_resizingColumn >= 0)
+        {
+            e.Handled = true;
+            return;
+        }
         Focus();
         ActivateRequested?.Invoke(this, EventArgs.Empty);
         var point = e.GetCurrentPoint(this);
@@ -1426,19 +1701,25 @@ public sealed class FileListControl : Control
         int edge = ResizeTargetAt(pos, out bool inverse);
         if (edge >= 0 && point.Properties.IsLeftButtonPressed)
         {
-            _resizingColumn = edge;
+            ClearNameClick();
             _resizeInverse = inverse;
             _resizeStartX = pos.X;
             _resizeStartWidth = _columnW[edge];
+            _resizeScale = ScaleOf(_columns[edge]);
+            _resizeOldOverride = _widthOverrides.TryGetValue(edge, out var own) ? own : null;
+            _resizePointer = e.Pointer;
+            _resizingColumn = edge; // last: a drag is under way only with all of the above in place
             e.Pointer.Capture(this);
             e.Handled = true;
             return;
         }
-        if (pos.Y < _headerHeight)
+        if (!PictureMode && pos.Y < _headerHeight)
         {
+            ClearNameClick();
             int col = ColumnAt(pos);
             if (col >= 0 && point.Properties.IsLeftButtonPressed && _columns[col] is { Field: ColumnField.Metadata or ColumnField.Folder, MetadataId: { } mid }) Tab?.SortByMetadata(mid);
             else if (col >= 0 && point.Properties.IsLeftButtonPressed && _columns[col].SortField is { } sf) Tab?.SortBy(sf);
+            else if (point.Properties.IsRightButtonPressed) HeaderContextRequested?.Invoke(this, pos);
             e.Handled = true;
             return;
         }
@@ -1446,27 +1727,34 @@ public sealed class FileListControl : Control
         int row = RowAt(pos);
         if (point.Properties.IsMiddleButtonPressed)
         {
+            ClearNameClick();
             if (row >= 0) MiddleClickRequested?.Invoke(this, row);
             e.Handled = true;
             return;
         }
         if (row < 0)
         {
+            ClearNameClick();
             if (point.Properties.IsRightButtonPressed && pos.X >= 0 && pos.X < _horizontalViewport &&
-                pos.Y >= _headerHeight && pos.Y < Bounds.Height - (_hbar.IsVisible ? HorizontalBarHeight : 0))
+                pos.Y >= (PictureMode ? 0 : _headerHeight) && pos.Y < Bounds.Height - (_hbar.IsVisible ? HorizontalBarHeight : 0))
+            {
+                ContextWithShift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
                 BackgroundContextRequested?.Invoke(this, pos);
+            }
             e.Handled = true;
             return;
         }
         var mods = e.KeyModifiers;
         if (point.Properties.IsRightButtonPressed)
         {
+            ClearNameClick();
             if (!_listing.IsVisibleMarked(row))
             {
                 _listing.UnmarkEverything();
                 _listing.SetFocus(row);
             }
-            ContextMenuRequested?.Invoke(this, pos);
+            ContextWithShift = (mods & KeyModifiers.Shift) != 0;
+            ContextMenuRequested?.Invoke(this, (pos, _listing.GetStoreIndex(row)));
             e.Handled = true;
             return;
         }
@@ -1475,11 +1763,13 @@ public sealed class FileListControl : Control
         if ((mods & KeyModifiers.Control) != 0 ||
             OperatingSystem.IsMacOS() && (mods & KeyModifiers.Meta) != 0)
         {
+            ClearNameClick();
             _listing.ToggleMark(row);
             _listing.SetFocus(row);
         }
         else if ((mods & KeyModifiers.Shift) != 0)
         {
+            ClearNameClick();
             int from = ResolveRangeAnchor();
             if (from < 0) from = row;
             _listing.SetMarkRange(from, row, true);
@@ -1487,6 +1777,14 @@ public sealed class FileListControl : Control
         }
         else
         {
+            bool onName = IsOnFilename(pos, row);
+            int storeIndex = _listing.GetStoreIndex(row);
+            string name = _listing.GetVisible(row).Name;
+            bool secondNameClick = onName && IsSecondNameClick(ReferenceEquals(_nameClickStore, _listing.Store),
+                _nameClickStoreIndex == storeIndex && _nameClickName == name,
+                e.ClickCount, Stopwatch.GetElapsedTime(_nameClickAt));
+            ClearNameClick();
+            _secondNameClick = secondNameClick;
             _listing.SetFocus(row);
             SetRangeAnchor(row);
             if (e.ClickCount >= 2)
@@ -1498,6 +1796,12 @@ public sealed class FileListControl : Control
             _dragStart = pos;
             _pressedRow = row;
             _pressArgs = e;
+            if (onName)
+            {
+                _nameClickStore = _listing.Store;
+                _nameClickStoreIndex = storeIndex;
+                _nameClickName = name;
+            }
         }
         Tab?.OnUserMovedFocus();
         e.Handled = true;
@@ -1509,9 +1813,10 @@ public sealed class FileListControl : Control
         var pos = e.GetPosition(this);
         if (_resizingColumn >= 0)
         {
+            if (!ReferenceEquals(e.Pointer, _resizePointer)) return; // the drag is the held pointer's
             double delta = pos.X - _resizeStartX;
             double w = Math.Max(30, _resizeStartWidth + (_resizeInverse ? -delta : delta));
-            _widthOverrides[_resizingColumn] = w;
+            _widthOverrides[_resizingColumn] = w / _resizeScale;
             ClearTextCache();
             InvalidateArrange();
             InvalidateVisual();
@@ -1524,6 +1829,7 @@ public sealed class FileListControl : Control
             if (Math.Abs(pos.X - start.X) > 6 || Math.Abs(pos.Y - start.Y) > 6)
             {
                 _dragStart = null;
+                ClearNameClick();
                 if (_pressedRow >= 0 && _pressArgs is { } press) DragRequested?.Invoke(this, press);
             }
         }
@@ -1543,6 +1849,15 @@ public sealed class FileListControl : Control
     /// </summary>
     private void UpdateTip(Point? pos)
     {
+        if (PictureMode)
+        {
+            string? pictureTip = pos is { } picturePoint && RowAt(picturePoint) is var pictureRow and >= 0 && _listing is { } pictureListing
+                ? Formatters.SafeName(pictureListing.GetVisible(pictureRow).Name) : null;
+            if (_tip == pictureTip) return;
+            _tip = pictureTip;
+            ToolTip.SetTip(this, pictureTip);
+            return;
+        }
         string? tip = null;
         if (pos is { } p && _listing is { } listing && RowAt(p) is var row and >= 0 && ColumnAt(p) is var col and >= 0)
         {
@@ -1556,8 +1871,8 @@ public sealed class FileListControl : Control
                 tip = tip is null ? gitLabel : tip + "\n" + gitLabel;
             if (tip is null && _renderedCells.TryGetValue((row, col), out var cell) &&
                 cell.StoreIndex == listing.GetStoreIndex(row) && cell.Name == entry.Name && cell.Kind == entry.Kind &&
-                cell.Clipped)
-                tip = CellTip(entry, _columns[col], cell.Text);
+                !cell.SuppressTooltip && cell.Text.Length > 0 && (cell.Clipped || cell.NeedsExplanation))
+                tip = CellTip(entry, _columns[col], cell.Text) + (string.IsNullOrEmpty(cell.Detail) ? "" : "\n" + cell.Detail);
             if (tip is null && _columns[col].Field is ColumnField.Name or ColumnField.Extension)
                 tip = IdentityTip(entry);
         }
@@ -1575,7 +1890,7 @@ public sealed class FileListControl : Control
             return $"Full name: {safe}" + (safe == entry.Name ? string.Empty :
                 "\n" + Formatters.DescribeHiddenNameCharacters(entry.Name));
         }
-        return $"{Formatters.SafeName(column.Header)}: {text}";
+        return $"{Formatters.SafeName(column.DisplayHeader)}: {text}";
     }
 
     private void ClearTip()
@@ -1584,6 +1899,13 @@ public sealed class FileListControl : Control
         _tip = null;
         ToolTip.SetIsOpen(this, false);
         ToolTip.SetTip(this, null);
+    }
+
+    private void ClearMetadataContexts()
+    {
+        _metadataContexts.Clear();
+        _focusedMetadataContext = null;
+        _inspectionStore = null;
     }
 
     /// <summary>Full values for the focused row, without starting metadata work from a key or pointer event.</summary>
@@ -1597,19 +1919,39 @@ public sealed class FileListControl : Control
         int storeIndex = listing.GetStoreIndex(row);
         string safeName = Formatters.SafeName(entry.Name);
         var report = new StringBuilder("Focused item: ").AppendLine(safeName);
+        if (Core.FileSystem.EntryPresentation.Kind(entry, Tab?.Location) is { Length: > 0 } kind)
+            report.Append("Observed kind: ").AppendLine(kind);
+        if (Core.FileSystem.EntryPresentation.IsWindowsFileSystem(entry, Tab?.Location))
+        {
+            if (entry.NativeReparseTag != 0) report.Append("Observed reparse tag: 0x").AppendLine(entry.NativeReparseTag.ToString("X8"));
+            if (Core.FileSystem.CloudFiles.Observe((FileAttributes)entry.Attributes, IsInCloudRoot(Tab), reparseTag: entry.NativeReparseTag)
+                is { Indicator: not Core.FileSystem.CloudState.None } cloud)
+                report.AppendLine(cloud.Description);
+        }
+        report.AppendLine("File-system details: Not inspected; this view uses cached listing facts.");
         if (safeName != entry.Name) report.AppendLine(Formatters.DescribeHiddenNameCharacters(entry.Name));
         for (int col = 0; col < _columns.Length; col++)
         {
             var spec = _columns[col];
             string value;
+            string detail = "";
             if (spec.Field == ColumnField.Name) value = safeName;
+            else if (spec.Field == ColumnField.Metadata && spec.MetadataId is { } fieldId && Tab is { } tab)
+            {
+                var context = _metadataContexts.GetValueOrDefault(storeIndex) ?? _focusedMetadataContext;
+                var cell = tab.MetadataPresentation(entry, storeIndex, fieldId, context, demand: false);
+                if (!cell.Applicable) continue;
+                value = Formatters.SafeName(cell.InspectionValue);
+                detail = cell.Detail;
+            }
             else if (_renderedCells.TryGetValue((row, col), out var rendered) &&
                 rendered.StoreIndex == storeIndex && rendered.Name == entry.Name && rendered.Kind == entry.Kind)
                 value = rendered.Text;
             else if (spec.Field == ColumnField.Metadata) value = "(not yet displayed)";
             else value = CellString(entry, spec);
             if (value.Length == 0) continue;
-            report.Append(Formatters.SafeName(spec.Header)).Append(": ");
+            if (detail.Length > 0) value += "\n    " + detail.Replace("\n", "\n    ", StringComparison.Ordinal);
+            report.Append(Formatters.SafeName(spec.DisplayHeader)).Append(": ");
             if (report.Length + value.Length > 1_048_576)
             {
                 int remaining = Math.Max(0, 1_048_576 - report.Length);
@@ -1633,22 +1975,81 @@ public sealed class FileListControl : Control
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
-        _dragStart = null;
-        if (_resizingColumn >= 0)
+        if (_dragStart is not null && _listing is { } listing && _pressedRow >= 0 &&
+            ReferenceEquals(_nameClickStore, listing.Store) &&
+            _nameClickStoreIndex == listing.GetStoreIndex(_pressedRow) &&
+            _nameClickName == listing.GetVisible(_pressedRow).Name &&
+            RowAt(e.GetPosition(this)) == _pressedRow && IsOnFilename(e.GetPosition(this), _pressedRow))
         {
-            int column = _resizingColumn;
-            _resizingColumn = -1;
-            e.Pointer.Capture(null);
-            // The profile keeps the width for every tab using it (and across restarts).
-            // Stored at the default font's scale (the width the user sees is the stored one times the font's).
-            if (_widthOverrides.TryGetValue(column, out var width) && column < _columns.Length)
-                Tab?.SetColumnWidth(column, width / ScaleOf(_columns[column]));
+            if (_secondNameClick)
+            {
+                ClearNameClick();
+                RenameRequested?.Invoke(this, EventArgs.Empty);
+            }
+            else _nameClickAt = Stopwatch.GetTimestamp();
         }
+        else ClearNameClick();
+        _dragStart = null;
+        _pressArgs = null;
+        _pressedRow = -1;
+        if (_resizingColumn >= 0 && ReferenceEquals(e.Pointer, _resizePointer))
+        {
+            _resizePointer = null;
+            FinishColumnResize(e.Pointer);
+        }
+    }
+
+    /// <summary>
+    /// A border drag ends with the width as drawn. The profile keeps it for every tab using it (and across restarts), at
+    /// the default font's scale as the override holds it (the width the user sees is the stored one times the font's);
+    /// stored, rounded and kept within the profile's limits, it is what this list draws too, as every other list on the
+    /// profile does. A view with columns of its own keeps it for itself.
+    /// </summary>
+    private void FinishColumnResize(IPointer? release)
+    {
+        int column = _resizingColumn;
+        _resizingColumn = -1;
+        release?.Capture(null);
+        if (_widthOverrides.TryGetValue(column, out var width) && column < _columns.Length &&
+            Tab?.SetColumnWidth(column, width) == true && _widthOverrides.Remove(column))
+        {
+            InvalidateArrange();
+            InvalidateVisual();
+        }
+    }
+
+    /// <summary>
+    /// A border drag stops where it is when the columns it was on are replaced (another tab, profile or view): the column
+    /// it held may be gone, and its width is not stored for another.
+    /// </summary>
+    private void CancelColumnResize()
+    {
+        if (_resizingColumn < 0) return;
+        int column = _resizingColumn;
+        _resizingColumn = -1;
+        // The column as it was before the drag (what the profile or this view keeps), not as the drag left it.
+        if (_resizeOldOverride is { } old) _widthOverrides[column] = old;
+        else _widthOverrides.Remove(column);
+        InvalidateArrange();
+        InvalidateVisual();
+        var pointer = _resizePointer;
+        _resizePointer = null;
+        if (ReferenceEquals(pointer?.Captured, this)) pointer!.Capture(null);
+    }
+
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        base.OnPointerCaptureLost(e);
+        // Another window or control took the pointer mid-drag: the drag ends as a release would end it.
+        if (_resizingColumn < 0 || !ReferenceEquals(e.Pointer, _resizePointer)) return;
+        _resizePointer = null;
+        FinishColumnResize(null);
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
+        ClearNameClick();
         if (_hbar.IsVisible && (Math.Abs(e.Delta.X) > Math.Abs(e.Delta.Y) || (e.KeyModifiers & KeyModifiers.Shift) != 0))
         {
             _wheelRows.Reset();
@@ -1658,11 +2059,13 @@ public sealed class FileListControl : Control
             return;
         }
         int previousTop = _topRow;
+        if (e.Delta.Y != 0) _listing?.CancelVisitViewport();
         int maxTop = Math.Max(0, (_listing?.VisibleCount ?? 0) - VisibleRowCapacity);
+        if (PictureMode) maxTop = (int)Math.Ceiling(maxTop / (double)_pictureColumns) * _pictureColumns;
         bool beyondEnd = e.Delta.Y > 0 && _topRow == 0 || e.Delta.Y < 0 && _topRow >= maxTop;
         if (beyondEnd) _wheelRows.Reset();
         int rows = beyondEnd ? 0 : _wheelRows.Consume(e.Delta.Y);
-        _topRow = (int)Math.Clamp((long)_topRow - rows, 0, maxTop);
+        _topRow = (int)Math.Clamp((long)_topRow - rows * (PictureMode ? _pictureColumns : 1), 0, maxTop);
         if (_topRow != previousTop) ClearTip();
         ClampTop();
         if (rows != 0 && _topRow == previousTop) _wheelRows.Reset();
@@ -1675,7 +2078,8 @@ public sealed class FileListControl : Control
         e.Handled = true;
     }
 
-    public Rect GetRowBounds(int row) => new(0, _headerHeight + (row - _topRow) * _rowHeight, Bounds.Width, _rowHeight);
+    public Rect GetRowBounds(int row) => PictureMode ? PictureTileBounds(row)
+        : new Rect(0, _headerHeight + (row - _topRow) * _rowHeight, Bounds.Width, _rowHeight);
 
     private FileListAutomationPeer? _automationPeer;
 
@@ -1683,6 +2087,27 @@ public sealed class FileListControl : Control
 
     internal ListingModel? AutomationListing => _viewEventsAttached && _listing is { IsDisposed: false } ? _listing : null;
     internal int TopRow => _topRow;
+
+    private ItemRef? ReadHistoryTopItem()
+    {
+        if (_listing is not { IsDisposed: false, Location: { } location } listing || (uint)_topRow >= (uint)listing.VisibleCount)
+            return null;
+        int index = listing.GetStoreIndex(_topRow);
+        return listing.GetVisible(_topRow).Kind == EntryKind.Parent
+            ? new ItemRef(location, "..", EntryKind.Parent) : listing.GetItemRef(index);
+    }
+
+    private void RestoreVisitViewport()
+    {
+        if (!_viewEventsAttached || _listing is not { State: ListingState.Complete, VisitTopStoreIndex: >= 0 } listing) return;
+        int row = listing.GetVisibleIndex(listing.VisitTopStoreIndex);
+        listing.CancelVisitViewport();
+        if (row >= 0) ScrollToTopRow(row);
+    }
+    internal int VerticalScrollStep => PictureMode ? _pictureColumns : 1;
+    internal int MaximumTopRow => PictureMode
+        ? (int)Math.Ceiling(Math.Max(0, (AutomationListing?.VisibleCount ?? 0) - VisibleRowCapacity) / (double)_pictureColumns) * _pictureColumns
+        : Math.Max(0, (AutomationListing?.VisibleCount ?? 0) - VisibleRowCapacity);
     internal int AutomationOwnerCount => _automationOwners.Children.Count;
     internal bool IsAutomationOwnerHost(AutomationPeer peer) =>
         peer is ControlAutomationPeer control && ReferenceEquals(control.Owner, _automationOwners);
@@ -1697,8 +2122,8 @@ public sealed class FileListControl : Control
     internal Rect VisibleRowBounds(int row)
     {
         if (AutomationListing is not { } listing || (uint)row >= (uint)listing.VisibleCount) return default;
-        var viewport = new Rect(0, _headerHeight, _horizontalViewport,
-            Math.Max(0, Bounds.Height - _headerHeight - (_hbar.IsVisible ? HorizontalBarHeight : 0)));
+        var viewport = new Rect(0, PictureMode ? 0 : _headerHeight, _horizontalViewport,
+            Math.Max(0, Bounds.Height - (PictureMode ? 0 : _headerHeight) - (_hbar.IsVisible ? HorizontalBarHeight : 0)));
         return GetRowBounds(row).Intersect(viewport);
     }
 
@@ -1707,12 +2132,15 @@ public sealed class FileListControl : Control
         if (AutomationListing is not { } listing || (uint)row >= (uint)listing.VisibleCount)
             throw new InvalidOperationException("This item is no longer visible. Review marked items to inspect hidden marks.");
         int cap = VisibleRowCapacity;
-        int target = row < _topRow ? row : row >= _topRow + cap ? row - cap + 1 : _topRow;
+        int target = row < _topRow ? (PictureMode ? row / _pictureColumns * _pictureColumns : row)
+            : row >= _topRow + cap ? (PictureMode ? (row / _pictureColumns - Math.Max(1, cap / _pictureColumns) + 1) * _pictureColumns : row - cap + 1)
+            : _topRow;
         ScrollToTopRow(target);
     }
 
     internal void ScrollToTopRow(int row)
     {
+        _listing?.CancelVisitViewport();
         _wheelRows.Reset();
         int previousTop = _topRow;
         _topRow = row;
@@ -1782,7 +2210,7 @@ public sealed class FileListControl : Control
         if (Tab is not { } tab) return "File list, no location loaded";
         var panel = tab.Panel;
         var role = panel.IsActive ? "source" : panel.IsTarget ? "target" : "panel";
-        return $"Panel {panel.Number}, {role}, {Formatters.SafeName(tab.DisplayPath)}";
+        return $"Panel {panel.Number}, {role}, {(PictureMode ? "pictures grid, " : string.Empty)}{Formatters.SafeName(tab.DisplayPath)}";
     }
 
     internal string DescribeListingState()
@@ -1810,7 +2238,9 @@ public sealed class FileListControl : Control
         string filter = listing.Filter is { } mask ? " Filter: " + Formatters.SafeName(mask.Text) + "." : " No filter.";
         return DescribeListingState() + " " + selection + filter + $" Sort: {listing.Sort.Field}, {(listing.Sort.Descending ? "descending" : "ascending")}. " +
             "The Review marked items command opens the complete selection, including hidden and offscreen marks. " +
-            "Up and Down move focus; Shift with movement marks or unmarks; Insert toggles the focused mark." +
+            (PictureMode ? "Arrow keys move among picture tiles; thumbnails load for visible supported pictures only. "
+                : "Up and Down move focus. ") +
+            "Shift with movement marks or unmarks; Insert toggles the focused mark." +
             (_hbar.IsVisible ? " Left and Right scroll the columns; Shift with the wheel also scrolls columns." : string.Empty);
     }
 
@@ -1845,14 +2275,19 @@ public sealed class FileListControl : Control
         return location;
     }
 
-    internal static string ItemWarnings(in EntryData e)
+    internal static string ItemWarnings(in EntryData e, Core.Resources.Location? location = null, bool inCloudRoot = false)
     {
         string details = string.Empty;
         if (Formatters.DescribeHiddenNameCharacters(e.Name) is { } hidden) details += ", " + hidden;
         if (e.Has(EntryFlags.Offline)) details += ", cloud placeholder or offline; opening may download content";
         if (e.Has(EntryFlags.Unavailable)) details += ", unavailable";
         if (e.Has(EntryFlags.Protected)) details += ", protected content";
-        if (e.Has(EntryFlags.Link)) details += ", link";
+        if (Core.FileSystem.EntryPresentation.Kind(e, location) is { Length: > 0 } kind && e.Tag is not IDisplayDetails)
+            details += ", " + kind;
+        if (e.Kind is EntryKind.File or EntryKind.Directory && Core.FileSystem.EntryPresentation.IsWindowsFileSystem(e, location) &&
+            Core.FileSystem.CloudFiles.Observe((FileAttributes)e.Attributes, inCloudRoot, reparseTag: e.NativeReparseTag)
+                is { Indicator: not Core.FileSystem.CloudState.None } cloud)
+            details += ", " + cloud.Description;
         if (e.Tag is IDisplayDetails display && display.DetailsText.Length > 0) details += ", " + Formatters.SafeName(display.DetailsText);
         return details;
     }
@@ -1880,7 +2315,7 @@ public sealed class FileListControl : Control
         var marked = e.Kind == EntryKind.Parent ? string.Empty : listing.IsMarked(storeIndex) ? ", marked" : ", not marked";
         var git = GitStatusLabel(_gitStatuses?.ForName(e.Name) ?? GitStatusKind.None) is { } gitLabel
             ? ", " + gitLabel : string.Empty;
-        details += ItemWarnings(e);
+        details += ItemWarnings(e, Tab?.Location, IsInCloudRoot(Tab));
         if (Tab is { } owner && e.Tag is ResultTag) details += ", location: " + ItemLocation(owner, e);
         // Inspection may only read cached verification; asking an offscreen peer must not start file reads.
         if (Tab is { HasSidecars: true, Location.IsFileSystem: true } tab && e.Kind == EntryKind.File &&

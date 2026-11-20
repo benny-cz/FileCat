@@ -1,0 +1,9 @@
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisInventoryStage.Writer.cs(71,43): error CS1503: Argument 1: cannot convert from 'System.ReadOnlyMemory<byte>' to 'byte[]' [E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\FileCat.Core.csproj]
+
+Build FAILED.
+
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisInventoryStage.Writer.cs(71,43): error CS1503: Argument 1: cannot convert from 'System.ReadOnlyMemory<byte>' to 'byte[]' [E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\FileCat.Core.csproj]
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:06.21

@@ -150,9 +150,18 @@ public static class Formatters
         }
     }
 
-    public static string Attributes(in EntryData e)
+    public static string Attributes(in EntryData e, Location? location = null)
     {
         if (e.Kind is EntryKind.Parent or EntryKind.Drive or EntryKind.Server or EntryKind.Share) return string.Empty;
+        if (!EntryPresentation.IsWindowsFileSystem(e, location))
+        {
+            var letters = new StringBuilder(5);
+            if (e.Has(EntryFlags.ReadOnly)) letters.Append('R');
+            if (e.Has(EntryFlags.Hidden)) letters.Append('H');
+            if (EntryPresentation.IsLink(e, location)) letters.Append('L');
+            if (e.Has(EntryFlags.Offline)) letters.Append('O');
+            return letters.ToString();
+        }
         var a = (FileAttributes)e.Attributes;
         Span<char> s = stackalloc char[8];
         int n = 0;
@@ -162,12 +171,12 @@ public static class Formatters
         if ((a & FileAttributes.Archive) != 0) s[n++] = 'A';
         if ((a & FileAttributes.Compressed) != 0) s[n++] = 'C';
         if ((a & FileAttributes.Encrypted) != 0) s[n++] = 'E';
-        if ((a & FileAttributes.ReparsePoint) != 0) s[n++] = 'L';
+        if ((a & FileAttributes.ReparsePoint) != 0) s[n++] = EntryPresentation.IsLink(e, location) ? 'L' : 'P';
         if (e.Has(EntryFlags.Offline)) s[n++] = 'O';
         return new string(s[..n]);
     }
 
-    public static string SizeCell(in EntryData e)
+    public static string SizeCell(in EntryData e, Location? location = null)
     {
         switch (e.Kind)
         {
@@ -190,7 +199,7 @@ public static class Formatters
         {
             if (e.Has(EntryFlags.SizeComputed)) return (e.Has(EntryFlags.SizeLowerBound) ? "≥" : "") + Size(e.Size);
             if (e.Size >= 0) return Size(e.Size) + "…";
-            return e.Has(EntryFlags.Link) ? "<LINK>" : "<DIR>";
+            return EntryPresentation.IsLink(e, location) ? "<LINK>" : "<DIR>";
         }
         return Size(e.Size);
     }

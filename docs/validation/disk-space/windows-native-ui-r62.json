@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native Windows pointer/keyboard navigation and link omission explanation subset; no full qualification",
+  "state": "passed-native-input-subset",
+  "observerState": "FINISHED exit=0",
+  "ownedProcessExited": true,
+  "inputReceipt": {
+    "schemaVersion": 1,
+    "purpose": "Opt-in Windows VM native input subset; no full qualification",
+    "state": "passed-native-input-subset",
+    "error": null,
+    "processId": 8132,
+    "user": "filecatdsa_r2",
+    "machine": "DESKTOP-A60F1NE",
+    "step": 14,
+    "events": [
+      "Native pointer Start",
+      "Native pointer root row",
+      "Native Return",
+      "Native Name choice",
+      "Native ascending choice",
+      "Native pointer .hidden.bin",
+      "Native Space",
+      "Native descending choice",
+      "Native root breadcrumb",
+      "Native Back",
+      "Observed preserved navigation",
+      "Native ascending for link inspection",
+      "Native first-row focus",
+      "Native arrows to navigation link"
+    ],
+    "markedKey": "n:2",
+    "windowVisible": true,
+    "windowActive": true,
+    "keyboardFocus": "ListBoxItem",
+    "environment": {
+      "processSession": 2,
+      "consoleSession": 2,
+      "windowStation": "WinSta0",
+      "foregroundProcessId": 8132
+    },
+    "appSha256": "a55b7acde6da012893537f4acd77048b25e30102465b277082e944d8f5a9c9c6",
+    "harnessSha256": "76a51b1fa6f259f728567149b467d235fc24b804f9c565b8a11151746991cb9b",
+    "phase": "Finished",
+    "status": "Viewing captured location: fixture.",
+    "scope": "n:1",
+    "focus": "n:6",
+    "marks": 1
+  },
+  "harnessReport": {
+    "schemaVersion": 1,
+    "purpose": "Native desktop development validation; no capability qualification",
+    "state": "closed",
+    "sourceUnchanged": true,
+    "deadlineClosed": false,
+    "processId": 8132,
+    "platform": "Microsoft Windows 10.0.26340",
+    "architecture": "X64",
+    "run": "C:\\FileCatDsa20261104R2\\desktop-r62-input\\app\\native-validation\\dsa-5d0691b831474701b179553b101097f4",
+    "fixture": "C:\\FileCatDsa20261104R2\\desktop-r62-input\\app\\native-validation\\dsa-5d0691b831474701b179553b101097f4\\fixture",
+    "fixtureRegularPaths": 509,
+    "fixtureLimitations": [],
+    "nativeWindowVisible": false,
+    "lastVisibleWidth": 1180,
+    "lastVisibleHeight": 780,
+    "lastVisibleScale": 1,
+    "lastScreen": {
+      "bounds": "0, 0, 1534, 1193",
+      "workingArea": "0, 0, 1534, 1145",
+      "Scaling": 1,
+      "position": "234, 234",
+      "frameSize": "1196, 819"
+    },
+    "largeText": false,
+    "compact": false,
+    "sessions": 0,
+    "createdSessions": 1,
+    "lastObservation": {
+      "Phase": 5,
+      "Status": "Viewing captured location: fixture.",
+      "FilterError": null,
+      "Query": "",
+      "Metric": 2,
+      "session": "fae60179-1f8a-4ec4-8136-f72088e2cf74",
+      "Coverage": 0,
+      "Freshness": 0,
+      "paths": 518,
+      "objects": 508,
+      "issues": [
+        {
+          "Code": "navigation-link-not-followed",
+          "State": 3
+        }
+      ],
+      "known": "1414184",
+      "unverified": "0",
+      "matchingPaths": 509,
+      "rows": 12,
+      "focus": "n:6",
+      "marked": 1,
+      "basket": 0,
+      "tableSort": 1,
+      "tableDescending": false,
+      "tableRows": [
+        {
+          "Key": "n:2",
+          "Name": ".hidden.bin",
+          "value": "328",
+          "activeText": "328 B",
+          "fileSizeText": "321 B",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:3",
+          "Name": "Aliases",
+          "value": "0",
+          "activeText": "Shared at ancestor",
+          "fileSizeText": "1.0 MiB",
+          "state": "Shared links"
+        },
+        {
+          "Key": "n:4",
+          "Name": "Archives",
+          "value": "81920",
+          "activeText": "80.0 KiB",
+          "fileSizeText": "80.0 KiB",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:5",
+          "Name": "large.bin",
+          "value": "0",
+          "activeText": "Shared at ancestor",
+          "fileSizeText": "1.0 MiB",
+          "state": "Shared links"
+        },
+        {
+          "Key": "n:6",
+          "Name": "link-outside",
+          "value": "0",
+          "activeText": "Not measured",
+          "fileSizeText": "Not measured",
+          "state": "Link not followed"
+        },
+        {
+          "Key": "n:7",
+          "Name": "Package.app",
+          "value": "12288",
+          "activeText": "12.0 KiB",
+          "fileSizeText": "11.0 KiB",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:8",
+          "Name": "Photos",
+          "value": "245760",
+          "activeText": "240.0 KiB",
+          "fileSizeText": "240.0 KiB",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:9",
+          "Name": "report.csv",
+          "value": "64",
+          "activeText": "64 B",
+          "fileSizeText": "60 B",
+          "state": "Observed"
+        },
+        {
+          "Key": "shared:n:1",
+          "Name": "Shared hard-linked files",
+          "value": "1048576",
+          "activeText": "1.0 MiB",
+          "fileSizeText": "2.0 MiB",
+          "state": "Group"
+        },
+        {
+          "Key": "n:10",
+          "Name": "Small files",
+          "value": "25120",
+          "activeText": "24.5 KiB",
+          "fileSizeText": "22.8 KiB",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:11",
+          "Name": "Unicode",
+          "value": "128",
+          "activeText": "128 B",
+          "fileSizeText": "123 B",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:12",
+          "Name": "zero.bin",
+          "value": "0",
+          "activeText": "0 B",
+          "fileSizeText": "0 B",
+          "state": "Observed"
+        }
+      ],
+      "breadcrumbs": [
+        {
+          "Key": "scope",
+          "Label": "All locations"
+        },
+        {
+          "Key": "n:1",
+          "Label": "fixture"
+        }
+      ]
+    },
+    "selectedTab": 0,
+    "tabHeaders": [
+      "Analysis 1"
+    ],
+    "appSha256": "a55b7acde6da012893537f4acd77048b25e30102465b277082e944d8f5a9c9c6",
+    "harnessSha256": "76a51b1fa6f259f728567149b467d235fc24b804f9c565b8a11151746991cb9b"
+  }
+}

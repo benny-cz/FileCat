@@ -38,6 +38,10 @@ public sealed partial class MainViewModel
     private OperationCenterViewModel CreateOperations()
     {
         var oc = new OperationCenterViewModel(Services.Jobs, Services.Providers.Display);
+        oc.CanReviewArchiveCleanup = job => Services.ArchiveCleanupLease is not null && ArchiveCleanupReview.CanOffer(job) ||
+            Services.ArchiveCreationCleanupLease is not null && ArchiveCreationCleanupReview.CanOffer(job) ||
+            Services.ArchiveExchangeRecovery is not null && ArchiveExchangeCleanupReview.CanOffer(job) ||
+            Services.ArchiveDiscardLease is not null && ArchiveDiscardReview.CanOffer(job);
         Services.Jobs.DecisionRequested += d => Services.Ui.Post(() => EnqueueDecision(d));
         Services.Jobs.JobFinished += job => Services.Ui.Post(() => OnJobFinished(job));
         Services.Jobs.JobAdded += _ => Services.Ui.Post(UpdateJobActivity);
@@ -52,6 +56,9 @@ public sealed partial class MainViewModel
         if (Core.Search.ResultSetProvider.IsWorkingSetList(ActiveTab?.Location) && await WorkingSetListCommandAsync(id)) return true;
         switch (id)
         {
+            case CommandIds.StorageAttributes: await ChangeStorageAttributesAsync(); return true;
+            case CommandIds.EfsProtection: await ChangeStorageAttributesAsync(efs: true); return true;
+            case CommandIds.EfsFileBackup: await BackUpSelectedEfsKeysAsync(); return true;
             case CommandIds.AddToWorkingSet: await AddToWorkingSetAsync(); return true;
             case CommandIds.WorkingSets: OpenWorkingSets(); return true;
             case CommandIds.Copy:
@@ -70,7 +77,8 @@ public sealed partial class MainViewModel
             case CommandIds.EditNew: await EditNewAsync(); return true;
             case CommandIds.Edit: await EditFocusedAsync(); return true;
             case CommandIds.View: ViewFocused(hex: false); return true;
-            case CommandIds.ChangeJournal: OpenChangeJournal(); return true;
+            case CommandIds.ChangeJournal: await OpenChangeJournalAsync(); return true;
+            case CommandIds.OpenAdministratorWindow: await OpenAdministratorWindowAsync(); return true;
             case CommandIds.ViewAlternate: ViewFocused(hex: true); return true;
             case CommandIds.Undo: await UndoLastAsync(); return true;
             case CommandIds.Operations: Operations.IsOpen = !Operations.IsOpen; return true;
@@ -88,11 +96,13 @@ public sealed partial class MainViewModel
         return false;
     }
 
-    public bool CanCloseImmediately() => !Services.Jobs.HasActiveWork && UnsavedHexEditors().Count == 0;
+    public bool CanCloseImmediately(bool reviewAnalyses = true) => !Services.Jobs.HasActiveWork && UnsavedHexEditors().Count == 0 &&
+        (!reviewAnalyses || !Services.HasTemporaryAnalyses);
 
     /// <summary>Closing presents unsaved edits and active work: finish, cancel safely, or keep the app open (plan §9.3).</summary>
-    public async Task<bool> ConfirmExitWithActiveWorkAsync()
+    public async Task<bool> ConfirmExitWithActiveWorkAsync(bool reviewAnalyses = true)
     {
+        if (reviewAnalyses && !await ConfirmExitWithAnalysesAsync()) return false;
         if (!await ConfirmCloseHexEditorsAsync()) return false;
         var active = Services.Jobs.Jobs.Where(j => !j.State.IsFinished()).ToList();
         if (active.Count == 0) return true;
@@ -172,17 +182,24 @@ public sealed partial class MainViewModel
 
     // ---- Copy / move ---------------------------------------------------------------------------------
 
-    private async Task TransferAsync(JobKind kind, IReadOnlyList<ItemRef>? explicitItems = null, Location? explicitDestination = null)
+    private async Task TransferAsync(JobKind kind, IReadOnlyList<ItemRef>? explicitItems = null,
+        Location? explicitDestination = null, TabViewModel? explicitSource = null)
     {
-        var sel = SourceSelection();
+        var sel = explicitItems is null ? SourceSelection() : null;
         if (sel is null && explicitItems is null) return;
-        var tab = sel?.Tab ?? ActiveTab!;
+        var tab = explicitSource ?? sel?.Tab ?? ActiveTab!;
         var items = explicitItems ?? sel!.Value.Items;
         IReadOnlyList<ItemRef>? finalItems = null, submitted = null;
         try
         {
             var source = tab.Location!;
             var sourceCaps = Services.Providers.For(source).GetCapabilities(source);
+            bool requireResultSourceMetadata = source.Scheme == Schemes.ResultSet && items.All(i => i.FileSystemPath is not null);
+            if (requireResultSourceMetadata && !await Task.Run(() => items.All(i => SourcePathReview.MatchesSelectionMetadata(i, Services.Jobs.FileOperations))))
+            {
+                Notify("A selected result changed since it was listed. Search or refresh the results, then review the current item before copying or moving.", true);
+                return;
+            }
             if (kind == JobKind.Move && (sourceCaps & LocationCapabilities.MoveSource) == 0)
             {
                 Notify(Services.Providers.For(source).ExplainUnavailable(source, LocationCapabilities.MoveSource) + " Use F5 to copy instead.", true);
@@ -209,9 +226,10 @@ public sealed partial class MainViewModel
             if (destLocation is null) { Notify("The destination changed before this transfer was submitted. Review it again.", true); return; }
             // Hidden marks are excluded only when there are some and the user did not include them.
             finalItems = request.IncludeHidden || explicitItems is not null || (sel?.HiddenMarked ?? 0) == 0 ? items : tab.Listing.GetSelection(includeHiddenMarks: false);
-            if (destLocation?.Scheme == Schemes.Zip)
+            if (destLocation?.Scheme is Schemes.Zip or Schemes.Archive)
             {
-                await AddToArchiveAsync(kind, finalItems, destLocation, request.Options);
+                await AddToArchiveTransferAsync(kind, finalItems, destLocation, request.Options, newName,
+                    request.Queue ? QueueMode.Queue : QueueMode.Start, tab, source);
                 return;
             }
             if (kind == JobKind.Move && newName is null && destLocation is { } dl && ItemSources.Parents(finalItems)!.Contains(dl))
@@ -229,6 +247,7 @@ public sealed partial class MainViewModel
                 NewName = newName,
                 Options = request.Options,
                 Mode = request.Queue ? QueueMode.Queue : QueueMode.Start,
+                RequireResultSourceMetadata = requireResultSourceMetadata,
             });
             submitted = finalItems;
             Track(job, tab);
@@ -281,12 +300,26 @@ public sealed partial class MainViewModel
             var originalProvider = Services.Providers.For(original);
             if ((originalProvider.GetCapabilities(original) & LocationCapabilities.TransferTarget) == 0)
                 return new(null, null, originalProvider.ExplainUnavailable(original, LocationCapabilities.TransferTarget), string.Empty);
-            return new(original, null, null, "→ " + Services.Providers.Display(original));
+            return new(original, null, null, "→ " + Services.Providers.Display(original) +
+                (original.Scheme == Schemes.Archive ? ". The whole archive will be rebuilt and checked." : ""));
         }
         Location? loc;
         try
         {
-            if (!Services.Providers.TryParse(t, context, out loc) || loc is null)
+            bool parsed;
+            if (unchangedLocation?.Scheme == Schemes.Archive)
+            {
+                // Archive path recognition probes the filesystem. Keep it on the container's device worker.
+                var result = await Services.Io.Run(Services.Archives.GetDeviceKey(unchangedLocation), IoPriority.Interactive, ct =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    bool found = Services.Providers.TryParse(t, context, out var value);
+                    return (Found: found, Value: value);
+                }, cancellationToken);
+                parsed = result.Found; loc = result.Value;
+            }
+            else parsed = Services.Providers.TryParse(t, context, out loc);
+            if (!parsed || loc is null)
                 return new(null, null, "This is not a recognized destination location.", string.Empty);
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
@@ -295,6 +328,8 @@ public sealed partial class MainViewModel
         }
         if (!loc.IsFileSystem)
         {
+            if (loc.Scheme == Schemes.Archive)
+                return ResolveNativeArchiveDestination(loc, items.Count, t.EndsWith('\\') || t.EndsWith('/'));
             var provider = Services.Providers.For(loc);
             if ((provider.GetCapabilities(loc) & LocationCapabilities.TransferTarget) == 0)
                 return new(null, null, provider.ExplainUnavailable(loc, LocationCapabilities.TransferTarget), string.Empty);
@@ -309,6 +344,35 @@ public sealed partial class MainViewModel
         return await Services.Io.Run(PathUtil.GetDeviceKey(path), IoPriority.Interactive, ct =>
         {
             ct.ThrowIfCancellationRequested();
+            if (unchangedLocation?.Scheme == Schemes.Archive && Services.Archives.TryParse(path, null, out var nativeLocation) && nativeLocation is not null)
+                return ResolveNativeArchiveDestination(nativeLocation, items.Count, endsWithSep);
+            // The filesystem provider also accepts paths below a ZIP file. Rebind those paths on the device worker
+            // before treating a non-existent child as a filesystem folder. The accepted mapping stays in the draft.
+            if (unchangedLocation?.Scheme == Schemes.Zip && Services.Zip.TryParse(path, null, out var archiveLocation) && archiveLocation is not null)
+            {
+                ct.ThrowIfCancellationRequested();
+                if ((Services.Zip.GetCapabilities(archiveLocation) & LocationCapabilities.TransferTarget) == 0)
+                    return new TransferDestinationResolution(null, null,
+                        Services.Zip.ExplainUnavailable(archiveLocation, LocationCapabilities.TransferTarget), string.Empty);
+                if (archiveLocation.Path.Length > 0 && Core.Archives.ArchivePaths.Problem(archiveLocation.Path) is { } problem)
+                    return new TransferDestinationResolution(null, null, problem, string.Empty);
+                if (Services.Zip.DirectoryExists(archiveLocation))
+                    return new TransferDestinationResolution(archiveLocation, null, null,
+                        "→ into the archive folder " + Formatters.SafeName(Services.Providers.Display(archiveLocation)));
+                var parent = Services.Zip.GetParent(archiveLocation);
+                if (parent?.Scheme == Schemes.Zip && Services.Zip.DirectoryExists(parent))
+                {
+                    string name = Services.Zip.GetNameInParent(archiveLocation)!;
+                    if (!endsWithSep && items.Count == 1)
+                        return new TransferDestinationResolution(parent, name, null,
+                            $"→ as “{Formatters.SafeName(name)}” in {Formatters.SafeName(Services.Providers.Display(parent))}");
+                    if (Services.Zip.CopiesOf(parent, name) > 0)
+                        return new TransferDestinationResolution(null, null,
+                            "An archive file already uses this folder name. Choose another folder.", string.Empty);
+                }
+                return new TransferDestinationResolution(archiveLocation, null, null,
+                    "→ the archive folder " + Formatters.SafeName(Services.Providers.Display(archiveLocation)) + " will be created");
+            }
             if (TransferDestinationDirectoryExists(path))
                 return new TransferDestinationResolution(loc, null, null, "→ into the folder " + Formatters.SafeName(path));
             if (!endsWithSep && items.Count == 1)
@@ -326,6 +390,22 @@ public sealed partial class MainViewModel
             }
             return new TransferDestinationResolution(loc, null, null, "→ the folder " + Formatters.SafeName(path) + " will be created");
         }, cancellationToken);
+    }
+
+    // This is a provisional interpretation from the listing cache. Submission resolves it against a fresh strict catalog.
+    private TransferDestinationResolution ResolveNativeArchiveDestination(Location location, int count, bool trailingSeparator)
+    {
+        if ((Services.Archives.GetCapabilities(location) & LocationCapabilities.TransferTarget) == 0)
+            return new(null, null, Services.Archives.ExplainUnavailable(location, LocationCapabilities.TransferTarget), "");
+        if (location.Path.Length > 0 && Core.Archives.ArchivePaths.Problem(location.Path) is { } problem)
+            return new(null, null, problem, "");
+        const string cost = ". The whole archive will be rebuilt and checked.";
+        if (Services.Archives.CachedDirectoryHint(location) == true || trailingSeparator || count != 1)
+            return new(location, null, null, "→ into the archive folder " + Formatters.SafeName(Services.Providers.Display(location)) + cost);
+        var parent = Services.Archives.GetParent(location);
+        if (parent?.Scheme != Schemes.Archive) return new(location, null, null, "→ " + Services.Providers.Display(location) + cost);
+        string name = Services.Archives.GetNameInParent(location)!;
+        return new(parent, name, null, $"→ as “{Formatters.SafeName(name)}” in {Formatters.SafeName(Services.Providers.Display(parent))}" + cost);
     }
 
     private void Track(Job job, TabViewModel tab)
@@ -356,17 +436,27 @@ public sealed partial class MainViewModel
 
     private static string? ValidateSiblingName(string dir, string name, string? current = null)
     {
-        if (PathUtil.ValidateNewName(name) is { } bad) return bad;
-        if (current is not null && string.Equals(name, current, StringComparison.Ordinal)) return "The name is unchanged.";
+        if (ValidateRenameName(name, current) is { } problem) return problem;
         bool caseOnly = current is not null && string.Equals(name, current, StringComparison.OrdinalIgnoreCase);
         if (!caseOnly && (File.Exists(Path.Combine(dir, name)) || Directory.Exists(Path.Combine(dir, name)))) return "An item with this name already exists here.";
         return null;
     }
 
+    private static string? ValidateRenameName(string name, string? current) =>
+        PathUtil.ValidateNewName(name) ?? (string.Equals(name, current, StringComparison.Ordinal) ? "The name is unchanged." : null);
+
+    /// <summary>File-system names being edited in their rows now: the rename a Shell New command offers never takes over one.</summary>
+    private int _inlineRenames;
+
     private async Task RenameAsync()
     {
         var tab = ActiveTab;
         if (tab?.Location is not { } loc || !tab.Listing.TryGetFocused(out var f) || f.Kind == EntryKind.Parent) return;
+        if (loc.Scheme == Schemes.Archive || ZipWorker(loc))
+        {
+            await RenameNativeArchiveMemberAsync(tab, loc);
+            return;
+        }
         if (loc.Scheme == Schemes.Zip)
         {
             await RenameArchiveMemberAsync(tab, loc);
@@ -384,14 +474,19 @@ public sealed partial class MainViewModel
             return;
         }
         var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
-        var dir = Path.GetDirectoryName(item.FileSystemPath!)!;
-        var newName = await View.RenameInlineAsync(new PromptOptions("Rename", $"New name for \"{Formatters.SafeName(f.Name)}\":")
+        string? newName;
+        _inlineRenames++;
+        try
         {
-            Text = f.Name,
-            SelectStem = !f.IsContainer,
-            Validate = n => ValidateSiblingName(dir, n, f.Name),
-            ConfirmText = "Rename",
-        });
+            newName = await View.RenameInlineAsync(new PromptOptions("Rename", $"New name for \"{Formatters.SafeName(f.Name)}\":")
+            {
+                Text = f.Name,
+                SelectStem = !f.IsContainer,
+                Validate = n => ValidateRenameName(n, f.Name),
+                ConfirmText = "Rename",
+            });
+        }
+        finally { _inlineRenames--; }
         if (newName is null) return;
         var job = Services.Jobs.Submit(new JobRequest { Kind = JobKind.Rename, Sources = [item], NewName = newName });
         Track(job, tab);
@@ -402,6 +497,11 @@ public sealed partial class MainViewModel
     {
         var tab = contextTab ?? ActiveTab;
         if (tab?.Location?.Scheme == Schemes.Registry) { await CreateRegistryAsync(); return; }
+        if (tab?.Location is { } nativeArchiveFolder && (nativeArchiveFolder.Scheme == Schemes.Archive || ZipWorker(nativeArchiveFolder)))
+        {
+            await CreateNativeArchiveFolderAsync(tab, nativeArchiveFolder);
+            return;
+        }
         if (tab?.Location is { Scheme: Schemes.Zip } archiveFolder)
         {
             await CreateArchiveFolderAsync(tab, archiveFolder);
@@ -474,6 +574,11 @@ public sealed partial class MainViewModel
                 await DeleteHiddenDataAsync(tab, items);
                 return;
             }
+            if (loc.Scheme == Schemes.Archive || ZipWorker(loc))
+            {
+                await DeleteNativeArchiveMembersAsync(loc, items.ToList());
+                return;
+            }
             if (loc.Scheme == Schemes.Zip)
             {
                 if (items.Count > MaxArchiveBatch) { Notify($"Delete at most {MaxArchiveBatch:N0} members at a time.", true); return; }
@@ -505,7 +610,7 @@ public sealed partial class MainViewModel
             bool confirmedPermanent = false;
             if (!permanent)
             {
-                if (items.Count > 10_000) Notify($"Checking {items.Count:N0} items for the Recycle Bin…");
+                if (items.Count > 10_000) Notify($"Checking {items.Count:N0} items for {RecycleText.Destination}…");
                 unrecyclable = await Task.Run(() =>
                 {
                     int count = 0;
@@ -575,16 +680,19 @@ public sealed partial class MainViewModel
         OnExternalClipboardCopyFinished(job);
         OnJobFinishedCore(job);
         OnClipboardMoveFinished(job);
+        OnVirtualClipboardCopyFinished(job);
+        OfferDeferredAdministratorFileRetry(job);
     }
 
     private void OnJobFinishedCore(Job job)
     {
         Operations.UpdateSummary();
+        if (job.Kind == JobKind.StorageTransform && _storageOrigins.Remove(job, out var storageOrigin)) storageOrigin.UnmarkCompleted(job);
         if (_jobOrigins.Remove(job, out var origin))
         {
             var tab = origin.Tab;
             if (origin.Location.Scheme == Schemes.ResultSet) FollowSetChanges(job, origin.Location);
-            if (tab.Location == origin.Location && job.Request.Sources.Count > 0 && job.Kind is not (JobKind.CreateDirectory or JobKind.CreateFile))
+            if (tab.Location == origin.Location && job.Request.Sources.Count > 0 && job.Kind is not (JobKind.CreateDirectory or JobKind.CreateFile or JobKind.StorageTransform))
             {
                 // Unmark what the job finished; failed and skipped roots stay marked for a retry.
                 try { tab.Listing.MarkItems(job.Request.Sources, job.CompletedRootIndices, false); }
@@ -594,26 +702,39 @@ public sealed partial class MainViewModel
             try
             {
                 if (_focusAfter.Remove(job, out var focus) && job.State is JobState.Completed or JobState.CompletedWithIssues && tab.Location == origin.Location)
+                {
                     tab.Listing.Refresh();
-                if (focus is not null) FocusWhenPresent(tab, focus);
+                    if (focus is not null) FocusWhenPresent(tab, focus);
+                }
             }
             catch (ObjectDisposedException) { }
         }
         // Permissions change without a new modification time: shown values are read again.
         if (job.Kind == JobKind.Attributes) Services.Metadata.Invalidate();
+        else if (job.Kind is not (JobKind.VerifyChecksums or JobKind.VerifyBeside or JobKind.ArchiveTest))
+            foreach (var field in Services.Metadata.Fields.Where(f => f.ObservationLane)) Services.Metadata.ForgetField(field.Id);
         // Verifying only reads: nothing to list again (the rows of the files it read ask for their new results).
         if (job.Kind == JobKind.Undo) RefreshAll();
         else if (job.Kind is not (JobKind.VerifyChecksums or JobKind.VerifyBeside)) RefreshAffected(job);
         // The job captured its sources; nothing reads them after this point.
         ItemSources.Release(job.Request.Sources);
         if (_editAfter.Remove(job, out var edit) && File.Exists(edit)) LaunchEditor(edit);
-        if (job.Kind == JobKind.Undo)
+        if (job.Kind == JobKind.StorageTransform)
+        {
+            InvalidateStorageAccounting();
+            var storage = job.StorageResult;
+            Notify($"{Formatters.SafeName(job.Title)}: {(storage is null ? "Storage result unavailable." : StorageOperationText.Details(storage))}" +
+                (storage?.ReviewPending == true || storage?.PersistenceFault == true ? " Review storage changes in Operations (Ctrl+J)." : ""),
+                StorageOperationText.Severity(storage, job.State) == "error");
+        }
+        else if (job.Kind == JobKind.Undo)
             Notify($"{Formatters.SafeName(job.Title)}: {job.Summary}. Open Undo report in Operations (Ctrl+J) for every outcome.", job.ItemsFailed > 0);
         else if (job.Kind is JobKind.VerifyChecksums or JobKind.VerifyBeside) _ = OnVerifyFinishedAsync(job);
         else switch (job.State)
         {
             case JobState.Completed:
                 if (job.Kind == JobKind.ArchiveTest) Notify($"{job.Title}: {job.Summary}.");
+                else if (job.Request.Archive is not null) Notify($"{job.Title}: {job.Summary}");
                 else if (job.Kind is JobKind.Copy or JobKind.Move or JobKind.Recycle or JobKind.Delete or JobKind.Extract)
                     Notify($"{job.Title}: done{(job.BytesDone > 0 && job.Kind is not (JobKind.Recycle or JobKind.Delete) ? $" ({Formatters.SizeWithUnit(job.BytesDone)})" : "")}.");
                 break;
@@ -623,7 +744,10 @@ public sealed partial class MainViewModel
                     job.State == JobState.Failed || job.ItemsFailed > 0);
                 break;
             case JobState.Canceled:
-                Notify($"{job.Title}: canceled. {job.Summary}. Steps already completed were kept.");
+                string summary = job.Summary.TrimEnd('.', ' ');
+                if (job.Request.Archive is not null && job.Issues.Any(issue => issue.Outcome == StepOutcome.Committed))
+                    Notify($"{job.Title}: {summary}. The cancellation arrived after the archive was saved; the saved archive is kept.");
+                else Notify($"{job.Title}: canceled.{(summary.Length == 0 ? "" : " " + summary + ".")} Steps already completed were kept.");
                 break;
         }
         UpdateJobActivity();
@@ -670,12 +794,13 @@ public sealed partial class MainViewModel
         if (job.Request.Destination is { } d) folders.Add(d);
         // A rebuilt archive changes every folder shown inside it.
         string? archive = job.Request.Archive?.ArchivePath is { } a ? Path.GetFullPath(a) : null;
+        if (archive is not null && Path.GetDirectoryName(archive) is { } archiveParent) folders.Add(Location.FileSystem(archiveParent));
         foreach (var p in Workspace.Panels)
         {
             foreach (var t in p.Tabs)
             {
-                if (t.Location is { } l && (folders.Contains(l) || l.Scheme == Schemes.ResultSet || parents is null && l.IsFileSystem ||
-                                            archive is not null && l.Scheme == Schemes.Zip && string.Equals(l.Container?.Path, archive, StringComparison.OrdinalIgnoreCase)))
+                if (t.Location is { } l && (folders.Contains(l) || l.Scheme == Schemes.ResultSet || StorageIncludesFolder(job, l) || parents is null && l.IsFileSystem ||
+                                            archive is not null && l.Scheme is Schemes.Zip or Schemes.Archive && string.Equals(l.Container?.Path, archive, StringComparison.Ordinal)))
                     t.Refresh();
             }
         }
@@ -725,6 +850,15 @@ public sealed partial class MainViewModel
     private void EnqueueDecision(PendingDecision decision)
     {
         if (decision.Task.IsCompleted || decision.Job.Token.IsCancellationRequested) return;
+        // A rename conflict can finish the inline interaction while its originating panel is still active.
+        if (decision.Job.Kind == JobKind.Rename && decision.Request is ConflictRequest &&
+            _inlineRenames == 0 && !_showingDecision && !Dialogs.IsOpen &&
+            _jobOrigins.TryGetValue(decision.Job, out var origin) &&
+            ReferenceEquals(ActiveTab, origin.Tab) && Equals(origin.Tab.Location, origin.Location))
+        {
+            _ = ReviewDecisionAsync(decision.Job);
+            return;
+        }
         // Background work never replaces the user's input surface. The job's persistent attention state and
         // Review decision action remain available in both the compact strip and Operations (Ctrl+J).
         Operations.Refresh(decision.Job);
@@ -783,32 +917,49 @@ public sealed partial class MainViewModel
         }
         // F3 honors a per-type View association; Alt+F3 always uses the internal viewer.
         if (!hex && item.FileSystemPath is { } viewPath && TryLaunchAssociation(Associations.View, viewPath)) return;
-        _ = ViewItemAsync(item, f.Name, hex);
+        _ = ViewItemAsync(item, f.Name, hex, tab);
     }
 
     /// <summary>
     /// Opens content once on a bounded device worker (a remote item may connect and ask for a password), and hands it
     /// to the viewer, which owns it from then on. Shutdown cancels queued opens; active calls finish before transfer.
     /// </summary>
-    private async Task ViewItemAsync(ItemRef item, string name, bool hex)
+    private async Task ViewItemAsync(ItemRef item, string name, bool hex, TabViewModel sourceTab)
     {
         try
         {
             var provider = Services.Providers.For(item.Parent);
-            var source = await Services.Io.Run(provider.GetDeviceKey(item.Parent), Core.Threading.IoPriority.Interactive,
-                _ => provider.OpenContent(item));
+            using var readLease = ProviderReadLease.Capture(Services.Providers, [item.Parent]);
+            var source = await Services.Io.RunOwned(provider.GetDeviceKey(item.Parent), Core.Threading.IoPriority.Interactive,
+                _ => provider.OpenContent(item), Services.Io.StoppingToken);
+            if (Services.Io.IsStopped) { source?.Dispose(); return; }
             if (source is null)
             {
                 Notify("This item has no viewable content.", true);
                 return;
             }
-            await ViewerLauncher.Open(Services, item, source, hex);
+            await ViewerLauncher.OpenWithBrowsing(Services, item, source, hex, sourceTab);
             if (item.Parent.IsFileSystem) Services.RecordFile(item.Parent, item.Name);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException)
         {
-            Notify($"Cannot view \"{name}\": {(ex is OperationCanceledException ? "canceled." : ErrorText.Describe(ex))}", ex is not OperationCanceledException);
+            if (CanRequestAdministratorTask && ErrorText.Classify(ex) == "access" &&
+                item.FileSystemPath is { } path && AdministratorWindow.LocalVolume(path) is not null)
+            {
+                await RequestAdministratorTaskAsync(new(AdministratorTaskKind.View) { Paths = [path], Alternate = hex },
+                    "View as administrator", $"Open {Formatters.SafeName(path)} in FileCat’s internal viewer.");
+                return;
+            }
+            Notify($"Cannot view \"{name}\": {DescribeViewError(item, ex)}", ex is not OperationCanceledException);
         }
+    }
+
+    internal static string DescribeViewError(ItemRef item, Exception ex)
+    {
+        if (ex is OperationCanceledException) return "canceled.";
+        if (item.Parent.IsFileSystem && (item.Flags & EntryFlags.Link) != 0 && ErrorText.Classify(ex) == "notfound")
+            return "The link, its target, or its folder no longer exists. Check the link target in Properties.";
+        return ErrorText.Describe(ex);
     }
 
     private async Task EditFocusedAsync()
@@ -825,6 +976,11 @@ public sealed partial class MainViewModel
         if (f.IsContainer)
         {
             Notify("F4 edits files. Folders have no content to edit.");
+            return;
+        }
+        if (item.Parent.Scheme == Schemes.Archive || ZipWorker(item.Parent))
+        {
+            await EditNativeArchiveMemberAsync(item);
             return;
         }
         if (item.Parent.Scheme == Schemes.Zip)
@@ -906,9 +1062,107 @@ public sealed partial class MainViewModel
     {
         var sel = ActiveTab?.Listing.GetSelection();
         if (sel is null || sel.Count == 0 || View.Clipboard is null) return;
-        var lines = sel.Select(s => s.FileSystemPath).Where(p => p is not null).Select(p => Services.Shell.ToUncPath(p!)).ToList();
+        var lines = ActualUncPaths(sel.Select(s => s.FileSystemPath), Services.Shell.ToUncPath);
+        if (lines.Count == 0)
+        {
+            Notify("None of the selected items has a UNC path. Use Copy full paths for local files.");
+            return;
+        }
         await View.Clipboard.SetTextAsync(string.Join(Environment.NewLine, lines));
         Notify($"Copied {Formatters.Plural(lines.Count, "UNC path", "UNC paths")} to the clipboard.");
+    }
+
+    internal static List<string> ActualUncPaths(IEnumerable<string?> paths, Func<string, string> convert) =>
+        paths.Where(p => p is not null).Select(p => convert(p!)).Where(PathUtil.IsUncPath).ToList();
+
+    /// <summary>Handles files dropped onto a panel: the drop target is the explicit destination.</summary>
+    internal async Task DropItemsAsync(PanelViewModel panel, DropTargetAdmission.Offer offered,
+        TabViewModel sourceTab, Location sourceLocation, IReadOnlyList<ItemRef> items)
+    {
+        if (items.Count == 0 || items.Count > DragExport.MaxItems || sourceTab.Listing.IsDisposed ||
+            sourceTab.Listing.State != ListingState.Complete || sourceTab.Listing.IsPartial ||
+            sourceTab.Listing.LastRefreshError is not null || sourceTab.Location != sourceLocation ||
+            sourceLocation.Scheme != Schemes.ResultSet && items.Any(i => !i.Parent.Equals(sourceLocation)))
+        {
+            Notify("The drag source changed or its selection is too large. Select it again.", true);
+            return;
+        }
+        var move = offered.Effect == Avalonia.Input.DragDropEffects.Move;
+        var (current, refusal) = DropTargetAdmission.Check(panel, true, move, ownDrag: true, ownItems: true,
+            ownSource: sourceLocation, sourceItems: items);
+        if (current is null || !DropTargetAdmission.SameTarget(offered, current))
+        {
+            Notify(current is null ? refusal! : DropTargetAdmission.ChangedTargetMessage, true);
+            return;
+        }
+        if (offered.Destination.IsFileSystem && !await Task.Run(() => Directory.Exists(offered.Destination.Path)))
+        {
+            Notify("The drop folder is no longer available. Choose another destination.", true);
+            return;
+        }
+        if (sourceLocation.Scheme == Schemes.Registry)
+        {
+            if (move) { Notify("Dragging Registry items copies them. Use F6 for a reviewed move.", true); return; }
+            await CopyRegistryItemsAsync(items, offered.Destination);
+            return;
+        }
+        if (offered.Destination.Scheme == Schemes.Registry)
+        {
+            Notify("Use File → Import .reg to review a file before changing the Registry.", true);
+            return;
+        }
+        if (sourceLocation.Scheme == Schemes.Computer)
+        {
+            await DropDriveContentsAsync(items, offered.Destination, move);
+            return;
+        }
+        if (items.All(i => i.Parent.Equals(offered.Destination)))
+        {
+            Notify("The dropped items are already in this folder.");
+            return;
+        }
+        await TransferAsync(move ? JobKind.Move : JobKind.Copy, items, offered.Destination, sourceTab);
+    }
+
+    private async Task DropDriveContentsAsync(IReadOnlyList<ItemRef> items, Location destination, bool move)
+    {
+        if (move) { Notify("A whole drive can be copied, not moved. Release Shift and drag again.", true); return; }
+        if (!destination.IsFileSystem || items.Count != 1 || items[0].Kind != EntryKind.Drive ||
+            !OperatingSystem.IsWindows() || items[0].Name.Length != 2 ||
+            !char.IsLetter(items[0].Name[0]) || items[0].Name[1] != ':')
+        {
+            Notify("Select one available Windows drive and drop it onto a local folder.", true);
+            return;
+        }
+        string root = items[0].Name + Path.DirectorySeparatorChar;
+        if (!await Task.Run(() => Directory.Exists(root)))
+        {
+            Notify("The selected drive is no longer available.", true);
+            return;
+        }
+        if (PathUtil.IsSameOrUnder(destination.Path, root))
+        {
+            Notify("A drive cannot be copied into itself. Choose a folder on another drive.", true);
+            return;
+        }
+        string folderName = "Drive " + char.ToUpperInvariant(items[0].Name[0]);
+        if (!await Dialogs.ConfirmAsync("Copy an entire drive",
+            $"Copy the contents of {root} into a new “{folderName}” folder at {destination.Path}? This can be very large and may include protected files. Review the destination and job report before relying on the copy.",
+            "Review drive copy")) return;
+        // An empty child name denotes the root itself; the reviewed new name is the destination folder.
+        var source = new ItemRef(Location.FileSystem(root), string.Empty, EntryKind.Directory);
+        var request = await OperationDialogs.ShowTransferAsync(this, new TransferDialogInput(JobKind.Copy,
+            [source], $"the contents of {root} (size not fully counted)", Path.Combine(destination.Path, folderName),
+            "drop target", 0, false) { InitialLocation = destination, BaseLocation = Location.FileSystem(root) });
+        if (request?.ResolvedDestination is not { } resolved) return;
+        if (!resolved.IsFileSystem || PathUtil.IsSameOrUnder(resolved.Path, root))
+        {
+            Notify("The reviewed drive destination must be on another local drive.", true);
+            return;
+        }
+        Services.Jobs.Submit(new JobRequest { Kind = JobKind.Copy, Sources = [source], Destination = resolved,
+            NewName = request.NewName ?? folderName, Options = request.Options,
+            Mode = request.Queue ? QueueMode.Queue : QueueMode.Start });
     }
 
     /// <summary>Handles files dropped onto a panel: the drop target is the explicit destination.</summary>
@@ -929,7 +1183,8 @@ public sealed partial class MainViewModel
             Notify(current is null ? refusal! : "The drop target changed during the drag. Drop again onto the folder you want to use.", true);
             return;
         }
-        bool available = await Task.Run(() => Directory.Exists(offered.Destination.Path));
+        bool available = !offered.Destination.IsFileSystem ||
+            await Task.Run(() => Directory.Exists(offered.Destination.Path));
         (current, refusal) = DropTargetAdmission.Check(panel, paths.Count > 0, move, ownDrag: move);
         if (!available || current is null || !DropTargetAdmission.SameTarget(offered, current))
         {

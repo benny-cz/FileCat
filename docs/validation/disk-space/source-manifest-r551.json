@@ -1,0 +1,418 @@
+{
+  "purpose": "Profile token/kernel retirement and worker ownership through actual process exit",
+  "observedUtc": "2026-11-07T00:54:44.478147+00:00",
+  "gitBase": "359463eb80fe044c8330b6bf583c98b61120778a",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisFileProfileCapacity.cs",
+      "sha256": "5bad0de7e0a8dd270f133c469b455ff936bedf4a15744e1e9373e22483e1870e"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisNativeHandle.cs",
+      "sha256": "4d5b1307af0df599d9fc012251c7b3b091100edb777f2fde8ef61c814f200970"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisNativeMutex.cs",
+      "sha256": "b069876a9ffaa6b36db56c1526883d807c328477b412d9ba358651201f4e7470"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisProfileQuota.cs",
+      "sha256": "9cdd444ef9df6cc225bc4b002586985d10ec3f81beb880ef0132f62c1b26f40d"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisUnixProfileCapacity.cs",
+      "sha256": "ef84f3261c4e7f0f859a326332cb73b8cf317099d6a1d95125681aac064b9400"
+    },
+    {
+      "path": "tests/AnalysisCapacityRetirementCases.cs",
+      "sha256": "d3068b3295a2afd2ac8e284edbd80f1a22b8e0c444931889b66b8f5a4ccf6661"
+    },
+    {
+      "path": "tests/AnalysisFileQuotaCases.cs",
+      "sha256": "581cbaadc25d935255b6914f99740824da3e2ac09f49cd486394510481884568"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisFileProfileRetirementTests.cs",
+      "sha256": "0073d87a76b38d20eb0aceec7efa9c62be1ff10929e6776cb7d296b014833578"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj",
+      "sha256": "50675c08f039c2ced5f96894e038634beacf6cb04b5e0e6fd6045b2c37f1d7a0"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/AnalysisCapacityRetirementProbe.cs",
+      "sha256": "91baffa4f3fb7946db63b2d5c5105676572d20f3ab5a7068653589328855ec44"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+      "sha256": "a34d0ed7e5ff289b3a8d8f6295e1a48bebf7118b85db4c248f71d5dced01dd3e"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.ProfileFiles.cs",
+      "sha256": "5d82c16c995026af90321b9e02f7a422459b1b7c1b055d08d78af38ead3fceec"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj",
+      "sha256": "73eec36d477c0ccd48f29c816458b1fc1e149faa965d6d718e7786f9be51574f"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r548.txt",
+      "sha256": "600e912c7b8e70bf135c449f79c8655a49aa44a5040552f02e1caace91873f34"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r549-core-r549.xml",
+      "sha256": "98a1c11cdf903acd821ec6441ecdb5330fd6466ae86b83f59226ce14f396e8c0"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r549-core-r549.log",
+      "sha256": "9e21544a5f1cdf7ca4b0e2dcd24234fa322cc7faf382fe3e9db3f140ebbfde8f"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r549-render-r549.xml",
+      "sha256": "aa15c12dbbde8e3e1e582a608bc03cc998b52519bbcd5105b3399681bcc61db0"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r549-render-r549.log",
+      "sha256": "cc42e72d041ba27c8cc48c857f4405cc4fe1a345acb4e738dd60b6a3631e06bf"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r549-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r549-post.json",
+      "sha256": "babf04c4164f8b5ce4f438d8dca8d067892b1529e2a70df44a0d4722d49544c1"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r549-core-r549.xml",
+      "sha256": "b0f62efde065b4a512c22529887f0d2530af0d1ca63dcd7be9bda88e5b2b86a7"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r549-core-r549.log",
+      "sha256": "c13d35dbf9c20ea9ab0a902e114818e656e84c580fecfa54d8965ae523772af1"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r549-render-r549.xml",
+      "sha256": "745c0c237b7a59bd70d2da911d0d1ffc32ce773cb4ebc0429db4b4d0c146f8ce"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r549-render-r549.log",
+      "sha256": "32884e47be2dc251409ccc4a5de9ab61d0f3b09bf0c56de26aecdb129d1eeb65"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r549-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r549-post.json",
+      "sha256": "4b11dc4b64064be9ced6e439468fa12d40a6edae4f267d590012da32a39b75b5"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r549-core-r549.xml",
+      "sha256": "371439da34c192a80fa8144f81662d83f3b17dc632dce777124779777dc788e1"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r549-core-r549.log",
+      "sha256": "882e4d923c712b23880b261384ba8c7886cd7450f7f1a1387b066d2ef225026d"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r549-native-r549.xml",
+      "sha256": "7d232ecb8179b4bb35746ad591a79c2a2502cd5ab852254e88874daaf440cfea"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r549-native-r549.log",
+      "sha256": "01cb62f52dffa76b6f2b36071ba3da1ee6fde54705539287519f75bbd438ff9c"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r549-render-r549.xml",
+      "sha256": "17cd02a5850701a713c66459ac6f5abe677ad8a8782ebafdb90bdabddae76056"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r549-render-r549.log",
+      "sha256": "365b4dc0ce470a1ead507bfa46f7e2be261b546e878d67c143ec6245c53a9c83"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r549-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r549-post.json",
+      "sha256": "082098c6a40257f95454c824e784238f7466a6c26096ab016cbf82caa9e45885"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r549.sh",
+      "sha256": "5285e45fee387dbfae99b3fab9e254438b53cc07ac952dab5258e71a25d9a6e9"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r549.sh",
+      "sha256": "382136e818c9da9e63d2e093af835006aefd2aca16c44955cd98102424a18ae3"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r549.ps1",
+      "sha256": "561fbc98668801583b4932e9338605c090e821235f39dd0f2811d6c78d090ea9"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r549.tgz",
+      "sha256": "e5a4a374e6bf7838fdf32425d2991253e3f3f28198458743df0b2197b614201e"
+    },
+    {
+      "name": "dsa-batch-linux-r549.tgz",
+      "sha256": "736d8b0d66f671a4136addca6376716b6da680a0458b9ffd60a3cbd1d648a6e6"
+    },
+    {
+      "name": "dsa-batch-windows-r549.tgz",
+      "sha256": "88435c3437085c5caec4e8014ed996682aa400d4157eebab02f0566170cef769"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r549": "3d6082189c9e19ab10a5efdefc982d4d87c587322471d206dab2cf02b1cf98f1",
+    "native-r549": "3d6082189c9e19ab10a5efdefc982d4d87c587322471d206dab2cf02b1cf98f1",
+    "render-r550-mac": "3d6082189c9e19ab10a5efdefc982d4d87c587322471d206dab2cf02b1cf98f1",
+    "render-r550-linux": "3d6082189c9e19ab10a5efdefc982d4d87c587322471d206dab2cf02b1cf98f1",
+    "render-r550-windows": "3d6082189c9e19ab10a5efdefc982d4d87c587322471d206dab2cf02b1cf98f1"
+  },
+  "productionAppHashes": {
+    "render-r550-mac": "93ab5d6bbe5179ad3a4aec59923b34b40a50bbbc9e3fa945863d7bc7ffbb535b",
+    "render-r550-linux": "93ab5d6bbe5179ad3a4aec59923b34b40a50bbbc9e3fa945863d7bc7ffbb535b",
+    "render-r550-windows": "93ab5d6bbe5179ad3a4aec59923b34b40a50bbbc9e3fa945863d7bc7ffbb535b"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r549": "be031c628e571e8a228bc4a1adad0021445b1567d767321b378bb2b6fef6f8c3",
+    "render-r550-mac": "be031c628e571e8a228bc4a1adad0021445b1567d767321b378bb2b6fef6f8c3",
+    "render-r550-linux": "be031c628e571e8a228bc4a1adad0021445b1567d767321b378bb2b6fef6f8c3",
+    "render-r550-windows": "be031c628e571e8a228bc4a1adad0021445b1567d767321b378bb2b6fef6f8c3"
+  },
+  "matrix": {
+    "mac-batch-r549-core-r549.xml": {
+      "total": "703",
+      "passed": "699",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "21.601"
+    },
+    "mac-batch-r549-render-r549.xml": {
+      "total": "109",
+      "passed": "109",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "35.364"
+    },
+    "ubuntu-batch-r549-core-r549.xml": {
+      "total": "703",
+      "passed": "699",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "57.863"
+    },
+    "ubuntu-batch-r549-render-r549.xml": {
+      "total": "109",
+      "passed": "109",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "47.941"
+    },
+    "windows-batch-r549-core-r549.xml": {
+      "total": "721",
+      "passed": "673",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "18.918"
+    },
+    "windows-batch-r549-native-r549.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "43.272"
+    },
+    "windows-batch-r549-render-r549.xml": {
+      "total": "109",
+      "passed": "108",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "64.856"
+    }
+  },
+  "targetedControls": {
+    "mac": [
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.EightQuarantinedQuotaWorkersKeepTheGlobalAdmissionUntilProcessExit",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.UnconfirmedRetirementKeepsItsUnitAndAttemptsOtherTokensOnce",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeFileTokenCloseRefusalKeepsCapacityAfterFinalQuotaCloseUntilActualExit",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.DeniedGrowthRollbackRetainsFailedTokenAndClosesEveryOtherAcquisition",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.InvalidUnreturnedTokenKeepsItsOwnerAndPreventsASecondRead",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.ConfirmedShrinkAndFinalRetirementReturnExactlyTheirOwnUnits",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.LockAndCloseFailuresRemainVisibleWhileEarlierAcquisitionsAreClosed",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.UnconfirmedBusyProbeCloseKeepsItsProvisionalChargeAndCannotProbeAnotherSlot",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-release\\\")",
+        "result": "Skip"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-close\\\")",
+        "result": "Skip"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-removed\\\")",
+        "result": "Pass"
+      }
+    ],
+    "ubuntu": [
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.InvalidUnreturnedTokenKeepsItsOwnerAndPreventsASecondRead",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.LockAndCloseFailuresRemainVisibleWhileEarlierAcquisitionsAreClosed",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeFileTokenCloseRefusalKeepsCapacityAfterFinalQuotaCloseUntilActualExit",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.EightQuarantinedQuotaWorkersKeepTheGlobalAdmissionUntilProcessExit",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.ConfirmedShrinkAndFinalRetirementReturnExactlyTheirOwnUnits",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.UnconfirmedBusyProbeCloseKeepsItsProvisionalChargeAndCannotProbeAnotherSlot",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-release\\\")",
+        "result": "Skip"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-close\\\")",
+        "result": "Skip"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-removed\\\")",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.UnconfirmedRetirementKeepsItsUnitAndAttemptsOtherTokensOnce",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.DeniedGrowthRollbackRetainsFailedTokenAndClosesEveryOtherAcquisition",
+        "result": "Pass"
+      }
+    ],
+    "windows": [
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.UnconfirmedBusyProbeCloseKeepsItsProvisionalChargeAndCannotProbeAnotherSlot",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.EightQuarantinedQuotaWorkersKeepTheGlobalAdmissionUntilProcessExit",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.DeniedGrowthRollbackRetainsFailedTokenAndClosesEveryOtherAcquisition",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-release\\\")",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-close\\\")",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-removed\\\")",
+        "result": "Skip"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.ConfirmedShrinkAndFinalRetirementReturnExactlyTheirOwnUnits",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.UnconfirmedRetirementKeepsItsUnitAndAttemptsOtherTokensOnce",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.LockAndCloseFailuresRemainVisibleWhileEarlierAcquisitionsAreClosed",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeFileTokenCloseRefusalKeepsCapacityAfterFinalQuotaCloseUntilActualExit",
+        "result": "Skip"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.InvalidUnreturnedTokenKeepsItsOwnerAndPreventsASecondRead",
+        "result": "Pass"
+      }
+    ]
+  },
+  "directTokenControls": 6,
+  "finalBuild": "build-r548.txt: full solution zero warnings/errors",
+  "nativeProbeLimits": "File-token and Windows release injections refuse before the real close/release, retaining actual physical capacity through child exit. Windows checked-close injection forwards actual successful close then reports failure; physical mutex capacity is already released, while local charges remain conservative. Unix removes the exact fresh owned set and observes a real native failure; this does not prove IPC namespace continuity. Eight failed quota workers keep admission and native charges; no retry or worker termination before child exit. Full native acquisition/constructor/fault matrix remains required.",
+  "batchWorkflow": "One immutable bundle per platform; sequential applicable suites, integrity/occupancy gates and authoritative final inventories.",
+  "processExitEvidence": "All original batch handles terminal, guest states FINISHED exit=0, final inventories empty all3. Every owned probe child actually exited. No host app/input testing or other tester termination.",
+  "remainingResourceQualification": [
+    "Complete native acquisition/constructor/rollback and every close-result fault boundary, including actual OS failure modes and normal packaged lifetime qualification.",
+    "Qualify full shared memory/pending/CPU/device-alias admission, every hard limit and end-to-end1M/10M workloads."
+  ],
+  "qualification": {
+    "fileTokenRetirementAccountingImplemented": true,
+    "checkedWindowsKernelHandleRetirementImplemented": true,
+    "faultedQuotaWorkerAdmissionImplemented": true,
+    "nativeCrossProcessFileTokenRetentionPassedAllThree": true,
+    "nativeWindowsMutexRetentionControlsPassed": true,
+    "nativeUnixRemovedIpcRetentionControlsPassed": true,
+    "nativeEightWorkerRetentionPassedAllThree": true,
+    "fullNativeConstructorRollbackFaultMatrixQualified": false,
+    "unconfirmedOwnerBudgetAccountingQualified": false,
+    "fullResourceGateQualified": false,
+    "globalPendingCpuDeviceAliasGateQualified": false,
+    "nativeDesktopInputQualified": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

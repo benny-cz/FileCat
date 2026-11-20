@@ -1,0 +1,78 @@
+{
+  "purpose": "Native exact external index storage; not full analysis scale qualification",
+  "archiveSha256": "9abb43dd0cfe7d00ea6ac82af094b6d49f00f253ca1955225a08e27292d55047",
+  "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+  "architecture": "x86_64",
+  "runs": [
+    {
+      "records": 1000000,
+      "processId": 458007,
+      "exitCode": 0,
+      "ownedProcessExited": true,
+      "measurement": {
+        "purpose": "Native exact external index storage only; not source traversal or full analysis/aggregation/query/chart/export qualification",
+        "records": 1000000,
+        "inputOrder": "reverse binary key order",
+        "ordinaryKeyBytes": 24,
+        "longKeyBytes": 65536,
+        "longKeyEvery": 1024,
+        "writeSeconds": 13.0961272,
+        "readSeconds": 2.7035718,
+        "scratchBytes": 104074376,
+        "sampledPeakSessionScratchBytes": 208157216,
+        "sampledIntervalMilliseconds": 50,
+        "privateMemoryAvailable": true,
+        "baselinePrivateBytes": 96870400,
+        "sampledPeakPrivateIncrement": 99971072,
+        "privateMemoryBudgetVerified": true,
+        "privateMemoryBasis": ".NET process private bytes; sampled, not an absolute peak",
+        "sampledPeakWorkingSetIncrement": 85700608,
+        "verifiedEveryRecord": true,
+        "exactRangesVerified": true,
+        "retainedReaderSurvivedOwnerClosure": true,
+        "checksum": 500000500000,
+        "ownedArtifactsRemoved": true,
+        "remainingQuotaBytes": 0,
+        "passed": true
+      }
+    },
+    {
+      "records": 10000000,
+      "processId": 458028,
+      "exitCode": 0,
+      "ownedProcessExited": true,
+      "measurement": {
+        "purpose": "Native exact external index storage only; not source traversal or full analysis/aggregation/query/chart/export qualification",
+        "records": 10000000,
+        "inputOrder": "reverse binary key order",
+        "ordinaryKeyBytes": 24,
+        "longKeyBytes": 65536,
+        "longKeyEvery": 1024,
+        "writeSeconds": 128.6233751,
+        "readSeconds": 26.8282514,
+        "scratchBytes": 1041054392,
+        "sampledPeakSessionScratchBytes": 2082197656,
+        "sampledIntervalMilliseconds": 50,
+        "privateMemoryAvailable": true,
+        "baselinePrivateBytes": 96870400,
+        "sampledPeakPrivateIncrement": 183132160,
+        "privateMemoryBudgetVerified": true,
+        "privateMemoryBasis": ".NET process private bytes; sampled, not an absolute peak",
+        "sampledPeakWorkingSetIncrement": 140705792,
+        "verifiedEveryRecord": true,
+        "exactRangesVerified": true,
+        "retainedReaderSurvivedOwnerClosure": true,
+        "checksum": 50000005000000,
+        "ownedArtifactsRemoved": true,
+        "remainingQuotaBytes": 0,
+        "passed": true
+      }
+    }
+  ],
+  "hashes": {
+    "FileCat.Core.dll": "108d3faa4f90cbdbc5c8fcfcdb7963673e3cb99ba200bedd396af0772b6810b6",
+    "FileCat.CoreCrashHarness.dll": "fd4ae18202127132d6b00b83c9d2a1a2eb44645b6f792ed4401d19f18349439a",
+    "FileCat.Platform.Windows.dll": "83dbb366ad3ca2056b2bc6108c507082d4345e2717407a235d1c78bdb6e291c4"
+  },
+  "passed": true
+}

@@ -1,0 +1,126 @@
+{
+  "sourceBase": "d95974a5156faa9f5f7af9d94c6ad0b3e1fb05b6",
+  "sources": {
+    "src/FileCat.App/Services/AnalysisDuplicateReadPlan.cs": "5d197d8853eac37e5bf42a3ee5146a634b5ef3390a07b5894b2b040fa7b3c843",
+    "src/FileCat.App/Services/AnalysisIndexedAcquisition.Duplicates.cs": "c0de76bc1e96ce90901d15cca9fd6d8225915439f737ee69a4ecd6528abe0fee",
+    "src/FileCat.App/Services/AnalysisIndexedAcquisition.cs": "f255c5e1c7fc405afd7c884c2a50aa8988f140502d2f0d993cb0e233264b7695",
+    "src/FileCat.App/Views/AnalysisRecipeDialog.cs": "d41fe8ee9425eb5a5138a236957c2a05410b48963f9ff0280b65ec1f0353100e",
+    "src/FileCat.App/Views/DiskSpaceWindow.DuplicateContent.cs": "49ffcde98ea673bbd29143966acc08a894ea293ffd3408e353feda0887daca5f",
+    "src/FileCat.App/Views/DiskSpaceWindow.DuplicateReview.cs": "17f7121f39d935d4f880ada8dc7ab4e99592579af598b8c57890ae971dbdebe9",
+    "src/FileCat.App/Views/DiskSpaceWindow.IndexedComparison.Persistence.cs": "6713bb714e11438d5bfccd5dd34e00839598141069138e498b1a1b051a3beec1",
+    "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.DuplicateReadConsent.cs": "048f093b64549747c1a2ae23a741ed1851a7c3ebbf8829c01681d26191a97308",
+    "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.DuplicateReview.cs": "e8ccf8b27fdf1358be08eaf1b6278658bd6a334e3e68425294ea9262a425592d",
+    "tests/FileCat.NativeAcceptance/DiskSpaceHarness/DuplicateReview.cs": "3d45870cb326f9521014d0b257741881f2e473e711e94f555dd438eb8b97f256"
+  },
+  "retained": {
+    "batch-linux-r1376.sh": "8807755b672d48070ef6e2a0364a5abaa8e4835645a859cf2a589edf4aa79bdf",
+    "batch-linux-r1377.sh": "39859ccad2c622fc6507a7d4519c224736c0cde75db1f61618326f8983c720cc",
+    "batch-mac-r1376.sh": "130d4a5c9380425fb3c4367f06d3e271aa7af6eb828df12b861de1d6888e6351",
+    "batch-mac-r1377.sh": "e2bb2af96a775b7c4db49f9e6b30147815269c15a962417c1eb57f1aef88effa",
+    "batch-r1377-linux/plan.json": "413f1b467288391ce82b9d2dcd2f9b78b1702392e6fd18a74def4a3220099f2a",
+    "batch-r1377-mac/plan.json": "f3970148159f884b1c0d1d18df67306fc8739e915e5f49fe47df40c2ac1973f0",
+    "batch-r1377-windows/plan.json": "ab3800e549d0b64a608d122ffb238b7c5e8d8248916c969ea5b6ab2d23ad9cf0",
+    "batch-windows-r1376.ps1": "0e2fea614353fb60d547079eaab9e6ca299b4f2ac36cc723dae23c0427e884b7",
+    "batch-windows-r1377.ps1": "ec77bc4759da5d5652a6f99225e8bb1d195b82b2c38a8b4d152e2856e8ff2895",
+    "duplicate-content-native-build-r1377.txt": "6302b5ccafb65fbd1244ec89a32bd3904f41d91f4ecceb3c307a7a23e7e84cd8",
+    "duplicate-content-native-proof-r1377.json": "39e3744f351723d36952b193b18d9857d8529a67b2f70ab0c1bba1914ae251d1",
+    "duplicate-content-source-proof-r1376.json": "fd840c481669a13a498815a0feb0a8e662c0f602b186752b8d80a67ccaed91b8",
+    "duplicate-read-app-first-build-r1376.txt": "fd0cdaba0efea1947385446538f0f20a25b203fa93b771c76f62a99627769e9b",
+    "duplicate-read-fixture-build-r1376.txt": "d968b626850176d9ee39c1980d71abf4c0ba62389f15c6d4a95e8898e55f51b9",
+    "duplicate-read-render-build-r1376.txt": "26b240680f05d6d8cda8416422ff3c2ebfb935e7154475fda6fdf05a839362a8",
+    "mac-batch-r1376-post.json": "897bb738d321ca7a2b1fb953681c8fe28854618ed24cfd8376e406e029bd5f4f",
+    "mac-batch-r1376-results.tgz": "e956631213c978ce60e2819a4751b87351855f9b8926bc429a92b12085ddb9e5",
+    "mac-native-r1377-post.json": "a80ad280856eab6abde9ea6db3081c3fae7ee9c4ebd4eba1fc66930b891a2a90",
+    "recipe-rendering-proof-r1376.json": "e79e0f50352dffd7a498807e99540a76ae450d411d88249af08a5ed74f33f03a",
+    "ubuntu-batch-r1376-post.json": "a0cd3f8c274453d13500afd1747b9ff0d3cd08767592453c965107be85738336",
+    "ubuntu-batch-r1376-results.tgz": "4fda78bd091005e97834b99b9da820aa3e32e9b959d6c73cfe414b8273b3e07d",
+    "ubuntu-native-r1377-post.json": "88e7a443f085e0170be4b8a428e6a8427b06036df91b760df4ef85110d761c01",
+    "ubuntu-native-r1377-results.tgz": "8453497a1197217a2dfb5cc453f859f7b2924e153114388813da3909965a9cee",
+    "windows-batch-r1376-busy-post.json": "af3e8e1dfd4121f2ed8b62b23a2bcff8d62d6b5bc324161e73c2ccf72cce31dd",
+    "windows-batch-r1376-busy-results.tgz": "7403d9d4b0088c78f15a6685586e914dd5cddebff1d236034da88a8fc62eb224",
+    "windows-batch-r1376-post.json": "952857ba65d834d4c649d9c67f7dee09b13d74d7bca58ebbf75626bbc34c8d1f",
+    "windows-batch-r1376-results.tgz": "bdf2f577d74eadfa9ce97a09586bfcaa17be1f565c90bec026841c547c4915b0",
+    "windows-batch-r1376-task-outcome.json": "74694f5f33bf13333c57b825486ff7dbf541188b2da640f04cd2c63e70d56dc8",
+    "windows-native-r1377-post.json": "afedaca703b2fe73d2577f028b18af63d00d544d19af8bf2a7d13dd46953f91c",
+    "windows-native-r1377-results.tgz": "189f07a4fc46b358b86cbd32a3c63f27b1bb1f06ecb70dab945c6dae2ccd0b33",
+    "windows-native-r1377-task-outcome.json": "4a4783d44161303df135834f7c3be8d1ccda5a3c4bc53c6054374bf886cbfd2b",
+    "mac-native-r1377-results-without-desktop.tgz": "13f3b04600a08414e5a4ce4ea64bfc4dde212b2c31c43c289ec1c0ee32937ec5"
+  },
+  "nativeResults": {
+    "windows": {
+      "finished": true,
+      "passed": true,
+      "sessions": 2,
+      "candidateObjects": 2,
+      "knownReadBytes": 8,
+      "capturedMarks": 4,
+      "additionalHardLinkNames": 1,
+      "preservingDefault": true,
+      "retainedHiddenMarksAndBasket": true,
+      "contentAvailable": true,
+      "contentGroups": 1
+    },
+    "mac": {
+      "finished": true,
+      "passed": true,
+      "sessions": 2,
+      "candidateObjects": 2,
+      "knownReadBytes": 8,
+      "capturedMarks": 4,
+      "additionalHardLinkNames": 1,
+      "preservingDefault": true,
+      "retainedHiddenMarksAndBasket": true,
+      "contentAvailable": false,
+      "contentGroups": 0
+    },
+    "ubuntu": {
+      "finished": true,
+      "passed": true,
+      "sessions": 2,
+      "candidateObjects": 2,
+      "knownReadBytes": 8,
+      "capturedMarks": 4,
+      "additionalHardLinkNames": 1,
+      "preservingDefault": true,
+      "retainedHiddenMarksAndBasket": true,
+      "contentAvailable": false,
+      "contentGroups": 0
+    }
+  },
+  "archives": {
+    "exact-source-deltas-r1378-duplicate-content.tgz": "b96f66bc054d22640c2a24769ef5f89bb22ab2d0e78ca1e9c00958d62b11b3b6",
+    "exact-receipts-r1378-duplicate-content.tgz": "134f43928a22f593d23e5c50afbe7f6f8d84cb1dea23c1848fb2af3342683cb0"
+  },
+  "localMacDesktopCapture": {
+    "capture": {
+      "frame": "duplicate-review-estimate.png",
+      "ownedWindow": {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 791,
+          "Width": 1180,
+          "X": 130,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowNumber": 402,
+        "kCGWindowOwnerName": "FileCat",
+        "kCGWindowOwnerPID": 94733,
+        "kCGWindowSharingState": 0,
+        "kCGWindowStoreType": 1
+      },
+      "width": 2880,
+      "height": 1800,
+      "sha256": "31634e8f6ff526f404731fda3d506714670daddcbbbad8b57772a8c5d79169f2",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper"
+    },
+    "archiveSha256": "fa459e8669662e0d21722459c01d50877d4613d3a3d03a5a4405c75188040a12"
+  },
+  "contentReadsEnabledForInternalLocalNtfs": true,
+  "publicEntryEnabled": false,
+  "physicalInputQualified": false,
+  "fullGoalComplete": false,
+  "finalIndependentReviewPerformed": false
+}

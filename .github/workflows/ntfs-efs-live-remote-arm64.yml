@@ -1,0 +1,48 @@
+name: Windows ARM64 EFS live remote qualification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-remote:
+    name: Live EFS upload approval on ARM64
+    runs-on: windows-11-arm
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: Prepare the loopback servers
+        shell: pwsh
+        run: |
+          python -m pip install --only-binary=cryptography,cffi,pynacl,bcrypt --report "$env:RUNNER_TEMP/efs-live-remote-python.json" pyftpdlib pyopenssl paramiko
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tests/FileCat.NativeAcceptance/test_win_ftp_owned_stage.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tests/FileCat.NativeAcceptance/test_win_sftp_owned_stage.py
+          exit $LASTEXITCODE
+      - name: Build the App tests with locked dependencies
+        run: dotnet build tests/FileCat.App.Tests -c Release -p:RestoreLockedMode=true
+      - name: Exercise FTP, FTPES, FTPS and SFTP at medium integrity
+        shell: pwsh
+        run: |
+          ./eng/validation/Test-NativeEfsRemoteTransports.ps1 -EvidenceDirectory "$env:RUNNER_TEMP/efs-live-remote-arm64" -Architecture Arm64
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: native-efs-live-remote-arm64
+          path: |
+            ${{ runner.temp }}/efs-live-remote-python.json
+            ${{ runner.temp }}/efs-live-remote-arm64/*.json
+            ${{ runner.temp }}/efs-live-remote-arm64/*.trx
+            ${{ runner.temp }}/efs-live-remote-arm64/*-server.log
+          if-no-files-found: error

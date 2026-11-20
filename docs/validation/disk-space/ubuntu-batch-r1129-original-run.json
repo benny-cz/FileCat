@@ -1,0 +1,9 @@
+{
+  "platform": "ubuntu",
+  "revision": "r1129",
+  "sessionId": 70979,
+  "terminalToolChunk": "b2c2a4",
+  "terminalExit": 1,
+  "observedUtc": "2026-11-16T16:42:44.793445+00:00",
+  "reason": "Preflight 106/119 passed; corrected sparse-ID, UInt128 reference-total and compact raw-name test fixtures before acceptance."
+}

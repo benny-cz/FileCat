@@ -1,0 +1,218 @@
+"""Stage insight and recipe tests over the verified rendering build."""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import tarfile
+
+parser = argparse.ArgumentParser()
+parser.add_argument("revision")
+scope = parser.add_mutually_exclusive_group()
+scope.add_argument("--growth", action="store_true")
+scope.add_argument("--duplicates", action="store_true")
+scope.add_argument("--duplicate-content", action="store_true")
+scope.add_argument("--recorded-insights", action="store_true")
+scope.add_argument("--protected-objects", action="store_true")
+scope.add_argument("--recipe-staging", action="store_true")
+scope.add_argument("--recipe-staging-fixture", action="store_true")
+scope.add_argument("--ntfs-streams", action="store_true")
+scope.add_argument("--apfs-forks", action="store_true")
+scope.add_argument("--cleanup-review", action="store_true")
+scope.add_argument("--cleanup-review-fixture", metavar="BASE_REVISION")
+scope.add_argument("--reviewed-copy-fixture", metavar="BASE_REVISION")
+scope.add_argument("--fast-ntfs-transport", metavar="BASE_REVISION")
+options = parser.parse_args()
+revision = options.revision
+methods = ["*NativeRecipeDialogPreviewsOnlyCapturedFilesWithContextAndLeavesSourceAndMarksAlone*"]
+expected = 2
+if options.growth:
+    methods = ["*ComparisonPaneFiltersGrowthInspectsBothSidesAndKeepsItsCloseDefault*",
+               "*NativeIndexedGrowthRecipeShowsOnlyKnownPositiveDifferencesInTheMappedScope*",
+               "*NativeIndexedComparisonIncompatiblePoliciesRequireExplicitLimitedReview*",
+               "*NativeIndexedComparisonQueryViewAppliesSidesCohortsOrdersAndPreservesAnInvalidRequest*",
+               "*NativeIndexedComparisonCatalogRouteUsesEntireRevisionsAndPagesBothRecordedSides*"]
+    expected = 12
+    log = (Path.cwd() / ".tmp/growth-insight-render-build-r1357.txt").read_text(encoding="utf-8-sig")
+    assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
+if options.duplicates or options.duplicate_content or options.recorded_insights or options.recipe_staging or options.ntfs_streams or options.apfs_forks or options.cleanup_review:
+    methods = ["*DuplicateReview*",
+               "*NativeRecipeDialogPreviewsOnlyCapturedFilesWithContextAndLeavesSourceAndMarksAlone*",
+               "*NativeSavedRecipeStorePreservesCapturedScopeAcrossPrivateOpens*",
+               "*NativeSavedRecipeDialogKeepsExplicitRootsWhenTheQueryMentionsAnotherLocation*",
+               "*ComparisonPaneFiltersGrowthInspectsBothSidesAndKeepsItsCloseDefault*",
+               "*NativeIndexedGrowthRecipeShowsOnlyKnownPositiveDifferencesInTheMappedScope*",
+               "*IndexedSelectionBasketPagesItsCapturedSnapshotAndAllowsRemovalWithoutChangingMarksOrSource*"]
+    expected = 12
+    name = f"duplicate-estimate-render-build-{revision}-serial"
+    if options.duplicate_content or options.recorded_insights or options.recipe_staging or options.ntfs_streams or options.apfs_forks or options.cleanup_review:
+        methods.extend(("*NativeDuplicateReadConsent*", "*DuplicateReadPlanBindsConfirmedMembersCostAndOneRun*"))
+        expected = 16
+        name = f"duplicate-read-render-build-{revision}"
+    if options.recorded_insights or options.recipe_staging or options.ntfs_streams or options.apfs_forks or options.cleanup_review:
+        methods.append("*RecordedInsight*")
+        expected = 20
+        name = f"recorded-insight-render-build-{revision}"
+    if options.recipe_staging or options.ntfs_streams or options.apfs_forks or options.cleanup_review:
+        methods.extend(("*NativeRecipeStaging*", "*NativeCapturedReports*", "*NativeExternalExport*"))
+        expected = 51
+        name = f"recipe-staging-render-build-{revision}"
+    if options.ntfs_streams or options.apfs_forks or options.cleanup_review:
+        methods.append("*NativeDetailedExtraAllocation*")
+        expected = 53
+        name = f"ntfs-streams-render-build-{revision}"
+    if options.apfs_forks or options.cleanup_review:
+        methods.append("*ResourceForkAllocationRequiresReturnedAndConsistentFields*")
+        expected = 54
+        name = f"apfs-forks-render-build-{revision}"
+    if options.cleanup_review:
+        methods.extend(("*NativeCleanupReview*", "*NativePrimaryPreview*", "*NativeReviewedCopy*", "*NativeReviewedMove*", "*CleanupReviewTotalsSeparateBasisCoverageAndOverlappingComponents*",
+                        "*ReviewedCopyRecoveryReportsExactEffectsAndKeepsFiles*", "*FastNtfsTransport*", "*FastNtfsMetadata*",
+                        "*ReviewCancelBindingRoutesFromOverlayAndEnterOnAFileOpensDetails*",
+                        "*ShortLargeTextPageScrollsAndTheRankedTableRemainsVirtualized*"))
+        expected = 72
+        name = f"cleanup-review-render-build-{revision}"
+    log = (Path.cwd() / f".tmp/{name}.txt").read_text(encoding="utf-8-sig")
+    assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
+if options.protected_objects:
+    methods = ["*NativeCapturedReports*", "*NativeExternalExport*", "*RecordedInsight*",
+               "*NativeRecipeDialogPreviewsOnlyCapturedFilesWithContextAndLeavesSourceAndMarksAlone*"]
+    expected = 35
+    log = (Path.cwd() / f".tmp/protected-objects-render-build-{revision}.txt").read_text(encoding="utf-8-sig")
+    assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
+if options.recipe_staging_fixture:
+    methods = ["*NativeRecipeStaging*"]
+    expected = 2
+    log = (Path.cwd() / f".tmp/recipe-staging-render-build-{revision}.txt").read_text(encoding="utf-8-sig")
+    assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
+retry = options.cleanup_review_fixture or options.reviewed_copy_fixture or options.fast_ntfs_transport
+if retry:
+    assert re.fullmatch(r"r[0-9]+", retry) and re.fullmatch(r"r[0-9]+", revision) and retry != revision
+    if options.fast_ntfs_transport:
+        methods, expected = ["*FastNtfsTransport*"], 3
+    elif options.reviewed_copy_fixture:
+        methods, expected = ["*NativeReviewedCopy*"], 3
+    else:
+        methods, expected = ["*NativeCleanupReview*"], 2
+    log = (Path.cwd() / f".tmp/cleanup-review-render-build-{revision}.txt").read_text(encoding="utf-8-sig")
+    assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
+root = Path.cwd()
+temp = root / ".tmp"
+binary = root / "tests/FileCat.Rendering.Tests/bin/Debug/net10.0"
+assemblies = (
+    "FileCat", "FileCat.Archives", "FileCat.Archives.Rar15", "FileCat.Core", "FileCat.CoreCrashHarness", "FileCat.Platform.Windows",
+    "FileCat.Recovery", "FileCat.Remote", "FileCat.Rendering.Tests", "FileCat.SharpCompress", "FileCat.ShellHost",
+)
+allow = {f"{name}.{extension}" for name in assemblies for extension in ("dll", "pdb")}
+allow.update(f"{name}.exe" for name in ("FileCat", "FileCat.CoreCrashHarness", "FileCat.Rendering.Tests", "FileCat.ShellHost"))
+
+def sha(path):
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+proof = {}
+retry_proof = json.loads((temp / f"recipe-rendering-proof-{retry}.json").read_text(encoding="utf-8")) if retry else None
+for platform in ("windows", "mac", "linux"):
+    baseline = temp / f"batch-r1334-{platform}/render"
+    template_revision = retry or "r1345"
+    template = temp / f"focused-delta-{platform}-{template_revision}"
+    plan = json.loads((template / "plan.json").read_text(encoding="utf-8"))
+    if retry:
+        tag = "ubuntu" if platform == "linux" else platform
+        old = retry_proof[platform]
+        assert sha(temp / f"dsa-batch-{platform}-{retry}.tgz") == old["archive"]
+        cached = json.loads((temp / f"{tag}-batch-{retry}-cache-proof.json").read_text(encoding="utf-8-sig"))
+        assert cached["revision"] == retry and cached["files"] == plan["files"], platform
+        ending = "\\render" if platform == "windows" else "/render"
+        prior_baseline = plan["baseline"].removesuffix(ending)
+        plan["baseline"], replacements = re.subn(r"r[0-9]+(?=[\\/]payload$)", retry, prior_baseline)
+        assert replacements == 1
+    plan["revision"] = revision
+    plan["methods"] = methods
+    changes = set()
+    for entry in plan["files"]:
+        name = entry["path"]
+        if retry:
+            entry["baselineSha256"] = entry["sha256"]
+        else:
+            assert sha(baseline / name) == entry["baselineSha256"], name
+        entry["sha256"] = sha(binary / name)
+        entry["patch"] = entry["sha256"] != entry["baselineSha256"]
+        if entry["patch"]:
+            changes.add(name)
+    assert changes <= allow, f"Review changed rendering inputs: {sorted(changes - allow)}"
+    if options.fast_ntfs_transport:
+        tests = {"FileCat.Rendering.Tests.dll", "FileCat.Rendering.Tests.pdb"}
+        transport = {f"{stem}.{ext}" for stem in ("FileCat.Platform.Windows", "FileCat.Rendering.Tests") for ext in ("dll", "pdb")}
+        dependents = {f"{stem}.{ext}" for stem in ("FileCat", "FileCat.ShellHost") for ext in ("dll", "pdb")}
+        assert changes == tests or transport <= changes <= transport | dependents, sorted(changes)
+    elif retry:
+        assert changes == {"FileCat.Rendering.Tests.dll", "FileCat.Rendering.Tests.pdb"}, sorted(changes)
+    else:
+        assert {"FileCat.Core.dll", "FileCat.dll", "FileCat.Rendering.Tests.dll"} <= changes
+    stage = temp / f"focused-delta-{platform}-{revision}"
+    (stage / "patch").mkdir(parents=True)
+    for name in sorted(changes):
+        shutil.copyfile(binary / name, stage / "patch" / name)
+    (stage / "plan.json").write_text(json.dumps(plan, indent=2), encoding="utf-8")
+    if platform != "windows":
+        worker = (template / "run.py").read_text(encoding="utf-8")
+        if retry:
+            prior_patch = repr(tuple(old["patch"]))
+            assert worker.count(prior_patch) == 1
+            worker = worker.replace(prior_patch, repr(tuple(sorted(changes))))
+            worker, replaced = re.subn(r"\[\d+,\d+,0,0,0\]", f"[{expected},{expected},0,0,0]", worker)
+            assert replaced == 1
+        else:
+            worker = worker.replace(
+                "(plan['assembly'],plan['assembly'][:-4]+'.pdb','FileCat.dll','FileCat.pdb')", repr(tuple(sorted(changes)))
+            ).replace("[10,10,0,0,0]", f"[{expected},{expected},0,0,0]")
+        compile(worker, "run.py", "exec")
+        (stage / "run.py").write_text(worker, encoding="utf-8", newline="\n")
+    archive = temp / f"dsa-batch-{platform}-{revision}.tgz"
+    assert not archive.exists()
+    with tarfile.open(archive, "w:gz", compresslevel=4) as output:
+        for path in stage.rglob("*"):
+            if path.is_file():
+                output.add(path, arcname=path.relative_to(stage).as_posix(), recursive=False)
+    suffix = ".ps1" if platform == "windows" else ".sh"
+    launcher = temp / f"batch-{platform}-{template_revision}{suffix}"
+    if retry:
+        assert sha(launcher) == old["runner"]
+    runner = launcher.read_text(encoding="utf-8").replace(
+        sha(temp / f"dsa-batch-{platform}-{template_revision}.tgz"), sha(archive)
+    ).replace(template_revision, revision)
+    if platform == "windows":
+        quoted = ",".join(f"'{name}'" for name in sorted(changes))
+        if retry:
+            prior_quoted = ",".join(f"'{name}'" for name in old["patch"])
+            assert prior_baseline in runner and runner.count(f"@({prior_quoted})") == 1
+            runner = runner.replace(prior_baseline, plan["baseline"]).replace(f"@({prior_quoted})", f"@({quoted})")
+            runner, replaced = re.subn(r"\[int\]\$a\.total-ne\d+-or\[int\]\$a\.passed-ne\d+",
+                                       f"[int]$a.total-ne{expected}-or[int]$a.passed-ne{expected}", runner)
+            assert replaced == 1
+        else:
+            runner = runner.replace("$plan.assembly,($plan.assembly-replace'[.]dll$','.pdb'),'FileCat.dll','FileCat.pdb'", f"@({quoted})").replace(
+                "[int]$a.total-ne10-or[int]$a.passed-ne10", f"[int]$a.total-ne{expected}-or[int]$a.passed-ne{expected}"
+            )
+    runner_path = temp / f"batch-{platform}-{revision}{suffix}"
+    runner_path.write_text(runner, encoding="utf-8", newline="\n")
+    proof[platform] = {"archive": sha(archive), "runner": sha(runner_path), "size": archive.stat().st_size, "patch": sorted(changes)}
+(temp / f"cache-input-{revision}").mkdir()
+(temp / f"recipe-rendering-proof-{revision}.json").write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
+if options.growth or options.duplicates or options.duplicate_content or options.recorded_insights or options.protected_objects or options.recipe_staging or options.recipe_staging_fixture or options.ntfs_streams or options.apfs_forks or options.cleanup_review or retry:
+    slice_name = ("cleanup-review" if options.cleanup_review or retry else "apfs-forks" if options.apfs_forks else "ntfs-streams" if options.ntfs_streams else "recipe-staging" if options.recipe_staging or options.recipe_staging_fixture else "protected-objects" if options.protected_objects else "growth" if options.growth else "recorded-insights" if options.recorded_insights else
+                  "duplicate-content" if options.duplicate_content else "duplicate-estimate")
+    source_changes = set(subprocess.check_output(["git", "diff", "--name-only", "HEAD", "--", "src", "tests"], text=True).splitlines())
+    source_changes.update(subprocess.check_output(["git", "ls-files", "--others", "--exclude-standard", "src", "tests"], text=True).splitlines())
+    source_archive = temp / f"source-{revision}-{slice_name}-delta.tgz"
+    assert not source_archive.exists()
+    with tarfile.open(source_archive, "w:gz") as archive:
+        for name in sorted(source_changes):
+            archive.add(root / name, arcname=name, recursive=False)
+    origin = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    (temp / f"{slice_name}-source-proof-{revision}.json").write_text(json.dumps({"head": origin, "archive": sha(source_archive),
+        "changes": {name: sha(root / name) for name in sorted(source_changes)}}, indent=2) + "\n", encoding="utf-8")
+print(json.dumps(proof))

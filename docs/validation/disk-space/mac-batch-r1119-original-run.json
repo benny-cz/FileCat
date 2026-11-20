@@ -1,0 +1,9 @@
+{
+  "platform": "mac",
+  "revision": "r1119",
+  "terminalExit": 1,
+  "sessionId": null,
+  "terminalToolChunk": "1d9a49",
+  "observedUtc": "2026-11-16T14:45:34.103970+00:00",
+  "reason": "14 cases ran: 13 passed; discovery transport replaced both unpaired UTF-16 InlineData values. Fixture corrected before acceptance."
+}

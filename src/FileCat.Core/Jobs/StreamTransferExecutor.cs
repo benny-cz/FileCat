@@ -32,6 +32,11 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     : ExecutorBase(job, fs, journal), IHonorsTransferFilter, IHonorsReadBackVerification
 {
     private const int BufferSize = 1024 * 1024;
+    // One copy buffer for the whole job (items are copied one at a time): a fresh 1 MiB array per item is a large-object
+    // allocation, zeroed every time, and for thousands of small archive members it drove full collections that stalled
+    // extraction (R22). Every read writes only the bytes it returned, so an earlier item's bytes never reach a copy.
+    private byte[]? _buffer;
+    private byte[] CopyBuffer => _buffer ??= new byte[BufferSize];
 
     /// <summary>1980-01-01: a content revision that states an earlier "time" states a version counter or nothing.</summary>
     private const long MinimumFileTimeTicks = 624_511_296_000_000_000;
@@ -204,13 +209,15 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         var path = Path.GetFullPath(target);
         foreach (var backing in _backingFiles)
             if (PathUtil.SafetyComparer.Equals(path, backing.Path)) throw new IOException(refusal);
-        var final = Fs.GetFinalPath(path);
-        var identity = Fs.GetFileIdentity(final ?? path);
+        var observed = Fs.ObserveResolvedFile(path);
+        var final = observed.FinalPath;
+        var identity = observed.Identity;
         foreach (var backing in _backingFiles)
         {
             if (observeCancellation) Job.Checkpoint();
-            var currentFinal = Fs.GetFinalPath(backing.Path);
-            var currentIdentity = Fs.GetFileIdentity(currentFinal ?? backing.Path);
+            var current = Fs.ObserveResolvedFile(backing.Path);
+            var currentFinal = current.FinalPath;
+            var currentIdentity = current.Identity;
             // A formerly observed container that moved or changed identity may now occupy the output.
             // Missing answers are not proof that cleanup or publication would leave its bytes alone.
             if (backing.Identity is not null && !StringComparer.Ordinal.Equals(backing.Identity, currentIdentity) ||
@@ -354,12 +361,13 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             // What this file system cannot replace bound to its review (a link, or on Linux, macOS or a network share, by
             // the owner's policy) is not offered for replacement, and a policy to replace asks instead: before anything
             // is extracted, not refused after it.
-            bool replaceable = !existing.IsDirectory && !existing.IsLink && Fs.CanReplaceReviewed(dst);
+            bool efs = IsEfsProtected(existing);
+            bool replaceable = !existing.IsDirectory && !existing.IsLink && !efs && Fs.CanReplaceReviewed(dst);
             var policy = Job.Request.Options.Conflicts;
             if (!replaceable && policy is ConflictPolicy.Replace or ConflictPolicy.ReplaceIfNewer) policy = ConflictPolicy.Ask;
             DecisionAction Ask(FileSystemItemInfo shown)
             {
-                var request = new ConflictRequest("An item with this name already exists", Path.GetFileName(dst), incoming, shown, item.Name, dst,
+                var request = new ConflictRequest(efs ? "The destination uses Windows EFS" : "An item with this name already exists", Path.GetFileName(dst), incoming, shown, item.Name, dst,
                     replaceable, false, shown.IsDirectory, incoming.ModifiedUtc > shown.ModifiedUtc, Path.GetFileName(Unique(dst)), null);
                 atQuestion = ReviewAtQuestion(request, dst);
                 return Job.Ask(request).Action;
@@ -410,7 +418,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         try
         {
             // Read once from start to end: a large archive member is then decompressed straight into the copy.
-            content = Content.ProgressiveContent.Sequential(provider.OpenContent(item));
+            content = OpenExtractionSource(provider, item);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {
@@ -498,7 +506,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                     // become one; if it already had, nothing is written there (AC-20).
                     if (Fs.HeldDirectoryRedirected(directoryLease))
                         throw new IOException("The destination folder became a link before anything was written; nothing was written through it.");
-                    var buffer = new byte[BufferSize];
+                    var buffer = CopyBuffer;
                     var pace = new TransferPace();
                     while (true)
                     {
@@ -687,7 +695,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             try
             {
                 byte[] theirs;
-                using (var again = Content.ProgressiveContent.Sequential(provider.OpenContent(item)) ?? throw new IOException("The item has no readable content any more."))
+                using (var again = OpenExtractionSource(provider, item) ?? throw new IOException("The item has no readable content any more."))
                     theirs = HashContent(again, length, copiedRevision, Progress);
                 streamDone = 0;
                 var ours = PortableFileOperations.HashFile(staged, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress, length);
@@ -727,7 +735,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         }
         CheckVersion();
         using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
-        var buffer = new byte[BufferSize];
+        var buffer = CopyBuffer; // The copy that read into it has finished.
         long offset = 0;
         while (true)
         {
@@ -752,6 +760,14 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     }
 
     private const int ResumeCheckBytes = 64 * 1024;
+
+    private static IContentSource? OpenExtractionSource(ResourceProvider provider, ItemRef item)
+    {
+        var opened = OperatingSystem.IsWindows() && provider is IUnprotectedContentOutput derived
+            ? derived.OpenUnprotectedOutput(item, ContentOutputKind.Extraction)
+            : provider.OpenContent(item);
+        return Content.ProgressiveContent.Sequential(opened);
+    }
 
     /// <summary>
     /// After the source failed part way (plan §14: "verify resumable partial content before reuse"): the first failure
@@ -779,7 +795,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             IContentSource? next = null;
             try
             {
-                next = provider.OpenContent(item) ?? throw new IOException("The item has no readable content any more.");
+                next = OpenExtractionSource(provider, item) ?? throw new IOException("The item has no readable content any more.");
                 if (Unchanged(next, revision, staged, written))
                 {
                     staged.Position = written;

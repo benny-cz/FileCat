@@ -1,5 +1,7 @@
 # Preview.2 CI gate and immutable tag — 29 October 2026
 
+**Current release state (2026-10-31):** At the owner's explicit request, private draft release `428547179` and its 24 hosted assets were deleted. GitHub's release list then contained only public preview.4. The protected annotated `v1.0.0-preview.2` Git tag remained at object `5dceff760fade2f64932d73a11e1b7e243b21544`. The inventory and verification below are historical receipts, not current download links.
+
 **Tag and private-draft precursor only. No public release or final-candidate acceptance.** The owner explicitly approved creating `v1.0.0-preview.2` at `5911b0da121d18a8953b0ac0906fc7876a913b90` after all required CI lanes passed. [The exact-source Windows local preflight](E-PREVIEW2-5911-local-preflight.md) produced two version-starting ZIPs and three SPDX documents. The earlier `v1.0.0-preview.1` tag remains immutable at `be40902e` and its protected draft failed before upload; it lacks AC-59 and I563.
 
 ## Exact-source CI and skip reconciliation

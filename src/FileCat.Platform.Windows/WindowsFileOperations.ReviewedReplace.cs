@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Security.Cryptography;
+using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Platform.Windows.Elevation;
 using FileCat.Platform.Windows.Shell;
@@ -8,8 +9,9 @@ using static FileCat.Platform.Windows.Elevation.NtFile;
 
 namespace FileCat.Platform.Windows;
 
-public partial class WindowsFileOperations
+public partial class WindowsFileOperations : ILegacyZipBackupRestorer
 {
+    private const string EfsReplacementUnavailable = "This replacement cannot preserve the destination's EFS protection. The protected file was kept.";
     /// <summary>
     /// Fixed and removable drives (a USB stick, an SD card): their items can be held, checked and renamed by handle. A
     /// network location cannot bind replacement to the reviewed object, and by the owner's policy is not replaced.
@@ -22,6 +24,28 @@ public partial class WindowsFileOperations
     }
 
     public override bool CanReplaceReviewed(string destination) => OperatingSystem.IsWindows() && IsReplaceVolume(destination);
+
+    bool ILegacyZipBackupRestorer.TryRestoreLegacyZipBackup(string backup, string archive, string originalIdentity)
+    {
+        string parentPath = Path.GetDirectoryName(archive)!;
+        if (!PathUtil.SafetyComparer.Equals(parentPath, Path.GetDirectoryName(backup))) return false;
+        using var parent = LocalIconFileLease.TryOpenPlainDirectory(parentPath);
+        if (parent is null) return false;
+        try
+        {
+            // Open metadata and rename rights only. Renaming the same original preserves EFS and its streams.
+            using var file = OpenOrThrow(parent.LastHandle, Path.GetFileName(backup), ReadAttributes | Delete | Synchronize,
+                ShareRead, Open, NonDirectoryFile | OpenReparsePoint, "Open retained ZIP original");
+            if (GetReparseTag(file) != 0 || ProtectedHexFile.Identity(file).ToString() != originalIdentity) return false;
+            NtFile.Rename(file, parent.LastHandle, Path.GetFileName(archive), replace: false);
+            WriteThrough(parentPath);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception)
+        {
+            return false;
+        }
+    }
 
     public override BoundTreeDeletion? DeleteReviewedTree(string path, IReadOnlyList<BoundDeletionEntry> reviewed,
         Action checkpoint, CancellationToken ct)
@@ -78,6 +102,64 @@ public partial class WindowsFileOperations
     public override BoundDeletion? DeleteReviewedFile(string path, string? expectedIdentity, string expectedSha256,
         long expectedLength, CancellationToken ct)
         => DeleteReviewedFileCore(path, expectedIdentity, expectedSha256, expectedLength, ct, null);
+
+    /// <summary>R21: FileCat's own file, opened by name in its held folder, deleted only while it is the recorded object.</summary>
+    public override BoundDeletion? DeleteOwnedFile(string path, string expectedIdentity)
+        => DeleteOwnedFileCore(path, expectedIdentity, requireClearEfs: false);
+
+    public override BoundDeletion? DeleteClearOwnedFile(string path, string expectedIdentity)
+        => DeleteOwnedFileCore(path, expectedIdentity, requireClearEfs: true);
+
+    private static BoundDeletion? DeleteOwnedFileCore(string path, string expectedIdentity, bool requireClearEfs)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        if (string.IsNullOrEmpty(expectedIdentity) || !IsReplaceVolume(path))
+            return new BoundDeletion(false, true, "The owned file has no usable local identity on this volume.");
+        string full = Path.GetFullPath(path);
+        using var parent = LocalIconFileLease.TryOpenDirectory(Path.GetDirectoryName(full)!, LeaseLinks.Refuse, removable: true);
+        if (parent is null) return new BoundDeletion(false, true, "The owned file's folder is linked or cannot be held.");
+        try
+        {
+            string leaf = Path.GetFileName(full);
+            if (requireClearEfs && WindowsFileTransaction.CanEncrypt(parent.LastHandle))
+                return DeleteClearOwnedFileInTransaction(parent.LastHandle, leaf, expectedIdentity);
+
+            using var file = OpenOrThrow(parent.LastHandle, leaf, ReadAttributes | Delete | Synchronize,
+                ShareRead, Open, NonDirectoryFile | OpenReparsePoint, "Open owned file for deletion");
+            if (ReviewOwnedRemoval(file, expectedIdentity, requireClearEfs) is { } refusal) return refusal;
+            DeleteOpen(file);
+            return new BoundDeletion(true, false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception)
+        {
+            return new BoundDeletion(false, false, "The owned file could not be deleted through its handle: " + ex.Message);
+        }
+    }
+
+    private static BoundDeletion DeleteClearOwnedFileInTransaction(SafeFileHandle directory, string leaf, string identity)
+    {
+        using var anchor = OpenOrThrow(directory, leaf, ReadAttributes | Synchronize, ShareAll, Open,
+            NonDirectoryFile | OpenReparsePoint, "Review the owned file for deletion");
+        if (ReviewOwnedRemoval(anchor, identity, requireClearEfs: true) is { } refusal) return refusal;
+        using var transaction = new WindowsFileTransaction("FileCat clear owned-file removal");
+        using var file = transaction.OpenHeldChild(directory, leaf, ReadAttributes | Delete | Synchronize);
+        if (ReviewOwnedRemoval(file, identity, requireClearEfs: true) is { } changed) return changed;
+        WindowsFileTransaction.RemoveOnClose(file);
+        file.Dispose();
+        anchor.Dispose();
+        transaction.Commit("Windows could not confirm removal of the owned file.");
+        return new BoundDeletion(true, false);
+    }
+
+    private static BoundDeletion? ReviewOwnedRemoval(SafeFileHandle file, string expectedIdentity, bool requireClearEfs)
+    {
+        if (IsLink(file) || requireClearEfs && IsReparsePoint(GetBasic(file).FileAttributes))
+            return new BoundDeletion(false, true, "The owned file's name is now a reparse point.");
+        var identity = ProtectedHexFile.Identity(file);
+        if (!string.Equals($"{identity.VolumeSerial:X16}:{identity.FileId}", expectedIdentity, StringComparison.OrdinalIgnoreCase))
+            return new BoundDeletion(false, true, "Another object now has the owned file's name.");
+        return requireClearEfs && IsEfsProtected(file) ? new BoundDeletion(false, true, "The owned file became EFS-protected.") : null;
+    }
 
     internal BoundDeletion? DeleteReviewedFileCore(string path, string? expectedIdentity, string expectedSha256,
         long expectedLength, CancellationToken ct, Action? beforeDelete)
@@ -179,6 +261,8 @@ public partial class WindowsFileOperations
             ct.ThrowIfCancellationRequested();
             if (IsLink(old))
                 return new BoundReplacement(false, true, Reason: "A linked destination is not eligible for bound replacement.");
+            if (IsEfsProtected(old))
+                return new BoundReplacement(false, true, Reason: EfsReplacementUnavailable);
             var identity = ProtectedHexFile.Identity(old);
             string actualIdentity = $"{identity.VolumeSerial:X16}:{identity.FileId}";
             if (!string.Equals(actualIdentity, expectedIdentity, StringComparison.OrdinalIgnoreCase) ||
@@ -194,12 +278,15 @@ public partial class WindowsFileOperations
             {
                 if (ProtectedHexFile.Identity(atName) != identity)
                     return new BoundReplacement(false, true, Reason: "Another file now has the reviewed destination name.");
+                if (IsEfsProtected(atName))
+                    return new BoundReplacement(false, true, Reason: EfsReplacementUnavailable);
             }
             NtFile.Rename(old, parent.LastHandle, backupName, replace: false);
             try
             {
                 ct.ThrowIfCancellationRequested();
                 afterRetire?.Invoke();
+                if (IsEfsProtected(old)) throw new IOException(EfsReplacementUnavailable);
                 new SecureFileOps(() => ct.ThrowIfCancellationRequested()).MoveItem(
                     ElevationPaths.ToVolumePathWithoutFollowing(source),
                     ElevationPaths.ToVolumePathWithoutFollowing(parentPath), name);
@@ -222,7 +309,12 @@ public partial class WindowsFileOperations
                 }
             }
             WriteThrough(parentPath);
-            try { DeleteOpen(old); }
+            try
+            {
+                if (IsEfsProtected(old))
+                    return new BoundReplacement(true, false, backupPath, "The replaced file became EFS-protected and remains at the recovery name.");
+                DeleteOpen(old);
+            }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception)
             {
                 return new BoundReplacement(true, false, backupPath,
@@ -235,6 +327,8 @@ public partial class WindowsFileOperations
             return new BoundReplacement(false, true, Reason: "Bound replacement refused: " + ex.Message);
         }
     }
+
+    private static bool IsEfsProtected(SafeFileHandle file) => (GetBasic(file).FileAttributes & (uint)FileAttributes.Encrypted) != 0;
 
     /// <summary>
     /// Makes the renames that published a replacement durable before its caller goes on, as a replacement by name is
@@ -252,14 +346,16 @@ public partial class WindowsFileOperations
             Core.Diagnostics.AppLog.Warn($"A replacement in a folder could not be written through (Win32 error {System.Runtime.InteropServices.Marshal.GetLastPInvokeError()}).");
     }
 
-    private static bool DigestMatches(SafeFileHandle handle, string expected, long length, CancellationToken ct)
+    private static bool DigestMatches(SafeFileHandle handle, string expected, long length, CancellationToken ct, Action? verify = null)
     {
         using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         byte[] buffer = new byte[1024 * 1024];
         for (long at = 0; at < length;)
         {
             ct.ThrowIfCancellationRequested();
+            verify?.Invoke();
             int read = RandomAccess.Read(handle, buffer.AsSpan(0, (int)Math.Min(buffer.Length, length - at)), at);
+            verify?.Invoke();
             if (read <= 0) return false;
             digest.AppendData(buffer.AsSpan(0, read));
             at += read;

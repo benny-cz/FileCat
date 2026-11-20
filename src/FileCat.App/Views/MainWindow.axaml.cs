@@ -29,7 +29,18 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         new FileCat.App.Controls.DescendantFocusWindowAutomationPeer(this);
 
     private readonly MainViewModel _vm;
+    internal bool RevealStorageBlocker(Core.Jobs.Job job)
+    {
+        var center = _vm.Operations;
+        if (center.Jobs.FirstOrDefault(row => ReferenceEquals(row.Job, job)) is not { } row) return false;
+        center.IsOpen = true;
+        center.Selected = row;
+        Activate();
+        Dispatcher.UIThread.Post(() => OperationsPane.FocusForKeyboard(prioritizeStorageReview: false), DispatcherPriority.Loaded);
+        return true;
+    }
     private readonly Dictionary<PanelViewModel, PanelView> _panelViews = new();
+    private readonly List<(Button Button, Border Wrapper, string Id)> _toolbarButtons = [];
     private PanelView? _pointerFocusOwner;
     private long _pointerFocusAt;
     private PanelView? _panelSwitchFocusOwner;
@@ -75,6 +86,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         {
             AnnounceRestoredRowIfCurrent(list);
         });
+        _dialogs.OperationsRegion = OperationsPane;
         vm.Dialogs = _dialogs;
         vm.View = this;
         // The user's first key press or click ends the quiet startup: connections may ask questions from then on.
@@ -107,7 +119,11 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         vm.Workspace.PropertyChanged += (_, e) =>
         {
             // Another panel, or another tab in it: the title follows (and the tab's own title as it moves on).
-            if (e.PropertyName is nameof(WorkspaceViewModel.ActivePanel) or nameof(WorkspaceViewModel.ActiveTab)) UpdateTitle();
+            if (e.PropertyName is nameof(WorkspaceViewModel.ActivePanel) or nameof(WorkspaceViewModel.ActiveTab))
+            {
+                _historyMenu?.Close();
+                UpdateTitle();
+            }
         };
         if (vm.Services.Icons.Native is { } native) native.IconsLoaded += () =>
         {
@@ -122,6 +138,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         ThemeManager.ThemeChanged += OnThemeChanged;
         Closed += (_, _) =>
         {
+            _historyMenu?.Close();
             _normalPlacementTimer.Stop();
             ThemeManager.ThemeChanged -= OnThemeChanged;
             vm.CommandAvailabilityChanged -= OnCommandAvailabilityChanged;
@@ -143,7 +160,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 return command == CommandIds.Help;
             },
             () => vm.Services.Keymap.GetGestureText(CommandIds.Help),
-            vm.ShowKeyboardReferenceForSearchAsync);
+            () => vm.ShowKeyboardReferenceForSearchAsync());
         MenuRow.SizeChanged += (_, _) => FitCommandSearch();
         OverlayHost.PropertyChanged += (_, change) =>
         {
@@ -210,6 +227,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             // A popup or another top-level window can receive the modifier's release instead of this window.
             _vm.ReconcileKeyBar(KeyMods.None);
             ThemeAnimation.SetWindowActive(this, true);
+            _vm.Services.Metadata.ExpireRefreshable();
             if (!WindowsContextMenu.IsOpenOrRecentlyClosed)
                 foreach (var panel in _panelViews.Values) panel.List.RefreshGitStatuses();
         };
@@ -217,9 +235,11 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         LayoutUpdated += (_, _) =>
         {
             var bands = (MenuRow.Bounds.Bottom, WorkspaceHost.Bounds.Bottom + WorkspaceHost.Margin.Bottom);
-            if (Backdrop.GlassBands != bands)
+            var span = (MainMenu.Bounds.Right + 6, CommandSearchBox.Bounds.Left - 6);
+            if (Backdrop.GlassBands != bands || Backdrop.GlassSpan != span)
             {
                 Backdrop.GlassBands = bands;
+                Backdrop.GlassSpan = span;
                 Backdrop.InvalidateVisual();
             }
         };
@@ -266,7 +286,10 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     internal void AnnounceRestoredRowIfCurrent(FileListControl list)
     {
-        if (!OperatingSystem.IsMacOS() || !list.IsFocused ||
+        // NVDA can announce only the grid when focus returns to picture results.
+        bool windowsPictureResults = OperatingSystem.IsWindows() && list.PictureMode &&
+            list.Tab?.Location?.Scheme == Schemes.ResultSet;
+        if (!(OperatingSystem.IsMacOS() || windowsPictureResults) || !list.IsFocused ||
             !ReferenceEquals(FocusManager?.GetFocusedElement(), list)) return;
         RestoredFocusAnnouncement.Text = "Focus returned to " + list.DescribeFocus();
         LiveRegions.Repeat(RestoredFocusAnnouncement);
@@ -295,6 +318,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             { messages.Add("Reviewed recovery reports could not be loaded: " + Formatters.SafeName(ex.Message)); }
+            await _vm.LoadStorageHistoryPageAsync();
+            if (!_vm.EditSessionsActive) return;
             int hex = await Task.Run(() => Platform.Windows.HexSaveJournal.Pending(_vm.Services.Paths.HexRecoveryDirectory).Count);
             if (!_vm.EditSessionsActive) return;
             if (hex > 0) messages.Add($"{Formatters.Plural(hex, "hex save was", "hex saves were")} interrupted. Finish or roll back with Tools → Recover interrupted hex save.");
@@ -309,6 +334,10 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     /// <summary>FileCat's own drag is under way: its source deletes nothing on the drop's result.</summary>
     private bool _ownDrag;
+    private static readonly DataFormat<string> OwnDragFormat = DataFormat.CreateStringApplicationFormat("filecat-owned-drag-v1");
+    private sealed record OwnDragSource(string Token, TabViewModel Tab, Location Location, IReadOnlyList<ItemRef> Items);
+    private OwnDragSource? _activeDrag;
+    private bool _ownDragHandled;
 
     private void AttachDragDrop(PanelView view, PanelViewModel panel)
     {
@@ -317,15 +346,17 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         string? reportedRefusal = null;
         view.AddHandler(DragDrop.DragOverEvent, (_, e) =>
         {
-            bool files = e.DataTransfer.Contains(DataFormat.File);
+            bool owned = _ownDrag && _activeDrag is not null && e.DataTransfer.Contains(OwnDragFormat);
+            bool files = e.DataTransfer.Contains(DataFormat.File) || owned;
             string? refusal;
             var (current, candidateRefusal) = DropTargetAdmission.Check(panel, files,
-                (e.KeyModifiers & KeyModifiers.Shift) != 0, _ownDrag);
+                (e.KeyModifiers & KeyModifiers.Shift) != 0, owned, owned,
+                owned ? _activeDrag!.Location : null, owned ? _activeDrag!.Items : null);
             (current, refusal) = dragIntent.Hover(current, candidateRefusal);
             // Native drag managers may never raise Drop when the offered effect is None.
             // Explain an unsupported file destination on its first hover, but do not
             // repeat a notice for every DragOver frame or for unrelated tab drags.
-            if (files && current is null && refusal is not null &&
+            if (files && !owned && current is null && refusal is not null &&
                 !string.Equals(reportedRefusal, refusal, StringComparison.Ordinal))
             {
                 reportedRefusal = refusal;
@@ -350,7 +381,10 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             bool move = (e.KeyModifiers & KeyModifiers.Shift) != 0;
             e.Handled = true;
             e.DragEffects = DragDropEffects.None;
-            var (current, refusal) = DropTargetAdmission.Check(panel, e.DataTransfer.Contains(DataFormat.File), move, _ownDrag);
+            bool owned = _ownDrag && _activeDrag is not null && e.DataTransfer.Contains(OwnDragFormat);
+            var (current, refusal) = DropTargetAdmission.Check(panel,
+                e.DataTransfer.Contains(DataFormat.File) || owned, move, owned, owned,
+                owned ? _activeDrag!.Location : null, owned ? _activeDrag!.Items : null);
             if (targetChanged)
             {
                 _vm.Notify(DropTargetAdmission.ChangedTargetMessage, true);
@@ -371,6 +405,19 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             if (previous is not null && !DropTargetAdmission.SameTarget(previous, current))
             {
                 _vm.Notify(DropTargetAdmission.ChangedTargetMessage, true);
+                return;
+            }
+            if (owned)
+            {
+                var source = _activeDrag!;
+                if (e.DataTransfer.TryGetValue(OwnDragFormat) != source.Token)
+                {
+                    _vm.Notify("The drag no longer matches its captured FileCat selection. Nothing was copied.", true);
+                    return;
+                }
+                e.DragEffects = current.Effect;
+                _ownDragHandled = true;
+                await _vm.DropItemsAsync(panel, current, source.Tab, source.Location, source.Items);
                 return;
             }
             IReadOnlyList<string>? paths;
@@ -397,17 +444,23 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         view.List.DragRequested += async (_, press) =>
         {
             var tab = panel.ActiveTab;
-            if (tab is null) return;
+            if (tab?.Location is not { } sourceLocation) return;
             var sel = tab.Listing.GetSelection();
-            DragExport.Prepared? prepared;
-            string? refusal;
+            var captured = sel.ToList();
+            DragExport.Prepared? prepared = null;
+            string? refusal = null;
             try
             {
-                async Task<IStorageItem?> Convert(string path, bool folder) => folder
-                    ? await StorageProvider.TryGetFolderFromPathAsync(path)
-                    : await StorageProvider.TryGetFileFromPathAsync(path);
-                (prepared, refusal) = await DragExport.PrepareAsync(sel, _vm.Services.Providers,
-                    _vm.Services.Platform.FileOperations, _vm.Services.Paths.TempDirectory, Convert, CancellationToken.None);
+                // Servers and Registry items are process-local drag sources. Staging a server before
+                // starting the OS drag loses the held pointer; Registry data has no file representation.
+                if (!captured.All(i => i.Parent.Scheme is Schemes.Ftp or Schemes.Sftp or Schemes.Registry or Schemes.Computer))
+                {
+                    async Task<IStorageItem?> Convert(string path, bool folder) => folder
+                        ? await StorageProvider.TryGetFolderFromPathAsync(path)
+                        : await StorageProvider.TryGetFileFromPathAsync(path);
+                    (prepared, refusal) = await DragExport.PrepareAsync(captured, _vm.Services.Providers,
+                        _vm.Services.Platform.FileOperations, _vm.Services.Paths.TempDirectory, Convert, CancellationToken.None);
+                }
             }
             catch (OperationCanceledException) { return; }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException)
@@ -419,14 +472,14 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             {
                 ItemSources.Release(sel);
             }
-            if (prepared is null)
+            if (prepared is null && refusal is not null)
             {
-                if (refusal is not null) _vm.Notify(refusal, true);
+                _vm.Notify(refusal, true);
                 return;
             }
             using (prepared)
             {
-                if (!ReferenceEquals(panel.ActiveTab, tab) || tab.Listing.IsDisposed)
+                if (captured.Count == 0 || !ReferenceEquals(panel.ActiveTab, tab) || tab.Listing.IsDisposed || tab.Location != sourceLocation)
                 {
                     _vm.Notify("The source tab changed before dragging began. Select the complete scope again.");
                     return;
@@ -434,18 +487,23 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 try
                 {
                     var transfer = new DataTransfer();
-                    foreach (var item in prepared.Items) transfer.Add(DataTransferItem.CreateFile(item));
+                    var source = new OwnDragSource(Guid.NewGuid().ToString("N"), tab, sourceLocation, captured);
+                    transfer.Add(DataTransferItem.Create(OwnDragFormat, source.Token));
+                    if (prepared is not null)
+                        foreach (var item in prepared.Items) transfer.Add(DataTransferItem.CreateFile(item));
                     // The drag loop holds the pointer: what hovers FileCat's panels until it returns is this drag.
                     _ownDrag = true;
+                    _activeDrag = source;
+                    _ownDragHandled = false;
                     var effect = await DragDrop.DoDragDropAsync(press, transfer, DragDropEffects.Copy | DragDropEffects.Move | DragDropEffects.Link);
-                    if (effect != DragDropEffects.None) prepared.Handoff();
+                    if (effect != DragDropEffects.None && !_ownDragHandled) prepared?.Handoff();
                 }
                 catch (OperationCanceledException) { }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException)
                 {
                     _vm.Notify("Dragging could not start: " + Formatters.SafeName(ex.Message), true);
                 }
-                finally { _ownDrag = false; }
+                finally { _ownDrag = false; _activeDrag = null; _ownDragHandled = false; }
             }
         };
     }
@@ -510,9 +568,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         {
             _toolbarRefreshPending = false;
             if (!IsVisible) return;
-            foreach (var wrapper in Toolbar.Children.OfType<Border>())
-                if (wrapper.Child is Button button && button.Tag is string id)
-                    UpdateToolbarButton(button, wrapper, id);
+            foreach (var (button, wrapper, id) in _toolbarButtons)
+                UpdateToolbarButton(button, wrapper, id);
         });
     }
 
@@ -633,6 +690,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         v = new PanelView { DataContext = p };
         v.Activated += () => _vm.Workspace.Activate(p);
         v.OpenRequested += () => _vm.Execute(CommandIds.Open);
+        v.RenameRequested += () => _vm.Execute(CommandIds.Rename);
         v.PathSubmitted += text => NavigateToText(p, text);
         // A panel's own location button: that panel is the source, and its menu opens.
         v.LocationMenuRequested += () =>
@@ -709,15 +767,25 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 continue;
             }
             if (entry is not string id) continue;
+            if (!MainMenuModel.IsPlatformApplicable(id) || !_vm.AdvertisesEfsCommand(id)) continue;
             if (id == "-")
             {
                 children.Add(new Separator());
                 continue;
             }
+            int columnProfile = -1;
+            if (id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal)
+                && int.TryParse(id.AsSpan(CommandIds.ColumnProfilePrefix.Length), out columnProfile)
+                && columnProfile >= _vm.Services.Columns.Count)
+                continue;
             var def = _vm.Services.Commands.Get(id);
             if (def is null) continue;
             var chord = _vm.Services.Keymap.GetChords(id).FirstOrDefault();
-            var mi = new MenuItem { Header = TitleOf(id, def.Title), Tag = id };
+            var mi = new MenuItem
+            {
+                Header = columnProfile >= 0 ? "Columns: " + _vm.Services.Columns.NameOf(columnProfile) : TitleOf(id, def.Title),
+                Tag = id,
+            };
             if (chord.Key is not null && KeyMapper.ToGesture(chord) is { } g) mi.InputGesture = g;
             if (CommandIcons.Get(id) is { } icon) mi.Icon = new Image { Source = icon, Width = 16, Height = 16 };
             mi.Click += (_, _) =>
@@ -739,6 +807,10 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                     // A switch says what choosing it does now: "Hide hidden and system items" while they show.
                     if (CheckedState(cid) is not null && _vm.Services.Commands.Get(cid) is { } switchDef) c.Header = TitleOf(cid, switchDef.Title);
                     ToolTip.SetTip(c, a.Enabled ? null : a.Reason);
+                    // Why a command is unavailable: the tooltip shows on the disabled item, and screen readers get it as
+                    // the item's help text, as the context menus and dependent settings already do (UX audit C).
+                    ToolTip.SetShowOnDisabled(c, !a.Enabled);
+                    Avalonia.Automation.AutomationProperties.SetHelpText(c, a.Enabled ? null : a.Reason);
                     // Column profiles by their names ("Columns: Details"), which Settings can change.
                     if (cid.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal) &&
                         int.TryParse(cid.AsSpan(CommandIds.ColumnProfilePrefix.Length), out int profile))
@@ -779,11 +851,21 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             e.Handled = true;
             return;
         }
+        // Menus own their navigation and activation keys before panel shortcuts or quick search see them.
+        if (_historyMenu?.IsOpen == true || FocusManager?.GetFocusedElement() is MenuItem) return;
+        if (!_dialogs.IsOpen && TryOpenHistoryFromKey(e)) return;
         if (!_dialogs.IsOpen && HandlePanelResizeKey(e)) return;
         if (KeyMapper.IsModifierKey(e.Key))
         {
             _vm.ReconcileKeyBar(KeyMapper.ToMods(KeyMapper.AfterModifierKey(e.Key, e.KeyModifiers, pressed: true)));
             return;
+        }
+        // Plan §11.5: a dialog that keeps the operation center usable (a format scan) lets its shortcut move between them.
+        if (_dialogs.OperationsUsable && KeyMapper.ToChord(e.Key, e.KeyModifiers) is { } operationsChord &&
+            _vm.Services.Keymap.Resolve(operationsChord, CommandContext.Global) == CommandIds.Operations)
+        {
+            _vm.Operations.IsOpen = true; Dispatcher.UIThread.Post(() => _dialogs.ToggleOperationsFocus(), DispatcherPriority.Input);
+            e.Handled = true; return;
         }
         if (_dialogs.IsOpen || ActivePanelView()?.List.IsRenaming == true) return;
         // The command search keeps its keys: Enter runs, F2 changes a shortcut, Esc returns to the panel.
@@ -791,6 +873,23 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         if (KeyMapper.ToChord(e.Key, e.KeyModifiers) is not { } chord) return;
 
         var focused = FocusManager?.GetFocusedElement();
+        // Operations keeps its own keys: Tab moves between its controls, Esc returns to the panel, and only global
+        // shortcuts act. Panel commands (Enter, Delete, F8, arrows) never reach the panel's file from an operation row.
+        if (OperationsPane.ContainsFocus(focused))
+        {
+            if (chord == new KeyChord("Escape", KeyMods.None)) { FocusActivePanel(); e.Handled = true; return; }
+            var global = _vm.Services.Keymap.Resolve(chord, CommandContext.Global);
+            if (global is null) return;
+            if (global == CommandIds.Operations)
+            {
+                // Ctrl+J there gives the keyboard back to the panel and closes Operations.
+                _vm.Operations.IsOpen = false;
+                FocusActivePanel(); e.Handled = true; return;
+            }
+            AltChords.Handle(this, e);
+            _vm.Execute(global);
+            return;
+        }
         bool inText = focused is TextBox;
         var tab = _vm.ActiveTab;
 
@@ -822,6 +921,16 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         // continue its native focus traversal after we focus the target list,
         // returning to a text field in the old panel.
         if (id is CommandIds.SwitchPanel or CommandIds.SwitchPanelBack) e.Handled = true;
+        if (id == CommandIds.Operations)
+        {
+            // From the keyboard, Ctrl+J opens Operations and takes the keyboard there (a waiting decision's "Review
+            // decision…" first): the decision notice sends keyboard users there, and Tab in the panels switches panels.
+            // The toolbar and menus keep the plain toggle.
+            _vm.Operations.IsOpen = true;
+            Dispatcher.UIThread.Post(() => OperationsPane.FocusForKeyboard(), DispatcherPriority.Loaded);
+            e.Handled = true;
+            return;
+        }
         _vm.Execute(id);
         if (id is CommandIds.SwitchPanel or CommandIds.SwitchPanelBack)
         {
@@ -937,7 +1046,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 return;
             }
         }
-        if (_dialogs.IsOpen || FocusManager?.GetFocusedElement() is TextBox) return;
+        if (_dialogs.IsOpen || FocusManager?.GetFocusedElement() is TextBox or MenuItem) return;
         var text = e.Text;
         var tab = _vm.ActiveTab;
         if (tab is null || string.IsNullOrEmpty(text) || text.Any(char.IsControl)) return;
@@ -992,8 +1101,17 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         else if (e.Key == Key.Enter && (e.KeyModifiers & KeyModifiers.Control) != 0)
         {
             e.Handled = true;
-            _vm.Execute((e.KeyModifiers & KeyModifiers.Shift) != 0 ? CommandIds.InsertPath : CommandIds.InsertName);
-            Dispatcher.UIThread.Post(() => CommandLine.CaretIndex = CommandLine.Text?.Length ?? 0);
+            int start = CommandLine.SelectionStart;
+            int end = CommandLine.SelectionEnd;
+            if (start == end) start = end = CommandLine.CaretIndex;
+            int caret = _vm.InsertFocusedNameAtCaret((e.KeyModifiers & KeyModifiers.Shift) != 0,
+                start, end);
+            Dispatcher.UIThread.Post(() =>
+            {
+                CommandLine.CaretIndex = caret;
+                CommandLine.SelectionStart = caret;
+                CommandLine.SelectionEnd = caret;
+            });
         }
         else if (e.Key == Key.Enter)
         {
@@ -1103,6 +1221,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     private string TitleOf(string id, string title) => id switch
     {
         CommandIds.ToggleHidden => _vm.ShowHiddenItems ? "Hide hidden and system items" : "Show hidden and system items",
+        CommandIds.PictureView => _vm.Workspace.ActiveTab?.PictureView == true ? "Hide pictures" : "Show pictures",
         CommandIds.ToggleToolbar => _vm.ShowToolbar ? "Hide the toolbar" : "Show the toolbar",
         CommandIds.ToggleDriveButtons => _vm.ShowDriveButtons ? "Hide the place buttons" : "Show the place buttons",
         _ => title,
@@ -1122,13 +1241,19 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     {
         var availability = _vm.GetAvailability(id);
         string title = TitleOf(id, _vm.Services.Commands.Get(id)?.Title ?? id);
+        bool history = IsHistoryCommand(id);
+        bool dropDown = button.Classes.Contains("historyDropdown");
+        if (dropDown) title += " history";
         var state = new ToolbarPresentationState(availability, title, CheckedState(id) == true);
         if (Equals(wrapper.Tag, state)) return;
         wrapper.Tag = state;
         button.IsEnabled = availability.Enabled;
         button.Classes.Set("checked", state.Checked);
         Avalonia.Automation.AutomationProperties.SetName(button, title);
-        var tip = ToolbarTip(id, availability);
+        var tip = history && availability.Enabled
+            ? dropDown ? new RichTip(title, detail: "Open the list of visits in this direction.")
+                : HistoryToolbarTip(id, title)
+            : ToolbarTip(id, availability);
         ToolTip.SetTip(button, tip);
         // A disabled child may not receive hover events. Give its enabled parent a separate visual instance.
         ToolTip.SetTip(wrapper, availability.Enabled ? null : ToolbarTip(id, availability));
@@ -1140,6 +1265,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     private bool? CheckedState(string id) => id switch
     {
         CommandIds.ToggleHidden => _vm.ShowHiddenItems,
+        CommandIds.PictureView => _vm.Workspace.ActiveTab?.PictureView == true,
         CommandIds.ToggleToolbar => _vm.ShowToolbar,
         CommandIds.ToggleDriveButtons => _vm.ShowDriveButtons,
         _ => null,
@@ -1151,7 +1277,9 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     /// </summary>
     private void BuildToolbar()
     {
+        _historyMenu?.Close();
         Toolbar.Children.Clear();
+        _toolbarButtons.Clear();
         bool classic = _vm.Services.Settings.ClassicToolbar;
         ToolbarMore.IsVisible = !classic;
         ToolbarMore.ContextMenu = classic ? null : BuildToolbarMore();
@@ -1181,8 +1309,9 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 _vm.Execute(id);
             };
             var wrapper = new Border { Child = button, Background = Avalonia.Media.Brushes.Transparent };
-            Toolbar.Children.Add(wrapper);
+            _toolbarButtons.Add((button, wrapper, id));
             UpdateToolbarButton(button, wrapper, id);
+            Toolbar.Children.Add(IsHistoryCommand(id) ? BuildHistoryToolbarGroup(button, wrapper, id) : wrapper);
         }
     }
 
@@ -1226,10 +1355,11 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     {
         base.OnClosing(e);
         if (_forceClose || e.Cancel) return;
-        if (!_vm.CanCloseImmediately())
+        bool reviewAnalyses = e.CloseReason is not (WindowCloseReason.ApplicationShutdown or WindowCloseReason.OSShutdown);
+        if (!_vm.CanCloseImmediately(reviewAnalyses))
         {
             e.Cancel = true;
-            _ = ConfirmCloseAsync();
+            _ = ConfirmCloseAsync(reviewAnalyses);
             return;
         }
         SavePlacement();
@@ -1241,9 +1371,9 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         base.OnClosed(e);
     }
 
-    private async Task ConfirmCloseAsync()
+    private async Task ConfirmCloseAsync(bool reviewAnalyses)
     {
-        if (await _vm.ConfirmExitWithActiveWorkAsync())
+        if (await _vm.ConfirmExitWithActiveWorkAsync(reviewAnalyses))
         {
             _forceClose = true;
             SavePlacement();

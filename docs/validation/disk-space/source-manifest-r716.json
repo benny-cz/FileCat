@@ -1,0 +1,1253 @@
+{
+  "purpose": "Memory/indexed selection parity, captured matching-file scope and retained reference identity",
+  "observedUtc": "2026-11-07T08:27:59.364363+00:00",
+  "gitBase": "d781d109ef0b3fb80f5864be762de043d93f2058",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.MarkVisibility.cs",
+      "sha256": "2a46ca361cc980c2f4f1563c9dc76810daf0584210dfed829525f2185cb56eae"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "307ac3d11d57db140ad56339a9668ee67af675909807d8b1dba1e58a9f05be8d"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+      "sha256": "1ded4095fce5652bce150de10815a91a03e7d77aa90c5a45c11be2a81847f687"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedSelection.cs",
+      "sha256": "2e09a9bd3de42db464f185e61e26193d89d495f225beda72c554a6baa06402ab"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.MemoryMarks.cs",
+      "sha256": "220188966b820d971e7f41973cffe9037916ebcdfac8c297673748347b24ec4f"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "d0e2355ec31ad02e6f3cbf3fdfe35a9d58f4566319ef90d2c7861e4510758065"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetExplorer.cs",
+      "sha256": "a79a314c6388f923eb4d48ca9f8cfb9b1dd3bb36cc2259dcf077e063069d8842"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Selection.cs",
+      "sha256": "0531e90e6cebf2b0d0bbc76fd6af115589448df5a1bc9ac2d01e286f6723eb14"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.MatchingSelection.cs",
+      "sha256": "ddedfe7a0955f8b686eb7346db268d5d3e6a711eb4faf6104e74d512ae1ca95f"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisFilter.cs",
+      "sha256": "28256a974fc3c36c51db492b923f5eb44a16d159d8808c3fa71a0c352ade7fcb"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedChart.cs",
+      "sha256": "e03d7b210453f7e7cf9e3b2364c351619b891585f84253c53d2810f2b443391e"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSelectionState.cs",
+      "sha256": "4473fa44d6c43689f66d5d4def83ae481474dfe3267b41bee6945ea791abeba9"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTree.Grouping.cs",
+      "sha256": "ac76c7be4a6c7474d0a2420516f2f5ec355aa7350d6f0844c614bac7e800f766"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTree.Selection.cs",
+      "sha256": "c57f0a3fc6d68e6896907860ca3e46185a4c514a53a43a232c08cba316d16629"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+      "sha256": "5abbdabafcce5b0b153531cfc6dca653706524708200d31384338353b6b6f6ed"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.SelectionParity.cs",
+      "sha256": "cdfd706f6b8eaff6c6bd55e582c8b2fbe610a198d1ec9268f09269a47be70acc"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisTreeTests.cs",
+      "sha256": "5d7317063614e1c0065357ce3302864410b350118fc2cd85c6445a205b03cbe5"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.SelectionParity.cs",
+      "sha256": "feb9c9e4521e8f16148ca5cea6260c0a260bc42725823987410d3dc9fbda5b58"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r713.txt",
+      "sha256": "83cc3044bd7c842996c1ccb8c1629fdca14d83a4bc3e9c8a78e0573311e40081"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-pre-r714.json",
+      "sha256": "3bf841bf8c2924dc5800aa744165020a3ffb63d84eaa7e14df541c5f425c8644"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r714-core-r714.xml",
+      "sha256": "57e864d30efe37849dd9097ed58d2681e20aab7305c4a840c18caa2eecb12cb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r714-core-r714.log",
+      "sha256": "4a3236b83847a302b14481e2659bbe9e2ccbc0f388ebbc73da6e09bbd1039618"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r714-render-r714.xml",
+      "sha256": "b407d1aadb3e333070fb0df4d0b274e8fe4e6775badd5b8ce937988231a84a30"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r714-render-r714.log",
+      "sha256": "c77a2aeeef640676964da5ae6f4e8af6bc145c948b95eb47c772347b7f5e0808"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r714-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r714-post.json",
+      "sha256": "7c826697d0114c82c9a53afc1b4937c45b36a2a17a6457ae080c66fa803b9f4d"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r714-core-r714.xml",
+      "sha256": "58394c2d51178e42c3c5c99736b0affc7e7f8a6a1d86be2aa000fd6e3ea76604"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r714-core-r714.log",
+      "sha256": "b63a64b203f4f04b4b71b035fa8c831f5a8f7dfdfe74984ef106b13f3ab56e12"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r714-render-r714.xml",
+      "sha256": "76a3287e984d92335cd95aa4d95518b15ba03499b78bd742e3f453f9aef8c78d"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r714-render-r714.log",
+      "sha256": "f65d0396eda08a2d8e74a67ebfc307fd1784d3237ff2b8030e02a68cae26e487"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r714-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r714-post.json",
+      "sha256": "1db009b88114826ca38999979c2c5a7a99fa7b742d029811a3b12cb782b18c3e"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r714-core-r714.xml",
+      "sha256": "e0da0ac7dcf67176b2248b77d2fd88bfd54ca70b061650be1e3d8c92d96fb4b6"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r714-core-r714.log",
+      "sha256": "89f0d21a1296b2d3d429c2aa1c8172603adba015a0114d89bfd0671e33664cc5"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r714-native-r714.xml",
+      "sha256": "e9dcde195f7fccbf704055b2c803565a3574840128ee8e4f054b6fa40b3dcb22"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r714-native-r714.log",
+      "sha256": "9e9f870fe21146466383ee34f05ab859cffbcbe8bc8883cecbdc5ebda92c52ec"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r714-render-r714.xml",
+      "sha256": "fe74192158ba4916a73ac87eb1ad8b566f26a1f0a58f1a8d7fcd7b35f1809883"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r714-render-r714.log",
+      "sha256": "1257c2e260964a9bcc763b92f7187d57df9d58ff4adeb8e7f894b0f7b436814a"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r714-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r714-post.json",
+      "sha256": "359f5f6967d23b1e8620a13bb701aba963613d4dbb9129d6d43e10041ad50156"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r709.txt",
+      "sha256": "99f2b0e32ba40e2bcd2ce1cd1fa86fe02f8e3c689a299be52b9e268931b32e58"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r710-core-r710.xml",
+      "sha256": "a656192c07e5c053bd21e17e00ccf8a76e69b51aa9d2993c80fe15d2822ed465"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r710-core-r710.log",
+      "sha256": "dd04c07379ddaba980a889d816bcd1f6d829638d850a683e83520d314feaa501"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r710-render-r710.xml",
+      "sha256": "48b055537324fe647bc69bc76f02dfa85cdd58ba0060ed11bc52b68540b88278"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r710-render-r710.log",
+      "sha256": "c90ec1ebbbe648bf0f3fed49d32facf6b763d614dca0cacbb2b5d79acc258908"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r710-state.txt",
+      "sha256": "8c55364535dd24e23b2bc7634300d570199001b59fa364b714efae9f1e48cced"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r710-post.json",
+      "sha256": "07ee8654514b2bd5c4b5feb217fd53da8620f860b7ec5ddbc741e24a1c596cb5"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r710-core-r710.xml",
+      "sha256": "9b65a48ba46bbc8f80d0e33209ba2b564f642837ebed455bb16537696b6c58bb"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r710-core-r710.log",
+      "sha256": "971e9d2a413bb518de20a98fabeb19262c1d8a62bbe47199e352a47653a69e1f"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r710-render-r710.xml",
+      "sha256": "921b93ed09e549e4c50e7df552227cfbad644181b4f0f627af3461a02ecaafd3"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r710-render-r710.log",
+      "sha256": "21e4bd23e26f2302bc7371d36752642fa5e60bdaa954a918ef8b6c9f482ad4a9"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r710-state.txt",
+      "sha256": "8c55364535dd24e23b2bc7634300d570199001b59fa364b714efae9f1e48cced"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r710-post.json",
+      "sha256": "98020d4694ea05428b6e3b4319789a68643dc690b1805b9fdb9efbac85b4d914"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r710-core-r710.xml",
+      "sha256": "a5302ddb21ef6b2ce46de544e47f72c932f9fe932b2377eafc6c24b4a62e533a"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r710-core-r710.log",
+      "sha256": "9d0053a9e207b66135190674a5f2c9b55097e0576c62b729bbe3fbeb3ae6c504"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r710-native-r710.xml",
+      "sha256": "2fd84d5013d398aa20165129641833e45e4c7e44e946c497d0f9869561bbf1ca"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r710-native-r710.log",
+      "sha256": "0ebefce0dd4a62b6f8ea547bec27ed70f0a90e6b907b1e7515ed02570b0c2948"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r710-render-r710.xml",
+      "sha256": "f0a91e9d3852fa788e3af45ae2d95d317e7120070ab152ddbe4cdc7760d2aeac"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r710-render-r710.log",
+      "sha256": "e650f54dd8fc8f0a2777135cbfaf7d0c5bac09e7c264f2e9496eb74ff7040194"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r710-state.txt",
+      "sha256": "9f63d15acb403d0c18063a9b6f26d3d2663adf77b10c53f2c36ab81c9afa08dc"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r710-post.json",
+      "sha256": "821c2328a7a9612aa2bb86e2d9c5ba880bddf3677fb8e9754bcfb5bbd65877ee"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r705.txt",
+      "sha256": "e3edac88ae7df72acd729e3b327a5c8328b56433c13d39649c1f149f24dea367"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r706-core-r706.xml",
+      "sha256": "b37222e9fcc7ccaaceb771cbf8f8ac297bf34bb798d89254649609428e1f4dc8"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r706-core-r706.log",
+      "sha256": "ec040d67d9c587293af63c34b9370424bd18f216408aecacd082be0b812eba66"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r706-render-r706.xml",
+      "sha256": "fff81520bf06feaba6095eefb9ef29799c0b28d02e25f55ac1e3339ce590f2e7"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r706-render-r706.log",
+      "sha256": "80a8f8629cb5f06047a24a2edd693d66957b895ebcbbd806850d4a12ac7c300d"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r706-state.txt",
+      "sha256": "8c55364535dd24e23b2bc7634300d570199001b59fa364b714efae9f1e48cced"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r706-post.json",
+      "sha256": "3dce595167bef1bb92582a4c45d0f72a368f10632a4393cfcfaa15dde99afda2"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r706-core-r706.xml",
+      "sha256": "e3d6eff9afc718978b9c850400488bbe4994bad3187e8a9d407946829dc3d699"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r706-core-r706.log",
+      "sha256": "c53db30448cce7fc13458744401efdd2e545795cb71c0ea39f8bb43189f19791"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r706-render-r706.xml",
+      "sha256": "39e0824e60b5c7acf19b411bcac19e6dc945aa14e8beb14c71aebcb474a5380b"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r706-render-r706.log",
+      "sha256": "7ad98dcb55d7456ffcf791ed2d704952bb9c975eae7bea8ac8a0b6fd46ea76ee"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r706-state.txt",
+      "sha256": "8c55364535dd24e23b2bc7634300d570199001b59fa364b714efae9f1e48cced"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r706-post.json",
+      "sha256": "b46c4f2f3f7c306ea221f1643d21bffe2ac47c348727576624d1837378afb85b"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r706-core-r706.xml",
+      "sha256": "582f371acb0f62536b90eb3062c80e4e12ea7fdf1f1e8d324c0abba6f5f0cfdc"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r706-core-r706.log",
+      "sha256": "b1179700ced515e3c672b81bbe3dd3da06ecbe61ff07acfc27b7c26cc8b5c06c"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r706-native-r706.xml",
+      "sha256": "0280036638df572e8d196282da63d7169d838c00700b4b96ba8c24093057c199"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r706-native-r706.log",
+      "sha256": "1b7f8c2d13d9552b53d4e5013cc845446a8a64fefcd57e5929938e91174e21d0"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r706-render-r706.xml",
+      "sha256": "6576cecda038891e174244eb99591eed3be07ead077f586746492c96ce1d575e"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r706-render-r706.log",
+      "sha256": "62aed43bcb4579d321760d2ac680971501d2dcfb93c0e8031fc99bb806bb5822"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r706-state.txt",
+      "sha256": "9f63d15acb403d0c18063a9b6f26d3d2663adf77b10c53f2c36ab81c9afa08dc"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r706-post.json",
+      "sha256": "19bf19df62e5865182c9cd5388a923894a1d97653f7e744865d07dd345dcccbe"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r714.sh",
+      "sha256": "0eefd9a66778d0f62422532cbdd23d34d69e4d028b12fffba3f025053099b214"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r714.sh",
+      "sha256": "8a45301aa57e6dff2c019fc600f38af455b544d660e568ad01e00f113ad27e93"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r714.ps1",
+      "sha256": "fbfc4e3d3931412081f1ba14ece9a0d15c6ddcc3257fb7fed2c17479a6d975f6"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r714.tgz",
+      "sha256": "c1f2996525a5d9e67b6b43d18d1fe40096fa15d494ca7379f8ed271421ef0aaa"
+    },
+    {
+      "name": "dsa-batch-linux-r714.tgz",
+      "sha256": "c785c24830f5f49775f75deed2d51a0b5cf9916ec101697b29defdbe0c0ba325"
+    },
+    {
+      "name": "dsa-batch-windows-r714.tgz",
+      "sha256": "7fe8a25dea4cc060e92e643c21dde9ae5cbf0c5a699ad547eb781669e3ea509c"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r714": "e2a8b7307d8ef2db7f783b9cd4ef60fabd16aadcf03755eee0bc2c7ff7260b3c",
+    "native-r714": "e2a8b7307d8ef2db7f783b9cd4ef60fabd16aadcf03755eee0bc2c7ff7260b3c",
+    "render-r715-mac": "e2a8b7307d8ef2db7f783b9cd4ef60fabd16aadcf03755eee0bc2c7ff7260b3c",
+    "render-r715-linux": "e2a8b7307d8ef2db7f783b9cd4ef60fabd16aadcf03755eee0bc2c7ff7260b3c",
+    "render-r715-windows": "e2a8b7307d8ef2db7f783b9cd4ef60fabd16aadcf03755eee0bc2c7ff7260b3c"
+  },
+  "productionAppHashes": {
+    "render-r715-mac": "2d60e91417d6578fc0d140abca7b028bbce7d1927d33567390d16ffcc0d40eda",
+    "render-r715-linux": "2d60e91417d6578fc0d140abca7b028bbce7d1927d33567390d16ffcc0d40eda",
+    "render-r715-windows": "2d60e91417d6578fc0d140abca7b028bbce7d1927d33567390d16ffcc0d40eda"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r714": "3f4002c6a3e748a1e0f3e173a2adc9b1a695e1db61133dda01e74abafe07acad",
+    "render-r715-mac": "3f4002c6a3e748a1e0f3e173a2adc9b1a695e1db61133dda01e74abafe07acad",
+    "render-r715-linux": "3f4002c6a3e748a1e0f3e173a2adc9b1a695e1db61133dda01e74abafe07acad",
+    "render-r715-windows": "3f4002c6a3e748a1e0f3e173a2adc9b1a695e1db61133dda01e74abafe07acad"
+  },
+  "matrix": {
+    "mac-batch-r714-core-r714.xml": {
+      "total": "1039",
+      "passed": "1035",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "24.419"
+    },
+    "mac-batch-r714-render-r714.xml": {
+      "total": "184",
+      "passed": "184",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "56.839"
+    },
+    "ubuntu-batch-r714-core-r714.xml": {
+      "total": "1039",
+      "passed": "1035",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "67.408"
+    },
+    "ubuntu-batch-r714-render-r714.xml": {
+      "total": "184",
+      "passed": "184",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "78.803"
+    },
+    "windows-batch-r714-core-r714.xml": {
+      "total": "1057",
+      "passed": "1009",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "30.386"
+    },
+    "windows-batch-r714-native-r714.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "38.150"
+    },
+    "windows-batch-r714-render-r714.xml": {
+      "total": "184",
+      "passed": "183",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "88.879"
+    }
+  },
+  "targetedControls": {
+    "mac": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityQueuedMatchingCaptureCancellationRetainsActualOwnership(grouped: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityQueuedMatchingCaptureCancellationRetainsActualOwnership(grouped: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityOtherScopesCountOnlyTheirExplicitDisplayedSubset",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityNonmatchingAliasContextDoesNotBecomeAMatchWhenSharedMeasurementsAreMissing(metric: OnDisk, missing: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityNonmatchingAliasContextDoesNotBecomeAMatchWhenSharedMeasurementsAreMissing(metric: OnDisk, missing: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityNonmatchingAliasContextDoesNotBecomeAMatchWhenSharedMeasurementsAreMissing(metric: UniqueFileSize, missing: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMatchingCaptureRefusesLimitAndCancellationAndOutlivesOriginalOwners",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityRetainedReferencesCannotBeRetaggedAcrossSessionOrEpoch(changeSession: False, basket: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityRetainedReferencesCannotBeRetaggedAcrossSessionOrEpoch(changeSession: False, basket: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityRetainedReferencesCannotBeRetaggedAcrossSessionOrEpoch(changeSession: True, basket: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityRetainedReferencesCannotBeRetaggedAcrossSessionOrEpoch(changeSession: True, basket: True)"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryNonmatchingAliasIsExplainedAsContextWithoutExtraMatches",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityIndexedMatchesIncludeAllCapturedPagesWithNoFutureSourceEntries(grouping: FolderHierarchy)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityIndexedMatchesIncludeAllCapturedPagesWithNoFutureSourceEntries(grouping: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryReviewPagesCapturedMarksAndUnmarkKeepsBasketIndependent",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryFolderScopeIncludesDescendantMatchesAndCountsMarksElsewhere",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityIndexedNonmatchingAliasHasTheSameContextExplanationAndIsExcludedFromMatches",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryCountsAndCaptureUseDisplayedScopeAndFilterWithoutFocusNarrowing(grouping: FolderHierarchy)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryCountsAndCaptureUseDisplayedScopeAndFilterWithoutFocusNarrowing(grouping: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryCountsAndCaptureUseDisplayedScopeAndFilterWithoutFocusNarrowing(grouping: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryCountsAndCaptureUseDisplayedScopeAndFilterWithoutFocusNarrowing(grouping: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryCountsAndCaptureUseDisplayedScopeAndFilterWithoutFocusNarrowing(grouping: CapturedLocation)"
+      ]
+    },
+    "ubuntu": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityQueuedMatchingCaptureCancellationRetainsActualOwnership(grouped: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityQueuedMatchingCaptureCancellationRetainsActualOwnership(grouped: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMatchingCaptureRefusesLimitAndCancellationAndOutlivesOriginalOwners",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityOtherScopesCountOnlyTheirExplicitDisplayedSubset",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityNonmatchingAliasContextDoesNotBecomeAMatchWhenSharedMeasurementsAreMissing(metric: OnDisk, missing: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityNonmatchingAliasContextDoesNotBecomeAMatchWhenSharedMeasurementsAreMissing(metric: OnDisk, missing: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityNonmatchingAliasContextDoesNotBecomeAMatchWhenSharedMeasurementsAreMissing(metric: UniqueFileSize, missing: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityRetainedReferencesCannotBeRetaggedAcrossSessionOrEpoch(changeSession: False, basket: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityRetainedReferencesCannotBeRetaggedAcrossSessionOrEpoch(changeSession: False, basket: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityRetainedReferencesCannotBeRetaggedAcrossSessionOrEpoch(changeSession: True, basket: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityRetainedReferencesCannotBeRetaggedAcrossSessionOrEpoch(changeSession: True, basket: True)"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryFolderScopeIncludesDescendantMatchesAndCountsMarksElsewhere",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryNonmatchingAliasIsExplainedAsContextWithoutExtraMatches",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityIndexedMatchesIncludeAllCapturedPagesWithNoFutureSourceEntries(grouping: FolderHierarchy)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityIndexedMatchesIncludeAllCapturedPagesWithNoFutureSourceEntries(grouping: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityIndexedNonmatchingAliasHasTheSameContextExplanationAndIsExcludedFromMatches",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryReviewPagesCapturedMarksAndUnmarkKeepsBasketIndependent",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryCountsAndCaptureUseDisplayedScopeAndFilterWithoutFocusNarrowing(grouping: FolderHierarchy)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryCountsAndCaptureUseDisplayedScopeAndFilterWithoutFocusNarrowing(grouping: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryCountsAndCaptureUseDisplayedScopeAndFilterWithoutFocusNarrowing(grouping: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryCountsAndCaptureUseDisplayedScopeAndFilterWithoutFocusNarrowing(grouping: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryCountsAndCaptureUseDisplayedScopeAndFilterWithoutFocusNarrowing(grouping: CapturedLocation)"
+      ]
+    },
+    "windows": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityOtherScopesCountOnlyTheirExplicitDisplayedSubset",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityRetainedReferencesCannotBeRetaggedAcrossSessionOrEpoch(changeSession: False, basket: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityRetainedReferencesCannotBeRetaggedAcrossSessionOrEpoch(changeSession: False, basket: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityRetainedReferencesCannotBeRetaggedAcrossSessionOrEpoch(changeSession: True, basket: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityRetainedReferencesCannotBeRetaggedAcrossSessionOrEpoch(changeSession: True, basket: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityQueuedMatchingCaptureCancellationRetainsActualOwnership(grouped: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityQueuedMatchingCaptureCancellationRetainsActualOwnership(grouped: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMatchingCaptureRefusesLimitAndCancellationAndOutlivesOriginalOwners",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityNonmatchingAliasContextDoesNotBecomeAMatchWhenSharedMeasurementsAreMissing(metric: OnDisk, missing: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityNonmatchingAliasContextDoesNotBecomeAMatchWhenSharedMeasurementsAreMissing(metric: OnDisk, missing: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityNonmatchingAliasContextDoesNotBecomeAMatchWhenSharedMeasurementsAreMissing(metric: UniqueFileSize, missing: True)"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryReviewPagesCapturedMarksAndUnmarkKeepsBasketIndependent",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryFolderScopeIncludesDescendantMatchesAndCountsMarksElsewhere",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryNonmatchingAliasIsExplainedAsContextWithoutExtraMatches",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityIndexedNonmatchingAliasHasTheSameContextExplanationAndIsExcludedFromMatches",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityIndexedMatchesIncludeAllCapturedPagesWithNoFutureSourceEntries(grouping: FolderHierarchy)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityIndexedMatchesIncludeAllCapturedPagesWithNoFutureSourceEntries(grouping: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryCountsAndCaptureUseDisplayedScopeAndFilterWithoutFocusNarrowing(grouping: FolderHierarchy)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryCountsAndCaptureUseDisplayedScopeAndFilterWithoutFocusNarrowing(grouping: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryCountsAndCaptureUseDisplayedScopeAndFilterWithoutFocusNarrowing(grouping: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryCountsAndCaptureUseDisplayedScopeAndFilterWithoutFocusNarrowing(grouping: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SelectionParityMemoryCountsAndCaptureUseDisplayedScopeAndFilterWithoutFocusNarrowing(grouping: CapturedLocation)"
+      ]
+    }
+  },
+  "newCoreControls": 71,
+  "newRenderingControls": 11,
+  "excludedAttempts": [
+    "r698: superseded before any guest deployment; selection announcement fix and capture provenance were added before final testing"
+  ],
+  "failedAttempt": {
+    "candidate": "r710",
+    "sources": [
+      {
+        "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.MarkVisibility.cs",
+        "sha256": "2a46ca361cc980c2f4f1563c9dc76810daf0584210dfed829525f2185cb56eae"
+      },
+      {
+        "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+        "sha256": "2cd0c0a85812dbd17d2d99a3be43dfb936f8cb29af8af5152ecedc16962f6547"
+      },
+      {
+        "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+        "sha256": "1ded4095fce5652bce150de10815a91a03e7d77aa90c5a45c11be2a81847f687"
+      },
+      {
+        "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedSelection.cs",
+        "sha256": "2e09a9bd3de42db464f185e61e26193d89d495f225beda72c554a6baa06402ab"
+      },
+      {
+        "path": "src/FileCat.App/Views/DiskSpaceWindow.MemoryMarks.cs",
+        "sha256": "220188966b820d971e7f41973cffe9037916ebcdfac8c297673748347b24ec4f"
+      },
+      {
+        "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+        "sha256": "d0e2355ec31ad02e6f3cbf3fdfe35a9d58f4566319ef90d2c7861e4510758065"
+      },
+      {
+        "path": "src/FileCat.Core/Analysis/AnalysisDatasetExplorer.cs",
+        "sha256": "a79a314c6388f923eb4d48ca9f8cfb9b1dd3bb36cc2259dcf077e063069d8842"
+      },
+      {
+        "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Selection.cs",
+        "sha256": "0531e90e6cebf2b0d0bbc76fd6af115589448df5a1bc9ac2d01e286f6723eb14"
+      },
+      {
+        "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.MatchingSelection.cs",
+        "sha256": "ddedfe7a0955f8b686eb7346db268d5d3e6a711eb4faf6104e74d512ae1ca95f"
+      },
+      {
+        "path": "src/FileCat.Core/Analysis/AnalysisFilter.cs",
+        "sha256": "28256a974fc3c36c51db492b923f5eb44a16d159d8808c3fa71a0c352ade7fcb"
+      },
+      {
+        "path": "src/FileCat.Core/Analysis/AnalysisSelectionState.cs",
+        "sha256": "4473fa44d6c43689f66d5d4def83ae481474dfe3267b41bee6945ea791abeba9"
+      },
+      {
+        "path": "src/FileCat.Core/Analysis/AnalysisTree.Grouping.cs",
+        "sha256": "ac76c7be4a6c7474d0a2420516f2f5ec355aa7350d6f0844c614bac7e800f766"
+      },
+      {
+        "path": "src/FileCat.Core/Analysis/AnalysisTree.Selection.cs",
+        "sha256": "984729384b467ebc3c431a6b84df598d63c14a93b056e6bdb6e1b190c3782202"
+      },
+      {
+        "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+        "sha256": "ee48174a2445a023b4bd04277176034213836b4ed8a91d49e07d6b1b2069c2ee"
+      },
+      {
+        "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.SelectionParity.cs",
+        "sha256": "e3af73ab2e57247a01c110429bdc760286bd8e30a56eba35e6022f172ef6d4bf"
+      },
+      {
+        "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.SelectionParity.cs",
+        "sha256": "08f98615032c58b1c32876d97cce944877ce45102887427f19fda9ab7c2b8359"
+      }
+    ],
+    "matrix": {
+      "mac-batch-r710-core-r710.xml": {
+        "total": "1036",
+        "passed": "1028",
+        "failed": "4",
+        "skipped": "4",
+        "errors": "0",
+        "time": "26.449"
+      },
+      "mac-batch-r710-render-r710.xml": {
+        "total": "182",
+        "passed": "182",
+        "failed": "0",
+        "skipped": "0",
+        "errors": "0",
+        "time": "56.197"
+      },
+      "ubuntu-batch-r710-core-r710.xml": {
+        "total": "1036",
+        "passed": "1028",
+        "failed": "4",
+        "skipped": "4",
+        "errors": "0",
+        "time": "69.639"
+      },
+      "ubuntu-batch-r710-render-r710.xml": {
+        "total": "182",
+        "passed": "182",
+        "failed": "0",
+        "skipped": "0",
+        "errors": "0",
+        "time": "83.733"
+      },
+      "windows-batch-r710-core-r710.xml": {
+        "total": "1054",
+        "passed": "1002",
+        "failed": "4",
+        "skipped": "48",
+        "errors": "0",
+        "time": "33.827"
+      },
+      "windows-batch-r710-native-r710.xml": {
+        "total": "75",
+        "passed": "75",
+        "failed": "0",
+        "skipped": "0",
+        "errors": "0",
+        "time": "40.192"
+      },
+      "windows-batch-r710-render-r710.xml": {
+        "total": "182",
+        "passed": "181",
+        "failed": "0",
+        "skipped": "1",
+        "errors": "0",
+        "time": "99.032"
+      }
+    },
+    "failures": {
+      "mac": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"root:r\\\")"
+      ],
+      "ubuntu": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"root:r\\\")"
+      ],
+      "windows": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"root:r\\\")"
+      ]
+    },
+    "qualified": false,
+    "allRunnersTerminal": true,
+    "foreignProcessesAfterExit": {
+      "mac": [],
+      "ubuntu": [],
+      "windows": [
+        "pid=2476, owner=DESKTOP-A60F1NE\\Admin, cmd=dotnet.exe"
+      ]
+    },
+    "foreignAdminDotnetLeftAloneAndNextWindowsTestingPostponed": true,
+    "drivers": [
+      {
+        "path": "docs/validation/disk-space/drivers/batch-mac-r710.sh",
+        "sha256": "32b3024cd5d6718d39ed13dc157126cdb935dd662eb4da494ff35f2f66377faf"
+      },
+      {
+        "path": "docs/validation/disk-space/drivers/batch-linux-r710.sh",
+        "sha256": "2df53e4318173a0c062883455d708a197dbaf13f7ef666ad60121ceef9ed4100"
+      },
+      {
+        "path": "docs/validation/disk-space/drivers/batch-windows-r710.ps1",
+        "sha256": "22a73e2921b6ee9f94a6e65ba9abe59bacb7ef2fc3027260868bc87d49224cb6"
+      }
+    ]
+  },
+  "earlierFailedAttempt": {
+    "candidate": "r706",
+    "sources": [
+      {
+        "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.MarkVisibility.cs",
+        "sha256": "2a46ca361cc980c2f4f1563c9dc76810daf0584210dfed829525f2185cb56eae"
+      },
+      {
+        "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+        "sha256": "2cd0c0a85812dbd17d2d99a3be43dfb936f8cb29af8af5152ecedc16962f6547"
+      },
+      {
+        "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+        "sha256": "1ded4095fce5652bce150de10815a91a03e7d77aa90c5a45c11be2a81847f687"
+      },
+      {
+        "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedSelection.cs",
+        "sha256": "2e09a9bd3de42db464f185e61e26193d89d495f225beda72c554a6baa06402ab"
+      },
+      {
+        "path": "src/FileCat.App/Views/DiskSpaceWindow.MemoryMarks.cs",
+        "sha256": "220188966b820d971e7f41973cffe9037916ebcdfac8c297673748347b24ec4f"
+      },
+      {
+        "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+        "sha256": "d0e2355ec31ad02e6f3cbf3fdfe35a9d58f4566319ef90d2c7861e4510758065"
+      },
+      {
+        "path": "src/FileCat.Core/Analysis/AnalysisDatasetExplorer.cs",
+        "sha256": "a79a314c6388f923eb4d48ca9f8cfb9b1dd3bb36cc2259dcf077e063069d8842"
+      },
+      {
+        "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Selection.cs",
+        "sha256": "0531e90e6cebf2b0d0bbc76fd6af115589448df5a1bc9ac2d01e286f6723eb14"
+      },
+      {
+        "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.MatchingSelection.cs",
+        "sha256": "ddedfe7a0955f8b686eb7346db268d5d3e6a711eb4faf6104e74d512ae1ca95f"
+      },
+      {
+        "path": "src/FileCat.Core/Analysis/AnalysisFilter.cs",
+        "sha256": "28256a974fc3c36c51db492b923f5eb44a16d159d8808c3fa71a0c352ade7fcb"
+      },
+      {
+        "path": "src/FileCat.Core/Analysis/AnalysisSelectionState.cs",
+        "sha256": "4473fa44d6c43689f66d5d4def83ae481474dfe3267b41bee6945ea791abeba9"
+      },
+      {
+        "path": "src/FileCat.Core/Analysis/AnalysisTree.Grouping.cs",
+        "sha256": "ac76c7be4a6c7474d0a2420516f2f5ec355aa7350d6f0844c614bac7e800f766"
+      },
+      {
+        "path": "src/FileCat.Core/Analysis/AnalysisTree.Selection.cs",
+        "sha256": "984729384b467ebc3c431a6b84df598d63c14a93b056e6bdb6e1b190c3782202"
+      },
+      {
+        "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+        "sha256": "ee48174a2445a023b4bd04277176034213836b4ed8a91d49e07d6b1b2069c2ee"
+      },
+      {
+        "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.SelectionParity.cs",
+        "sha256": "00c49a9f052bdb72aa1bf1f85413d671a575cb43ce98f614850ceea36b6e3fd6"
+      },
+      {
+        "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.SelectionParity.cs",
+        "sha256": "08f98615032c58b1c32876d97cce944877ce45102887427f19fda9ab7c2b8359"
+      }
+    ],
+    "matrix": {
+      "mac-batch-r706-core-r706.xml": {
+        "total": "1036",
+        "passed": "972",
+        "failed": "60",
+        "skipped": "4",
+        "errors": "0",
+        "time": "25.485"
+      },
+      "mac-batch-r706-render-r706.xml": {
+        "total": "182",
+        "passed": "182",
+        "failed": "0",
+        "skipped": "0",
+        "errors": "0",
+        "time": "53.755"
+      },
+      "ubuntu-batch-r706-core-r706.xml": {
+        "total": "1036",
+        "passed": "972",
+        "failed": "60",
+        "skipped": "4",
+        "errors": "0",
+        "time": "64.808"
+      },
+      "ubuntu-batch-r706-render-r706.xml": {
+        "total": "182",
+        "passed": "182",
+        "failed": "0",
+        "skipped": "0",
+        "errors": "0",
+        "time": "82.463"
+      },
+      "windows-batch-r706-core-r706.xml": {
+        "total": "1054",
+        "passed": "946",
+        "failed": "60",
+        "skipped": "48",
+        "errors": "0",
+        "time": "27.260"
+      },
+      "windows-batch-r706-native-r706.xml": {
+        "total": "75",
+        "passed": "75",
+        "failed": "0",
+        "skipped": "0",
+        "errors": "0",
+        "time": "39.846"
+      },
+      "windows-batch-r706-render-r706.xml": {
+        "total": "182",
+        "passed": "181",
+        "failed": "0",
+        "skipped": "1",
+        "errors": "0",
+        "time": "92.870"
+      }
+    },
+    "failures": {
+      "mac": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"root:r\\\")"
+      ],
+      "ubuntu": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"root:r\\\")"
+      ],
+      "windows": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FolderHierarchy, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: FileType, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: Extension, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: ModifiedAge, metric: Files, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: FileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: UniqueFileSize, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: OnDisk, query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"name:x.cs\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.SelectionParityMemoryAndIndexedCountsAndMatchingCapturesShareExactScope(dimension: CapturedLocation, metric: Files, query: \\\"root:r\\\")"
+      ]
+    },
+    "qualified": false,
+    "allRunnersAndCollectorsTerminal": true,
+    "allFinalInventoriesEmpty": true,
+    "cause": "Invalid excluded-file fixture; missing Excluded metadata and object reference corrected before parity assertions.",
+    "drivers": [
+      {
+        "path": "docs/validation/disk-space/drivers/batch-mac-r706.sh",
+        "sha256": "75d8bb6234db05e784cc2b6c0660f801cd446b7e7f778b2912ec0f9700c50152"
+      },
+      {
+        "path": "docs/validation/disk-space/drivers/batch-linux-r706.sh",
+        "sha256": "dbec1b4a06a06aa89d5f9471f9ff2dacc18ff9ca8d89be3417db87340367acb9"
+      },
+      {
+        "path": "docs/validation/disk-space/drivers/batch-windows-r706.ps1",
+        "sha256": "5494da16222a3df49bcda371d4046831982fe8d8ec52c32dc11db04eedf0af0f"
+      }
+    ]
+  },
+  "finalBuild": "build-r713.txt: full solution zero warnings/errors",
+  "testScope": "Actual guest runtimes and native private inventory fixtures; exact cross-storage selection/filter/scope controls, queued I/O cancellation/closure and headless windows/paging/basket independence plus full applicable suites. Physical desktop/accessibility/DPI and full 1M/10M/private-memory/resource qualification remain pending.",
+  "batchWorkflow": "One immutable bundle/platform, sequential applicable suites with integrity/per-phase process gates and one final collection/completed machine.",
+  "ownedProcessExitEvidence": "All original runners terminal; FINISHED exit=0 states and authoritative final inventories contain no owned instances. Foreign testers left alone. No host app/input tests.",
+  "foreignProcessesObserved": {
+    "mac": [],
+    "ubuntu": [],
+    "windows": []
+  },
+  "windowsAfterForeignExitInventory": "docs/validation/disk-space/windows-pre-r714.json",
+  "qualification": {
+    "memoryNonmatchingAliasContextParityPassedAllThree": true,
+    "contextRowsExcludedFromMatchingSelection": true,
+    "memoryScopedMarkCountsAndReviewImplemented": true,
+    "memoryIndexedSelectionParityControlsPassedAllThree": true,
+    "matchingFilesInCapturedHierarchyAndGroupScopeImplemented": true,
+    "matchingCaptureDeduplicatesAliasesAndExcludesContextFolders": true,
+    "matchingCaptureBoundsAndQueuedCancellationPassedAllThree": true,
+    "retainedSelectionIdentityGuardPassedAllThree": true,
+    "memoryNamespaceOnlyFiltersKeepEmptyFolderContextAndDirectoryAllocation": true,
+    "memoryLatestCountUpdatesCoalescedThroughActualCompletion": true,
+    "newControlsPassedAllThree": true,
+    "deferredSelectAllAfterScanImplemented": false,
+    "fullIndexedPointerAndKeyboardRangeQualification": false,
+    "indexedOtherExactSubsetParityQualified": false,
+    "indexedSaveUiImplemented": false,
+    "ownerComparisonVolumeGroupingImplemented": false,
+    "nativeDesktopSelectionQualified": false,
+    "fullResourceGateQualified": false,
+    "fullMillionTenMillionGroupingQualificationComplete": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

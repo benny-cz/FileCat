@@ -27,6 +27,7 @@ internal sealed class ColumnProfilesEditor
     private readonly TextBox _name = new();
     private readonly NumericUpDown _width = new() { Minimum = 0, Maximum = 2000, Increment = 10, FormatString = "0", MinWidth = 140 };
     private readonly ComboBox _add = new() { MinWidth = 180, ItemsSource = ColumnProfileSet.Choices.Select(c => c.Title).ToList(), SelectedIndex = 0 };
+    private readonly TextBlock _addDescription = new() { Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
     private readonly Dictionary<string, Button> _profileActions = [];
     private readonly Dictionary<string, Button> _columnActions = [];
     private readonly Button _addButton = new() { Content = "Add" };
@@ -34,10 +35,13 @@ internal sealed class ColumnProfilesEditor
     private readonly TextBlock _status = new() { Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
     private Button? _statusFor;
     private bool _updating;
+    /// <summary>Settings that cannot be saved (read-only): profiles and columns can be looked through, not changed.</summary>
+    private readonly bool _readOnly;
 
-    public ColumnProfilesEditor(ColumnProfileSet set)
+    public ColumnProfilesEditor(ColumnProfileSet set, bool readOnly = false)
     {
         _set = set;
+        _readOnly = readOnly;
         _profiles = Load(set.Profiles);
         AutomationProperties.SetName(_profileList, "Column profiles");
         AutomationProperties.SetName(_columnList, "Columns of the selected profile");
@@ -49,7 +53,9 @@ internal sealed class ColumnProfilesEditor
 
         _profileList.SelectionChanged += (_, _) => { if (!_updating) ShowProfile(); };
         _columnList.SelectionChanged += (_, _) => { if (!_updating) ShowColumn(); };
-        _add.SelectionChanged += (_, _) => UpdateActions();
+        _add.SelectionChanged += (_, _) => { UpdateAddDescription(); UpdateActions(); };
+        AutomationProperties.SetAutomationId(_addDescription, "Column description");
+        UpdateAddDescription();
         _name.TextChanged += (_, _) =>
         {
             if (_updating || Selected is not { } p) return;
@@ -96,6 +102,7 @@ internal sealed class ColumnProfilesEditor
             {
                 Label("Columns"), _columnList,
                 DialogLayout.Actions(_add, _addButton),
+                _addDescription,
                 columnButtons,
                 DialogLayout.Actions(Label("Width"), _width, Note("pixels; 0 fills the remaining space")),
                 Note("Dragging a column border in a panel also stores its width here. The Name column is always kept."),
@@ -107,6 +114,28 @@ internal sealed class ColumnProfilesEditor
     }
 
     public Control View { get; }
+
+    private void UpdateAddDescription()
+    {
+        string? description = _add.SelectedIndex >= 0 && _add.SelectedIndex < ColumnProfileSet.Choices.Count
+            ? ColumnProfileSet.Choices[_add.SelectedIndex].Description : null;
+        _addDescription.Text = description;
+        _addDescription.IsVisible = !string.IsNullOrEmpty(description);
+        AutomationProperties.SetHelpText(_add, description ?? "");
+    }
+
+    /// <summary>Where the keyboard starts when Settings opens on this page: the list of profiles.</summary>
+    internal Control InitialFocus => _profileList;
+
+    /// <summary>Selects a profile by its Alt+ number (a panel's own, when Settings opens from its column header).</summary>
+    internal void SelectProfile(int profile) => RefreshProfiles(select: Math.Clamp(profile, 0, _profiles.Count - 1));
+
+    public bool HasChanges()
+    {
+        var original = Load(_set.Profiles);
+        return _profiles.Count != original.Count || _profiles.Where((profile, index) =>
+            profile.Name != original[index].Name || !profile.Columns.SequenceEqual(original[index].Columns)).Any();
+    }
 
     private Profile? Selected
     {
@@ -131,6 +160,10 @@ internal sealed class ColumnProfilesEditor
         if (_profiles.Count >= ColumnProfileSet.MaxProfiles) return;
         _profiles.Add(p);
         RefreshProfiles(select: _profiles.Count - 1);
+        // New and Duplicate are naming tasks; put the suggested name under the caret so
+        // typing replaces it, while leaving it intact if the user accepts the suggestion.
+        _name.Focus();
+        _name.SelectAll();
     }
 
     private void RemoveProfile()
@@ -249,7 +282,7 @@ internal sealed class ColumnProfilesEditor
         ActionState(_columnActions["Down"], selectedColumn && ci < profile!.Columns.Count - 1,
             "The last column cannot move down.", _columnList);
         _name.IsEnabled = profile is not null;
-        _width.IsEnabled = selectedColumn;
+        _width.IsEnabled = selectedColumn && !_readOnly;
     }
 
     /// <summary>
@@ -260,6 +293,8 @@ internal sealed class ColumnProfilesEditor
     /// </summary>
     private void ActionState(Button button, bool enabled, string unavailableReason, Control fallback)
     {
+        // Read-only settings: every action stays off however the lists are moved through (Settings says why at the top).
+        if (_readOnly) (enabled, unavailableReason) = (false, "These settings are read-only.");
         if (!enabled && button.IsEnabled && button.IsFocused)
         {
             TakeKeyboard(fallback);

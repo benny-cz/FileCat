@@ -1,0 +1,270 @@
+#!/usr/bin/env python3
+"""Run one frozen ArchiveFuzzHarness image inside a bounded Linux guest unit.
+
+This is a validation tool, not an application dependency. The systemd unit owns
+the driver and its managed child. The supervisor retains exact command, binary
+hashes, kernel resource observations, and termination status for each run.
+"""
+
+import argparse
+import bz2
+import gzip
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import time
+
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def properties(unit):
+    output = subprocess.check_output(
+        ["systemctl", "show", unit, "-p", "ActiveState", "-p", "SubState",
+         "-p", "MainPID", "-p", "ExecMainCode", "-p", "ExecMainStatus",
+         "-p", "Result", "-p", "CPUUsageNSec", "-p", "MemoryPeak",
+         "-p", "ControlGroup"], text=True)
+    return dict(line.split("=", 1) for line in output.splitlines() if "=" in line)
+
+
+def live_file_sizes(root):
+    """Ignore only files atomically replaced while a managed report is being written."""
+    for path in root.rglob("*"):
+        try:
+            if path.is_file():
+                yield path, path.stat().st_size
+        except FileNotFoundError:
+            continue
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--phase", choices=("canary", "clean"), required=True)
+    parser.add_argument("--target", choices=("digest", "tar-strict", "sevenzip-strict", "rar5-strict", "sevenzip-password", "rar5-password",
+                                              "gzip-strict", "bzip2-strict", "zstd-strict", "session-record", "capture-record", "save-copy-intent",
+                                              "save-copy-receipt", "journal-record", "journal-state", "manifest-member",
+                                              "worker-frames", "verify-output", "create-inputs", "update-changes", "stream-faults",
+                                              "member-keys", "repeated-cancel", "standalone-streams", "zip-archives", "publication-races",
+                                              "sevenzip-writer", "rar5-writer"), default="digest")
+    parser.add_argument("--seconds", type=int, required=True)
+    parser.add_argument("--seed", type=int, required=True)
+    parser.add_argument("--run-id", required=True)
+    parser.add_argument("--valid-prefix", default="00", help="Two uppercase hex digits for a valid corpus seed")
+    parser.add_argument("--short-canary-seed", action="store_true", help="Add a 63-character FC seed; it must mutate to become valid")
+    parser.add_argument("--replay-text", help="Replay these ASCII input bytes once through the same bounded driver")
+    parser.add_argument("--replay-file", type=Path, help="Replay one bounded synthetic input file")
+    parser.add_argument("--canary-two-byte", action="store_true", help="Test-only canary input adaptation for a valid digest")
+    parser.add_argument("--reuse-run-id", help="Copy bounded corpus entries from a completed run in the same image")
+    parser.add_argument("--extra-seed-directory", type=Path, help="Copy synthetic TAR or session-record seeds into a campaign")
+    parser.add_argument("--sudo-password", default="a", help="Disposable VM password")
+    args = parser.parse_args()
+    if not 1 <= args.seconds <= 86400:
+        parser.error("seconds must be within 1..86400")
+    if not args.run_id.replace("-", "").isalnum():
+        parser.error("run-id must be alphanumeric with optional dashes")
+    if len(args.valid_prefix) != 2 or any(c not in "0123456789ABCDEF" for c in args.valid_prefix):
+        parser.error("valid-prefix must be two uppercase hex digits")
+    if args.phase == "canary" and args.valid_prefix == "FC":
+        parser.error("An exact crash seed cannot prove canary discovery")
+    if args.short_canary_seed and args.phase != "canary":
+        parser.error("The intentional canary seed is only for instrumentation qualification")
+    if args.canary_two_byte and args.target != "digest":
+        parser.error("The two-byte canary mode applies only to the digest guard")
+    if args.short_canary_seed and args.canary_two_byte:
+        parser.error("Choose one canary seed strategy")
+    if args.replay_text is not None and (not args.replay_text.isascii() or len(args.replay_text) > 1048576):
+        parser.error("replay-text must be ASCII and at most 1 MiB")
+    if args.replay_file is not None and args.replay_text is not None:
+        parser.error("Choose one replay input")
+    if args.reuse_run_id is not None and (not args.reuse_run_id.replace("-", "").isalnum() or args.replay_text is not None or args.replay_file is not None):
+        parser.error("reuse-run-id must name a completed run and cannot be used with replay")
+    if args.extra_seed_directory is not None and args.target == "digest":
+        parser.error("Extra seeds apply only to the format and recovery-record targets")
+
+    root = args.root.resolve(strict=True)
+    parent = root.parent
+    image = root / args.phase
+    driver = root / "libfuzzer-dotnet"
+    managed = parent / "dotnet" / "dotnet"
+    core = image / "FileCat.Core.dll"
+    harness = image / "FileCat.ArchiveFuzzHarness.dll"
+    for path in (driver, managed, core, harness):
+        if not path.is_file():
+            raise FileNotFoundError(path)
+    if args.phase == "clean" and b"FILECAT_VALIDATED_DIGEST_CANARY" in core.read_bytes():
+        raise ValueError("Clean image contains the intentional canary")
+    unit = "filecat-archive-fuzz-" + args.run_id
+    run = root / "runs" / args.run_id
+    run.mkdir(parents=True, exist_ok=False)
+    for name in ("corpus", "crashes", "reports", "tmp", "dumps"):
+        (run / name).mkdir()
+    (run / "corpus" / "valid").write_bytes(b"\0" * 1024 if args.target == "tar-strict" else
+                                            b"7z\xbc\xaf\x27\x1c" if args.target in ("sevenzip-strict", "sevenzip-password") else
+                                            b"Rar!\x1a\x07\x01\x00" if args.target in ("rar5-strict", "rar5-password") else
+                                            gzip.compress(b"", mtime=0) if args.target == "gzip-strict" else
+                                            bz2.compress(b"") if args.target == "bzip2-strict" else
+                                            bytes.fromhex("28b52ffd2000010000") if args.target == "zstd-strict" else
+                                            b"0{}" if args.target == "capture-record" else
+                                            b"{}" if args.target in ("session-record", "save-copy-intent", "save-copy-receipt") else
+                                            b"00000000 {}\n" if args.target in ("journal-record", "journal-state") else
+                                            b"\x01\x00" if args.target == "manifest-member" else
+                                            b"\x00\x00" if args.target == "worker-frames" else
+                                            b"\x00" + bytes(1024) if args.target == "verify-output" else
+                                            args.valid_prefix.encode() if args.canary_two_byte else
+                                            args.valid_prefix.encode() + b"0" * 62)
+    (run / "corpus" / "short").write_bytes(b"0")
+    if args.short_canary_seed:
+        (run / "corpus" / "near-canary").write_bytes(b"FC" + b"0" * 61)
+    if args.replay_text is not None:
+        (run / "replay-input").write_bytes(args.replay_text.encode("ascii"))
+    if args.replay_file is not None:
+        source = args.replay_file.resolve(strict=True)
+        if not source.is_file() or source.is_symlink() or source.stat().st_size > 1048576:
+            raise ValueError("Replay input exceeds its owned file budget")
+        shutil.copyfile(source, run / "replay-input")
+    reused = []
+    if args.reuse_run_id is not None:
+        previous = root / "runs" / args.reuse_run_id
+        previous_result = previous / "result.json"
+        previous_facts = json.loads(previous_result.read_text()) if previous_result.is_file() else {}
+        if not previous_facts.get("terminal") or previous_facts.get("phase") != "clean" or previous_facts.get("target") != args.target or previous_facts.get("artifacts"):
+            raise ValueError("The seed corpus run is not completed and terminal")
+        old_corpus = previous / "corpus"
+        total = 0
+        for index, source in enumerate(sorted(old_corpus.iterdir())):
+            if index >= 1024 or not source.is_file() or source.is_symlink():
+                raise ValueError("Seed corpus has an unreviewable entry")
+            size = source.stat().st_size
+            total += size
+            if size > 1048576 or total > 16 * 1048576:
+                raise ValueError("Seed corpus exceeds its copy budget")
+            target = run / "corpus" / f"reused-{index:04d}"
+            shutil.copyfile(source, target)
+            reused.append({"name": source.name, "bytes": size, "sha256": sha(source)})
+    extra_seeds = []
+    if args.extra_seed_directory is not None:
+        folder = args.extra_seed_directory.resolve(strict=True)
+        if folder.parent != root or not folder.is_dir():
+            raise ValueError("Extra corpus must be a direct synthetic seed directory within this image")
+        total = 0
+        # Structured request targets first: the 7z and RAR5 writer targets take request bytes, not archives.
+        extension = "*.bin" if args.target in ("manifest-member", "worker-frames", "verify-output", "create-inputs", "update-changes",
+                                               "stream-faults", "member-keys", "repeated-cancel", "standalone-streams", "zip-archives",
+                                               "publication-races", "sevenzip-writer", "rar5-writer") else \
+                    "*.tar" if args.target == "tar-strict" else "*.7z" if args.target.startswith("sevenzip-") else "*.rar" if args.target.startswith("rar5-") else \
+                    "*.gz" if args.target == "gzip-strict" else "*.bz2" if args.target == "bzip2-strict" else "*.zst" if args.target == "zstd-strict" else "*.json"
+        for index, source in enumerate(sorted(p for p in folder.glob(extension) if p.name != "manifest.json")):
+            # 256 synthetic seeds: the publication-race generator emits one per operation, fault and stage.
+            if index >= 256 or not source.is_file() or source.is_symlink():
+                raise ValueError("Extra corpus has an unreviewable entry")
+            size = source.stat().st_size
+            total += size
+            if size > 1048576 or total > 16 * 1048576:
+                raise ValueError("Extra corpus exceeds its copy budget")
+            shutil.copyfile(source, run / "corpus" / f"synthetic-{index:04d}")
+            extra_seeds.append({"name": source.name, "bytes": size, "sha256": sha(source)})
+
+    replay = args.replay_text is not None or args.replay_file is not None
+    native = [str(driver), "-runs=1" if replay else f"-max_total_time={args.seconds}",
+              "-timeout=10" if args.target in ("sevenzip-password", "rar5-password", "worker-frames", "verify-output", "create-inputs",
+                                                "update-changes", "stream-faults", "member-keys", "standalone-streams", "zip-archives") else
+              # A protected container request pays a 2^19-round key derivation in each worker role and in the oracle.
+              "-timeout=60" if args.target in ("repeated-cancel", "publication-races", "sevenzip-writer", "rar5-writer") else "-timeout=2",
+              "-rss_limit_mb=900", "-max_len=2" if args.canary_two_byte else "-max_len=1048576", f"-seed={args.seed}",
+              "-print_final_stats=1", f"-artifact_prefix={run / 'crashes'}/",
+              f"--target_path={managed}", f"--target_arg={harness}", str(run / ("replay-input" if replay else "corpus"))]
+    command = ["sudo", "-S", "-p", "", "systemd-run", "--unit=" + unit,
+               "--service-type=exec", "--uid=benny", "--gid=benny",
+               "--working-directory=" + str(root),
+               "-p", "RemainAfterExit=yes", "-p", "MemoryMax=1073741824",
+               "-p", "MemorySwapMax=0", "-p", f"RuntimeMaxSec={args.seconds + 30}",
+               "-p", "TasksMax=64", "-p", "NoNewPrivileges=yes",
+               # PrivateDevices= alone leaves inherited capabilities, which the archive route's ordinary-identity check
+               # rightly refuses (every publication-race input was refused); an empty bounding set clears them.
+               "-p", "CapabilityBoundingSet=",
+               "-p", "PrivateNetwork=yes", "-p", "PrivateDevices=yes",
+               "-p", "PrivateTmp=yes", "-p", "PrivateIPC=yes",
+               "-p", "ProtectSystem=strict", "-p", "ProtectHome=read-only",
+               "-p", "KillMode=control-group", "-p", "LimitCORE=0",
+               # The runtime's write-xor-execute allocator backs all JIT code with one growing memory file, which this limit
+               # also caps: at 16 MiB the widely instrumented images ran out of executable memory within seconds. The run
+               # folder's 256 MiB output budget below still bounds what the unit writes.
+               "-p", "LimitNOFILE=512", "-p", "LimitFSIZE=1073741824",
+               "-p", "ReadWritePaths=" + str(run),
+               "-p", "StandardOutput=append:" + str(run / "driver.log"),
+               "-p", "StandardError=append:" + str(run / "driver.log"),
+               "--setenv=DOTNET_ROOT=" + str(parent / "dotnet"),
+               "--setenv=DOTNET_EnableDiagnostics=0",
+               # A native-level fault of the managed child leaves a crash report (all thread stacks) and a small dump.
+               "--setenv=DOTNET_DbgEnableMiniDump=1", "--setenv=DOTNET_DbgMiniDumpType=1",
+               "--setenv=DOTNET_EnableCrashReport=1", "--setenv=DOTNET_DbgMiniDumpName=" + str(run / "dumps" / "core.%p"),
+               # The runtime reads this value as hexadecimal: a 512 MiB managed heap inside the 1 GiB unit.
+               "--setenv=DOTNET_GCHeapHardLimit=20000000",
+               "--setenv=FILECAT_FUZZ_REPORT=" + str(run / "reports" / "managed.json"),
+               "--setenv=FILECAT_FUZZ_TARGET=" + args.target,
+               "--setenv=FILECAT_FUZZ_CANARY_PREFIX_MODE=" + ("1" if args.canary_two_byte else "0"),
+               "--setenv=TMPDIR=" + str(run / "tmp"), *native]
+    facts = {"unit": unit, "phase": args.phase, "target": args.target, "seconds": args.seconds,
+             "valid_seed_prefix": args.valid_prefix, "short_canary_seed": args.short_canary_seed,
+             "canary_two_byte": args.canary_two_byte,
+             "reuse_run_id": args.reuse_run_id, "reused_corpus": reused, "extra_seeds": extra_seeds,
+             "replay_input_sha256": sha(run / "replay-input") if replay else None,
+             "seed": args.seed, "command": command, "sha256": {
+                 "driver": sha(driver), "managed": sha(managed),
+                 "core": sha(core), "harness": sha(harness),
+                 "archives": sha(image / "FileCat.Archives.dll") if (image / "FileCat.Archives.dll").exists() else None,
+                 "codecs": sha(image / "FileCat.SharpCompress.dll") if (image / "FileCat.SharpCompress.dll").exists() else None},
+             "observations": []}
+    (run / "command.json").write_text(json.dumps(facts, indent=2))
+    # A failed unit of an earlier image's run with the same id stays loaded until reset (the canary and its replay end
+    # failed by design, exit 77), and systemd then refuses to start this run under that name. Resetting changes nothing
+    # for an active unit of the same name, whose start below still fails.
+    subprocess.run(["sudo", "-S", "-p", "", "systemctl", "reset-failed", unit], input=(args.sudo_password + "\n").encode(),
+                   capture_output=True, timeout=20)
+    launch = subprocess.run(command, input=(args.sudo_password + "\n").encode(),
+                            capture_output=True, timeout=20)
+    facts["launch"] = {"returncode": launch.returncode,
+                       "stdout": launch.stdout.decode(errors="replace"),
+                       "stderr": launch.stderr.decode(errors="replace")}
+    if launch.returncode:
+        (run / "result.json").write_text(json.dumps(facts, indent=2))
+        raise RuntimeError(f"Unit did not start: {facts['launch']}")
+
+    deadline = time.monotonic() + args.seconds + 40
+    terminal = False
+    output_budget_failure = False
+    while time.monotonic() < deadline:
+        p = properties(unit)
+        facts["observations"].append({"elapsed": round(time.monotonic() - (deadline - args.seconds - 40), 3), **p})
+        if sum(size for _, size in live_file_sizes(run)) > 256 * 1048576:
+            output_budget_failure = True
+            break
+        if p.get("MainPID") == "0" and p.get("SubState") in ("exited", "failed", "dead"):
+            terminal = True
+            break
+        time.sleep(1)
+    facts["terminal"] = terminal
+    facts["output_budget_failure"] = output_budget_failure
+    facts["final_properties"] = properties(unit)
+    facts["artifacts"] = [{"name": p.name, "bytes": p.stat().st_size,
+                           "sha256": sha(p)} for p in sorted((run / "crashes").iterdir())]
+    facts["managed_report"] = json.loads((run / "reports" / "managed.json").read_text()) if (run / "reports" / "managed.json").exists() else None
+    facts["files"] = {str(path.relative_to(run)): size for path, size in live_file_sizes(run)}
+    (run / "result.json").write_text(json.dumps(facts, indent=2))
+    subprocess.run(["sudo", "-S", "-p", "", "systemctl", "stop", unit],
+                   input=(args.sudo_password + "\n").encode(), capture_output=True, timeout=20)
+    print(json.dumps({"run": str(run), "terminal": terminal,
+                      "status": facts["final_properties"],
+                      "artifacts": facts["artifacts"],
+                      "report": facts["managed_report"]}))
+    if not terminal or output_budget_failure:
+        raise RuntimeError("Fuzz service exceeded its time/output budget; owned unit was stopped")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,237 @@
+{
+  "purpose": "Native Ubuntu table ordering/breadcrumb/pointer/keyboard subset; no full qualification",
+  "processId": 417744,
+  "events": [
+    "Invoked Start analysis",
+    "Selected Analysis table sort = Name",
+    "Selected Analysis table sort direction = Ascending",
+    "Selected Analysis table sort direction = Descending",
+    "Invoked Go to captured location: All locations",
+    "Invoked Back",
+    "Selected Analysis table sort direction = Ascending",
+    "Selected Chart view = Table"
+  ],
+  "nativePointerAndEnterDrilledRoot": true,
+  "ascendingNames": [
+    ".hidden.bin",
+    "Aliases",
+    "Archives",
+    "large.bin",
+    "link-outside",
+    "Package.app",
+    "Photos",
+    "report.csv",
+    "Shared hard-linked files",
+    "Small files",
+    "Unicode",
+    "zero.bin"
+  ],
+  "markedKey": "n:12",
+  "descendingNames": [
+    "zero.bin",
+    "Unicode",
+    "Small files",
+    "Shared hard-linked files",
+    "report.csv",
+    "Photos",
+    "Package.app",
+    "link-outside",
+    "large.bin",
+    "Archives",
+    "Aliases",
+    ".hidden.bin"
+  ],
+  "nativeSortPreservedFocusAndMark": true,
+  "nativeBreadcrumbAndBackPreservedMark": true,
+  "nativeLinkOmissionExplained": true,
+  "linkRow": {
+    "Key": "n:2",
+    "Name": "link-outside",
+    "value": "0",
+    "activeText": "Not measured",
+    "fileSizeText": "Not measured",
+    "state": "Link not followed"
+  },
+  "state": "native-navigation-failed",
+  "error": "Native tab observation timed out",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/benny/FileCatValidation/dsa-20261105-r88-links/run.py\", line 137, in <module>\n    key('Home');wait_for(lambda:observation().get('focus')==marked)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/benny/FileCatValidation/dsa-20261105-r88-links/run.py\", line 55, in wait_for\n    raise RuntimeError('Native tab observation timed out')\nRuntimeError: Native tab observation timed out\n",
+  "ownedProcessExited": true,
+  "harnessReport": {
+    "schemaVersion": 1,
+    "purpose": "Native desktop development validation; no capability qualification",
+    "state": "closed",
+    "sourceUnchanged": true,
+    "deadlineClosed": false,
+    "processId": 417744,
+    "platform": "Ubuntu 24.04.5 LTS",
+    "architecture": "X64",
+    "run": "/home/benny/FileCatValidation/dsa-20261105-r88-links/app/native-validation/dsa-3e9855952a8f4886a1d18775e0b29d4e",
+    "fixture": "/home/benny/FileCatValidation/dsa-20261105-r88-links/app/native-validation/dsa-3e9855952a8f4886a1d18775e0b29d4e/fixture",
+    "fixtureRegularPaths": 509,
+    "fixtureLimitations": [],
+    "nativeWindowVisible": false,
+    "lastVisibleWidth": 1180,
+    "lastVisibleHeight": 731,
+    "lastVisibleScale": 1,
+    "lastScreen": {
+      "bounds": "0, 0, 1280, 800",
+      "workingArea": "66, 32, 1214, 768",
+      "Scaling": 1,
+      "position": "66, 32",
+      "frameSize": "1180, 768"
+    },
+    "largeText": false,
+    "compact": false,
+    "sharedProfile": false,
+    "sessions": 0,
+    "createdSessions": 1,
+    "lastObservation": {
+      "Phase": 5,
+      "Status": "Viewing captured location: fixture.",
+      "FilterError": null,
+      "Query": "",
+      "Metric": 2,
+      "session": "1fb1f22a-58f0-450e-aefd-e57139db9f0b",
+      "Coverage": 0,
+      "Freshness": 0,
+      "hostProfile": "hp1:6e10999c2f67469589cc6b63b86dc3b2:linux-app-machine-id:840b6e517b5687696e74bb9ee0cc207b9b258c1ee5ac4d8508376f2b027ed08b",
+      "ContinuityNotice": null,
+      "paths": 518,
+      "objects": 508,
+      "issues": [
+        {
+          "Code": "navigation-link-not-followed",
+          "State": 3
+        }
+      ],
+      "known": "3424256",
+      "unverified": "0",
+      "matchingPaths": 509,
+      "rows": 12,
+      "focus": "n:2",
+      "marked": 1,
+      "basket": 0,
+      "tableSort": 1,
+      "tableDescending": false,
+      "tableRows": [
+        {
+          "Key": "n:12",
+          "Name": ".hidden.bin",
+          "value": "4096",
+          "activeText": "4.0 KiB",
+          "fileSizeText": "321 B",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:7",
+          "Name": "Aliases",
+          "value": "0",
+          "activeText": "Shared at ancestor",
+          "fileSizeText": "1.0 MiB",
+          "state": "Shared links"
+        },
+        {
+          "Key": "n:9",
+          "Name": "Archives",
+          "value": "81920",
+          "activeText": "80.0 KiB",
+          "fileSizeText": "80.0 KiB",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:11",
+          "Name": "large.bin",
+          "value": "0",
+          "activeText": "Shared at ancestor",
+          "fileSizeText": "1.0 MiB",
+          "state": "Shared links"
+        },
+        {
+          "Key": "n:2",
+          "Name": "link-outside",
+          "value": "0",
+          "activeText": "Not measured",
+          "fileSizeText": "Not measured",
+          "state": "Link not followed"
+        },
+        {
+          "Key": "n:3",
+          "Name": "Package.app",
+          "value": "12288",
+          "activeText": "12.0 KiB",
+          "fileSizeText": "11.0 KiB",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:5",
+          "Name": "Photos",
+          "value": "245760",
+          "activeText": "240.0 KiB",
+          "fileSizeText": "240.0 KiB",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:6",
+          "Name": "report.csv",
+          "value": "4096",
+          "activeText": "4.0 KiB",
+          "fileSizeText": "60 B",
+          "state": "Observed"
+        },
+        {
+          "Key": "shared:n:1",
+          "Name": "Shared hard-linked files",
+          "value": "1048576",
+          "activeText": "1.0 MiB",
+          "fileSizeText": "2.0 MiB",
+          "state": "Group"
+        },
+        {
+          "Key": "n:10",
+          "Name": "Small files",
+          "value": "2023424",
+          "activeText": "1.9 MiB",
+          "fileSizeText": "22.8 KiB",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:4",
+          "Name": "Unicode",
+          "value": "4096",
+          "activeText": "4.0 KiB",
+          "fileSizeText": "123 B",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:8",
+          "Name": "zero.bin",
+          "value": "0",
+          "activeText": "0 B",
+          "fileSizeText": "0 B",
+          "state": "Observed"
+        }
+      ],
+      "breadcrumbs": [
+        {
+          "Key": "scope",
+          "Label": "All locations"
+        },
+        {
+          "Key": "n:1",
+          "Label": "fixture"
+        }
+      ]
+    },
+    "selectedTab": 0,
+    "tabHeaders": [
+      "Analysis 1"
+    ],
+    "appSha256": "3878c926607dfb2480050ddf1124d64dcdb330262157fa6130895308a6c4edfb",
+    "harnessSha256": "2419429e5e1952e37d28600330cb779b03cd5a59acb9edc9860b9968ed48ff0e",
+    "profileProbe": false,
+    "profileProbeFinished": false,
+    "profileProbeError": null,
+    "profileProbeCaptureError": null,
+    "savedOrderingProbe": null
+  }
+}

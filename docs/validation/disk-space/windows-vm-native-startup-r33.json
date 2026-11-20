@@ -1,0 +1,25 @@
+﻿{
+    "schemaVersion":  1,
+    "purpose":  "Native desktop development validation; no capability qualification",
+    "state":  "closed",
+    "sourceUnchanged":  true,
+    "deadlineClosed":  false,
+    "processId":  9416,
+    "platform":  "Microsoft Windows 10.0.26340",
+    "architecture":  "X64",
+    "run":  "C:\\FileCatDsa20261104R2\\desktop-r33-native\\app\\native-validation\\dsa-1893f88a3c1e4cceba973eb428353192",
+    "fixture":  "C:\\FileCatDsa20261104R2\\desktop-r33-native\\app\\native-validation\\dsa-1893f88a3c1e4cceba973eb428353192\\fixture",
+    "fixtureRegularPaths":  509,
+    "fixtureLimitations":  [
+
+                           ],
+    "nativeWindowVisible":  false,
+    "lastVisibleWidth":  1180,
+    "lastVisibleHeight":  780,
+    "lastVisibleScale":  1,
+    "sessions":  0,
+    "createdSessions":  1,
+    "lastObservation":  null,
+    "appSha256":  "c399b50baa7d42b7b71599e216c1e66384dc935a491aa71ecdf5e71ef780220b",
+    "harnessSha256":  "c65a3c4ce795dc349f33efe1841951ffb9935199fc019bbc79c9a07ff66a7340"
+}

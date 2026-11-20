@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native desktop development validation; no capability qualification",
+  "state": "closed",
+  "sourceUnchanged": true,
+  "deadlineClosed": false,
+  "processId": 3392,
+  "platform": "Microsoft Windows 10.0.26340",
+  "architecture": "X64",
+  "run": "C:\\FileCatDsa20261104R2\\desktop-r95b-input\\app\\native-validation\\dsa-345c105e69dc43a99cf6f9e4d93305fa",
+  "fixture": "C:\\FileCatDsa20261104R2\\desktop-r95b-input\\app\\native-validation\\dsa-345c105e69dc43a99cf6f9e4d93305fa\\fixture",
+  "fixtureRegularPaths": 509,
+  "fixtureLimitations": [],
+  "nativeWindowVisible": false,
+  "lastVisibleWidth": 1180,
+  "lastVisibleHeight": 780,
+  "lastVisibleScale": 1,
+  "lastScreen": {
+    "bounds": "0, 0, 1534, 1193",
+    "workingArea": "0, 0, 1534, 1145",
+    "Scaling": 1,
+    "position": "130, 130",
+    "frameSize": "1196, 819"
+  },
+  "largeText": false,
+  "compact": false,
+  "sharedProfile": false,
+  "sessions": 0,
+  "createdSessions": 1,
+  "lastObservation": {
+    "Phase": 5,
+    "Status": "Marked rows: 1. Existing marks outside this range are retained.",
+    "FilterError": null,
+    "Query": "",
+    "Metric": 2,
+    "session": "eb66acae-5b50-4846-b44c-0caedd70b61d",
+    "Coverage": 0,
+    "Freshness": 0,
+    "hostProfile": "hp1:edafcd0f0a3940639ae8daab6fe6f5cb:windows-hardware-profile:6c4afca090f85d61ebb3642854d82f08516161155578588fbf049ffa747a9687",
+    "ContinuityNotice": null,
+    "paths": 518,
+    "objects": 508,
+    "issues": [
+      {
+        "Code": "navigation-link-not-followed",
+        "State": 3
+      }
+    ],
+    "known": "1414184",
+    "unverified": "0",
+    "matchingPaths": 509,
+    "rows": 12,
+    "focus": "n:2",
+    "marked": 1,
+    "basket": 0,
+    "tableSort": 1,
+    "tableDescending": false,
+    "tableRows": [
+      {
+        "Key": "n:2",
+        "Name": ".hidden.bin",
+        "value": "328",
+        "activeText": "328 B",
+        "fileSizeText": "321 B",
+        "state": "Observed"
+      },
+      {
+        "Key": "n:3",
+        "Name": "Aliases",
+        "value": "0",
+        "activeText": "Shared at ancestor",
+        "fileSizeText": "1.0 MiB",
+        "state": "Shared links"
+      },
+      {
+        "Key": "n:4",
+        "Name": "Archives",
+        "value": "81920",
+        "activeText": "80.0 KiB",
+        "fileSizeText": "80.0 KiB",
+        "state": "Observed"
+      },
+      {
+        "Key": "n:5",
+        "Name": "large.bin",
+        "value": "0",
+        "activeText": "Shared at ancestor",
+        "fileSizeText": "1.0 MiB",
+        "state": "Shared links"
+      },
+      {
+        "Key": "n:6",
+        "Name": "link-outside",
+        "value": "0",
+        "activeText": "Not measured",
+        "fileSizeText": "Not measured",
+        "state": "Link not followed"
+      },
+      {
+        "Key": "n:7",
+        "Name": "Package.app",
+        "value": "12288",
+        "activeText": "12.0 KiB",
+        "fileSizeText": "11.0 KiB",
+        "state": "Observed"
+      },
+      {
+        "Key": "n:8",
+        "Name": "Photos",
+        "value": "245760",
+        "activeText": "240.0 KiB",
+        "fileSizeText": "240.0 KiB",
+        "state": "Observed"
+      },
+      {
+        "Key": "n:9",
+        "Name": "report.csv",
+        "value": "64",
+        "activeText": "64 B",
+        "fileSizeText": "60 B",
+        "state": "Observed"
+      },
+      {
+        "Key": "shared:n:1",
+        "Name": "Shared hard-linked files",
+        "value": "1048576",
+        "activeText": "1.0 MiB",
+        "fileSizeText": "2.0 MiB",
+        "state": "Group"
+      },
+      {
+        "Key": "n:10",
+        "Name": "Small files",
+        "value": "25120",
+        "activeText": "24.5 KiB",
+        "fileSizeText": "22.8 KiB",
+        "state": "Observed"
+      },
+      {
+        "Key": "n:11",
+        "Name": "Unicode",
+        "value": "128",
+        "activeText": "128 B",
+        "fileSizeText": "123 B",
+        "state": "Observed"
+      },
+      {
+        "Key": "n:12",
+        "Name": "zero.bin",
+        "value": "0",
+        "activeText": "0 B",
+        "fileSizeText": "0 B",
+        "state": "Observed"
+      }
+    ],
+    "breadcrumbs": [
+      {
+        "Key": "scope",
+        "Label": "All locations"
+      },
+      {
+        "Key": "n:1",
+        "Label": "fixture"
+      }
+    ]
+  },
+  "selectedTab": 0,
+  "tabHeaders": [
+    "Analysis 1"
+  ],
+  "appSha256": "fa3a38aac62535f85dcb7c86c2b456f24eacc8e42261f9f5b37563e558f19863",
+  "harnessSha256": "ef7dcb4d10c0a224b33705577624582da72eb1e39bcac248b2d73cf41113f949",
+  "profileProbe": false,
+  "profileProbeFinished": false,
+  "profileProbeError": null,
+  "profileProbeCaptureError": null,
+  "savedOrderingProbe": null
+}

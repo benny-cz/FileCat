@@ -1,0 +1,278 @@
+{
+  "revision": "r1172",
+  "productQualification": "source-manifest-r1170-main-sync-input-capacity.json",
+  "productRebuilt": false,
+  "qualifiedCoreSha256": "88348be62e0deea11bfcb15eb76a534f22991647c5d62b5b758c7e82d246f9a9",
+  "buildLog": ".tmp/csv-physical-pinned-build-r1172.txt",
+  "layoutControlSha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c",
+  "producerSha256": "26c0f705e04d2ebe0e6630e7027441af891ce5683db1723809bb0ce13ecacd85",
+  "platforms": [
+    {
+      "platform": "windows",
+      "inputs": [
+        {
+          "path": "BouncyCastle.Cryptography.dll",
+          "sha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+          "bytes": 5155728
+        },
+        {
+          "path": "FileCat.Core.dll",
+          "sha256": "88348be62e0deea11bfcb15eb76a534f22991647c5d62b5b758c7e82d246f9a9",
+          "bytes": 5806080
+        },
+        {
+          "path": "FileCat.Core.pdb",
+          "sha256": "72e6644a4644e866103ef0e650a1a62f603dbef0ec4ced2cc26666642d3e645b",
+          "bytes": 1761760
+        },
+        {
+          "path": "FileCat.CoreCrashHarness.deps.json",
+          "sha256": "94460f148c10eea1b62e6bc9be43a74efaf69c3ea673b81a941886098b9192c0",
+          "bytes": 1239
+        },
+        {
+          "path": "FileCat.CoreCrashHarness.dll",
+          "sha256": "d09082236261eb304295b936ffff87e15399d55fac2df58d739a1bf0be09b1ef",
+          "bytes": 71680
+        },
+        {
+          "path": "FileCat.CoreCrashHarness.exe",
+          "sha256": "2dd1b4406e5ce53f09cba4f2f4b0e8e0f0f5d1b1416d5a7c34e4bf4c3a5cf091",
+          "bytes": 162816
+        },
+        {
+          "path": "FileCat.CoreCrashHarness.pdb",
+          "sha256": "ddd9cc49285749df72d72056583000f12b8200b680a1c6ff48e25818f0180027",
+          "bytes": 21232
+        },
+        {
+          "path": "FileCat.CoreCrashHarness.runtimeconfig.json",
+          "sha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+          "bytes": 270
+        },
+        {
+          "path": "FileCat.Platform.Windows.dll",
+          "sha256": "c12ff2cd93584ffa4e0305d24309acdffa3c5d10b24ed5ff2615dfc3271815d0",
+          "bytes": 966656
+        },
+        {
+          "path": "FileCat.Recovery.dll",
+          "sha256": "7dfde5454212f331c524d04cb895edc4e61997ab45b97ee6e952c05f0d8422ad",
+          "bytes": 242688
+        },
+        {
+          "path": "invalid-counter-layout.json",
+          "sha256": "797fa807ae3603f47c14c96a01ff96fe47249d0ec48c9daa7ac844060e07b812",
+          "bytes": 283
+        },
+        {
+          "path": "Microsoft.Web.WebView2.Core.dll",
+          "sha256": "4a4efdf712ceea4050eb2252ec2a9136cdcf32b9bfbb3ad58d79396f36e9665d",
+          "bytes": 629872
+        },
+        {
+          "path": "native-counter-layout.json",
+          "sha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c",
+          "bytes": 264
+        },
+        {
+          "path": "System.Management.dll",
+          "sha256": "7515a62492cb215cc7a5a7d7d8351148c2b540102de0925de6eece5b2322941b",
+          "bytes": 74552
+        },
+        {
+          "path": "validate.py",
+          "sha256": "cb331ebe61f6f61fed5dd07d4511384e3dd20819f19d53eb1c7ea6166c49b633",
+          "bytes": 1881
+        }
+      ],
+      "sha256": "2c92b35dc8dbf5aa4f5551c0f45ad9d7dccd8c8bee5059429d73b0a695726a1c",
+      "archiveBytes": 6294823,
+      "runnerSha256": "e28c815e0534fbcfcbba21d05b9cf34e5c2e9d62d940960a9249dc0e21b53f4b",
+      "templateSha256": "383297dd5c5f413c4b2953082fa16a4f53c5239da50cd1406c03d08751677019"
+    },
+    {
+      "platform": "mac",
+      "inputs": [
+        {
+          "path": "BouncyCastle.Cryptography.dll",
+          "sha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+          "bytes": 5155728
+        },
+        {
+          "path": "FileCat.Core.dll",
+          "sha256": "88348be62e0deea11bfcb15eb76a534f22991647c5d62b5b758c7e82d246f9a9",
+          "bytes": 5806080
+        },
+        {
+          "path": "FileCat.Core.pdb",
+          "sha256": "72e6644a4644e866103ef0e650a1a62f603dbef0ec4ced2cc26666642d3e645b",
+          "bytes": 1761760
+        },
+        {
+          "path": "FileCat.CoreCrashHarness.deps.json",
+          "sha256": "94460f148c10eea1b62e6bc9be43a74efaf69c3ea673b81a941886098b9192c0",
+          "bytes": 1239
+        },
+        {
+          "path": "FileCat.CoreCrashHarness.dll",
+          "sha256": "d09082236261eb304295b936ffff87e15399d55fac2df58d739a1bf0be09b1ef",
+          "bytes": 71680
+        },
+        {
+          "path": "FileCat.CoreCrashHarness.exe",
+          "sha256": "2dd1b4406e5ce53f09cba4f2f4b0e8e0f0f5d1b1416d5a7c34e4bf4c3a5cf091",
+          "bytes": 162816
+        },
+        {
+          "path": "FileCat.CoreCrashHarness.pdb",
+          "sha256": "ddd9cc49285749df72d72056583000f12b8200b680a1c6ff48e25818f0180027",
+          "bytes": 21232
+        },
+        {
+          "path": "FileCat.CoreCrashHarness.runtimeconfig.json",
+          "sha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+          "bytes": 270
+        },
+        {
+          "path": "invalid-counter-layout.json",
+          "sha256": "797fa807ae3603f47c14c96a01ff96fe47249d0ec48c9daa7ac844060e07b812",
+          "bytes": 283
+        },
+        {
+          "path": "native-counter-layout.json",
+          "sha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c",
+          "bytes": 264
+        },
+        {
+          "path": "validate.py",
+          "sha256": "cb331ebe61f6f61fed5dd07d4511384e3dd20819f19d53eb1c7ea6166c49b633",
+          "bytes": 1881
+        }
+      ],
+      "sha256": "788ceb90e0139101fb26c3a721dfe10dcb53165bb0cbe0728899f6a1036581cf",
+      "archiveBytes": 5664037,
+      "runnerSha256": "1fb9c962ec7eb48ac5b9d3ce8a61407ff7571364b5ce0c27c116d288cc893142",
+      "templateSha256": "d5b917528afc55f44d17653f519a9cd8466ee3202bf138d46d884de65cd63e6a"
+    },
+    {
+      "platform": "linux",
+      "inputs": [
+        {
+          "path": "BouncyCastle.Cryptography.dll",
+          "sha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+          "bytes": 5155728
+        },
+        {
+          "path": "FileCat.Core.dll",
+          "sha256": "88348be62e0deea11bfcb15eb76a534f22991647c5d62b5b758c7e82d246f9a9",
+          "bytes": 5806080
+        },
+        {
+          "path": "FileCat.Core.pdb",
+          "sha256": "72e6644a4644e866103ef0e650a1a62f603dbef0ec4ced2cc26666642d3e645b",
+          "bytes": 1761760
+        },
+        {
+          "path": "FileCat.CoreCrashHarness.deps.json",
+          "sha256": "94460f148c10eea1b62e6bc9be43a74efaf69c3ea673b81a941886098b9192c0",
+          "bytes": 1239
+        },
+        {
+          "path": "FileCat.CoreCrashHarness.dll",
+          "sha256": "d09082236261eb304295b936ffff87e15399d55fac2df58d739a1bf0be09b1ef",
+          "bytes": 71680
+        },
+        {
+          "path": "FileCat.CoreCrashHarness.exe",
+          "sha256": "2dd1b4406e5ce53f09cba4f2f4b0e8e0f0f5d1b1416d5a7c34e4bf4c3a5cf091",
+          "bytes": 162816
+        },
+        {
+          "path": "FileCat.CoreCrashHarness.pdb",
+          "sha256": "ddd9cc49285749df72d72056583000f12b8200b680a1c6ff48e25818f0180027",
+          "bytes": 21232
+        },
+        {
+          "path": "FileCat.CoreCrashHarness.runtimeconfig.json",
+          "sha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+          "bytes": 270
+        },
+        {
+          "path": "invalid-counter-layout.json",
+          "sha256": "797fa807ae3603f47c14c96a01ff96fe47249d0ec48c9daa7ac844060e07b812",
+          "bytes": 283
+        },
+        {
+          "path": "native-counter-layout.json",
+          "sha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c",
+          "bytes": 264
+        },
+        {
+          "path": "validate.py",
+          "sha256": "cb331ebe61f6f61fed5dd07d4511384e3dd20819f19d53eb1c7ea6166c49b633",
+          "bytes": 1881
+        }
+      ],
+      "sha256": "c5831a359459b4e102c1f2e9698ab6c1ad12b4cd16f5d27f2cd6c8221e900cb1",
+      "archiveBytes": 5664039,
+      "runnerSha256": "be817c9620cdc2a09b19f8f66bb221a814d3b32eefe6f287126e4ef3ac2d9994",
+      "templateSha256": "d5b917528afc55f44d17653f519a9cd8466ee3202bf138d46d884de65cd63e6a"
+    }
+  ],
+  "sources": [
+    {
+      "path": "tests/FileCat.CoreCrashHarness/CsvReportScale.cs",
+      "sha256": "eb03acf1608dc5fee55fdbbf3ffa6d2ef403d2c899600f091a7966dc74936145"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/AnalysisPhysicalMemory.cs",
+      "sha256": "8f90a9a16ee06d643c1d3e7f5ace182c49984524067b421086cc5d753de4fb2a"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+      "sha256": "08c0f415dace275a28d037bedaa8b206d128c047dca2d5cf021abb72cc5ea4c3"
+    },
+    {
+      "path": ".tmp/csv-physical-pinned-r1172/Directory.cs",
+      "sha256": "16e1ec1a899275d10c86acbbbd7ac96c0086825440524f8f5f8a4eb77cc41c10"
+    },
+    {
+      "path": ".tmp/csv-physical-pinned-r1172/Program.cs",
+      "sha256": "23c3e4d0d24be9491d77d9f8e6c174f78abcddd2662db0ab4efe450371afd45e"
+    },
+    {
+      "path": ".tmp/csv-physical-pinned-r1172/PinnedPhysicalCsv.csproj",
+      "sha256": "773d844a9d86079635f4a32529b7938ae4a6453291ac69e586e6469e4d4a533d"
+    },
+    {
+      "path": ".tmp/csv-physical-pinned-r1172/packages.lock.json",
+      "sha256": "5911aedf0aebb407abf519f7da0b58a9e2bb1214600775d5af4f6ac923f999c6"
+    },
+    {
+      "path": ".tmp/mac-footprint-counter-control-r1171b.json",
+      "sha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c"
+    },
+    {
+      "path": ".tmp/mac-footprint-counter-control-r1171.c",
+      "sha256": "ce4e7aba464424b72f4554daecdef0e917d1d90f54450abe5f25819b471c9167"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-csv-physical-r1172.py",
+      "sha256": "26c0f705e04d2ebe0e6630e7027441af891ce5683db1723809bb0ce13ecacd85"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/csv-physical-windows-template-r1172.ps1",
+      "sha256": "383297dd5c5f413c4b2953082fa16a4f53c5239da50cd1406c03d08751677019"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/csv-physical-unix-template-r1172.sh",
+      "sha256": "d5b917528afc55f44d17653f519a9cd8466ee3202bf138d46d884de65cd63e6a"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/validate-csv-physical-r1172.py",
+      "sha256": "cb331ebe61f6f61fed5dd07d4511384e3dd20819f19d53eb1c7ea6166c49b633"
+    }
+  ],
+  "sourceSnapshotSha256": "b0cce636cb8313b4d85e7072bbd2dbd194283bc314f88623e6ebf3d622b35432"
+}

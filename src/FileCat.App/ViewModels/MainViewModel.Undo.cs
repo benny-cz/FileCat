@@ -22,7 +22,7 @@ public sealed partial class MainViewModel
         var latest = jobs.Where(j => j.State.IsFinished()).OrderByDescending(j => j.FinishedUtc).FirstOrDefault();
         if (latest is { UndoTruncated: true } && !ReferenceEquals(latest, job))
         {
-            Notify($"\"{Formatters.SafeName(latest.Title)}\" changed more than {Job.UndoLimit:N0} items, so no undo steps were recorded for it. Recycled items can still be restored from the Recycle Bin.", true);
+            Notify($"\"{Formatters.SafeName(latest.Title)}\" changed more than {Job.UndoLimit:N0} items, so no undo steps were recorded for it. Items moved to {RecycleText.Destination} can still be restored there.", true);
             return;
         }
         if (job is null)

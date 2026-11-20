@@ -10,7 +10,12 @@ internal static class CommandSearch
 {
     /// <summary>A command as the search sees and shows it.</summary>
     internal sealed record Entry(string Id, string Title, string Category, string? Gesture, string? MenuPath,
-        IReadOnlyList<string> Keywords, bool Enabled = true, string? Reason = null, string? Description = null);
+        IReadOnlyList<string> Keywords, bool Enabled = true, string? Reason = null, string? Description = null)
+    {
+        // Avalonia's list-item peer falls back to the item's ToString for its accessible name.
+        // Keep the command ID and record fields out of what a screen reader announces.
+        public override string ToString() => Title;
+    }
 
     /// <summary>
     /// The commands matching <paramref name="query"/>, best first; with nothing typed, the recently used ones in the

@@ -1,0 +1,7 @@
+{
+  "controller": 18548,
+  "terminal": true,
+  "exitCode": 1,
+  "chunk": "37f0f5",
+  "reason": "Windows native result pending collection; likely same new locality fixture error"
+}

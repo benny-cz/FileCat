@@ -1,0 +1,90 @@
+[
+  {
+    "path": "src/FileCat.App/Services/AnalysisOwnedStoreAccess.cs",
+    "sha256": "5b0574be0ccad535ef6ec6151045547022d06113cb1b00b884ada101f0fa88c1"
+  },
+  {
+    "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Persistence.cs",
+    "sha256": "102249aa5ccb6c6388f433f7693411b4b8dc6349785ec59295627dcba1b389f1"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedPersistence.cs",
+    "sha256": "70269ea78323ec1710f8e7d47d1683f01d83f1e12d5e4cd2dc8f4760d5b2dd90"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Maintenance.cs",
+    "sha256": "b73cb5a9257e67a1496d692db161937f00e4502ee51feb1226a48633021fa138"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Persistence.cs",
+    "sha256": "e5f51097d3f50700ce261c6786d7349c4ed98d513703c6c988d2767db05a7c19"
+  },
+  {
+    "path": "src/FileCat.App/Views/SavedAnalysisMaintenanceDialog.cs",
+    "sha256": "6cfa72f805808bb32cdf2d3a461c76913c7104260991613809072a01a7c82bf8"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisInventoryInspection.cs",
+    "sha256": "567e877c5be6c50704812bc47a5ccff24b7559783616d74adb54bb1acbc030fd"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPrivateInventoryStore.Borrow.cs",
+    "sha256": "da7921f9c8a1c0c65230e23b188ddbf14d5c69f06b0a95b7fe9815e457a29ded"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPrivateInventoryStore.cs",
+    "sha256": "1f27b4194b743f55a84e75430b697c60f1e2c8a501caa45123229337c69c0914"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPrivateNames.cs",
+    "sha256": "92a2bc1c8e76d011c7d08ebde2baf7555c8bf4fea7e81a01925a46672f453a72"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.cs",
+    "sha256": "97e4fe7e2d620304a2d16487c73c3dac80b5dba1efeb7ac73d0ec2be669a60b7"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.Writing.cs",
+    "sha256": "68e6be8174da7424272c71bdd57236d5f664444719e32031af25064020e1787a"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/OwnedAnalysisStore.cs",
+    "sha256": "1b774815582297c3357613ad3448722b32103e284976b86bdfd47fdcd73fd31a"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/OwnedAnalysisStore.Deletion.cs",
+    "sha256": "ef5915f946bea16fa8475558f8025498e5c561a467c0148c627f1d6d33624898"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/OwnedAnalysisStore.Review.cs",
+    "sha256": "233d12fea623723b95aaa2967d89b38d4463291ccc738420f6a34608389d2e00"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/UnixAnalysisPrivateDirectory.cs",
+    "sha256": "0d36642c3b9dce349377041ba29c3c34ea897d4c0e7c39795e40394e0e050a0e"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/UnixAnalysisPrivateDirectory.Maintenance.cs",
+    "sha256": "8d3080091d2f845e35589113264b8860fb9f72b83f6d6c69148d5527725a701f"
+  },
+  {
+    "path": "src/FileCat.Platform.Windows/WindowsAnalysisPrivateDirectory.cs",
+    "sha256": "7c334d5416d655d421453bfb8b1cb8ca9c260c453501ce8d6a92ff12fafd18f3"
+  },
+  {
+    "path": "src/FileCat.Platform.Windows/WindowsAnalysisPrivateDirectory.Maintenance.cs",
+    "sha256": "f07bfea752ba041465632a9503123ed33f61390afec33e675386da5c605ba9ec"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisMaintenanceTests.cs",
+    "sha256": "9d1a7fe523489a800575566071d40df2e994902f8f527f89864fe790cd9dae7c"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisMaintenanceTests.Directory.cs",
+    "sha256": "05a15ebdd26a03a6506cebd3367bb0b21fe3a292ba83005eb9109ad14ecf2288"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Maintenance.cs",
+    "sha256": "0c4d5edc206c6335df52907960acd8db87ea6d7cae35515d076637e5ff38561d"
+  }
+]

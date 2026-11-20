@@ -8,6 +8,7 @@
 *.png binary
 *.ico binary
 *.zip binary
+*.pdf binary
 
 # Preserve the exact upstream license bytes in installer source/evidence.
 eng/installer/licenses/InnoSetup-6.7.1.txt -text
@@ -25,3 +26,9 @@ eng/linux/appimage-runtime/** -text
 eng/validation/fixtures/dependency-notices/** -text
 # Original generated manifest CRLF is part of the pinned fixture bytes.
 eng/validation/fixtures/dependency-notices/*/FileCat.deps.json -whitespace
+
+# Original VMware/PowerShell diagnostic receipts keep their exact producer bytes.
+docs/validation/disk-space/windows-cleanup-legacy-r1014-error.txt -text -whitespace
+docs/validation/disk-space/windows-cleanup-legacy-r1014-error2.txt -text -whitespace
+# The macOS archive worker launcher's plists are read by codesign and the system as they are: LF only.
+src/FileCat.App/MacOS/** text eol=lf

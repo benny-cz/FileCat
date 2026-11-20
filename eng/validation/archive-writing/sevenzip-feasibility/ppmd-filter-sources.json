@@ -1,0 +1,213 @@
+{
+  "tag": "26.05",
+  "commit": "b88c6bc09339de32f7d18bbab900686b244f42ba",
+  "files": [
+    {
+      "path": "C/7zTypes.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/7zTypes.h",
+      "git_blob": "af47668055f4aa318d94005a33d199198b7ab775",
+      "sha256": "a5d03b8cb65cd3a2a56bde46dd68fb356d2ebacd9d70283e7d4d20b4e0a64713",
+      "bytes": 15876,
+      "notice_prefix": "/* 7zTypes.h -- Basic types\n: Igor Pavlov : Public domain */\n\n#ifndef ZIP7_7Z_TYPES_H\n#define ZIP7_7Z_TYPES_H\n\n#ifdef _WIN32\n/* #include <windows.h> */\n#else\n#include <errno.h>\n#endif\n\n#include <stddef.h>\n\n#ifndef EXTERN_C_BEGIN\n#ifdef __cplusplus\n#define EXTERN_C_BEGIN extern \"C\" {\n#define EXTERN_C_END }\n#else\n#define EXTERN_C_BEGIN\n#define EXTERN_C_END\n#endif\n#endif\n\nEXTERN_C_BEGIN\n\n#define SZ_OK 0\n\n#define SZ_ERROR_DATA 1\n#define SZ_ERROR_MEM 2\n#define SZ_ERROR_CRC 3\n#define SZ_ERROR_UNSUPPORTED 4\n#define SZ_ERROR_PARAM 5\n#define SZ_ERROR_INPUT_EOF 6\n#define SZ_ERROR_OUTPUT_EOF 7\n#define SZ"
+    },
+    {
+      "path": "C/7zWindows.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/7zWindows.h",
+      "git_blob": "381159edf5e63a1779199c992457894fa1e1cf0b",
+      "sha256": "996e5dc62a022e05c95142c53729abfdc308b8b006dddbdf78793ff4fb2b8dc6",
+      "bytes": 2537,
+      "notice_prefix": "/* 7zWindows.h -- Windows.h and related code\nIgor Pavlov : Public domain */\n\n#ifndef ZIP7_INC_7Z_WINDOWS_H\n#define ZIP7_INC_7Z_WINDOWS_H\n\n#ifdef _WIN32\n\n#if defined(_MSC_VER) && _MSC_VER >= 1950 && !defined(__clang__) // VS2026\n// <Windows.h> and some another windows files need that option\n// VS2026: wtypesbase.h: warning C4865: 'tagCLSCTX': the underlying type will change from 'int' to 'unsigned int' when '/Zc:enumTypes' is specified on the command line\n#pragma warning(disable : 4865)\n#endif\n\n#if defined(__clang__)\n# pragma clang diagnostic push\n#endif\n\n#if defined(_MSC_VER)\n\n#pragma warning("
+    },
+    {
+      "path": "C/Bcj2.c",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Bcj2.c",
+      "git_blob": "7cb57ad62dcf0aef9f5cb77078897d17400266be",
+      "sha256": "52f5c6bbaf512f867fe46a378d79888825a5b4e31abbd4c94f007058a890174e",
+      "bytes": 8074,
+      "notice_prefix": "/* Bcj2.c -- BCJ2 Decoder (Converter for x86 code)\n2023-03-01 : Igor Pavlov : Public domain */\n\n#include \"Precomp.h\"\n\n#include \"Bcj2.h\"\n#include \"CpuArch.h\"\n\n#define kTopValue ((UInt32)1 << 24)\n#define kNumBitModelTotalBits 11\n#define kBitModelTotal (1 << kNumBitModelTotalBits)\n#define kNumMoveBits 5\n\n// UInt32 bcj2_stats[256 + 2][2];\n\nvoid Bcj2Dec_Init(CBcj2Dec *p)\n{\n  unsigned i;\n  p->state = BCJ2_STREAM_RC; // BCJ2_DEC_STATE_OK;\n  p->ip = 0;\n  p->temp = 0;\n  p->range = 0;\n  p->code = 0;\n  for (i = 0; i < sizeof(p->probs) / sizeof(p->probs[0]); i++)\n    p->probs[i] = kBitModelTotal >> 1;\n}\n\n"
+    },
+    {
+      "path": "C/Bcj2.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Bcj2.h",
+      "git_blob": "4575545b62c06dd4a26646104e26a5a39685aa10",
+      "sha256": "e45c841e5d805deeb2ae3f212c8860ce312252efdc55f713f52f837cf8c4452f",
+      "bytes": 12053,
+      "notice_prefix": "/* Bcj2.h -- BCJ2 converter for x86 code (Branch CALL/JUMP variant2)\n2023-03-02 : Igor Pavlov : Public domain */\n\n#ifndef ZIP7_INC_BCJ2_H\n#define ZIP7_INC_BCJ2_H\n\n#include \"7zTypes.h\"\n\nEXTERN_C_BEGIN\n\n#define BCJ2_NUM_STREAMS 4\n\nenum\n{\n  BCJ2_STREAM_MAIN,\n  BCJ2_STREAM_CALL,\n  BCJ2_STREAM_JUMP,\n  BCJ2_STREAM_RC\n};\n\nenum\n{\n  BCJ2_DEC_STATE_ORIG_0 = BCJ2_NUM_STREAMS,\n  BCJ2_DEC_STATE_ORIG_1,\n  BCJ2_DEC_STATE_ORIG_2,\n  BCJ2_DEC_STATE_ORIG_3,\n  \n  BCJ2_DEC_STATE_ORIG,\n  BCJ2_DEC_STATE_ERROR     /* after detected data error */\n};\n\nenum\n{\n  BCJ2_ENC_STATE_ORIG = BCJ2_NUM_STREAMS,\n  BCJ2_ENC_STATE_FI"
+    },
+    {
+      "path": "C/Bcj2Enc.c",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Bcj2Enc.c",
+      "git_blob": "5727cbb2dc6f15675f633b0113e78761597971cd",
+      "sha256": "1a666c3635c862273e2b1437a03c6014f200eceb63c4dab63b2c485ef805b9c0",
+      "bytes": 16801,
+      "notice_prefix": "/* Bcj2Enc.c -- BCJ2 Encoder converter for x86 code (Branch CALL/JUMP variant2)\n: Igor Pavlov : Public domain */\n\n#include \"Precomp.h\"\n\n/* #define SHOW_STAT */\n#ifdef SHOW_STAT\n#include <stdio.h>\n#define PRF2(s) printf(\"%s ip=%8x  tempPos=%d  src= %8x\\n\", s, (unsigned)p->ip64, p->tempPos, (unsigned)(p->srcLim - p->src));\n#else\n#define PRF2(s)\n#endif\n\n#include \"Bcj2.h\"\n#include \"CpuArch.h\"\n\n#define kTopValue ((UInt32)1 << 24)\n#define kNumBitModelTotalBits 11\n#define kBitModelTotal (1 << kNumBitModelTotalBits)\n#define kNumMoveBits 5\n\nvoid Bcj2Enc_Init(CBcj2Enc *p)\n{\n  unsigned i;\n  p->state = BC"
+    },
+    {
+      "path": "C/Bra.c",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Bra.c",
+      "git_blob": "e61edf8f12e1a7710d1e108923bdc5ded259280f",
+      "sha256": "c90cbc0747a406d056daf3d7b2bf05cf88c55529777469db5ca15f754b7c38e8",
+      "bytes": 18379,
+      "notice_prefix": "/* Bra.c -- Branch converters for RISC code\n2024-01-20 : Igor Pavlov : Public domain */\n\n#include \"Precomp.h\"\n\n#include \"Bra.h\"\n#include \"RotateDefs.h\"\n#include \"CpuArch.h\"\n\n#if defined(MY_CPU_SIZEOF_POINTER) \\\n    && ( MY_CPU_SIZEOF_POINTER == 4 \\\n      || MY_CPU_SIZEOF_POINTER == 8)\n  #define BR_CONV_USE_OPT_PC_PTR\n#endif\n\n#ifdef BR_CONV_USE_OPT_PC_PTR\n#define BR_PC_INIT  pc -= (UInt32)(SizeT)p;\n#define BR_PC_GET   (pc + (UInt32)(SizeT)p)\n#else\n#define BR_PC_INIT  pc += (UInt32)size;\n#define BR_PC_GET   (pc - (UInt32)(SizeT)(lim - p))\n// #define BR_PC_INIT\n// #define BR_PC_GET   (pc + (UInt3"
+    },
+    {
+      "path": "C/Bra.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Bra.h",
+      "git_blob": "b47112cedc3dbe14079af262dd17aa59772dc335",
+      "sha256": "bf4addce6209562a700edf040a8efc5b392bb33d4427b1513b6e3a877d04f431",
+      "bytes": 3682,
+      "notice_prefix": "/* Bra.h -- Branch converters for executables\n2024-01-20 : Igor Pavlov : Public domain */\n\n#ifndef ZIP7_INC_BRA_H\n#define ZIP7_INC_BRA_H\n\n#include \"7zTypes.h\"\n\nEXTERN_C_BEGIN\n\n/* #define PPC BAD_PPC_11 // for debug */\n\n#define Z7_BRANCH_CONV_DEC_2(name)  z7_ ## name ## _Dec\n#define Z7_BRANCH_CONV_ENC_2(name)  z7_ ## name ## _Enc\n#define Z7_BRANCH_CONV_DEC(name)    Z7_BRANCH_CONV_DEC_2(BranchConv_ ## name)\n#define Z7_BRANCH_CONV_ENC(name)    Z7_BRANCH_CONV_ENC_2(BranchConv_ ## name)\n#define Z7_BRANCH_CONV_ST_DEC(name) z7_BranchConvSt_ ## name ## _Dec\n#define Z7_BRANCH_CONV_ST_ENC(name) z7_Branc"
+    },
+    {
+      "path": "C/Bra86.c",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Bra86.c",
+      "git_blob": "d81f392ae040469faf1a3514d1f88c5677b03aae",
+      "sha256": "0925d655955bdd2b7b25a01bbb3d2d395e5bac6d572f2cfd273141d1896af0ec",
+      "bytes": 4885,
+      "notice_prefix": "/* Bra86.c -- Branch converter for X86 code (BCJ)\n2023-04-02 : Igor Pavlov : Public domain */\n\n#include \"Precomp.h\"\n\n#include \"Bra.h\"\n#include \"CpuArch.h\"\n\n\n#if defined(MY_CPU_SIZEOF_POINTER) \\\n    && ( MY_CPU_SIZEOF_POINTER == 4 \\\n      || MY_CPU_SIZEOF_POINTER == 8)\n  #define BR_CONV_USE_OPT_PC_PTR\n#endif\n\n#ifdef BR_CONV_USE_OPT_PC_PTR\n#define BR_PC_INIT  pc -= (UInt32)(SizeT)p; // (MY_uintptr_t)\n#define BR_PC_GET   (pc + (UInt32)(SizeT)p)\n#else\n#define BR_PC_INIT  pc += (UInt32)size;\n#define BR_PC_GET   (pc - (UInt32)(SizeT)(lim - p))\n// #define BR_PC_INIT\n// #define BR_PC_GET   (pc + (UInt"
+    },
+    {
+      "path": "C/BraIA64.c",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/BraIA64.c",
+      "git_blob": "9dfe3e289589d6288227ee819835941b6be7eabf",
+      "sha256": "29e249368a098988bee5585a7f0225b9067155e46b8e16d606c5e63e274e9c30",
+      "bytes": 342,
+      "notice_prefix": "/* BraIA64.c -- Converter for IA-64 code\n2023-02-20 : Igor Pavlov : Public domain */\n\n#include \"Precomp.h\"\n\n// the code was moved to Bra.c\n\n#ifdef _MSC_VER\n#pragma warning(disable : 4206) // nonstandard extension used : translation unit is empty\n#endif\n\n#if defined(__clang__)\n#pragma GCC diagnostic ignored \"-Wempty-translation-unit\"\n#endif\n"
+    },
+    {
+      "path": "C/Compiler.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Compiler.h",
+      "git_blob": "707e46de05c175e6a2ed10c5a1689f975564be15",
+      "sha256": "d5e42be77d26beaa8c81d3e62ef99fc5685736cfc079779fdb9154d05fa8bc4a",
+      "bytes": 10762,
+      "notice_prefix": "/* Compiler.h : Compiler specific defines and pragmas\n: Igor Pavlov : Public domain */\n\n#ifndef ZIP7_INC_COMPILER_H\n#define ZIP7_INC_COMPILER_H\n\n#if defined(__clang__)\n# define Z7_CLANG_VERSION  (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)\n#endif\n#if defined(__clang__) && defined(__apple_build_version__)\n# define Z7_APPLE_CLANG_VERSION   Z7_CLANG_VERSION\n#elif defined(__clang__)\n# define Z7_LLVM_CLANG_VERSION    Z7_CLANG_VERSION\n#elif defined(__GNUC__)\n# define Z7_GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)\n#endif\n\n#ifdef _MSC_VER\n#if"
+    },
+    {
+      "path": "C/CpuArch.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/CpuArch.h",
+      "git_blob": "93042209f95218233a25c4228d87abf1b67bbda4",
+      "sha256": "259145c6f4b085f44284014574f39f3f562fc78466746bfb388efe06b4dd59b4",
+      "bytes": 20014,
+      "notice_prefix": "/* CpuArch.h -- CPU specific code\nIgor Pavlov : Public domain */\n\n#ifndef ZIP7_INC_CPU_ARCH_H\n#define ZIP7_INC_CPU_ARCH_H\n\n#include \"7zTypes.h\"\n\nEXTERN_C_BEGIN\n\n/*\nMY_CPU_LE means that CPU is LITTLE ENDIAN.\nMY_CPU_BE means that CPU is BIG ENDIAN.\nIf MY_CPU_LE and MY_CPU_BE are not defined, we don't know about ENDIANNESS of platform.\n\nMY_CPU_LE_UNALIGN means that CPU is LITTLE ENDIAN and CPU supports unaligned memory accesses.\n\nMY_CPU_64BIT means that processor can work with 64-bit registers.\n  MY_CPU_64BIT can be used to select fast code branch\n  MY_CPU_64BIT doesn't mean that (sizeof(void *) "
+    },
+    {
+      "path": "C/Delta.c",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Delta.c",
+      "git_blob": "c4a4499fe2a05fc6c6346619f1be73a7557ab17e",
+      "sha256": "d5b3fad0896c21b428c9803760e537a30b82ed344faa525d39ca9a4b555a80f2",
+      "bytes": 2884,
+      "notice_prefix": "/* Delta.c -- Delta converter\n2021-02-09 : Igor Pavlov : Public domain */\n\n#include \"Precomp.h\"\n\n#include \"Delta.h\"\n\nvoid Delta_Init(Byte *state)\n{\n  unsigned i;\n  for (i = 0; i < DELTA_STATE_SIZE; i++)\n    state[i] = 0;\n}\n\n\nvoid Delta_Encode(Byte *state, unsigned delta, Byte *data, SizeT size)\n{\n  Byte temp[DELTA_STATE_SIZE];\n\n  if (size == 0)\n    return;\n\n  {\n    unsigned i = 0;\n    do\n      temp[i] = state[i];\n    while (++i != delta);\n  }\n\n  if (size <= delta)\n  {\n    unsigned i = 0, k;\n    do\n    {\n      Byte b = *data;\n      *data++ = (Byte)(b - temp[i]);\n      temp[i] = b;\n    }\n    whi"
+    },
+    {
+      "path": "C/Delta.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Delta.h",
+      "git_blob": "706095417aab39514e942969c7a51c15979b902f",
+      "sha256": "ce359ff7eb4c9d806777e21d0ec0416cf06c1f556242cbbcf565492b47141eeb",
+      "bytes": 390,
+      "notice_prefix": "/* Delta.h -- Delta converter\n2023-03-03 : Igor Pavlov : Public domain */\n\n#ifndef ZIP7_INC_DELTA_H\n#define ZIP7_INC_DELTA_H\n\n#include \"7zTypes.h\"\n\nEXTERN_C_BEGIN\n\n#define DELTA_STATE_SIZE 256\n\nvoid Delta_Init(Byte *state);\nvoid Delta_Encode(Byte *state, unsigned delta, Byte *data, SizeT size);\nvoid Delta_Decode(Byte *state, unsigned delta, Byte *data, SizeT size);\n\nEXTERN_C_END\n\n#endif\n"
+    },
+    {
+      "path": "C/Ppmd.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Ppmd.h",
+      "git_blob": "66b26266ffdaec4e8e2823b79ce5f1a7c2668bd4",
+      "sha256": "c67e58afd6cd0b0d598ae92338bc32fc96d951d65d041c086627f46287896e00",
+      "bytes": 5444,
+      "notice_prefix": "/* Ppmd.h -- PPMD codec common code\n2023-03-05 : Igor Pavlov : Public domain\nThis code is based on PPMd var.H (2001): Dmitry Shkarin : Public domain */\n\n#ifndef ZIP7_INC_PPMD_H\n#define ZIP7_INC_PPMD_H\n\n#include \"CpuArch.h\"\n\nEXTERN_C_BEGIN\n\n#if defined(MY_CPU_SIZEOF_POINTER) && (MY_CPU_SIZEOF_POINTER == 4)\n/*\n   PPMD code always uses 32-bit internal fields in PPMD structures to store internal references in main block.\n   if (PPMD_32BIT is     defined), the PPMD code stores internal pointers to 32-bit reference fields.\n   if (PPMD_32BIT is NOT defined), the PPMD code stores internal UInt32 offse"
+    },
+    {
+      "path": "C/Ppmd7.c",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Ppmd7.c",
+      "git_blob": "efcc5d86e9586e53b715d552bfeee874553f0bd2",
+      "sha256": "861cfd68c536ccc2040e1e68c4aeefe6c20982aa4d497a9a18516c35d5a62f3b",
+      "bytes": 28909,
+      "notice_prefix": "/* Ppmd7.c -- PPMdH codec\n2023-09-07 : Igor Pavlov : Public domain\nThis code is based on PPMd var.H (2001): Dmitry Shkarin : Public domain */\n\n#include \"Precomp.h\"\n\n#include <string.h>\n\n#include \"Ppmd7.h\"\n\n/* define PPMD7_ORDER_0_SUPPPORT to suport order-0 mode, unsupported by orignal PPMd var.H. code */\n// #define PPMD7_ORDER_0_SUPPPORT\n \nMY_ALIGN(16)\nstatic const Byte PPMD7_kExpEscape[16] = { 25, 14, 9, 7, 5, 5, 4, 4, 4, 3, 3, 3, 2, 2, 2, 2 };\nMY_ALIGN(16)\nstatic const UInt16 PPMD7_kInitBinEsc[] = { 0x3CDD, 0x1F3F, 0x59BF, 0x48F3, 0x64A1, 0x5ABC, 0x6632, 0x6051};\n\n#define MAX_FREQ 124\n#defin"
+    },
+    {
+      "path": "C/Ppmd7.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Ppmd7.h",
+      "git_blob": "d9eb326d60b6f1d1b14432d2c50f635a1942edd6",
+      "sha256": "d228a585bc801743f08686c5073431b41b258b23bb2840f3318c68f720ab319d",
+      "bytes": 4433,
+      "notice_prefix": "/* Ppmd7.h -- Ppmd7 (PPMdH) compression codec\n2023-04-02 : Igor Pavlov : Public domain\nThis code is based on:\n  PPMd var.H (2001): Dmitry Shkarin : Public domain */\n \n\n#ifndef ZIP7_INC_PPMD7_H\n#define ZIP7_INC_PPMD7_H\n\n#include \"Ppmd.h\"\n\nEXTERN_C_BEGIN\n\n#define PPMD7_MIN_ORDER 2\n#define PPMD7_MAX_ORDER 64\n\n#define PPMD7_MIN_MEM_SIZE (1 << 11)\n#define PPMD7_MAX_MEM_SIZE (0xFFFFFFFF - 12 * 3)\n\nstruct CPpmd7_Context_;\n\ntypedef Ppmd_Ref_Type(struct CPpmd7_Context_) CPpmd7_Context_Ref;\n\n// MY_CPU_pragma_pack_push_1\n\ntypedef struct CPpmd7_Context_\n{\n  UInt16 NumStats;\n\n\n  union\n  {\n    UInt16 SummFr"
+    },
+    {
+      "path": "C/Ppmd7Enc.c",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Ppmd7Enc.c",
+      "git_blob": "975157c9b33848506ab4c50fa4fb0875799bb8bd",
+      "sha256": "83440732b0eba08376f51ddb144c1ee5ce2cbbf06cec414e0d7c396f607a4e99",
+      "bytes": 7778,
+      "notice_prefix": "/* Ppmd7Enc.c -- Ppmd7z (PPMdH with 7z Range Coder) Encoder\n: Igor Pavlov : Public domain\nThis code is based on:\n  PPMd var.H (2001): Dmitry Shkarin : Public domain */\n\n\n#include \"Precomp.h\"\n\n#include \"Ppmd7.h\"\n\n#define kTopValue ((UInt32)1 << 24)\n\n#define R (&p->rc.enc)\n\nvoid Ppmd7z_Init_RangeEnc(CPpmd7 *p)\n{\n  R->Low = 0;\n  R->Range = 0xFFFFFFFF;\n  R->Cache = 0;\n  R->CacheSize = 1;\n}\n\nZ7_NO_INLINE\nstatic void Ppmd7z_RangeEnc_ShiftLow(CPpmd7 *p)\n{\n  if ((UInt32)R->Low < (UInt32)0xFF000000 || (unsigned)(R->Low >> 32) != 0)\n  {\n    Byte temp = R->Cache;\n    do\n    {\n      IByteOut_Write(R->Stre"
+    },
+    {
+      "path": "C/Precomp.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Precomp.h",
+      "git_blob": "83b720e1150b6c2a93c79719feee2da86325c317",
+      "sha256": "c8903f2e36a771a272d8981e1e9ffed5ba16ca3d2f3dca6d1414d2340a6829d0",
+      "bytes": 3266,
+      "notice_prefix": "/* Precomp.h -- precompilation file\n: Igor Pavlov : Public domain */\n\n#ifndef ZIP7_INC_PRECOMP_H\n#define ZIP7_INC_PRECOMP_H\n\n/*\n  this file must be included before another *.h files and before <windows.h>.\n  this file is included from the following files:\n    C\\*.c\n    C\\Util\\*\\Precomp.h   <-  C\\Util\\*\\*.c\n    CPP\\Common\\Common.h  <-  *\\StdAfx.h    <-  *\\*.cpp\n\n  this file can set the following macros:\n    Z7_LARGE_PAGES 1\n    Z7_LONG_PATH 1\n    Z7_WIN32_WINNT_MIN  0x0500 (or higher) : we require at least win2000+ for 7-Zip\n    _WIN32_WINNT        0x0500 (or higher)\n    WINVER  _WIN32_WINNT\n  "
+    },
+    {
+      "path": "C/RotateDefs.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/RotateDefs.h",
+      "git_blob": "c16b4f8e6a127f4bf12aa20d3d3fbd1f09ec04a9",
+      "sha256": "9bc3ff572bec5611c5c2508b7d0c18706a1dc4c908ea3bd432237c33056e1f28",
+      "bytes": 1456,
+      "notice_prefix": "/* RotateDefs.h -- Rotate functions\n2023-06-18 : Igor Pavlov : Public domain */\n\n#ifndef ZIP7_INC_ROTATE_DEFS_H\n#define ZIP7_INC_ROTATE_DEFS_H\n\n#ifdef _MSC_VER\n\n#include <stdlib.h>\n\n/* don't use _rotl with old MINGW. It can insert slow call to function. */\n \n/* #if (_MSC_VER >= 1200) */\n#pragma intrinsic(_rotl)\n#pragma intrinsic(_rotr)\n/* #endif */\n\n#define rotlFixed(x, n) _rotl((x), (n))\n#define rotrFixed(x, n) _rotr((x), (n))\n\n#if (_MSC_VER >= 1300)\n#define Z7_ROTL64(x, n) _rotl64((x), (n))\n#define Z7_ROTR64(x, n) _rotr64((x), (n))\n#else\n#define Z7_ROTL64(x, n) (((x) << (n)) | ((x) >> (64 - "
+    },
+    {
+      "path": "C/SwapBytes.c",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/SwapBytes.c",
+      "git_blob": "9290592b7da7bb2e47f832a9be2e1fb1f8a49c07",
+      "sha256": "270997f50a9496a5fa3ce171d865df08721f781857d23622fbfbb303d845d8bc",
+      "bytes": 22108,
+      "notice_prefix": "/* SwapBytes.c -- Byte Swap conversion filter\n2024-03-01 : Igor Pavlov : Public domain */\n\n#include \"Precomp.h\"\n\n#include \"Compiler.h\"\n#include \"CpuArch.h\"\n#include \"RotateDefs.h\"\n#include \"SwapBytes.h\"\n\ntypedef UInt16 CSwapUInt16;\ntypedef UInt32 CSwapUInt32;\n\n// #define k_SwapBytes_Mode_BASE   0\n\n#ifdef MY_CPU_X86_OR_AMD64\n\n#define k_SwapBytes_Mode_SSE2   1\n#define k_SwapBytes_Mode_SSSE3  2\n#define k_SwapBytes_Mode_AVX2   3\n\n  // #if defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= 1900)\n  #if defined(__clang__) && (__clang_major__ >= 4) \\\n      || defined(Z7_GCC_VERSION) && (Z7_GCC_VERSION "
+    },
+    {
+      "path": "C/SwapBytes.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/SwapBytes.h",
+      "git_blob": "d442467386e2fc78e0ee84f5f3120706f868961b",
+      "sha256": "19fc9090fb5cae9e6663384387b383d157bad6b0a3be430190d5975804512bdd",
+      "bytes": 346,
+      "notice_prefix": "/* SwapBytes.h -- Byte Swap conversion filter\n2023-04-02 : Igor Pavlov : Public domain */\n\n#ifndef ZIP7_INC_SWAP_BYTES_H\n#define ZIP7_INC_SWAP_BYTES_H\n\n#include \"7zTypes.h\"\n\nEXTERN_C_BEGIN\n\nvoid z7_SwapBytes2(UInt16 *data, size_t numItems);\nvoid z7_SwapBytes4(UInt32 *data, size_t numItems);\nvoid z7_SwapBytesPrepare(void);\n\nEXTERN_C_END\n\n#endif\n"
+    },
+    {
+      "path": "C/CpuArch.c",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/CpuArch.c",
+      "git_blob": "342280d0bc7f7ec806ddb752a0ade2556b9ad0f2",
+      "bytes": 25363,
+      "sha256": "1e0f166e34946fc7da05647a85d8edeb64038282915e73eef676cd067d6a7527",
+      "notice": "/* CpuArch.c -- CPU specific code\nIgor Pavlov : Public domain */\n\n#include \"Precomp.h\"\n\n// #include <stdio.h>\n\n#include \"CpuArch.h\"\n\n#ifdef MY_CPU_X86_OR_AMD64\n\n#undef NEED_CHECK_FOR_CPUID\n#if !define"
+    }
+  ],
+  "tree_sha256": "8e1279a6914f007cf82692ef5b9f1ece6faad790a05773df9553fd6b2c1d8058",
+  "production_imported": false,
+  "restricted_unrar_sources_fetched": false,
+  "use": {
+    "PPMd": "C/Ppmd7Enc.c range grammar; existing rardecode BSD model remains the model",
+    "ARM64_RISCV": "fresh bounded scalar encode/decode ports of C/Bra.c",
+    "SDK_C_files": "compile private test oracle only; never included in production dependency closure",
+    "cpp_wrappers": "metadata/default inspection only; not selected for code reuse",
+    "BCJ2": "Bounded C# adaptation of C/Bcj2Enc.c and C/Bcj2.h; caller-owned four-stream output, explicit file-size bounds and fixed buffers. The C files compile only into private differential oracles."
+  },
+  "metadata_inspection": {
+    "commit": "b88c6bc09339de32f7d18bbab900686b244f42ba",
+    "files": [
+      {
+        "path": "CPP/7zip/Compress/ByteSwap.cpp",
+        "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/CPP/7zip/Compress/ByteSwap.cpp",
+        "git_blob": "cc28d8b90b53f8c46de5da38c0f7bb68a44dcb5f",
+        "disposition": "metadata/default inspection only; not selected for code reuse",
+        "bytes": 1851,
+        "sha256": "f889052b1a45df8bed10d8ec71717c5a02279d40ccda585f4075c5bdd32879e6"
+      },
+      {
+        "path": "CPP/7zip/Compress/PpmdEncoder.cpp",
+        "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/CPP/7zip/Compress/PpmdEncoder.cpp",
+        "git_blob": "2dfca6df6f21b17ecaf6a38493d8c97da0614b88",
+        "disposition": "metadata/default inspection only; not selected for code reuse",
+        "bytes": 4885,
+        "sha256": "1bf9955b258590419de6d6b1a7a28821c0c9e4ebeb652d7c5400e1ecefc00ab0"
+      }
+    ]
+  }
+}

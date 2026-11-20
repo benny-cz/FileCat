@@ -1,0 +1,9 @@
+{
+  "observedUtc": "2026-11-17T06:04:18.700614+00:00",
+  "sessionId": 55177,
+  "terminalExit": 1,
+  "controllerExit": 1,
+  "completionChunk": "9302f2",
+  "actualOriginalController": true,
+  "meaning": "Analyzer phases passed; Owner baseline fixture expected960 actual980 paints; metacore/ownerapp filters rejected. Full raw terminal archive preserved."
+}

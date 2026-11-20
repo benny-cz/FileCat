@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using FileCat.Core.FileSystem;
 using FileCat.Core.HiddenData;
 using FileCat.Core.Resources;
 
@@ -10,6 +11,92 @@ public sealed partial class HiddenDataTests
 {
     private static string Summary(string name, HiddenKind kind, byte[] value) =>
         HiddenDataDecoder.Describe(new HiddenItem(name, kind, value.Length), value).Summary;
+
+    [Fact]
+    public void Linux_inventory_uses_the_qualified_kernel_route_and_preserves_permission_outcomes()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64,
+            "Requires Linux x64 xattr syscalls.");
+        string? route = Environment.GetEnvironmentVariable("FILECAT_TEST_LINUX_XATTR_INVENTORY");
+        if (route is not ("modern" or "legacy" or "refused")) Assert.Skip("Requires a prepared kernel xattr inventory route.");
+        using var directory = new TempDir();
+        string file = directory.File("attribute.bin");
+        const string name = "user.filecat.fixture";
+        byte[] value = "private attribute value"u8.ToArray();
+        Assert.Equal(0, SetAttribute(file, name, value));
+        var adapter = new UnixHiddenData();
+        var ct = TestContext.Current.CancellationToken;
+        if (route == "refused")
+        {
+            var error = Assert.Throws<IOException>(() => adapter.ReadInventory(file, new(), ct));
+            Assert.Equal(38, error.HResult); // The actual lookup was refused, while the syscall capability probe succeeded.
+            return;
+        }
+
+        var readable = adapter.ReadInventory(file, new(), ct);
+        Assert.True(readable.BoundToObject);
+        Assert.Equal(FileSystem.UnixFiles.Stat(file)?.Identity, readable.Identity);
+        Assert.StartsWith(route == "modern" ? "listxattrat / getxattrat" : "flistxattr / fgetxattr", readable.Source);
+        Assert.True(readable.IsComplete);
+        Assert.False(readable.ValueBearingQueryIssued);
+        Assert.Equal(value.Length, Assert.Single(readable.Items, item => item.Name == name).Size);
+
+        if (OperatingSystem.IsLinux()) File.SetUnixFileMode(file, UnixFileMode.None);
+        try
+        {
+            Assert.Throws<UnauthorizedAccessException>(() => { using var ignored = File.OpenRead(file); });
+            if (route == "legacy")
+            {
+                Assert.Throws<UnauthorizedAccessException>(() => adapter.ReadInventory(file, new(), ct));
+                return;
+            }
+
+            var unreadable = adapter.ReadInventory(file, new(), ct);
+            Assert.True(unreadable.BoundToObject);
+            Assert.Equal(readable.Identity, unreadable.Identity);
+            Assert.Equal(HiddenInventoryState.Partial, Assert.Single(unreadable.Categories).State);
+            Assert.StartsWith("listxattrat / getxattrat", unreadable.Source);
+            Assert.Equal(-1, Assert.Single(unreadable.Items, item => item.Name == name).Size);
+            Assert.False(unreadable.ValueBearingQueryIssued);
+        }
+        finally { if (OperatingSystem.IsLinux()) File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite); }
+    }
+
+    [Fact]
+    public void Reviewed_linux_attribute_actions_refuse_a_replacement_inode()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux(), "Requires the Linux descriptor-bound xattr adapter.");
+        using var root = new TempDir();
+        string file = root.File("value.bin");
+        const string name = "user.filecat.report";
+        if (SetAttribute(file, name, "original attribute value"u8.ToArray()) != 0)
+            Assert.Skip("This filesystem cannot create the test xattr.");
+        var adapter = new UnixHiddenData();
+        var provider = new HiddenDataProvider(adapter);
+        var ct = TestContext.Current.CancellationToken;
+        var item = new ItemRef(HiddenDataProvider.Of(file), name, EntryKind.File) { Ordinal = HiddenIdentities.Ordinal(HiddenKind.Attribute) };
+        var original = adapter.ReadInventory(file, new(), ct).Identity!.Value;
+        var report = provider.ReadValueReport(item, original, ct);
+        Assert.True(report.CanPublish);
+        Assert.Equal(original, Assert.Single(report.Origin.Contributors).Identity);
+        Assert.Contains("original attribute value", report.Text);
+
+        string previous = Path.Combine(root.Path, "previous.bin");
+        File.Move(file, previous);
+        File.WriteAllText(file, "replacement main bytes");
+        Assert.Equal(0, SetAttribute(file, name, "replacement attribute"u8.ToArray()));
+        Assert.Contains("different file", Assert.Throws<IOException>(() => provider.ReadValueReport(item, original, ct)).Message);
+        Assert.Contains("original attribute value", report.Text);
+        Assert.DoesNotContain("replacement attribute", report.Text);
+
+        Assert.Contains("different file", Assert.Throws<IOException>(() => provider.DeleteReviewedValue(item, original, ct)).Message);
+        var replacement = adapter.ReadInventory(file, new(), ct);
+        Assert.Contains(replacement.Items, attr => attr.Name == name);
+        provider.DeleteReviewedValue(item, replacement.Identity!.Value, ct);
+        Assert.DoesNotContain(adapter.ReadInventory(file, new(), ct).Items, attr => attr.Name == name);
+        Assert.Contains(adapter.ReadInventory(previous, new(), ct).Items, attr => attr.Name == name);
+        Assert.Equal("replacement main bytes", File.ReadAllText(file));
+    }
 
     [Fact]
     public void Download_marks_say_where_a_file_came_from()
@@ -69,6 +156,14 @@ public sealed partial class HiddenDataTests
         Assert.Equal("Downloaded from https://example.com/app.dmg", froms);
         Assert.Equal(2, fromDetails.Count);
 
+        // Finder stores its color index after a newline; the name shown to a person excludes that suffix.
+        byte[] tagList = BinaryPlistOfStrings("Evidence\n4", "Review\n0");
+        var (tagSummary, tagDetails) = HiddenDataDecoder.Describe(
+            new HiddenItem("com.apple.metadata:_kMDItemUserTags", HiddenKind.Attribute, tagList.Length), tagList);
+        Assert.Equal("Finder tags: Evidence, Review", tagSummary);
+        Assert.Equal(["Evidence", "Review"], tagDetails);
+        Assert.DoesNotContain('\n', tagSummary);
+
         // FinderInfo: type 'TEXT', creator 'ttxt', invisible and a color label.
         var finder = new byte[32];
         "TEXTttxt"u8.CopyTo(finder);
@@ -82,7 +177,7 @@ public sealed partial class HiddenDataTests
         "fpmc"u8.CopyTo(decmpfs);
         BitConverter.TryWriteBytes(decmpfs.AsSpan(4), 12u);
         BitConverter.TryWriteBytes(decmpfs.AsSpan(8), 1048576ul);
-        Assert.Equal("Compressed by the file system (LZFSE, in the resource fork), 1 MiB uncompressed", Summary("com.apple.decmpfs", HiddenKind.Attribute, decmpfs));
+        Assert.Equal("Header declares LZFSE, in the resource fork, 1 MiB uncompressed", Summary("com.apple.decmpfs", HiddenKind.Attribute, decmpfs));
 
         // Undocumented: provenance's identifier after a 3-byte header.
         Assert.Contains("id 0807060504030201", Summary("com.apple.provenance", HiddenKind.Attribute, [1, 2, 0, 1, 2, 3, 4, 5, 6, 7, 8]));
@@ -199,6 +294,19 @@ public sealed partial class HiddenDataTests
         }
 
         var items = hidden.List(file);
+        if (OperatingSystem.IsMacOS())
+        {
+            // The legacy path inventory is observational. The new route refuses values/actions until a safe
+            // held-object adapter is qualified, rather than reopening a mutable path or ..namedfork traversal.
+            var inventory = hidden.ReadInventory(file, new(), TestContext.Current.CancellationToken);
+            Assert.False(inventory.BoundToObject); Assert.Contains("Compression backing: not inventoried", inventory.Notice);
+            var ordinary = Assert.Single(items, i => i.Name == "org.filecat.payload");
+            Assert.Throws<NotSupportedException>(() => hidden.Read(file, ordinary, 64));
+            Assert.Throws<NotSupportedException>(() => hidden.Open(file, ordinary));
+            Assert.Throws<NotSupportedException>(() => hidden.Delete(file, ordinary));
+            Assert.Equal("contents", File.ReadAllText(file));
+            return;
+        }
         var mark = Assert.Single(items, i => i.Name is "Zone.Identifier" or "com.apple.quarantine" or "user.xdg.origin.url");
         var (summary, _) = HiddenDataDecoder.Describe(mark, hidden.Read(file, mark, 65536));
         Assert.Matches("Mark of the Web|Quarantined|Downloaded from", summary);
@@ -244,11 +352,68 @@ public sealed partial class HiddenDataTests
         Assert.Equal(["carrier.bin"], set.Snapshot().Select(s => s.Item.Name));
     }
 
+    [Fact]
+    public void A_Darwin_resource_fork_without_ordinary_attributes_has_its_own_inventory_category()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "Requires a Darwin resource fork.");
+        using var root = new TempDir();
+        string path = root.File("resource-only.bin");
+        byte[] resource = "standalone resource fork"u8.ToArray();
+        File.WriteAllBytes(Path.Join(path, "..namedfork", "rsrc"), resource);
+
+        int previousPolicy = MacMaterializationPolicy.Get();
+        var inventory = new UnixHiddenData().ReadInventory(path, new(ShowCompressionBacking: false), TestContext.Current.CancellationToken);
+        Assert.Equal(previousPolicy, MacMaterializationPolicy.Get());
+        var fork = Assert.Single(inventory.Items);
+        Assert.Equal(HiddenKind.ResourceFork, fork.Kind);
+        Assert.Equal("com.apple.ResourceFork", fork.Name);
+        Assert.Equal(resource.Length, fork.Size);
+        Assert.Equal(HiddenMetadataRole.Unqualified, fork.Role);
+        Assert.NotNull(HiddenMetadataRoles.DeleteRefusal(fork));
+        Assert.Equal(0, Assert.Single(inventory.Categories, category => category.Kind == HiddenKind.Attribute).Count);
+        Assert.Equal(1, Assert.Single(inventory.Categories, category => category.Kind == HiddenKind.ResourceFork).Count);
+        Assert.Equal("1+", inventory.CountText);
+        Assert.False(inventory.BoundToObject);
+        Assert.False(inventory.ValueBearingQueryIssued);
+    }
+
+    [Fact]
+    public void A_real_Darwin_compressed_file_discloses_that_the_ordinary_view_omits_backing()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "Prepared Darwin compression fixture.");
+        string? path = Environment.GetEnvironmentVariable("FILECAT_MAC_COMPRESSED_XATTR_TARGET");
+        if (string.IsNullOrWhiteSpace(path)) Assert.Skip("Set FILECAT_MAC_COMPRESSED_XATTR_TARGET to an owned compressed file without ordinary attributes.");
+        const string compression = "com.apple.decmpfs", fork = "com.apple.ResourceFork";
+        const int noFollow = 1, showCompression = 0x20;
+        Assert.Equal(-1, MacAttributeLength(path, compression, 0, 0, 0, noFollow));
+        Assert.Equal(-1, MacAttributeLength(path, fork, 0, 0, 0, noFollow));
+        Assert.True(MacAttributeLength(path, compression, 0, 0, 0, noFollow | showCompression) >= 16);
+        Assert.True(MacAttributeLength(path, fork, 0, 0, 0, noFollow | showCompression) > 0);
+
+        var ct = TestContext.Current.CancellationToken;
+        var adapter = new UnixHiddenData();
+        var fallback = adapter.ReadInventory(path, new(ShowCompressionBacking: true), ct);
+        Assert.Empty(fallback.Items);
+        Assert.False(fallback.BoundToObject);
+        Assert.False(fallback.ValueBearingQueryIssued);
+        Assert.Null(fallback.ExactCount);
+        Assert.All(fallback.Categories, category => Assert.Equal(HiddenInventoryState.Partial, category.State));
+        Assert.Contains("0 ordinary attributes and 0 resource forks", fallback.Notice);
+        Assert.Contains("Compression backing: not inventoried.", fallback.Notice);
+
+        var ordinary = adapter.ReadInventory(path, new(ShowCompressionBacking: false), ct);
+        Assert.Empty(ordinary.Items);
+        Assert.Contains("Compression backing: not requested.", ordinary.Notice);
+    }
+
     private static int SetAttribute(string path, string name, byte[] value) =>
         OperatingSystem.IsMacOS() ? MacSet(path, name, value, value.Length, 0, 1) : LinuxSet(path, name, value, value.Length, 0);
 
     [LibraryImport("libc", EntryPoint = "setxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int MacSet(string path, string name, byte[] value, nint size, uint position, int options);
+
+    [LibraryImport("libc", EntryPoint = "getxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial nint MacAttributeLength(string path, string name, nint value, nint size, uint position, int options);
 
     [LibraryImport("libc", EntryPoint = "lsetxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int LinuxSet(string path, string name, byte[] value, nint size, int flags);

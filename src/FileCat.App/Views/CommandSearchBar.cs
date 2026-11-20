@@ -9,6 +9,7 @@ using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using FileCat.App.Services;
+using FileCat.Core.Commands;
 
 namespace FileCat.App.Views;
 
@@ -71,6 +72,8 @@ internal sealed class CommandSearchBar
             ItemTemplate = new FuncDataTemplate<CommandSearch.Entry>((entry, _) => Row(entry)),
         };
         AutomationProperties.SetName(_list, "Commands found");
+        _list.ContainerPrepared += (_, e) => AutomationProperties.SetHelpText(e.Container,
+            e.Container is ListBoxItem { Content: CommandSearch.Entry { Enabled: false } entry } ? entry.Reason : null);
         _hint = new TextBlock { Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(8, 4, 8, 4) };
         _helpButton = new Button { Content = "Keyboard reference", Margin = new Thickness(8, 0, 8, 4) };
         AutomationProperties.SetName(_helpButton, "Open all commands and keyboard shortcuts");
@@ -152,7 +155,9 @@ internal sealed class CommandSearchBar
                 : "Recently used · type to search all commands"
             : _results.Count == 0
                 ? $"No command matches \"{query}\". Other words may find it; use Keyboard reference{(_helpGesture() is { Length: > 0 } gesture ? $" ({gesture})" : "")} for all shortcuts."
-                : "Enter runs · F2 changes the shortcut · Esc returns to the panel";
+                : _list.SelectedItem is CommandSearch.Entry { Id: CommandIds.ChangeShortcut }
+                    ? "Enter opens shortcut editor · choose the command whose key you want to change"
+                    : "Enter runs · F2 changes the shortcut · Esc returns to the panel";
     }
 
     private void OnKeyDown(object? sender, KeyEventArgs e)

@@ -1,0 +1,137 @@
+  Discovering: FileCat.Core.Tests
+  Discovered:  FileCat.Core.Tests
+  Starting:    FileCat.Core.Tests
+Owned scratch child exited; initial entries=1, final entries=1, cleanup observation=0.066ms.
+Stopped fallback fixture: source closed=True, directory closed=False, retained dataset=True.
+    FileCat.Core.Tests.AnalysisPrivateStorageTests.MacNativeExtendedAclGrantIsRefusedBeforePayloadCreation [SKIP]
+      Darwin ACL fixture.
+    FileCat.Core.Tests.AnalysisProfileQuotaTests.WindowsForeignObjectTypeIsPreservedAndItsPrivateNameDoesNotEscapeTheFailure [SKIP]
+      Windows named-kernel-object negative control.
+    FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: "kernel-release") [SKIP]
+      Platform-specific kernel control.
+    FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: "kernel-close") [SKIP]
+      Platform-specific kernel control.
+Alternating 6,000 captured rows: native ReadAt calls=47
+    FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: "unix-bytes", filtered: False) [FAIL]
+      Assert.Equal() Failure: Collections differ
+                                                                          ↓ (pos 15)
+      Expected: ArraySelectIterator<AnalysisTreeItem, ulong> [···, 9, 13, 20, 19, 12, ···]
+      Actual:   ulong[]                                      [···, 9, 13, 12, 11, 20, ···]
+                                                                          ↑ (pos 15)
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(47,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(AnalysisMetric metric, String encoding, Boolean filtered)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(62,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(AnalysisMetric metric, String encoding, Boolean filtered)
+        --- End of stack trace from previous location ---
+    FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: "unix-bytes", filtered: False) [FAIL]
+      Assert.Equal() Failure: Collections differ
+                                                                          ↓ (pos 15)
+      Expected: ArraySelectIterator<AnalysisTreeItem, ulong> [···, 9, 13, 20, 19, 12, ···]
+      Actual:   ulong[]                                      [···, 9, 13, 12, 11, 20, ···]
+                                                                          ↑ (pos 15)
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(47,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(AnalysisMetric metric, String encoding, Boolean filtered)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(62,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(AnalysisMetric metric, String encoding, Boolean filtered)
+        --- End of stack trace from previous location ---
+    FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: "unix-bytes", filtered: False) [FAIL]
+      Assert.Equal() Failure: Collections differ
+                                                                          ↓ (pos 15)
+      Expected: ArraySelectIterator<AnalysisTreeItem, ulong> [···, 9, 13, 20, 19, 12, ···]
+      Actual:   ulong[]                                      [···, 9, 13, 12, 11, 20, ···]
+                                                                          ↑ (pos 15)
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(47,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(AnalysisMetric metric, String encoding, Boolean filtered)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(62,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(AnalysisMetric metric, String encoding, Boolean filtered)
+        --- End of stack trace from previous location ---
+    FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: "unix-bytes", filtered: False) [FAIL]
+      Assert.Equal() Failure: Collections differ
+                                                                          ↓ (pos 15)
+      Expected: ArraySelectIterator<AnalysisTreeItem, ulong> [···, 9, 13, 20, 19, 12, ···]
+      Actual:   ulong[]                                      [···, 9, 13, 12, 11, 20, ···]
+                                                                          ↑ (pos 15)
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(47,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(AnalysisMetric metric, String encoding, Boolean filtered)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(62,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(AnalysisMetric metric, String encoding, Boolean filtered)
+        --- End of stack trace from previous location ---
+    FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: FileSize, encoding: "unix-bytes") [FAIL]
+      Assert.Equal() Failure: Collections differ
+                                                                                 ↓ (pos 15)
+      Expected: ArraySelectIterator<AnalysisTreeItem, ulong>        [···, 9, 13, 20, 19, 12, ···]
+      Actual:   ArraySelectIterator<AnalysisDatasetGroupRow, ulong> [···, 9, 13, 12, 11, 20, ···]
+                                                                                 ↑ (pos 15)
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(89,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(AnalysisGroupingDimension dimension, AnalysisMetric metric, String encoding)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(102,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(AnalysisGroupingDimension dimension, AnalysisMetric metric, String encoding)
+        --- End of stack trace from previous location ---
+    FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: UniqueFileSize, encoding: "unix-bytes") [FAIL]
+      Assert.Equal() Failure: Collections differ
+                                                                                 ↓ (pos 15)
+      Expected: ArraySelectIterator<AnalysisTreeItem, ulong>        [···, 9, 13, 20, 19, 12, ···]
+      Actual:   ArraySelectIterator<AnalysisDatasetGroupRow, ulong> [···, 9, 13, 12, 11, 20, ···]
+                                                                                 ↑ (pos 15)
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(89,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(AnalysisGroupingDimension dimension, AnalysisMetric metric, String encoding)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(102,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(AnalysisGroupingDimension dimension, AnalysisMetric metric, String encoding)
+        --- End of stack trace from previous location ---
+    FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: OnDisk, encoding: "unix-bytes") [FAIL]
+      Assert.Equal() Failure: Collections differ
+                                                                                 ↓ (pos 15)
+      Expected: ArraySelectIterator<AnalysisTreeItem, ulong>        [···, 9, 13, 20, 19, 12, ···]
+      Actual:   ArraySelectIterator<AnalysisDatasetGroupRow, ulong> [···, 9, 13, 12, 11, 20, ···]
+                                                                                 ↑ (pos 15)
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(89,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(AnalysisGroupingDimension dimension, AnalysisMetric metric, String encoding)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(102,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(AnalysisGroupingDimension dimension, AnalysisMetric metric, String encoding)
+        --- End of stack trace from previous location ---
+    FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: Files, encoding: "unix-bytes") [FAIL]
+      Assert.Equal() Failure: Collections differ
+                                                                                 ↓ (pos 15)
+      Expected: ArraySelectIterator<AnalysisTreeItem, ulong>        [···, 9, 13, 20, 19, 12, ···]
+      Actual:   ArraySelectIterator<AnalysisDatasetGroupRow, ulong> [···, 9, 13, 12, 11, 20, ···]
+                                                                                 ↑ (pos 15)
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(89,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(AnalysisGroupingDimension dimension, AnalysisMetric metric, String encoding)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(102,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(AnalysisGroupingDimension dimension, AnalysisMetric metric, String encoding)
+        --- End of stack trace from previous location ---
+    FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: FileSize, encoding: "unix-bytes") [FAIL]
+      Assert.Equal() Failure: Collections differ
+                                                                                 ↓ (pos 15)
+      Expected: ArraySelectIterator<AnalysisTreeItem, ulong>        [···, 9, 13, 20, 19, 12, ···]
+      Actual:   ArraySelectIterator<AnalysisDatasetGroupRow, ulong> [···, 9, 13, 12, 11, 20, ···]
+                                                                                 ↑ (pos 15)
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(89,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(AnalysisGroupingDimension dimension, AnalysisMetric metric, String encoding)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(102,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(AnalysisGroupingDimension dimension, AnalysisMetric metric, String encoding)
+        --- End of stack trace from previous location ---
+    FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: UniqueFileSize, encoding: "unix-bytes") [FAIL]
+      Assert.Equal() Failure: Collections differ
+                                                                                 ↓ (pos 15)
+      Expected: ArraySelectIterator<AnalysisTreeItem, ulong>        [···, 9, 13, 20, 19, 12, ···]
+      Actual:   ArraySelectIterator<AnalysisDatasetGroupRow, ulong> [···, 9, 13, 12, 11, 20, ···]
+                                                                                 ↑ (pos 15)
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(89,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(AnalysisGroupingDimension dimension, AnalysisMetric metric, String encoding)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(102,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(AnalysisGroupingDimension dimension, AnalysisMetric metric, String encoding)
+        --- End of stack trace from previous location ---
+    FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: OnDisk, encoding: "unix-bytes") [FAIL]
+      Assert.Equal() Failure: Collections differ
+                                                                                 ↓ (pos 15)
+      Expected: ArraySelectIterator<AnalysisTreeItem, ulong>        [···, 9, 13, 20, 19, 12, ···]
+      Actual:   ArraySelectIterator<AnalysisDatasetGroupRow, ulong> [···, 9, 13, 12, 11, 20, ···]
+                                                                                 ↑ (pos 15)
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(89,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(AnalysisGroupingDimension dimension, AnalysisMetric metric, String encoding)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(102,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(AnalysisGroupingDimension dimension, AnalysisMetric metric, String encoding)
+        --- End of stack trace from previous location ---
+    FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: Files, encoding: "unix-bytes") [FAIL]
+      Assert.Equal() Failure: Collections differ
+                                                                                 ↓ (pos 15)
+      Expected: ArraySelectIterator<AnalysisTreeItem, ulong>        [···, 9, 13, 20, 19, 12, ···]
+      Actual:   ArraySelectIterator<AnalysisDatasetGroupRow, ulong> [···, 9, 13, 12, 11, 20, ···]
+                                                                                 ↑ (pos 15)
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(89,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(AnalysisGroupingDimension dimension, AnalysisMetric metric, String encoding)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.RawNames.cs(102,0): at FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(AnalysisGroupingDimension dimension, AnalysisMetric metric, String encoding)
+        --- End of stack trace from previous location ---
+  Finished:    FileCat.Core.Tests (ID = 'c861be724b16263402b062293a8f3c01d60ce31c8e0e43fc911e5e69fd5780bf')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Core.Tests  Total: 1358, Errors: 0, Failed: 12, Skipped: 4, Not Run: 0, Time: 103.355s

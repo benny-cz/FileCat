@@ -1,0 +1,48 @@
+{
+  "revision": "r1353",
+  "result": "Fully visible in the actual 2\u00d7 compositor capture; the earlier offscreen render clipped the dialog.",
+  "appSha256": "0147252a485576cc7c2250c4599b2a2259a68dd6eb88bb114c14abad8c97c15d",
+  "harnessSha256": "1f77806ff2e317323127c9588bb0030277febc58918d52023a238eed35a7551e",
+  "sources": {
+    "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Program.cs": "16649a0aa5b5da6433caaf42b3eb26436bdcb46aa5c79e5e87f0502c62a23fc6",
+    "tests/FileCat.NativeAcceptance/DiskSpaceHarness/BranchRefresh.cs": "123b687c7bf7b4e598c4cd59e02a7853b463e4e1e8096144e72775d105a8e8dd",
+    "docs/validation/disk-space/drivers/prepare-recipe-compositor-r1353.py": "1a41d46baae287c9c86a2e6b9246a28bfb4b20db858d7a2f16da516eed28ec77"
+  },
+  "capture": {
+    "frame": "branch-recipe-evidence.png",
+    "ownedWindow": {
+      "kCGWindowAlpha": 1,
+      "kCGWindowBounds": {
+        "Height": 791,
+        "Width": 1180,
+        "X": 130,
+        "Y": 30
+      },
+      "kCGWindowIsOnscreen": true,
+      "kCGWindowLayer": 0,
+      "kCGWindowMemoryUsage": 2432,
+      "kCGWindowNumber": 321,
+      "kCGWindowOwnerName": "FileCat",
+      "kCGWindowOwnerPID": 90195,
+      "kCGWindowSharingState": 0,
+      "kCGWindowStoreType": 1
+    },
+    "width": 2880,
+    "height": 1800,
+    "sha256": "6afa9a4e25f058990868ecdcbe8a34811bc231bb4e5fc3f8eac0c88edbad6ce8",
+    "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper"
+  },
+  "cache": {
+    "baseline": "/Users/benny/FileCatValidation/dsa-batch-20261107-r1351/app",
+    "verifiedInputs": 72,
+    "patched": [
+      "DiskSpaceHarness.dll",
+      "DiskSpaceHarness.pdb"
+    ]
+  },
+  "receiptSha256": "f102bef5b2d8cc0f54ddc784a7dcf74923c0ac68056ab4be8fbcacd522ca4a87",
+  "postInventorySha256": "fe8676ae981437531e6e1ddbd4453964e7a0dbfef58572904e2d757e9c1ec342",
+  "desktopPixelsRetainedInGit": false,
+  "physicalInputQualified": false,
+  "screenReaderQualified": false
+}

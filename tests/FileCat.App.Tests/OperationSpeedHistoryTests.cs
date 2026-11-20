@@ -11,8 +11,11 @@ public sealed class OperationSpeedHistoryTests
     {
         var history = new OperationSpeedHistory();
         Assert.False(history.Sample(TimeSpan.Zero, 0, running: true));
+        Assert.False(history.HasTrend);
         Assert.True(history.Sample(TimeSpan.FromSeconds(1), 100, running: true));
+        Assert.False(history.HasTrend); // One point has a rate but no history shape to show.
         Assert.True(history.Sample(TimeSpan.FromSeconds(2), 100, running: true));
+        Assert.True(history.HasTrend);
         Assert.True(history.Sample(TimeSpan.FromSeconds(3), 100, running: false));
         Assert.True(history.Sample(TimeSpan.FromSeconds(4), 200, running: true));
         Assert.Equal([100d, 0d, 0d, 100d], history.Samples.Select(point => point.Y).ToArray());
@@ -37,6 +40,7 @@ public sealed class OperationSpeedHistoryTests
         Assert.Single(history.Samples);
         Assert.Equal(100, history.Samples[0].X);
         Assert.True(history.HasActivity); // The graph still shows the 90-second stall.
+        Assert.False(history.HasTrend); // One retained point is not a useful graph.
         Assert.Equal(0, history.Current);
         Assert.Empty(SpeedGraph.Project([new Point(double.NaN, 1)], 100, 50));
     }

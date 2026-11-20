@@ -1,0 +1,9 @@
+{
+  "observedUtc": "2026-11-17T02:51:29.382148+00:00",
+  "sessionId": 56381,
+  "terminalExit": 75,
+  "controllerExit": 1,
+  "completionChunk": "754590",
+  "state": "BUSY phase=appsettings",
+  "provenance": "Runner state is admission refusal, not a failed product test"
+}

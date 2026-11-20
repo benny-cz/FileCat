@@ -1,0 +1,86 @@
+[
+  {
+    "path": "src/FileCat.App/Services/AnalysisIndexedAcquisition.Inventory.cs",
+    "sha256": "b0f60c1b90de2d1fd92659a0274a44f9070dd0151a6fcf58c085005d4039a8a2"
+  },
+  {
+    "path": "src/FileCat.App/Services/AnalysisRollingHistoryAccess.cs",
+    "sha256": "2bfaa87fb51438a8e3e6e748037724e8b934160d0699e4b7f132f5c10fc926e4"
+  },
+  {
+    "path": "src/FileCat.App/Services/AnalysisRollingHistoryController.Browsing.cs",
+    "sha256": "7702cc94a838dcf40831d43c8e153b27c98fa1a727e0435ce04135a394861d8f"
+  },
+  {
+    "path": "src/FileCat.App/Services/AnalysisRollingHistoryController.cs",
+    "sha256": "5a063492d667e676e113a6910638b0a1371d0d4ec444363a4f6636dc43e24fc5"
+  },
+  {
+    "path": "src/FileCat.App/Services/AnalysisRollingHistoryController.Pinning.cs",
+    "sha256": "c788ba6d78286aa89092d1d6c864b2d92a1823c3ddf07c21081ac844fae16833"
+  },
+  {
+    "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Acquisition.cs",
+    "sha256": "1bfabb994949e5f0be432a665373779b295684a5b16630902d367212cd9b5ccf"
+  },
+  {
+    "path": "src/FileCat.App/Views/AnalysisHistoryBrowser.cs",
+    "sha256": "3a72cf9f526c8aca942960b5ce57b2763b446d32872fbe907ac4288dbd895cd6"
+  },
+  {
+    "path": "src/FileCat.App/Views/AnalysisHistorySettingsEditor.cs",
+    "sha256": "4cd513846c3132302f8fc2b5618a6853536399aca892d3b490d59865bdec3f20"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+    "sha256": "c7410a48af0577c29ba9f2e7c044ddec44ea00cfe91c063b198521cea7cf65ff"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.History.cs",
+    "sha256": "92af3fa0cebd25a24ea8b6f7d95454b512cd09f7c9c7b4d46a67b0701799729c"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+    "sha256": "6a604b660701936558d9a0774237d58f1713f9646fa9a2faa42ff864776fa540"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedPersistence.cs",
+    "sha256": "5a73000b1bb03fdff0b76cc5d391ac1b6f9e584d5624e174466177a7006b4a6b"
+  },
+  {
+    "path": "src/FileCat.App/Views/SettingsDialog.cs",
+    "sha256": "6e417f6725b89b33a261f545b76f39639378aada8db1863b69d6683e92575688"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisIndexedInventory.cs",
+    "sha256": "cdf9a62617b9082561a74b573521fe74007b778dfddc8a564dfa7d33c620520d"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisInventoryStage.cs",
+    "sha256": "482e32404ec063ed32d62198f0d515352fc5b35a0612a0b3c0fb0bdbaa9c9239"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisInventoryStage.Writer.cs",
+    "sha256": "4b6fd1ca959c176e85cca71a78a89325ed5fef2b9b2b5066f63f93967fb04fe8"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/OwnedAnalysisStore.Copy.cs",
+    "sha256": "9bf06a8a481d4053ab0e6a76c15d9ec9ba882f7fc5f82874e092521d96f8930f"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/OwnedAnalysisStore.cs",
+    "sha256": "b48a400a31d023f45af678486e8bf321ba603b0d5fb8958b3b282050b875e76a"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/OwnedAnalysisStore.History.cs",
+    "sha256": "d58dcdedf24b83bb0c0d013d7812de75d27885e25e062fba2b5f473d313232db"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/OwnedAnalysisStore.HistoryRecovery.cs",
+    "sha256": "8ba55c30b70fe3e19b7436ee822719715e0aef2cf4f6ec13de2eae9d05256575"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.HistoryBrowsing.cs",
+    "sha256": "f7f0985ec6a1b6822d2059718bd0d4fb8c2c7ffb17e6a859850bd3334b094094"
+  }
+]

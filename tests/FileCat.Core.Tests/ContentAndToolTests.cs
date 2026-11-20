@@ -220,8 +220,14 @@ public class ContentAndToolTests
                 {
                     if (File.Exists(recorded))
                     {
-                        got = File.ReadAllText(recorded).Split(separator, StringSplitOptions.RemoveEmptyEntries);
-                        if (OperatingSystem.IsWindows()) got = [.. got.Select(r => r.TrimEnd('\r'))];
+                        string content = File.ReadAllText(recorded);
+                        // The recorder writes into the visible file. A partial final argument already counts as a
+                        // split field, so wait for its trailing separator before comparing the exact names.
+                        if (content.Length > 0 && content[^1] == separator)
+                        {
+                            got = content.Split(separator, StringSplitOptions.RemoveEmptyEntries);
+                            if (OperatingSystem.IsWindows()) got = [.. got.Select(r => r.TrimEnd('\r'))];
+                        }
                     }
                 }
                 catch (IOException) { }
@@ -257,6 +263,23 @@ public class ContentAndToolTests
             Assert.Equal(Path.Combine(folder, file), ToolLauncher.FindOnPath(name, relative + Path.PathSeparator + "\"" + folder + "\""));
             Assert.Throws<System.ComponentModel.Win32Exception>(() => FileCat.Core.Platform.PortableShellServices.Resolve(name));
             if (!OperatingSystem.IsWindows()) Assert.True(Path.IsPathFullyQualified(FileCat.Core.Platform.PortableShellServices.Resolve("sh")));
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
+    [Fact]
+    public void Mac_editor_detection_does_not_treat_Xcode_xed_as_a_text_editor()
+    {
+        string folder = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-editor-" + Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            string xed = Path.Combine(folder, OperatingSystem.IsWindows() ? "xed.exe" : "xed");
+            File.WriteAllText(xed, "");
+            var mac = ToolLauncher.DetectUnixEditor(mac: true, path: folder);
+            Assert.Equal("TextEdit", mac.Name);
+            Assert.Equal("/usr/bin/open", mac.Executable);
+            Assert.Equal(["-e", "{files}"], mac.Arguments);
+            Assert.Equal(xed, ToolLauncher.DetectUnixEditor(mac: false, path: folder).Executable);
         }
         finally { Directory.Delete(folder, recursive: true); }
     }

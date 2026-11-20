@@ -1,0 +1,7 @@
+{
+  "observedUtc": "2026-11-16T18:32:20.909884+00:00",
+  "pid": 196796,
+  "command": "/home/benny/.dotnet/dotnet FileCat.Core.Tests.dll -method *IndexedComparison* -method *ExactKeyCompaction* -noLogo -noColor -maxThreads 2 -xml /home/benny/FileCatValidation/dsa-batch-20261107-r1141/smoke-r1141.xml",
+  "reason": "Diagnosed retained unexpected query after assertion; exact owned preflight child terminated",
+  "signal": "SIGTERM"
+}

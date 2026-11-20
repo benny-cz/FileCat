@@ -1,0 +1,99 @@
+[
+  {
+    "kCGWindowAlpha": 1,
+    "kCGWindowBounds": {
+      "Height": 500,
+      "Width": 500,
+      "X": 0,
+      "Y": 400
+    },
+    "kCGWindowLayer": 0,
+    "kCGWindowMemoryUsage": 2432,
+    "kCGWindowNumber": 576,
+    "kCGWindowOwnerName": "FileCat",
+    "kCGWindowOwnerPID": 18838,
+    "kCGWindowSharingState": 0,
+    "kCGWindowStoreType": 1
+  },
+  {
+    "kCGWindowAlpha": 1,
+    "kCGWindowBounds": {
+      "Height": 30,
+      "Width": 1440,
+      "X": 0,
+      "Y": 0
+    },
+    "kCGWindowLayer": 0,
+    "kCGWindowMemoryUsage": 2432,
+    "kCGWindowNumber": 575,
+    "kCGWindowOwnerName": "FileCat",
+    "kCGWindowOwnerPID": 18838,
+    "kCGWindowSharingState": 0,
+    "kCGWindowStoreType": 1
+  },
+  {
+    "kCGWindowAlpha": 1,
+    "kCGWindowBounds": {
+      "Height": 30,
+      "Width": 1440,
+      "X": 0,
+      "Y": 0
+    },
+    "kCGWindowLayer": 0,
+    "kCGWindowMemoryUsage": 2432,
+    "kCGWindowNumber": 574,
+    "kCGWindowOwnerName": "FileCat",
+    "kCGWindowOwnerPID": 18838,
+    "kCGWindowSharingState": 0,
+    "kCGWindowStoreType": 1
+  },
+  {
+    "kCGWindowAlpha": 1,
+    "kCGWindowBounds": {
+      "Height": 30,
+      "Width": 1440,
+      "X": 0,
+      "Y": 0
+    },
+    "kCGWindowLayer": 0,
+    "kCGWindowMemoryUsage": 2432,
+    "kCGWindowNumber": 573,
+    "kCGWindowOwnerName": "FileCat",
+    "kCGWindowOwnerPID": 18838,
+    "kCGWindowSharingState": 0,
+    "kCGWindowStoreType": 1
+  },
+  {
+    "kCGWindowAlpha": 1,
+    "kCGWindowBounds": {
+      "Height": 30,
+      "Width": 1440,
+      "X": 0,
+      "Y": 0
+    },
+    "kCGWindowLayer": 0,
+    "kCGWindowMemoryUsage": 2432,
+    "kCGWindowNumber": 572,
+    "kCGWindowOwnerName": "FileCat",
+    "kCGWindowOwnerPID": 18838,
+    "kCGWindowSharingState": 0,
+    "kCGWindowStoreType": 1
+  },
+  {
+    "kCGWindowAlpha": 1,
+    "kCGWindowBounds": {
+      "Height": 396,
+      "Width": 720,
+      "X": 0,
+      "Y": 30
+    },
+    "kCGWindowIsOnscreen": true,
+    "kCGWindowLayer": 0,
+    "kCGWindowMemoryUsage": 2432,
+    "kCGWindowNumber": 571,
+    "kCGWindowOwnerName": "FileCat",
+    "kCGWindowOwnerPID": 18838,
+    "kCGWindowSharingState": 0,
+    "kCGWindowStoreType": 1
+  }
+]

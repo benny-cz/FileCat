@@ -1,0 +1,31 @@
+{
+  "revision": "r1138",
+  "renderRevision": "r1138",
+  "sourceManifest": ".tmp/source-candidate-r1138.json",
+  "buildLog": ".tmp/indexed-comparison-ui-fixture-build-r1138.txt",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 14.5787476,
+  "archives": [
+    {
+      "platform": "windows",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r1138.tgz",
+      "bytes": 95267529,
+      "sha256": "a76ac9e904c1da4c48920a845e784eaee4c2cafd8f8e330a4d283c02f5c8f815"
+    },
+    {
+      "platform": "mac",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r1138.tgz",
+      "bytes": 660912,
+      "sha256": "d35cfd2828e1034e524a9a0114e3e7a581bbcfce68868fba2712c2252baab9d3"
+    },
+    {
+      "platform": "linux",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r1138.tgz",
+      "bytes": 660825,
+      "sha256": "f699c0b5711af207a205a86032747be4cff7b5f31a022b9c11a83f09deba4206"
+    }
+  ],
+  "cachedProductBaseline": "r1137",
+  "scope": "TestOnly"
+}

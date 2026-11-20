@@ -7,11 +7,12 @@ namespace FileCat.PrivilegedHost;
 /// The consent window (ADR-14). UAC identifies only this program, so the broker itself shows exactly which steps it
 /// will run; Cancel is the default, so a reflexive Enter never approves a plan.
 /// </summary>
-internal static unsafe partial class ConsentDialog
+internal static partial class ConsentDialog
 {
     private const int RunButton = 100, EarlierButton = 101, LaterButton = 102, IdCancel = 2, IdOk = 1;
-    private const uint AllowCancellation = 0x0008, ExpandedByDefault = 0x0080, SizeToContent = 0x01000000;
-    private const uint TdnCreated = 0, TdnButtonClicked = 2, TdmSetElementText = 0x0400 + 108, TdmEnableButton = 0x0400 + 111;
+    private const uint AllowCancellation = 0x0008, ExpandedByDefault = 0x0080, CallbackTimer = 0x0800, SizeToContent = 0x01000000;
+    private const uint TdnCreated = 0, TdnButtonClicked = 2, TdnTimer = 4;
+    private const uint TdmClickButton = 0x0400 + 102, TdmSetElementText = 0x0400 + 108, TdmEnableButton = 0x0400 + 111;
     // TASKDIALOG_ELEMENTS: TDE_CONTENT 0, TDE_EXPANDED_INFORMATION 1, TDE_FOOTER 2, TDE_MAIN_INSTRUCTION 3.
     private const nint TdeExpandedInformation = 1;
 
@@ -50,11 +51,36 @@ internal static unsafe partial class ConsentDialog
     /// plan of several pages gets Earlier and Later buttons, so no step is ever left out of view (release issue I17).
     /// </summary>
     public static bool Ask(string instruction, string content, IReadOnlyList<string> pages, string footer)
+        => AskCore(instruction, content, pages, footer, consentIsCurrent: null);
+
+    internal static bool AskMetadata(string instruction, string content, IReadOnlyList<string> pages, string footer,
+        Func<bool> isCurrent, Func<bool> stopRequested)
     {
+        // The stop marker lives on disk. Keep those opens off the dialog thread so an I/O delay cannot extend consent.
+        using var poll = new PeriodicTimer(TimeSpan.FromMilliseconds(150));
+        int stopped = 0;
+        _ = Task.Run(async () =>
+        {
+            while (await poll.WaitForNextTickAsync().ConfigureAwait(false))
+            {
+                try { if (!stopRequested()) continue; }
+                catch (ObjectDisposedException) { return; }
+                Volatile.Write(ref stopped, 1);
+                return;
+            }
+        });
+        return AskCore(instruction, content, pages, footer, () => Volatile.Read(ref stopped) == 0 && isCurrent());
+    }
+
+    private static unsafe bool AskCore(string instruction, string content, IReadOnlyList<string> pages, string footer,
+        Func<bool>? consentIsCurrent)
+    {
+        bool metadata = consentIsCurrent is not null;
         instruction = ElevationConsent.DisplayText(instruction);
         content = ElevationConsent.DisplayText(content);
         footer = ElevationConsent.DisplayText(footer);
         var strings = new List<nint>();
+        GCHandle lifetime = default;
         nint S(string s)
         {
             var p = Marshal.StringToHGlobalUni(s);
@@ -66,6 +92,7 @@ internal static unsafe partial class ConsentDialog
             _pages = pages.Select(S).ToArray();
             _page = 0;
             bool paged = pages.Count > 1;
+            if (metadata) lifetime = GCHandle.Alloc(consentIsCurrent);
             var buttons = paged
                 ? stackalloc TaskDialogButton[]
                 {
@@ -73,15 +100,15 @@ internal static unsafe partial class ConsentDialog
                     new() { Id = LaterButton, Text = S("Later steps") },
                     new() { Id = RunButton, Text = S("Run as administrator") },
                 }
-                : stackalloc TaskDialogButton[] { new() { Id = RunButton, Text = S("Run as administrator") } };
+                : stackalloc TaskDialogButton[] { new() { Id = RunButton, Text = S(metadata ? "Read metadata" : "Run as administrator") } };
             fixed (TaskDialogButton* first = buttons)
             {
                 var config = new TaskDialogConfig
                 {
                     Size = (uint)sizeof(TaskDialogConfig),
-                    Flags = AllowCancellation | ExpandedByDefault | SizeToContent,
+                    Flags = AllowCancellation | ExpandedByDefault | SizeToContent | (metadata ? CallbackTimer : 0),
                     CommonButtons = CancelButtonFlag,
-                    WindowTitle = S("FileCat — administrator operation"),
+                    WindowTitle = S(metadata ? "FileCat — read NTFS metadata" : "FileCat — administrator operation"),
                     MainIcon = ShieldIcon,
                     MainInstruction = S(instruction),
                     Content = S(content),
@@ -92,20 +119,22 @@ internal static unsafe partial class ConsentDialog
                     ExpandedControlText = S("Hide the steps"),
                     CollapsedControlText = S("Show the steps"),
                     Footer = S(footer),
-                    Callback = paged ? (nint)(delegate* unmanaged[Stdcall]<nint, uint, nint, nint, nint, int>)&OnNotify : 0,
+                    Callback = paged || metadata ? (nint)(delegate* unmanaged[Stdcall]<nint, uint, nint, nint, nint, int>)&OnNotify : 0,
+                    CallbackData = lifetime.IsAllocated ? GCHandle.ToIntPtr(lifetime) : 0,
                 };
                 int pressed;
                 int hr = TaskDialogIndirect(&config, &pressed, null, null);
-                if (hr != 0) return FallbackAsk(instruction, content, pages, footer);
-                return pressed == RunButton;
+                if (hr != 0) return !metadata && FallbackAsk(instruction, content, pages, footer);
+                return pressed == RunButton && (consentIsCurrent?.Invoke() ?? true);
             }
         }
         catch (EntryPointNotFoundException)
         {
-            return FallbackAsk(instruction, content, pages, footer);
+            return !metadata && FallbackAsk(instruction, content, pages, footer);
         }
         finally
         {
+            if (lifetime.IsAllocated) lifetime.Free();
             _pages = [];
             foreach (var p in strings) Marshal.FreeHGlobal(p);
         }
@@ -117,8 +146,16 @@ internal static unsafe partial class ConsentDialog
     {
         if (notification == TdnCreated)
         {
-            ShowPage(window);
+            if (_pages.Length > 1) ShowPage(window);
             return 0;
+        }
+        if (data != 0 && (notification == TdnTimer || (notification == TdnButtonClicked && (int)wParam == RunButton)))
+        {
+            var isCurrent = (Func<bool>)GCHandle.FromIntPtr(data).Target!;
+            if (isCurrent()) return 0;
+            // Close only this task dialog. Cancel's notification does not evaluate the lifetime or send another message.
+            if (notification == TdnTimer) SendMessage(window, TdmClickButton, IdCancel, 0);
+            return notification == TdnButtonClicked ? 1 : 0;
         }
         if (notification != TdnButtonClicked || (int)wParam is not (EarlierButton or LaterButton)) return 0;
         _page = Math.Clamp(_page + ((int)wParam == LaterButton ? 1 : -1), 0, _pages.Length - 1);
@@ -134,7 +171,7 @@ internal static unsafe partial class ConsentDialog
     }
 
     /// <summary>Reports why nothing was run (the user just approved UAC and deserves an answer).</summary>
-    public static void Refuse(string reason)
+    public static unsafe void Refuse(string reason)
     {
         reason = ElevationConsent.DisplayText(reason);
         var strings = new List<nint>();
@@ -188,7 +225,7 @@ internal static unsafe partial class ConsentDialog
     }
 
     [LibraryImport("comctl32.dll")]
-    private static partial int TaskDialogIndirect(TaskDialogConfig* config, int* button, int* radioButton, int* verificationChecked);
+    private static unsafe partial int TaskDialogIndirect(TaskDialogConfig* config, int* button, int* radioButton, int* verificationChecked);
 
     [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
     private static partial nint SendMessage(nint window, uint message, nint wParam, nint lParam);

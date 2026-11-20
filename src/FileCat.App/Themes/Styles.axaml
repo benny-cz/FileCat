@@ -132,6 +132,24 @@
     <Setter Property="BorderBrush" Value="{DynamicResource FcFocusBorder}" />
   </Style>
 
+  <!-- Find fields keep a visible result cue after the debounced search finishes. -->
+  <Style Selector="TextBox.searchPending /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource FcBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="TextBox.searchPending:focus /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource FcTextMuted}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+  <Style Selector="TextBox.searchFound /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource FcSuccess}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+  <Style Selector="TextBox.searchMissing /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource FcError}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+
   <!-- Role chips (non-color cue: text): TARGET, "Set as target" on the other panels, the active panel's own target -->
   <Style Selector="Button.role">
     <Setter Property="Focusable" Value="False" />
@@ -139,6 +157,8 @@
     <Setter Property="Margin" Value="4,2" />
     <Setter Property="MinHeight" Value="{DynamicResource FcRoleHeight}" />
     <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
     <Setter Property="CornerRadius" Value="3" />
     <Setter Property="FontSize" Value="{DynamicResource FcRoleFontSize}" />
     <Setter Property="Background" Value="Transparent" />
@@ -457,6 +477,24 @@
   </Style>
   <Style Selector="Button.toolbar.checked /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="BorderBrush" Value="{DynamicResource FcActiveAccent}" />
+  </Style>
+  <Style Selector="Button.toolbar.historyPrimary">
+    <Setter Property="Margin" Value="1,1,0,1" />
+  </Style>
+  <Style Selector="Button.historyDropdown">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="CornerRadius" Value="3" />
+    <Setter Property="Margin" Value="0,1,2,1" />
+    <Setter Property="Padding" Value="3,0" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="{DynamicResource FcToolbarHeight}" />
+    <Setter Property="VerticalAlignment" Value="Stretch" />
+  </Style>
+  <Style Selector="Button.historyDropdown:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FcFocusBackground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FcBorder}" />
   </Style>
   <!-- A panel's place buttons: small, flat, where the panel is outlined. -->
   <Style Selector="Border.drivebar">

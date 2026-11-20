@@ -1,0 +1,10 @@
+{
+  "observedUtc": "2026-11-17T09:35:19.3480720Z",
+  "sessionId": 31742,
+  "terminalExit": 267014,
+  "controllerExit": 1,
+  "completionChunk": "502c6f",
+  "actualOriginalController": true,
+  "ownedCancellation": true,
+  "reason": "Performance-cliff baseline interrupted after100Kpassed;1Mnotqualified"
+}

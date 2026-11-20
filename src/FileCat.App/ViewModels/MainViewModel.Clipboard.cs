@@ -1,6 +1,7 @@
 using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
 using FileCat.App.Services;
+using FileCat.Core.Diagnostics;
 using FileCat.Core.Jobs;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
@@ -11,21 +12,39 @@ namespace FileCat.App.ViewModels;
 
 public sealed partial class MainViewModel
 {
-    private readonly FileClipboard _fileClipboard = new();
+    private FileClipboard _fileClipboard = new();
     private readonly Dictionary<Job, FileClipboard.Publication> _clipboardMoves = [];
     private readonly Dictionary<Job, (uint Sequence, string[] Paths)> _externalClipboardCopies = [];
+    private readonly Dictionary<Job, ClipboardVirtualStaging.Prepared> _virtualClipboardCopies = [];
     private readonly System.Runtime.CompilerServices.ConditionalWeakTable<TabViewModel, PendingPaste> _pendingPastes = new();
 
     private sealed class PendingPaste { public long Revision; }
 
-    private async Task PutFilesOnClipboardAsync(bool cut)
+    internal async Task PutContextFilesOnClipboardAsync(TabViewModel tab, IReadOnlyList<string?> expectedPaths, bool cut)
     {
-        var tab = ActiveTab;
+        try { await PutFilesOnClipboardAsync(cut, tab, expectedPaths); }
+        catch (Exception ex)
+        {
+            AppLog.Error("Windows context-menu clipboard action failed", ex);
+            Notify("Could not place the selected files on the clipboard: " + ex.Message, true);
+        }
+    }
+
+    private async Task PutFilesOnClipboardAsync(bool cut, TabViewModel? sourceTab = null, IReadOnlyList<string?>? expectedPaths = null)
+    {
+        var tab = sourceTab ?? ActiveTab;
         var top = View.TopLevel;
         var clipboard = View.Clipboard;
         if (tab is null || top is null || clipboard is null) return;
         var selection = tab.Listing.GetSelection();
         if (selection.Count == 0) { ItemSources.Release(selection); return; }
+        if (expectedPaths is not null && (selection.Count != expectedPaths.Count ||
+            selection.Where((item, index) => !string.Equals(item.FileSystemPath, expectedPaths[index], StringComparison.OrdinalIgnoreCase)).Any()))
+        {
+            ItemSources.Release(selection);
+            Notify("The selection changed while the Windows menu was open. Copy or Cut it again.", true);
+            return;
+        }
         long revision = _fileClipboard.BeginWrite();
         try
         {
@@ -83,12 +102,13 @@ public sealed partial class MainViewModel
         long invocation = ++pending.Revision;
         bool IsAlive() => !tab.Listing.IsDisposed && pending.Revision == invocation;
         FileClipboard.Snapshot snapshot;
-        try { snapshot = await _fileClipboard.ReadAsync(clipboard); }
-        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or NotSupportedException)
+        try { snapshot = await _fileClipboard.ReadAsync(clipboard, Services.Paths.TempDirectory); }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or NotSupportedException or System.Runtime.InteropServices.COMException)
         {
             if (IsAlive()) Notify(ex.Message, true);
             return;
         }
+        using var staging = snapshot.Staging;
         if (!IsAlive())
         {
             if (tab.Listing.IsDisposed) Notify("Paste was canceled because its destination tab was closed.");
@@ -144,6 +164,11 @@ public sealed partial class MainViewModel
                 });
                 _jobOrigins[job] = (tab, destination);
                 if (move is not null) _clipboardMoves.Add(job, move);
+                if (staging is not null)
+                {
+                    _virtualClipboardCopies.Add(job, staging);
+                    staging.HandOff();
+                }
                 else if (snapshot.Publication is null && snapshot.WindowsSequence is { } sequence
                          && OperatingSystem.IsWindows()
                          && snapshot.Files.All(file => file.FileSystemPath is { } path
@@ -204,5 +229,10 @@ public sealed partial class MainViewModel
         // exact still-current data object that the completed result was Copy, without claiming
         // an unoptimized Move or invoking delete-on-paste.
         _ = WindowsClipboardFileDrop.TryReportCompletedCopyAsync(source.Sequence, source.Paths);
+    }
+
+    private void OnVirtualClipboardCopyFinished(Job job)
+    {
+        if (_virtualClipboardCopies.Remove(job, out var staging)) staging.Complete();
     }
 }

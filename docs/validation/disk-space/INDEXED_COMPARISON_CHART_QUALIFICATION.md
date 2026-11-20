@@ -1,0 +1,26 @@
+# Indexed comparison charts and growth colors — 2026-11-16
+
+The indexed comparison tab now offers Table, Treemap and Sunburst over either exact captured side. Area comes from that side's full observed accounting hierarchy, never a signed difference. Previous includes removed observations; Current does not invent space for them. The visible caption separates the full hierarchy from the applied table query/cohort. Zero and unavailable amounts remain reachable through the complete table without invented chart area.
+
+Chart construction uses the comparison's retained graphs directly. A caller cannot substitute a different inventory sharing an identity. Private indexes join accounting entities to comparison rows; a bounded depth-first fold derives node, shared-bucket and directory-self comparison evidence. Aliases retain one object charge, attribution remains distinct from growth, and mixed/unavailable evidence remains Unknown. Only bounded geometry becomes managed display objects. Exact Other scopes can be opened repeatedly, including nested suffixes, without materializing whole alias groups. Incompatible On disk bases refuse a combined chart before the zero-area shortcut and expose separate recorded location choices.
+
+Both controls share the existing themed growth legend, metric/side headings and nonnegative amount labels. All/Up/location navigation, routed chart Enter, row inspection, applied-query independence, both chart modes and side switching are connected. Chart-selected rows outside the current table page/filter are explained in the inspector; automatic cross-page table location remains open. Metric changes retire chart readers before the comparison, and closing the tab waits for actual work before closing chart/query/comparison/input ownership. Failed or canceled builds release their unpublished owners; an old immutable image can remain visible while its retired reader keeps interaction disabled until retry.
+
+16 new Core controls cover all four metrics and both sides, exact entity evidence, directory-self and shared charges, retained inputs after their owners close, failure/cancellation/retry/admission, incompatible root bases and 14,000-entry geometry with repeated exact Other navigation. Four new native-filesystem/headless-view controls run on each actual guest platform. They capture 28 images per platform across seven themes, two chart modes and wide/compact large-text layouts. Representative Mac, Windows and Ubuntu images were inspected for side/metric captions, amount labels, geometry, focus and contrast. These are headless rendered controls and actual filesystem work, not physical pointer/screen-reader/DPI qualification.
+
+| Phase | Windows VM | Mac | Ubuntu VM |
+| --- | --- | --- | --- |
+| Core preflight | 264/264 | 264/264 | 264/264 |
+| Comparison/view preflight | 33/33 | 33/33 | 33/33 |
+| Core | 1,867 pass, 48 existing skips | 1,892 pass, 5 declared platform skips | 1,892 pass, 5 declared platform skips |
+| Analysis rendering | 712 pass, 1 existing skip | 713/713 | 713/713 |
+| Settings | 35 pass, 1 existing skip | 36/36 | 36/36 |
+| Windows native | 75/75 | — | — |
+
+All four affected-project builds have zero warnings/errors. All original r1147 runner handles ended with exit 0; the ordinary Windows R2 Interactive/Limited task was removed. Final inventories on all three report zero FileCat/dotnet processes. No host app, test or desktop input was used.
+
+The r1146 development failure is preserved on all three: 264 preflight cases, 257 passes and seven failures, with no broad phase run. One real product defect let incompatible combined totals return an empty chart because zero area skipped geometry loading. r1147 refuses that scope explicitly. The other failures were fixture assumptions: positive geometry need not contain zero/missing table entries, a shared object is drawn in its accounting bucket, and ordinary files classified as `other` are not synthetic Other aggregates. Construction was also tightened to use the exact retained comparison graphs rather than a caller-supplied input checked only by identity. Exact failed/corrected sources, build logs, inputs and terminal receipts remain in [the immutable manifest](source-manifest-r1147-indexed-comparison-chart.json); its completed finalizer must not be rerun.
+
+For subsequent iterations, the new short comparison templates select 12 fast Core controls and four view controls before the unchanged broad phases. The 12 controls passed in the retained Mac preflight with 0.203 summed case seconds, versus 33.514 seconds for the full 264-case preflight. The Windows template parses; neither shorter template has yet been executed as a complete guest runner. Large cases remain in the broad suite. This process change does not alter the completed r1147 evidence.
+
+The full goal remains active and public registration stays off. Indexed human/CSV/chart reports and streaming saved comparison persistence/import are next. Export must bind both input identities and joined privacy taint; the generic chart-export guard currently recognizes the memory comparison class and must cover the indexed path before commands are connected. Full large-data/resource/fault/native-interaction parity, remaining W0–W8 work and the final independent UX/UI/functional/security review are still required.

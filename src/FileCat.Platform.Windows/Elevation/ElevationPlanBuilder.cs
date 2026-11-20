@@ -15,8 +15,9 @@ public sealed record ElevationRetry(ElevationPlan Plan, IReadOnlyList<ItemRef> S
 public static class ElevationPlanBuilder
 {
     public static bool OffersRetry(Job job) =>
-        job.State.IsFinished() && !job.RetriedAsAdministrator && job.Request.Kind is JobKind.Registry or JobKind.Recycle or JobKind.Delete or JobKind.Copy or JobKind.Move
+        job.State.IsFinished() && !job.RetriedAsAdministrator && job.Request.Kind is JobKind.Registry or JobKind.Delete or JobKind.Copy or JobKind.Move
             or JobKind.CreateDirectory or JobKind.Rename or JobKind.Attributes &&
+        (job.Request.Kind != JobKind.Rename || job.Request.NewNames is null) &&
         job.Issues.Any(i => i.Cause == "access");
 
     public static ElevationRetry Build(Job job, int requesterProcessId)
@@ -45,14 +46,13 @@ public static class ElevationPlanBuilder
                 title = steps.Count == 1 ? RegistryChangeRunner.Describe(changes[failed[0]]) : $"Apply {steps.Count:N0} Registry changes";
                 break;
             }
-            case JobKind.Recycle:
             case JobKind.Delete:
                 foreach (var item in FailedSources())
                 {
                     steps.Add(new ElevatedStep(ElevatedVerb.DeleteTree) { Path = ElevationPaths.ToVolumePath(LocalPath(item)) });
                     sources.Add(item);
                 }
-                title = $"Delete {Count(steps.Count)} permanently" + (request.Kind == JobKind.Recycle ? " (the administrator helper does not use the Recycle Bin)" : "");
+                title = $"Delete {Count(steps.Count)} permanently";
                 break;
             case JobKind.Copy:
             case JobKind.Move:
@@ -115,12 +115,23 @@ public static class ElevationPlanBuilder
             default:
                 throw new NotSupportedException("This kind of operation cannot be retried as administrator.");
         }
+        return new ElevationRetry(CheckedPlan(title, steps, requesterProcessId, identity), sources, request.Destination);
+    }
+
+    internal static ElevationPlan CreateFileRetryPlan(string title, IReadOnlyList<ElevatedStep> steps)
+    {
+        using var identity = WindowsIdentity.GetCurrent();
+        return CheckedPlan(title, steps, Environment.ProcessId, identity);
+    }
+
+    private static ElevationPlan CheckedPlan(string title, IReadOnlyList<ElevatedStep> steps, int requesterProcessId, WindowsIdentity identity)
+    {
         if (steps.Count == 0) throw new InvalidOperationException("No failed items are left to retry.");
         var plan = new ElevationPlan
         {
             Nonce = ElevationPlanCodec.NewNonce(),
             CreatedUtc = DateTime.UtcNow,
-            UserSid = sid,
+            UserSid = identity.User?.Value ?? throw new InvalidOperationException("The current user could not be identified."),
             UserName = identity.Name,
             RequesterProcessId = requesterProcessId,
             Title = title.Length > 300 ? title[..297] + "…" : title,
@@ -128,7 +139,7 @@ public static class ElevationPlanBuilder
         };
         var problems = ElevationPlanCodec.Validate(plan, DateTime.UtcNow);
         if (problems.Count > 0) throw new InvalidOperationException(string.Join(" ", problems));
-        return new ElevationRetry(plan, sources, request.Destination);
+        return plan;
     }
 
     private static string Count(int n) => n == 1 ? "1 item" : $"{n:N0} items";

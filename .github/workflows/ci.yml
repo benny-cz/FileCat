@@ -44,8 +44,9 @@ jobs:
     needs: producer-policy
     runs-on: windows-2025-vs2026
     # The full solution test step can consume nearly 30 minutes on a slow hosted runner;
-    # keep the separate four-minute per-test blame-hang bound below.
-    timeout-minutes: 60
+    # keep the separate four-minute per-test blame-hang bound below. Archive writing and
+    # native edit storage added about 15 minutes to every test job (run 43762060868).
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -164,7 +165,8 @@ jobs:
     runs-on: windows-11-arm
     # The full lane reached the installer step after 44 minutes in run 41047031486.
     # Keep the per-test blame-hang bounds; allow the aggregate job to finish cleanup.
-    timeout-minutes: 60
+    # Archive writing and native edit storage added about 15 minutes to every test job.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -299,10 +301,8 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-26]
     runs-on: ${{ matrix.os }}
-    # macOS Core, Remote, App and native smoke steps together exceeded 30 minutes
-    # in run 38449751526, which cancelled a still-running App suite before qualification.
-    # Per-test blame-hang limits remain in place; this is the aggregate job budget.
-    timeout-minutes: 60
+    # This is the aggregate job budget. The macOS App suite runs on its own runner.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -371,6 +371,7 @@ jobs:
           hdiutil detach "$DISK"
       # Saved passwords against a real Secret Service: GNOME Keyring in a private D-Bus session (macOS uses its keychain).
       - name: Prepare Linux native test dependencies
+        id: linux_dependency_controls
         if: runner.os == 'Linux'
         timeout-minutes: 10
         run: |
@@ -379,7 +380,7 @@ jobs:
           /usr/bin/python3 eng/validation/validate-linux-ci-dependencies.py --evidence-dir "$RUNNER_TEMP/linux-dependency-controls"
           bash eng/validation/prepare-linux-ci-dependencies.sh
       - name: Retain Linux dependency launcher controls
-        if: always() && runner.os == 'Linux'
+        if: always() && runner.os == 'Linux' && steps.linux_dependency_controls.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: linux-dependency-launcher-controls
@@ -434,8 +435,9 @@ jobs:
       - run: python tests/FileCat.NativeAcceptance/test_win_ftp_owned_stage.py
       # A hang (a test server that never answers) fails in minutes with a dump of where, not at the job's time limit.
       - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build --logger "trx;LogFileName=remote-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
-      # P9: the UI runs headless on Linux and macOS too.
-      - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
+      # P9: the Linux UI runs headless. The macOS App suite runs in macos-app.
+      - if: runner.os == 'Linux'
+        run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
       # Pixels drawn with Skia (scaled icons), read back.
       - run: dotnet test tests/FileCat.Rendering.Tests -c Release --no-build --logger "trx;LogFileName=rendering-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
       # D-51: web pages drawn by WebKitGTK, on a virtual X display; a missing engine fails here instead of skipping.
@@ -491,15 +493,47 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: app-test-results-${{ matrix.os }}
+          name: ${{ runner.os == 'macOS' && format('portable-test-results-{0}', matrix.os) || format('app-test-results-{0}', matrix.os) }}
           path: |
             **/TestResults/*.trx
             **/TestResults/**/Sequence_*.xml
 
+  macos-app:
+    name: macos-26 (App tests)
+    needs: producer-policy
+    runs-on: macos-26
+    # The App suite took 27–30 minutes in recent runs. Keep its per-test hang bounds.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
+      - run: dotnet build tests/FileCat.App.Tests -c Release -p:RestoreLockedMode=true
+      - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: app-test-results-macos-26
+          path: |
+            tests/FileCat.App.Tests/TestResults/*.trx
+            tests/FileCat.App.Tests/TestResults/**/Sequence_*.xml
+            tests/FileCat.App.Tests/TestResults/**/*.dmp
+
   package:
     name: Package (tags only)
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [producer-policy, windows, windows-arm64, portable]
+    needs: [producer-policy, windows, windows-arm64, portable, macos-app]
     runs-on: windows-2025-vs2026
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
@@ -551,9 +585,8 @@ jobs:
         with:
           name: inno-setup-provenance-windows-package
           path: artifacts/toolchains/inno-setup/**
-      # Code signing (ADR-15): SignPath Foundation signs the artifacts built here from tagged source.
-      # Configure the SignPath project and its GitHub integration, then add the signing step here.
-      # Until then releases are published as clearly labeled, unsigned previews.
+      # Windows signing is a separate candidate producer step. This package job currently emits
+      # unsigned inputs only; the draft-preview job below must never consume an RC tag.
       - name: Select exact Windows release assets
         id: assets
         shell: pwsh
@@ -569,7 +602,7 @@ jobs:
   package-linux:
     name: Package Linux (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [producer-policy, windows, windows-arm64, portable]
+    needs: [producer-policy, windows, windows-arm64, portable, macos-app]
     runs-on: ubuntu-24.04
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
@@ -600,7 +633,7 @@ jobs:
       - name: Build the tarball, .deb, and AppImage
         run: |
           v="${GITHUB_REF_NAME#v}"
-          [[ "$GITHUB_REF" == refs/tags/v* ]] || v="0.1.0-dev.${GITHUB_RUN_NUMBER}"
+          [[ "$GITHUB_REF" == refs/tags/v* ]] || v="1.0.0-dev.${GITHUB_RUN_NUMBER}"
           product="$v"
           candidate_ref=""
           if [[ "$GITHUB_REF" =~ ^refs/tags/v1\.0\.0-rc\.[1-9][0-9]*$ ]]; then
@@ -628,7 +661,7 @@ jobs:
           PACKAGE_REF: ${{ github.ref }}
           PACKAGE_REF_NAME: ${{ github.ref_name }}
         run: |
-          $v = if ($env:PACKAGE_REF.StartsWith('refs/tags/v')) { $env:PACKAGE_REF_NAME.Substring(1) } else { "0.1.0-dev.$env:GITHUB_RUN_NUMBER" }
+          $v = if ($env:PACKAGE_REF.StartsWith('refs/tags/v')) { $env:PACKAGE_REF_NAME.Substring(1) } else { "1.0.0-dev.$env:GITHUB_RUN_NUMBER" }
           ./eng/Select-ReleaseAssets.ps1 -Platform linux -Version $v -SourceCommit $env:GITHUB_SHA -GitHubOutputPath $env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -639,7 +672,7 @@ jobs:
   package-macos:
     name: Package macOS (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [producer-policy, windows, windows-arm64, portable]
+    needs: [producer-policy, windows, windows-arm64, portable, macos-app]
     runs-on: macos-26
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
@@ -670,7 +703,7 @@ jobs:
       - name: Build the app (ad-hoc signed, not notarized)
         run: |
           v="${GITHUB_REF_NAME#v}"
-          [[ "$GITHUB_REF" == refs/tags/v* ]] || v="0.1.0-dev.${GITHUB_RUN_NUMBER}"
+          [[ "$GITHUB_REF" == refs/tags/v* ]] || v="1.0.0-dev.${GITHUB_RUN_NUMBER}"
           product="$v"
           candidate_ref=""
           if [[ "$GITHUB_REF" =~ ^refs/tags/v1\.0\.0-rc\.[1-9][0-9]*$ ]]; then
@@ -693,7 +726,7 @@ jobs:
           PACKAGE_REF: ${{ github.ref }}
           PACKAGE_REF_NAME: ${{ github.ref_name }}
         run: |
-          $v = if ($env:PACKAGE_REF.StartsWith('refs/tags/v')) { $env:PACKAGE_REF_NAME.Substring(1) } else { "0.1.0-dev.$env:GITHUB_RUN_NUMBER" }
+          $v = if ($env:PACKAGE_REF.StartsWith('refs/tags/v')) { $env:PACKAGE_REF_NAME.Substring(1) } else { "1.0.0-dev.$env:GITHUB_RUN_NUMBER" }
           ./eng/Select-ReleaseAssets.ps1 -Platform macos -Version $v -SourceCommit $env:GITHUB_SHA -GitHubOutputPath $env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -704,7 +737,7 @@ jobs:
 
   draft-preview:
     name: Draft preview (consume this run's artifacts only)
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v1.0.0-preview.')
     needs: [producer-policy, windows, windows-arm64, portable, package, package-linux, package-macos]
     runs-on: ubuntu-24.04
     timeout-minutes: 15

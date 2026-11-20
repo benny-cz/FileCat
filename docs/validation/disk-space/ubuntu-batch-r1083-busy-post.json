@@ -1,0 +1,10 @@
+{
+  "observedUtc": "2026-11-08T11:05:34.822008+00:00",
+  "exitCode": 0,
+  "filecatOrDotnet": [
+    " 894124  892854 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet test /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --no-build --disable-build-servers -p:NuGetAudit=false -m:1 --filter FullyQualifiedName~FileCat.Core.Tests --logger trx;LogFileName=core-regressions.trx --results-directory /home/benny/FileCatValidation/archive-writing-42829297/awp-v1/results",
+    " 894140  894124 dotnet exec /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/vstest.console.dll --framework:.NETCoreApp,Version=v10.0 --testCaseFilter:FullyQualifiedName~FileCat.Core.Tests --logger:trx;LogFileName=core-regressions.trx --resultsDirectory:/home/benny/FileCatValidation/archive-writing-42829297/awp-v1/results /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll --logger:Console;Verbosity=minimal --artifactsProcessingMode-collect --testSessionCorrelationId:894124_622b4618-aebf-41da-94c7-89f5f59adec9",
+    " 894153  894140 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet exec --runtimeconfig /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.runtimeconfig.json --depsfile /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.deps.json /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/testhost.dll --port 33695 --endpoint 127.0.0.1:033695 --role client --parentprocessid 894140 --telemetryoptedin false",
+    " 894203  894153 /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests @@ /tmp/tmpI2TpFB.tmp"
+  ]
+}

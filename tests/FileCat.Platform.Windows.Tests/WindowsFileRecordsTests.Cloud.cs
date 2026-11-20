@@ -1,6 +1,10 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
 using FileCat.Core.Records;
+using FileCat.Core.Resources;
+using FileCat.Core.State;
 using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows.Tests;
@@ -30,6 +34,12 @@ public sealed partial class WindowsFileRecordsTests
         long connection = 0;
         var table = (CfCallbackRegistration*)NativeMemory.AllocZeroed((nuint)(2 * sizeof(CfCallbackRegistration)));
         string file = Path.Combine(root, "cloud.txt");
+        int fetchesBefore = Volatile.Read(ref _fetches);
+        void RequireNoFetch(string phase)
+        {
+            int requested = Volatile.Read(ref _fetches) - fetchesBefore;
+            Assert.True(requested == 0, $"{phase}: the provider received {requested} data requests.");
+        }
         try
         {
             if (!OnNtfs(root)) Assert.Skip("The test folder is not on NTFS.");
@@ -69,18 +79,26 @@ public sealed partial class WindowsFileRecordsTests
             }
             var (record, sequence) = Reference(file);
             var (rootRecord, rootSequence) = Reference(root);
-            int fetchesBefore = Volatile.Read(ref _fetches);
+            RequireNoFetch("Placeholder creation and ID controls");
+
+            CheckDetailsAndStorageAdmission(root, file);
+            RequireNoFetch("File-system details and storage admission");
 
             bool[] modes = Environment.IsPrivilegedProcess ? [false, true] : [false];
             foreach (bool privileged in modes)
             {
                 var report = Read(file, privileged);
                 TestContext.Current.TestOutputHelper?.WriteLine(Excerpt(report, "Item", "Reparse point", "Cloud placeholder", "Layout on disk"));
+                RequireNoFetch($"Legacy record, privileged={privileged}");
+                Assert.Contains("Supplementary data was omitted for this cloud-managed or offline item.", report.Warnings);
+                Assert.DoesNotContain(report.Sections, section => section.Title.StartsWith("Streams and attributes", StringComparison.Ordinal));
+                if ((File.GetAttributes(file) & FileAttributes.SparseFile) != 0)
+                    Assert.Contains("stored ranges were not queried", Field(Section(report, "Layout on disk"), "Sparse"));
                 Assert.StartsWith("0x9000", Field(Section(report, "Reparse point"), "Tag"), StringComparison.Ordinal);
                 var cloud = Section(report, "Cloud placeholder (Cloud Files)");
                 Assert.Equal($"{RecordText.Bytes(0)} of {RecordText.Bytes(5000)}: none of it (only in the cloud)", Field(cloud, "On this device"));
                 Assert.Equal(CloudPlaceholderInfo.PinStateText(0), Field(cloud, "Pin state"));
-                Assert.Equal("yes", Field(cloud, "In sync"));
+                Assert.Equal("in sync (provider-reported)", Field(cloud, "In sync"));
                 Assert.EndsWith("(its own)", Field(cloud, "File ID"), StringComparison.Ordinal);
                 Assert.StartsWith($"0x{(ulong)sequence << 48 | (ulong)record:X16} ", Field(cloud, "File ID"), StringComparison.Ordinal);
                 Assert.EndsWith($"· file ID 0x{(ulong)rootSequence << 48 | (ulong)rootRecord:X16}", Field(cloud, "Sync root"), StringComparison.Ordinal);
@@ -101,8 +119,7 @@ public sealed partial class WindowsFileRecordsTests
                 Assert.Equal((0L, 0, 1), (after.OnDiskDataSize, after.PinState, after.InSyncState));
             }
             Assert.True(((uint)File.GetAttributes(file) & RecallOnDataAccess) != 0, $"attributes 0x{(uint)File.GetAttributes(file):X8}");
-            Assert.Equal(fetchesBefore, Volatile.Read(ref _fetches));
-            Assert.Equal(0, Volatile.Read(ref _fetches));
+            RequireNoFetch("Final unchanged-placeholder checks");
         }
         finally
         {
@@ -116,6 +133,39 @@ public sealed partial class WindowsFileRecordsTests
                 Directory.Delete(root, recursive: true);
             }
         }
+    }
+
+    private static void CheckDetailsAndStorageAdmission(string root, string file)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var reader = new WindowsFileRecords();
+        var summary = reader.ReadSummary(file, ct);
+        Assert.Equal(FileObjectKind.File, summary.Kind);
+        Assert.Equal(FactState.Known, summary.ReparseTag.State);
+        Assert.True(ReparsePresentation.IsCloudTag(summary.ReparseTag.Value));
+        Assert.Equal(FactState.Known, summary.Cloud.State);
+        Assert.Equal(FactState.NotInspected, summary.Target.State);
+        Assert.Equal(5000, summary.LogicalSize.Value);
+        var full = reader.ReadFull(file, FileDetailsPolicy.MetadataOnly, ct);
+        Assert.Equal(ReportContentKind.MetadataOnly, full.ContentKind);
+        Assert.Equal(summary.Identity, full.Summary.Identity);
+        Assert.Equal(summary.Cloud, full.Summary.Cloud);
+        Assert.Equal("Native metadata", Assert.Single(full.Technical.Sections).Title);
+        Assert.NotEqual(summary.Revision, full.Summary.Revision);
+
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        if (!WindowsStorageTransforms.SupportsHost(arm64)) return;
+        var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
+        var candidate = adapter.CreateEfsJobCandidate();
+        var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), candidate,
+            Path.Join(root, "unused-evidence"));
+        var target = ItemRef.ForFileSystemPath(file, EntryKind.File);
+        Assert.Equal("ancestor-excluded", Assert.Throws<StorageInspectionException>(() =>
+            manager.PrepareStorageReview([target], StorageAction.Compress, ct)).Problem.Code);
+        if (!WindowsTokenAuthority.IsHighIntegrity && candidate.Unavailable(StorageAction.EncryptEfs) is null)
+            Assert.Equal("ancestor-excluded", Assert.Throws<StorageInspectionException>(() =>
+                manager.PrepareStorageReview([target], StorageAction.EncryptEfs, ct)).Problem.Code);
+        Assert.False(Directory.Exists(Path.Join(root, "unused-evidence")));
     }
 
     [StructLayout(LayoutKind.Sequential)]

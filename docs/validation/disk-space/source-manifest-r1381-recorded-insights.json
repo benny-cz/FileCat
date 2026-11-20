@@ -1,0 +1,123 @@
+{
+  "sourceBase": "c3b7acf67e2676702fc501036be7a737fde93705",
+  "sources": {
+    "src/FileCat.App/Views/AnalysisRecipeDialog.cs": "9d7d86edc7f803ff98dfb0ba2f30e0d509778bac6a8f75e6d0d6abc74e154b73",
+    "src/FileCat.Core/Analysis/AnalysisMemoryRecipes.cs": "45e627b59a2bf9bcdef48589a6fae90c25f5109dc3ed2c1b7c76f2af596a9429",
+    "src/FileCat.Core/Analysis/AnalysisRecipePreview.cs": "dd1fc2004e884fc5315829a76c6215eef17f574fd890f0e9ddf572c1bffb0a06",
+    "src/FileCat.Core/Analysis/AnalysisRecipes.cs": "7819c19dc3f9c08f4bee38989e8d824a28e33cfaad0e3542c865a158e779bfbc",
+    "src/FileCat.Core/Analysis/AnalysisRecordedInsights.cs": "9086c5367ca19aa0d79c8bde5f8934b78be2ff40a12604a05486aaac23dec9ae",
+    "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.RecordedInsights.cs": "82b91c89a835521bc80998f4359360c6222be8cd1a1b6274b87226d86427aa0a",
+    "tests/FileCat.NativeAcceptance/DiskSpaceHarness/DuplicateReview.cs": "344b0204f3424b5c0876eb160aa6ca0f7ce9800cac5bb6b88a242b64801f43f5"
+  },
+  "retained": {
+    "batch-linux-r1379.sh": "b8cdf324c8baba2b6ea362b8a2c19feabf3195bd054d8f2a731bc9d3db33a485",
+    "batch-linux-r1380.sh": "2590b9fcb5e51c095d817d18809483bc45f9dae2d5203cbaaa68d106f1994a41",
+    "batch-mac-r1379.sh": "75a66d39ef2ca4ae89c90911e4b22c72ac99e1e107810262d6f1dbd6c4585b5e",
+    "batch-mac-r1380.sh": "b2b7ecfa6eb20727dcf9d29fe8259f83f2a85823b1e8d45ad5ee231e5d9ae325",
+    "batch-r1380-linux/plan.json": "efebe2065996363fa77255f52aa27a8b4f1daee8f7ab0eb7ba5e4b29d1e8b657",
+    "batch-r1380-mac/plan.json": "71ffedde41bbc70269296faa03dd280c23fa6b04c29afc018f257145a74b2cc7",
+    "batch-r1380-windows/plan.json": "1408085974920ed4ec814533b5177b28c01aa69e0c2330fc68ead9851ac12372",
+    "batch-windows-r1379.ps1": "a691cc2cabd3ba23863661906c1c351b4b0b1eb3e550d0c34dd3f761aced4885",
+    "batch-windows-r1380.ps1": "71c24490eaf12a2db7ca678c400036fc50a8af07a41e4a820b1cc27ac9bb47cd",
+    "mac-batch-r1379-post.json": "46a37a206f12da112a64ecdf71425ca82d6a2671744503f89b291e7c3d21bfef",
+    "mac-batch-r1379-results.tgz": "3edb58d61bc9d7388eed32b3f7150248ec17c2619e46577563265ba3a234e077",
+    "mac-native-r1380-post.json": "f182d9f4a298fa00fb85ad9a817ce562333285f8ce0afb2d2f7662fefd2f5c32",
+    "recipe-rendering-proof-r1379.json": "2c32c8c611c2419b20d781c4eb055be4b7077bc9a85a2290b28726f45aaddcb8",
+    "recorded-insight-first-build-r1379.txt": "fbd700cdd6e5fa950d5c1b5c69a31f0d397c9c2c83f3f83b1c5c6b5f5a716c9c",
+    "recorded-insight-render-build-r1379.txt": "9439d0b90b480dceb5155298e592972506393383f4b0c38ea1664f8214b70f4e",
+    "recorded-insights-native-build-r1380.txt": "bd365073ea5e050de8036901fb7c29878c1a0f64ef78052baae40aeb19667323",
+    "recorded-insights-native-proof-r1380.json": "f118fbdacfc0d5b547693326f50a5b0ccf42025c6e6c668c99789710a190f773",
+    "recorded-insights-source-proof-r1379.json": "9cec419809b0e1d2c45221d025cb9b47026bf1ced4a22eb156909c00d939b9ff",
+    "ubuntu-batch-r1379-post.json": "69d49d3a20c7d7ddf43e90767a549933b752749e5952b9430a3bab73dc7424e8",
+    "ubuntu-batch-r1379-results.tgz": "e358b624efc1e800ef8308fc331e807f2dc144e30f268ad03cb3e7e2f67bf708",
+    "ubuntu-native-r1380-post.json": "00740a44bbdffe0eaa75415eda65044fa086adb78281eaced3d941d3eb98d284",
+    "ubuntu-native-r1380-results.tgz": "7bd964878acc6c3d49afeeda457870c44f48c819d5d9f02d053a472b88787a8a",
+    "windows-batch-r1379-post.json": "0f179ba5e303a8ea6c04693836281caad71f47383c0de67bb2ec95ff6fe0a056",
+    "windows-batch-r1379-results.tgz": "a8fe4a6f7a402778e6cbcb47c9642bfda323b71c9f5606c21ec7c85c1261f44d",
+    "windows-batch-r1379-task-outcome.json": "d66e323b983e388fc5d713cf3f401aae676bca9b6d412db8016c4cf4b6561585",
+    "windows-native-r1380-post.json": "9145338fb8b722af427b395f87d19c9956c5a81cf880141605eacb67c9033124",
+    "windows-native-r1380-results.tgz": "8c19272274c116f68ccfb80b88dca47ceb687f83b7a8f57a242eed60a1f86239",
+    "windows-native-r1380-task-outcome.json": "31cc1414c9291ac817a7b6e57b09841fef29575b6d1d1f607dad2d60e3ea1247",
+    "mac-native-r1380-results-without-desktop.tgz": "8b2a2cca792696ed92ca5d57d51ae0c6360b47f33bbf68d86e6be7377270cff7"
+  },
+  "nativeResults": {
+    "windows": {
+      "finished": true,
+      "passed": true,
+      "sessions": 2,
+      "candidateObjects": 2,
+      "knownReadBytes": 8,
+      "capturedMarks": 4,
+      "additionalHardLinkNames": 1,
+      "preservingDefault": true,
+      "retainedHiddenMarksAndBasket": true,
+      "contentAvailable": true,
+      "contentGroups": 1,
+      "recordedInsightsPassed": true
+    },
+    "mac": {
+      "finished": true,
+      "passed": true,
+      "sessions": 2,
+      "candidateObjects": 2,
+      "knownReadBytes": 8,
+      "capturedMarks": 4,
+      "additionalHardLinkNames": 1,
+      "preservingDefault": true,
+      "retainedHiddenMarksAndBasket": true,
+      "contentAvailable": false,
+      "contentGroups": 0,
+      "recordedInsightsPassed": true
+    },
+    "ubuntu": {
+      "finished": true,
+      "passed": true,
+      "sessions": 2,
+      "candidateObjects": 2,
+      "knownReadBytes": 8,
+      "capturedMarks": 4,
+      "additionalHardLinkNames": 1,
+      "preservingDefault": true,
+      "retainedHiddenMarksAndBasket": true,
+      "contentAvailable": false,
+      "contentGroups": 0,
+      "recordedInsightsPassed": true
+    }
+  },
+  "archives": {
+    "exact-source-deltas-r1381-recorded-insights.tgz": "9f19dffbaba4234e2d4d29a30495183199348227b0f7b6614fc11b52ff99c9ba",
+    "exact-receipts-r1381-recorded-insights.tgz": "ea8f94217082a426806d43ec853692d8c64ec27fb17c1b7204e637aef031a0bb"
+  },
+  "localMacDesktopCapture": {
+    "capture": {
+      "frame": "recorded-insights-small-files.png",
+      "ownedWindow": {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 791,
+          "Width": 1180,
+          "X": 130,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowNumber": 413,
+        "kCGWindowOwnerName": "FileCat",
+        "kCGWindowOwnerPID": 95071,
+        "kCGWindowSharingState": 0,
+        "kCGWindowStoreType": 1
+      },
+      "width": 2880,
+      "height": 1800,
+      "sha256": "6d722438c45ca3f313bac9024329eee28a4bd10156543fa947f03df099049b7f",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper"
+    },
+    "archiveSha256": "386fb6c1e29b95d4b8cd489777c708bceb9f0565c67a08a299c7d510b1d4fd18"
+  },
+  "streamAndForkMeasurementsQualified": false,
+  "publicEntryEnabled": false,
+  "physicalInputQualified": false,
+  "fullGoalComplete": false,
+  "finalIndependentReviewPerformed": false
+}

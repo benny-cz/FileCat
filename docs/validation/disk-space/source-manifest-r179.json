@@ -1,0 +1,87 @@
+{
+  "purpose": "Opt-in production coordinator capture and stable bounded preview; no feature/action authorization",
+  "gitBase": "588faaec85f711d01063d64c206b0ca2425d757b",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "4ac1830de245ad466691ac42c488b9eb519423d1542fb47afdb581ea0fec2d64"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "174f9f4e30d5aaecf117174b6866a964b7bcc7185da7d0277bb27e486698592f"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisCoordinator.cs",
+      "sha256": "3aed10a46d318879b58f6ecede81b6de5f4a688c6e776e4131b1db6476746150"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisCoordinator.Indexed.cs",
+      "sha256": "d9ca1a735572dc77b69550ed8a9097e9687deb4e13c9e4b91178cbdb70e9597d"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObservationCapture.cs",
+      "sha256": "4181b060af8f8a64779b309c2278ce24e123179d1a7e35917f8f38333683e271"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObservationWriter.cs",
+      "sha256": "59df2001b625cda229478e0880a263868b90f68b8b37f0b0eeba95e537bbf210"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchComposite.cs",
+      "sha256": "a386c4272b3d10fd59e44cede81b6f824d921b4326669294c3044be6a709fc4d"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisStore.cs",
+      "sha256": "26ef19b81db7c9d16d983cdd78f47f073fe626f93744dff3c288c6870b4ff0c0"
+    },
+    {
+      "path": "tests/AnalysisObservationCaptureFixture.cs",
+      "sha256": "71f7e9939dfc7430c1e437f6b29117525ae78e0398e8c610ce7864a6b43bc25b"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisIndexedSessionTests.cs",
+      "sha256": "79f4ff8a155d182f157a1baf252c89780ed9963b65a20b6e6efd301c7e05ba4f"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisPrivateStorageTests.Scratch.cs",
+      "sha256": "951149361b9bba0108a0f4123d7a235373555c9fdfa23fd5b016b453bf0991b9"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.Scratch.cs",
+      "sha256": "d640ce7997301535f89e515f669583101e8cdae9876da6cda303e204bd81525c"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r179.tgz",
+      "sha256": "a7e732d16a8d2c79824124277477ba4e61e64e42c0a24a01940473c54e721e92"
+    },
+    {
+      "path": ".tmp/dsa-native-r179.tgz",
+      "sha256": "f9b3b3655d7abb918b92f3f076deab7ca948b1194dde45da100db4cc1243a652"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r179.sh",
+      "sha256": "5b553edad8b33dbeaa19304ba556e744d7118b792fbf16c2be1a3f3a5e3878bc"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r179.ps1",
+      "sha256": "70125b7a218e988dbeba273028e1b9d399d0c795fd553d36452a67d6a7b799cb"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r179.ps1",
+      "sha256": "4062fc8fbf71424523b6046dfab3953f3fe9ba0d717cfc31884966540d22199a"
+    }
+  ],
+  "reports": [
+    "windows-core-r179.xml",
+    "mac-core-r179.xml",
+    "ubuntu-core-r179.xml",
+    "windows-native-r179.xml",
+    "session-build-r178.txt"
+  ],
+  "remaining": "Qualified spillable source frontier; complete enumeration/stale-scope metadata; original inventory-ID mapping; full native source-scale/resource qualification; scalable aggregation/query/projection/table/import/export; main-window adoption; remaining feature packets and final independent review."
+}

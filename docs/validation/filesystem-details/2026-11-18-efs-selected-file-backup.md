@@ -1,0 +1,55 @@
+# EFS backup review for selected files
+
+The Windows qualification adapter captured only the selected original paths and inspected certificate associations on eligible encrypted files. It held the ordinary, no-follow path while querying associations and checked the invoking user's certificate-to-key match. The review keeps one option for each distinct current-user certificate, with the associated files identified individually. It reads at most 64 selected items and retains up to 256 distinct options. Selecting a directory records a refusal for that row. [Windows EFS file-associated user query](https://learn.microsoft.com/en-us/windows/win32/api/winefs/nf-winefs-queryusersonencryptedfile)
+
+Before starting a backup, the adapter requires the exact reviewed key and at least one original file that still matches the reviewed identity and key. Following a completed Windows export, it rechecks the eligible original files and reports which still match that certificate. The wizard handles the backup path and password. A matching association and an export result do not establish recoverability. [Windows certificate export wizard](https://learn.microsoft.com/en-us/windows/win32/api/cryptuiapi/nf-cryptuiapi-cryptuiwizexport)
+
+The Windows 11 x64 VM exercised the selected-file review at medium integrity. Two encrypted selected files produced one distinct key and two distinct object identities. A selected clear file and a selected directory produced individual refusal reasons. A certificate outside the review and an invalid window owner were refused before export. Replacing both selected files with new encrypted files using the same key invalidated the review. The original files, the encrypted replacements and the unselected encrypted child preserved their observed state. The combined regression suite passed 43 tests with one key-rotation fixture skipped. See `.tmp/filecat-efs-selected-backup-tests.xml`.
+
+The isolated two-certificate fixture changed the disposable VM account's default EFS key between encryptions. Each of the two files retained its own certificate association and its original bytes. FileCat presented two independent matched key choices, one for each file. The isolated test passed. See `.tmp/filecat-efs-backup-multiple-keys-tests.xml`.
+
+The qualified candidate exposes **EFS protection…** and **Back up EFS key…** in File → Inspect and command search. Both commands are hidden when their adapters are unavailable. The key dialog starts with no certificate selected, lists the captured original locations, and leaves an unavailable key or window owner ineligible for backup. Its result identifies only the selected items that matched the exported certificate at the time of the recheck. In the Windows 11 VM, the app's headless tests drove both commands against an actual encrypted file, exercised the key dialog's multiple-choice and per-file result controls, and ran the related existing storage and command-search regressions. The suite passed 69 tests. See `.tmp/filecat-efs-selected-backup-app-tests.xml`.
+
+The existing setup workflow's parented Windows wizard was qualified separately. The selected-file wizard completion and native keyboard and screen-reader flows still require an interactive qualification session. The released adapter remains gated.
+
+## Native ARM64 review and default-key changes
+
+The Windows 11 Enterprise ARM64 runner (build 26200, 4 KiB NTFS) used an isolated, medium-integrity account with a loaded profile. After the first-use and independent restore fixtures finished, it set real EFS defaults under the disposable owner account and exercised three separate cases. [Native ARM64 run and XML receipts](https://github.com/benny-cz/FileCat/actions/runs/44509919224)
+
+- `multiple-keys.xml` verified that two encrypted files with distinct real certificate associations each retained their original bytes and received an independent matched backup choice.
+- `key-change-after-intent.xml` changed the actual default after setup, confirmed that the current file had been encrypted, and required review when the observed association differed from the reviewed key.
+- `key-change-stops-job.xml` verified that the selected job stopped at that first file, kept its exact reviewed and observed key evidence, and left the second file clear.
+
+Each case passed once with zero skips. First use, refusal without an EFS key and decryption after independent PFX restore also passed in the same run. The source was `eba7d530fa0d483b929384b134a4ad31bee80b2c`. The Windows test assembly SHA-256 was `FEE4DCCFF0852FABCCBFF04F08027FF5378E0C5F3464B5B435DB01404B779252`.
+
+## Selected-file wizard and CNG key access
+
+For a reviewed CNG certificate that needs provider access, **Access and back up selected key…** requests a fresh comparison from the visible FileCat window. At least one original file must still match its reviewed identity, invoking account and certificate. The wizard follows only after the exact match. A completed export rechecks each original file and reports which still match. Ordinary review and coverage checks use silent inspection. [Windows certificate export wizard](https://learn.microsoft.com/en-us/windows/win32/api/cryptuiapi/nf-cryptuiapi-cryptuiwizexport)
+
+The Windows 11 x64 VM (build 26340, medium integrity) ran 21 focused cases with zero skips. In the selected-file wizard fixture, cancellation produced no PFX and no covered files. Completed export produced a PFX with the selected thumbprint and a private key and listed only the original encrypted file as covered. The suite also passed the separate setup wizard cases and the replacement-file control.
+
+A controlled pending observation of a disposable CNG certificate exercised the real parented comparison and reached the wizard dispatch. A deferred callback was rejected after the comparison scope closed. This exercised the handoff with a software provider. The live credential prompt and selected-file screen-reader flow still need native evidence.
+
+The Ubuntu app and test builds succeeded with zero warnings. All 10 focused dialog and evidence cases passed, including the pending CNG action, its unavailable-owner state and unchanged behavior for a regular backup. The Windows and Ubuntu receipts are `efs-backup-r1.trx` and `selected-backup-dialog.trx` in `.tmp/filecat-efs-backup-e2947b9d-r1/`. The Windows platform and test assembly SHA-256 hashes are `B72EBF18E7B0D2CBEBD5E775156EA9568735EF784E6D4499F0F1C53AD6D72AF1` and `23A890131A7A0CEFABB53A31B8549576DD0DD30FC1F8DBEE0CFF52B178CD9831`.
+
+Native ARM64 at `9c1ac645` passed both selected-file wizard cases and both setup wizard cases at medium integrity. The same run passed all three parented comparison cases, including the guarded CNG-to-backup handoff, and all 11 key and recovery checks. The artifact contains `native-efs-wizard.trx`, `native-efs-parented-provider.trx` and `native-efs-keys.trx`. [Native ARM64 receipts](https://github.com/benny-cz/FileCat/actions/runs/44529059808)
+
+## Isolated CryptoAPI export
+
+An explicitly chosen CryptoAPI export uses a fresh ShellHost process. It checks the invoking account and live FileCat owner window, matches the exact reviewed certificate to the private key and opens the native export wizard. It releases the key and clears the process-wide window setting before confirming the backup for the review. A Windows-reported export with unconfirmed key access conveys the wizard outcome and provides no coverage for the reviewed files. The selected-file route still checks the identity and certificate of the original files before and after export. [Windows certificate export wizard](https://learn.microsoft.com/en-us/windows/win32/api/cryptuiapi/nf-cryptuiapi-cryptuiwizexport)
+
+The Windows 11 x64 VM (build 26340, medium integrity) ran 23 focused cases with zero skips. Two new cases supplied a controlled pending observation for a disposable software CryptoAPI certificate and drove the real wizard from the verified ShellHost process. Cancellation produced no PFX. Completion produced a PFX containing the selected certificate and its private key. The suite also reran the ordinary selected-file, setup and replacement-file cases. Live credential prompts and the selected-file screen-reader flow remain open.
+
+The native receipt is `.tmp/filecat-capi-export-ea0ff113-r1/capi-export.trx`. The SHA-256 hashes were `033036D16D20F23F1BF788EFEBFA4614CBD9132F68D906AC4999203FD97328A6` for the Windows platform assembly, `0E8F2DCEEB86E4F8381E09413A2BFD41D6A41DE099782890E0F57AE612956A60` for ShellHost and `A1E0C416761E2E6922EECB698823D597DE890975317FEB6D0CDBFAC34D26B303` for the test assembly.
+
+Native ARM64 at `28b9a67d` executed all six wizard cases, including isolated CryptoAPI cancellation and export, all four parented key cases and all 11 key and recovery cases. All passed with zero skips. The artifacts contain `native-efs-wizard.trx`, `native-efs-parented-provider.trx` and `native-efs-keys.trx`. [Native ARM64 qualification](https://github.com/benny-cz/FileCat/actions/runs/44543109674)
+
+## Selected-file backup with NVDA
+
+The Windows 11 x64 VM ran the qualification host as a standard user with signed NVDA 2026.3.1 at 640 × 420 DIP (96 DPI). The fixture used its existing EFS certificate to encrypt a disposable file with a named stream. Keyboard command search opened **Back up EFS key…** for that focused file. The backup button stayed disabled until the user chose a certificate.
+
+The fixture canceled the FileCat-owned Windows wizard and confirmed it left no PFX. A retry exported a password-protected PFX containing the exact reviewed certificate and its private key. The reopened review reported one covered item and identified the original file. The fixture verified that the file stayed encrypted, that both streams retained their exact contents, that focus returned to the file, and that cleanup removed the PFX.
+
+During the native focus transition from the Windows wizard, NVDA sometimes omitted the live announcement of the outcome. The review now associates the current certificate's result with the certificate picker. Choosing another certificate updates or clears that description. The focused App tests passed all seven cases, including the selected-file result, recovery dialog and live-region guard. The Ubuntu receipt is `.tmp/filecat-selected-efs-28b9a67d-r1/dialog-result.trx`.
+
+The final Windows run confirmed that NVDA read cancellation and completion when keyboard focus returned to the certificate picker. It separately read the original file and its matching coverage from the read-only item list. Run `tests/FileCat.NativeAcceptance/win-nvda-storage-review.ps1 -VerifySelectedFileBackup` with the prepared profile and signed NVDA. The receipt is `.tmp/filecat-selected-efs-28b9a67d-r1/selected-r5.json`. The app SHA-256 was `78741E84A60FB813F3993A1833265417CCE40D5B1B042DDAD822EAE0E545090F` and the Windows platform assembly SHA-256 was `BEBF0FA8EDE457E2DCE972A25A86D0D13F9E57BE50F2659115CB2B355CDC4226`. Live provider credentials and ARM64 screen-reader coverage still require native fixtures.

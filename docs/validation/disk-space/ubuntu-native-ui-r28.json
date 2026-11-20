@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native dialog/a11y invocation subset, not complete native acceptance",
+  "harnessReport": "ubuntu-native-ui-report-r28.json",
+  "controlReport": "ubuntu-native-ui-control-r28.json",
+  "appSha256": "ae08024d11b38440a414f7605772e3adbf787acb7ceffc15a2021522a90db56c",
+  "harnessSha256": "a63c0cd100838c580ebadec88c2fc7491c04740253e1a2d331f2bd362eecd643",
+  "observedClientPixels": {
+    "width": 1214,
+    "height": 731
+  },
+  "nativeControl": "AT-SPI Invoke on exact owned application buttons, PID/window-guarded native geometry request",
+  "events": [
+    "Invoked Open saved\u2026",
+    "Invoked Cancel"
+  ],
+  "blankNameHasNoParameterError": true,
+  "cancelDismissedDialog": true,
+  "privateInventoryCreated": false,
+  "sourcePathsUnchanged": 509,
+  "ownedProcessExited": true,
+  "deadlineClosed": false,
+  "limitations": [
+    "Requested 380x430 geometry was not achieved in these automated attempts; observed size was1214x731. Compact-resize qualification remains open.",
+    "Earlier bounded geometry attempts stopped without passing their size check and closed their owned instances in finally. They are not passing acceptance evidence.",
+    "AT-SPI invocation and label inspection do not establish a complete screen-reader journey; native Windows/Mac input and the full matrix remain open."
+  ]
+}

@@ -208,6 +208,70 @@ public sealed class DropTargetAdmissionTests
     }
 
     [AvaloniaFact]
+    public async Task FileCats_captured_items_open_review_before_an_internal_copy_job()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var sourceTab = vm.Workspace.Panels[0].ActiveTab!;
+            var targetPanel = vm.Workspace.Panels[1];
+            string source = Path.Combine(root, "files", "a.txt");
+            string destination = Directory.CreateDirectory(Path.Combine(root, "owned-drop-target")).FullName;
+            targetPanel.ActiveTab!.Navigate(Location.FileSystem(destination));
+            await Listed(sourceTab.Listing);
+            await Listed(targetPanel.ActiveTab.Listing);
+            var (offered, refusal) = DropTargetAdmission.Check(targetPanel, true, move: false, ownDrag: true, ownItems: true);
+            Assert.Null(refusal);
+            Assert.NotNull(offered);
+            var pending = vm.DropItemsAsync(targetPanel, offered, sourceTab, sourceTab.Location!,
+                [ItemRef.ForFileSystemPath(source, EntryKind.File)]);
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            await Until(() => dialogs.IsOpen);
+            Assert.Empty(services.Jobs.Jobs);
+            Assert.Equal("alpha", File.ReadAllText(source));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(destination));
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await pending.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            Assert.Empty(services.Jobs.Jobs);
+            Assert.Equal("alpha", File.ReadAllText(source));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(destination));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Own_registry_and_drive_drags_advertise_only_supported_copy_destinations()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var panel = vm.Workspace.Panels[1];
+            await Listed(panel.ActiveTab!.Listing);
+            var registry = new Location(Schemes.Registry, "HKEY_CURRENT_USER\\Software");
+            var registryItem = new ItemRef(registry, "Owned", EntryKind.RegistryKey);
+            var (export, _) = DropTargetAdmission.Check(panel, true, false, true, true, registry, [registryItem]);
+            Assert.Equal(DragDropEffects.Copy, export!.Effect);
+            var (registryMove, registryMoveRefusal) = DropTargetAdmission.Check(panel, true, true, true, true, registry, [registryItem]);
+            Assert.Null(registryMove);
+            Assert.Contains("copies or exports only", registryMoveRefusal);
+
+            var computer = new Location(Schemes.Computer, "");
+            var drive = new ItemRef(computer, "C:", EntryKind.Drive);
+            var (driveCopy, _) = DropTargetAdmission.Check(panel, true, false, true, true, computer, [drive]);
+            Assert.Equal(DragDropEffects.Copy, driveCopy!.Effect);
+            Assert.Null(DropTargetAdmission.Check(panel, true, true, true, true, computer, [drive]).Accepted);
+            Assert.Null(DropTargetAdmission.Check(panel, true, false, true, true, computer, [drive, drive]).Accepted);
+
+            string zipPath = Path.Combine(root, "own-drag-target.zip");
+            using (ZipFile.Open(zipPath, ZipArchiveMode.Create)) { }
+            panel.ActiveTab.Navigate(ZipProvider.ForFile(zipPath));
+            Assert.Null(DropTargetAdmission.Check(panel, true, false, true, true, registry, [registryItem]).Accepted);
+            Assert.Null(DropTargetAdmission.Check(panel, true, false, true, true, computer, [drive]).Accepted);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Valid_drop_reviews_captured_folder_and_commits_there_after_panel_navigates()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

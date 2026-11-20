@@ -1,0 +1,26 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+    FileCat.Rendering.Tests.AnalysisRenderingTests.PendingNamedBrowserOffersExplicitRestoreOrMissingPayloadCleanupWithoutAutomaticReplay(indexed: False, payloadPresent: False) [FAIL]
+      The requested view state was not published.
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Navigation.cs(141,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.Until(Func`1 predicate, Func`1 diagnostic)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Maintenance.cs(177,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.PendingNamedBrowserOffersExplicitRestoreOrMissingPayloadCleanupWithoutAutomaticReplay(Boolean indexed, Boolean payloadPresent)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Maintenance.cs(195,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.PendingNamedBrowserOffersExplicitRestoreOrMissingPayloadCleanupWithoutAutomaticReplay(Boolean indexed, Boolean payloadPresent)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Maintenance.cs(195,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.PendingNamedBrowserOffersExplicitRestoreOrMissingPayloadCleanupWithoutAutomaticReplay(Boolean indexed, Boolean payloadPresent)
+        --- End of stack trace from previous location ---
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+    FileCat.Rendering.Tests.AnalysisRenderingTests.PendingNamedBrowserOffersExplicitRestoreOrMissingPayloadCleanupWithoutAutomaticReplay(indexed: False, payloadPresent: True) [FAIL]
+      The requested view state was not published.
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Navigation.cs(141,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.Until(Func`1 predicate, Func`1 diagnostic)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Maintenance.cs(177,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.PendingNamedBrowserOffersExplicitRestoreOrMissingPayloadCleanupWithoutAutomaticReplay(Boolean indexed, Boolean payloadPresent)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Maintenance.cs(195,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.PendingNamedBrowserOffersExplicitRestoreOrMissingPayloadCleanupWithoutAutomaticReplay(Boolean indexed, Boolean payloadPresent)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Maintenance.cs(195,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.PendingNamedBrowserOffersExplicitRestoreOrMissingPayloadCleanupWithoutAutomaticReplay(Boolean indexed, Boolean payloadPresent)
+        --- End of stack trace from previous location ---
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+  Finished:    FileCat.Rendering.Tests (ID = '18bdc307758c8062c16d6ae6bbf5d8e68e8333e303e6879c1d2913d3cfdd779a')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 4, Errors: 0, Failed: 2, Skipped: 0, Not Run: 0, Time: 14.837s

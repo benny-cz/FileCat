@@ -1,4 +1,7 @@
+using System.Collections.Specialized;
+using System.ComponentModel;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Input;
@@ -10,6 +13,7 @@ using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.Commands;
 using FileCat.Core.Jobs;
+using FileCat.Core.FileSystem;
 
 namespace FileCat.App.Views;
 
@@ -20,6 +24,10 @@ public partial class OperationsView : UserControl
     private Window? _drawerOwner;
     private Grid? _workspaceHost;
     private double _preferredDrawerHeight = 300;
+    private bool _userSizedDrawer;
+    private bool _heightRefreshQueued;
+    private OperationCenterViewModel? _observedCenter;
+    private JobViewModel? _observedSelected;
     private double _nonDrawerHeight = 150;
     private bool _drawerHeightChanged;
     private IPointer? _resizePointer;
@@ -29,11 +37,14 @@ public partial class OperationsView : UserControl
     public OperationsView()
     {
         InitializeComponent();
+        ReviewedReports.AddHandler(KeyDownEvent, OnReviewedRecoveryKeyDown, RoutingStrategies.Tunnel);
+        DataContextChanged += (_, _) => ObserveCenter(Center);
         // While the selected recovery action can be stopped, Stop is kept in view when the recovery area's content or size
         // changes: the action starting, a status line wrapping, the window settling around the drawer.
         RecoveryScroll.PropertyChanged += (_, e) =>
         {
-            if (e.Property == ScrollViewer.ExtentProperty || e.Property == ScrollViewer.ViewportProperty) RevealStop(null);
+            if (e.Property == ScrollViewer.ExtentProperty || e.Property == ScrollViewer.ViewportProperty)
+            { RevealStop(null); RevealRecoveryAction(); }
         };
         DetailsDrawer.PropertyChanged += (_, e) =>
         {
@@ -103,6 +114,10 @@ public partial class OperationsView : UserControl
             if (_workspaceHost is not null) _workspaceHost.SizeChanged += OnOwnerSizeChanged;
             double saved = Main?.Services.Settings.OperationsDrawerHeight ?? 300;
             _preferredDrawerHeight = double.IsFinite(saved) ? Math.Clamp(saved, MinimumDrawerHeight, 720) : 300;
+            // The existing 300-DIP default means no explicit resize preference. A stored
+            // nondefault height remains the user's choice and is never auto-shrunk.
+            _userSizedDrawer = Math.Abs(_preferredDrawerHeight - 300) >= .5;
+            ObserveCenter(Center);
             RefreshDrawerHeight();
         };
         DetachedFromVisualTree += (_, _) =>
@@ -113,7 +128,68 @@ public partial class OperationsView : UserControl
             _workspaceHost = null;
             if (_drawerOwner is not null) _drawerOwner.SizeChanged -= OnOwnerSizeChanged;
             _drawerOwner = null;
+            ObserveCenter(null);
         };
+    }
+
+    private void ObserveCenter(OperationCenterViewModel? center)
+    {
+        if (ReferenceEquals(_observedCenter, center)) return;
+        if (_observedCenter is { } old)
+        {
+            old.PropertyChanged -= OnCenterChanged;
+            old.Jobs.CollectionChanged -= OnDrawerCollectionChanged;
+            old.SelectedIssues.CollectionChanged -= OnDrawerCollectionChanged;
+            old.Interrupted.CollectionChanged -= OnDrawerCollectionChanged;
+            old.ReviewedRecovery.CollectionChanged -= OnDrawerCollectionChanged;
+        }
+        ObserveSelected(null);
+        _observedCenter = center;
+        if (center is not null)
+        {
+            center.PropertyChanged += OnCenterChanged;
+            center.Jobs.CollectionChanged += OnDrawerCollectionChanged;
+            center.SelectedIssues.CollectionChanged += OnDrawerCollectionChanged;
+            center.Interrupted.CollectionChanged += OnDrawerCollectionChanged;
+            center.ReviewedRecovery.CollectionChanged += OnDrawerCollectionChanged;
+            ObserveSelected(center.Selected);
+        }
+        QueueDrawerHeightRefresh();
+    }
+
+    private void ObserveSelected(JobViewModel? selected)
+    {
+        if (ReferenceEquals(_observedSelected, selected)) return;
+        if (_observedSelected is not null) _observedSelected.PropertyChanged -= OnSelectedChanged;
+        _observedSelected = selected;
+        if (selected is not null) selected.PropertyChanged += OnSelectedChanged;
+    }
+
+    private void OnCenterChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(OperationCenterViewModel.Selected))
+            ObserveSelected(Center?.Selected);
+        if (e.PropertyName is nameof(OperationCenterViewModel.Selected) or nameof(OperationCenterViewModel.IsOpen)
+            or nameof(OperationCenterViewModel.HasInterrupted) or nameof(OperationCenterViewModel.HasReviewedRecovery)
+            or nameof(OperationCenterViewModel.SelectedInterrupted) or nameof(OperationCenterViewModel.CanStopStorageHistory)
+            or nameof(OperationCenterViewModel.StorageAccountingStatus))
+            QueueDrawerHeightRefresh();
+    }
+
+    private void OnSelectedChanged(object? sender, PropertyChangedEventArgs e) => QueueDrawerHeightRefresh();
+
+    private void OnDrawerCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => QueueDrawerHeightRefresh();
+
+    private void QueueDrawerHeightRefresh()
+    {
+        if (_heightRefreshQueued || _drawerOwner is null) return;
+        _heightRefreshQueued = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _heightRefreshQueued = false;
+            RefreshDrawerHeight();
+            Dispatcher.UIThread.Post(RevealRecoveryAction, DispatcherPriority.Loaded);
+        }, DispatcherPriority.Background);
     }
 
     private void OnOwnerSizeChanged(object? sender, SizeChangedEventArgs e)
@@ -136,19 +212,44 @@ public partial class OperationsView : UserControl
     private void RefreshDrawerHeight()
     {
         if (_drawerOwner is null) return;
-        ApplyDrawerHeight(Math.Clamp(_preferredDrawerHeight, MinimumDrawerHeight, MaximumDrawerHeight()));
+        double requested = _userSizedDrawer ? _preferredDrawerHeight : ContentFitDrawerHeight();
+        ApplyDrawerHeight(Math.Clamp(requested, MinimumDrawerHeight, MaximumDrawerHeight()));
+    }
+
+    private double ContentFitDrawerHeight()
+    {
+        if (Center is not { IsOpen: true } center) return _preferredDrawerHeight;
+        // The list and selected report share the same row. Size for whichever side needs
+        // more room, but keep both list and issue detail scrollable once they grow long.
+        double heading = HistoryHeading.Bounds.Height > 0 ? HistoryHeading.Bounds.Height : 32;
+        double row = HistoryList.ContainerFromIndex(0)?.Bounds.Height ?? 0;
+        row = Math.Max(44, row);
+        // Three history rows are enough to scan recent work without letting a long
+        // session take over the workspace; the ListBox scrolls to older entries.
+        double history = heading + (center.Jobs.Count == 0 ? 34 : Math.Min(center.Jobs.Count, 3) * row);
+        double details = center.Selected is null ? 0 : SelectedDetails.Children
+            .Where(child => DockPanel.GetDock(child) == Dock.Top && child.IsVisible)
+            .Sum(child => child.Bounds.Height) + Math.Min(center.SelectedIssues.Count, 4) * 48;
+        double recovery = center.HasInterrupted || center.HasReviewedRecovery ?
+            Math.Max(300, RecoveryScroll.Bounds.Height + Math.Max(history, details) + 8) : 0;
+        return Math.Max(recovery, Math.Max(history, details) + 12);
     }
 
     private void ApplyDrawerHeight(double height)
     {
         DetailsDrawer.Height = height;
-        RecoveryScroll.MaxHeight = Math.Clamp(height * .25, 35, 180);
+        // With no history to scan, give archive review/reports the space otherwise spent on an empty list.
+        // Other recovery/history combinations retain their compact allocation.
+        RecoveryScroll.MaxHeight = Center is { Jobs.Count: 0 } center &&
+            (center.SelectedInterrupted?.CanReviewArchiveCleanup == true || center.HasReviewedRecovery)
+            ? Math.Clamp(height - 60, 35, 400) : Math.Clamp(height * .25, 35, 180);
     }
 
     private void SetDrawerHeight(double requested, bool userChoice)
     {
         double next = Math.Clamp(requested, MinimumDrawerHeight, MaximumDrawerHeight());
         ApplyDrawerHeight(next);
+        if (userChoice) _userSizedDrawer = true;
         if (!userChoice || Math.Abs(next - _preferredDrawerHeight) < .5) return;
         _preferredDrawerHeight = next;
         _drawerHeightChanged = true;
@@ -162,7 +263,64 @@ public partial class OperationsView : UserControl
         main.Services.SaveSettings();
     }
 
+    private void OnFitDrawerHeight(object? sender, RoutedEventArgs e)
+    {
+        _userSizedDrawer = false;
+        _preferredDrawerHeight = 300;
+        _drawerHeightChanged = false;
+        if (Main is { } main)
+        {
+            main.Services.Settings.OperationsDrawerHeight = 300;
+            main.Services.SaveSettings();
+        }
+        QueueDrawerHeightRefresh();
+    }
+
+    private void OnToggleSpeedHistory(object? sender, RoutedEventArgs e)
+    {
+        bool expanded = !SpeedHistoryGraph.IsVisible;
+        SpeedHistoryGraph.IsVisible = expanded;
+        SpeedHistoryDisclosure.Content = expanded ? "▾ Speed history" : "▸ Speed history";
+        AutomationProperties.SetName(SpeedHistoryDisclosure, expanded ? "Hide speed history" : "Show speed history");
+        QueueDrawerHeightRefresh();
+        if (expanded)
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (SpeedHistoryGraph.IsVisible) SpeedHistoryGraph.BringIntoView();
+            }, DispatcherPriority.Background);
+    }
+
     private OperationCenterViewModel? Center => DataContext as OperationCenterViewModel;
+
+    /// <summary>Whether keyboard focus is on a control of Operations (the strip or the open drawer).</summary>
+    internal bool ContainsFocus(object? focused) => focused is Visual visual && (ReferenceEquals(visual, this) || this.IsVisualAncestorOf(visual));
+
+    /// <summary>
+    /// Ctrl+J focuses a waiting decision, the selected pending storage review, or the operations history.
+    /// Opening a specific blocker skips the pending history so the blocker remains selected.
+    /// </summary>
+    internal bool FocusForKeyboard(bool prioritizeStorageReview = true)
+    {
+        if (Center is not { } center) return false;
+        if (center.Jobs.FirstOrDefault(job => job.NeedsDecision) is { } waiting)
+        {
+            center.Selected = waiting;
+            UpdateLayout();
+            if (DetailsReviewDecision is { IsEffectivelyVisible: true, IsEffectivelyEnabled: true } review && review.Focus(NavigationMethod.Tab))
+                return true;
+        }
+        if (prioritizeStorageReview && center.SelectedInterrupted is { IsStorage: true, IsActionBusy: false } storage &&
+            FindStorageReviewButton(storage) is { IsEffectivelyEnabled: true } reviewStorage &&
+            reviewStorage.Focus(NavigationMethod.Tab))
+        {
+            reviewStorage.BringIntoView();
+            return true;
+        }
+        if (HistoryList is { IsEffectivelyVisible: true, ItemCount: > 0 } list && Controls.ListKeys.Focus(list)) return true;
+        return this.GetVisualDescendants().OfType<InputElement>()
+            .FirstOrDefault(element => element.Focusable && element.IsEffectivelyVisible && element.IsEffectivelyEnabled) is { } first &&
+            first.Focus(NavigationMethod.Tab);
+    }
 
     private MainViewModel? Main => TopLevel.GetTopLevel(this)?.DataContext as MainViewModel;
 
@@ -265,6 +423,11 @@ public partial class OperationsView : UserControl
         if (JobOf(sender) is { } j && Main is { } main) await main.RetryElevatedAsync(j.Job);
     }
 
+    private async void OnOpenArchive(object? sender, RoutedEventArgs e)
+    {
+        if (JobOf(sender) is { } j && Main is { } main) await main.OpenCreatedArchiveAsync(j.Job);
+    }
+
     private async void OnShowResults(object? sender, RoutedEventArgs e)
     {
         // The results of the check on this row (and of the check started with it), as they opened when it ended.
@@ -281,13 +444,23 @@ public partial class OperationsView : UserControl
     {
         if (Center?.Selected?.Job is not { } job) return;
         var snapshot = OperationReport.Capture(job);
-        new ReportWindow("Operation report", Formatters.SafeName(job.Title), ct => Task.Run(() =>
+        var report = new ReportWindow("Operation report", Formatters.SafeName(job.Title), ct => Task.Run(() =>
         {
             ct.ThrowIfCancellationRequested();
             return OperationReport.ForClipboard(snapshot) ??
                 "This retained report exceeds the window's 4 million character reading limit. " +
                 "Use Save report in the operations drawer to export every retained detail.";
-        }, ct)).Show();
+        }, ct));
+        if (job.Kind == FileCat.Core.Jobs.JobKind.StorageTransform && snapshot.Storage?.DurablePrefix is { } prefix && Main is { } main)
+        {
+            report.ConfigureStorageCalls(() =>
+            {
+                main.ShowStorageCallEvidence(job, prefix, !snapshot.State.IsFinished()); return Task.CompletedTask;
+            });
+            report.ConfigureStorageCallExport(ct => main.SaveStorageCallsAsync(
+                FileCat.Core.Jobs.StorageJournalPolicy.FileName(job.CreatedUtc, job.Id), prefix, ct));
+        }
+        report.Show();
     }
 
     private async void OnCopyReport(object? sender, RoutedEventArgs e)
@@ -476,6 +649,29 @@ public partial class OperationsView : UserControl
         else if (top.Y < 0) RecoveryScroll.Offset = offset.WithY(offset.Y + top.Y);
     }
 
+    private void RevealRecoveryAction()
+    {
+        if (Center is not { IsOpen: true } center) return;
+        if (center.Jobs.Count > 0 && center.SelectedInterrupted?.IsStorage != true && !center.CanStopStorageHistory) return;
+        var buttons = RecoveryScroll.GetVisualDescendants().OfType<Button>();
+        var action = center.CanStopStorageHistory && center.SelectedInterrupted?.CanStopReview != true
+            ? buttons.FirstOrDefault(button => button.Name == "StorageHistoryStop" && button.IsEffectivelyVisible)
+            : center.SelectedInterrupted is { IsStorage: true, IsActionBusy: false } storage
+            ? FindStorageReviewButton(storage)
+            : center.SelectedInterrupted is { CanReviewArchiveCleanup: true, IsActionBusy: false } selected
+            ? buttons.FirstOrDefault(button => ReferenceEquals(button.Tag, selected) && button.Content as string == selected.CleanupLabel && button.IsEffectivelyVisible)
+            : center.SelectedInterrupted is null && center.HasReviewedRecovery
+                ? buttons.FirstOrDefault(button => button.Tag is RecoveryReviewRecord && button.IsEffectivelyVisible) : null;
+        if (action?.TranslatePoint(default, RecoveryScroll) is not { } top) return;
+        double bottom = top.Y + action.Bounds.Height, viewport = RecoveryScroll.Viewport.Height;
+        if (bottom > viewport) RecoveryScroll.Offset = RecoveryScroll.Offset.WithY(RecoveryScroll.Offset.Y + Math.Min(bottom - viewport, top.Y));
+        else if (top.Y < 0) RecoveryScroll.Offset = RecoveryScroll.Offset.WithY(RecoveryScroll.Offset.Y + top.Y);
+    }
+
+    private Button? FindStorageReviewButton(InterruptedJobViewModel storage) =>
+        RecoveryScroll.GetVisualDescendants().OfType<Button>().FirstOrDefault(button =>
+            ReferenceEquals(button.Tag, storage) && button.Content as string == storage.ReportButtonText && button.IsEffectivelyVisible);
+
     private void OnHideInterrupted(object? sender, RoutedEventArgs e)
     {
         if ((sender as Button)?.Tag is not InterruptedJobViewModel item || Center is not { } c || Main is not { } main) return;
@@ -498,6 +694,21 @@ public partial class OperationsView : UserControl
             await main.ShowInterruptedReportAsync(item.Job);
     }
 
+    private async void OnReviewStorageChanges(object? sender, RoutedEventArgs e)
+    {
+        if (JobOf(sender) is not { } row || Main is not { } main || Center is not { } center) return;
+        var candidate = center.Manager.StorageHistoryCandidate(row.Job);
+        if (center.ReviewedRecovery.FirstOrDefault(r => PathUtil.SafetyComparer.Equals(r.JournalPath, candidate.JournalPath) && r.StorageRetainedLeaf is not null) is { } reviewed)
+        {
+            await main.ShowRetainedStorageHistoryAsync(reviewed);
+            return;
+        }
+        center.AddInterrupted(candidate);
+        center.SelectedInterrupted = center.Interrupted.First(r => PathUtil.SafetyComparer.Equals(r.Job.JournalPath, candidate.JournalPath));
+        center.IsOpen = true;
+        await main.ShowInterruptedReportAsync(center.SelectedInterrupted.Job);
+    }
+
     private async void OnMarkInterruptedReviewed(object? sender, RoutedEventArgs e)
     {
         if ((sender as Button)?.Tag is not InterruptedJobViewModel item || Main is not { } main || Center is not { } center) return;
@@ -506,9 +717,34 @@ public partial class OperationsView : UserControl
         center.UpdateSummary();
     }
 
-    private void OnReviewedRecoveryReport(object? sender, RoutedEventArgs e)
+    private async void OnReviewedRecoveryReport(object? sender, RoutedEventArgs e)
     {
-        if ((sender as Button)?.Tag is not RecoveryReviewRecord record) return;
+        if ((sender as Button)?.Tag is RecoveryReviewRecord record) await OpenReviewedRecoveryReportAsync(record);
+    }
+
+    private async void OnReviewedRecoveryKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || e.Source is Button)
+            return;
+        var focused = TopLevel.GetTopLevel(ReviewedReports)?.FocusManager?.GetFocusedElement();
+        var record = (focused as ListBoxItem)?.DataContext as RecoveryReviewRecord ??
+            ReviewedReports.SelectedItem as RecoveryReviewRecord;
+        if (record is null) return;
+        e.Handled = true;
+        await OpenReviewedRecoveryReportAsync(record);
+    }
+
+    private async Task OpenReviewedRecoveryReportAsync(RecoveryReviewRecord record)
+    {
+        if (record.IsStorage)
+        {
+            if (Main is { } main) await main.ShowRetainedStorageHistoryAsync(record);
+            return;
+        }
         new ReportWindow("Reviewed recovery report", Formatters.SafeName(record.Title), _ => Task.FromResult(record.Report)).Show();
     }
+
+    private async void OnMoreStorageHistory(object? sender, RoutedEventArgs e) { if (Main is { } main) await main.LoadStorageHistoryPageAsync(); }
+    private async void OnRefreshStorageHistory(object? sender, RoutedEventArgs e) { if (Main is { } main) await main.LoadStorageHistoryPageAsync(restart: true); }
+    private void OnStopStorageHistory(object? sender, RoutedEventArgs e) => Main?.StopStorageHistoryDiscovery();
 }

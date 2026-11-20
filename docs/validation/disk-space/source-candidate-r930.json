@@ -1,0 +1,38 @@
+[
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPrivateInventoryStore.Borrow.cs",
+    "sha256": "e4ab7c42094ed6f809f60e171de58661ba1b739dec9d88eb8d9ce1215f6f2a0e"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPrivateInventoryStore.cs",
+    "sha256": "79ba0ca75b492df22dcb811305d6ad6b6924570c67f7b2f43e01adfbe91f0b2d"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPrivateNames.cs",
+    "sha256": "8acedf50d18dec301c6a940fa071d5cb80e4df3427d9d4d9d0e8575eccbb7423"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPrivateNames.Replacement.cs",
+    "sha256": "82686f663d1d192c90549523178aa2698d79f58dc84185f111f21b9ebdff52d7"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/UnixAnalysisPrivateDirectory.Maintenance.cs",
+    "sha256": "27cc233d0f009b4923c63074eea7366e3c90d0c7b54b9c499e6723543c9faeaf"
+  },
+  {
+    "path": "src/FileCat.Platform.Windows/WindowsAnalysisPrivateDirectory.Maintenance.cs",
+    "sha256": "f5a2e55f121c67b0ca9508dfd838debb82c211a0b739343f4750407faba86ba5"
+  },
+  {
+    "path": "src/FileCat.Platform.Windows/WindowsAnalysisPrivateDirectory.Replacement.cs",
+    "sha256": "fd8bffbcac6b4d311a2354714b42f4ddb3bd8f8c4316675260e7e426981fabd2"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisReplacementBoundaryTests.cs",
+    "sha256": "2ed8ec888315c691a874e9daab60e835d2dc03e775161afc61a80811733c5cd8"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.NativeReplacement.cs",
+    "sha256": "4b3a3918c36af47dc52a97d0ab3076bb3cd8b2890707f34e3557c735b2dc2235"
+  }
+]

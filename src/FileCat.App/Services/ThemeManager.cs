@@ -52,6 +52,18 @@ public sealed record ThemePalette(
     /// <summary>Font families for the whole window (a terminal look), or null for the platform's own.</summary>
     public string? FontFamily { get; init; }
 
+    /// <summary>
+    /// Names of NTFS-compressed items: blue, as Explorer and Open Salamander draw them, in the theme's own shade (readable
+    /// on its panel at 4.5:1, apart from its folder, archive, and program colors). The attribute column says "C" too.
+    /// </summary>
+    public required string TextCompressed { get; init; }
+
+    /// <summary>
+    /// Names of EFS-encrypted items: green, as Explorer and Open Salamander draw them, in the theme's shade ("E"); High
+    /// Contrast uses magenta, its green being the marked items' color.
+    /// </summary>
+    public required string TextEncrypted { get; init; }
+
     public static readonly ThemePalette Classic = new("Classic", false,
         "#F3F3F3", "#FFFFFF", "#FBFBFB", "#F0F0F0", "#1B1B1B", "#5E5E5E", "#8A8A8A",
         "#1B1B1B", "#7A4A00", "#0B5E0B", "#0B4F9E",
@@ -64,6 +76,7 @@ public sealed record ThemePalette(
         "#FFD7A8", "#FFF3A0")
     {
         DisplayName = "Classic", Description = "Light, calm, and familiar.",
+        TextCompressed = "#0000FF", TextEncrypted = "#13850D",
     };
 
     public static readonly ThemePalette ClassicDark = new("ClassicDark", true,
@@ -78,6 +91,7 @@ public sealed record ThemePalette(
         "#6B4A20", "#5A5320")
     {
         DisplayName = "Classic Dark", Description = "Dark and quiet for long sessions.",
+        TextCompressed = "#6CB2FF", TextEncrypted = "#26A65B",
     };
 
     public static readonly ThemePalette Cyberpunk = new("Cyberpunk", true,
@@ -92,6 +106,7 @@ public sealed record ThemePalette(
         "#35553C", "#4C5B29")
     {
         DisplayName = "Cyberpunk",
+        TextCompressed = "#4DB2FF", TextEncrypted = "#C6FF4D",
         Description = "Dark circuitry, crisp green edges, and restrained color for file types and states.",
         Effect = ThemeEffect.Cyberpunk,
         FontFamily = "Cascadia Mono, Consolas, DejaVu Sans Mono, Menlo, Liberation Mono, monospace",
@@ -110,6 +125,7 @@ public sealed record ThemePalette(
         "#6A2358", "#4A4A1A")
     {
         DisplayName = "Psychedelic",
+        TextCompressed = "#4CC9F0", TextEncrypted = "#B8F25C",
         Description = "Soft neon light around stable, readable work surfaces.",
         Effect = ThemeEffect.Psychedelic,
         MenuBackground = "#170D29",
@@ -127,6 +143,7 @@ public sealed record ThemePalette(
         "#6B4A20", "#5A4A12")
     {
         DisplayName = "Steampunk",
+        TextCompressed = "#9CC6E8", TextEncrypted = "#A6CF5B",
         Description = "Brass, copper, and walnut with a restrained stained-glass canopy.",
         Effect = ThemeEffect.Steampunk,
         MenuBackground = "#E61B130D",
@@ -144,6 +161,7 @@ public sealed record ThemePalette(
         "#800080", "#004080")
     {
         DisplayName = "High Contrast",
+        TextCompressed = "#00FFFF", TextEncrypted = "#FF80FF",
         Description = "Maximum contrast. Always used when the system asks for high contrast.",
     };
 
@@ -164,6 +182,7 @@ public sealed record ThemePalette(
         "#AA0000", "#AA5500")
     {
         DisplayName = "DOS Commander",
+        TextCompressed = "#55AAFF", TextEncrypted = "#55AA55",
         Description = "Blue panels, cyan names, and yellow marks: the look of Norton Commander, Volkov Commander, and FAR Manager.",
         FontFamily = "Cascadia Mono, Consolas, DejaVu Sans Mono, Menlo, Liberation Mono, monospace",
         MenuBackground = "#000000",
@@ -278,6 +297,8 @@ public static class ThemeManager
         Add("TextDirectory", p.TextDirectory);
         Add("TextArchive", p.TextArchive);
         Add("TextExecutable", p.TextExecutable);
+        Add("TextCompressed", p.TextCompressed);
+        Add("TextEncrypted", p.TextEncrypted);
         Add("TextLink", p.TextLink);
         Add("TextMarked", p.TextMarked);
         Add("MarkedBackground", p.MarkedBackground);
@@ -306,6 +327,25 @@ public static class ThemeManager
         var tip = Opaque(Color.Parse(p.Card), Color.Parse(p.Window));
         d["FcTipBackgroundColor"] = tip;
         d["FcTipBackground"] = new SolidColorBrush(tip);
+        var warning = Color.Parse(p.Warning);
+        var analysisWarning = Opaque(Color.FromArgb(26, warning.R, warning.G, warning.B), tip);
+        Add("AnalysisSurface", tip.ToString());
+        Add("AnalysisText", Readable(tip, p.Text));
+        Add("AnalysisSecondary", Readable(tip, p.TextDim, p.TextMuted, p.Text));
+        Add("AnalysisAccent", Readable(tip, p.ActiveAccent, p.Text));
+        Add("AnalysisWarningSurface", analysisWarning.ToString());
+        Add("AnalysisWarningText", Readable(analysisWarning, p.Warning, p.Text));
+        Add("AnalysisDivider", Readable(tip, p.Border, p.GridLine, actionableDim));
+
+        static string Readable(Color surface, params string[] preferred)
+        {
+            foreach (string token in preferred)
+            {
+                Color color = Opaque(Color.Parse(token), surface);
+                if (Contrast(color, surface) >= 4.5) return color.ToString();
+            }
+            return OnColor(surface.ToString());
+        }
         // A tooltip's key in the accent color where that reads as text does (WCAG's 4.5:1), else in the text color.
         var key = Opaque(Color.Parse(p.ActiveAccent), tip);
         d["FcTipKey"] = new SolidColorBrush(Contrast(key, tip) >= 4.5 ? key : Color.Parse(p.Text));

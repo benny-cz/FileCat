@@ -1,0 +1,99 @@
+{
+  "purpose": "Captured observation canonicalization and public asynchronous dataset API; no source/action authority or feature authorization",
+  "gitBase": "cacc84a591b325a4c3a6f47666f4487a1732ef6e",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "bf48786d0f580165ffde4b773a8d67b670d0df92588be04f2ad395e81b4e286e"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "de46d125c84c19ccd37f129961563ea37835ae4b7039beacf1594f7fc00f1208"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDataset.cs",
+      "sha256": "f7a4e76256b598a3ef94a0052b0707ebd53e17c15c5c765dc629331fb3913f8f"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedGraph.cs",
+      "sha256": "3468f83f7b0998dbe9689fb880ad0dae314eabc5250aa65a320baa09baab3976"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedGraphValidation.cs",
+      "sha256": "67a6c393d4442626036686840fe23349a2d7bb89df74237e0c03ab44c2f08278"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObservationCapture.cs",
+      "sha256": "fd0aa3d37d5f2ad77d5943967ae8037c63b5695a4cddc345cd4a9bfb418ba288"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObservationCoalescer.cs",
+      "sha256": "c38ad978e8d578b2e06cc20d29727fbbb52c03fb5066f514a825fe8e6638a9f8"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObservationWriter.cs",
+      "sha256": "751ea717bcaa002b8eaa93a7f1fec2b3bac3581474d282a259526001e7cef023"
+    },
+    {
+      "path": "tests/AnalysisObservationCaptureFixture.cs",
+      "sha256": "0cf7e75d1a42cba9a0d0541b4bd591e4efeb595316c6081f2022363bd33c24ac"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetTests.cs",
+      "sha256": "2c020fb35690d0aeeb308be527c7b0b348828675d015a24432c1f83a573dd4d7"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisObservationCaptureTests.cs",
+      "sha256": "42a39dcf626e90fd621ca755c561dec3576517a3cc657945dc108c9fb5b0f2eb"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisPrivateStorageTests.Scratch.cs",
+      "sha256": "fa439c56cd135f494c816df9654fdd039e6afca1139df79fec23c62b5f8610f6"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj",
+      "sha256": "dfcbcba68931a0ea3eb49e1200dc138084edcb91a9e505806febfebc334b9e43"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.Scratch.cs",
+      "sha256": "c937a04928fa7027595ffcaf93a919cbc13a8739a58b25b25541be6e6b664b76"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj",
+      "sha256": "b78d3967ce59f6aa35e404bf9d75a4bf2aec1c60aba44dcb0ca14cabb3f16d2a"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r171.tgz",
+      "sha256": "16f56c32dd12d13c7e13d4fc6f2756690c67876996d16b7cd30e2f92e8e41d62"
+    },
+    {
+      "path": ".tmp/dsa-native-r171.tgz",
+      "sha256": "bde09b4149234a056b5c2da1485f6650cbd0c53a848959c29ff3322e18694d02"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r171.sh",
+      "sha256": "3c9c7d2a1af417958bb01cb21625cca0467c45a518b568a621aa23a09159017b"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r171.ps1",
+      "sha256": "4d0d65268cb70dd0b7c74b149a141da5590140d5ce10fd752f12f1773c4a3b5a"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r171.ps1",
+      "sha256": "5ab1125269306d246f293319f3701262e42d3f7a74662c4d374dd1129bd7f384"
+    }
+  ],
+  "reports": [
+    "windows-core-r171.xml",
+    "mac-core-r171.xml",
+    "ubuntu-core-r171.xml",
+    "windows-native-r171.xml",
+    "capture-writer-build-r170.txt"
+  ],
+  "remaining": "Production coordinator/frontier/preview ownership and private-state exclusion; full coverage/stale-scope metadata and original inventory-ID mapping; large-source coalescing/resource qualification; scalable aggregation/query/projection/table/import/export; entire remaining plan and final independent review."
+}

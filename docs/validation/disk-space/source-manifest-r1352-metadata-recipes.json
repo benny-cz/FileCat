@@ -1,0 +1,125 @@
+{
+  "sourceBase": "7b9a98d8bc291c39b197f5765b1a448970343668",
+  "fullNativeSourceSha256": "cb832ef47eb20d6c762efc84a278fea89cf1b8e451fd60e588c8ca7d61bdd7a0",
+  "sourceFiles": {
+    "src/FileCat.App/Views/AnalysisRecipeDialog.cs": "3844d656842ff5f4b60f5a5cb71faf8b2d6531d32a1702ad571cdb919f8e87ec",
+    "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs": "693c9dd0bc3a80b9ea9e2cd3424cca706970df906efdf8e2f3d30316adb440c3",
+    "src/FileCat.App/Views/DiskSpaceWindow.Recipes.cs": "8d00406dc556431a9c04cdd7ae9c16e7c4b90b7379bc3fcd6f386faefe5e5c43",
+    "src/FileCat.App/Views/DiskSpaceWindow.cs": "d59fd9d07746a90a73cd149952629a0fef9d8a4804f30f534e3161c660476a1a",
+    "src/FileCat.Core/Analysis/AnalysisMemoryRecipes.cs": "53f221bee8d426e2a49ade272f8b8e4d4368ce843433d1aa1c3f68af9c0daf06",
+    "src/FileCat.Core/Analysis/AnalysisRecipePreview.cs": "e7770f6555a5fc62814ba581da47dace15a4365105a4d424f649454a76e57007",
+    "src/FileCat.Core/Analysis/AnalysisRecipes.cs": "90c7c08ea130b2dbdbce1bd730cda3838ebd11bfc93e19848d0a6402dcb751ab",
+    "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.Recipes.cs": "e69c6effe1d258a014f41b3e36b70cc4feb726e5e158acbaac7e9b9187a20ea7",
+    "tests/FileCat.Core.Tests/AnalysisRecipeTests.cs": "36a1ad76f76ea64700551dbb44482ff8982fdb6fa6c26af56ee07e14bf84180c",
+    "tests/FileCat.NativeAcceptance/DiskSpaceHarness/BranchRefresh.cs": "f0b4e563427071bf5bb8df57ea0ab683f574702a546242d794f8cfad86877775",
+    "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Program.cs": "2c60d7dae0f445dae878518b2fae016c5a272bfeffc2b76d0dcd704227ecc6bb",
+    "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Recipes.cs": "188063de14240db82aeaad232b3e615536b424cf6372b3df2594faea17216a34"
+  },
+  "results": {
+    "windows": {
+      "coreTests": 11,
+      "dialogTests": 2,
+      "nativeRecipeAndBranch": {
+        "finished": true,
+        "passed": true,
+        "sessions": 3,
+        "branchRoot": "Photos",
+        "observed": [
+          "after-scan.txt",
+          "photo.png"
+        ],
+        "hint": "Possibly stale: fixture. Refresh a folder or rescan the locations to record new observations. Direct changes watched at 1 of 1 selected locations. Other changes can go undetected.",
+        "recipePreviewPassed": true,
+        "recipeEvidence": "Recorded path \u2014 fixture/RecipeProject/obj/project.assets.json\nContext folder \u2014 fixture/RecipeProject/obj\nContext record \u2014 fixture/RecipeProject/RecipeProject.csproj",
+        "originalMarksAndBasketKept": true,
+        "newFilesPreserved": true,
+        "input": "native window control events"
+      }
+    },
+    "mac": {
+      "coreTests": 11,
+      "dialogTests": 2,
+      "nativeRecipeAndBranch": {
+        "finished": true,
+        "passed": true,
+        "sessions": 3,
+        "branchRoot": "Photos",
+        "observed": [
+          "after-scan.txt",
+          "photo.png"
+        ],
+        "hint": "Possibly stale: fixture. Refresh a folder or rescan the locations to record new observations. Direct changes watched at 1 of 1 selected locations. Other changes can go undetected.",
+        "recipePreviewPassed": true,
+        "recipeEvidence": "Recorded path \u2014 fixture/RecipeProject/obj/project.assets.json\nContext folder \u2014 fixture/RecipeProject/obj\nContext record \u2014 fixture/RecipeProject/RecipeProject.csproj",
+        "originalMarksAndBasketKept": true,
+        "newFilesPreserved": true,
+        "input": "native window control events"
+      }
+    },
+    "ubuntu": {
+      "coreTests": 11,
+      "dialogTests": 2,
+      "nativeRecipeAndBranch": {
+        "finished": true,
+        "passed": true,
+        "sessions": 3,
+        "branchRoot": "Photos",
+        "observed": [
+          "after-scan.txt",
+          "photo.png"
+        ],
+        "hint": "Possibly stale: fixture. Refresh a folder or rescan the locations to record new observations. Direct changes watched at 1 of 1 selected locations. Other changes can go undetected.",
+        "recipePreviewPassed": true,
+        "recipeEvidence": "Recorded path \u2014 fixture/RecipeProject/obj/project.assets.json\nContext folder \u2014 fixture/RecipeProject/obj\nContext record \u2014 fixture/RecipeProject/RecipeProject.csproj",
+        "originalMarksAndBasketKept": true,
+        "newFilesPreserved": true,
+        "input": "native window control events"
+      }
+    }
+  },
+  "inputs": {
+    "batch-linux-r1348.sh": "f44d236b34d804c0d233e1de36f0a570b6f71c491f8a981735d4ccb8dd326360",
+    "batch-linux-r1350.sh": "2837b47a3c61d2fd68ed7f54201cf2f914c44b7f9286aafce01af71dafe4b62b",
+    "batch-linux-r1351.sh": "53b23eeeb930f07776f59c51363190aee00d152bf3b518f81b70293dc067125a",
+    "batch-mac-r1348.sh": "dd4d840df48da4d9b78af5bcd04abf3759416fae3f240c18771ea289c1b93dea",
+    "batch-mac-r1350.sh": "2c9339363d5d862a7d6a31846acbab6b9aef53e54624077b61c345c6a1584827",
+    "batch-mac-r1351.sh": "69fb0267db194375439724b50d2e23da5ececc6d9e89559843d433ff87a96477",
+    "batch-windows-r1348.ps1": "046f211adbcdddf89d8d121f6ebd07a8519b4df47165707f453bc71915cc5281",
+    "batch-windows-r1350.ps1": "2d8ddbda423b1f44ff41cff4bf4ca29de52b07c4687b7ed9ee164c60047bb2e5",
+    "batch-windows-r1351.ps1": "e5a0de9300e4088aec32d7443d723404309e677446cde8dd74d237a736a1225a",
+    "mac-batch-r1348-post.json": "195a0728d87da5ee2e557c56641b53a5ddf146f0864d66556b7dff8d3b15aefd",
+    "mac-batch-r1348-results.tgz": "a4f923e37e2c415d0557e75db0c01161a45cfdcd0e247e55d3d93d25208e4b76",
+    "mac-batch-r1350-post.json": "ba647ed230082aa15656d32027ac384eb5e9f86dc2565b755a409a0aa95bdfac",
+    "mac-batch-r1350-results.tgz": "1ce857213ff0afe8c5f18002d9769be57d6fee0af6fe53c420cac80c4dd2b522",
+    "mac-native-r1351-post.json": "b690924a6ad119a9360b8a0b294b7f0a46f1527dad1a2a3b9e127c9fecc4025c",
+    "mac-native-r1351-results.tgz": "d0fd2d10cf3d170f07a1d8757646ce8a9a87206a06204421d6257c350bb40af4",
+    "metadata-recipes-final-build-r1348.txt": "c4d043eabf3121490b8c05ac6bf64ddcab1a19631982dafde90cacbcab4403ed",
+    "metadata-recipes-native-build-r1351.txt": "79a85251f4a7e6f0dde1f1e186d5734fc02d023bb44742c944070f6a11408d65",
+    "metadata-recipes-proof-r1348.json": "0baaaf7b183a469504bec2d5c03d093a67714d7cc0fed584d37020a571d80fe4",
+    "metadata-recipes-render-build-r1350.txt": "fbb5154894a4bc29e7b14852bb14ac55df241732ca5508a4fd0b228952fed896",
+    "native-branch-proof-r1351.json": "eaa3afa5dc1afafd3bbc80c9a55b9558094ca56f6e6c714d05a75b3dd9d45edb",
+    "recipe-rendering-proof-r1350.json": "5d85b9a65a0d6ec99f9e5406cb92f044c2a1051f537b9cd942d6483c6ce71e4d",
+    "ubuntu-batch-r1348-post.json": "0b326e5a6ca70c41204e9cc5b52b0a5dd9195ea9e1f221c1c0868f75ce40f03f",
+    "ubuntu-batch-r1348-results.tgz": "5fb9902207882555d149d6a57e0c47836a42067eb84e9bef2ced978f56fa9bb3",
+    "ubuntu-batch-r1350-post.json": "a5faa966374e4cb7c2198010b36a315051447cfafc6b2719ceed6962fa6f480c",
+    "ubuntu-batch-r1350-results.tgz": "9efa37fe8dc4ae80b993e567d3ed57b3a57379dd43a428271fb04806c5da95e0",
+    "ubuntu-native-r1351-post.json": "fa383ef58d26d7d16f8f8e51d28c0ccf680164280f64f965817b6f326bcaf584",
+    "ubuntu-native-r1351-results.tgz": "d0c76fb97bd6be079ef0a8d9d3b7b1404d58f8306ffd9a0ec94cb8043490b413",
+    "windows-batch-r1348-post.json": "ef222432f9f0d6a3267ab0a8ba1c2eac3a6e95e2afdfc718d553b120cea1965b",
+    "windows-batch-r1348-results.tgz": "3c6c66bfda0d3165ee4d8268f480d6d87425c4c0e167d81aa98d81c8f08cc0f4",
+    "windows-batch-r1350-post.json": "72f78f7d8a5b3df1ff0af9175146a50408ba04d949483566b600137f65cd538d",
+    "windows-batch-r1350-results.tgz": "8a5d4518319bb5b5ea7b27e627ef85b3df9551c54b30a5497b756b7a7c348f33",
+    "windows-native-r1351-post.json": "764d8a165c01388b63b68e8e614f552726ed7815f8d2a4bd024f4525ca343736",
+    "windows-native-r1351-results.tgz": "6fcc6d1b5c93d735d85c24083144797972b6aad9221cd577afb4287e3738fa9b",
+    "windows-native-r1351-task-outcome.json": "e202a81c277fe07b49a05f2a1e3732619c039ee1785b10d59e0e065c72bf3f6e"
+  },
+  "archives": {
+    "exact-source-deltas-r1352-metadata-recipes.tgz": "bbc03ac0b290f91eba5340619ef827f33deb43b5fdc4317890f38f9cf0cbe3a3",
+    "exact-receipts-r1352-metadata-recipes.tgz": "ab30707d729459cd86b3112f09cd78f3bd5e7c8c6307e9ba215bab2bffbfc615"
+  },
+  "publicCommandRegistered": false,
+  "physicalInputQualified": false,
+  "screenReaderQualified": false,
+  "fullGoalComplete": false,
+  "finalIndependentReviewPerformed": false
+}

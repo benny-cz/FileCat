@@ -18,14 +18,19 @@ internal class Bcj2DecoderStream : DecoderStream2
         internal uint _range;
         internal uint _code;
 
-        public RangeDecoder(Stream stream)
+        private readonly bool _leaveOpen;
+        public RangeDecoder(Stream stream, bool strict, bool leaveOpen)
         {
             _mStream = stream;
+            _leaveOpen = leaveOpen;
             _range = 0xFFFFFFFF;
             for (var i = 0; i < 5; i++)
             {
-                _code = (_code << 8) | ReadByte();
+                byte value = ReadByte();
+                if (strict && i == 0 && value != 0) throw new InvalidDataException("The BCJ2 range prefix is invalid.");
+                _code = (_code << 8) | value;
             }
+            if (strict && _code == uint.MaxValue) throw new InvalidDataException("The BCJ2 range prefix is invalid.");
         }
 
         public byte ReadByte()
@@ -39,7 +44,7 @@ internal class Bcj2DecoderStream : DecoderStream2
             return (byte)bt;
         }
 
-        public void Dispose() => _mStream.Dispose();
+        public void Dispose() { _range = _code = 0; if (!_leaveOpen) _mStream.Dispose(); }
     }
 
     private class StatusDecoder
@@ -88,26 +93,44 @@ internal class Bcj2DecoderStream : DecoderStream2
     private readonly IEnumerator<byte> _mIter;
     private bool _mFinished;
     private bool _isDisposed;
+    private bool _failed;
+    private readonly long? _strictLength;
+    private readonly bool _leaveOpen;
+    private readonly CancellationToken _ct;
 
-    public Bcj2DecoderStream(Stream[] streams)
+    public Bcj2DecoderStream(Stream[] streams, long? outputLength = null, bool leaveOpen = false, CancellationToken ct = default)
     {
         if (streams.Length != 4)
         {
             throw new NotSupportedException();
         }
+        if (outputLength < 0) throw new InvalidDataException("The BCJ2 output extent is invalid.");
+        _strictLength = outputLength; _leaveOpen = leaveOpen; _ct = ct; ct.ThrowIfCancellationRequested();
 
         _mMainStream = streams[0];
         _mCallStream = streams[1];
         _mJumpStream = streams[2];
-        _mRangeDecoder = new RangeDecoder(streams[3]);
-
-        _mStatusDecoder = new StatusDecoder[256 + 2];
-        for (var i = 0; i < _mStatusDecoder.Length; i++)
+        try
         {
-            _mStatusDecoder[i] = new StatusDecoder();
-        }
+            _mRangeDecoder = new RangeDecoder(streams[3], outputLength is not null, leaveOpen);
+            _mStatusDecoder = new StatusDecoder[256 + 2];
+            for (var i = 0; i < _mStatusDecoder.Length; i++)
+            {
+                _mStatusDecoder[i] = new StatusDecoder();
+            }
 
-        _mIter = Run().GetEnumerator();
+            _mIter = Run().GetEnumerator();
+        }
+        catch
+        {
+            // Construction has accepted ownership. A short/failing range stream must also release every
+            // branch/decryptor already created, retaining the original construction error if cleanup fails.
+            foreach (Stream stream in leaveOpen ? Array.Empty<Stream>() : streams)
+            {
+                try { stream.Dispose(); } catch { }
+            }
+            throw;
+        }
     }
 
     protected override void Dispose(bool disposing)
@@ -117,10 +140,23 @@ internal class Bcj2DecoderStream : DecoderStream2
             return;
         }
         _isDisposed = true;
-        base.Dispose(disposing);
-        _mMainStream.Dispose();
-        _mCallStream.Dispose();
-        _mJumpStream.Dispose();
+        try
+        {
+            if (disposing)
+            {
+                try { _mIter.Dispose(); }
+                finally
+                {
+                    try { if (!_leaveOpen) _mMainStream.Dispose(); }
+                    finally
+                    {
+                        try { if (!_leaveOpen) _mCallStream.Dispose(); }
+                        finally { try { if (!_leaveOpen) _mJumpStream.Dispose(); } finally { _mRangeDecoder.Dispose(); } }
+                    }
+                }
+            }
+        }
+        finally { base.Dispose(disposing); }
     }
 
     private static bool IsJcc(byte b0, byte b1) => b0 == 0x0F && (b1 & 0xF0) == 0x80;
@@ -141,24 +177,27 @@ internal class Bcj2DecoderStream : DecoderStream2
     }
 
     public override int Read(byte[] buffer, int offset, int count)
+        => Read(buffer.AsSpan(offset, count));
+
+    public override int Read(Span<byte> buffer)
     {
-        if (count == 0 || _mFinished)
+        ObjectDisposedException.ThrowIf(_isDisposed, this); _ct.ThrowIfCancellationRequested();
+        if (_failed) throw new InvalidDataException("The BCJ2 decoder has failed.");
+        if (buffer.IsEmpty || _mFinished)
         {
             return 0;
         }
 
-        for (var i = 0; i < count; i++)
+        try
         {
-            if (!_mIter.MoveNext())
+            for (var i = 0; i < buffer.Length; i++)
             {
-                _mFinished = true;
-                return i;
+                if (!_mIter.MoveNext()) { _mFinished = true; return i; }
+                buffer[i] = _mIter.Current;
             }
-
-            buffer[offset + i] = _mIter.Current;
+            return buffer.Length;
         }
-
-        return count;
+        catch { _failed = true; throw; }
     }
 
     public override Task<int> ReadAsync(
@@ -175,18 +214,25 @@ internal class Bcj2DecoderStream : DecoderStream2
 
     public override int ReadByte()
     {
+        ObjectDisposedException.ThrowIf(_isDisposed, this); _ct.ThrowIfCancellationRequested();
+        if (_failed) throw new InvalidDataException("The BCJ2 decoder has failed.");
         if (_mFinished)
         {
             return -1;
         }
 
-        if (!_mIter.MoveNext())
+        try
         {
-            _mFinished = true;
-            return -1;
+            if (!_mIter.MoveNext()) { _mFinished = true; return -1; }
+            return _mIter.Current;
         }
+        catch { _failed = true; throw; }
+    }
 
-        return _mIter.Current;
+    private void RecordByte()
+    {
+        if (_strictLength is { } length && _mWritten >= length) throw new InvalidDataException("The BCJ2 output exceeds its declared size.");
+        if ((_mWritten & 255) == 0) _ct.ThrowIfCancellationRequested(); _mWritten++;
     }
 
     public IEnumerable<byte> Run()
@@ -204,11 +250,14 @@ internal class Bcj2DecoderStream : DecoderStream2
                 var tmp = _mMainStream.ReadByte();
                 if (tmp < 0)
                 {
+                    if (_strictLength is { } length && (_mWritten != length || _mCallStream.ReadByte() != -1 ||
+                        _mJumpStream.ReadByte() != -1 || _mRangeDecoder._code != 0 || _mRangeDecoder._mStream.ReadByte() != -1))
+                        throw new InvalidDataException("The BCJ2 coder has incomplete output, unfinished range state or trailing branches.");
                     yield break;
                 }
 
                 b = (byte)tmp;
-                _mWritten++;
+                RecordByte();
                 yield return b;
                 if (IsJ(prevByte, b))
                 {
@@ -242,13 +291,13 @@ internal class Bcj2DecoderStream : DecoderStream2
                 }
 
                 var dest = src - (uint)(_mWritten + 4);
-                _mWritten++;
+                RecordByte();
                 yield return (byte)dest;
-                _mWritten++;
+                RecordByte();
                 yield return (byte)(dest >> 8);
-                _mWritten++;
+                RecordByte();
                 yield return (byte)(dest >> 16);
-                _mWritten++;
+                RecordByte();
                 yield return (byte)(dest >> 24);
                 prevByte = (byte)(dest >> 24);
                 processedBytes += 4;

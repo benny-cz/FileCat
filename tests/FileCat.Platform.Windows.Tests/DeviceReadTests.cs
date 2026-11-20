@@ -191,10 +191,11 @@ public sealed class DeviceReadTests : IDisposable
             Assert.Equal(length, source.Read(offset, part));
             Assert.True(whole.AsSpan(offset, length).SequenceEqual(part), $"{offset}+{length}");
         }
-        // More than one helper-sized read at once.
+        // More than one helper-sized read at once. On a mounted volume the data after the
+        // boot sector can change between calls, so compare only the stable sector here.
         var large = new byte[RawReadProtocol.MaxRead + 1000];
         Assert.Equal(large.Length, source.Read(0, large));
-        Assert.True(whole.AsSpan().SequenceEqual(large.AsSpan(0, whole.Length)));
+        Assert.Equal(boot, large[..boot.Length]);
         Assert.Equal(0, source.Read(source.Length, new byte[16]));
     }
 
@@ -349,8 +350,9 @@ public sealed class DeviceReadTests : IDisposable
         string system = DeviceTopology.VolumeDevice(Path.GetPathRoot(elsewhere)!)!;
         Assert.Equal(DeviceTopology.DisksOf(system), DeviceTopology.DisksOf(Path.Combine(link, "out")));
         Assert.True(DeviceTopology.SharesDisk(system, Path.Combine(link, "out")));
-        var here = DeviceTopology.DisksOf(DeviceTopology.VolumeDevice(Path.GetPathRoot(_dir)!)!);
-        if (here is not null && !here.Intersect(DeviceTopology.DisksOf(system)!).Any())
-            Assert.False(DeviceTopology.SharesDisk(DeviceTopology.VolumeDevice(Path.GetPathRoot(_dir)!)!, Path.Combine(link, "out")));
+        // From this folder's volume, the link's target is judged exactly as the volume it leads to. Disk numbers alone do not
+        // decide it: a VHD whose file lies on this volume's disk is written there too (the test VM's S: is such a VHD on C:).
+        string here = DeviceTopology.VolumeDevice(Path.GetPathRoot(_dir)!)!;
+        Assert.Equal(DeviceTopology.SharesDisk(here, elsewhere), DeviceTopology.SharesDisk(here, Path.Combine(link, "out")));
     }
 }

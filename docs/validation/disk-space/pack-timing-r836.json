@@ -1,0 +1,29 @@
+{
+  "revision": "r836",
+  "renderRevision": "r837",
+  "buildLog": ".tmp/build-r835.txt",
+  "sourceManifest": ".tmp/source-candidate-r836.json",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 26.3660482,
+  "archives": [
+    {
+      "sha256": "16713ae0f77c61939c5c4bc6f536c7e5a577af7af7edb5ff9e47b6b632ebed0f",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r836.tgz",
+      "platform": "mac",
+      "bytes": 42095923
+    },
+    {
+      "sha256": "8c6fb8ff26967df4655cabd918c3c58ff74a3a9f85009a454dfcc83f5b2cf143",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r836.tgz",
+      "platform": "linux",
+      "bytes": 39431050
+    },
+    {
+      "sha256": "04cf0c6b0f55c9614bd06fe0462b91b988bcc3d96e05985257e07985d9d3fa15",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r836.tgz",
+      "platform": "windows",
+      "bytes": 78481840
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+  Discovering: FileCat.Core.Tests
+  Discovered:  FileCat.Core.Tests
+  Starting:    FileCat.Core.Tests
+Stopped fallback fixture: source closed=True, directory closed=False, retained dataset=True.
+    FileCat.Core.Tests.AnalysisPrivateStorageTests.MacNativeExtendedAclGrantIsRefusedBeforePayloadCreation [SKIP]
+      Darwin ACL fixture.
+Owned scratch child exited; initial entries=1, final entries=1, cleanup observation=0.091ms.
+    FileCat.Core.Tests.AnalysisProfileQuotaTests.WindowsForeignObjectTypeIsPreservedAndItsPrivateNameDoesNotEscapeTheFailure [SKIP]
+      Windows named-kernel-object negative control.
+    FileCat.Core.Tests.AnalysisInventoryStageTests.InvalidCompletedOrTruncatedContainersRetireEveryStagedPrefixWithoutChangingInput(fault: "checksum") [FAIL]
+      Assert.Throws() Failure: No exception was thrown
+      Expected: typeof(System.IO.InvalidDataException)
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisInventoryStageTests.cs(53,0): at FileCat.Core.Tests.AnalysisInventoryStageTests.InvalidCompletedOrTruncatedContainersRetireEveryStagedPrefixWithoutChangingInput(String fault)
+        --- End of stack trace from previous location ---
+Alternating 6,000 captured rows: native ReadAt calls=47
+  Finished:    FileCat.Core.Tests (ID = '914e55c0d6af1c9d78e78b1501c76643b2cfcd82897c77a28029733424b07add')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Core.Tests  Total: 638, Errors: 0, Failed: 1, Skipped: 2, Not Run: 0, Time: 72.758s

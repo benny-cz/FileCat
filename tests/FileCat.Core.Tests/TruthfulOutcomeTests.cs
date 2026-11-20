@@ -33,7 +33,8 @@ public sealed class TruthfulOutcomeTests : IDisposable
     private Task<(Job Job, List<DecisionRequest> Asked)> CopyAsync(IFileSystemOperations fs, IEnumerable<string> files, string dest, DecisionAction answer) =>
         RunAsync(JobKind.Copy, fs, files, dest, answer);
 
-    private async Task<(Job Job, List<DecisionRequest> Asked)> RunAsync(JobKind kind, IFileSystemOperations fs, IEnumerable<string> files, string dest, DecisionAction answer)
+    private async Task<(Job Job, List<DecisionRequest> Asked)> RunAsync(JobKind kind, IFileSystemOperations fs, IEnumerable<string> files, string dest,
+        DecisionAction answer, Func<DecisionRequest, Decision>? choose = null)
     {
         var providers = new ProviderRegistry();
         providers.Register(new LocalFileSystemProvider());
@@ -42,7 +43,7 @@ public sealed class TruthfulOutcomeTests : IDisposable
         jobs.DecisionRequested += d =>
         {
             lock (asked) asked.Add(d.Request);
-            d.Resolve(new Decision(answer));
+            d.Resolve(choose?.Invoke(d.Request) ?? new Decision(answer));
         };
         var job = jobs.Submit(new JobRequest
         {
@@ -289,13 +290,42 @@ public sealed class TruthfulOutcomeTests : IDisposable
     }
 
     /// <summary>An EFS-encrypted source: the native engine refuses a non-encrypting destination until allowed.</summary>
-    private sealed class EncryptedSource : PortableFileOperations
+    private sealed class EncryptedSource(bool failFirstApprovedCopy = false) : PortableFileOperations
     {
+        public List<bool> DecryptionAttempts { get; } = [];
+
         public override void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct)
         {
+            DecryptionAttempts.Add(options.AllowDecryptedDestination);
             if (!options.AllowDecryptedDestination) throw new IOException("ERROR_ENCRYPTION_FAILED", unchecked((int)0x80071770));
+            if (failFirstApprovedCopy && DecryptionAttempts.Count == 2)
+                throw new IOException("The approved attempt failed before copying.", unchecked((int)0x80070070));
             base.CopyFile(source, destination, options, progress, ct);
         }
+    }
+
+    [Fact]
+    public async Task Efs_approval_is_requested_again_after_a_failed_attempt_and_for_the_next_file()
+    {
+        var src = _dir.Dir("src");
+        var dst = _dir.Dir("dst");
+        var first = Path.Combine(src, "first.txt");
+        var second = Path.Combine(src, "second.txt");
+        File.WriteAllText(first, "first");
+        File.WriteAllText(second, "second");
+        var operations = new EncryptedSource(failFirstApprovedCopy: true);
+        var (_, asked) = await RunAsync(JobKind.Copy, operations, [first, second], dst, DecisionAction.CancelJob, request => request switch
+        {
+            ConfirmRequest confirm => new(confirm.Path == first ? DecisionAction.Proceed : DecisionAction.Skip, ApplyToAll: true),
+            ErrorRequest => new(DecisionAction.Retry),
+            _ => new(DecisionAction.CancelJob),
+        });
+        var confirmations = asked.OfType<ConfirmRequest>().ToArray();
+        Assert.Equal([first, first, second], confirmations.Select(request => request.Path));
+        Assert.All(confirmations, request => Assert.False(request.OffersApplyToAll));
+        Assert.Equal([false, true, false, true, false], operations.DecryptionAttempts);
+        Assert.Equal("first", File.ReadAllText(Path.Combine(dst, "first.txt")));
+        Assert.False(File.Exists(Path.Combine(dst, "second.txt")));
     }
 
     [Fact]

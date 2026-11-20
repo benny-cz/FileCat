@@ -1,0 +1,706 @@
+{
+  "purpose": "Runtime deferred selection after actual scan completion and independent alias context",
+  "observedUtc": "2026-11-07T09:19:30.115172+00:00",
+  "gitBase": "1d9833ea321a7fe2d6c6d2bedc77db7916d8ecee",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.DeferredSelection.cs",
+      "sha256": "dc81143048c98c47c7f3f23b3c570cf33711836a7beacbc27861cc63543ffa46"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Projection.cs",
+      "sha256": "54f910db92a811857e5ce633b6a1755239788f4794adf5a87dad60ab38f33c28"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "5d920cc0edc27f2d47be9e368d85c848c73efccd525a076e4645a6eec50fd9bd"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.DeferredSelection.cs",
+      "sha256": "5d53499c88d252a54da8848d2d5889d647d0bfba67f8b685d03e0c6d0ca13705"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedSelection.cs",
+      "sha256": "657e2232c67b4da98fadcfd44a4019f256cd5778a08549f56a004fef95ce910b"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.MemoryMarks.cs",
+      "sha256": "ddb2d265035554a676cc2e72404647d76abda51a17c01532719fcc57a286b20c"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "f4f9e720ae4e79267212e41575ff7295d19ae10383d926caebaa02e32cd32666"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisAggregate.cs",
+      "sha256": "130f731d3b683c986d2b2b259fb1b9038acb6252d6fcd3697e2fdf08e9474dd0"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+      "sha256": "2e2d5c12198c812c252b4a3300f794978a9c4e9bface81295c47a52544a3315e"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedChart.cs",
+      "sha256": "3fcea6d11f8d7b482d2b154c8ee67c03f465543a4a699d792498746be661a599"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisModel.cs",
+      "sha256": "a13e679b60959e01a57c29c24a32d5c435b335de5dc1380fd059d76bba88127c"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+      "sha256": "29cadae6dda67b732c08654a70f47a31423b86f57d30713db7d57e4f777a38d4"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/UnixAnalysisBackend.cs",
+      "sha256": "29a0195a83079f78af1cdae2233d08791af80175c93ac9dbb58fa7915d805b3c"
+    },
+    {
+      "path": "src/FileCat.Core/FileCat.Core.csproj",
+      "sha256": "cd640d1448f6358cd5813b018de06c0b2b5152303570b9f815a5cf5918260348"
+    },
+    {
+      "path": "src/FileCat.Platform.Windows/Analysis/WindowsAnalysisBackend.cs",
+      "sha256": "6cc7219af89ab83d66f9332538a39bbfaeed05152c92c305bca02e04ba0cddb6"
+    },
+    {
+      "path": "src/FileCat.Platform.Windows/FileCat.Platform.Windows.csproj",
+      "sha256": "b1d9fa099d5d56b363fb40df1a02c91f784ec1ab7d261471d8a29f75990fd444"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.DeferredScope.cs",
+      "sha256": "8dbb2bd9f988b8ac8aa9c45aaff90be8ffae88b90aeecede83e3a816ae5dd156"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.DeferredSelection.cs",
+      "sha256": "b975bf88e03ca0820d7ee381e318cbb9078fbbf41a17f9f6a3a428f35b9f50e9"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/windows-pre-r727.json",
+      "sha256": "813c8d2d5bea8eefbe5b45c513f700fe953d4a99d22b80366d75b3baa9727d97"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-verify-deferral-r727.json",
+      "sha256": "204095ddeae32fedbe212884fbc9f214f0727fb60ba0d15b8aacdee21259ee35"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-post-r727-owner.json",
+      "sha256": "d664c08fd300547dcd58c653b94993527f899ba14a79c4a5895edfe70345ebbf"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r726.txt",
+      "sha256": "87e91f4e9c836905e6bf8d0ed0b8b1b18edb7da132f4716cdba4db0a89d14209"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r727-core-r727.xml",
+      "sha256": "6d0571e000e46159688c9244a40d522c87e5c4c1b38076c403b9990e3fff276f"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r727-core-r727.log",
+      "sha256": "4b48ef6f1978490d94f4e4aa25ffd7e8be649a46eca66fc8870b7897cf6f8eca"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r727-render-r727.xml",
+      "sha256": "9414c9aad4f1961d7c08d1f29cb60ea9bb69c04c9e3228510034e8a28653978a"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r727-render-r727.log",
+      "sha256": "9069466dcd691fba7406fecb883dd721f683e5466110396080cc89b2c0f8a930"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r727-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r727-post.json",
+      "sha256": "7edba77f47f907a6248d09ac48ea18a82de3a40572fcecf01d1bfb762aaf372d"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r727-core-r727.xml",
+      "sha256": "7cd9cf9eb97699374297497b2db5a0df16a6bf3ceed2050bc488e92382d09106"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r727-core-r727.log",
+      "sha256": "fa10efaac516f6747d032f9e31f295982634284a435c2be24cf931c9221a2c23"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r727-render-r727.xml",
+      "sha256": "f4187233b3bff8e58609031b34768371d1cfcca794049ccb7f1cdecb9532161a"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r727-render-r727.log",
+      "sha256": "e485fee5fe9561c9449f81c7425c9dd57117eeece6b3d7ba4b34b0ea0acd9ec7"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r727-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r727-post.json",
+      "sha256": "d32f3b9e91ac33f89b51894ea5ad51b6838819c2a80ff7600fb91a62faf45b7e"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r727-core-r727.xml",
+      "sha256": "d7538f60a4de5b9ced8190ccafd0f4a9068944bb9b3f729d5d45c8c5d70d52a3"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r727-core-r727.log",
+      "sha256": "cc5ece37fd2d1a8d57d495005eb8edbe5ff20ea5f9dec75660f062fdeec1a833"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r727-native-r727.xml",
+      "sha256": "5cb32b15b9ec8a6266e457ec305d6539add458743ee702c60f088a0887ac0809"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r727-native-r727.log",
+      "sha256": "401173dbdb4ada8c1adbfcc4e7962974cbf38b5e548152b33b47702756a22c32"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r727-render-r727.xml",
+      "sha256": "1afdef4055d2f521cf14209b749dff5102cddb746a378062b9c0f42e90c9574b"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r727-render-r727.log",
+      "sha256": "7f41a03f70f928d5ce92f8536823cd805ef5c15864b36f22000803e3cca8e33b"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r727-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r727-post.json",
+      "sha256": "34bd4f76cc6f112aa39abfd5286867e5508abd77ed0a538dcc1cd4c447b7f2ca"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r722.txt",
+      "sha256": "3f601e1122f7c210e72a178f6bcd8109163cb4bcd0898bebff2f9d91572c0e65"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r723-core-r723.xml",
+      "sha256": "4983a8fb51fb6d981f038ebb3bba36f07376996d94c4109fbf8949f51d91df4f"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r723-core-r723.log",
+      "sha256": "bf3931e8ebd5c24108118a008ffd311c78c55bbdc71bc49b4b16d7e6c12656a0"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r723-render-r723.xml",
+      "sha256": "52015e78b2aa3e1c45c8acef6fd23942c179840095baceaf6087b9c36f1358d3"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r723-render-r723.log",
+      "sha256": "3548b062a2a685a261cc4aba71130d332653a848e8830a7c8d547f28edbbec9e"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r723-state.txt",
+      "sha256": "8c55364535dd24e23b2bc7634300d570199001b59fa364b714efae9f1e48cced"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r723-post.json",
+      "sha256": "709b4bea942f52f10d7a664a1b0e645c0a1e7359dfebfc1f1992291be5255b58"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r723-core-r723.xml",
+      "sha256": "56815e0ded1492cc58c147e8d0e81e43bff02fb24b34058495cdaff0932a3a8c"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r723-core-r723.log",
+      "sha256": "750b4d4ff6578fd7bcbc34ca1842395c212301ffdccb32bad8307e5cccae4cec"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r723-render-r723.xml",
+      "sha256": "2067657845fb07d720b0b8e6390e9d605f1cba0147e8e499cbdd1516567d4773"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r723-render-r723.log",
+      "sha256": "2f078e3a7d84a889ac6c34dbaf0ed4b60ed16b9a05345e3c81253b0e72a67d0a"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r723-state.txt",
+      "sha256": "8c55364535dd24e23b2bc7634300d570199001b59fa364b714efae9f1e48cced"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r723-post.json",
+      "sha256": "c1f75b227463af6e5028ddfffa754a4ba4e3e494a9149a5609bccba655a2774c"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r723-core-r723.xml",
+      "sha256": "7aa0fa963514ebe9246eb9e79fe325afb3d7f4b75f92710e3b5bf95d6b190477"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r723-core-r723.log",
+      "sha256": "67842420e640c08e07ed18a64a70008a037ffa39e239833039f8abc2386e07d4"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r723-native-r723.xml",
+      "sha256": "a75681b40fedd6fa2f7ad2c5f778c1648a617ec2bdcb61837d3e96f3aef331f5"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r723-native-r723.log",
+      "sha256": "e9aac5ef234f8801c197dad8c62f5ebba61560ea1e73af3c189ed11267aff530"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r723-render-r723.xml",
+      "sha256": "86ace12fc2f5ca5c810ce9d46127534e4e6630e25ebe716f1ff2f7b0f73476d6"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r723-render-r723.log",
+      "sha256": "a37cd9fbdd1a52334a13e38b3b2d06b4f2a2d33cea32d1aa732144b1ae9baafb"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r723-state.txt",
+      "sha256": "9f63d15acb403d0c18063a9b6f26d3d2663adf77b10c53f2c36ab81c9afa08dc"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r723-post.json",
+      "sha256": "eee0712b57e4e7e852811cc9af70d435407a2cad4f304cbb7c049ad115e2a89c"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r727.sh",
+      "sha256": "d1ad24fab45425533799ac843f0f85a5623f811743ed1bfd190820080effb004"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r727.sh",
+      "sha256": "c4bb4917003a5883298141699b412b85cf8263add88855445b62a0d283dacbb5"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r727.ps1",
+      "sha256": "2552f938b9a19b3a4c1af0abd7e7ccc7f5371e2028812e2b701565a550e9cff9"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r723.sh",
+      "sha256": "bab742adcf3d28b36138d481a18d7ee87731ec765dd2424532b3c435b3b5959a"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r723.sh",
+      "sha256": "c8c204a4e3f9a630c5e25aee08fa51458062adee435cbbef2bb295cc3864c554"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r723.ps1",
+      "sha256": "23b6a364235a74873c860be5b25c47339395e9dc467b2eadb4edd464dbad04ad"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r727.tgz",
+      "sha256": "0c40e30eed70fa35f33852ede24a1b4124cf174d0f86277e65302cce75a1afec"
+    },
+    {
+      "name": "dsa-batch-linux-r727.tgz",
+      "sha256": "cda4cc6521cda2e0c596da0bcbe452daebb23b22e1483ba6859314bcbcebd168"
+    },
+    {
+      "name": "dsa-batch-windows-r727.tgz",
+      "sha256": "3c0d93cedb38f1fce344131f6642fcaf703de3b0bad2d4355894f94767c2de2f"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r727": "0c1e9daa2c3c4e65d4f6de39b84f4364300dadcf0f9fb6f80451c7afa4cb634b",
+    "native-r727": "0c1e9daa2c3c4e65d4f6de39b84f4364300dadcf0f9fb6f80451c7afa4cb634b",
+    "render-r728-mac": "0c1e9daa2c3c4e65d4f6de39b84f4364300dadcf0f9fb6f80451c7afa4cb634b",
+    "render-r728-linux": "0c1e9daa2c3c4e65d4f6de39b84f4364300dadcf0f9fb6f80451c7afa4cb634b",
+    "render-r728-windows": "0c1e9daa2c3c4e65d4f6de39b84f4364300dadcf0f9fb6f80451c7afa4cb634b"
+  },
+  "productionAppHashes": {
+    "render-r728-mac": "03b4c0e888ebd29a8868764249b1d15302deb4b5ab3a983db4a64c1bb066a927",
+    "render-r728-linux": "03b4c0e888ebd29a8868764249b1d15302deb4b5ab3a983db4a64c1bb066a927",
+    "render-r728-windows": "03b4c0e888ebd29a8868764249b1d15302deb4b5ab3a983db4a64c1bb066a927"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r727": "5308f8f366a24ebabaf080b0adae3c9894525ea0d3dbfb6708e43ed4719aa2b0",
+    "render-r728-mac": "5308f8f366a24ebabaf080b0adae3c9894525ea0d3dbfb6708e43ed4719aa2b0",
+    "render-r728-linux": "5308f8f366a24ebabaf080b0adae3c9894525ea0d3dbfb6708e43ed4719aa2b0",
+    "render-r728-windows": "5308f8f366a24ebabaf080b0adae3c9894525ea0d3dbfb6708e43ed4719aa2b0"
+  },
+  "matrix": {
+    "mac-batch-r727-core-r727.xml": {
+      "total": "1043",
+      "passed": "1039",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "25.878"
+    },
+    "mac-batch-r727-render-r727.xml": {
+      "total": "204",
+      "passed": "204",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "55.913"
+    },
+    "ubuntu-batch-r727-core-r727.xml": {
+      "total": "1043",
+      "passed": "1039",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "74.661"
+    },
+    "ubuntu-batch-r727-render-r727.xml": {
+      "total": "204",
+      "passed": "204",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "83.944"
+    },
+    "windows-batch-r727-core-r727.xml": {
+      "total": "1061",
+      "passed": "1013",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "31.550"
+    },
+    "windows-batch-r727-native-r727.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "43.294"
+    },
+    "windows-batch-r727-render-r727.xml": {
+      "total": "204",
+      "passed": "203",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "96.679"
+    }
+  },
+  "targetedControls": {
+    "mac": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeMatchingFileLimitRefusesBeforeAnyMarksCanBeAdded",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeDefaultHierarchyRowsDoNotImplyAnAliasContextWithoutCapturedEvidence",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeIncompatibleBasesCannotEraseNonmatchingAliasContext(query: \\\"name:x.cs OR name:z\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeIncompatibleBasesCannotEraseNonmatchingAliasContext(query: \\\"root:r\\\")"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionOtherScopeExplicitlyUsesTheFinalObservedRanking",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanBeRequestedWhilePausedAndWaitsForActualCompletion",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFinalPartialResultRemainsExplicitAndRequiresReview",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionReviewPagesItsExactSetAndKeepsTheDefaultPreserving",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCapturesTheExplicitUncertainCohortRatherThanLaterEditorState",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionRapidReplacementAndCancellationNeverAddsMarks",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanceledReviewCannotReplayAndRetainsOnlyCapturedDataAfterClose",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFolderScopeDoesNotBroadenWhenNavigationChanges",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FolderHierarchy)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: CapturedLocation)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Scanning)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Paused)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Finished)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Stopped)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Failed)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionStoppedScanDoesNotPretendToHaveCompleted",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCloseCancelsTheIntentButKeepsActualNativeWorkOwned"
+      ]
+    },
+    "ubuntu": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeDefaultHierarchyRowsDoNotImplyAnAliasContextWithoutCapturedEvidence",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeMatchingFileLimitRefusesBeforeAnyMarksCanBeAdded",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeIncompatibleBasesCannotEraseNonmatchingAliasContext(query: \\\"name:x.cs OR name:z\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeIncompatibleBasesCannotEraseNonmatchingAliasContext(query: \\\"root:r\\\")"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanBeRequestedWhilePausedAndWaitsForActualCompletion",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanceledReviewCannotReplayAndRetainsOnlyCapturedDataAfterClose",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCloseCancelsTheIntentButKeepsActualNativeWorkOwned",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionStoppedScanDoesNotPretendToHaveCompleted",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionReviewPagesItsExactSetAndKeepsTheDefaultPreserving",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCapturesTheExplicitUncertainCohortRatherThanLaterEditorState",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFolderScopeDoesNotBroadenWhenNavigationChanges",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FolderHierarchy)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: CapturedLocation)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Scanning)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Paused)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Finished)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Stopped)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Failed)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFinalPartialResultRemainsExplicitAndRequiresReview",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionOtherScopeExplicitlyUsesTheFinalObservedRanking",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionRapidReplacementAndCancellationNeverAddsMarks"
+      ]
+    },
+    "windows": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeIncompatibleBasesCannotEraseNonmatchingAliasContext(query: \\\"name:x.cs OR name:z\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeIncompatibleBasesCannotEraseNonmatchingAliasContext(query: \\\"root:r\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeMatchingFileLimitRefusesBeforeAnyMarksCanBeAdded",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeDefaultHierarchyRowsDoNotImplyAnAliasContextWithoutCapturedEvidence"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FolderHierarchy)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: CapturedLocation)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Scanning)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Paused)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Finished)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Stopped)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Failed)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionReviewPagesItsExactSetAndKeepsTheDefaultPreserving",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFinalPartialResultRemainsExplicitAndRequiresReview",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCloseCancelsTheIntentButKeepsActualNativeWorkOwned",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionStoppedScanDoesNotPretendToHaveCompleted",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFolderScopeDoesNotBroadenWhenNavigationChanges",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionOtherScopeExplicitlyUsesTheFinalObservedRanking",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCapturesTheExplicitUncertainCohortRatherThanLaterEditorState",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanBeRequestedWhilePausedAndWaitsForActualCompletion",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionRapidReplacementAndCancellationNeverAddsMarks",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanceledReviewCannotReplayAndRetainsOnlyCapturedDataAfterClose"
+      ]
+    }
+  },
+  "newCoreControls": 4,
+  "newRenderingControls": 20,
+  "supersededFailedBatches": [
+    {
+      "candidate": "r723",
+      "sources": [
+        {
+          "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.DeferredSelection.cs",
+          "sha256": "dc81143048c98c47c7f3f23b3c570cf33711836a7beacbc27861cc63543ffa46"
+        },
+        {
+          "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Projection.cs",
+          "sha256": "54f910db92a811857e5ce633b6a1755239788f4794adf5a87dad60ab38f33c28"
+        },
+        {
+          "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+          "sha256": "5d920cc0edc27f2d47be9e368d85c848c73efccd525a076e4645a6eec50fd9bd"
+        },
+        {
+          "path": "src/FileCat.App/Views/DiskSpaceWindow.DeferredSelection.cs",
+          "sha256": "5d53499c88d252a54da8848d2d5889d647d0bfba67f8b685d03e0c6d0ca13705"
+        },
+        {
+          "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedSelection.cs",
+          "sha256": "657e2232c67b4da98fadcfd44a4019f256cd5778a08549f56a004fef95ce910b"
+        },
+        {
+          "path": "src/FileCat.App/Views/DiskSpaceWindow.MemoryMarks.cs",
+          "sha256": "ddb2d265035554a676cc2e72404647d76abda51a17c01532719fcc57a286b20c"
+        },
+        {
+          "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+          "sha256": "0d591ec9b87c18fbb5e1b8b657e9d598bf11428a15032c626be6239b4398bd0e"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisAggregate.cs",
+          "sha256": "130f731d3b683c986d2b2b259fb1b9038acb6252d6fcd3697e2fdf08e9474dd0"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+          "sha256": "2e2d5c12198c812c252b4a3300f794978a9c4e9bface81295c47a52544a3315e"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisIndexedChart.cs",
+          "sha256": "3fcea6d11f8d7b482d2b154c8ee67c03f465543a4a699d792498746be661a599"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisModel.cs",
+          "sha256": "a13e679b60959e01a57c29c24a32d5c435b335de5dc1380fd059d76bba88127c"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+          "sha256": "29cadae6dda67b732c08654a70f47a31423b86f57d30713db7d57e4f777a38d4"
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.DeferredScope.cs",
+          "sha256": "8dbb2bd9f988b8ac8aa9c45aaff90be8ffae88b90aeecede83e3a816ae5dd156"
+        },
+        {
+          "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.DeferredSelection.cs",
+          "sha256": "a8aa35afbffe49e372bcfbef27f35287474b1bc2b305dd6a9835262bc4b011c1"
+        }
+      ],
+      "matrix": {
+        "mac-batch-r723-core-r723.xml": {
+          "total": "1043",
+          "passed": "1039",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "25.579"
+        },
+        "mac-batch-r723-render-r723.xml": {
+          "total": "204",
+          "passed": "188",
+          "failed": "16",
+          "skipped": "0",
+          "errors": "0",
+          "time": "207.904"
+        },
+        "ubuntu-batch-r723-core-r723.xml": {
+          "total": "1043",
+          "passed": "1039",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "70.390"
+        },
+        "ubuntu-batch-r723-render-r723.xml": {
+          "total": "204",
+          "passed": "188",
+          "failed": "16",
+          "skipped": "0",
+          "errors": "0",
+          "time": "242.547"
+        },
+        "windows-batch-r723-core-r723.xml": {
+          "total": "1061",
+          "passed": "1013",
+          "failed": "0",
+          "skipped": "48",
+          "errors": "0",
+          "time": "31.620"
+        },
+        "windows-batch-r723-native-r723.xml": {
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "37.735"
+        },
+        "windows-batch-r723-render-r723.xml": {
+          "total": "204",
+          "passed": "187",
+          "failed": "16",
+          "skipped": "1",
+          "errors": "0",
+          "time": "265.997"
+        }
+      },
+      "controls": {
+        "mac": {},
+        "ubuntu": {},
+        "windows": {}
+      },
+      "finalInventories": {
+        "mac": [],
+        "ubuntu": [],
+        "windows": [
+          "pid=11076, owner=DESKTOP-A60F1NE\\fcarchive42829297, cmd=dotnet.exe"
+        ]
+      },
+      "failures": {
+        "mac": [
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionStoppedScanDoesNotPretendToHaveCompleted",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanBeRequestedWhilePausedAndWaitsForActualCompletion",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionRapidReplacementAndCancellationNeverAddsMarks",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCapturesTheExplicitUncertainCohortRatherThanLaterEditorState",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFolderScopeDoesNotBroadenWhenNavigationChanges",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionOtherScopeExplicitlyUsesTheFinalObservedRanking",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionReviewPagesItsExactSetAndKeepsTheDefaultPreserving",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCloseCancelsTheIntentButKeepsActualNativeWorkOwned",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FolderHierarchy)",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FileType)",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: Extension)",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: ModifiedAge)",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: CapturedLocation)",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.ShortLargeTextPageScrollsAndTheRankedTableRemainsVirtualized",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFinalPartialResultRemainsExplicitAndRequiresReview",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanceledReviewCannotReplayAndRetainsOnlyCapturedDataAfterClose"
+        ],
+        "ubuntu": [
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionReviewPagesItsExactSetAndKeepsTheDefaultPreserving",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFolderScopeDoesNotBroadenWhenNavigationChanges",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionStoppedScanDoesNotPretendToHaveCompleted",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCloseCancelsTheIntentButKeepsActualNativeWorkOwned",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FolderHierarchy)",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FileType)",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: Extension)",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: ModifiedAge)",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: CapturedLocation)",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFinalPartialResultRemainsExplicitAndRequiresReview",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanceledReviewCannotReplayAndRetainsOnlyCapturedDataAfterClose",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionRapidReplacementAndCancellationNeverAddsMarks",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanBeRequestedWhilePausedAndWaitsForActualCompletion",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionOtherScopeExplicitlyUsesTheFinalObservedRanking",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCapturesTheExplicitUncertainCohortRatherThanLaterEditorState",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.ShortLargeTextPageScrollsAndTheRankedTableRemainsVirtualized"
+        ],
+        "windows": [
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionRapidReplacementAndCancellationNeverAddsMarks",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCloseCancelsTheIntentButKeepsActualNativeWorkOwned",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionReviewPagesItsExactSetAndKeepsTheDefaultPreserving",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FolderHierarchy)",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FileType)",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: Extension)",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: ModifiedAge)",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: CapturedLocation)",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanBeRequestedWhilePausedAndWaitsForActualCompletion",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanceledReviewCannotReplayAndRetainsOnlyCapturedDataAfterClose",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.ShortLargeTextPageScrollsAndTheRankedTableRemainsVirtualized",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFinalPartialResultRemainsExplicitAndRequiresReview",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionOtherScopeExplicitlyUsesTheFinalObservedRanking",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFolderScopeDoesNotBroadenWhenNavigationChanges",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionStoppedScanDoesNotPretendToHaveCompleted",
+          "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCapturesTheExplicitUncertainCohortRatherThanLaterEditorState"
+        ]
+      },
+      "qualified": false,
+      "allRunnersAndCollectorsTerminal": true
+    }
+  ],
+  "finalBuild": "build-r726.txt: full solution zero warnings/errors",
+  "testScope": "Actual guest runtimes, held native metadata acquisition fixtures and source closure, imported inert data, bounded managed100001-path refusal and headless review/selection/layout controls plus applicable full suites. Physical desktop/a11y/DPI and complete1M/10M/private-memory/resource qualification remain pending.",
+  "batchWorkflow": "One immutable bundle/platform, sequential applicable suites, integrity and per-phase process gates, one collection/completed machine.",
+  "ownedProcessExitEvidence": "Every original runner and collector terminal; successful states and final inventories contain no owned instances. No host application/input tests.",
+  "postCollectionProcessesObserved": {
+    "mac": [],
+    "ubuntu": [],
+    "windows": [
+      "pid=10224, owner=DESKTOP-A60F1NE\\fcarchive42829297, cmd=dotnet.exe",
+      "pid=3416, owner=DESKTOP-A60F1NE\\fcarchive42829297, cmd=FileCat.Core.Tests.exe",
+      "pid=8088, owner=, cmd=dotnet.exe"
+    ]
+  },
+  "laterWindowsCleanupInventory": "docs/validation/disk-space/windows-post-r727-owner.json",
+  "windowsAfterForeignExitInventory": "docs/validation/disk-space/windows-pre-r727.json",
+  "ubuntuVerifyDeferralAndResumption": "docs/validation/disk-space/ubuntu-verify-deferral-r727.json",
+  "qualification": {
+    "runtimeDeferredRequestImplemented": true,
+    "displayedQueryAndScopeRetained": true,
+    "actualScanCompletionBeforeMaterialization": true,
+    "finalOtherRankingExplicit": true,
+    "explicitReviewBeforeMarks": true,
+    "basketAndFilesystemUnchangedByDeferredRequest": true,
+    "requestCancellationReplacementAndActualCloseControlsPassedAllThree": true,
+    "partialStoppedPausedAndUncertainCohortControlsPassedAllThree": true,
+    "historicalPhasesCannotCreateRuntimeIntent": true,
+    "matchingFileRefusalAt100001ManagedPathsPassedAllThree": true,
+    "mixedBasisAliasContextIndependentOfAmounts": true,
+    "explicitIndexedAliasContextData": true,
+    "newControlsPassedAllThree": true,
+    "fullNativeDesktopDeferredSelectionQualified": false,
+    "fullIndexedPointerAndKeyboardRangeQualification": false,
+    "indexedOtherExactSubsetParityQualified": false,
+    "indexedSaveUiImplemented": false,
+    "ownerComparisonVolumeGroupingImplemented": false,
+    "fullResourceGateQualified": false,
+    "fullMillionTenMillionQualificationComplete": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

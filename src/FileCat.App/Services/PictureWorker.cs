@@ -1,6 +1,8 @@
 using System.Buffers.Binary;
 using System.Globalization;
 using System.Text;
+using PDFtoImage;
+using PDFtoImage.Exceptions;
 using SkiaSharp;
 
 namespace FileCat.App.Services;
@@ -16,6 +18,8 @@ namespace FileCat.App.Services;
 internal static class PictureWorker
 {
     public const string Argument = "--picture-worker";
+    internal const string PdfArgument = "pdf";
+    internal const long MaxPdfInputBytes = 64L * 1024 * 1024;
 
     /// <summary>Pictures larger than this are not read at all.</summary>
     public const long MaxInputBytes = 256L * 1024 * 1024;
@@ -47,31 +51,80 @@ internal static class PictureWorker
                 return Fail(output, "The picture worker could not verify that it gave up elevated user and group rights.");
             LinuxPictureProcessPolicy.Apply();
             int maxSide = args.Length > 1 && int.TryParse(args[1], NumberStyles.None, CultureInfo.InvariantCulture, out int wanted) ? Math.Clamp(wanted, MinSide, MaxSide) : 2048;
+            bool pdf = args.Length > 2 && args[2] == PdfArgument;
+            int page = pdf && args.Length > 3 && int.TryParse(args[3], NumberStyles.None, CultureInfo.InvariantCulture, out int requestedPage)
+                ? requestedPage : 0;
             using var input = Console.OpenStandardInput();
-            var bytes = ReadAll(input);
-            if (bytes is null) return Fail(output, $"it is larger than {MaxInputBytes / (1024 * 1024)} MiB, which is more than FileCat shows");
-            Decode(bytes.Value, maxSide, output);
+            var bytes = ReadAll(input, pdf ? MaxPdfInputBytes : MaxInputBytes);
+            if (bytes is null) return Fail(output, $"it is larger than {(pdf ? MaxPdfInputBytes : MaxInputBytes) / (1024 * 1024)} MiB, which is more than FileCat shows");
+            if (pdf) DecodePdf(bytes.Value, maxSide, page, output);
+            else Decode(bytes.Value, maxSide, output);
             return 0;
         }
-        catch (Exception ex) when (ex is InvalidDataException or IOException or ArgumentException or OutOfMemoryException)
+        catch (Exception ex) when (ex is InvalidDataException or IOException or ArgumentException or OutOfMemoryException or PdfException)
         {
             return Fail(output, ex.Message);
         }
     }
 
-    private static ArraySegment<byte>? ReadAll(Stream input)
+    private static ArraySegment<byte>? ReadAll(Stream input, long maxInputBytes)
     {
         using var buffer = new MemoryStream();
         var chunk = new byte[1024 * 1024];
         int n;
         while ((n = input.Read(chunk, 0, chunk.Length)) > 0)
         {
-            if (buffer.Length + n > MaxInputBytes) return null;
+            if (buffer.Length + n > maxInputBytes) return null;
             buffer.Write(chunk, 0, n);
         }
         // Keep the bounded buffer itself. ToArray would briefly retain a second full picture copy,
         // just before the native codec allocates its own decoded pixels.
         return new ArraySegment<byte>(buffer.GetBuffer(), 0, checked((int)buffer.Length));
+    }
+
+    private static void DecodePdf(ArraySegment<byte> bytes, int maxSide, int page, Stream output)
+    {
+        if (!bytes.AsSpan().StartsWith("%PDF-"u8)) throw new InvalidDataException("it has no PDF header");
+        // Native PDFium parses only in the already restricted worker; no annotation actions, forms or links run.
+        using var pdf = new MemoryStream(bytes.Array!, bytes.Offset, bytes.Count, writable: false);
+        int count = Conversion.GetPageCount(pdf);
+        if (count is < 1 or > 100_000 || page < 0 || page >= count)
+            throw new InvalidDataException("the requested PDF page is unavailable");
+        using var pageSource = new MemoryStream(bytes.Array!, bytes.Offset, bytes.Count, writable: false);
+        var size = Conversion.GetPageSize(pageSource, page: page);
+        if (!float.IsFinite(size.Width) || !float.IsFinite(size.Height) || size.Width <= 0 || size.Height <= 0)
+            throw new InvalidDataException("the PDF page declares an invalid size");
+        double scale = Math.Min(2, maxSide / Math.Max((double)size.Width, size.Height));
+        int width = Math.Clamp((int)Math.Round(size.Width * scale), 1, maxSide);
+        int height = Math.Clamp((int)Math.Round(size.Height * scale), 1, maxSide);
+        using var pageStream = new MemoryStream(bytes.Array!, bytes.Offset, bytes.Count, writable: false);
+        using var rendered = Conversion.ToImage(pageStream, page: page,
+            options: new RenderOptions(Dpi: 72, Width: width, Height: height,
+                WithAnnotations: false, WithFormFill: false));
+        using var shown = new SKBitmap(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul));
+        using (var canvas = new SKCanvas(shown))
+        {
+            canvas.Clear(SKColors.White);
+            canvas.DrawBitmap(rendered, 0, 0);
+        }
+        string version = bytes.Count >= 8 && bytes.Array![bytes.Offset + 5] is >= (byte)'1' and <= (byte)'2' &&
+            bytes.Array[bytes.Offset + 6] == '.' && bytes.Array[bytes.Offset + 7] is >= (byte)'0' and <= (byte)'9'
+            ? $"PDF {bytes.Array[bytes.Offset + 5] - '0'}.{bytes.Array[bytes.Offset + 7] - '0'}" : "PDF";
+        var format = Encoding.ASCII.GetBytes(version);
+        Span<byte> header = stackalloc byte[32];
+        SuccessMagic.CopyTo(header);
+        BinaryPrimitives.WriteInt32LittleEndian(header[4..], width);
+        BinaryPrimitives.WriteInt32LittleEndian(header[8..], height);
+        BinaryPrimitives.WriteInt32LittleEndian(header[12..], Math.Max(1, (int)Math.Round(size.Width)));
+        BinaryPrimitives.WriteInt32LittleEndian(header[16..], Math.Max(1, (int)Math.Round(size.Height)));
+        BinaryPrimitives.WriteInt32LittleEndian(header[20..], count);
+        BinaryPrimitives.WriteInt32LittleEndian(header[24..], 0);
+        BinaryPrimitives.WriteInt32LittleEndian(header[28..], format.Length);
+        output.Write(header);
+        output.Write(format);
+        var pixels = shown.GetPixelSpan();
+        for (int y = 0; y < height; y++) output.Write(pixels.Slice(y * shown.RowBytes, width * 4));
+        output.Flush();
     }
 
     internal static int Fail(Stream output, string reason)

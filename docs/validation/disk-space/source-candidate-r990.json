@@ -1,0 +1,10 @@
+[
+  {
+    "sha256": "167c048b82d4a1c185a640fdb696faa6106c390947d2408396810686b2a05452",
+    "path": "src/FileCat.Core/Analysis/AnalysisRollingHistory.cs"
+  },
+  {
+    "sha256": "5b34bfea2554cb07fa39c58baccee83eb47d57a64c02ada4d8d5d26b3ff34ed2",
+    "path": "tests/FileCat.Core.Tests/AnalysisHistoryTests.cs"
+  }
+]

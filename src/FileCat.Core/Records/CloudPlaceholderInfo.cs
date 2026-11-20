@@ -47,8 +47,8 @@ public sealed record CloudPlaceholderInfo(long OnDiskDataSize, long ValidatedDat
     public static string PinStateText(int state) => state switch
     {
         0 => "unspecified (its provider decides)",
-        1 => "pinned (always kept on this device)",
-        2 => "unpinned (to be freed up: kept online only)",
+        1 => "keep locally (pin policy; residency is separate)",
+        2 => "allow removal (pin policy; residency is separate)",
         3 => "excluded (not synced)",
         4 => "inherited from its folder",
         _ => $"unknown ({state})",
@@ -57,8 +57,8 @@ public sealed record CloudPlaceholderInfo(long OnDiskDataSize, long ValidatedDat
     /// <summary>CF_IN_SYNC_STATE in words.</summary>
     public static string InSyncText(int state) => state switch
     {
-        0 => "no: it has changes its provider has not synced",
-        1 => "yes",
+        0 => "not in sync (provider-reported)",
+        1 => "in sync (provider-reported)",
         _ => $"unknown ({state})",
     };
 }

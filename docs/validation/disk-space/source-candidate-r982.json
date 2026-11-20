@@ -1,0 +1,22 @@
+[
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisRollingHistory.cs",
+    "sha256": "8022c2ae462f4d22218a53c71c5c398dfe7eace9a91954e1c515d5244e6f74a8"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPreferences.cs",
+    "sha256": "b6ac170c55df365729ff56eeec0ce452e60e679f3079598914ec490fb13916a0"
+  },
+  {
+    "path": "src/FileCat.Core/State/StateModels.cs",
+    "sha256": "3054a2d213bf4d19e4ee7ef59f1a5cc9e06ae1a0b94fb26a4f6617f88057ec42"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisHistoryTests.cs",
+    "sha256": "db4ad75bd487cba64ee92d10b30d55ce258b8be68376ba01c11ffec02540406d"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.HistoryDiagnostics.cs",
+    "sha256": "7b3d0e542072cd635cb7d3f13bb5d263f4ca0d17298c74ec760a221b4d15a37e"
+  }
+]

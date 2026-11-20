@@ -17,7 +17,7 @@ internal sealed class UserCommandsEditor
     private readonly List<ToolDefinition> _draft;
     private readonly Dictionary<ToolDefinition, string> _argumentText = new(ReferenceEqualityComparer.Instance);
     private readonly ListBox _list = new() { Height = 180 };
-    private readonly TextBox _name = new();
+    private readonly TextBox _name = new() { PlaceholderText = "New command" };
     private readonly TextBox _program = new();
     private readonly TextBox _arguments = new();
     private readonly TextBox _directory = new();
@@ -35,9 +35,12 @@ internal sealed class UserCommandsEditor
     private readonly Button _down = new() { Content = "Move command or menu down" };
     private List<Row> _rows = [];
     private bool _updating;
+    /// <summary>Settings that cannot be saved (read-only): commands and menus can be looked through, not changed.</summary>
+    private readonly bool _readOnly;
 
-    public UserCommandsEditor(IEnumerable<ToolDefinition> commands, string sampleFolder)
+    public UserCommandsEditor(IEnumerable<ToolDefinition> commands, string sampleFolder, bool readOnly = false)
     {
+        _readOnly = readOnly;
         _draft = Clone(commands);
         RememberArguments(_draft);
         _invocation = new ToolInvocationPreview("Command", _arguments, SnapshotInvocation, sampleFolder);
@@ -55,9 +58,9 @@ internal sealed class UserCommandsEditor
         _shell.IsCheckedChanged += (_, _) => UpdateSelected();
 
         var add = new Button { Content = "Add command" };
-        add.Click += (_, _) => Add(new ToolDefinition { Name = "New command", Arguments = ["{file}"] });
+        add.Click += (_, _) => Add(new ToolDefinition { Name = string.Empty, Arguments = ["{file}"] });
         var addMenu = new Button { Content = "Add menu" };
-        addMenu.Click += (_, _) => Add(new ToolDefinition { Name = "New menu", Children = [] });
+        addMenu.Click += (_, _) => Add(new ToolDefinition { Name = string.Empty, Children = [] });
         _duplicate.Click += (_, _) =>
         {
             if (Selected is not { } row) return;
@@ -67,6 +70,7 @@ internal sealed class UserCommandsEditor
             RememberArguments([duplicate]);
             Refresh(duplicate);
             _name.Focus();
+            _name.SelectAll();
         };
         _remove.Click += (_, _) =>
         {
@@ -109,10 +113,20 @@ internal sealed class UserCommandsEditor
         _structured.Children.Add(_shell);
         _structured.Children.Add(new TextBlock { Text = "Batch programs can interpret selected names as commands when shell interpretation is enabled. Prefer a normal executable.", TextWrapping = TextWrapping.Wrap, Classes = { "muted", "small" } });
         _rawPanel.Children.Add(new TextBlock { Text = "Advanced text supports nested Group > Name entries and the lossless @tools: JSON form.", TextWrapping = TextWrapping.Wrap });
+        _rawPanel.Children.Add(new TextBlock
+        {
+            Text = "One command per line: Name | program | arguments | options. Group > Name adds a command to a submenu. Quote arguments containing spaces. Options: key=HOTKEY, dir=FOLDER, shell. Tokens: {file} {files} {listfile} {dir} {target} {name} {prompt}. Programs must be executables; batch files with shell metacharacters require the shell option.",
+            TextWrapping = TextWrapping.Wrap,
+            Classes = { "muted", "small" },
+        });
         _rawPanel.Children.Add(_raw);
         AdvancedTextFileExchange.AddTo(_rawPanel, _raw, "command");
         _advanced.IsCheckedChanged += (_, _) => SwitchMode();
-        View = new StackPanel { Margin = new Thickness(8), Spacing = 6, Children = { _advanced, _structured, _rawPanel, _error } };
+        View = new StackPanel { Margin = new Thickness(0, 6, 0, 10), Spacing = 6, Children =
+        {
+            new TextBlock { Text = "User commands (F9)", FontWeight = FontWeight.SemiBold },
+            _advanced, _structured, _rawPanel, _error,
+        } };
         Refresh(_draft.FirstOrDefault());
     }
 
@@ -207,7 +221,8 @@ internal sealed class UserCommandsEditor
         _rows = [];
         AddRows(_draft, 0);
         _updating = true;
-        _list.ItemsSource = _rows.Select(r => new string(' ', r.Depth * 2) + (r.Tool.Children is null ? "Command: " : "Menu: ") + r.Tool.Name).ToList();
+        _list.ItemsSource = _rows.Select(r => new string(' ', r.Depth * 2) + (r.Tool.Children is null ? "Command: " : "Menu: ") +
+            (string.IsNullOrWhiteSpace(r.Tool.Name) ? "New " + (r.Tool.Children is null ? "command" : "menu") + " (enter a name)" : r.Tool.Name)).ToList();
         _list.SelectedIndex = selected is null ? -1 : _rows.FindIndex(r => ReferenceEquals(r.Tool, selected));
         _updating = false;
         _invocation.Retire();
@@ -230,20 +245,23 @@ internal sealed class UserCommandsEditor
         var tool = Selected?.Tool;
         bool command = tool is { Children: null };
         _name.Text = tool?.Name ?? string.Empty;
+        _name.PlaceholderText = tool?.Children is null ? "New command" : "New menu";
         _program.Text = command ? tool!.Executable : string.Empty;
         _arguments.Text = command ? _argumentText[tool!] : string.Empty;
         _directory.Text = command ? tool!.WorkingDirectory : string.Empty;
         _hotkey.Text = command ? tool!.Hotkey ?? string.Empty : string.Empty;
         _shell.IsChecked = command && tool!.ShellMode;
         _name.IsEnabled = tool is not null;
-        foreach (var control in new Control[] { _program, _arguments, _directory, _hotkey, _shell }) control.IsEnabled = command;
+        // Read-only text stays selectable; the shell switch stays off.
+        foreach (var control in new Control[] { _program, _arguments, _directory, _hotkey }) control.IsEnabled = command;
+        _shell.IsEnabled = command && !_readOnly;
         _updating = false;
         RefreshButtons();
     }
 
     private void RefreshButtons()
     {
-        var row = Selected;
+        var row = _readOnly ? null : Selected;
         _duplicate.IsEnabled = _remove.IsEnabled = row is not null;
         _up.IsEnabled = row is { Index: > 0 };
         _down.IsEnabled = row is not null && row.Index < row.Parent.Count - 1;

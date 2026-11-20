@@ -31,6 +31,18 @@ internal interface IPpmdRangeDecoder
     uint DecodeBit(uint size0, int totalBits);
 }
 
+/// <summary>
+/// FileCat encoding adapter: selects a known symbol's interval in this same bounded model, instead of obtaining
+/// that selection from compressed input. The range sink commits the selected intervals through the existing coder
+/// calls. Decoder instances leave this null; no encoder/model from the excluded UnRAR-derived H code is restored.
+/// </summary>
+internal interface IPpmdEncodingHints
+{
+    int Symbol { get; set; }
+    void SelectThreshold(uint count);
+    void SelectBit(uint bit);
+}
+
 /// <summary>The limits of <see cref="PpmdModelH{TDecoder}"/> and the damage it reports.</summary>
 internal static class PpmdModelH
 {
@@ -123,9 +135,18 @@ internal sealed class PpmdModelH<TDecoder>
 
     /// <summary>The range decoder the model codes through; its owner starts it where each run of coded data starts.</summary>
     public TDecoder Coder;
+    internal IPpmdEncodingHints? EncodingHints { get; set; }
 
     /// <summary>How often the model was started afresh: once at its first symbol, then each time its memory filled up.</summary>
     internal int Starts { get; private set; }
+
+    /// <summary>Release owned mutable model state, including buffered plaintext/state symbols.</summary>
+    internal void Clear()
+    {
+        Array.Clear(_states); _states = []; Array.Clear(_freeList); Array.Clear(_charMask); Array.Clear(_binSumm);
+        Array.Clear(_see2); Array.Clear(_unmasked); Array.Clear(_chain);
+        _stateCount = _context = _prevSym = 0; Coder = default; EncodingHints = null;
+    }
 
 
     /// <summary>
@@ -154,6 +175,7 @@ internal sealed class PpmdModelH<TDecoder>
         int count = (1 + heap1Units + heap2Units) * 2;
         if (_states.Length < count)
         {
+            Array.Clear(_states);
             _states = [];
             _states = new State[count];
         }
@@ -579,6 +601,14 @@ internal sealed class PpmdModelH<TDecoder>
         return symbol;
     }
 
+    internal void EncodeSymbol(int symbol)
+    {
+        if (EncodingHints is null || symbol is < -1 or > 255)
+            throw new InvalidOperationException("A PPMd encoder and a bounded symbol are required.");
+        EncodingHints.Symbol = symbol;
+        if (DecodeSymbol() != symbol) throw PpmdModelH.Damaged("PPMd encoding interval");
+    }
+
     /// <summary>Rescales the frequencies of <paramref name="context"/> once state <paramref name="s"/> is over the limit; returns the found state's index.</summary>
     private int Rescale(int context, int s)
     {
@@ -642,6 +672,7 @@ internal sealed class PpmdModelH<TDecoder>
         int index = (freq - 1) * 64 + i;
         ushort bs = _binSumm[index];
         int mean = (ushort)(bs + (1 << (PeriodBits - 2))) >> PeriodBits;
+        EncodingHints?.SelectBit(EncodingHints.Symbol == _states[s].Symbol ? 0u : 1u);
         if (Coder.DecodeBit(bs, BinScaleBits) == 0)
         {
             if (_states[s].Freq < 128) _states[s].Freq++;
@@ -665,6 +696,16 @@ internal sealed class PpmdModelH<TDecoder>
         int count = GetStates(context, out int start);
         uint scale = SummFreq(context);
         if (scale == 0) throw PpmdModelH.Damaged("PPMd data");
+        if (EncodingHints is { } encoding)
+        {
+            uint selected = 0;
+            for (int index = 0; index < count; index++)
+            {
+                if (_states[start + index].Symbol == encoding.Symbol) break;
+                selected += _states[start + index].Freq;
+            }
+            encoding.SelectThreshold(selected); // absent symbols select the escape interval
+        }
         uint target = Coder.GetThreshold(scale);
         if (target >= scale) throw PpmdModelH.Damaged("PPMd data"); // the code lies beyond every symbol and the escape
         _prevSuccess = 0;
@@ -760,6 +801,17 @@ internal sealed class PpmdModelH<TDecoder>
             _unmasked[j] = start + i;
         }
         scale += hi;
+        if (EncodingHints is { } encoding)
+        {
+            uint selected = 0;
+            for (int index = 0; index < unmasked; index++)
+            {
+                int state = _unmasked[index];
+                if (_states[state].Symbol == encoding.Symbol) break;
+                selected += _states[state].Freq;
+            }
+            encoding.SelectThreshold(selected);
+        }
         uint target = Coder.GetThreshold(scale);
         if (target >= scale) throw PpmdModelH.Damaged("PPMd data");
         if (target >= hi)

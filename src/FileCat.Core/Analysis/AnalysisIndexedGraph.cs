@@ -1,0 +1,419 @@
+using System.Buffers.Binary;
+using System.Collections.Immutable;
+using System.Text;
+using FileCat.Core.Threading;
+
+namespace FileCat.Core.Analysis;
+
+/// <summary>Bounded, inert graph header. It does not carry backend ancestry, native sources or operation approval.</summary>
+internal sealed record AnalysisIndexedGraphHeader(SessionIdentity Identity, ImmutableArray<RootBinding> Roots, ScanPolicy Policy,
+    AnalysisPhase Phase, NamespaceCoverage Coverage, AnalysisFreshness Freshness = AnalysisFreshness.Observed,
+    AnalysisOrigin Origin = AnalysisOrigin.LiveSession, AnalysisTaint Taint = AnalysisTaint.OrdinarySensitive)
+{
+    internal AnalysisPersistence Persistence { get; init; } = AnalysisPersistence.Temporary;
+    internal ImmutableDictionary<MeasurementState, ulong> IssueTotals { get; init; } = ImmutableDictionary<MeasurementState, ulong>.Empty;
+    internal ImmutableDictionary<AnalysisBoundaryKind, ulong> BoundaryTotals { get; init; } = ImmutableDictionary<AnalysisBoundaryKind, ulong>.Empty;
+    internal AnalysisEnumerationProgress? Enumeration { get; init; }
+    internal AnalysisStaleEvidence? StaleEvidence { get; init; }
+    internal AnalysisDatasetCoverage? CoverageDetails { get; init; }
+    // Computed by the table producer; never restored from inventory data.
+    internal bool DensePathIds { get; init; } = true;
+    // Derived from the sealed identity index, never restored from inventory input.
+    internal bool UniqueObjectIdentities { get; init; }
+    internal AnalysisCoverageRecord? ImportedCoverage { get; init; }
+    internal void Validate()
+    {
+        AnalysisValidation.Validate(new(Identity, Roots, [], [], [], [], Policy, Phase, Coverage, Freshness, Origin, Taint)
+            { Persistence = Persistence, IssueTotals = IssueTotals, BoundaryTotals = BoundaryTotals });
+        Enumeration?.Validate();
+        if (ImportedCoverage is not null && Origin != AnalysisOrigin.ImportedInventory) throw AnalysisIndexedGraph.Invalid();
+        if (StaleEvidence is { } stale && (stale.RootIds.IsDefault || stale.RootIds.Length > Roots.Length || stale.RootIds.Distinct(StringComparer.Ordinal).Count() != stale.RootIds.Length ||
+            stale.RootIds.Any(id => !Roots.Any(root => root.Id == id)) || stale.Events > IssueTotals.Values.Aggregate(0UL, (sum, value) => checked(sum + value)))) throw AnalysisIndexedGraph.Invalid();
+    }
+}
+
+/// <summary>
+/// Dense typed observation tables and exact secondary indexes, without a managed object per row.
+/// Appends and native lifetimes run on admitted workers. Seal freezes the input; failed index creation
+/// can be retried against that same prefix, but never exposes a half-indexed graph as a successful result.
+/// This is not yet the production scanner/store or projection integration.
+/// </summary>
+internal sealed class AnalysisIndexedGraph : IAnalysisScratchOwned
+{
+    internal const int Paths = 0, Objects = 1, Facts = 2, Issues = 3;
+    private readonly object _gate = new();
+    private readonly AnalysisScratchComposite _tables;
+    private readonly AnalysisIndexedGraphHeader _header;
+    private readonly Dictionary<string, int> _roots = new(StringComparer.Ordinal);
+    private readonly ulong[] _rootNodes;
+    private readonly ulong[] _counts = new ulong[4];
+    private DateTimeOffset _observed;
+    private AnalysisIndexedGraphHeader? _sealedHeader;
+    private bool _sealed, _disposed, _densePathIds = true;
+
+    // The caller retains arena ownership on constructor failure.
+    internal AnalysisIndexedGraph(AnalysisScratchArena arena, AnalysisIndexedGraphHeader header)
+    {
+        ArgumentNullException.ThrowIfNull(arena); ArgumentNullException.ThrowIfNull(header); header.Validate();
+        _header = header with { Taint = header.Origin == AnalysisOrigin.ImportedInventory ? AnalysisPrivacy.Imported(header.Taint) : AnalysisPrivacy.Join(header.Taint) };
+        for (int i = 0; i < header.Roots.Length; i++) _roots.Add(header.Roots[i].Id, i);
+        _rootNodes = new ulong[header.Roots.Length]; _observed = header.Identity.StartedUtc;
+        _tables = new(arena, AnalysisLimits.Observations, AnalysisLimits.Observations, AnalysisLimits.Observations, AnalysisLimits.Issues);
+    }
+
+    internal void AppendPath(AnalysisNode node, CancellationToken cancellation = default)
+        => AppendPathCore(node, node is null ? 0 : node.ParentId, requireDense: true, cancellation);
+    // parentRow is obtained from the validated original-ID map. Validate its actual stored ID
+    // before using it; the numeric values of an observation and its parent carry no ordering.
+    internal void AppendPathWithParentRow(AnalysisNode node, ulong parentRow, CancellationToken cancellation = default)
+        => AppendPathCore(node, parentRow, requireDense: false, cancellation);
+    private void AppendPathCore(AnalysisNode node, ulong parentRow, bool requireDense, CancellationToken cancellation)
+    {
+        lock (_gate)
+        {
+            GuardWriter(); cancellation.ThrowIfCancellationRequested();
+            ulong row = _counts[Paths] + 1;
+            if (node is null || node.Id == 0 || requireDense && node.Id != row || !_roots.TryGetValue(node.RootId, out int root)) throw Invalid();
+            int depth = 0;
+            if (node.ParentId == 0) { if (parentRow != 0 || _rootNodes[root] != 0) throw Invalid(); }
+            else
+            {
+                if (parentRow == 0 || parentRow >= row) throw Invalid();
+                var parent = AnalysisIndexedPathCodec.Decode(_tables.ReadCurrent(Paths, parentRow, cancellation), node.ParentId, _header.Roots);
+                if (parent.RootIndex != root || parent.Node.Kind != AnalysisKind.Directory || !parent.Node.IncludedByPolicy || parent.Node.MetadataState != MeasurementState.Known) throw Invalid();
+                depth = checked(parent.Depth + 1);
+            }
+            if (node.Times is { } times && times.ObservedUtc < _header.Identity.StartedUtc) throw Invalid();
+            _tables.Append(Paths, AnalysisIndexedPathCodec.Encode(node, root, depth, _header.Roots), cancellation); _counts[Paths]++;
+            _densePathIds &= node.Id == row;
+            if (node.ParentId == 0) _rootNodes[root] = node.Id;
+            if (node.Times is { } observed && observed.ObservedUtc > _observed) _observed = observed.ObservedUtc;
+        }
+    }
+    internal ulong AppendObject(AnalysisObject value, CancellationToken cancellation = default)
+    { lock (_gate) { GuardWriter(); ulong id = _tables.Append(Objects, AnalysisIndexedValueCodec.EncodeObject(value), cancellation); _counts[Objects]++; return id; } }
+    internal ulong AppendFact(StorageFact value, CancellationToken cancellation = default)
+    {
+        lock (_gate)
+        {
+            GuardWriter();
+            if (value is null || value.ObservedUtc < _header.Identity.StartedUtc) throw Invalid();
+            ulong id = _tables.Append(Facts, AnalysisIndexedValueCodec.EncodeFact(value), cancellation); _counts[Facts]++;
+            if (value.ObservedUtc > _observed) _observed = value.ObservedUtc; return id;
+        }
+    }
+    internal ulong AppendIssue(AnalysisIssue value, CancellationToken cancellation = default)
+    {
+        lock (_gate)
+        {
+            GuardWriter();
+            if (value is null || value.RootId is { } root && !_roots.ContainsKey(root)) throw Invalid();
+            ulong id = _tables.Append(Issues, AnalysisIndexedValueCodec.EncodeIssue(value), cancellation); _counts[Issues]++; return id;
+        }
+    }
+
+    internal async Task<AnalysisIndexedGraphRevision> SealAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, AnalysisIoDevices device,
+        SessionIdentity identity, AnalysisPhase phase, NamespaceCoverage coverage, CancellationToken cancellation = default)
+        => await SealAsync(workspace, io, device, _header with { Identity = identity, Phase = phase, Coverage = coverage }, cancellation).ConfigureAwait(false);
+
+    internal async Task<AnalysisIndexedGraphRevision> SealAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, AnalysisIoDevices device,
+        AnalysisIndexedGraphHeader header, CancellationToken cancellation = default)
+    {
+        ArgumentNullException.ThrowIfNull(header);
+        header = header with { Taint = header.Origin == AnalysisOrigin.ImportedInventory ? AnalysisPrivacy.Imported(header.Taint) : AnalysisPrivacy.Join(header.Taint) };
+        var data = await AnalysisIo.Run(io, device, token =>
+        {
+            lock (_gate)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                var start = _header.Identity; var identity = header.Identity;
+                if (identity is null || identity.SessionId != start.SessionId || identity.Epoch != start.Epoch || identity.StartedUtc != start.StartedUtc ||
+                    identity.HostProfile != start.HostProfile || identity.TimeZoneId != start.TimeZoneId || identity.Revision < start.Revision || identity.ObservedUtc < _observed)
+                    throw new InvalidOperationException("An indexed graph cannot change acquisition identity or predate its observations.");
+                if (header.Roots != _header.Roots || header.Policy != _header.Policy || header.Origin != _header.Origin ||
+                    AnalysisPrivacy.Join(header.Taint) != _header.Taint) throw new InvalidOperationException("An indexed graph cannot replace its roots, policy or privacy classification.");
+                var final = header with { DensePathIds = _densePathIds }; final.Validate();
+                if (_sealedHeader is { } prior && prior != final)
+                    throw new InvalidOperationException("A frozen indexed graph cannot be reinterpreted with another header.");
+                _sealedHeader = final;
+                _sealed = true;
+                if (!_tables.Failed) _tables.Publish(token);
+                else throw new IOException("The typed graph tables could not publish together. The prior raw publication remains owned.");
+                return (Header: final, Data: _tables.AcquireCommitted());
+            }
+        }, cancellation).ConfigureAwait(false);
+        return await AnalysisIndexedGraphRevision.BuildAsync(data.Header, data.Data, workspace, io, device, cancellation).ConfigureAwait(false);
+    }
+    private void GuardWriter()
+    { ObjectDisposedException.ThrowIf(_disposed, this); if (_sealed) throw new InvalidOperationException("The indexed graph input is frozen."); }
+    public void Dispose() { lock (_gate) { if (_disposed) return; _disposed = true; _tables.Dispose(); } }
+    internal static InvalidDataException Invalid() => new("Invalid indexed analysis graph relationship.");
+}
+
+/// <summary>Owns one validated immutable prefix and its exact indexes; it has no live filesystem capability.</summary>
+internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
+{
+    internal const int Children = 0, ObjectIds = 1, Aliases = 2, FactOwners = 3, FactIds = 4, IssueOwners = 5, ObjectIdentities = 6, PathIds = 7, TraversalChildren = 8, IndexCount = 9;
+    private readonly object _gate = new();
+    private readonly AnalysisScratchCompositeRevision _data;
+    private readonly AnalysisSortedIndex[] _indexes;
+    private readonly AnalysisScratchWorkspace _workspace;
+    private readonly AnalysisGraphConsumers _consumers = new();
+    private bool _disposed;
+    internal AnalysisIndexedGraphHeader Header { get; private set; }
+    internal AnalysisScratchBudget ScratchReservations => _workspace.ReservationBudget;
+    internal ulong Count(int table) { lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); return _data.Count(table); } }
+    private AnalysisIndexedGraphRevision(AnalysisIndexedGraphHeader header, AnalysisScratchCompositeRevision data, AnalysisSortedIndex[] indexes, AnalysisScratchWorkspace workspace)
+    { Header = header; _data = data; _indexes = indexes; _workspace = workspace; }
+
+    // Consumes data on success OR failure; workspace remains caller owned.
+    internal static async Task<AnalysisIndexedGraphRevision> BuildAsync(AnalysisIndexedGraphHeader header, AnalysisScratchCompositeRevision data,
+        AnalysisScratchWorkspace workspace, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation)
+    {
+        var ownership = new GraphBuildOwnership(data);
+        try
+        {
+            for (int kind = 0; kind < IndexCount; kind++)
+            {
+                using var source = Entries(kind, header.Roots, data, cancellation).GetEnumerator();
+                ownership.Indexes.Add(await AnalysisExternalSort.BuildSparseAsync(workspace, io, device, source, cancellation).ConfigureAwait(false));
+            }
+            ownership.Workspace = workspace.Borrow();
+            var result = new AnalysisIndexedGraphRevision(header, data, ownership.Indexes.ToArray(), ownership.Workspace);
+            var reader = await AnalysisIo.Run(io, device, _ => result.Acquire(), cancellation).ConfigureAwait(false);
+            try { result.Header = await AnalysisIndexedGraphValidation.ValidateAsync(reader, io, device, cancellation).ConfigureAwait(false); }
+            finally { await AnalysisIo.ReleaseScratchAsync(io, device, reader).ConfigureAwait(false); }
+            ownership.Transferred = true; return result;
+        }
+        finally { await AnalysisIo.ReleaseScratchAsync(io, device, ownership).ConfigureAwait(false); }
+    }
+
+    private static IEnumerable<AnalysisSortInput> Entries(int kind, ImmutableArray<RootBinding> roots, AnalysisScratchCompositeRevision data, CancellationToken cancellation)
+    {
+        int table = kind switch { Children or Aliases or PathIds or TraversalChildren => AnalysisIndexedGraph.Paths, ObjectIds or ObjectIdentities => AnalysisIndexedGraph.Objects,
+            FactOwners or FactIds => AnalysisIndexedGraph.Facts, _ => AnalysisIndexedGraph.Issues };
+        for (ulong id = 1, count = data.Count(table); id <= count; id++)
+        {
+            cancellation.ThrowIfCancellationRequested(); byte[] bytes = data.Read(table, id, cancellation);
+            if (table == AnalysisIndexedGraph.Paths)
+            {
+                var path = AnalysisIndexedPathCodec.DecodeRow(bytes, roots);
+                if (kind == Children) yield return new(new(AnalysisGraphKeys.Child(path), id), bytes.Length);
+                else if (kind == TraversalChildren)
+                {
+                    byte[] key = new byte[17]; AnalysisGraphKeys.ChildPrefix(path.RootIndex, path.Node.ParentId).CopyTo(key, 0);
+                    BinaryPrimitives.WriteUInt64BigEndian(key.AsSpan(9), id); yield return new(new(key, id), bytes.Length);
+                }
+                else if (kind == PathIds) yield return new(new(AnalysisGraphKeys.PathId(path.Node.Id), id), bytes.Length);
+                else yield return new(path.Node.ObjectId is { } objectId ? new AnalysisSortEntry(AnalysisGraphKeys.Text(objectId), id) : null, bytes.Length);
+            }
+            else if (table == AnalysisIndexedGraph.Objects)
+            {
+                var obj = AnalysisIndexedValueCodec.DecodeObject(bytes);
+                yield return new(new(kind == ObjectIds ? AnalysisGraphKeys.Text(obj.Id) : AnalysisGraphKeys.ObjectIdentity(obj), id), bytes.Length);
+            }
+            else if (table == AnalysisIndexedGraph.Facts)
+            {
+                var fact = AnalysisIndexedValueCodec.DecodeFact(bytes);
+                yield return new(new(kind == FactIds ? AnalysisGraphKeys.Text(fact.Id) : AnalysisGraphKeys.FactOwner(fact.ObjectId, fact.DirectoryId), id), bytes.Length);
+            }
+            else
+            {
+                var issue = AnalysisIndexedValueCodec.DecodeIssue(bytes);
+                yield return new(new(AnalysisGraphKeys.IssueOwner(issue.NodeId, issue.RootId, roots), id), bytes.Length);
+            }
+        }
+    }
+
+    internal AnalysisIndexedGraphReader Acquire()
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return AnalysisIndexedGraphReader.Open(Header, _consumers.Reserve(), () => _data.Borrow(), i => _indexes[i].Acquire(), () => _workspace.Borrow());
+        }
+    }
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            if (_disposed) return; _disposed = true;
+            try { foreach (var index in _indexes) index.Dispose(); }
+            finally { try { _data.Dispose(); } finally { _workspace.Dispose(); } }
+        }
+    }
+    private sealed class GraphBuildOwnership(AnalysisScratchCompositeRevision data) : IAnalysisScratchOwned
+    {
+        internal readonly List<AnalysisSortedIndex> Indexes = []; internal bool Transferred; internal AnalysisScratchWorkspace? Workspace;
+        public void Dispose() { if (Transferred) return; try { foreach (var index in Indexes) index.Dispose(); } finally { try { data.Dispose(); } finally { Workspace?.Dispose(); } } }
+    }
+}
+
+internal sealed class AnalysisIndexedGraphReader : IAnalysisScratchOwned
+{
+    private readonly object _gate = new(); private bool _disposed;
+    private readonly AnalysisScratchCompositeRevision _data;
+    private readonly AnalysisSortedIndexReader[] _indexes;
+    private readonly AnalysisGraphConsumers.Ticket _consumer;
+    private readonly AnalysisScratchWorkspace _workspace;
+    private sealed record CohortObject(ulong Row, AnalysisObject Object);
+    private CohortObject? _cohortObject;
+    internal AnalysisIndexedGraphHeader Header { get; }
+    internal AnalysisScratchBudget ScratchReservations => _workspace.ReservationBudget;
+    private AnalysisIndexedGraphReader(AnalysisIndexedGraphHeader header, AnalysisGraphConsumers.Ticket consumer,
+        AnalysisScratchCompositeRevision data, AnalysisSortedIndexReader[] indexes, AnalysisScratchWorkspace workspace)
+    { Header = header; _consumer = consumer; _data = data; _indexes = indexes; _workspace = workspace; }
+    internal static AnalysisIndexedGraphReader Open(AnalysisIndexedGraphHeader header, AnalysisGraphConsumers.Ticket consumer,
+        Func<AnalysisScratchCompositeRevision> dataSource, Func<int, AnalysisSortedIndexReader> indexSource, Func<AnalysisScratchWorkspace> workspaceSource)
+    {
+        AnalysisScratchCompositeRevision? data = null; var indexes = new AnalysisSortedIndexReader[AnalysisIndexedGraphRevision.IndexCount]; AnalysisScratchWorkspace? workspace = null;
+        try
+        {
+            data = dataSource(); for (int i = 0; i < indexes.Length; i++) indexes[i] = indexSource(i);
+            workspace = workspaceSource(); return new(header, consumer, data, indexes, workspace);
+        }
+        catch { try { foreach (var index in indexes) index?.Dispose(); } finally { try { data?.Dispose(); } finally { try { workspace?.Dispose(); } finally { consumer.Dispose(); } } } throw; }
+    }
+    internal AnalysisIndexedGraphReader Retain()
+    { lock (_gate) { Guard(); return Open(Header, _consumer.Retain(), () => _data.Borrow(), i => _indexes[i].Retain(), () => _workspace.Borrow()); } }
+    internal AnalysisScratchWorkspace BorrowWorkspace() { lock (_gate) { Guard(); return _workspace.Borrow(); } }
+    internal ulong Count(int table) { lock (_gate) { Guard(); return _data.Count(table); } }
+    internal AnalysisNode ReadPath(ulong id, CancellationToken cancellation = default)
+    { lock (_gate) { Guard(); return ReadPathRecord(id, cancellation).Node; } }
+    internal AnalysisIndexedPathRecord ReadPathRecord(ulong id, CancellationToken cancellation)
+    { lock (_gate) { Guard(); return AnalysisIndexedPathCodec.Decode(_data.Read(AnalysisIndexedGraph.Paths, PathRow(id, cancellation), cancellation), id, Header.Roots); } }
+    internal AnalysisNode ReadPathRow(ulong row, CancellationToken cancellation = default) => ReadPathRowRecord(row, cancellation).Node;
+    internal AnalysisIndexedPathRecord ReadPathRowRecord(ulong row, CancellationToken cancellation = default)
+    { lock (_gate) { Guard(); return AnalysisIndexedPathCodec.DecodeRow(_data.Read(AnalysisIndexedGraph.Paths, row, cancellation), Header.Roots); } }
+    internal ulong? FindPathRow(ulong id, CancellationToken cancellation = default)
+    {
+        lock (_gate)
+        {
+            Guard(); if (id == 0) return null;
+            if (Header.DensePathIds) return id <= Count(AnalysisIndexedGraph.Paths) ? id : null;
+            var range = Find(AnalysisIndexedGraphRevision.PathIds, AnalysisGraphKeys.PathId(id), cancellation: cancellation);
+            if (range.Count == 0) return null;
+            if (range.Count != 1) throw AnalysisIndexedGraph.Invalid();
+            return ReadIndex(AnalysisIndexedGraphRevision.PathIds, range.First, cancellation).Value;
+        }
+    }
+    internal ulong PathRow(ulong id, CancellationToken cancellation = default) => FindPathRow(id, cancellation) ?? throw new ArgumentOutOfRangeException(nameof(id));
+    internal void RequireParent(ulong id, CancellationToken cancellation) { if (id != 0) _ = PathRow(id, cancellation); }
+    internal AnalysisObject ReadObject(ulong row, CancellationToken cancellation = default)
+    {
+        lock (_gate)
+        {
+            Guard(); cancellation.ThrowIfCancellationRequested();
+            return _cohortObject is { } cached && cached.Row == row ? cached.Object :
+                AnalysisIndexedValueCodec.DecodeObject(_data.Read(AnalysisIndexedGraph.Objects, row, cancellation));
+        }
+    }
+    internal ulong ObjectCohortCount => IndexCount(Header.UniqueObjectIdentities ? AnalysisIndexedGraphRevision.ObjectIds : AnalysisIndexedGraphRevision.ObjectIdentities);
+    internal AnalysisSortEntry ReadObjectCohort(ulong position, CancellationToken cancellation)
+    {
+        lock (_gate)
+        {
+            Guard();
+            if (!Header.UniqueObjectIdentities) return ReadIndex(AnalysisIndexedGraphRevision.ObjectIdentities, position, cancellation);
+            // Unique physical identities need no cross-object merge. Visiting object IDs instead
+            // keeps native coalesced objects, facts and aliases near their captured path order.
+            var entry = ReadIndex(AnalysisIndexedGraphRevision.ObjectIds, position, cancellation);
+            var obj = ReadObject(entry.Value, cancellation); _cohortObject = new(entry.Value, obj);
+            return new(AnalysisGraphKeys.ObjectIdentity(obj), entry.Value);
+        }
+    }
+    internal StorageFact ReadFact(ulong row, CancellationToken cancellation = default)
+    { lock (_gate) { Guard(); return AnalysisIndexedValueCodec.DecodeFact(_data.Read(AnalysisIndexedGraph.Facts, row, cancellation)); } }
+    internal AnalysisIssue ReadIssue(ulong row, CancellationToken cancellation = default)
+    { lock (_gate) { Guard(); return AnalysisIndexedValueCodec.DecodeIssue(_data.Read(AnalysisIndexedGraph.Issues, row, cancellation)); } }
+    internal ulong IndexCount(int index) { lock (_gate) { Guard(); return Index(index).Count; } }
+    internal AnalysisSortEntry ReadIndex(int index, ulong row, CancellationToken cancellation = default)
+    { lock (_gate) { Guard(); return Index(index).Read(row, cancellation); } }
+    internal AnalysisIndexRange Find(int index, ReadOnlySpan<byte> key, bool prefix = false, CancellationToken cancellation = default)
+    { lock (_gate) { Guard(); return prefix ? Index(index).PrefixRange(key, cancellation) : Index(index).FindRange(key, cancellation); } }
+    // Related values are paged through ReadIndex then ReadObject/ReadFact/ReadIssue; no alias list is materialized.
+    internal AnalysisIndexRange Children(int rootOrdinal, ulong parent, CancellationToken cancellation = default) =>
+        Find(AnalysisIndexedGraphRevision.Children, AnalysisGraphKeys.ChildPrefix(rootOrdinal, parent), prefix: true, cancellation);
+    internal AnalysisIndexRange TraversalChildren(int rootOrdinal, ulong parent, CancellationToken cancellation = default) =>
+        Find(AnalysisIndexedGraphRevision.TraversalChildren, AnalysisGraphKeys.ChildPrefix(rootOrdinal, parent), prefix: true, cancellation);
+    internal AnalysisIndexRange Aliases(string objectId, CancellationToken cancellation = default) =>
+        Find(AnalysisIndexedGraphRevision.Aliases, AnalysisGraphKeys.Text(objectId), cancellation: cancellation);
+    private AnalysisSortedIndexReader Index(int index)
+    { if ((uint)index >= (uint)_indexes.Length) throw new ArgumentOutOfRangeException(nameof(index)); return _indexes[index]; }
+    private void Guard() => ObjectDisposedException.ThrowIf(_disposed, this);
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            if (_disposed) return; _disposed = true; _cohortObject = null;
+            try { foreach (var index in _indexes) index.Dispose(); }
+            finally { try { _data.Dispose(); } finally { try { _workspace.Dispose(); } finally { _consumer.Dispose(); } } }
+        }
+    }
+}
+
+internal sealed class AnalysisGraphConsumers
+{
+    private readonly object _gate = new(); private int _readers;
+    internal Ticket Reserve()
+    {
+        lock (_gate)
+        {
+            if (_readers >= AnalysisLimits.SnapshotConsumers) throw new IOException("The indexed graph reader limit was reached.");
+            var result = new Ticket(this); _readers++; return result;
+        }
+    }
+    internal sealed class Ticket(AnalysisGraphConsumers owner) : IDisposable
+    {
+        private bool _disposed;
+        internal Ticket Retain() { lock (owner._gate) { ObjectDisposedException.ThrowIf(_disposed, this); return owner.Reserve(); } }
+        public void Dispose() { lock (owner._gate) { if (_disposed) return; _disposed = true; owner._readers--; } }
+    }
+}
+
+internal static class AnalysisGraphKeys
+{
+    internal static byte[] PathId(ulong id)
+    { if (id == 0) throw AnalysisIndexedGraph.Invalid(); var key = new byte[8]; BinaryPrimitives.WriteUInt64BigEndian(key, id); return key; }
+    private static readonly UTF8Encoding Utf8 = new(false, true);
+    internal static byte[] ObjectIdentity(AnalysisObject obj)
+    {
+        string text = obj.VerifiedIdentity ?? obj.Id;
+        if (text is not { Length: > 0 and <= 4096 } || text.Contains('\0')) throw AnalysisIndexedGraph.Invalid();
+        byte[] bytes;
+        try { bytes = Utf8.GetBytes(text); } catch (EncoderFallbackException) { throw AnalysisIndexedGraph.Invalid(); }
+        if (bytes.Length > 4096) throw AnalysisIndexedGraph.Invalid();
+        var key = new byte[bytes.Length + 1]; key[0] = obj.VerifiedIdentity is null ? (byte)1 : (byte)0; bytes.CopyTo(key, 1); return key;
+    }
+    internal static byte[] Text(string text)
+    {
+        if (text is not { Length: > 0 and <= 512 } || text.Contains('\0')) throw AnalysisIndexedGraph.Invalid();
+        try { if (Utf8.GetByteCount(text) > 512) throw AnalysisIndexedGraph.Invalid(); return Utf8.GetBytes(text); }
+        catch (EncoderFallbackException) { throw AnalysisIndexedGraph.Invalid(); }
+    }
+    internal static byte[] ChildPrefix(int root, ulong parent)
+    {
+        if (root is < 0 or >= AnalysisLimits.Roots) throw new ArgumentOutOfRangeException(nameof(root));
+        var key = new byte[9]; key[0] = (byte)root; BinaryPrimitives.WriteUInt64BigEndian(key.AsSpan(1), parent); return key;
+    }
+    internal static byte[] Child(AnalysisIndexedPathRecord path)
+    {
+        var node = path.Node; byte[] raw = node.RawName.IsEmpty ? AnalysisRawNames.Encode(node.NameEncoding, node.Name) : node.RawName.ToArray();
+        byte[] key = new byte[10 + raw.Length]; ChildPrefix(path.RootIndex, node.ParentId).CopyTo(key, 0);
+        key[9] = node.NameEncoding switch { "utf8" => 1, "utf16le" => 2, "unix-bytes" => 3, _ => throw AnalysisIndexedGraph.Invalid() };
+        raw.CopyTo(key, 10); return key;
+    }
+    internal static byte[] FactOwner(string? objectId, ulong? directory)
+    {
+        if ((objectId is null) == (directory is null) || directory == 0) throw AnalysisIndexedGraph.Invalid();
+        if (objectId is { } text) { byte[] id = Text(text); var result = new byte[id.Length + 1]; id.CopyTo(result, 1); return result; }
+        var key = new byte[9]; key[0] = 1; BinaryPrimitives.WriteUInt64BigEndian(key.AsSpan(1), directory!.Value); return key;
+    }
+    internal static byte[] IssueOwner(ulong? node, string? root, ImmutableArray<RootBinding> roots)
+    {
+        if (node is { } id) { if (id == 0) throw AnalysisIndexedGraph.Invalid(); var key = new byte[9]; BinaryPrimitives.WriteUInt64BigEndian(key.AsSpan(1), id); return key; }
+        if (root is null) return [2];
+        for (int i = 0; i < roots.Length; i++) if (roots[i].Id == root) return [1, (byte)i];
+        throw AnalysisIndexedGraph.Invalid();
+    }
+}

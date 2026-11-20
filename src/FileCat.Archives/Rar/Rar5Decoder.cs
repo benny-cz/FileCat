@@ -4,6 +4,9 @@
 
 namespace FileCat.Archives.Rar;
 
+[Flags]
+internal enum Rar5FilterFeatures { None = 0, Delta = 1, E8 = 2, E8E9 = 4, Arm = 8 }
+
 internal sealed class Rar5Decoder : RarDecoder
 {
     private const int MainSize = 306;
@@ -20,14 +23,20 @@ internal sealed class Rar5Decoder : RarDecoder
     private readonly RarHuffman _length = new();
     private readonly long[] _distances = new long[4];
     private int _lastLength;
-    private RarBitReader _input = new();
+    private RarBitReader _input = null!;
     private bool _inBlock;
     private bool _lastBlock;
     private bool _finished;
+    private readonly bool _strict;
+    private readonly CancellationToken _ct;
+    internal Rar5FilterFeatures Filters { get; private set; }
+    public override bool EndsWithMarker => _strict;
 
     /// <param name="rar7">RAR 7's larger distance code (format version 1 in the compression information).</param>
-    public Rar5Decoder(bool rar7)
+    public Rar5Decoder(bool rar7, bool strict = false, CancellationToken ct = default)
     {
+        _strict = strict;
+        _ct = ct;
         _offsetSize = rar7 ? OffsetSize7 : OffsetSize5;
         _lengths = new byte[MainSize + _offsetSize + LowOffsetSize + LengthSize];
     }
@@ -38,6 +47,8 @@ internal sealed class Rar5Decoder : RarDecoder
         _inBlock = false;
         _lastBlock = false;
         _finished = false;
+        _sawHeader = false;
+        Filters = Rar5FilterFeatures.None;
         if (solid) return;
         Array.Clear(_distances);
         _lastLength = 0;
@@ -49,6 +60,7 @@ internal sealed class Rar5Decoder : RarDecoder
     {
         while (window.ShouldDecode)
         {
+            _ct.ThrowIfCancellationRequested();
             if (_finished) return true;
             if (!_inBlock)
             {
@@ -67,6 +79,9 @@ internal sealed class Rar5Decoder : RarDecoder
             }
             if (!_main.TryDecode(_input, out int symbol))
             {
+                // Tolerant browsing may discard an incomplete symbol at a block end. A rewrite catalog must
+                // account for every declared bit and distinguish a truncated physical stream from a block end.
+                if (_strict && !_input.BlockComplete) throw RarData.Corrupt("incomplete RAR 5 block ending");
                 _input.EndBlock();
                 _inBlock = false;
                 continue;
@@ -102,10 +117,12 @@ internal sealed class Rar5Decoder : RarDecoder
     {
         if (!_input.TryReadAlignedByte(out byte flags))
         {
+            if (_strict) throw RarData.Truncated();
             if (!_sawHeader) return false;
             throw RarData.Truncated();
         }
         _sawHeader = true;
+        if (_strict && (flags & 0x20) != 0) throw RarData.Unsupported("unknown RAR 5 block flags");
         int byteCount = ((flags >> 3) & 3) + 1;
         if (byteCount == 4) throw RarData.Corrupt("RAR 5 block header");
         byte checksum = NextHeaderByte();
@@ -219,5 +236,6 @@ internal sealed class Rar5Decoder : RarDecoder
             _ => throw RarData.Unsupported("an unknown RAR 5 filter"),
         };
         window.AddFilter(filter);
+        Filters |= (Rar5FilterFeatures)(1 << type);
     }
 }

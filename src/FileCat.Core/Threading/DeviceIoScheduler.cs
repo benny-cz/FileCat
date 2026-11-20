@@ -36,14 +36,22 @@ public sealed class InlineDispatcher : IUiDispatcher
 /// quarantined, a replacement may start (up to a hard cap), and the device reports "not responding".
 /// Thread usage is bounded per device, not per tab.
 /// </summary>
-public sealed class DeviceIoScheduler : IDisposable
+public sealed partial class DeviceIoScheduler : IDisposable
 {
+    [ThreadStatic] private static bool _isDeviceWorker;
+    [ThreadStatic] private static bool _retireCurrentWorker;
+    internal static bool IsDeviceWorker => _isDeviceWorker;
+    /// <summary>A native thread-policy restoration failed; this thread must execute no further job.</summary>
+    internal static void RetireCurrentWorker() => _retireCurrentWorker = true;
     private readonly ConcurrentDictionary<string, DeviceQueue> _devices = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _watchdog;
+    private readonly CancellationTokenSource _stopping = new();
+    private int _disposeStarted;
     private volatile bool _disposed;
 
     public DeviceIoScheduler(TimeSpan? hangThreshold = null, int threadsPerDevice = 2, int maxThreadsPerDevice = 6)
     {
+        StoppingToken = _stopping.Token;
         HangThreshold = hangThreshold ?? TimeSpan.FromSeconds(8);
         ThreadsPerDevice = Math.Max(1, threadsPerDevice);
         MaxThreadsPerDevice = Math.Max(ThreadsPerDevice, maxThreadsPerDevice);
@@ -54,28 +62,47 @@ public sealed class DeviceIoScheduler : IDisposable
     public int ThreadsPerDevice { get; }
     public int MaxThreadsPerDevice { get; }
     internal TimeSpan IdleQueueTimeout { get; set; } = TimeSpan.FromSeconds(30);
+    internal Action<Thread> StartWorkerThread { get; init; } = static thread => thread.Start();
 
     /// <summary>Shutdown has begun; callers must not publish newly admitted work.</summary>
     public bool IsStopped => _disposed;
+    /// <summary>Opt-in cancellation for bounded asynchronous preparations; synchronous calls retain their owner until return.</summary>
+    public CancellationToken StoppingToken { get; }
 
     /// <summary>Raised (on a pool thread) when a device changes between responsive and not responding.</summary>
     public event Action<string, DeviceHealth>? HealthChanged;
 
     public DeviceHealth GetHealth(string deviceKey) =>
-        _devices.TryGetValue(deviceKey, out var q) ? q.Health : DeviceHealth.Responsive;
+        (_devices.TryGetValue(deviceKey, out var q) && q.Health == DeviceHealth.NotResponding) || ObservedNotResponding(deviceKey)
+            ? DeviceHealth.NotResponding : DeviceHealth.Responsive;
 
     public Task Run(string deviceKey, IoPriority priority, Action<CancellationToken> work, CancellationToken ct = default) =>
         Run<bool>(deviceKey, priority, c => { work(c); return true; }, ct);
 
     /// <summary>Queues work for a device. After shutdown began the work is not run and the task is canceled.</summary>
     public Task<T> Run<T>(string deviceKey, IoPriority priority, Func<CancellationToken, T> work, CancellationToken ct = default)
+        => Enqueue(deviceKey, priority, work, ct, retainRunningOwner: false);
+
+    /// <summary>Queued cancellation is immediate; a started call retains its owner until its delegate returns.</summary>
+    public Task<T> RunOwned<T>(string deviceKey, IoPriority priority, Func<CancellationToken, T> work, CancellationToken ct = default)
+        => Enqueue(deviceKey, priority, work, ct, retainRunningOwner: true);
+
+    private Task<T> Enqueue<T>(string deviceKey, IoPriority priority, Func<CancellationToken, T> work, CancellationToken ct, bool retainRunningOwner)
     {
         // Late requests (a watcher notification posted just before exit) are canceled, not thrown at the UI.
         if (_disposed) return Task.FromCanceled<T>(new CancellationToken(canceled: true));
-        var item = new WorkItem<T>(work, ct);
+        var item = new WorkItem<T>(work, ct, retainRunningOwner);
         // A queue may retire between GetOrAdd and admission. Retry on a fresh queue rather than
         // canceling a live caller or leaving work stranded on a worker that has exited.
-        while (!_devices.GetOrAdd(deviceKey, k => new DeviceQueue(this, k)).Enqueue(item, priority)) { }
+        try
+        {
+            while (!_devices.GetOrAdd(deviceKey, k => new DeviceQueue(this, k)).Enqueue(item, priority)) { }
+        }
+        catch
+        {
+            item.Cancel();
+            throw;
+        }
         return item.Task;
     }
 
@@ -86,19 +113,29 @@ public sealed class DeviceIoScheduler : IDisposable
     {
         if (_disposed) return;
         foreach (var q in _devices.Values) q.Watch();
+        WatchObserved();
     }
 
     internal void RaiseHealth(string key, DeviceHealth health)
     {
-        try { HealthChanged?.Invoke(key, health); }
+        // A queue's return must not announce recovery while another actual operation still holds
+        // this device as a related dependency. Publish the aggregate state at notification time.
+        try { HealthChanged?.Invoke(key, GetHealth(key)); }
         catch (Exception ex) { Debug.WriteLine(ex); }
     }
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposeStarted, 1) != 0) return;
         _disposed = true;
-        _watchdog.Dispose();
-        foreach (var q in _devices.Values) q.Shutdown();
+        try { _stopping.Cancel(); }
+        catch (AggregateException error) { Debug.WriteLine(error); }
+        finally
+        {
+            _watchdog.Dispose();
+            foreach (var q in _devices.Values) q.Shutdown();
+            _stopping.Dispose();
+        }
     }
 
     private abstract class WorkItem
@@ -116,11 +153,13 @@ public sealed class DeviceIoScheduler : IDisposable
         private readonly CancellationToken _ct;
         private readonly TaskCompletionSource<T> _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly CancellationTokenRegistration _reg;
+        private readonly bool _retainRunningOwner;
 
-        public WorkItem(Func<CancellationToken, T> work, CancellationToken ct)
+        public WorkItem(Func<CancellationToken, T> work, CancellationToken ct, bool retainRunningOwner)
         {
             _work = work;
             _ct = ct;
+            _retainRunningOwner = retainRunningOwner;
             if (ct.CanBeCanceled)
             {
                 _reg = ct.Register(static s => ((WorkItem<T>)s!).Cancel(), this);
@@ -160,7 +199,7 @@ public sealed class DeviceIoScheduler : IDisposable
         // Canceling a running item only completes its task; the thread finishes at its own safe boundary.
         public override void Cancel()
         {
-            Interlocked.Exchange(ref _work, null);
+            if (Interlocked.Exchange(ref _work, null) is null && _retainRunningOwner) return;
             _tcs.TrySetCanceled(_ct);
             // Nonblocking: cancellation can be executing this very registration. Do not keep a retired
             // work item rooted in an otherwise live CancellationTokenSource after shutdown/queue drain.
@@ -197,13 +236,14 @@ public sealed class DeviceIoScheduler : IDisposable
                     return true;
                 }
                 if (_shutdown) return false; // idle retirement; the caller retries on a new queue
+                // A pulsed worker still counts as idle until it reacquires this lock. A burst can therefore
+                // outgrow those idle slots before any worker starts its call; admit the remaining capacity now.
+                // Start the worker before publishing the work item. A failed start must not leave the item queued.
+                if (_queue.Count >= _idle && _workers.Count < owner.MaxThreadsPerDevice && ActiveWorkers() < owner.ThreadsPerDevice)
+                    StartWorker();
                 _queue.Enqueue(item, ((int)priority, _seq++));
                 if (Diagnostics.FileCatEventSource.Log.IsEnabled()) Diagnostics.FileCatEventSource.Log.QueueDepth(key, _queue.Count);
                 if (_idle > 0) Monitor.Pulse(_lock);
-                // A pulsed worker still counts as idle until it reacquires this lock. A burst can therefore
-                // outgrow those idle slots before any worker starts its call; admit the remaining capacity now.
-                if (_queue.Count > _idle && _workers.Count < owner.MaxThreadsPerDevice && ActiveWorkers() < owner.ThreadsPerDevice)
-                    StartWorker();
                 return true;
             }
         }
@@ -218,19 +258,33 @@ public sealed class DeviceIoScheduler : IDisposable
         private void StartWorker()
         {
             var w = new Worker();
-            var t = new Thread(() => Loop(w))
+            try
             {
-                IsBackground = true,
-                Name = $"FileCat I/O {key}",
-                Priority = ThreadPriority.Normal,
-            };
-            w.Thread = t;
-            _workers.Add(w);
-            t.Start();
+                var t = new Thread(() => Loop(w))
+                {
+                    IsBackground = true,
+                    Name = $"FileCat I/O {key}",
+                    Priority = ThreadPriority.Normal,
+                };
+                w.Thread = t;
+                _workers.Add(w);
+                owner.StartWorkerThread(t);
+            }
+            catch
+            {
+                _workers.Remove(w);
+                if (_workers.Count == 0 && _queue.Count == 0)
+                {
+                    _shutdown = true;
+                    owner.Forget(key, this);
+                }
+                throw;
+            }
         }
 
         private void Loop(Worker self)
         {
+            _isDeviceWorker = true;
             while (true)
             {
                 WorkItem item;
@@ -275,6 +329,19 @@ public sealed class DeviceIoScheduler : IDisposable
                 lock (_lock)
                 {
                     self.Current = null;
+                    if (_retireCurrentWorker)
+                    {
+                        _workers.Remove(self);
+                        if (_queue.Count > 0 && !_shutdown && _workers.Count < owner.MaxThreadsPerDevice) StartWorker();
+                        else if (_workers.Count == 0 && _queue.Count == 0)
+                        {
+                            _shutdown = true;
+                            owner.Forget(key, this);
+                        }
+                        Debug.WriteLine("FileCat retired an ownership worker after native thread-policy restoration failed.");
+                        UpdateHealthLocked();
+                        return;
+                    }
                     if (self.Quarantined)
                     {
                         // The hung call eventually returned; the thread may rejoin if the pool is short.

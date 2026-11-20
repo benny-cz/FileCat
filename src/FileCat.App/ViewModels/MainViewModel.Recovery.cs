@@ -296,15 +296,18 @@ public sealed partial class MainViewModel
         tab.Refresh();
     }
 
+    internal Func<bool, bool> HasWindowsRecoveryBroker { get; set; } =
+        static portable => FileCat.Platform.Windows.Elevation.ElevationBroker.Locate(portable, out _) is not null;
+
     /// <summary>Why drives cannot be scanned here, or null when they can (FileCat runs as administrator, or its helper can ask).</summary>
     private string? DriveScanProblem()
     {
         if (Services.Recovery.OpenDevice is null)
             return "Scanning drives directly is not available here. Make an image of the drive on another drive (for example with dd), then recover deleted files from the image.";
         if (!OperatingSystem.IsWindows()) return null; // the system asks for approval when the drive is opened
-        if (Environment.IsPrivilegedProcess || FileCat.Platform.Windows.Elevation.ElevationBroker.Locate(Services.Paths.IsPortable, out _) is not null) return null;
+        if (WindowsTokenAuthority.IsHighIntegrity || HasWindowsRecoveryBroker(Services.Paths.IsPortable)) return null;
         return $"Reading a drive needs administrator rights, and {(Services.Paths.IsPortable ? "portable FileCat" : "this FileCat build")} has no installed helper to ask Windows for them. " +
-               "Start FileCat as administrator (right-click it, then Run as administrator) to scan drives, or recover from a disk image of the drive.";
+               "Choose Tools → Open FileCat as administrator and close this window before scanning a drive. You can also recover from a disk image.";
     }
 
     /// <summary>
@@ -312,13 +315,9 @@ public sealed partial class MainViewModel
     /// otherwise through the helper, which Windows asks to approve). With <paramref name="folder"/>, the tab then goes to
     /// that folder, or as close to it as the scan goes.
     /// </summary>
-    internal async Task FindDeletedOnDriveAsync(PanelViewModel panel, DriveTag drive, string? folder, Func<bool?>? otherProcesses = null)
+    internal async Task FindDeletedOnDriveAsync(PanelViewModel panel, DriveTag drive, string? folder, Func<bool?>? otherProcesses = null,
+        string? expectedIdentity = null, string? expectedDevice = null)
     {
-        if (DriveScanProblem() is { } problem)
-        {
-            Notify(problem, true);
-            return;
-        }
         if (drive.DriveType is "Network" or "CD-ROM" or "CDRom" || !drive.Ready)
         {
             Notify($"{drive.RootPath} cannot be scanned for deleted files: only local drives with NTFS, FAT, or exFAT can.", true);
@@ -328,6 +327,11 @@ public sealed partial class MainViewModel
         if (device is null)
         {
             Notify($"{drive.RootPath} is not a local volume FileCat can read directly.", true);
+            return;
+        }
+        if (expectedDevice is not null && !string.Equals(device, expectedDevice, StringComparison.OrdinalIgnoreCase))
+        {
+            Notify("The selected volume changed. Select the drive again.", true);
             return;
         }
         // Retain the selected volume's physical interface before the confirmation/administrator wait.
@@ -345,7 +349,18 @@ public sealed partial class MainViewModel
             Notify($"{drive.RootPath} cannot be scanned: Windows did not provide one backing disk interface and identity FileCat can verify when it opens the volume. Select the drive again.", true);
             return;
         }
+        if (expectedIdentity is not null && !string.Equals(selectedIdentity, expectedIdentity, StringComparison.Ordinal))
+        {
+            Notify("The selected drive’s backing disk changed. Select the drive again.", true);
+            return;
+        }
         string name = $"drive {drive.RootPath.TrimEnd('\\')}" + (string.IsNullOrWhiteSpace(drive.Label) ? "" : $" ({drive.Label})");
+        if (DriveScanProblem() is { } problem)
+        {
+            await OfferAdministratorRecoveryAsync(problem, name, new(AdministratorTaskKind.RecoveryVolume)
+            { Paths = [drive.RootPath], Device = device, Detail = selectedIdentity, Context = folder });
+            return;
+        }
         bool system = string.Equals(Path.GetPathRoot(Environment.SystemDirectory), drive.RootPath, StringComparison.OrdinalIgnoreCase);
         var safety = await Task.Run(() => CheckDiskSafety(device, name, otherProcesses: otherProcesses));
         if (safety.Refusal is not null)
@@ -353,7 +368,7 @@ public sealed partial class MainViewModel
             await RefuseScanAsync(safety);
             return;
         }
-        string how = Environment.IsPrivilegedProcess
+        string how = WindowsTokenAuthority.IsHighIntegrity
             ? "FileCat runs as administrator and reads the drive itself, only reading: FileCat changes nothing on it. "
             : "Windows asks for administrator approval, and FileCat's helper then only reads the drive: FileCat changes nothing on it. ";
         // A drive with a letter is mounted: Windows writes its own pending changes to it, sooner while it is read (release
@@ -385,11 +400,6 @@ public sealed partial class MainViewModel
     /// </summary>
     internal async Task FindDeletedOnDiskAsync(PanelViewModel panel, FileCat.Platform.Windows.Recovery.PhysicalDisk disk, Func<bool?>? otherProcesses = null)
     {
-        if (DriveScanProblem() is { } problem)
-        {
-            Notify(problem, true);
-            return;
-        }
         string? selectedIdentity = FileCat.Platform.Windows.Recovery.SelectedDiskInterfaceSource.WholeDiskSelectionIdentity(disk);
         string? interfacePath = disk.InterfacePath;
         if (selectedIdentity is null || interfacePath is null)
@@ -398,6 +408,12 @@ public sealed partial class MainViewModel
             return;
         }
         string name = $"disk {disk.Number}" + (disk.Model is null ? "" : $" ({disk.Model})");
+        if (DriveScanProblem() is { } problem)
+        {
+            await OfferAdministratorRecoveryAsync(problem, name, new(AdministratorTaskKind.RecoveryDisk)
+            { Device = interfacePath, Detail = selectedIdentity });
+            return;
+        }
         bool system = HoldsWindows(disk);
         // Admission must follow the selected interface that the reader will open, not a reusable disk number.
         var safety = await Task.Run(() => CheckDiskSafety(interfacePath, name, otherProcesses: otherProcesses));
@@ -406,7 +422,7 @@ public sealed partial class MainViewModel
             await RefuseScanAsync(safety);
             return;
         }
-        string how = Environment.IsPrivilegedProcess
+        string how = WindowsTokenAuthority.IsHighIntegrity
             ? "FileCat runs as administrator and reads the disk itself, only reading: FileCat changes nothing on it. "
             : "Windows asks for administrator approval, and FileCat's helper then only reads the disk: FileCat changes nothing on it. ";
         string text = $"Scan {name} for deleted files? The scan lists the disk's partitions, and looks where partitions usually start for ones that were deleted or whose table was lost. " + how +
@@ -427,6 +443,17 @@ public sealed partial class MainViewModel
         // Open the selected PnP link, not its reusable PhysicalDrive number; then compare the held handle's identity.
         panel.OpenTab(Services.Recovery.ForDevice(interfacePath, name, length: disk.Length, identity: selectedIdentity));
         Notify("The disk's partitions are in a new tab, lost ones marked as such: open one, mark what to recover, and copy it (F5) to a folder on another disk.");
+    }
+
+    private async Task OfferAdministratorRecoveryAsync(string problem, string source, AdministratorTask task)
+    {
+        if (Services.Recovery.OpenDevice is null || !CanRequestAdministratorTask)
+        {
+            Notify(problem, true);
+            return;
+        }
+        await RequestAdministratorTaskAsync(task, "Review recovery as administrator",
+            $"Carry {Formatters.SafeName(source)} into the administrator window. Close the original FileCat window before starting the scan.");
     }
 
     /// <summary>
@@ -625,10 +652,16 @@ public sealed partial class MainViewModel
         }
         bool disk = IsWholeSourceChoice(device);
         string name = disk ? $"{(device.IsLayeredVolume ? "mapped source" : "disk")} {device.Name}" + (device.Model is null ? "" : $" ({device.Model})") : $"{device.MountPoints.FirstOrDefault() ?? device.Name} ({device.Name})";
-        bool direct = await Task.Run(() => CanRead(device.Device));
-        string how = direct ? "FileCat can read it with your own rights, and only reads: FileCat changes nothing on it. "
-            : OperatingSystem.IsMacOS() ? "macOS asks for an administrator's password, and FileCat then only reads it: FileCat changes nothing on it. "
-            : "Your system asks for an administrator's password, and FileCat then only reads it: FileCat changes nothing on it. ";
+        bool authorize;
+        try { authorize = await Task.Run(() => NeedsDiskReadApproval(device.Device)); }
+        catch (IOException ex)
+        {
+            Notify($"Could not open {Formatters.SafeName(name)} for reading. {ex.Message}", true);
+            return;
+        }
+        string approval = OperatingSystem.IsMacOS()
+            ? "macOS may ask you to approve read-only access to this device."
+            : "Linux may ask you to approve read-only access to this device.";
         var mounts = disk ? (await Task.Run(UnixDisks.List)).Where(v => v.Disk == device.Device).SelectMany(v => v.MountPoints).ToList() : device.MountPoints.ToList();
         bool system = mounts.Contains("/") || mounts.Contains("/System/Volumes/Data");
         var safety = await Task.Run(() => CheckDiskSafety(device.Device, name, otherProcesses: otherProcesses));
@@ -637,15 +670,17 @@ public sealed partial class MainViewModel
             await RefuseScanAsync(safety);
             return;
         }
-        string text = $"Scan {name} for deleted files? " + (disk ? "The scan lists this source's partitions, and looks where partitions usually start for ones that were deleted or whose table was lost. " : "") + how +
+        string text = $"Scan {name} for deleted files? " + (disk ? "The scan lists this source's partitions, and looks where partitions usually start for ones that were deleted or whose table was lost. " : "") +
+                      (authorize ? approval + " " : "") +
                       (system ? "The system runs from this disk and keeps writing to it, so deleted files can be overwritten at any moment; for the best chance, image the disk from another computer. "
                        : mounts.Count > 0 ? $"It is mounted ({string.Join(", ", mounts)}), so programs can write to it while FileCat reads: unmounting it first keeps it unchanged (its disk stays in this list). " : "") +
                       safety.HeldOff +
                       "The scan opens in a new tab. Recover files to another disk, and write nothing to this one meanwhile.";
         HoldOff(safety);
         if (!await Dialogs.ConfirmReviewAsync("Recover deleted files", text,
-            [$"Source: {Formatters.SafeName(name)}", "FileCat only reads this source; mounted programs may still write to it",
-             "Recover files to another disk; write nothing to this one"], "Scan"))
+            [$"Source: {Formatters.SafeName(name)}", authorize ? approval : "FileCat only reads this source.",
+             "Recover files to another disk. Mounted programs may still write to this one."],
+            authorize ? "Authorize and scan" : "Scan"))
         {
             ReleaseHoldOff();
             return;
@@ -659,17 +694,17 @@ public sealed partial class MainViewModel
             GoToFolderWhenScanned(scan, root, folder[mount.TrimEnd('/').Length..].Trim('/'));
     }
 
-    /// <summary>Whether this user may open the device for reading without asking (root, Linux's disk group, an attached image).</summary>
-    private static bool CanRead(string device)
+    /// <summary>Match the device reader, which asks for authorization only when ordinary access is denied.</summary>
+    private static bool NeedsDiskReadApproval(string device)
     {
         try
         {
             using var handle = File.OpenHandle(device, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            return true;
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-        {
             return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return true;
         }
     }
 

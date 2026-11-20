@@ -47,36 +47,40 @@ public sealed class ComparisonIo(DeviceIoScheduler io, ProviderRegistry provider
         var lp = providers.For(left.Parent);
         var rp = providers.For(right.Parent);
         IContentSource? a = null, b = null;
-        Exception? originalFailure = null;
+        ExceptionDispatchInfo? originalFailure = null;
+        bool? result = null;
         try
         {
             a = await Open(lp, left, ct).ConfigureAwait(false);
-            if (a is null) return null;
-            b = await Open(rp, right, ct).ConfigureAwait(false);
-            if (b is null) return null;
-            return await DirectoryCompare.ContentEqualAsync(() => Run(lp, left.Parent, ct, () => DirectoryCompare.ReadState(a, ct)),
-                () => Run(rp, right.Parent, ct, () => DirectoryCompare.ReadState(b, ct)),
-                (offset, buffer, start) => Run(lp, left.Parent, ct, () => a.Read(offset, buffer.AsSpan(start))),
-                (offset, buffer, start) => Run(rp, right.Parent, ct, () => b.Read(offset, buffer.AsSpan(start))), ct).ConfigureAwait(false);
-        }
-        catch (Exception ex) { originalFailure = ex; throw; }
-        finally
-        {
-            Exception? closeFailure = null;
-            void Close(IContentSource? source)
+            if (a is not null)
             {
-                try { source?.Dispose(); }
-                catch (Exception ex)
-                {
-                    // Retire both owners, but keep the operation error (or the first standalone close error).
-                    if (originalFailure is null && closeFailure is null) closeFailure = ex;
-                    else AppLog.Warn("Could not close comparison content after an earlier failure", ex);
-                }
+                b = await Open(rp, right, ct).ConfigureAwait(false);
+                if (b is not null)
+                    result = await DirectoryCompare.ContentEqualAsync(() => Run(lp, left.Parent, ct, () => DirectoryCompare.ReadState(a, ct)),
+                        () => Run(rp, right.Parent, ct, () => DirectoryCompare.ReadState(b, ct)),
+                        (offset, buffer, start) => Run(lp, left.Parent, ct, () => a.Read(offset, buffer.AsSpan(start))),
+                        (offset, buffer, start) => Run(rp, right.Parent, ct, () => b.Read(offset, buffer.AsSpan(start))), ct).ConfigureAwait(false);
             }
-            Close(b);
-            Close(a);
-            if (closeFailure is not null) ExceptionDispatchInfo.Capture(closeFailure).Throw();
         }
+        catch (Exception ex) { originalFailure = ExceptionDispatchInfo.Capture(ex); }
+        // Report the selected failure through the task's ordinary completion path, after both owners retire.
+        // In particular, do not throw a standalone close failure from an async finally during continuation unwinding.
+        Exception? closeFailure = null;
+        void Close(IContentSource? source)
+        {
+            try { source?.Dispose(); }
+            catch (Exception ex)
+            {
+                // Retire both owners, but keep the operation error (or the first standalone close error).
+                if (originalFailure is null && closeFailure is null) closeFailure = ex;
+                else AppLog.Warn("Could not close comparison content after an earlier failure", ex);
+            }
+        }
+        Close(b);
+        Close(a);
+        originalFailure?.Throw();
+        if (closeFailure is not null) ExceptionDispatchInfo.Capture(closeFailure).Throw();
+        return result;
     }
 
     public Task<bool> EnumerateAsync(ResourceProvider provider, Location location, IEnumerationSink sink, CancellationToken ct)

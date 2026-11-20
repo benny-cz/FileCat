@@ -1,0 +1,9 @@
+{
+  "platform": "mac",
+  "revision": "r1118",
+  "terminalExit": 1,
+  "sessionId": null,
+  "terminalToolChunk": "00586b",
+  "observedUtc": "2026-11-16T14:42:31.085227+00:00",
+  "reason": "Runner combined class and method filters, selecting zero cases; no product acceptance."
+}

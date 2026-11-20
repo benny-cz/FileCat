@@ -1,0 +1,14 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+    FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement [FAIL]
+      The requested view state was not published. The previous view remains displayed. The indexed graph reader limit was reached. Groups: .bin: 303
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Navigation.cs(141,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.Until(Func`1 predicate, Func`1 diagnostic)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(223,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(230,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(230,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement()
+        --- End of stack trace from previous location ---
+  Finished:    FileCat.Rendering.Tests (ID = '80573448a6caa54b88ee6b84eb939e3f56e6566fd81d34242c308802d42e230c')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 124, Errors: 0, Failed: 1, Skipped: 0, Not Run: 0, Time: 47,458s

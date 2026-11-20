@@ -65,6 +65,7 @@
 
 using System;
 using System.Buffers;
+using System.Security.Cryptography;
 using SharpCompress.Algorithms;
 using SharpCompress.Common;
 
@@ -120,6 +121,8 @@ internal sealed class InflateBlocks
     internal int[] tb = new int[1]; // bit length decoding tree
     internal IMemoryOwner<byte> window; // sliding window
     internal int writeAt; // window write pointer
+    private int dictionaryBytes;
+    private long historyOutputBase;
 
     internal InflateBlocks(ZlibCodec codec, object checkfn, int w)
     {
@@ -127,6 +130,7 @@ internal sealed class InflateBlocks
         hufts = ArrayPool<int>.Shared.Rent(MANY * 3);
         Array.Clear(hufts, 0, MANY * 3);
         window = MemoryPool<byte>.Shared.Rent(w);
+        CryptographicOperations.ZeroMemory(window.Memory.Span);
         end = w;
         this.checkfn = checkfn;
         mode = InflateBlockMode.TYPE;
@@ -140,6 +144,8 @@ internal sealed class InflateBlocks
         bitk = 0;
         bitb = 0;
         readAt = writeAt = 0;
+        dictionaryBytes = 0;
+        ResetHistoryOffset();
 
         if (checkfn != null)
         {
@@ -718,6 +724,7 @@ internal sealed class InflateBlocks
     internal void Free()
     {
         Reset();
+        if (window != null) CryptographicOperations.ZeroMemory(window.Memory.Span);
         window?.Dispose();
         window = null;
         if (hufts is not null)
@@ -731,7 +738,18 @@ internal sealed class InflateBlocks
     {
         d.AsSpan(start, n).CopyTo(window.Memory.Span.Slice(0, n));
         readAt = writeAt = n;
+        dictionaryBytes = n;
     }
+
+    // Only bytes already produced (including buffered output), or an explicit preset dictionary, are history.
+    // Wrapping a distance into an uninitialized pooled window can otherwise disclose a previous stream's data.
+    internal bool HasHistory(int distance, int pendingWrite)
+    {
+        int buffered = pendingWrite >= readAt ? pendingWrite - readAt : end - readAt + pendingWrite;
+        long history = Math.Min(end, dictionaryBytes + _codec.TotalBytesOut - historyOutputBase + buffered);
+        return distance > 0 && distance <= history;
+    }
+    internal void ResetHistoryOffset() => historyOutputBase = _codec.TotalBytesOut;
 
     // Returns true if inflate is currently at the end of a block generated
     // by Z_SYNC_FLUSH or Z_FULL_FLUSH.
@@ -1185,6 +1203,8 @@ internal sealed class InflateCodes
                     goto case COPY;
 
                 case COPY: // o: copying bytes in window, waiting for space
+                    if (!blocks.HasHistory(dist, q))
+                    { z.Message = "invalid distance too far back"; mode = BADCODE; break; }
                     f = q - dist;
                     while (f < 0)
                     {
@@ -1465,6 +1485,17 @@ internal sealed class InflateCodes
                             b >>= e;
                             k -= e;
 
+                            if (!s.HasHistory(d, q))
+                            {
+                                z.Message = "invalid distance too far back";
+                                c = z.AvailableBytesIn - n;
+                                c = (k >> 3) < c ? k >> 3 : c;
+                                n += c; p -= c; k -= c << 3;
+                                s.bitb = b; s.bitk = k;
+                                z.AvailableBytesIn = n; z.TotalBytesIn += p - z.NextIn; z.NextIn = p;
+                                s.writeAt = q;
+                                return ZlibConstants.Z_DATA_ERROR;
+                            }
                             // do the copy
                             m -= c;
                             if (q >= d)
@@ -2049,6 +2080,7 @@ internal sealed class InflateManager
         Reset();
         _codec.TotalBytesIn = r;
         _codec.TotalBytesOut = w;
+        blocks.ResetHistoryOffset();
         mode = InflateManagerMode.BLOCKS;
         return ZlibConstants.Z_OK;
     }

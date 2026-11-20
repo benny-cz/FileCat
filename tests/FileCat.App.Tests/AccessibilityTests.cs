@@ -46,12 +46,21 @@ public sealed class AccessibilityTests
 
     internal static (AppServices Services, MainViewModel Vm, MainWindow Window, string Root) OpenMainWindow(
         Remote.Sftp.ISftpConnector? sftp = null, bool nativeWindowsOriginMarks = false,
-        int width = 1200, int height = 800, double? fontSize = null, AppPaths? statePaths = null)
+        int width = 1200, int height = 800, double? fontSize = null, AppPaths? statePaths = null,
+        FileCat.Core.Archives.ArchiveJobBackends? archiveBackends = null,
+        Func<AppPaths,FileCat.Core.FileSystem.IFileSystemOperations,FileCat.Core.Edit.EditSessionStore>? editSessionFactory = null,
+        bool realTemporaryPath = false, FileCat.Core.FileSystem.IStorageTransforms? storageTransforms = null,
+        Action<string>? prepareFiles = null, bool qualifyNativeArm64Storage = false)
     {
-        string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
+        // macOS reaches its temporary folder through /var, a link; native edit storage holds its folder without following
+        // links, so tests of that store ask for the real path (/private/var), as a real home folder is.
+        string temp = Path.GetTempPath();
+        if (realTemporaryPath && OperatingSystem.IsMacOS() && temp.StartsWith("/var/", StringComparison.Ordinal)) temp = "/private" + temp;
+        string root = Path.Combine(temp, "filecat-app-tests", Guid.NewGuid().ToString("N"));
         var folder = Directory.CreateDirectory(Path.Combine(root, "files")).FullName;
         File.WriteAllText(Path.Combine(folder, "a.txt"), "alpha");
         File.WriteAllText(Path.Combine(folder, "b.txt"), "beta");
+        prepareFiles?.Invoke(folder);
         // These origin-mark flows must use an adapter that can actually write the Windows ADS. The usual
         // headless PortablePlatform intentionally has no Windows-specific mark implementation.
         var previousFactory = PlatformFactory.WindowsFactory;
@@ -60,7 +69,11 @@ public sealed class AccessibilityTests
         {
             if (nativeWindowsOriginMarks && OperatingSystem.IsWindows())
                 PlatformFactory.WindowsFactory = () => new WindowsMarkPlatform();
-            services = AppServices.CreateForPaths(statePaths ?? AppPaths.Resolve(overrideRoot: root), sftp);
+            var paths = statePaths ?? AppPaths.Resolve(overrideRoot: root);
+            services = storageTransforms is not null ? AppServices.CreateForPathsWithStorageTransforms(paths, storageTransforms, qualifyNativeArm64Storage)
+                : editSessionFactory is not null ? AppServices.CreateForPathsWithEditSessions(paths,editSessionFactory,sftp,archiveBackends)
+                : archiveBackends is null ? AppServices.CreateForPaths(paths, sftp)
+                : AppServices.CreateForPathsWithArchiveBackends(paths, archiveBackends, sftp);
         }
         finally { PlatformFactory.WindowsFactory = previousFactory; }
         var vm = new MainViewModel(services);

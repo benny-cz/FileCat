@@ -91,7 +91,7 @@ public sealed class EditSessionTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void Reload_ignores_a_session_record_larger_than_the_bounded_metadata_budget(bool linked)
+    public void Reload_keeps_an_oversized_session_visible_for_readonly_recovery(bool linked)
     {
         string root = Path.Combine(_dir.Path, "bounded-sessions");
         string id = Guid.NewGuid().ToString("N");
@@ -117,7 +117,10 @@ public sealed class EditSessionTests : IDisposable
             if (new FileInfo(record).Length > 1024 * 1024)
                 Assert.Skip("This filesystem reports the opened target length for a file symbolic link.");
         }
-        Assert.Empty(store.LoadAll());
+        var recovery=Assert.Single(store.LoadAll());Assert.False(recovery.IsSupported);
+        Assert.Equal(Path.Combine(root,id),recovery.WorkingPath);Assert.NotEmpty(recovery.UnsupportedReason!);
+        Assert.Throws<NotSupportedException>(()=>store.Discard(recovery));
+        Assert.Throws<NotSupportedException>(()=>store.Save(recovery));Assert.True(File.Exists(record));
     }
 
     [Fact]

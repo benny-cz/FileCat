@@ -3,6 +3,15 @@ using FileCat.Core.Resources;
 
 namespace FileCat.Core.Jobs;
 
+/// <summary>A bounded text-output receipt for one Apply Command invocation.</summary>
+public sealed record JobCommandResult(string Path, int? ExitCode, string StandardOutputTail,
+    string StandardErrorTail, bool StandardOutputTruncated, bool StandardErrorTruncated, bool OutputIncomplete)
+{
+    public const int StreamTailCharacterLimit = 2000;
+}
+
+public readonly record struct JobCommandResultTotals(long Total, int Retained, long Omitted);
+
 /// <summary>
 /// A running or finished operation. Counters are updated by the job thread with interlocked writes and
 /// read by the UI at a bounded rate; the UI never receives one notification per byte (PI-01).
@@ -10,16 +19,45 @@ namespace FileCat.Core.Jobs;
 /// </summary>
 public sealed partial class Job
 {
+    private int _admissionSealed, _terminalPublished;
+    internal void SealAdmission() => Volatile.Write(ref _admissionSealed, 1);
+    internal bool TryPublishTerminal() => Interlocked.Exchange(ref _terminalPublished, 1) == 0;
+    private void NotifyChanged()
+    {
+        if (Volatile.Read(ref _admissionSealed) == 0) { Changed?.Invoke(this); return; }
+        if (Changed is not { } handlers) return;
+        foreach (Action<Job> observer in handlers.GetInvocationList())
+            try { observer(this); }
+            catch (Exception error) { Diagnostics.AppLog.Warn("Job observer failed after admission", error); }
+    }
+    private FileCat.Core.Edit.ArchiveEditPublication? _archiveEditPublication;
+    internal FileCat.Core.Edit.ArchiveEditPublication? ArchiveEditPublication => Volatile.Read(ref _archiveEditPublication);
+    internal void RecordArchiveEditPublication(FileCat.Core.Edit.ArchiveEditPublication publication) =>
+        Interlocked.Exchange(ref _archiveEditPublication, publication);
+    private ReviewedAnalysisCopyOperation? _reviewedAnalysisCopy;
+    internal ReviewedAnalysisCopyOperation? ReviewedAnalysisCopy
+    {
+        get => Volatile.Read(ref _reviewedAnalysisCopy);
+        init => _reviewedAnalysisCopy = value;
+    }
+    internal ReviewedAnalysisCopyOperation? TakeReviewedAnalysisCopy() => Interlocked.Exchange(ref _reviewedAnalysisCopy, null);
     private readonly object _lock = new();
     private readonly List<JobIssue> _issues = [];
+    private readonly List<JobCommandResult> _commandResults = [];
+    private long _commandResultTotal;
+    public const int CommandResultLimit = 64;
     private long _issueTotal, _issueInfo, _issueWarnings, _issueErrors;
     private ulong[] _completedRoots = [];
     private ulong[] _failedRoots = [];
     private int _completedRootCount, _failedRootCount;
+    private readonly HashSet<int> _accessDeniedRoots = [];
+    private bool _accessDeniedBeforeTransfer;
+    private long _accessIssueCount, _changedIssueCount;
     private readonly List<UndoStep> _undo = [];
     private readonly ManualResetEventSlim _runGate = new(true);
     private readonly object _startLock = new();
     private readonly CancellationTokenSource _cts = new();
+    private int _cancelRequested;
     private readonly Dictionary<string, Decision> _applyToAll = new(StringComparer.Ordinal);
     private long _bytesTotal, _bytesDone, _itemsTotal, _itemsDone, _itemsFailed, _itemsSkipped;
     private long _verifyTotal, _verifyDone, _settled, _dataBytesProcessed;
@@ -64,6 +102,17 @@ public sealed partial class Job
 
     /// <summary>Raised (on any thread) when state, decision, or issues change. Progress is polled.</summary>
     public event Action<Job>? Changed;
+
+    private int _archivePhase = -1, _cancellationDeferred;
+    /// <summary>The current step of an archive write (plan §11.5), polled like progress; null outside one.</summary>
+    public ArchiveJobPhase? ArchivePhase { get { int value = Volatile.Read(ref _archivePhase); return value < 0 ? null : (ArchiveJobPhase)value; } }
+    /// <summary>
+    /// True during an archive's short publication boundary. The interface then offers no Cancel ("Finishing this archive
+    /// update safely."); a cancellation that still arrives (for example at exit) is reported with the actual outcome.
+    /// </summary>
+    public bool CancellationDeferred => Volatile.Read(ref _cancellationDeferred) != 0;
+    internal void SetArchivePhase(ArchiveJobPhase? phase) => Volatile.Write(ref _archivePhase, phase is { } value ? (int)value : -1);
+    internal void DeferCancellation(bool deferred) => Volatile.Write(ref _cancellationDeferred, deferred ? 1 : 0);
 
     public JobState State => _state;
     public string? CurrentItem => _currentItem;
@@ -110,7 +159,7 @@ public sealed partial class Job
     }
     public PendingDecision? Decision => Volatile.Read(ref _decision);
     public CancellationToken Token => _cts.Token;
-    public bool IsCancellationRequested => _cts.IsCancellationRequested;
+    public bool IsCancellationRequested => Volatile.Read(ref _cancelRequested) != 0 || _cts.IsCancellationRequested;
     public bool IsPaused => !_runGate.IsSet;
 
     public long RateLimit
@@ -176,6 +225,27 @@ public sealed partial class Job
         }
     }
 
+    public JobCommandResultTotals CommandResultTotals
+    {
+        get
+        {
+            lock (_lock) return new JobCommandResultTotals(_commandResultTotal, _commandResults.Count,
+                _commandResultTotal - _commandResults.Count);
+        }
+    }
+
+    /// <summary>Returns a bounded slice of command receipts without copying every retained output.</summary>
+    public IReadOnlyList<JobCommandResult> ReadCommandResults(int start, int maximum)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(start);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximum);
+        lock (_lock)
+        {
+            if (start >= _commandResults.Count) return [];
+            return _commandResults.GetRange(start, Math.Min(maximum, _commandResults.Count - start));
+        }
+    }
+
     /// <summary>Positions in <see cref="JobRequest.Sources"/> of roots whose whole operation committed.</summary>
     public IReadOnlyList<int> CompletedRootIndices
     {
@@ -208,6 +278,22 @@ public sealed partial class Job
         {
             lock (_lock) return _failedRootCount;
         }
+    }
+
+    /// <summary>Transfer roots denied before any item in that root finished. Unrelated failures are excluded.</summary>
+    internal IReadOnlyList<int> AccessDeniedRoots
+    {
+        get { lock (_lock) return _accessDeniedBeforeTransfer ? Enumerable.Range(0, Request.Sources.Count).ToArray() : _accessDeniedRoots.Order().ToArray(); }
+    }
+
+    internal long AccessIssueCount => Interlocked.Read(ref _accessIssueCount);
+    internal long ChangedIssueCount => Interlocked.Read(ref _changedIssueCount);
+
+    internal void RecordTransferAccessDenied(int? rootIndex)
+    {
+        lock (_lock)
+            if (rootIndex is { } index) _accessDeniedRoots.Add(index);
+            else _accessDeniedBeforeTransfer = true;
     }
 
     private static List<int> Positions(ulong[] bits)
@@ -271,51 +357,79 @@ public sealed partial class Job
 
     public void Pause()
     {
-        if (State is not (JobState.Running or JobState.Queued)) return;
-        _runGate.Reset();
-        if (State == JobState.Running) SetState(JobState.Pausing);
+        bool changed = false;
+        lock (_startLock)
+        {
+            if (State is not (JobState.Running or JobState.Queued)) return;
+            _runGate.Reset();
+            if (State == JobState.Running) changed = SetStateCore(JobState.Pausing);
+        }
+        if (changed) NotifyChanged();
     }
 
     public void Resume()
     {
         // A transfer's pace starts again after a pause (TransferPace).
-        Interlocked.Increment(ref _resumes);
-        _runGate.Set();
-        if (State is JobState.Paused or JobState.Pausing) SetState(JobState.Running);
-        else if (State == JobState.Queued) Changed?.Invoke(this); // wake a job paused before its first scheduling pass
+        bool changed;
+        lock (_startLock)
+        {
+            if (State.IsFinished() || IsCancellationRequested) return;
+            Interlocked.Increment(ref _resumes);
+            _runGate.Set();
+            changed = State is JobState.Paused or JobState.Pausing ? SetStateCore(JobState.Running) : State == JobState.Queued;
+        }
+        if (changed) NotifyChanged(); // wake a job paused before its first scheduling pass
     }
 
     /// <summary>Requests cancellation. The job stops at the next safe boundary; cancellation is not rollback (AI-11).</summary>
     public void Cancel()
     {
+        bool changed;
+        PendingDecision? decision;
         lock (_startLock)
         {
             if (State.IsFinished()) return;
-            _cts.Cancel();
+            Volatile.Write(ref _cancelRequested, 1);
             _runGate.Set();
-            Volatile.Read(ref _decision)?.Resolve(new Decision(DecisionAction.CancelJob));
-            if (State is JobState.Running or JobState.AwaitingDecision or JobState.Paused or JobState.Pausing) SetState(JobState.Stopping);
+            decision = Volatile.Read(ref _decision);
+            if (State is JobState.Running or JobState.AwaitingDecision or JobState.Paused or JobState.Pausing) changed = SetStateCore(JobState.Stopping);
             // A queued job never started: the manager finishes it as canceled right away.
-            else if (State == JobState.Queued) Changed?.Invoke(this);
+            else changed = State == JobState.Queued;
         }
+        // Cancellation callbacks and decision continuations can reenter job control. Stop is already visible to
+        // call admission, and neither callback runs while the control lock is held.
+        try { _cts.Cancel(); }
+        catch (AggregateException error) { Diagnostics.AppLog.Warn("Job cancellation callback failed", error); }
+        decision?.Resolve(new Decision(DecisionAction.CancelJob));
+        if (changed) NotifyChanged();
     }
 
     /// <summary>Atomically chooses start or pre-start cancellation at the worker handoff.</summary>
-    internal bool TryStart()
+    internal JobStartDisposition TryStart()
     {
         lock (_startLock)
         {
-            if (_cts.IsCancellationRequested || State != JobState.Queued) return false;
-            SetState(JobState.Running);
-            return true;
+            if (State != JobState.Queued) return JobStartDisposition.AlreadyOwned;
+            if (IsCancellationRequested) return JobStartDisposition.Canceled;
+            if (!_runGate.IsSet) return JobStartDisposition.Paused;
+            SetStateCore(JobState.Running);
         }
+        NotifyChanged();
+        return JobStartDisposition.Started;
     }
 
     // ---- Executor API (job thread) ------------------------------------------------------------------
 
     internal void SetState(JobState state)
     {
-        if (_state == state) return;
+        bool changed;
+        lock (_startLock) changed = SetStateCore(state);
+        if (changed) NotifyChanged();
+    }
+
+    private bool SetStateCore(JobState state)
+    {
+        if (_state == state) return false;
         if (state == JobState.Running)
         {
             StartedUtc ??= DateTime.UtcNow;
@@ -332,19 +446,26 @@ public sealed partial class Job
         // exporting a finished report must never observe a still-running clock.
         _state = state;
         Diagnostics.FileCatEventSource.Log.JobStateChanged(ShortId, state.ToString());
-        Changed?.Invoke(this);
+        return true;
     }
 
     /// <summary>Blocks while paused and throws when canceled. Called at safe boundaries.</summary>
     internal void Checkpoint()
     {
-        if (!_runGate.IsSet)
+        while (true)
         {
-            SetState(JobState.Paused);
+            bool waiting, changed = false;
+            lock (_startLock)
+            {
+                if (IsCancellationRequested) throw new OperationCanceledException(_cts.Token);
+                waiting = !_runGate.IsSet;
+                if (waiting && State is JobState.Running or JobState.Pausing) changed = SetStateCore(JobState.Paused);
+                else if (!waiting && State is JobState.Paused or JobState.Pausing) changed = SetStateCore(JobState.Running);
+            }
+            if (changed) NotifyChanged();
+            if (!waiting) return;
             _runGate.Wait(_cts.Token);
-            if (!_cts.IsCancellationRequested) SetState(JobState.Running);
         }
-        _cts.Token.ThrowIfCancellationRequested();
     }
 
     internal void AddTotals(long items, long bytes)
@@ -418,6 +539,9 @@ public sealed partial class Job
 
     internal void AddIssue(JobIssue issue)
     {
+        if (issue.Cause == "access") Interlocked.Increment(ref _accessIssueCount);
+        if (issue.Outcome is StepOutcome.Committed or StepOutcome.PartiallyApplied or StepOutcome.Uncertain)
+            Interlocked.Increment(ref _changedIssueCount);
         lock (_lock)
         {
             if (_issueTotal < long.MaxValue) _issueTotal++;
@@ -429,7 +553,16 @@ public sealed partial class Job
             }
             if (_issues.Count < 10_000) _issues.Add(issue);
         }
-        Changed?.Invoke(this);
+        NotifyChanged();
+    }
+
+    internal void AddCommandResult(JobCommandResult result)
+    {
+        lock (_lock)
+        {
+            if (_commandResultTotal < long.MaxValue) _commandResultTotal++;
+            if (_commandResults.Count < CommandResultLimit) _commandResults.Add(result);
+        }
     }
 
     /// <summary>Records the outcome of the root at <paramref name="index"/> in the request's sources.</summary>
@@ -475,7 +608,7 @@ public sealed partial class Job
     public void MarkUndone()
     {
         lock (_lock) { _undo.Clear(); _undoConsumed = true; _undoReservation = null; }
-        Changed?.Invoke(this);
+        NotifyChanged();
     }
 
     /// <summary>An administrator retry of this job's failed items was started; it is not offered twice.</summary>
@@ -484,7 +617,13 @@ public sealed partial class Job
     public void MarkRetriedAsAdministrator()
     {
         RetriedAsAdministrator = true;
-        Changed?.Invoke(this);
+        NotifyChanged();
+    }
+
+    internal void AllowAdministratorRetry()
+    {
+        RetriedAsAdministrator = false;
+        NotifyChanged();
     }
 
     /// <summary>Whether a class already has a job-scoped "skip all" answer.</summary>
@@ -502,9 +641,10 @@ public sealed partial class Job
     /// <summary>Asks the user (or a remembered "apply to all" answer) and blocks the job thread until answered.</summary>
     internal Decision Ask(DecisionRequest request)
     {
+        bool canRemember = request is not ConfirmRequest { OffersApplyToAll: false };
         lock (_lock)
         {
-            if (_applyToAll.TryGetValue(request.ClassKey, out var remembered)) return remembered;
+            if (canRemember && _applyToAll.TryGetValue(request.ClassKey, out var remembered)) return remembered;
         }
         var pending = new PendingDecision(this, request);
         Volatile.Write(ref _decision, pending);
@@ -523,7 +663,7 @@ public sealed partial class Job
         {
             Volatile.Write(ref _decision, null);
         }
-        if (d.ApplyToAll && d.Action is not (DecisionAction.CancelJob or DecisionAction.Retry))
+        if (canRemember && d.ApplyToAll && d.Action is not (DecisionAction.CancelJob or DecisionAction.Retry))
         {
             // Scoped to this job and conflict class only; never becomes a global default (plan §9.1).
             lock (_lock) _applyToAll[request.ClassKey] = d;

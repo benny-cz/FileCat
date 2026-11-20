@@ -1,0 +1,45 @@
+using FileCat.Core.Archives;
+using FileCat.Core.Archives.Unix;
+using FileCat.Core.Edit;
+using FileCat.Core.FileSystem;
+using FileCat.Tests;
+
+namespace FileCat.Core.Tests;
+
+[Collection("Native edit snapshot reservations")]
+public sealed class UnixEditSaveCopyPublicationTests
+{
+    public static IEnumerable<object[]> Scenarios()=>ArchiveEditSaveCopyPublicationCases.Scenarios();
+    [Theory,MemberData(nameof(Scenarios))]
+    public void Saved_edit_publication_retains_native_authority_and_durable_outcomes(string scenario)
+        =>Run(scenario);
+    [Fact]
+    public void A_group_writable_destination_keeps_the_copy_unpublished()=>Run("unqualified-namespace");
+
+    private static void Run(string scenario)
+    {
+        if(OperatingSystem.IsWindows())Assert.Skip("Windows native saved-copy publication lane required.");
+        ArchiveEditSaveCopyPublicationCases.Run(scenario,UnixEditDirectoryLease.OpenRoot,new UnixFileOperations(),(path,length)=>
+        {
+            var directory=UnixArchiveDirectory.Open(path);
+            try{var reservation=directory.ReserveArtifact(Guid.NewGuid(),UnixArchiveArtifactKind.Stage,length);
+                return new(directory,directory.CreateArtifact(reservation),reservation,directory,
+                    (nonce,_)=>directory.ReserveArtifact(nonce,UnixArchiveArtifactKind.Manifest,FileCat.Core.Edit.EditSaveCopyRecord.MaximumBytes),
+                    reservation=>directory.CreateArtifact(reservation));}
+            catch{directory.Dispose();throw;}
+        },SharedGroupWritable);
+    }
+    // Debian, Ubuntu and Fedora give each user a private group, and a folder writable by that group alone is as private as
+    // 0755 (UnixArchiveNative.RequireCreationDirectory). The folder therefore becomes writable by a group the user shares
+    // with others, or, for a user in no such group, by everyone.
+    private static void SharedGroupWritable(string folder)
+    {
+        const UnixFileMode groupWrite=UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute|UnixFileMode.GroupWrite;
+        File.SetUnixFileMode(folder,groupWrite);
+        if(!UnixArchiveNative.IsUserPrivateGroupFolder(folder))return;
+        if(UnixArchiveStorageTests.SharedSupplementaryGroup() is { } shared)
+        {Assert.Equal(0,UnixArchiveStorageTests.Chown(folder,uint.MaxValue,shared));File.SetUnixFileMode(folder,groupWrite);}
+        else File.SetUnixFileMode(folder,groupWrite|UnixFileMode.OtherWrite);
+        Assert.False(UnixArchiveNative.IsUserPrivateGroupFolder(folder));
+    }
+}

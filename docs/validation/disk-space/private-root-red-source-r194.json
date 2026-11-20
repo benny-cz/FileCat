@@ -1,0 +1,79 @@
+{
+  "purpose": "Native private-file root exclusion counterexample before the containment fix, corrected native fixture location",
+  "base": "11a03ecd",
+  "sources": [
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisCoordinator.cs",
+      "sha256": "77f387cd2c54c96439ee1746270dba8994b93ad2534d634f5c140afbd9f635cc"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisCoordinator.Indexed.cs",
+      "sha256": "7202e8203bcefb1f7f60ac1f1d5bb8a0b26d9d99c6e723b2ee26b91148c5115e"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDataset.cs",
+      "sha256": "fd6923de894245f89cc69e8ac360e7085006ffa3396b620d74550e9a6ed8de85"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetSummary.cs",
+      "sha256": "9240010fc6cfecf5a059a6a6e6fcadc2880260f37fe2766c5e3e8b9db7abfb60"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedGraph.cs",
+      "sha256": "4830ba6ada66fb2ef14fe867f19d61b1990d15829f949a182aa43f2388948d7d"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObservationWriter.cs",
+      "sha256": "0803aa502ab88a62868476eb68dfaba946fc24c45958808c38d1d175f36d39de"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSourceFrontier.cs",
+      "sha256": "296cc0a1d0242adf8aadd995160f39038af4b4401b7cfe4b76754cd5ef39548e"
+    },
+    {
+      "path": "tests/AnalysisObservationCaptureFixture.cs",
+      "sha256": "bdbfebcbdcf72067925da954f27f6b11e83d19b10af3860d6c60309245d35e1c"
+    },
+    {
+      "path": "tests/AnalysisScratchCrashFixture.cs",
+      "sha256": "fc732fe420b37d75f07acdb6007d7952739fbec6c5b4513d238cbf2f97be6070"
+    },
+    {
+      "path": "tests/AnalysisSourceFrontierFixture.cs",
+      "sha256": "c0b31fa70cb7a9db28e066c4d14926a64ca506a354af2cb99b0395882e035d5b"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.cs",
+      "sha256": "c6835b0793f5d57a2cd0697ab11cc9625aeaabcf360459bdd502ec2e9cb53e1a"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisPrivateRootExclusionTests.cs",
+      "sha256": "cb5d84cec18c54b7e433abd4d079e2e7ff02a5a65223738e04d6366f8d5c2119"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisPrivateStorageTests.Frontier.cs",
+      "sha256": "8fb845ed593d8cc9e8a4de08ccc43cfef32a29bc513ea0e6a6c23d52206009cc"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisSourceFrontierTests.cs",
+      "sha256": "f937ab76d6fb2f809cf394605f48e8480add4323b81f0f79f2e8c0082fb3b2dd"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj",
+      "sha256": "8c1d84cc14593fe4ae52341e3b047dc8af0dcccd0e160f619920a5287b113b30"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.Frontier.cs",
+      "sha256": "3bac9f2b5c1d567eb46a0b00803c308c32ffc88214e8a1158eb0cf034fb68bd7"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.Scratch.cs",
+      "sha256": "f1cf1f5566a58a510d2f09e53bfb1e0d9c04266e4a2254540ef70d730048c842"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj",
+      "sha256": "ccba7fceddc23ac91735256c465f9377e2506222fc9d96c0476b6027f4f463d7"
+    }
+  ],
+  "archive": "e7f2dc029c451894cf5ecdbde8ae9a9851a6f99f56086fe749bea6c710f8e4e7"
+}

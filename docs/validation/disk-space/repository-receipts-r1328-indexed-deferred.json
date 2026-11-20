@@ -1,0 +1,15 @@
+{
+  "originalArchiveSha256": "2ac5887f0303badca8d45c39a816bcb1d973e5d313ce975144e053d05dcc4e34",
+  "repositoryArchiveSha256": "8fd7706a512464107105a1ddcdfba6ecacebf19b17528fd0876caf138f98d88d",
+  "omittedFullDesktopImages": {
+    "mac-native-r1318-results.tgz/compositor-deferred-review-ClassicDark.png": "5f5ac3d0f0ac214c7e352aab986f3fb5338084b5bb4916180a7d3c6d8df639a2",
+    "mac-native-r1318-results.tgz/compositor-deferred-review-Classic.png": "2db024841b302eb34e682fc83238aef6416710795d8ac31818576d7c39a6d25c",
+    "mac-native-r1318-results.tgz/compositor-deferred-review-HighContrast.png": "6c93b942e26c7529e5cec477aaf2c576158d75ae6fc27777a282e2dc673e630f",
+    "mac-native-r1322-results.tgz/compositor-deferred-review-ClassicDark.png": "91425520fdd6055329f757f30cf503d23f12544532ca8e33ac330a9b1b60cd84",
+    "mac-native-r1322-results.tgz/compositor-deferred-review-Classic.png": "ca9f59de5be0db98f2039a08036e0ff087faa0cafbcb3e2af73511313f7e13de",
+    "mac-native-r1322-results.tgz/compositor-deferred-review-HighContrast.png": "96e2ead56a2e09d5728307010eac3e73b3115a29f7455e3ab59107cb13ec90a1",
+    "mac-native-r1326-results.tgz/compositor-deferred-review-ClassicDark.png": "e296822dcbd902155a8858820cadca2690001a9c4b5d4f74032523ecd3941cda",
+    "mac-native-r1326-results.tgz/compositor-deferred-review-Classic.png": "1de46c04b7142ef08a30bb354fd1636502acf1551ff79fd3841d27a6a44f7021",
+    "mac-native-r1326-results.tgz/compositor-deferred-review-HighContrast.png": "b198899279395310f23a2449b42f4892ba166fd18b8de2681b4dcc21d6ee33b5"
+  }
+}

@@ -30,9 +30,11 @@ public static class DirectorySizer
             var dir = stack.Pop();
             try
             {
+                PathUtil.RefuseAmbiguousUnixName(dir);
                 foreach (var info in new DirectoryInfo(dir).EnumerateFileSystemInfos("*", Options))
                 {
                     ct.ThrowIfCancellationRequested();
+                    PathUtil.RefuseAmbiguousUnixName(info.Name);
                     bool isLink = (info.Attributes & FileAttributes.ReparsePoint) != 0;
                     if (info is DirectoryInfo)
                     {

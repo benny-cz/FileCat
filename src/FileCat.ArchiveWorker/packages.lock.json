@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "filecat.archives.writing": {
+        "type": "Project",
+        "dependencies": {
+          "FileCat.Core": "[0.1.0-preview, )",
+          "FileCat.SharpCompress": "[0.1.0-preview, )"
+        }
+      },
+      "filecat.core": {
+        "type": "Project",
+        "dependencies": {
+          "BouncyCastle.Cryptography": "[2.7.0, )"
+        }
+      },
+      "filecat.sharpcompress": {
+        "type": "Project"
+      },
+      "BouncyCastle.Cryptography": {
+        "type": "CentralTransitive",
+        "requested": "[2.7.0, )",
+        "resolved": "2.7.0",
+        "contentHash": "U+12df8UEWHgBi04YVf/Lgi2dy3SItlIYvHjjEVa/BngCQIzDCDRBk50DDByCfDvSbe5pRNFr3b7UrVK2kMcLw=="
+      }
+    },
+    "net10.0/linux-musl-arm64": {}
+  }
+}

@@ -1,0 +1,10 @@
+[
+  {
+    "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Program.cs",
+    "sha256": "8515b79005699eb12314e89eb567bff3d875ba28465043b841ec87dd89a9a32c"
+  },
+  {
+    "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/ReplacementUi.cs",
+    "sha256": "7b95869d5a38c920af6f6685ae7ee30d64b9d3013cb424f1641366cf9a953f82"
+  }
+]

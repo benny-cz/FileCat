@@ -1,0 +1,82 @@
+{
+  "purpose": "Native typed path and lineage storage; not full analysis scale qualification",
+  "archiveSha256": "5308676fa2a8de99aeb4b61568d427a6779f1b22fe1abfe938bb33f40ac17136",
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "architecture": "arm64",
+  "runs": [
+    {
+      "records": 1000000,
+      "processId": 35985,
+      "exitCode": 0,
+      "ownedProcessExited": true,
+      "measurement": {
+        "purpose": "Native typed path/lineage storage only; not source traversal, object/fact/issue indexes, aggregation/query/chart/export or full analysis qualification",
+        "records": 1000000,
+        "nameEncoding": "utf8",
+        "ordinaryNameCharacters": 24,
+        "longNameRawBytes": 65536,
+        "longNameEvery": 1024,
+        "parentDistribution": "binary hierarchy; first half directories, second half files; synthetic observed identities/times and nullable metadata flags",
+        "writeSeconds": 2.9372926,
+        "readSeconds": 1.9196527,
+        "scratchBytes": 186134681,
+        "sampledEveryRecords": 16384,
+        "privateMemoryAvailable": false,
+        "baselinePrivateBytes": null,
+        "sampledPeakPrivateIncrement": null,
+        "privateMemoryBudgetVerified": false,
+        "privateMemoryBasis": "Unavailable from this runtime; working-set samples are not private bytes",
+        "sampledPeakWorkingSetIncrement": 22806528,
+        "verifiedEveryRecord": true,
+        "retainedCheckpointKeptItsCount": true,
+        "inertClassificationPreserved": true,
+        "lineageVerified": true,
+        "checksum": 500000500000,
+        "ownedArtifactsRemoved": true,
+        "foreignNeighborPreserved": true,
+        "remainingQuotaBytes": 0,
+        "passed": true
+      }
+    },
+    {
+      "records": 10000000,
+      "processId": 35999,
+      "exitCode": 0,
+      "ownedProcessExited": true,
+      "measurement": {
+        "purpose": "Native typed path/lineage storage only; not source traversal, object/fact/issue indexes, aggregation/query/chart/export or full analysis qualification",
+        "records": 10000000,
+        "nameEncoding": "utf8",
+        "ordinaryNameCharacters": 24,
+        "longNameRawBytes": 65536,
+        "longNameEvery": 1024,
+        "parentDistribution": "binary hierarchy; first half directories, second half files; synthetic observed identities/times and nullable metadata flags",
+        "writeSeconds": 29.0492895,
+        "readSeconds": 19.4820968,
+        "scratchBytes": 1876657550,
+        "sampledEveryRecords": 16384,
+        "privateMemoryAvailable": false,
+        "baselinePrivateBytes": null,
+        "sampledPeakPrivateIncrement": null,
+        "privateMemoryBudgetVerified": false,
+        "privateMemoryBasis": "Unavailable from this runtime; working-set samples are not private bytes",
+        "sampledPeakWorkingSetIncrement": 23592960,
+        "verifiedEveryRecord": true,
+        "retainedCheckpointKeptItsCount": true,
+        "inertClassificationPreserved": true,
+        "lineageVerified": true,
+        "checksum": 50000005000000,
+        "ownedArtifactsRemoved": true,
+        "foreignNeighborPreserved": true,
+        "remainingQuotaBytes": 0,
+        "passed": true
+      }
+    }
+  ],
+  "hashes": {
+    "FileCat.Core.dll": "0ab70e2a0ccc7aa58122ef7a6e64efacf90c72e6fad244e5dcad983e84139596",
+    "FileCat.CoreCrashHarness.dll": "beb4751de0fa90255f835bd85c7a8902940f6e1b9af1623dce01c071a92482dd",
+    "FileCat.Platform.Windows.dll": "46cce8aa83ac7214fe5f2674c454a9b911a2f5d86fb1df035013918fd7c33b09"
+  },
+  "passed": true
+}

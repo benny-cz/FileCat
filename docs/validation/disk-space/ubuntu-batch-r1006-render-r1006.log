@@ -1,0 +1,91 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+Owned inventory death stage-created, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death stage-flushed, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death review-ready, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death marker-moved, restore=True: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death incoming-published, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death incoming-closed, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death backup-flushed, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death backup-published, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death backup-closed, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death before-switch, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death after-switch, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death main-closed, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death catalog-flushed, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death catalog-published, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death catalog-closed, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death previous-removed, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death marker-removed, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death writer-closed, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death completed, restore=False: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death incoming-published, restore=True: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death incoming-closed, restore=True: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death backup-published, restore=True: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death after-switch, restore=True: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death catalog-published, restore=True: child exited, staging absent, neighbor kept, fresh recovery verified.
+Owned inventory death catalog-closed, restore=True: child exited, staging absent, neighbor kept, fresh recovery verified.
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+  Finished:    FileCat.Rendering.Tests (ID = 'a8581fab97d6f20f140d8632771c8fc1a9f9888ec602647f07b230865d1dc3be')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 410, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 197.900s

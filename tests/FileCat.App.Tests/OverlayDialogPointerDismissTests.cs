@@ -132,6 +132,44 @@ public sealed class OverlayDialogPointerDismissTests
     }
 
     [AvaloniaFact]
+    public async Task Non_dismissable_modal_closes_chooser_on_another_pointer_target()
+    {
+        var (window, host, dialogs) = Open();
+        try
+        {
+            var editor = new TextBox { Text = "{RelativePath}", Width = 260 };
+            var other = new ComboBox { ItemsSource = new[] { "All items", "Selected items" }, Width = 260 };
+            var chooser = new ComboBox { ItemsSource = new[] { "Viewer", "Clipboard", "File" }, Width = 260 };
+            var body = new StackPanel { Spacing = 12, Children = { editor, other, chooser } };
+            var pending = dialogs.ShowCustomAsync("Create file list", body,
+                [new DialogButton("Cancel", "cancel", IsCancel: true)],
+                behavior: new DialogBehavior { DismissOnBackdrop = false });
+            Layout(window);
+
+            chooser.IsDropDownOpen = true;
+            Layout(window);
+            Click(window, Center(editor, window));
+            Assert.False(chooser.IsDropDownOpen);
+            Assert.False(pending.IsCompleted);
+
+            chooser.IsDropDownOpen = true;
+            Layout(window);
+            Click(window, new Point(5, 5));
+            Assert.False(chooser.IsDropDownOpen);
+            Assert.False(pending.IsCompleted);
+
+            chooser.IsDropDownOpen = true;
+            Layout(window);
+            Click(window, Center(other, window));
+            Assert.False(chooser.IsDropDownOpen);
+            Assert.False(pending.IsCompleted);
+            dialogs.CancelAll();
+            Assert.Equal("cancel", await pending.WaitAsync(TimeSpan.FromSeconds(5)));
+        }
+        finally { dialogs.CancelAll(); window.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task Narrow_window_footer_press_outside_modal_cancels_without_invoking_underlying_action()
     {
         // At the minimum window size a dialog can leave a narrow footer strip

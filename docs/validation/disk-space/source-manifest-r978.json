@@ -1,0 +1,954 @@
+{
+  "purpose": "Native window control-event, named replacement, actual widths/text scale/theme and native-file subset; complete plan remains active",
+  "observedUtc": "2026-11-08T02:23:43.050669+00:00",
+  "gitBase": "afdf3bf212c4b58768fb337e1d56847275b114e8",
+  "sources": [
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Program.cs",
+      "sha256": "8515b79005699eb12314e89eb567bff3d875ba28465043b841ec87dd89a9a32c"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/ReplacementUi.cs",
+      "sha256": "7b95869d5a38c920af6f6685ae7ee30d64b9d3013cb424f1641366cf9a953f82"
+    }
+  ],
+  "unchangedProductSourceEvidence": "source-manifest-r967.json",
+  "matrix": {
+    "windows": {
+      "revision": "r975",
+      "cases": 4,
+      "sessionsAtIndexedReview": 8,
+      "sourceUnchanged": true,
+      "postProcesses": [],
+      "nativeWindowVisible": true,
+      "appSha256": "598c0ebbb19924bc9e2e20a0e921c92474e605a9b0a18211c742e53660af1514",
+      "harnessSha256": "08d4c2cf737be51fc81a132ff51d5f8c91bca0aaa60fdbe4617d6e39ead0cc00",
+      "captures": [
+        {
+          "frame": "replacement-memory-keep-ClassicDark.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 1,
+          "windowState": "Normal",
+          "fontSize": 14,
+          "compositorCaptured": false
+        },
+        {
+          "frame": "replacement-memory-keep-Classic.png",
+          "width": 480,
+          "height": 620,
+          "RenderScaling": 1,
+          "windowState": "Normal",
+          "fontSize": 20,
+          "compositorCaptured": false
+        },
+        {
+          "frame": "replacement-memory-keep-HighContrast.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 1,
+          "windowState": "Normal",
+          "fontSize": 20,
+          "compositorCaptured": false
+        },
+        {
+          "frame": "replacement-memory-replace-ClassicDark.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 1,
+          "windowState": "Normal",
+          "fontSize": 14,
+          "compositorCaptured": false
+        },
+        {
+          "frame": "replacement-indexed-keep-ClassicDark.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 1,
+          "windowState": "Normal",
+          "fontSize": 14,
+          "compositorCaptured": false
+        },
+        {
+          "frame": "replacement-indexed-keep-Classic.png",
+          "width": 480,
+          "height": 620,
+          "RenderScaling": 1,
+          "windowState": "Normal",
+          "fontSize": 20,
+          "compositorCaptured": false
+        },
+        {
+          "frame": "replacement-indexed-keep-HighContrast.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 1,
+          "windowState": "Normal",
+          "fontSize": 20,
+          "compositorCaptured": false
+        },
+        {
+          "frame": "replacement-indexed-replace-ClassicDark.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 1,
+          "windowState": "Normal",
+          "fontSize": 14,
+          "compositorCaptured": false
+        }
+      ],
+      "launch": {
+        "childSession": 1,
+        "user": "DESKTOP-A60F1NE\\filecatdsa_r2",
+        "childName": "FileCat",
+        "runnerSession": 1
+      },
+      "linuxRestore": null
+    },
+    "mac": {
+      "revision": "r975",
+      "cases": 4,
+      "sessionsAtIndexedReview": 8,
+      "sourceUnchanged": true,
+      "postProcesses": [],
+      "nativeWindowVisible": true,
+      "appSha256": "598c0ebbb19924bc9e2e20a0e921c92474e605a9b0a18211c742e53660af1514",
+      "harnessSha256": "08d4c2cf737be51fc81a132ff51d5f8c91bca0aaa60fdbe4617d6e39ead0cc00",
+      "captures": [
+        {
+          "frame": "replacement-memory-keep-ClassicDark.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 2,
+          "windowState": "Normal",
+          "fontSize": 14,
+          "compositorCaptured": true
+        },
+        {
+          "frame": "replacement-memory-keep-Classic.png",
+          "width": 480,
+          "height": 620,
+          "RenderScaling": 2,
+          "windowState": "Normal",
+          "fontSize": 20,
+          "compositorCaptured": true
+        },
+        {
+          "frame": "replacement-memory-keep-HighContrast.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 2,
+          "windowState": "Normal",
+          "fontSize": 20,
+          "compositorCaptured": true
+        },
+        {
+          "frame": "replacement-memory-replace-ClassicDark.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 2,
+          "windowState": "Normal",
+          "fontSize": 14,
+          "compositorCaptured": true
+        },
+        {
+          "frame": "replacement-indexed-keep-ClassicDark.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 2,
+          "windowState": "Normal",
+          "fontSize": 14,
+          "compositorCaptured": true
+        },
+        {
+          "frame": "replacement-indexed-keep-Classic.png",
+          "width": 480,
+          "height": 620,
+          "RenderScaling": 2,
+          "windowState": "Normal",
+          "fontSize": 20,
+          "compositorCaptured": true
+        },
+        {
+          "frame": "replacement-indexed-keep-HighContrast.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 2,
+          "windowState": "Normal",
+          "fontSize": 20,
+          "compositorCaptured": true
+        },
+        {
+          "frame": "replacement-indexed-replace-ClassicDark.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 2,
+          "windowState": "Normal",
+          "fontSize": 14,
+          "compositorCaptured": true
+        }
+      ],
+      "launch": null,
+      "linuxRestore": null
+    },
+    "ubuntu": {
+      "revision": "r977",
+      "cases": 4,
+      "sessionsAtIndexedReview": 8,
+      "sourceUnchanged": true,
+      "postProcesses": [],
+      "nativeWindowVisible": true,
+      "appSha256": "598c0ebbb19924bc9e2e20a0e921c92474e605a9b0a18211c742e53660af1514",
+      "harnessSha256": "08d4c2cf737be51fc81a132ff51d5f8c91bca0aaa60fdbe4617d6e39ead0cc00",
+      "captures": [
+        {
+          "frame": "replacement-memory-keep-ClassicDark.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 1,
+          "windowState": "Normal",
+          "fontSize": 14,
+          "compositorCaptured": false
+        },
+        {
+          "frame": "replacement-memory-keep-Classic.png",
+          "width": 480,
+          "height": 620,
+          "RenderScaling": 1,
+          "windowState": "Normal",
+          "fontSize": 20,
+          "compositorCaptured": false
+        },
+        {
+          "frame": "replacement-memory-keep-HighContrast.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 1,
+          "windowState": "Normal",
+          "fontSize": 20,
+          "compositorCaptured": false
+        },
+        {
+          "frame": "replacement-memory-replace-ClassicDark.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 1,
+          "windowState": "Normal",
+          "fontSize": 14,
+          "compositorCaptured": false
+        },
+        {
+          "frame": "replacement-indexed-keep-ClassicDark.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 1,
+          "windowState": "Normal",
+          "fontSize": 14,
+          "compositorCaptured": false
+        },
+        {
+          "frame": "replacement-indexed-keep-Classic.png",
+          "width": 480,
+          "height": 620,
+          "RenderScaling": 1,
+          "windowState": "Normal",
+          "fontSize": 20,
+          "compositorCaptured": false
+        },
+        {
+          "frame": "replacement-indexed-keep-HighContrast.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 1,
+          "windowState": "Normal",
+          "fontSize": 20,
+          "compositorCaptured": false
+        },
+        {
+          "frame": "replacement-indexed-replace-ClassicDark.png",
+          "width": 1100,
+          "height": 620,
+          "RenderScaling": 1,
+          "windowState": "Normal",
+          "fontSize": 14,
+          "compositorCaptured": false
+        }
+      ],
+      "launch": null,
+      "linuxRestore": {
+        "window": "20971539",
+        "pid": 655844,
+        "before": "_NET_WM_STATE(ATOM) = \nWM_NORMAL_HINTS(WM_SIZE_HINTS):\n\t\tprogram specified minimum size: 360 by 360\n\t\tprogram specified resize increment: 1 by 1\n_NET_FRAME_EXTENTS(CARDINAL) = 0, 0, 37, 0\n",
+        "after": "_NET_WM_STATE(ATOM) = \nWM_NORMAL_HINTS(WM_SIZE_HINTS):\n\t\tprogram specified minimum size: 360 by 360\n\t\tprogram specified resize increment: 1 by 1\n_NET_FRAME_EXTENTS(CARDINAL) = 0, 0, 37, 0\n",
+        "initialGeometry": "WINDOW=20971539\nX=14\nY=118\nWIDTH=1180\nHEIGHT=731\nSCREEN=0\n",
+        "resizedGeometry": "WINDOW=20971539\nX=0\nY=106\nWIDTH=1280\nHEIGHT=731\nSCREEN=0\n",
+        "nativeRestoreKeyUsed": false,
+        "nativeResizeRequested": true
+      }
+    }
+  },
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/build-desktop-r966.txt",
+      "sha256": "704fff57e4d7e310815ba2847c1269b9b3bdb44c88eeb33e8010a597b58dd7ad"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/build-desktop-r968.txt",
+      "sha256": "5f49d673cc4be72d202bf903eb23227ba8a96fe0192f3fd85a6d784b64c879e9"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/build-desktop-r969.txt",
+      "sha256": "d1c0c603fc5a769d85f5d8a6aab93879c899a565c48112b19ec068f46098ea1b"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/build-desktop-r971.txt",
+      "sha256": "64887140d4cffb52d947ee54831d590456f9d55f3aa17a80017f9c5ad7ac6e32"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/build-desktop-r974.txt",
+      "sha256": "4174323b656728143cebb8ec4a9b43a1bacbed0d69d04d9cfc738146d3041cfd"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-native-drivers-r978.tgz",
+      "sha256": "2234d79b864e28f22549ad14e1339ac8dcfddc3faa0594619ec910e91770a738"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-native-r970-results.tgz",
+      "sha256": "ce013369362efa12789efc00782660454bb709a717ff4f436927c15fd452bb3b"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-native-r972-results.tgz",
+      "sha256": "94c9fb25545592a05164612fce56dc6de2a3e8fd88f8d50b7e6ab1db0c054442"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-native-r975-results.tgz",
+      "sha256": "eedc4c1a7e4d75fca41f17b1499d5ddbc1366723bb65b5a1217554bbc63d2b93"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-pre-r968.json",
+      "sha256": "02bac689ccd39ad8d40845a8a39f1fb1162aec9e5aff24d13e60cae66eea1ff5"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-pre-r970check.json",
+      "sha256": "01fe524ec483fec788e16d131d9a89c7581749214d55fa853cbd78c38eb80f72"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-pre-r972check.json",
+      "sha256": "fbec1becc8d59784c2ba788f66d490629fabfece7bdabbb91ae98f0f3e1e463e"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-pre-r975check.json",
+      "sha256": "7c4b7d14353a5d1a34d88f98b87103b06631fa39cd5657974513ba452430934b"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r970/desktop.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r970/owned.pid",
+      "sha256": "c2fe3ae358237bcea5bfdaa1fc91e3968b92181b5d1f239505afac6ba96a9085"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r970/report.json",
+      "sha256": "86c6328df3f59132d74cc792f82e8b91542e60490c31b347078e4727dc9f4d7e"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r970/result.json",
+      "sha256": "6f55994bbac45948c93226e233622127a3784364286a359221f0ffd34d987bed"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r972/cache-proof.json",
+      "sha256": "5c819a4b76cd514b340aec09889479f67f4b7445f3d6d79f8b5132da316d8979"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r972/desktop.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r972/owned.pid",
+      "sha256": "a214aee4c62bef18a1412571bbb9f0be8ae3c8edc1fb509534c92d1a6c7ec34f"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r972/replacement-indexed-keep-Classic.png",
+      "sha256": "3ef87198272de0fb44cb5dfac74b4bddbae461f0e73205986136b308be8d0527"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r972/replacement-indexed-keep-ClassicDark.png",
+      "sha256": "8c43b175b3b9d98fdbd97cf00cfd1ad96b534df431a10bba8e150421358705bc"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r972/replacement-indexed-keep-HighContrast.png",
+      "sha256": "c0b01b776ccffe32001c07754eedf680e5a74a517f8ccdd7ca8504809292bc3e"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r972/replacement-indexed-replace-ClassicDark.png",
+      "sha256": "be2b1e43c45cf8ba2550f1fe71519da5e5cacd853363882b46c0344ac8f4fc65"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r972/replacement-memory-keep-Classic.png",
+      "sha256": "482d52673f3bf4cfa8f76d447194173f360c64be77283668146129d90fd7a785"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r972/replacement-memory-keep-ClassicDark.png",
+      "sha256": "1c096c6342ae25c9557f207d3d14b9e5a0c37334502b19166a137dca1abc67a2"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r972/replacement-memory-keep-HighContrast.png",
+      "sha256": "446c5ea197bd84be5f604080b550b66cff8ef2d42308f0fc125f9bbc02069592"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r972/replacement-memory-replace-ClassicDark.png",
+      "sha256": "26721788dfc1846cdd8c5fd7076f6f49d739b58293b7b50b2de46930c6b3ebec"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r972/report.json",
+      "sha256": "a709293dc03e86b120f144450d820eae95e6dd0569733e04482b1979a816649d"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r972/result.json",
+      "sha256": "268067220b2dc9b10349b094452117f4fe9f3c916c856b7204e492cac2c9263e"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r975/cache-proof.json",
+      "sha256": "7aab58113e98e781ffa275e18c1641bc90751a805f321ed15ce1d673ad8cf1a6"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r975/desktop.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r975/owned.pid",
+      "sha256": "044c0fbff77376b0e6c316f2a410c302f0fd06e5aec84e4d48483f59033e351f"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r975/replacement-indexed-keep-Classic.png",
+      "sha256": "14399e49b1f71b118c27c702770a811378b9a5cc79b2682bac9a76bbc3fee04f"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r975/replacement-indexed-keep-ClassicDark.png",
+      "sha256": "c4aae0d4c6bfef9c1dcb98590aa9bb4eb78950d25c3df5e87460ad0ffa0147b1"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r975/replacement-indexed-keep-HighContrast.png",
+      "sha256": "a9e745f2e9cac17369f2d178e5998e6ea7518975f961b6766104dbd251b00fc6"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r975/replacement-indexed-replace-ClassicDark.png",
+      "sha256": "5070a841f2ae35d3e29d3d04f37e94d651d504e670242294d74e25b7ded5837d"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r975/replacement-memory-keep-Classic.png",
+      "sha256": "cc706eb5d9975cb068f6b85cd027952e5cf268b36f6ff2147a5b255901152747"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r975/replacement-memory-keep-ClassicDark.png",
+      "sha256": "c86abd18a3315e6e9c96a0372f2139aa2e41a95a3801f109b3359bb816f3db2f"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r975/replacement-memory-keep-HighContrast.png",
+      "sha256": "1632bfa6a6e285cd4c20746bcbd28661ea1c83428f7d6426607b9c8323db9c4b"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r975/replacement-memory-replace-ClassicDark.png",
+      "sha256": "0c909ed4b11893ed7944a919d8e3cceea0aabb228fb0a6309848bd9b7e01b187"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r975/report.json",
+      "sha256": "d3ee8ac3828c083f9cdc151b08b4c3dc0e1c227d7b5e530642f9dddc8e8a17d1"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/mac-r975/result.json",
+      "sha256": "6586b78300e239c0bb9faf4759073986654d8f181a0254aea81173564529a81d"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/pack-native-r970.json",
+      "sha256": "acb55139b7cf7add6f3c069c024e7f14ae80020e1ac7089e84203350d292ce86"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/pack-native-r972.json",
+      "sha256": "4c3656bd61196cf5f9fdccba05de60bb0886fe42ea87c6626e0a5e97f005f274"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/pack-native-r975.json",
+      "sha256": "5afe4bc9ff981c46c53a411c02b00f4402850e79b1345e20e98f0ab59b8f4db3"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/pack-native-r976.json",
+      "sha256": "1ba1ce71cd4961847c59cfdc02b82ddec150513e28fe444befdadf6b29fd8ecc"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/pack-native-r977.json",
+      "sha256": "afea310e01c2a58b754259aeb07353a718686522604c0589d78552a8f78f2361"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/source-native-r970.json",
+      "sha256": "81aa82af1d3117262938e733972eed824e67bc69b8d87c36f6e89a1fd861c503"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/source-native-r975.json",
+      "sha256": "0194b5fea447c206cb0a0831b43cf52d62708d7c04a8261ae628f9fa2a65f17b"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-native-drivers-r978.tgz",
+      "sha256": "c83ae3c3eec27f9e76a2b210e1faacef90dbbb8e795b9fc1c1dcc7978ab095ac"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-native-r970-results.tgz",
+      "sha256": "a842350bfaae0dbb93f8acae1ec911d25037966f4ca71e29c399586aa823b988"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-native-r972-results.tgz",
+      "sha256": "7abff7c6fcc74e132b928f72b088312ae2c5b998dac89ccdb6aa45ca11611146"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-native-r975-results.tgz",
+      "sha256": "5b4110f5e7c2553db75c5faf47959795b7fb645df8c897eed1dc2fac45e25f08"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-native-r976-results.tgz",
+      "sha256": "b5d8a3131caab670bea2ddde203222a5c6efc412e33be8e50cb940587b2ff684"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-native-r977-results.tgz",
+      "sha256": "401b53b4d27b1ac98f9bc7960483214c4857f6ceeb040291ff650d15372f424c"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-pre-r968.json",
+      "sha256": "ec6c2e5bd7888c32f3bef1da42f8db8c3f8a0b2828505d800e8760728c014514"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-pre-r970check.json",
+      "sha256": "34418f492e2a7a32b3998b7a7af9c843515f7dd2dc4d3847c2d60ac42409decb"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-pre-r972check.json",
+      "sha256": "0b44811aaed77867ee8abd477aa054a8718c18ba99705c188e216e868a54921f"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-pre-r975check.json",
+      "sha256": "a252659b0cd398d947abf35a68a53b3411323377dda2c9c81746007a19fab829"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-pre-r976check.json",
+      "sha256": "fc9f74cdf50bfd2502adbbdee0559607a805e3efed6573d4f6c64e622bd80709"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-pre-r977check.json",
+      "sha256": "3c881b4bd9ef35d44f01e35135df6e63255bf0f8323792b7951800668784ac9b"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r970/desktop.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r970/owned.pid",
+      "sha256": "6e5551871af71f61019b016def24305a43794c28e250d33cab7c7a599373d0a8"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r970/report.json",
+      "sha256": "dd1aea03df66f60045267e08f67bd3293e124941fc068a04a678bfbf2c3bc6f3"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r970/result.json",
+      "sha256": "e67d856a81ddd1bcad133145826e062e53cf817da979a3090a9b6de80b644b4a"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r972/cache-proof.json",
+      "sha256": "cf0110594981d1506b4252e14502c27965eb822611f9180e7ba3e1917fe13ec4"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r972/desktop.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r972/owned.pid",
+      "sha256": "e45f9e9470c722c21a7fbb37b819daa21ad4dfa37ac786de9e6b80b6db22a653"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r972/replacement-indexed-keep-Classic.png",
+      "sha256": "bd44df945a2efde0a9ce7805a0b4951a636dfaaaf84e5658830e20755fb7bbc4"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r972/replacement-indexed-keep-ClassicDark.png",
+      "sha256": "c68a6dd229ef722b7bf98158c5e07f5fd8bc2b026bb9944a92b4050a7cc8e67a"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r972/replacement-indexed-keep-HighContrast.png",
+      "sha256": "97e4d359b7bf02f4944f0843fed256e1456335ad7c1e0f7f7ba77df7e91fed52"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r972/replacement-indexed-replace-ClassicDark.png",
+      "sha256": "e51dc95b715d3719901eee4169bacb3146018e4404013f3b8b19d3f3658c1fcb"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r972/replacement-memory-keep-Classic.png",
+      "sha256": "42eeafcadf5df43f15a907792e64ffc82850516d5488a9dfae2fe733ca3feabd"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r972/replacement-memory-keep-ClassicDark.png",
+      "sha256": "ed74c0bfe7b34ba55d6ee5b132bbe407deb38fb694920ff1dc40f14269d165a8"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r972/replacement-memory-keep-HighContrast.png",
+      "sha256": "359be2e94be2177a8e813dec4cbb5725c4c0b1b1405b7ed52fb46b1d382834c9"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r972/replacement-memory-replace-ClassicDark.png",
+      "sha256": "c0d24e1631f20ebcf4f073e043addf6f0ef0bdfe53d9de0c7d8dba28e357c2be"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r972/report.json",
+      "sha256": "1bfee8353de336e644138b31dbe409437614c459da279e1e0468a4b1ac3f3d0f"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r972/result.json",
+      "sha256": "5f001441212f37d55145264b4c88d1ac40b2079ee706cec68b8bab67620702b9"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r975/cache-proof.json",
+      "sha256": "668b4f95f6bc0e8c46bbebd1104a00cad56e3d19f8dd5f5acf3ba77461067694"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r975/desktop.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r975/owned.pid",
+      "sha256": "2dc2d1d614dea9ff88d3eb091143c463426bc6a28f827721df521d36b475bf7c"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r975/replacement-failure.png",
+      "sha256": "d2d4c48db6b189384cac84c9c9ace198f54307f335fd3964b92d8757eddaa550"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r975/report.json",
+      "sha256": "29cc56006b33ef3dab9bb7a8f22ef194aa0c2025255f7f0bb05a21543716c40c"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r975/result.json",
+      "sha256": "fc65103474155003e4eecb0f367d7ca286dbbf60559309cd5f209b10e74ca8fb"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r976/cache-proof.json",
+      "sha256": "dd075980cae2b4e9dc96053e975d353254ddbcf6c154438b86fa4137fbea487d"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r976/desktop.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r976/owned.pid",
+      "sha256": "2c503eb6267693d5f3ee53b732c122bd9b0abe58f1e516f6cafb8e460a0dab51"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r976/replacement-failure.png",
+      "sha256": "33a0e805d29adab237d086213fb9fdc2ca231004850e2cf91e0eec8e03c1ab0f"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r976/report.json",
+      "sha256": "d3ff5fe8fd71ecd58a03a2be5ec56efe7c3e46ae22222730c8fe7f08faea5328"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r976/result.json",
+      "sha256": "dd40cbcbaa6d40e6b415c3b1d51f6c8ff35ba9262440c375fe3c34b96021197b"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r977/cache-proof.json",
+      "sha256": "f8f53d1e41f2228e2756465c553ae895637e1b60234bf9ec2f30ca24c9a346df"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r977/desktop.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r977/linux-window-before.json",
+      "sha256": "8f0c9e8c4e78de6fa5c746a310b345326a7e1332ecf2fa94028be07cbc743c73"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r977/owned.pid",
+      "sha256": "d0bdfbdf1db224aa56e90551b0911dd0ea15913f8d33ec12e14addd9724b7cbe"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r977/replacement-indexed-keep-Classic.png",
+      "sha256": "3b2368cb2005eeb04ab10ffefea38c5fa3639a97a436b435e1e1c3cc91c4f3b9"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r977/replacement-indexed-keep-ClassicDark.png",
+      "sha256": "58a1c67a806990476520780aedb3c2f4e7a4e50f483c88e8fd4f852eba6a77a3"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r977/replacement-indexed-keep-HighContrast.png",
+      "sha256": "4255418cdccd1461ad1b329d16a8e8eeafec0bfd74f6cbf15bf5241f581b5643"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r977/replacement-indexed-replace-ClassicDark.png",
+      "sha256": "767582a054c7ac726e4b2f1006be44c2b77d0d28e11a5bc6173a65c5e1239896"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r977/replacement-memory-keep-Classic.png",
+      "sha256": "06cd10bb0bd744b4e86c7a29c0c4ffb4a7ad88562572f6301da7c00e75d12c47"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r977/replacement-memory-keep-ClassicDark.png",
+      "sha256": "f24c84d6f92fdfac6f36e1cbe0dedf32ca29bd2c3e10cc9605475665d9516249"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r977/replacement-memory-keep-HighContrast.png",
+      "sha256": "fdbe0a1629018bc01c1c1434fef51c5d0a29171366592a8cc4b4bd8e5633c517"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r977/replacement-memory-replace-ClassicDark.png",
+      "sha256": "0899d59129e4688eca46c9f41583d1c062212346c9f19fd17c762fc9c33bfd1a"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r977/report.json",
+      "sha256": "a7ce6eb1a7919bc71299e1fd98a28eda208e9f6bb83d16e73d306d633830414f"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/ubuntu-r977/result.json",
+      "sha256": "47a0dd1cd314d71ace127a021ba64bb699d021686e4805c41a0eed343d615383"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-native-drivers-r978.tgz",
+      "sha256": "145e56f06f07079fc7e868c6570168c6ebad4950bcfcf2862741ba8ed1d6dce9"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-native-r972-results.tgz",
+      "sha256": "a704779873190b77a5ba7377012d6b147bad523656eb4e5a185c7e5612e5d15b"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-native-r975-results.tgz",
+      "sha256": "da973f912278e880dd50b8ee5513100b9259b3e4b7b494be2fa58dd4f12a3603"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-pre-r968.json",
+      "sha256": "1498fc6cc4f80b216c21afac853606d20416fd8ff34e60fa869806f7ce314e1f"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-pre-r972.json",
+      "sha256": "661569436f93b321d4068ca3fbfa77bd15377022beaabf550822ebbb881fdac3"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-pre-r972check.json",
+      "sha256": "04623c1d7a498d469c8a8c639b01783751eec88654ff2b838cc6c473ffec1918"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-pre-r973.json",
+      "sha256": "0266b327921bed776ff51a5166951d6435773ba42f99f80cb212def1c4ebadbd"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-pre-r975check.json",
+      "sha256": "a6b4dc210b761c720aa0826a6acb2651888348b6e0e02e2437b0da7960236346"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r972/desktop-error.log",
+      "sha256": "63322a569e68b6fe92c15f6d6420ebbd44eb915344c8f2c16d035eeda62f24a2"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r972/desktop.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r972/owned.pid",
+      "sha256": "5784d311c2069c81b24ebfe29d3df0ebad5cfce985d7b70682fdbfdcdfa67897"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r972/result.json",
+      "sha256": "401c0d917a3a1f43e2d16e87cc10aa3f7eec4e92ce1a8f1c4b0d78e87d4953a3"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r975/cache-proof.json",
+      "sha256": "b8de621b114eb25fd8debb16deb9f94c5e4022b5bf2645e2a31ba8d39148598e"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r975/desktop-error.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r975/desktop.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r975/owned.pid",
+      "sha256": "e5dbdb05d7533076e48fbfe43bc8296226fe5da44798ac20ac19c859fd4edde5"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r975/replacement-indexed-keep-Classic.png",
+      "sha256": "274bdec6c896db0a233e8774295dfab026f56562b503a41221227b2e09b75cb2"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r975/replacement-indexed-keep-ClassicDark.png",
+      "sha256": "572357f0eb50e9063d9bdfe7b8edd6d838dc659fa479b39118819df96f6c002c"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r975/replacement-indexed-keep-HighContrast.png",
+      "sha256": "246a00c5cb8d3638b2e87a5d9376002ed3fa5ebb20af4913f6c4c85fcaaab675"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r975/replacement-indexed-replace-ClassicDark.png",
+      "sha256": "70550b1a9e1785b8ecfce047a109d2b2a0544ff87c0f3167c1d2d34786d27c36"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r975/replacement-memory-keep-Classic.png",
+      "sha256": "28383fea11b3764e9f83e28868a6c44643fcabae48d88158afaf0fb30c2de3a4"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r975/replacement-memory-keep-ClassicDark.png",
+      "sha256": "890cbf6bf8f5e5e2a7d8c9c6fb7807665806a42bec9bd02fff50d669237f3aa3"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r975/replacement-memory-keep-HighContrast.png",
+      "sha256": "acb98043f102ebcc2801f451e38f60710f29a9de764d4d05be91ab82e25da38e"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r975/replacement-memory-replace-ClassicDark.png",
+      "sha256": "aedbf595de47dd4e72666fcbc4fe523f7d28aecf5e224b6a0da73542dee2fa03"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r975/report.json",
+      "sha256": "bee66141bb089d680344de1879c8cc87b20027e2c1ce885441ae908dcddd7ccd"
+    },
+    {
+      "path": "docs/validation/disk-space/native-replacement-r978/windows-r975/result.json",
+      "sha256": "8be87a5fd5a4d9de6171ba3e149bc1850ff755eaa4a2fcdd2631f4809a367546"
+    }
+  ],
+  "executedGuestDrivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/native-r978-mac-r970.py",
+      "sha256": "5ca11fb8807e1f6057b8cb93b6e6015231437783431b687f648aeb00785a2d10"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-r978-mac-r972.py",
+      "sha256": "4cdb396e64eca0c3ee6b6c5be4f6f88a8a67ea0a6a01ff80314a4b45ec370009"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-r978-mac-r975.py",
+      "sha256": "81ca2f18b341502691b2c384687e6c417e198365e8ba3037ad51e0fe5ce36268"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-r978-ubuntu-r970.py",
+      "sha256": "5ca11fb8807e1f6057b8cb93b6e6015231437783431b687f648aeb00785a2d10"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-r978-ubuntu-r972.py",
+      "sha256": "4cdb396e64eca0c3ee6b6c5be4f6f88a8a67ea0a6a01ff80314a4b45ec370009"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-r978-ubuntu-r975.py",
+      "sha256": "81ca2f18b341502691b2c384687e6c417e198365e8ba3037ad51e0fe5ce36268"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-r978-ubuntu-r976.py",
+      "sha256": "0161c0896bfaf444e9625e57cc2dd8762d887007b5ca748b77e54c11a6896cdd"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-r978-ubuntu-r977.py",
+      "sha256": "c8568adb677cce1bc72a4391be802ca677661d5a14ee3a75dbec0040e9c70bb8"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-r978-windows-r972.ps1",
+      "sha256": "7e945d757d010f0e25db3416cfa7de4151a787f63b149a47173ea22485667a9a"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-r978-windows-r975.ps1",
+      "sha256": "4a12134514112b2e885e55cba8ce83ffb475dee96942ac34518976a27866c14b"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/collect-native-replacement.ps1",
+      "sha256": "b8090b5e9666b67698458c53b424add5f4534427723520d9917d7af1b276b7d4"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/deploy-native-replacement-windows.ps1",
+      "sha256": "bb0ffcbeb1538fbae2aa39cff232d8789aa3f2712942c026efe8a43c499b32bc"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/deploy-native-replacement.ps1",
+      "sha256": "d00602e59a7542fb9d79274d4c4c6f36530a37d15985c4e1038903807213c653"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-replacement-ui.ps1",
+      "sha256": "e2e7062c243b2cda820d5a0eeb9df7628a61e08f4a24095c961a315005af628d"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-replacement-ui.py",
+      "sha256": "c8568adb677cce1bc72a4391be802ca677661d5a14ee3a75dbec0040e9c70bb8"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/pack-native-replacement.ps1",
+      "sha256": "b2ac8f986bce94419236d3a36a5a49d409cff5ed49ba6b00e7370e7c1f3d896f"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-native-harness-fix.py",
+      "sha256": "59c74185a8ce4c3d910ee658a95e7f7978e53e98cb0ffc964b17760535ebb13f"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/finalize-native-replacement.py",
+      "sha256": "28a55d86a8a7316fb992ca2d2ed939bedd04f87d7641928498f1e14dc9a41e10"
+    }
+  ],
+  "localOnlyCompositorCaptures": [
+    {
+      "path": ".tmp/mac-native-r975-results/compositor-replacement-memory-keep-ClassicDark.png",
+      "sha256": "649f6bdddc0a161df0ce6fbbb5ba8c2f3bf31dc351d4f26c82c5b10ff4d68733",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper",
+      "reasonNotCheckedIn": "Full display includes unrelated background pixels; reviewed locally, unchanged."
+    },
+    {
+      "path": ".tmp/mac-native-r975-results/compositor-replacement-memory-keep-Classic.png",
+      "sha256": "041e27a5d8921439638c1ed00709f01873975ae201cba3110a739f66f2180686",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper",
+      "reasonNotCheckedIn": "Full display includes unrelated background pixels; reviewed locally, unchanged."
+    },
+    {
+      "path": ".tmp/mac-native-r975-results/compositor-replacement-memory-keep-HighContrast.png",
+      "sha256": "2fd906d6f18000cb93b0e997f924999eb6ee9da7e9dedba6091574b94641830b",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper",
+      "reasonNotCheckedIn": "Full display includes unrelated background pixels; reviewed locally, unchanged."
+    },
+    {
+      "path": ".tmp/mac-native-r975-results/compositor-replacement-memory-replace-ClassicDark.png",
+      "sha256": "502570c735fdad27c3c4b62c7e1716825059cb38ebc3a9c351e2bca5cf68ac85",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper",
+      "reasonNotCheckedIn": "Full display includes unrelated background pixels; reviewed locally, unchanged."
+    },
+    {
+      "path": ".tmp/mac-native-r975-results/compositor-replacement-indexed-keep-ClassicDark.png",
+      "sha256": "1ef2d985adeb565d921943a234109423f0952475173e9ad61c02f516c7f48e39",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper",
+      "reasonNotCheckedIn": "Full display includes unrelated background pixels; reviewed locally, unchanged."
+    },
+    {
+      "path": ".tmp/mac-native-r975-results/compositor-replacement-indexed-keep-Classic.png",
+      "sha256": "69d5de012af61f249d359e00a270dff2c61168603a7c416a6d4160d2040f6ac1",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper",
+      "reasonNotCheckedIn": "Full display includes unrelated background pixels; reviewed locally, unchanged."
+    },
+    {
+      "path": ".tmp/mac-native-r975-results/compositor-replacement-indexed-keep-HighContrast.png",
+      "sha256": "7bac778175c7d2bc63091af7c5175e68ffa997a508d537982d3519a35790e8be",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper",
+      "reasonNotCheckedIn": "Full display includes unrelated background pixels; reviewed locally, unchanged."
+    },
+    {
+      "path": ".tmp/mac-native-r975-results/compositor-replacement-indexed-replace-ClassicDark.png",
+      "sha256": "22be6cfaca841a849b154cb02cbf3111dcc9f0bf13a5129aa8f006d6bbfa50a7",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper",
+      "reasonNotCheckedIn": "Full display includes unrelated background pixels; reviewed locally, unchanged."
+    }
+  ],
+  "qualification": {
+    "nativeReplacementControlEventsPassedAllThree": true,
+    "memoryAndIndexedAtCapacity": true,
+    "threeThemesAndLargeTextAt480And1100Widths": true,
+    "macVisualFindingUsesCompositorOnly": true,
+    "fullPhysicalInputQualified": false,
+    "fullAccessibilityQualified": false,
+    "fullDpiDisplayPackageMatrixQualified": false,
+    "fullPersistenceGateQualified": false,
+    "publicFeatureRegistered": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

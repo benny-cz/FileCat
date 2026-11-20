@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native desktop development validation; no capability qualification",
+  "state": "closed",
+  "sourceUnchanged": true,
+  "deadlineClosed": false,
+  "processId": 87290,
+  "platform": "macOS 27.0.1",
+  "architecture": "Arm64",
+  "run": "/Users/benny/FileCatValidation/dsa-native-r970/app/native-validation/dsa-a1463489907b484d80de206a36de9be8",
+  "fixture": "/Users/benny/FileCatValidation/dsa-native-r970/app/native-validation/dsa-a1463489907b484d80de206a36de9be8/fixture",
+  "fixtureRegularPaths": 509,
+  "fixtureLimitations": [],
+  "nativeWindowVisible": false,
+  "lastVisibleWidth": 1180,
+  "lastVisibleHeight": 763,
+  "lastVisibleScale": 2,
+  "lastScreen": {
+    "bounds": "0, 0, 1440, 900",
+    "workingArea": "0, 30, 1440, 791",
+    "Scaling": 1,
+    "position": "130, 30",
+    "frameSize": "1180, 791"
+  },
+  "largeText": false,
+  "compact": false,
+  "sharedProfile": false,
+  "sessions": 0,
+  "createdSessions": 2,
+  "lastObservation": {
+    "Phase": 5,
+    "Status": "Saved Native memory replacement.fcdsa.",
+    "FilterError": null,
+    "Query": "",
+    "Metric": 2,
+    "session": "d1066a17-9239-40eb-a61c-089dc374341a",
+    "Coverage": 0,
+    "Freshness": 0,
+    "hostProfile": "hp1:09aafac100a14817a9e09b5f10bff6ab:darwin-host-uuid:bbbfc482377ae22447928bf7f85f13f150de301c518854ebf7112242cce31e8e",
+    "ContinuityNotice": null,
+    "paths": 518,
+    "objects": 508,
+    "issues": [
+      {
+        "Code": "navigation-link-not-followed",
+        "State": 3
+      }
+    ],
+    "known": "3424256",
+    "unverified": "0",
+    "matchingPaths": 509,
+    "rows": 1,
+    "focus": null,
+    "marked": 0,
+    "basket": 0,
+    "tableSort": 0,
+    "tableDescending": true,
+    "tableRows": [
+      {
+        "Key": "n:1",
+        "Name": "fixture",
+        "value": "3424256",
+        "activeText": "3,3 MiB",
+        "fileSizeText": "2,3 MiB",
+        "state": "Shared links"
+      }
+    ],
+    "breadcrumbs": [
+      {
+        "Key": "scope",
+        "Label": "All locations"
+      }
+    ]
+  },
+  "selectedTab": 0,
+  "tabHeaders": [
+    "Analysis 1",
+    "Analysis 2"
+  ],
+  "appSha256": "598c0ebbb19924bc9e2e20a0e921c92474e605a9b0a18211c742e53660af1514",
+  "harnessSha256": "b5ba5329fb0f05beccc9101142fb6dce091948e8c01b0674eda93f9dea2ce31d",
+  "profileProbe": false,
+  "profileProbeFinished": false,
+  "profileProbeError": null,
+  "profileProbeCaptureError": null,
+  "savedOrderingProbe": null,
+  "acquisitionProbe": null,
+  "indexedProbeRequested": false,
+  "indexedProbeFinished": false,
+  "indexedProbeError": null,
+  "indexedProbe": null,
+  "indexedInventoryProbeRequested": false,
+  "inventoryProbe": null,
+  "memoryFallbackProbeRequested": false,
+  "memoryLifecycleProbeRequested": false,
+  "memoryProbeStage": null,
+  "memoryProbeView": null,
+  "replacementUiProbe": {
+    "finished": true,
+    "passed": false,
+    "cases": [],
+    "error": "System.TimeoutException: The native indexed window did not publish the requested captured view.\n   at DiskSpaceHarness.HarnessApp.ReadyAsync(Func\u00601 condition) in E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\tests\\FileCat.NativeAcceptance\\DiskSpaceHarness\\Indexed.cs:line 100\n   at DiskSpaceHarness.HarnessApp.\u003C\u003Ec__DisplayClass48_1.\u003C\u003CReplacementUiProbeAsync\u003Eg__ExerciseAsync|5\u003Ed.MoveNext() in E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\tests\\FileCat.NativeAcceptance\\DiskSpaceHarness\\ReplacementUi.cs:line 77\n--- End of stack trace from previous location ---\n   at DiskSpaceHarness.HarnessApp.ReplacementUiProbeAsync() in E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\tests\\FileCat.NativeAcceptance\\DiskSpaceHarness\\ReplacementUi.cs:line 40"
+  }
+}

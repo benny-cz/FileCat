@@ -1,0 +1,15 @@
+{
+  "gitBase": "0bb0636c",
+  "purpose": "Rejected alternating-read cache baseline; production cache not changed",
+  "archiveSha256": "e6e4d256a1b6ab05ff0d5db9627f4dafcfb6ed744fe698246c35198225e4f329",
+  "sources": [
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchVector.cs",
+      "sha256": "8f57929c89454ee10adf4ec5975ca4fa14d3799f340cca10159e648c56e978b3"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisScratchVectorTests.cs",
+      "sha256": "668594a25514361b34b626f47dac4e7eff1756db5f79a07b2e8e3f756d77bdef"
+    }
+  ]
+}

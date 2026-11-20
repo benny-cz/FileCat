@@ -1,0 +1,6 @@
+{
+  "pid": 655844,
+  "window": "20971539",
+  "properties": "_NET_WM_STATE(ATOM) = \nWM_NORMAL_HINTS(WM_SIZE_HINTS):\n\t\tprogram specified minimum size: 360 by 360\n\t\tprogram specified resize increment: 1 by 1\n_NET_FRAME_EXTENTS(CARDINAL) = 0, 0, 37, 0\n",
+  "geometry": "WINDOW=20971539\nX=14\nY=118\nWIDTH=1180\nHEIGHT=731\nSCREEN=0\n"
+}

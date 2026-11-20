@@ -21,6 +21,42 @@ public sealed class HexEditorFindControlsTests
     private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
 
     [AvaloniaFact]
+    public async Task Typing_in_hex_editor_finds_without_enter_and_invalid_hex_stays_neutral()
+    {
+        string root = Path.Join(Path.GetTempPath(), "filecat-editor-live-find-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: Path.Join(root, "state")));
+        string path = Path.Join(root, "owned.bin");
+        File.WriteAllBytes(path, "alpha beta alpha"u8.ToArray());
+        Assert.Null(HexEditorWindow.OpenOrActivate(services, path));
+        var editor = Assert.Single(HexEditorWindow.OpenWindows);
+        try
+        {
+            var search = Field<TextBox>(editor, "_search");
+            search.Text = "alpha";
+            await WaitFor(() => search.Classes.Contains("searchFound"));
+            var hex = Field<HexView>(editor, "_hex");
+            Assert.Equal(0, hex.Selection.Start);
+            hex.GoTo(5);
+            Assert.Contains("searchFound", search.Classes);
+            search.Text = "missing";
+            Assert.DoesNotContain("searchFound", search.Classes);
+            await WaitFor(() => search.Classes.Contains("searchMissing"));
+            Field<CheckBox>(editor, "_hexSearch").IsChecked = true;
+            search.Text = "GG";
+            await Task.Delay(300, TestContext.Current.CancellationToken);
+            Assert.DoesNotContain("searchMissing", search.Classes);
+            search.Text = "61 6C";
+            await WaitFor(() => search.Classes.Contains("searchFound"));
+        }
+        finally
+        {
+            editor.CloseNow();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Visible_direction_buttons_report_distinct_visited_matches_and_retire_changed_query()
     {
         string root = Path.Join(Path.GetTempPath(), "filecat-editor-find-controls-" + Guid.NewGuid().ToString("N"));
@@ -72,10 +108,13 @@ public sealed class HexEditorFindControlsTests
             await WaitFor(() => status.Text?.StartsWith($"Found at 0x{first:X}.", StringComparison.Ordinal) == true);
             Assert.Equal("2 distinct matches visited · total not counted", count.Text);
             Click(previous);
-            await WaitFor(() => status.Text?.StartsWith("\"NEEDLE\" was not found before the cursor.",
+            await WaitFor(() => status.Text?.StartsWith($"Wrapped to the end. Found at 0x{second:X}.",
                 StringComparison.Ordinal) == true);
             Assert.Equal("2 distinct matches visited · total not counted", count.Text);
-            Assert.Contains("No earlier match", hex.SemanticStatus);
+            Assert.Contains("Find: " + count.Text, hex.SemanticStatus);
+            Click(next);
+            await WaitFor(() => status.Text?.StartsWith($"Wrapped to the beginning. Found at 0x{first:X}.",
+                StringComparison.Ordinal) == true);
 
             editor.Width = 720;
             editor.Height = 500;

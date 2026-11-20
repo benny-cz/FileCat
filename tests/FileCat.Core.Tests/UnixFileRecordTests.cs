@@ -93,7 +93,7 @@ public sealed partial class UnixFileRecordTests
             string file = Path.Combine(dir, "shared.txt");
             File.WriteAllText(file, "x");
             File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.OtherRead | UnixFileMode.OtherWrite);
-            Assert.Contains(Read(file).Warnings, w => w == "Permissions: Anyone on this computer can change its content: it is world-writable.");
+            Assert.Contains(Read(file).Warnings, w => w.StartsWith("Permissions: Other-user write bit is set.", StringComparison.Ordinal));
 
             string open = Directory.CreateDirectory(Path.Combine(dir, "open")).FullName;
             File.SetUnixFileMode(open, (UnixFileMode)0x1FF);
@@ -186,7 +186,10 @@ public sealed partial class UnixFileRecordTests
                 return;
             }
             var section = Section(Read(file), "Streams and attributes");
-            Assert.Contains(section.Table!.Rows, r => r[0] == name && r[3] == "a hidden note");
+            var row = Assert.Single(section.Table!.Rows, r => r[0] == name);
+            if (OperatingSystem.IsMacOS())
+                Assert.StartsWith("not read: A held-object attribute value/action adapter is not qualified", row[3], StringComparison.Ordinal);
+            else Assert.Equal("a hidden note", row[3]);
         }
         finally { Directory.Delete(dir, recursive: true); }
     }

@@ -1,0 +1,370 @@
+{
+    "purpose":  "Actual Windows memory preparation/scope/retained view/query subset; no physical-input or compositor qualification",
+    "passed":  true,
+    "wireVerification":  {
+                             "counts":  {
+                                            "manifest":  1,
+                                            "object":  4708,
+                                            "path-node":  4719,
+                                            "storage-fact":  4708,
+                                            "issue":  1,
+                                            "coverage":  1
+                                        },
+                             "regularPaths":  4709,
+                             "sha256":  "92cdfff636307dc9e4cec35aa746d8c660f279cdcb16ef23adc15fece7fa75fc",
+                             "originalDensePathIds":  true,
+                             "relationshipsAndTrailerVerified":  true
+                         },
+    "captureSha256":  "613c9209a5323f8a1c24e4092c642050a081833d591df40e1256c884d281431a",
+    "processId":  10456,
+    "finished":  {
+                     "schemaVersion":  1,
+                     "purpose":  "Native desktop development validation; no capability qualification",
+                     "state":  "indexed-probe-finished",
+                     "sourceUnchanged":  null,
+                     "deadlineClosed":  false,
+                     "processId":  10456,
+                     "platform":  "Microsoft Windows 10.0.26340",
+                     "architecture":  "X64",
+                     "run":  "C:\\FileCatDsa20261104R2\\desktop-r462-inventory\\app\\native-validation\\dsa-655418f224e24ecc8dad6baccd765077",
+                     "fixture":  "C:\\FileCatDsa20261104R2\\desktop-r462-inventory\\app\\native-validation\\dsa-655418f224e24ecc8dad6baccd765077\\fixture",
+                     "fixtureRegularPaths":  4709,
+                     "fixtureLimitations":  [
+
+                                            ],
+                     "nativeWindowVisible":  true,
+                     "lastVisibleWidth":  1180,
+                     "lastVisibleHeight":  780,
+                     "lastVisibleScale":  1,
+                     "lastScreen":  {
+                                        "bounds":  "0, 0, 1534, 1193",
+                                        "workingArea":  "0, 0, 1534, 1145",
+                                        "Scaling":  1,
+                                        "position":  "234, 234",
+                                        "frameSize":  "1196, 819"
+                                    },
+                     "largeText":  false,
+                     "compact":  false,
+                     "sharedProfile":  false,
+                     "sessions":  1,
+                     "createdSessions":  0,
+                     "lastObservation":  null,
+                     "selectedTab":  0,
+                     "tabHeaders":  [
+                                        "Analysis 1"
+                                    ],
+                     "appSha256":  "234ec60e0d7477ab11a30a8474629209ee175f23d0600dbaffc84bc2045a10c8",
+                     "harnessSha256":  "e92aaf455600d8ea4fa1b16eb46a46f09693bde05601b941b26b4bf64b2dc6e5",
+                     "profileProbe":  false,
+                     "profileProbeFinished":  false,
+                     "profileProbeError":  null,
+                     "profileProbeCaptureError":  null,
+                     "savedOrderingProbe":  null,
+                     "acquisitionProbe":  null,
+                     "indexedProbeRequested":  true,
+                     "indexedProbeFinished":  true,
+                     "indexedProbeError":  null,
+                     "indexedProbe":  {
+                                          "paths":  4719,
+                                          "objects":  4708,
+                                          "matchingPaths":  4709,
+                                          "known":  "1447784",
+                                          "unverified":  "0",
+                                          "scope":  1,
+                                          "order":  "Name",
+                                          "Descending":  false,
+                                          "displayedIds":  [
+                                                               2,
+                                                               3,
+                                                               4,
+                                                               5,
+                                                               6,
+                                                               7,
+                                                               8,
+                                                               9,
+                                                               10,
+                                                               11,
+                                                               12,
+                                                               13
+                                                           ],
+                                          "displayedNames":  [
+                                                                 ".hidden.bin",
+                                                                 "Aliases",
+                                                                 "Archives",
+                                                                 "large.bin",
+                                                                 "link-outside",
+                                                                 "Package.app",
+                                                                 "Photos",
+                                                                 "report.csv",
+                                                                 "Small files",
+                                                                 "Streamed",
+                                                                 "Unicode",
+                                                                 "zero.bin"
+                                                             ],
+                                          "view":  "Table",
+                                          "namespaceInspected":  true,
+                                          "namespaceEvidence":  "link-outside; Not measured; Not measured; Not counted; Link not followed",
+                                          "sourceCloseFailures":  0,
+                                          "acquisitionOwnerClosed":  true,
+                                          "privateStateSha256":  "31ce11bb13ae70e0487202b726f425c5508b3ef87f5af29d2bc9ee564114757b",
+                                          "profile":  "094ab4f3-77c7-4bc9-a7a4-f14dba8bb07c",
+                                          "scratch":  "C:\\FileCatDsa20261104R2\\desktop-r462-inventory\\app\\native-validation\\dsa-655418f224e24ecc8dad6baccd765077\\data\\scratch\\default\\analysis",
+                                          "nativeDesktopInputQualified":  false
+                                      },
+                     "indexedInventoryProbeRequested":  true,
+                     "inventoryProbe":  {
+                                            "file":  "C:\\FileCatDsa20261104R2\\desktop-r462-inventory\\app\\native-validation\\dsa-655418f224e24ecc8dad6baccd765077\\data\\local\\analysis-snapshots\\Full captured revision.fcdsa",
+                                            "Bytes":  4967885,
+                                            "inventoryId":  "80a1bf4f-36d4-49b2-8aa9-5e39e58baccd",
+                                            "sha256":  "92cdfff636307dc9e4cec35aa746d8c660f279cdcb16ef23adc15fece7fa75fc",
+                                            "Paths":  4719,
+                                            "Objects":  4708,
+                                            "Facts":  4708,
+                                            "SampledIssues":  1,
+                                            "Identity":  {
+                                                             "SessionId":  "7896779e-3f0f-47dd-9ff8-48d142e2bb4d",
+                                                             "Epoch":  1,
+                                                             "Revision":  2,
+                                                             "HostProfile":  "hp1:094ab4f377c74bc9a7a4f14dba8bb07c:windows-hardware-profile:b876c4de962b9c7e3b55bdb006f50acb2d88707288df0ca3ab5ed582f1d441f8",
+                                                             "StartedUtc":  "2026-11-06T19:21:29.7526746+00:00",
+                                                             "ObservedUtc":  "2026-11-06T19:21:30.8687387+00:00",
+                                                             "TimeZoneId":  "Central Europe Standard Time",
+                                                             "HostProfileIdentity":  {
+                                                                                         "ProfileId":  "094ab4f3-77c7-4bc9-a7a4-f14dba8bb07c",
+                                                                                         "Method":  0,
+                                                                                         "HostToken":  "b876c4de962b9c7e3b55bdb006f50acb2d88707288df0ca3ab5ed582f1d441f8",
+                                                                                         "HasHostContext":  true
+                                                                                     }
+                                                         },
+                                            "Taint":  1,
+                                            "Coverage":  0,
+                                            "CoverageDetails":  {
+                                                                    "Observations":  {
+                                                                                         "EnumerationRequested":  9,
+                                                                                         "EnumerationCompleted":  9,
+                                                                                         "EnumerationFailed":  0,
+                                                                                         "DenominatorFinal":  true,
+                                                                                         "Boundaries":  1,
+                                                                                         "ExcludedIssues":  1,
+                                                                                         "FailedIssues":  0,
+                                                                                         "PendingIssues":  0,
+                                                                                         "MeasurementStates":  {
+                                                                                                                   "Known":  4708
+                                                                                                               },
+                                                                                         "IdentityVerifiedPaths":  4709,
+                                                                                         "IdentityUnverifiedPaths":  0,
+                                                                                         "StaleScopeNodes":  [
+
+                                                                                                             ],
+                                                                                         "EnumerationPending":  0,
+                                                                                         "StaleRootIds":  [
+
+                                                                                                          ],
+                                                                                         "BoundaryTotals":  {
+                                                                                                                "NavigationLink":  1
+                                                                                                            },
+                                                                                         "Qualification":  null
+                                                                                     },
+                                                                    "EnumerationKnown":  true,
+                                                                    "EligibleDirectories":  9,
+                                                                    "StaleScopesComplete":  true,
+                                                                    "HasUnlocatedStaleScopes":  false,
+                                                                    "UnscheduledDirectories":  0
+                                                                },
+                                            "privateStateFile":  "C:\\FileCatDsa20261104R2\\desktop-r462-inventory\\app\\native-validation\\dsa-655418f224e24ecc8dad6baccd765077\\data\\local\\analysis-snapshots\\private-state.json",
+                                            "privateStateSha256":  "31ce11bb13ae70e0487202b726f425c5508b3ef87f5af29d2bc9ee564114757b",
+                                            "fullDatasetNotPreview":  true,
+                                            "conflictPreserved":  true,
+                                            "acquisitionOwnerClosedBeforeSave":  true,
+                                            "streamingImportQualified":  false,
+                                            "captureScope":  "Owned FileCat visual tree only; no compositor or physical input qualification"
+                                        },
+                     "memoryFallbackProbeRequested":  false,
+                     "memoryLifecycleProbeRequested":  false,
+                     "memoryProbeStage":  null,
+                     "memoryProbeView":  null
+                 },
+    "ownedProcessExited":  true,
+    "closed":  {
+                   "schemaVersion":  1,
+                   "purpose":  "Native desktop development validation; no capability qualification",
+                   "state":  "closed",
+                   "sourceUnchanged":  true,
+                   "deadlineClosed":  false,
+                   "processId":  10456,
+                   "platform":  "Microsoft Windows 10.0.26340",
+                   "architecture":  "X64",
+                   "run":  "C:\\FileCatDsa20261104R2\\desktop-r462-inventory\\app\\native-validation\\dsa-655418f224e24ecc8dad6baccd765077",
+                   "fixture":  "C:\\FileCatDsa20261104R2\\desktop-r462-inventory\\app\\native-validation\\dsa-655418f224e24ecc8dad6baccd765077\\fixture",
+                   "fixtureRegularPaths":  4709,
+                   "fixtureLimitations":  [
+
+                                          ],
+                   "nativeWindowVisible":  false,
+                   "lastVisibleWidth":  1180,
+                   "lastVisibleHeight":  780,
+                   "lastVisibleScale":  1,
+                   "lastScreen":  {
+                                      "bounds":  "0, 0, 1534, 1193",
+                                      "workingArea":  "0, 0, 1534, 1145",
+                                      "Scaling":  1,
+                                      "position":  "234, 234",
+                                      "frameSize":  "1196, 819"
+                                  },
+                   "largeText":  false,
+                   "compact":  false,
+                   "sharedProfile":  false,
+                   "sessions":  0,
+                   "createdSessions":  0,
+                   "lastObservation":  null,
+                   "selectedTab":  0,
+                   "tabHeaders":  [
+                                      "Analysis 1"
+                                  ],
+                   "appSha256":  "234ec60e0d7477ab11a30a8474629209ee175f23d0600dbaffc84bc2045a10c8",
+                   "harnessSha256":  "e92aaf455600d8ea4fa1b16eb46a46f09693bde05601b941b26b4bf64b2dc6e5",
+                   "profileProbe":  false,
+                   "profileProbeFinished":  false,
+                   "profileProbeError":  null,
+                   "profileProbeCaptureError":  null,
+                   "savedOrderingProbe":  null,
+                   "acquisitionProbe":  null,
+                   "indexedProbeRequested":  true,
+                   "indexedProbeFinished":  true,
+                   "indexedProbeError":  null,
+                   "indexedProbe":  {
+                                        "paths":  4719,
+                                        "objects":  4708,
+                                        "matchingPaths":  4709,
+                                        "known":  "1447784",
+                                        "unverified":  "0",
+                                        "scope":  1,
+                                        "order":  "Name",
+                                        "Descending":  false,
+                                        "displayedIds":  [
+                                                             2,
+                                                             3,
+                                                             4,
+                                                             5,
+                                                             6,
+                                                             7,
+                                                             8,
+                                                             9,
+                                                             10,
+                                                             11,
+                                                             12,
+                                                             13
+                                                         ],
+                                        "displayedNames":  [
+                                                               ".hidden.bin",
+                                                               "Aliases",
+                                                               "Archives",
+                                                               "large.bin",
+                                                               "link-outside",
+                                                               "Package.app",
+                                                               "Photos",
+                                                               "report.csv",
+                                                               "Small files",
+                                                               "Streamed",
+                                                               "Unicode",
+                                                               "zero.bin"
+                                                           ],
+                                        "view":  "Table",
+                                        "namespaceInspected":  true,
+                                        "namespaceEvidence":  "link-outside; Not measured; Not measured; Not counted; Link not followed",
+                                        "sourceCloseFailures":  0,
+                                        "acquisitionOwnerClosed":  true,
+                                        "privateStateSha256":  "31ce11bb13ae70e0487202b726f425c5508b3ef87f5af29d2bc9ee564114757b",
+                                        "profile":  "094ab4f3-77c7-4bc9-a7a4-f14dba8bb07c",
+                                        "scratch":  "C:\\FileCatDsa20261104R2\\desktop-r462-inventory\\app\\native-validation\\dsa-655418f224e24ecc8dad6baccd765077\\data\\scratch\\default\\analysis",
+                                        "nativeDesktopInputQualified":  false
+                                    },
+                   "indexedInventoryProbeRequested":  true,
+                   "inventoryProbe":  {
+                                          "file":  "C:\\FileCatDsa20261104R2\\desktop-r462-inventory\\app\\native-validation\\dsa-655418f224e24ecc8dad6baccd765077\\data\\local\\analysis-snapshots\\Full captured revision.fcdsa",
+                                          "Bytes":  4967885,
+                                          "inventoryId":  "80a1bf4f-36d4-49b2-8aa9-5e39e58baccd",
+                                          "sha256":  "92cdfff636307dc9e4cec35aa746d8c660f279cdcb16ef23adc15fece7fa75fc",
+                                          "Paths":  4719,
+                                          "Objects":  4708,
+                                          "Facts":  4708,
+                                          "SampledIssues":  1,
+                                          "Identity":  {
+                                                           "SessionId":  "7896779e-3f0f-47dd-9ff8-48d142e2bb4d",
+                                                           "Epoch":  1,
+                                                           "Revision":  2,
+                                                           "HostProfile":  "hp1:094ab4f377c74bc9a7a4f14dba8bb07c:windows-hardware-profile:b876c4de962b9c7e3b55bdb006f50acb2d88707288df0ca3ab5ed582f1d441f8",
+                                                           "StartedUtc":  "2026-11-06T19:21:29.7526746+00:00",
+                                                           "ObservedUtc":  "2026-11-06T19:21:30.8687387+00:00",
+                                                           "TimeZoneId":  "Central Europe Standard Time",
+                                                           "HostProfileIdentity":  {
+                                                                                       "ProfileId":  "094ab4f3-77c7-4bc9-a7a4-f14dba8bb07c",
+                                                                                       "Method":  0,
+                                                                                       "HostToken":  "b876c4de962b9c7e3b55bdb006f50acb2d88707288df0ca3ab5ed582f1d441f8",
+                                                                                       "HasHostContext":  true
+                                                                                   }
+                                                       },
+                                          "Taint":  1,
+                                          "Coverage":  0,
+                                          "CoverageDetails":  {
+                                                                  "Observations":  {
+                                                                                       "EnumerationRequested":  9,
+                                                                                       "EnumerationCompleted":  9,
+                                                                                       "EnumerationFailed":  0,
+                                                                                       "DenominatorFinal":  true,
+                                                                                       "Boundaries":  1,
+                                                                                       "ExcludedIssues":  1,
+                                                                                       "FailedIssues":  0,
+                                                                                       "PendingIssues":  0,
+                                                                                       "MeasurementStates":  {
+                                                                                                                 "Known":  4708
+                                                                                                             },
+                                                                                       "IdentityVerifiedPaths":  4709,
+                                                                                       "IdentityUnverifiedPaths":  0,
+                                                                                       "StaleScopeNodes":  [
+
+                                                                                                           ],
+                                                                                       "EnumerationPending":  0,
+                                                                                       "StaleRootIds":  [
+
+                                                                                                        ],
+                                                                                       "BoundaryTotals":  {
+                                                                                                              "NavigationLink":  1
+                                                                                                          },
+                                                                                       "Qualification":  null
+                                                                                   },
+                                                                  "EnumerationKnown":  true,
+                                                                  "EligibleDirectories":  9,
+                                                                  "StaleScopesComplete":  true,
+                                                                  "HasUnlocatedStaleScopes":  false,
+                                                                  "UnscheduledDirectories":  0
+                                                              },
+                                          "privateStateFile":  "C:\\FileCatDsa20261104R2\\desktop-r462-inventory\\app\\native-validation\\dsa-655418f224e24ecc8dad6baccd765077\\data\\local\\analysis-snapshots\\private-state.json",
+                                          "privateStateSha256":  "31ce11bb13ae70e0487202b726f425c5508b3ef87f5af29d2bc9ee564114757b",
+                                          "fullDatasetNotPreview":  true,
+                                          "conflictPreserved":  true,
+                                          "acquisitionOwnerClosedBeforeSave":  true,
+                                          "streamingImportQualified":  false,
+                                          "captureScope":  "Owned FileCat visual tree only; no compositor or physical input qualification"
+                                      },
+                   "memoryFallbackProbeRequested":  false,
+                   "memoryLifecycleProbeRequested":  false,
+                   "memoryProbeStage":  null,
+                   "memoryProbeView":  null
+               },
+    "wireAfterClose":  {
+                           "counts":  {
+                                          "manifest":  1,
+                                          "object":  4708,
+                                          "path-node":  4719,
+                                          "storage-fact":  4708,
+                                          "issue":  1,
+                                          "coverage":  1
+                                      },
+                           "regularPaths":  4709,
+                           "sha256":  "92cdfff636307dc9e4cec35aa746d8c660f279cdcb16ef23adc15fece7fa75fc",
+                           "originalDensePathIds":  true,
+                           "relationshipsAndTrailerVerified":  true
+                       },
+    "privateStateUnchangedAfterClose":  true
+}

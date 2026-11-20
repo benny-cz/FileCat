@@ -14,6 +14,9 @@ internal abstract partial class Filter
         CancellationToken cancellationToken
     )
     {
+        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        if (_isEncoder) throw new NotSupportedException();
+        cancellationToken.ThrowIfCancellationRequested();
         var size = 0;
 
         if (_transformed > 0)

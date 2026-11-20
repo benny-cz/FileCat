@@ -9,10 +9,11 @@
     sbom-<ver>-<rid>-setup-payload.spdx.json  exact self-contained payload + reviewed dependency identities
     sbom-<ver>-<rid>-portable.spdx.json       exact portable payload + reviewed dependency identities
     sbom-<ver>-<rid>-fdd.spdx.json            exact framework-dependent payload + reviewed dependency identities
-  Signing is a release-infrastructure step (SignPath Foundation, ADR-15) applied to these outputs in CI.
+  Signing is a separate release-infrastructure step. This producer currently emits unsigned inputs;
+  no Windows candidate is qualified until a trusted signing provider and final-byte pipeline pass.
 #>
 param(
-    [string]$Version = "0.1.0-preview",
+    [string]$Version = "1.0.0-dev",
     [string]$ProductVersion,
     [string]$CandidateRef,
     [string]$Runtime = "win-x64",
@@ -105,7 +106,7 @@ if ($LASTEXITCODE -ne 0) { throw "framework-dependent Shell helper publish faile
 # A notice folder whose SHA256SUMS has the reviewed hash and lists exactly its other files, each with its bytes.
 function Assert-PinnedNotices([string]$Folder, [string]$Name) {
     $sums = Join-Path $Folder 'SHA256SUMS'
-    if ((Get-FileHash -Algorithm SHA256 -LiteralPath $sums).Hash -ne 'DA9014FB8D4AF0CAB6BA4E19E1BD03BD88EA4F649E4DC1AC45CDD105C532CE8B') {
+    if ((Get-FileHash -Algorithm SHA256 -LiteralPath $sums).Hash -ne 'B036603DAC3E8D14A520DEFDB0545DA9DB8F384808F97CFBDF877E70CB05807C') {
         throw "$Name/SHA256SUMS differs from the reviewed notice set"
     }
     $expected = @{}

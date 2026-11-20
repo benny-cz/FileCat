@@ -1,0 +1,82 @@
+[
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Reports.cs",
+    "sha256": "1d0f3b775c24a89675081ef752798a43eac723659e2af8a007738114c5eda4ee"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisCapturedDatasetReport.cs",
+    "sha256": "d587e9b975bae613ef6a12533a9543b66eeb221aff2e4740f324d39ce7c231dc"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisCapturedMemoryReport.cs",
+    "sha256": "06486c3bfb831efb070bea19967361b1244f5c4bcad4f11760103bc4dcfc441f"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisCapturedViewReport.cs",
+    "sha256": "f816d00f2e9c88f36a74c358ada999784941956ea59d3fb4002d96c73f94cdff"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisDatasetExplorer.cs",
+    "sha256": "e7f5efbba03d02f06b30c803e9747c4c28c17094f56062a53074bb913ce46d1d"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisDatasetGroupExplorer.cs",
+    "sha256": "a47ac296f594b23b44bfb9efb96078e7a6c517f9e46671bc38f6d37df1bad558"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Build.cs",
+    "sha256": "ab26653128ad5f5b6c58b54a9586dbac6a85ffb70f73a7f3f23fcac98d1d9f35"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.cs",
+    "sha256": "e5c8e99fa37212d370f7ed4c8b1654d53b357cca5a06e1333e234d5c6168a798"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Geometry.cs",
+    "sha256": "7f8989f1f3673d9ef58ff368c024a39cd94e4c60d6660262d6065d1f22c4f858"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Subset.cs",
+    "sha256": "9edf11b11b6d87280001b3f16c42537b8e10c8158f5ae069c7d1323b4cf3662a"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.Subset.cs",
+    "sha256": "85cefbe35b7d7ba24ee253aff47d626cf0c1cac31616d03592c2eedfdaa139dc"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisHumanReport.cs",
+    "sha256": "ce8dd4513df2526fa2b0ba97bc71e5762eea334b22a2dfa94861e647b74a6ed6"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisReportContext.cs",
+    "sha256": "e2b1af0e4e8ff4e05b0b139bf6c5ed416c70c4d5d7615cba88e9267d36718310"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisReportStatistics.cs",
+    "sha256": "93754f068d0d1c51703c7e21b546d8633be1485293d6ae8e5b86ebfda5a62cbb"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+    "sha256": "910c1a745d71a3811144e9a3b2a948bb5778fcc2f66a9e28d2303d5e4eb7894f"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisTree.Grouping.cs",
+    "sha256": "97f56f3e9d388ab7f15c3a323dc8601aa82617b8d2a8eaa4e6f50287437ca10c"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisGroupedReportTests.cs",
+    "sha256": "bc5830150c7ff9c2f4554f3a2bc02fff2fa44adec31db684ec949b74376ad362"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisHumanReportTests.cs",
+    "sha256": "bed762488bdbc212c4afa21690d749cdfbb00ea14c8ed66f12ca84d5c2416eee"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.CapturedReports.cs",
+    "sha256": "d082b3ef5713a2864d58b41510374acd5189450eb2c2b6b5eb515a62578a714e"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.GroupedReports.cs",
+    "sha256": "830159c621d1d4775bc00d9be3af62dd166a212810df97c08b42d2cd71c98320"
+  }
+]

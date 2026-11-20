@@ -31,6 +31,12 @@ public sealed class LocalIconFileLease : IDisposable
 {
     private readonly List<SafeFileHandle> _handles = [];
     internal SafeFileHandle LastHandle => _handles[^1];
+    // Caller owns this live lease. All components remain pinned against rename/delete during the check.
+    internal bool ContainsAnyIdentity(IReadOnlySet<string> identities, CancellationToken ct)
+    {
+        foreach (var held in _handles) { ct.ThrowIfCancellationRequested(); if (identities.Contains(ProtectedHexFile.Identity(held).ToString())) return true; }
+        return false;
+    }
 
     /// <summary>
     /// The links icons and thumbnails go through. Junctions and mount points are followed, since they lead only to local
@@ -46,7 +52,8 @@ public sealed class LocalIconFileLease : IDisposable
     /// </summary>
     public static LeaseLinks ForTransfers => WindowsTokenAuthority.IsHighIntegrity ? LeaseLinks.Refuse : LeaseLinks.Follow;
 
-    private LocalIconFileLease(string path, bool directory, LeaseLinks links, bool removable = false, string? chosen = null)
+    private LocalIconFileLease(string path, bool directory, LeaseLinks links, bool removable = false, string? chosen = null,
+        bool readControl = false, bool plainDirectory = false)
     {
         string full = Path.GetFullPath(path);
         int followable = PortableFileOperations.FollowableComponents(full, chosen, file: !directory);
@@ -61,27 +68,37 @@ public sealed class LocalIconFileLease : IDisposable
 
         try
         {
-            var parent = OpenOrThrow(null, @"\??\" + root, Traverse | ReadAttributes | Synchronize,
+            uint rootAccess = Traverse | ReadAttributes | Synchronize;
+            if (plainDirectory && parts.Length == 0) rootAccess |= ListDirectory;
+            var parent = OpenOrThrow(null, @"\??\" + root, rootAccess,
                 ShareRead | ShareWrite, Open, DirectoryFile | OpenReparsePoint, "Open icon drive");
             _handles.Add(parent);
-            if (IsLink(parent)) throw new IOException("The icon drive is a link.");
+            if (plainDirectory ? IsReparsePoint(GetBasic(parent).FileAttributes) : IsLink(parent))
+                throw new IOException("The drive root contains a reparse point.");
             for (int i = 0; i < parts.Length; i++)
             {
                 bool leaf = i == parts.Length - 1;
                 bool file = leaf && !directory;
                 uint access = (file ? GenericRead : Traverse | ReadAttributes) | Synchronize;
+                if (leaf && readControl) access |= 0x20000 /* READ_CONTROL */;
+                if (leaf && plainDirectory) access |= ListDirectory;
                 // Denying delete sharing keeps each name bound. Writers stay allowed: a live log, a database or a download
                 // another program is writing is still added to an archive, as before the hold (finding F-M6 of f134ba37).
                 uint share = ShareRead | ShareWrite;
                 uint kind = file ? NonDirectoryFile : DirectoryFile;
                 var next = OpenOrThrow(parent, parts[i], access, share, Open, kind | OpenReparsePoint, "Open local path");
-                uint tag;
-                try { tag = GetReparseTag(next); }
+                uint tagOrAttributes;
+                try { tagOrAttributes = plainDirectory ? GetBasic(next).FileAttributes : GetReparseTag(next); }
                 catch { next.Dispose(); throw; }
-                if (IsLinkTag(tag))
+                if (plainDirectory && IsReparsePoint(tagOrAttributes))
                 {
                     next.Dispose();
-                    if (i >= followable || links == LeaseLinks.Refuse || (links == LeaseLinks.FollowLocal && tag != MountPointTag))
+                    throw new IOException("The path contains a reparse point.");
+                }
+                if (!plainDirectory && IsLinkTag(tagOrAttributes))
+                {
+                    next.Dispose();
+                    if (i >= followable || links == LeaseLinks.Refuse || (links == LeaseLinks.FollowLocal && tagOrAttributes != MountPointTag))
                         throw new IOException("The icon path contains a link.");
                     next = OpenOrThrow(parent, parts[i], access, share, Open, kind, "Open local path");
                 }
@@ -94,6 +111,38 @@ public sealed class LocalIconFileLease : IDisposable
             Dispose();
             throw;
         }
+    }
+
+    private LocalIconFileLease() { }
+
+    /// <summary>
+    /// The folders below an already held anchor folder, each opened relative to the one before it, never through a link,
+    /// and held without delete sharing like the components of a full-path lease. Together with the anchor's lease this
+    /// pins the same names a lease of the full path would, without opening the anchor's path again. Every component is
+    /// given to <paramref name="verify"/> before the next is opened; the caller keeps the anchor alive.
+    /// </summary>
+    internal static LocalIconFileLease Below(SafeFileHandle anchor, IReadOnlyList<string> leaves, Action<int, SafeFileHandle> verify)
+    {
+        var lease = new LocalIconFileLease();
+        try
+        {
+            SafeFileHandle parent = anchor;
+            for (int i = 0; i < leaves.Count; i++)
+            {
+                var next = OpenOrThrow(parent, leaves[i], Traverse | ReadAttributes | Synchronize, ShareRead | ShareWrite, Open,
+                    DirectoryFile | OpenReparsePoint, "Open local path");
+                try
+                {
+                    if (IsLinkTag(GetReparseTag(next))) throw new IOException("The path contains a link.");
+                    verify(i, next);
+                }
+                catch { next.Dispose(); throw; }
+                lease._handles.Add(next);
+                parent = next;
+            }
+            return lease;
+        }
+        catch { lease.Dispose(); throw; }
     }
 
     /// <summary>A file, for its icon or thumbnail (<see cref="ForIcons"/>).</summary>
@@ -115,6 +164,15 @@ public sealed class LocalIconFileLease : IDisposable
     /// <summary>A folder, refusing any link on the way (for reviewed replacement and deletion).</summary>
     public static LocalIconFileLease? TryOpenDirectory(string path) => TryOpenDirectory(path, LeaseLinks.Refuse);
 
+    /// <summary>Holds an ordinary local directory and its ancestors, including on a removable local drive.</summary>
+    public static LocalIconFileLease? TryOpenPlainDirectory(string path)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        try { return new LocalIconFileLease(path, directory: true, LeaseLinks.Refuse, removable: true, plainDirectory: true); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException
+            or System.ComponentModel.Win32Exception) { return null; }
+    }
+
     /// <param name="removable">Also on a removable drive (a USB stick, an SD card), where reviewed replacement and
     /// compared deletion work as on a fixed one; icons and thumbnails are read only from fixed drives.</param>
     /// <param name="chosen">The folder the user chose to write to: a link below it is refused. By default, this folder.</param>
@@ -127,6 +185,16 @@ public sealed class LocalIconFileLease : IDisposable
         {
             return null;
         }
+    }
+
+    // The final component must carry READ_CONTROL when reviewing an old edit folder's owner and DACL.
+    // Ancestors stay namespace pins; no extra security privilege is requested for them.
+    internal static LocalIconFileLease? TryOpenDirectoryWithSecurity(string path)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        try { return new LocalIconFileLease(path, directory: true, LeaseLinks.Refuse, removable: true, readControl: true); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException
+            or System.ComponentModel.Win32Exception) { return null; }
     }
 
     public void Dispose()
