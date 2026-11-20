@@ -308,7 +308,12 @@ public sealed partial class WindowsFileRecordsTests
                 stream.Write(new byte[4096].Select(_ => (byte)1).ToArray());
             }
             string ranges = Field(Section(Read(sparse, privileged: false), "Layout on disk"), "Sparse");
-            Assert.Contains("bytes in returned allocated ranges, in 1 range", ranges, StringComparison.Ordinal);
+            if (ranges.Contains("range query omitted:", StringComparison.Ordinal))
+            {
+                Assert.StartsWith("yes (range query omitted: Cloud sync-root membership could not be ruled out;", ranges, StringComparison.Ordinal);
+                Assert.DoesNotContain("bytes in returned allocated ranges", ranges, StringComparison.Ordinal);
+            }
+            else Assert.Contains("bytes in returned allocated ranges, in 1 range", ranges, StringComparison.Ordinal);
 
             string unallocated = Path.Combine(dir, "unallocated.bin");
             using (var stream = new FileStream(unallocated, FileMode.CreateNew, FileAccess.ReadWrite))
