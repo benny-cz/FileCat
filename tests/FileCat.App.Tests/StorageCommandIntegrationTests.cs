@@ -84,10 +84,12 @@ public sealed class StorageCommandIntegrationTests
     [AvaloniaTheory]
     [InlineData(StorageAction.Compress, "refresh")]
     [InlineData(StorageAction.Compress, "marks")]
+    [InlineData(StorageAction.Compress, "invert")]
     [InlineData(StorageAction.Compress, "navigation")]
     [InlineData(StorageAction.Compress, "closed")]
     [InlineData(StorageAction.DecryptEfs, "refresh")]
     [InlineData(StorageAction.DecryptEfs, "marks")]
+    [InlineData(StorageAction.DecryptEfs, "invert")]
     [InlineData(StorageAction.DecryptEfs, "navigation")]
     [InlineData(StorageAction.DecryptEfs, "closed")]
     public async Task Completion_only_unmarks_the_captured_selection_when_navigation_and_mark_intent_still_match(StorageAction action, string change)
@@ -109,6 +111,14 @@ public sealed class StorageCommandIntegrationTests
             else if (change == "marks")
             {
                 listing.MarkNames(["a.txt"], false); listing.MarkNames(["a.txt"], true);
+                Assert.True(listing.MarkRevision > revision);
+            }
+            else if (change == "invert")
+            {
+                await vm.ExecuteAsync(CommandIds.MarkInvert);
+                Assert.Equal(0, listing.MarkedCount);
+                await vm.ExecuteAsync(CommandIds.MarkInvert);
+                Assert.Equal(captured.Items.Select(item => item.Name).Order(), listing.GetSelection().Select(item => item.Name).Order());
                 Assert.True(listing.MarkRevision > revision);
             }
             else if (change == "navigation")

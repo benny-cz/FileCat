@@ -1,6 +1,8 @@
+[CmdletBinding(DefaultParameterSetName = 'Review')]
 param(
-    [Parameter(Mandatory)][string]$TestRoot,
-    [Parameter(Mandatory)][string]$NvdaPath,
+    [Parameter(Mandatory, ParameterSetName = 'Review')][string]$TestRoot,
+    [Parameter(Mandatory, ParameterSetName = 'Review')][string]$NvdaPath,
+    [Parameter(Mandatory, ParameterSetName = 'Compile')][string]$NativeInputAssembly,
     [switch]$HostedArm64,
     [switch]$HighContrastPictures,
     [switch]$VerifyDuplicateRoots,
@@ -12,58 +14,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-if (@($VerifyCanceledKeyBackup, $VerifyCompletedKeyBackup, $VerifySelectedFileBackup, $VerifyDuplicateRoots,
-    $VerifyOperationsRecovery, $VerifyAlreadySatisfied).Where({ $_.IsPresent }).Count -gt 1) {
-    throw 'Choose one of the optional fixture modes.'
-}
-$testRoot = [IO.Path]::GetFullPath($TestRoot)
-$nvdaPath = [IO.Path]::GetFullPath($NvdaPath)
-$session = (Get-Process -Id $PID).SessionId
-if ($HostedArm64) {
-    if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows' -or
-        $env:RUNNER_ARCH -ne 'ARM64' -or ![IO.Path]::IsPathRooted($env:RUNNER_TEMP)) {
-        throw 'Use the hosted Windows ARM64 qualification run.'
-    }
-    $validationRoot = [IO.Path]::GetFullPath((Join-Path $env:RUNNER_TEMP 'filecat-native-nvda')) + '\'
-} else {
-    if ((Get-CimInstance Win32_ComputerSystem).Manufacturer -notmatch 'VMware') {
-        throw 'Use the disposable VMware validation guest.'
-    }
-    $validationRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'FileCatValidation')) + '\'
-}
-if (!$session -or
-    !$testRoot.StartsWith($validationRoot, [StringComparison]::OrdinalIgnoreCase) -or
-    !$nvdaPath.StartsWith($validationRoot, [StringComparison]::OrdinalIgnoreCase) -or
-    (Get-AuthenticodeSignature -LiteralPath $nvdaPath).Status -ne 'Valid') {
-    throw 'Run the owned storage UI fixture with signed NVDA in the interactive validation profile.'
-}
-$log = Join-Path $testRoot 'storage-review-result.json'
-if (Test-Path -LiteralPath $log) { throw 'Use a fresh test root to preserve prior receipts.' }
-$record = [ordered]@{ Passed = $false; Stage = 'process preflight'; Error = $null; Session = $session; Controls = @{}; Speech = @{} }
-$app = $reader = $backupPath = $null
-try {
-    if (Get-Process dotnet,testhost,FileCat,FileCat.ShellHost,FileCat.App.Tests,FileCat.*QualificationHost,FileCat.*CrashHarness,nvda -ErrorAction SilentlyContinue) {
-        throw 'A test process is already using this VM.'
-    }
-    if ($VerifyCanceledKeyBackup -or $VerifyCompletedKeyBackup -or $VerifySelectedFileBackup) {
-        $record.Stage = 'verify existing fixture key'
-        $currentKey = & (Join-Path $env:WINDIR 'System32\cipher.exe') /y | Out-String
-        $keyLine = [regex]::Match($currentKey, '(?im)^[ \t]*(?:[a-f0-9]{4}[ \t]*){10}\r?$')
-        if ($LASTEXITCODE -ne 0 -or !$keyLine.Success) {
-            throw 'The backup fixture needs a pre-existing default EFS certificate.'
-        }
-        $fixtureThumbprint = $keyLine.Value -replace '\s', ''
-        if (!(Get-Item -LiteralPath "Cert:\CurrentUser\My\$fixtureThumbprint").HasPrivateKey) {
-            throw 'The existing fixture certificate does not have its private key.'
-        }
-    }
-    Add-Type -AssemblyName UIAutomationClient
-    Add-Type -AssemblyName UIAutomationTypes
-    Add-Type -AssemblyName System.Windows.Forms
-    if ($VerifyCompletedKeyBackup -or $VerifySelectedFileBackup) {
-        Add-Type -Path (Join-Path $PSScriptRoot 'WindowsEfsBackupWizardDriver.cs')
-    }
-    Add-Type @'
+$nativeInputSource = @'
 using System;
 using System.Runtime.InteropServices;
 public static class StorageReviewInput {
@@ -75,6 +26,7 @@ public static class StorageReviewInput {
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr window, uint command);
     [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr window);
+    [DllImport("user32.dll")] public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window, out Rect bounds);
     [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr window, out Rect bounds);
     [DllImport("user32.dll")] private static extern IntPtr WindowFromPoint(Point point);
@@ -117,6 +69,69 @@ public static class StorageReviewInput {
     }
 }
 '@
+if ($PSCmdlet.ParameterSetName -eq 'Compile') {
+    Add-Type -TypeDefinition $nativeInputSource -OutputAssembly $NativeInputAssembly -OutputType Library
+    return
+}
+if (@($VerifyCanceledKeyBackup, $VerifyCompletedKeyBackup, $VerifySelectedFileBackup, $VerifyDuplicateRoots,
+    $VerifyOperationsRecovery, $VerifyAlreadySatisfied).Where({ $_.IsPresent }).Count -gt 1) {
+    throw 'Choose one of the optional fixture modes.'
+}
+$testRoot = [IO.Path]::GetFullPath($TestRoot)
+$nvdaPath = [IO.Path]::GetFullPath($NvdaPath)
+$session = (Get-Process -Id $PID).SessionId
+if ($HostedArm64) {
+    if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows' -or
+        $env:RUNNER_ARCH -ne 'ARM64' -or ![IO.Path]::IsPathRooted($env:RUNNER_TEMP)) {
+        throw 'Use the hosted Windows ARM64 qualification run.'
+    }
+    $validationRoot = [IO.Path]::GetFullPath((Join-Path $env:RUNNER_TEMP 'filecat-native-nvda')) + '\'
+} else {
+    if ((Get-CimInstance Win32_ComputerSystem).Manufacturer -notmatch 'VMware') {
+        throw 'Use the disposable VMware validation guest.'
+    }
+    $validationRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'FileCatValidation')) + '\'
+}
+if (!$session -or
+    !$testRoot.StartsWith($validationRoot, [StringComparison]::OrdinalIgnoreCase) -or
+    !$nvdaPath.StartsWith($validationRoot, [StringComparison]::OrdinalIgnoreCase) -or
+    (Get-AuthenticodeSignature -LiteralPath $nvdaPath).Status -ne 'Valid') {
+    throw 'Run the owned storage UI fixture with signed NVDA in the interactive validation profile.'
+}
+$log = Join-Path $testRoot 'storage-review-result.json'
+if (Test-Path -LiteralPath $log) { throw 'Use a fresh test root to preserve prior receipts.' }
+$record = [ordered]@{ Passed = $false; Stage = 'process preflight'; Error = $null; Session = $session; Controls = @{}; Speech = @{} }
+$app = $reader = $backupPath = $null
+$previousDpiContext = [IntPtr]::Zero
+try {
+    if (Get-Process dotnet,testhost,FileCat,FileCat.ShellHost,FileCat.App.Tests,FileCat.*QualificationHost,FileCat.*CrashHarness,nvda -ErrorAction SilentlyContinue) {
+        throw 'A test process is already using this VM.'
+    }
+    if ($VerifyCanceledKeyBackup -or $VerifyCompletedKeyBackup -or $VerifySelectedFileBackup) {
+        $record.Stage = 'verify existing fixture key'
+        $currentKey = & (Join-Path $env:WINDIR 'System32\cipher.exe') /y | Out-String
+        $keyLine = [regex]::Match($currentKey, '(?im)^[ \t]*(?:[a-f0-9]{4}[ \t]*){10}\r?$')
+        if ($LASTEXITCODE -ne 0 -or !$keyLine.Success) {
+            throw 'The backup fixture needs a pre-existing default EFS certificate.'
+        }
+        $fixtureThumbprint = $keyLine.Value -replace '\s', ''
+        if (!(Get-Item -LiteralPath "Cert:\CurrentUser\My\$fixtureThumbprint").HasPrivateKey) {
+            throw 'The existing fixture certificate does not have its private key.'
+        }
+    }
+    Add-Type -AssemblyName UIAutomationClient
+    Add-Type -AssemblyName UIAutomationTypes
+    Add-Type -AssemblyName System.Windows.Forms
+    if ($VerifyCompletedKeyBackup -or $VerifySelectedFileBackup) {
+        Add-Type -Path (Join-Path $PSScriptRoot 'WindowsEfsBackupWizardDriver.cs')
+    }
+    if ($HostedArm64) {
+        Add-Type -Path (Join-Path $validationRoot 'StorageReviewInput.dll')
+    } else {
+        Add-Type -TypeDefinition $nativeInputSource
+    }
+    $previousDpiContext = [StorageReviewInput]::SetThreadDpiAwarenessContext([IntPtr](-4)) # Per-monitor v2.
+    if ($previousDpiContext -eq [IntPtr]::Zero) { throw 'Could not use physical pixels for the window measurements.' }
     $ui = [System.Windows.Automation.AutomationElement]
     $scope = [System.Windows.Automation.TreeScope]
     $all = [System.Windows.Automation.Condition]::TrueCondition
@@ -808,6 +823,9 @@ catch {
 finally {
     if ($app -and !$app.HasExited) { [void]$app.CloseMainWindow(); if (!$app.WaitForExit(4000)) { $app.Kill() } }
     if ($reader -and !$reader.HasExited) { $reader.Kill(); [void]$reader.WaitForExit(4000) }
+    if ($previousDpiContext -ne [IntPtr]::Zero) {
+        [void][StorageReviewInput]::SetThreadDpiAwarenessContext($previousDpiContext)
+    }
     try {
         if ($backupPath -and (Test-Path -LiteralPath $backupPath)) {
             Remove-Item -LiteralPath $backupPath

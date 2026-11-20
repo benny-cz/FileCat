@@ -14,13 +14,33 @@ Add-Type @'
 using System;
 using System.Runtime.InteropServices;
 public static class DetailsNativeInput {
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Rect { public int Left, Top, Right, Bottom; }
+
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr window);
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr window);
-    [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr window, IntPtr after,
+    [DllImport("user32.dll")] private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr window, IntPtr after,
         int x, int y, int width, int height, uint flags);
+    [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out Rect value, int size);
     [DllImport("user32.dll")] public static extern uint MapVirtualKey(uint key, uint kind);
     [DllImport("user32.dll")] public static extern void keybd_event(byte key, byte scan, uint flags, UIntPtr extra);
+    public static bool Resize(IntPtr window, int widthDip, int heightDip) {
+        IntPtr previous = SetThreadDpiAwarenessContext(new IntPtr(-4)); // Per-monitor v2, in physical pixels.
+        if (previous == IntPtr.Zero) return false;
+        try {
+            uint dpi = GetDpiForWindow(window);
+            return dpi != 0 && SetWindowPos(window, IntPtr.Zero, 70, 70,
+                (int)Math.Round(widthDip * dpi / 96.0), (int)Math.Round(heightDip * dpi / 96.0), 0x0014);
+        }
+        finally { SetThreadDpiAwarenessContext(previous); }
+    }
+    public static int[] VisibleFrameSize(IntPtr window) {
+        Rect frame;
+        if (DwmGetWindowAttribute(window, 9, out frame, Marshal.SizeOf(typeof(Rect))) != 0) return new int[0];
+        return new[] { frame.Right - frame.Left, frame.Bottom - frame.Top };
+    }
     public static void Send(byte[] keys, bool extended) {
         uint flags = extended ? 1u : 0u;
         foreach (byte key in keys) keybd_event(key, (byte)MapVirtualKey(key, 0), flags, UIntPtr.Zero);
@@ -194,14 +214,17 @@ try {
     $result.Stage = 'summary and full record'
     $handle = [IntPtr]$details.Current.NativeWindowHandle
     $dpi = [DetailsNativeInput]::GetDpiForWindow($handle)
-    if ($dpi -lt 96 -or ![DetailsNativeInput]::SetWindowPos($handle, [IntPtr]::Zero, 70, 70,
-        [int]($requestedWidth * $dpi / 96), [int]($requestedHeight * $dpi / 96), 0x0014)) { throw 'Could not resize the owned details window.' }
+    if ($dpi -lt 96 -or ![DetailsNativeInput]::Resize($handle, $requestedWidth, $requestedHeight)) { throw 'Could not resize the owned details window.' }
     $result.Dpi = $dpi
-    $bounds = Await {
-        $rectangle = $details.Current.BoundingRectangle
-        if ($rectangle.Width * 96 / $dpi -le $widthLimit -and $rectangle.Height * 96 / $dpi -le ($requestedHeight + 20)) { $rectangle }
-    } 'the narrow details window'
-    $result.WindowSizeDip = @([int]($bounds.Width * 96 / $dpi), [int]($bounds.Height * 96 / $dpi))
+    Await {
+        $frame = [DetailsNativeInput]::VisibleFrameSize($handle)
+        if ($frame.Length -ne 2) { return $false }
+        $widthDip = $frame[0] * 96 / $dpi
+        $heightDip = $frame[1] * 96 / $dpi
+        $result.WindowSizeDip = @([int]$widthDip, [int]$heightDip)
+        $widthDip -ge ($requestedWidth - 28) -and $widthDip -le $widthLimit -and
+            $heightDip -ge ($requestedHeight - 55) -and $heightDip -le ($requestedHeight + 20)
+    } 'the narrow details window' | Out-Null
     Tab-To $details 'Read full record'
     [void](Take-Speech)
     Send-Key $details @(0x0D)

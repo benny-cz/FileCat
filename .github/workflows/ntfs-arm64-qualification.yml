@@ -562,6 +562,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet build-server shutdown
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $desktopPowerShell = Join-Path $env:WINDIR 'System32/WindowsPowerShell/v1.0/powershell.exe'
+          $driver = './tests/FileCat.NativeAcceptance/win-nvda-storage-review.ps1'
+          $nativeInput = Join-Path $root 'StorageReviewInput.dll'
+          & $desktopPowerShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $driver -NativeInputAssembly $nativeInput
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath $nativeInput -PathType Leaf)) {
+            throw 'Could not compile the desktop input fixture before lowering token integrity.'
+          }
           . ./eng/validation/Enter-MediumIntegrityTestProcess.ps1
           $session = (Get-Process -Id $PID).SessionId
           [ordered]@{
@@ -584,8 +591,7 @@ jobs:
           if ($creation.ExitCode -ne 0 -or !(Test-Path -LiteralPath $nvda -PathType Leaf)) {
             throw "The pinned NVDA release did not create the portable copy. Exit code $($creation.ExitCode)."
           }
-          $desktopPowerShell = Join-Path $env:WINDIR 'System32/WindowsPowerShell/v1.0/powershell.exe'
-          & $desktopPowerShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/FileCat.NativeAcceptance/win-nvda-storage-review.ps1 -TestRoot $review -NvdaPath $nvda -HostedArm64 -HighContrastPictures -VerifyDuplicateRoots
+          & $desktopPowerShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $driver -TestRoot $review -NvdaPath $nvda -HostedArm64 -HighContrastPictures -VerifyDuplicateRoots
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $receipt = Get-Content -LiteralPath (Join-Path $review 'storage-review-result.json') -Raw | ConvertFrom-Json
           if (!$receipt.Passed -or $receipt.ReviewedOriginals.Compression.Count -ne 2 -or $receipt.ReviewedOriginals.Efs.Count -ne 2) {
