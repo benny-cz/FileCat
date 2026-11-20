@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or
-    $env:RUNNER_OS -ne 'Windows' -or $env:RUNNER_ARCH -ne 'ARM64' -or ![IO.Path]::IsPathRooted($env:RUNNER_TEMP)) {
+    $env:RUNNER_OS -ne 'Windows' -or $env:RUNNER_ARCH -ne 'ARM64' -or [IntPtr]::Size -ne 8 -or
+    ![IO.Path]::IsPathRooted($env:RUNNER_TEMP)) {
     throw 'Use the dedicated hosted ARM64 input desktop probe.'
 }
 $receipt = Join-Path $env:RUNNER_TEMP 'filecat-arm64-input-desktop.json'
@@ -19,6 +20,8 @@ public static class FileCatInputDesktopProbe
     {
         public string Before, PrivateDesktop, Foreground, After, Error;
         public bool Activated, Focused, KeyReceived, Restored;
+        public uint InputEventsInserted;
+        public int InputError;
     }
 
     public static Observation Check()
@@ -69,8 +72,11 @@ public static class FileCatInputDesktopProbe
                     result.Foreground = InputDesktopName();
                     if (result.Foreground != result.PrivateDesktop || GetForegroundWindow() != form.Handle) return;
                     result.Focused = true;
-                    keybd_event((byte)Keys.F8, 0, 0, UIntPtr.Zero);
-                    keybd_event((byte)Keys.F8, 0, 2, UIntPtr.Zero);
+                    var keyDown = new Input { Type = 1, Key = (ushort)Keys.F8, Scan = (ushort)MapVirtualKeyW((uint)Keys.F8, 0) };
+                    var keyUp = keyDown;
+                    keyUp.Flags = 2;
+                    result.InputEventsInserted = SendInput(2, new[] { keyDown, keyUp }, Marshal.SizeOf(typeof(Input)));
+                    if (result.InputEventsInserted != 2) result.InputError = Marshal.GetLastWin32Error();
                 };
                 form.Shown += (sender, args) => { form.Activate(); timer.Start(); };
                 form.ShowDialog();
@@ -117,7 +123,18 @@ public static class FileCatInputDesktopProbe
     [DllImport("user32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern bool GetUserObjectInformationW(IntPtr obj, int index, StringBuilder value, uint length, out uint needed);
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
-    [DllImport("user32.dll")] private static extern void keybd_event(byte key, byte scan, uint flags, UIntPtr extra);
+    [DllImport("user32.dll", ExactSpelling = true)] private static extern uint MapVirtualKeyW(uint key, uint kind);
+    [DllImport("user32.dll", SetLastError = true)] private static extern uint SendInput(uint events, Input[] input, int size);
+
+    // INPUT on 64-bit Windows. The union starts at byte 8 and has the size of MOUSEINPUT.
+    [StructLayout(LayoutKind.Explicit, Size = 40)]
+    private struct Input
+    {
+        [FieldOffset(0)] public uint Type;
+        [FieldOffset(8)] public ushort Key;
+        [FieldOffset(10)] public ushort Scan;
+        [FieldOffset(12)] public uint Flags;
+    }
 }
 '@
 . (Join-Path $PSScriptRoot '../../eng/validation/Enter-MediumIntegrityTestProcess.ps1')
