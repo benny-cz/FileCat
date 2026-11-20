@@ -85,7 +85,8 @@ if ($FromPayload) {
     foreach ($dir in @($publish, $fdd)) {
         if (-not (Test-Path -LiteralPath $dir -PathType Container)) { throw "-FromPayload needs the payload folder $dir that a -PayloadOnly run produced." }
     }
-    Remove-Item -Recurse -Force $signingManifests -ErrorAction SilentlyContinue
+    # A signing step may already have signed these folders; its manifests stay unless this run signs them itself.
+    if ($Sign) { Remove-Item -Recurse -Force $signingManifests -ErrorAction SilentlyContinue }
 } else {
     Remove-Item -Recurse -Force $publish, $fdd, $signingManifests -ErrorAction SilentlyContinue
 }
