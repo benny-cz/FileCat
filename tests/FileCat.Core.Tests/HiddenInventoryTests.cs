@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 using System.Text;
+using FileCat.Core.FileSystem;
 using FileCat.Core.HiddenData;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
@@ -137,6 +138,33 @@ public sealed class HiddenInventoryTests
         Assert.Equal(HiddenInventoryState.Partial, result.State);
         Assert.Empty(result.Items);
         Assert.Contains("kept growing", result.Reason);
+    }
+
+    [Fact]
+    public void Mac_attribute_length_that_requires_materialization_refuses_the_whole_inventory()
+    {
+        byte[] name = "user.dataless\0"u8.ToArray();
+        nint List(byte[]? buffer, nint size)
+        {
+            if (buffer is not null) name.CopyTo(buffer, 0);
+            return name.Length;
+        }
+
+        var error = Assert.Throws<IOException>(() => UnixHiddenData.CollectInventory("dataless-folder", List,
+            _ => UnixHiddenData.MacSizeWithoutMaterialization("dataless-folder", () =>
+            {
+                Marshal.SetLastPInvokeError(MacMaterializationPolicy.Required);
+                return -1;
+            }), TestContext.Current.CancellationToken));
+        Assert.Equal(MacMaterializationPolicy.Required, error.HResult);
+
+        var ordinaryFailure = UnixHiddenData.CollectInventory("dataless-folder", List,
+            _ => UnixHiddenData.MacSizeWithoutMaterialization("dataless-folder", () =>
+            {
+                Marshal.SetLastPInvokeError(34); // ERANGE: changed length, not a materialization request
+                return -1;
+            }), TestContext.Current.CancellationToken);
+        Assert.Equal(HiddenInventoryState.Partial, ordinaryFailure.State);
     }
 
     [Fact]

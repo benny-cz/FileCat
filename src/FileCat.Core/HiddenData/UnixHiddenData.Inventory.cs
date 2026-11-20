@@ -190,7 +190,7 @@ public sealed partial class UnixHiddenData
             bool compressionView = request.ShowCompressionBacking;
             InventoryNames ReadHeld(int options) => CollectInventory(path,
                 (buffer, size) => MacFdList(directory, buffer, size, options),
-                name => MacFdGet(directory, name, null, 0, 0, options), ct);
+                name => MacSizeWithoutMaterialization(path, () => MacFdGet(directory, name, null, 0, 0, options)), ct);
             InventoryNames held;
             try { held = ReadHeld(compressionView ? showCompression : 0); }
             catch (IOException ex) when (compressionView && ex.HResult is 22 or 45) // EINVAL / ENOTSUP for this API view
@@ -238,12 +238,15 @@ public sealed partial class UnixHiddenData
         };
 
         nint SizeWithoutMaterialization(string name)
-        {
-            nint size = MacGet(path, name, null, 0, 0, options);
-            if (size < 0 && Marshal.GetLastPInvokeError() == MacMaterializationPolicy.Required)
-                throw InventoryError(path, MacMaterializationPolicy.Required);
-            return size;
-        }
+            => MacSizeWithoutMaterialization(path, () => MacGet(path, name, null, 0, 0, options));
+    }
+
+    internal static nint MacSizeWithoutMaterialization(string path, Func<nint> query)
+    {
+        nint size = query();
+        if (size < 0 && Marshal.GetLastPInvokeError() == MacMaterializationPolicy.Required)
+            throw InventoryError(path, MacMaterializationPolicy.Required);
+        return size;
     }
 
     private static HiddenInventory MacInventoryUnavailable(string path, MacMaterializationPolicy.Failure failure, string reason)
