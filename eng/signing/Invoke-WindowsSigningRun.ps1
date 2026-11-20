@@ -204,7 +204,9 @@ switch ($Phase) {
         $notes = "Private signing pilot of FileCat $($state.Version) at $($state.SourceCommit), workflow run $env:GITHUB_RUN_ID. " +
             'It holds FileCat-signed files for the owner''s own verification (signatures, Smart App Control, installed bytes). ' +
             'Do not publish it; delete it when the verification is recorded.'
-        gh release create $tag --repo $env:GITHUB_REPOSITORY --draft --target $state.SourceCommit --title $title --notes $notes @assets | Out-Null
+        # No --target: a workflow token may not create a release at a commit whose workflow files differ from the default
+        # branch, and main moves on while a run signs. A draft creates no tag, and its notes and run.json name the source.
+        gh release create $tag --repo $env:GITHUB_REPOSITORY --draft --title $title --notes $notes @assets | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'Creating the private draft release failed.' }
         $draft = gh release view $tag --repo $env:GITHUB_REPOSITORY --json isDraft,assets --jq '"\(.isDraft) \(.assets | length)"'
         if ($draft -cne "true $($assets.Count)") { throw "The draft release is not what was uploaded: $draft" }
