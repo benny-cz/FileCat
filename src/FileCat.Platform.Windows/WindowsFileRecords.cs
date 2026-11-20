@@ -27,7 +27,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
         FsctlGetRetrievalPointers = 0x0009_0073, FsctlQueryAllocatedRanges = 0x0009_40CF, FsctlGetNtfsVolumeData = 0x0009_0064,
         FsctlGetNtfsFileRecord = 0x0009_0068;
     private const int ErrorHandleEof = 38, ErrorInvalidParameter = 87, ErrorMoreData = 234;
-    private const int MaxExtents = 100_000, ExtentsShown = 200, HistoryKept = 2000, HistoryShown = 400;
+    private const int ExtentsShown = 200, HistoryKept = 2000, HistoryShown = 400;
 
     public bool IsSupported => true;
 
@@ -540,11 +540,16 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             InspectionTable? table = null;
             if (!_remote)
             {
-                var (extents, error) = Extents();
+                var extentObservation = Extents();
+                var extents = extentObservation.Value!;
                 if (extents.Count > 0)
                 {
-                    int fragments = CountFragments(extents);
-                    fields.Add((_isFolder ? "Index clusters" : "Fragments", $"{fragments:N0} ({extents.Count:N0} extent{(extents.Count == 1 ? "" : "s")} on the volume)"));
+                    if (extentObservation.State == FactState.Known)
+                    {
+                        int fragments = CountFragments(extents);
+                        fields.Add((_isFolder ? "Index clusters" : "Fragments", $"{fragments:N0} ({extents.Count:N0} extent{(extents.Count == 1 ? "" : "s")} on the volume)"));
+                    }
+                    else fields.Add(("Extent inventory", $"{extentObservation.State}: {extents.Count:N0} validated prefix records"));
                     var rows = extents.Take(ExtentsShown).Select(e => new[]
                     {
                         e.Vcn.ToString("N0", CultureInfo.CurrentCulture), e.IsSparse ? "—" : e.Lcn.ToString("N0", CultureInfo.CurrentCulture),
@@ -553,17 +558,18 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
                     }).ToList();
                     table = new InspectionTable(["VCN", "LCN", "Clusters", "Where"], rows)
                     {
-                        More = extents.Count > ExtentsShown ? $"{extents.Count - ExtentsShown:N0} more extents are not listed." : null,
+                        More = extents.Count > ExtentsShown ? $"{extents.Count - ExtentsShown:N0} more returned extents are not listed." : null,
                     };
                 }
-                else if (error == ErrorHandleEof || error == 0)
+                else if (extentObservation.State == FactState.Known)
                 {
                     if (_isFolder) fields.Add(("Index", _ntfs ? "small enough to be kept inside its MFT record ($INDEX_ROOT): no clusters of its own" : "no clusters of its own"));
                     else if (data is null && _ntfs && _size > 0)
                         fields.Add(("Resident", "probably: no cluster holds it, so its content is kept inside its MFT record"));
                     else if (_size == 0) fields.Add(("Clusters", "none"));
                 }
-                else lines.Add("Its clusters could not be listed: " + new Win32Exception(error).Message);
+                if (extentObservation.Reason is { } extentProblem)
+                    lines.Add("Its cluster inventory is incomplete: " + extentProblem);
             }
             if (_isFolder && table is not null) lines.AddRange(Wrap("A folder's clusters hold its index of names ($I30)."));
             return new InspectionSection("Layout on disk", fields) { Table = table, Lines = lines };
@@ -597,7 +603,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             }
         }
 
-        private static int CountFragments(List<NtfsRun> extents)
+        private static int CountFragments(IReadOnlyList<NtfsRun> extents)
         {
             int fragments = 0;
             long end = -1;
@@ -610,55 +616,32 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             return fragments;
         }
 
-        private (List<NtfsRun> Extents, int Error) Extents()
+        private ObservedFact<IReadOnlyList<NtfsRun>> Extents() => ReadRetrievalPointers((cursor, output) =>
         {
-            var runs = new List<NtfsRun>();
-            var output = new byte[64 * 1024];
             Span<byte> input = stackalloc byte[8];
-            long vcn = 0;
-            while (runs.Count < MaxExtents)
-            {
-                BinaryPrimitives.WriteInt64LittleEndian(input, vcn);
-                int error = Ioctl(_item, FsctlGetRetrievalPointers, input, output, out int got);
-                if (error is not (0 or ErrorMoreData)) return (runs, runs.Count > 0 ? 0 : error);
-                if (got < 16) break;
-                int count = (int)BinaryPrimitives.ReadUInt32LittleEndian(output);
-                long previous = BinaryPrimitives.ReadInt64LittleEndian(output.AsSpan(8));
-                for (int i = 0; i < count && 16 + i * 16 + 16 <= got; i++)
-                {
-                    long next = BinaryPrimitives.ReadInt64LittleEndian(output.AsSpan(16 + i * 16));
-                    long lcn = BinaryPrimitives.ReadInt64LittleEndian(output.AsSpan(24 + i * 16));
-                    runs.Add(new NtfsRun(previous, lcn, next - previous));
-                    previous = next;
-                }
-                if (error == 0 || count == 0) break;
-                vcn = previous;
-            }
-            return (runs, 0);
-        }
+            BinaryPrimitives.WriteInt64LittleEndian(input, cursor);
+            int error = Ioctl(_item, FsctlGetRetrievalPointers, input, output, out int returned);
+            return (error, returned);
+        }, ct);
 
         private string SparseRanges()
         {
-            using var handle = CreateFile(WindowsFileOperations.Long(path), FileReadData | Synchronize, ShareAll, 0, OpenExisting, BackupSemantics | OpenReparsePoint, 0);
-            if (handle.IsInvalid) return "yes (its stored ranges cannot be read: " + LastError() + ")";
-            var ranges = new List<(long Offset, long Length)>();
-            Span<byte> input = stackalloc byte[16];
-            var output = new byte[16 * 1024];
-            long offset = 0;
-            while (offset < _size && ranges.Count < 100_000)
+            using var handle = ReOpenForRanges(_item, FileReadData | FileReadAttributes | Synchronize, ShareAll, OpenReparsePoint);
+            if (handle.IsInvalid) return "yes (its stored ranges cannot be read: " + new Win32Exception(Marshal.GetLastPInvokeError()).Message + ")";
+            var observation = ReadAllocatedRangePages(_size, (offset, length, output) =>
             {
+                Span<byte> input = stackalloc byte[16];
                 BinaryPrimitives.WriteInt64LittleEndian(input, offset);
-                BinaryPrimitives.WriteInt64LittleEndian(input[8..], _size - offset);
-                int error = Ioctl(handle, FsctlQueryAllocatedRanges, input, output, out int got);
-                if (error is not (0 or ErrorMoreData)) return "yes (its stored ranges cannot be read: " + new Win32Exception(error).Message + ")";
-                for (int at = 0; at + 16 <= got; at += 16)
-                    ranges.Add((BinaryPrimitives.ReadInt64LittleEndian(output.AsSpan(at)), BinaryPrimitives.ReadInt64LittleEndian(output.AsSpan(at + 8))));
-                if (error == 0 || got < 16) break;
-                offset = ranges[^1].Offset + ranges[^1].Length;
-            }
+                BinaryPrimitives.WriteInt64LittleEndian(input[8..], length);
+                int error = Ioctl(handle, FsctlQueryAllocatedRanges, input, output, out int returned);
+                return (error, returned);
+            }, ct);
+            if (observation.State != FactState.Known)
+                return $"yes (stored-range inventory {observation.State.ToString().ToLowerInvariant()}: {observation.Reason ?? "no complete inventory"})";
+            var ranges = observation.Value!;
             long stored = ranges.Sum(r => r.Length);
             string list = string.Join(", ", ranges.Take(8).Select(r => $"{r.Offset:N0}–{r.Offset + r.Length:N0}"));
-            return $"{stored:N0} of {_size:N0} bytes stored, in {ranges.Count:N0} range{(ranges.Count == 1 ? "" : "s")}" + (ranges.Count > 0 ? ": " + list + (ranges.Count > 8 ? ", …" : "") : "");
+            return $"{stored:N0} of {_size:N0} bytes in returned allocated ranges, in {ranges.Count:N0} range{(ranges.Count == 1 ? "" : "s")}" + (ranges.Count > 0 ? ": " + list + (ranges.Count > 8 ? ", …" : "") : "");
         }
 
         private InspectionSection? SecuritySection()

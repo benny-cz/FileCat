@@ -113,7 +113,7 @@ public sealed partial class WindowsFileRecordsTests
                     {
                         Assert.Null(layout.Table);
                         Assert.DoesNotContain(layout.Fields, f => f.Name == "Fragments");
-                        Assert.Contains(layout.Lines, l => l == "Its clusters could not be listed: " + new Win32Exception(error).Message);
+                        Assert.Contains(layout.Lines, l => l.Contains($"Windows error {error}", StringComparison.Ordinal));
                     }
                     else
                     {
@@ -308,7 +308,7 @@ public sealed partial class WindowsFileRecordsTests
                 stream.Write(new byte[4096].Select(_ => (byte)1).ToArray());
             }
             string ranges = Field(Section(Read(sparse, privileged: false), "Layout on disk"), "Sparse");
-            Assert.Contains("stored, in 1 range", ranges, StringComparison.Ordinal);
+            Assert.Contains("bytes in returned allocated ranges, in 1 range", ranges, StringComparison.Ordinal);
         }
         finally
         {
