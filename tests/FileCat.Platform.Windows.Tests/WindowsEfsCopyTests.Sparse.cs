@@ -67,6 +67,72 @@ public sealed partial class WindowsEfsCopyTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    [Fact]
+    public async Task Native_cross_volume_copy_to_removable_ntfs_preserves_efs_and_sparse_holes()
+    {
+        RequireEfs();
+        string? removableRoot = Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_USB_ROOT");
+        Assert.SkipUnless(!string.IsNullOrWhiteSpace(removableRoot) && Directory.Exists(removableRoot),
+            "Requires a prepared removable NTFS destination owned by the native fixture.");
+        string removable = Path.GetFullPath(removableRoot!);
+        var drive = new DriveInfo(Path.GetPathRoot(removable)!);
+        Assert.Equal(DriveType.Removable, drive.DriveType);
+        Assert.Equal("NTFS", drive.DriveFormat);
+        string root = Directory.CreateTempSubdirectory("filecat-efs-sparse-usb-source-").FullName;
+        string destination = Path.Combine(removable, "filecat-efs-sparse-usb-" + Guid.NewGuid().ToString("N"));
+        Assert.Equal(removable, Path.GetDirectoryName(destination));
+        try
+        {
+            Directory.CreateDirectory(destination);
+            const int mainLength = 8 * 1024 * 1024, namedLength = 4 * 1024 * 1024;
+            string source = Path.Combine(root, "sparse-usb.bin");
+            using (var main = new FileStream(source, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
+            {
+                MarkSparse(main);
+                main.SetLength(mainLength);
+                main.Position = 0;
+                main.Write(RandomNumberGenerator.GetBytes(4096));
+                main.Position = mainLength / 2;
+                main.Write(RandomNumberGenerator.GetBytes(4096));
+            }
+            using (var named = new FileStream(source + ":proof", FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
+            {
+                MarkSparse(named);
+                named.SetLength(namedLength);
+                named.Position = namedLength / 4;
+                named.Write(RandomNumberGenerator.GetBytes(4096));
+                named.Position = namedLength - 4096;
+                named.Write(RandomNumberGenerator.GetBytes(4096));
+            }
+            File.Encrypt(source);
+            var beforeMain = ObserveSparseStream(source);
+            var beforeNamed = ObserveSparseStream(source + ":proof");
+            Assert.True(beforeMain.Ranges.Sum(range => range.Length) < mainLength / 2);
+            Assert.True(beforeNamed.Ranges.Sum(range => range.Length) < namedLength / 2);
+            WriteSparse("usb source main", beforeMain);
+            WriteSparse("usb source named", beforeNamed);
+
+            var (job, questions) = await Run(root, new WindowsFileOperations(), JobKind.Copy, [source], destination,
+                _ => new(DecisionAction.CancelJob));
+            Assert.Empty(questions);
+            Assert.Equal(JobState.Completed, job.State);
+            string target = Path.Combine(destination, "sparse-usb.bin");
+            Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+            Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+            var afterMain = ObserveSparseStream(target);
+            var afterNamed = ObserveSparseStream(target + ":proof");
+            WriteSparse("usb copy main", afterMain);
+            WriteSparse("usb copy named", afterNamed);
+            AssertSparseCopy(beforeMain, afterMain);
+            AssertSparseCopy(beforeNamed, afterNamed);
+        }
+        finally
+        {
+            if (Directory.Exists(destination)) Directory.Delete(destination, recursive: true);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static void AssertSparseCopy(SparseStream before, SparseStream after)
     {
         Assert.Equal(before.Length, after.Length);
