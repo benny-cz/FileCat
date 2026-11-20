@@ -16,11 +16,14 @@ public static class FileObservationRequests
         {
             if (_admittedDevice != device) throw new NotSupportedException("This producer has no observation admission for the original device.");
             ct.ThrowIfCancellationRequested();
-            return read(ct); // already admitted synchronous producer; never queue/wait on its own device
+            // Already admitted synchronous producer; never queue or wait on its own device.
+            var current = read(ct);
+            ct.ThrowIfCancellationRequested();
+            return current;
         }
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, io.StoppingToken);
         using var permit = await DetailsAdmission.AcquireAsync(device, linked.Token).ConfigureAwait(false);
-        return await io.RunOwned(device, priority, token =>
+        var result = await io.RunOwned(device, priority, token =>
         {
             token.ThrowIfCancellationRequested();
             string? previous = _admittedDevice;
@@ -28,5 +31,8 @@ public static class FileObservationRequests
             try { return read(token); }
             finally { _admittedDevice = previous; }
         }, linked.Token).ConfigureAwait(false);
+        // A started native observation can return after cancellation. Its owner still retires at the real I/O boundary.
+        linked.Token.ThrowIfCancellationRequested();
+        return result;
     }
 }

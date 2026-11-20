@@ -1,6 +1,7 @@
 using FileCat.Core.Inspect;
 using FileCat.Core.Records;
 using FileCat.Core.Threading;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.Tests;
 
@@ -152,5 +153,58 @@ public sealed class FileDetailsOwnershipTests
         finally { release.Set(); }
         Assert.True(await held.WaitAsync(TimeSpan.FromSeconds(10), ct));
         Assert.Equal(0, Volatile.Read(ref reads));
+    }
+
+    [Fact]
+    public async Task Scheduler_shutdown_retires_a_running_observation_only_after_the_handle_closes()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        string device = Guid.NewGuid().ToString();
+        using var io = new DeviceIoScheduler(threadsPerDevice: 1, maxThreadsPerDevice: 1);
+        using var release = new ManualResetEventSlim();
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var entered = new TaskCompletionSource<SafeFileHandle>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var first = await DetailsAdmission.AcquireAsync(device, ct);
+        using var second = await DetailsAdmission.AcquireAsync(device, ct);
+        using var third = await DetailsAdmission.AcquireAsync(device, ct);
+        string directory = Directory.CreateTempSubdirectory("filecat-observation-stop-").FullName;
+        string path = Path.Join(directory, "held.txt");
+        File.WriteAllText(path, "held observation");
+        var running = FileObservationRequests.RunOwned(io, device, IoPriority.Interactive, token =>
+        {
+            using var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            entered.SetResult(handle);
+            Assert.True(release.Wait(TimeSpan.FromSeconds(15), ct));
+            Assert.True(token.IsCancellationRequested);
+            return "stale";
+        }, ct);
+        Task<IDisposable>? waiting = null;
+        try
+        {
+            var handle = await entered.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
+            io.Dispose();
+            timeout.CancelAfter(TimeSpan.FromSeconds(10));
+            waiting = DetailsAdmission.AcquireAsync(device, timeout.Token);
+            Assert.False(running.IsCompleted);
+            Assert.False(handle.IsClosed);
+            Assert.False(waiting.IsCompleted);
+
+            release.Set();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => running.WaitAsync(TimeSpan.FromSeconds(10), ct));
+            await waiting;
+            Assert.True(handle.IsClosed);
+        }
+        finally
+        {
+            timeout.Cancel();
+            release.Set();
+            if (waiting is not null)
+            {
+                try { (await waiting).Dispose(); }
+                catch (OperationCanceledException) { }
+            }
+            await Task.WhenAny(running, Task.Delay(TimeSpan.FromSeconds(15), CancellationToken.None));
+            Directory.Delete(directory, recursive: true);
+        }
     }
 }
