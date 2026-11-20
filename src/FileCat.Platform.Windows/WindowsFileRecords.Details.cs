@@ -122,13 +122,27 @@ public sealed unsafe partial class WindowsFileRecords
         if (reparse) fields.Add(("Reparse tag", hasTag ? RecordText.ReparseTag(reparseTag) : "Unavailable"));
         ct.ThrowIfCancellationRequested();
         var metadata = new InspectionSection("Native metadata", fields.ToArray());
-        if (!fullReport || !hasBasic || !hasStandard || reparse || format != "NTFS" ||
+        bool wofTag = reparseTag == 0x80000017;
+        if (!fullReport || !hasBasic || !hasStandard || (reparse && !wofTag) || format != "NTFS" ||
             (attributes & (0x1000u | 0x580000u)) != 0 || !StoragePaths.IsOrdinaryLocalPath(full) || !WindowsFileOperations.IsReplaceVolume(full))
             return FileDetailsReport.Metadata(snapshot, metadata);
         // A fixed drive letter can reach another provider through a parent. Qualify the volume of the held object.
         try { _ = WindowsStorageTransforms.ActualVolumeBinding(item, rootOnly: false, ct); }
         catch (StorageInspectionException) { return FileDetailsReport.Metadata(snapshot, metadata); }
         if (folder) return FileDetailsReport.Metadata(snapshot, metadata, DirectoryNamespaceSection(item, ct));
+
+        var backing = WindowsStorageBacking.Query(item, ct);
+        if (backing.External == true || wofTag)
+        {
+            string description = backing.Description ?? (backing.Provider is uint provider
+                ? $"Provider {provider}. Backing format unavailable."
+                : "Backing format unavailable");
+            return FileDetailsReport.Metadata(snapshot, metadata, new InspectionSection("Windows Overlay Filter backing", [
+                ("Backing", description),
+                ("Observation", backing.External == true ? "FSCTL_GET_EXTERNAL_BACKING (held object)" : "FileAttributeTagInfo (WOF tag)"),
+                ("Scope", "External backing, separate from the NTFS compression attribute"),
+            ]));
+        }
 
         var sections = new List<InspectionSection> { metadata, RetrievalSection(item, ct) };
         var warnings = new List<string> { "Not acquired: supplementary-data values and previews, raw volumes and journals, and security value collectors." };

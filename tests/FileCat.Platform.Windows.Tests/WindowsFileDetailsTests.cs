@@ -58,6 +58,7 @@ public sealed class WindowsFileDetailsTests
             Assert.DoesNotContain("payload-must-not-appear", full.ToText());
             Assert.Contains("Not acquired:", full.ToText());
             Assert.Contains("Created", full.ToText());
+            Assert.DoesNotContain(full.Technical.Sections, section => section.Title == "Windows Overlay Filter backing");
             var directory = reader.ReadSummary(root, TestContext.Current.CancellationToken);
             Assert.Equal(FileObjectKind.Directory, directory.Kind);
             Assert.Contains("not its contents", directory.ToReport().ToText());

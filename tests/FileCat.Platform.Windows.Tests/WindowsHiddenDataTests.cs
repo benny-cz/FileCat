@@ -365,6 +365,21 @@ public sealed partial class WindowsHiddenDataTests
             var inventory = hidden.ReadInventory(file, new(), TestContext.Current.CancellationToken);
             Assert.Equal(HiddenInventoryState.Unsupported, Assert.Single(inventory.Categories).State);
             Assert.Throws<NotSupportedException>(() => hidden.Delete(file, new("WofCompressedData", HiddenKind.Stream, 0)));
+
+            var ct = TestContext.Current.CancellationToken;
+            var records = new WindowsFileRecords();
+            var summary = records.ReadSummary(file, ct);
+            var full = records.ReadFull(file, FileDetailsPolicy.MetadataOnly, ct);
+            Assert.Equal(ReportContentKind.MetadataOnly, full.ContentKind);
+            Assert.Equal(summary.Identity, full.Summary.Identity);
+            Assert.Equal(FactState.Known, full.Summary.Compression.State);
+            Assert.False(full.Summary.Compression.Value);
+            var backingSection = Assert.Single(full.Technical.Sections, section => section.Title == "Windows Overlay Filter backing");
+            Assert.Contains(backingSection.Fields, field => field.Name == "Backing" && field.Value.Contains("LZX", StringComparison.Ordinal));
+            Assert.Contains(("Observation", "FSCTL_GET_EXTERNAL_BACKING (held object)"), backingSection.Fields);
+            Assert.DoesNotContain(full.Technical.Sections, section => section.Title is
+                "Main-stream extent records" or "Main-stream allocated byte ranges");
+            Assert.DoesNotContain(new string('w', 32), full.ToText());
             Assert.Equal(new string('w', 256 * 1024), File.ReadAllText(file));
         }
         finally { Directory.Delete(dir, recursive: true); }

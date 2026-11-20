@@ -212,6 +212,7 @@ jobs:
             'Opened_stream_output_refuses_a_later_efs_change_before_reading_more_bytes'
             'Reviewed_supplementary_actions_refuse_a_replacement_file'
             'Bounded_inventory_and_actions_keep_ADS_EA_categories_folder_streams_and_required_roles'
+            'Actual_WOF_backing_is_not_exposed_to_generic_supplementary_delete'
           ) | ForEach-Object { "FullyQualifiedName~$_" }
           $outputSuites = @(
             @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-binding.trx'; Count = '21';
@@ -220,7 +221,7 @@ jobs:
                Filter = 'FullyQualifiedName~HexEfsJournalTests|FullyQualifiedName~HexPatchProvenanceTests' },
             @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-copy-output.trx'; Count = '7';
                Filter = 'FullyQualifiedName~Native_copy_and_same_volume_move_preserve_efs_and_named_streams_on_ntfs|FullyQualifiedName~Copy_then_delete_keeps_the_efs_source|FullyQualifiedName~WindowsEfsReplacementTests' },
-            @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-file-details.trx'; Count = '18';
+            @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-file-details.trx'; Count = '19';
                Filter = $detailsFilter -join '|' },
             @{ Project = 'tests/FileCat.Core.Tests'; Log = 'native-efs-archive-output.trx'; Count = '10';
                Filter = 'FullyQualifiedName~ArchiveEfsSpoolTests' },

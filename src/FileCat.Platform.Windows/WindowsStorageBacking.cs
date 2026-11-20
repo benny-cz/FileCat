@@ -11,7 +11,10 @@ internal static unsafe partial class WindowsStorageBacking
     private const uint GetExternalBacking = 0x90310, GetReparsePoint = 0x900A8;
     private const int InvalidFunction = 1, ObjectNotExternallyBacked = 342, NotAReparsePoint = 4390;
 
-    internal sealed record Observation(bool? External, uint? Provider, string? Reason);
+    internal sealed record Observation(bool? External, uint? Provider, string? Reason)
+    {
+        internal string? Description { get; init; }
+    }
 
     internal static Observation Query(SafeFileHandle file, CancellationToken ct = default) => Query(file, localNtfs: false, ct);
 
@@ -31,7 +34,11 @@ internal static unsafe partial class WindowsStorageBacking
         }
         if (error != 0) return error == ObjectNotExternallyBacked ? new(false, null, null) : new(null, null, new Win32Exception(error).Message);
         if (returned is < 8 or > 128) return new(null, null, "External-backing metadata returned an invalid length.");
-        return new(true, BinaryPrimitives.ReadUInt32LittleEndian(new ReadOnlySpan<byte>(data + 4, 4)), null);
+        var payload = new ReadOnlySpan<byte>(data, (int)returned);
+        return new(true, BinaryPrimitives.ReadUInt32LittleEndian(payload[4..]), null)
+        {
+            Description = FileCat.Core.Records.RecordText.ReparseTarget(0x80000017, payload),
+        };
     }
 
     private static int Read(SafeFileHandle file, uint control, byte* data, out uint returned, CancellationToken ct)
