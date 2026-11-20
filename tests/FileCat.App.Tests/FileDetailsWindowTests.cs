@@ -89,6 +89,44 @@ public sealed class FileDetailsWindowTests
     }
 
     [AvaloniaFact]
+    public async Task Mac_live_provider_details_window_keeps_dataless_files_metadata_only()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "Requires a prepared macOS File Provider domain.");
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_MAC_PROVIDER_ROOT");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Set FILECAT_TEST_MAC_PROVIDER_ROOT to an owned, enabled File Provider root.");
+
+        const ulong dataless = 0x40000000; // Darwin SF_DATALESS.
+        using var io = new DeviceIoScheduler();
+        var records = new UnixFileRecords();
+        var ct = TestContext.Current.CancellationToken;
+        foreach (string path in new[] { Path.Join(root!, "dataless-file.bin"), Path.Join(root, "dataless-folder", "child.bin") })
+        {
+            var before = records.ReadSummary(path, ct);
+            Assert.Equal(FactState.Known, before.NativeAttributes.State);
+            Assert.NotEqual(0UL, before.NativeAttributes.Value & dataless);
+
+            using var reader = new FileDetailsReader(records, io, "mac-file-provider-ui", path);
+            var window = new ReportWindow(path, reader);
+            window.Show();
+            try
+            {
+                await window.Reading!;
+                Assert.Contains("dataless", window.Text, StringComparison.OrdinalIgnoreCase);
+                await window.SwitchDetailsTierForTestAsync();
+                Assert.Contains("Full record · metadata only", window.Text);
+                Assert.Contains("Native getattrlist metadata", window.Text);
+                Assert.Contains("Downloads were disabled", window.Text);
+            }
+            finally { window.Close(); }
+
+            var after = records.ReadSummary(path, ct);
+            Assert.Equal(before.Identity.Value, after.Identity.Value);
+            Assert.Equal(FactState.Known, after.NativeAttributes.State);
+            Assert.NotEqual(0UL, after.NativeAttributes.Value & dataless);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Full_report_replaces_the_summary_when_the_path_has_a_new_object_with_the_same_size_and_time()
     {
         using var io = new DeviceIoScheduler();
