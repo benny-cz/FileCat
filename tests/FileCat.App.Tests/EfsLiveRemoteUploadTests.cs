@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
@@ -23,6 +24,8 @@ public sealed class EfsLiveRemoteUploadTests
         if (host is null || user is null || protocol is null || parent is null || !hasPort)
             Assert.Skip("Set FILECAT_EFS_UPLOAD_LAB_HOST, USER, PROTOCOL, ROOT and PORT for an owned test server.");
         Assert.True(protocol is RemoteProtocols.Sftp or RemoteProtocols.Ftp or RemoteProtocols.FtpExplicitTls or RemoteProtocols.FtpImplicitTls);
+        if (Lab("ARCHITECTURE") is { } architecture)
+            Assert.Equal(architecture, RuntimeInformation.ProcessArchitecture.ToString());
         Assert.StartsWith("/", parent);
         Assert.InRange(port, 1, 65535);
         string? password = Lab("PASSWORD"), keyFile = Lab("KEY"), fingerprint = Lab("FINGERPRINT");
@@ -54,7 +57,7 @@ public sealed class EfsLiveRemoteUploadTests
                 string source = Path.Join(root, "protected.bin");
                 EfsRemoteUploadTests.WriteSparseFile(source);
                 File.Encrypt(source);
-                Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.SparseFile));
+                Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted | FileAttributes.SparseFile));
                 byte[] payload = File.ReadAllBytes(source);
                 var job = jobs.Submit(new JobRequest
                 {
