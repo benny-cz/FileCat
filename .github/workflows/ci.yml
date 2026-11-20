@@ -399,7 +399,27 @@ jobs:
           path: ${{ runner.temp }}/filecat-dependency-restore/**
           if-no-files-found: error
       - run: dotnet build FileCat.slnx -c Release
-      - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build --logger "trx;LogFileName=core-results.trx"
+      - if: runner.os == 'macOS'
+        run: dotnet test tests/FileCat.Core.Tests -c Release --no-build --filter "FullyQualifiedName!~SevenZip&FullyQualifiedName!~Rar&FullyQualifiedName!~ArchivePassword" --logger "trx;LogFileName=core-results.trx"
+      - if: runner.os == 'Linux'
+        run: dotnet test tests/FileCat.Core.Tests -c Release --no-build --logger "trx;LogFileName=core-results.trx"
+      - name: Require the macOS nonarchive Core partition
+        if: runner.os == 'macOS'
+        shell: pwsh
+        run: |
+          $reader = [Xml.XmlReader]::Create((Resolve-Path tests/FileCat.Core.Tests/TestResults/core-results.trx))
+          $total = 0
+          try {
+            while ($reader.Read()) {
+              if ($reader.NodeType -eq [Xml.XmlNodeType]::Element -and $reader.LocalName -eq 'Counters') {
+                $total = [int]$reader.GetAttribute('total')
+                break
+              }
+            }
+          } finally { $reader.Dispose() }
+          if ($total -lt 1000) {
+            throw 'The macOS nonarchive Core partition did not execute its expected test population.'
+          }
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
@@ -644,10 +664,55 @@ jobs:
             tests/FileCat.App.Tests/TestResults/**/Sequence_*.xml
             tests/FileCat.App.Tests/TestResults/**/*.dmp
 
+  macos-archive-core:
+    name: macos-26 (archive Core tests)
+    needs: producer-policy
+    runs-on: macos-26
+    # The 20 November macOS Core receipt ran 12,012 tests over 22 minutes; archive codecs included 2–5 minute cases.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
+      - run: dotnet build tests/FileCat.Core.Tests -c Release -p:RestoreLockedMode=true
+      - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build --filter "FullyQualifiedName~SevenZip|FullyQualifiedName~Rar|FullyQualifiedName~ArchivePassword" --logger "trx;LogFileName=core-archive-results.trx"
+      - name: Require the macOS archive Core partition
+        shell: pwsh
+        run: |
+          $reader = [Xml.XmlReader]::Create((Resolve-Path tests/FileCat.Core.Tests/TestResults/core-archive-results.trx))
+          $total = 0
+          try {
+            while ($reader.Read()) {
+              if ($reader.NodeType -eq [Xml.XmlNodeType]::Element -and $reader.LocalName -eq 'Counters') {
+                $total = [int]$reader.GetAttribute('total')
+                break
+              }
+            }
+          } finally { $reader.Dispose() }
+          if ($total -lt 100) {
+            throw 'The macOS archive Core partition did not execute its expected test population.'
+          }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: portable-archive-test-results-macos-26
+          path: tests/FileCat.Core.Tests/TestResults/*.trx
+
   package:
     name: Package (tags only)
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [producer-policy, windows, windows-app, windows-arm64, windows-arm64-app, portable, ubuntu-app, macos-app]
+    needs: [producer-policy, windows, windows-app, windows-arm64, windows-arm64-app, portable, ubuntu-app, macos-app, macos-archive-core]
     runs-on: windows-2025-vs2026
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
@@ -716,7 +781,7 @@ jobs:
   package-linux:
     name: Package Linux (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [producer-policy, windows, windows-app, windows-arm64, windows-arm64-app, portable, ubuntu-app, macos-app]
+    needs: [producer-policy, windows, windows-app, windows-arm64, windows-arm64-app, portable, ubuntu-app, macos-app, macos-archive-core]
     runs-on: ubuntu-24.04
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
@@ -786,7 +851,7 @@ jobs:
   package-macos:
     name: Package macOS (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [producer-policy, windows, windows-app, windows-arm64, windows-arm64-app, portable, ubuntu-app, macos-app]
+    needs: [producer-policy, windows, windows-app, windows-arm64, windows-arm64-app, portable, ubuntu-app, macos-app, macos-archive-core]
     runs-on: macos-26
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
