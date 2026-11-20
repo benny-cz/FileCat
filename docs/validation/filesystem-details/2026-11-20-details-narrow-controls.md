@@ -19,8 +19,24 @@ The returned TRX receipts are `.tmp/app-details-r1-details.trx` (SHA-256
 and `.tmp/app-details-r2-details-and-reports.trx` (SHA-256
 `6A4E1BBA927493A55D2B58D41EB73456FAC13051CA83EE5A5DBEEF3E43BF1393`).
 
-This verifies headless geometry and keyboard focus scrolling. The earlier
-[native NVDA checkpoint](2026-11-18-windows-details-nvda.md) covers spoken
-summary/full navigation and Windows High Contrast, but this new combined
-320 × 420 DIP and enlarged-text fixture has not yet been repeated with NVDA
-in a visible desktop session. F-UI remains partial.
+## Combined native NVDA fixture
+
+The Windows 11 x64 VM (build 26340) also ran the updated
+`tests/FileCat.NativeAcceptance/win-nvda-filesystem-details.ps1` with
+`-ShortNarrow -NarrowHighContrast -PictureView` while Windows system text size
+was set to 150%, using NVDA 2026.3.1. The tested `FileCat.dll` had SHA-256
+`3BDE44B1E694DCE4585A95B75A7B5CF3F25D622D421615FDCE5FD7650584798D`.
+The visible report frame measured 322 × 413 DIP at 96 DPI.
+Keyboard Tab reached **Next report line** within the shortened controls
+viewport and NVDA spoke its name. The same fixture switched to Full, copied
+2,334 bytes of metadata only, returned to Summary, reopened the cached Full
+record, and returned focus and speech to the original picture tile. The
+controller verified that the Windows text-size factor returned from 1.5 to
+its original 1.0. The fixture and controller both reported `Passed: true`.
+
+Returned receipts are `.tmp/short-details-native-details.json` (SHA-256
+`0D523D0928C81E4C20A5D144FE98780E22C2DDB0CE1B882207EFF7B5FBF41DCF`)
+and `.tmp/short-details-native-controller.json` (SHA-256
+`F909677D130DA4B72FD4FBEEDD835DDDD610797BE9B5EB567C3E1C30F43E469E`).
+This closes the combined short-window text-size and High Contrast checkpoint
+for Windows x64. F-UI remains partial for its other listed routes and cases.

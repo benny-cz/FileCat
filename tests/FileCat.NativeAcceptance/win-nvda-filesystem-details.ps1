@@ -3,6 +3,7 @@ param(
     [Parameter(Mandatory)][string]$NvdaPath,
     [Parameter(Mandatory)][string]$ReportPath,
     [switch]$NarrowHighContrast,
+    [switch]$ShortNarrow,
     [switch]$PictureView,
     [switch]$FindResults,
     [switch]$VerifyNativeProperties
@@ -10,6 +11,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 if ($FindResults -and $PictureView) { throw 'Choose the Find list fixture or the panel picture fixture.' }
+if ($ShortNarrow -and !$NarrowHighContrast) { throw 'ShortNarrow requires NarrowHighContrast.' }
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type @'
@@ -144,6 +146,7 @@ if ($NarrowHighContrast) {
     $requestedHeight = 560
     $widthLimit = 324
 }
+if ($ShortNarrow) { $requestedHeight = 420 }
 $file = Join-Path $left 'alpha-details.txt'
 $other = Join-Path $left 'beta-other.txt'
 $payload = 'FILECAT-OWNED-FILE-PAYLOAD-CANARY'
@@ -161,6 +164,7 @@ $result = [ordered]@{
     AppDllSHA256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $appPath) 'FileCat.dll')).Hash
     NvdaVersion = (Get-Item -LiteralPath $nvdaPath).VersionInfo.ProductVersion
     NarrowHighContrast = [bool]$NarrowHighContrast
+    ShortNarrow = [bool]$ShortNarrow
     PictureView = [bool]$PictureView
     FindResults = [bool]$FindResults
     VerifyNativeProperties = [bool]$VerifyNativeProperties
@@ -258,6 +262,7 @@ try {
         $widthDip -ge ($requestedWidth - 28) -and $widthDip -le $widthLimit -and
             $heightDip -ge ($requestedHeight - 55) -and $heightDip -le ($requestedHeight + 20)
     } 'the narrow details window' | Out-Null
+    if ($ShortNarrow) { Tab-To $details 'Next report line' }
     Tab-To $details 'Read full record'
     [void](Take-Speech)
     Send-Key $details @(0x0D)
