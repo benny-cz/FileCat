@@ -68,11 +68,24 @@ try {
         }
     }
     $listFile = Join-Path $scratch 'files.txt'
-    [IO.File]::WriteAllLines($listFile, $list)
     $arguments.Add("@$listFile")
-    # Jsign's per-file lines go to the log, not into the output of whichever script called this one.
-    & $java @arguments | Out-Host
-    if ($LASTEXITCODE -ne 0) { throw "Jsign failed with exit code $LASTEXITCODE." }
+    # A signing service can fail transiently (eSigner has answered 504 on its pre-signing hash scan). Jsign signs files
+    # in place one at a time, so a retry sends only the files still unsigned: no file costs a second signing.
+    $attempts = 4
+    $delay = if ($env:FILECAT_JSIGN_RETRY_DELAY_SECONDS) { [int]$env:FILECAT_JSIGN_RETRY_DELAY_SECONDS } else { 30 }
+    $pending = @($list)
+    for ($attempt = 1; ; $attempt++) {
+        [IO.File]::WriteAllLines($listFile, [string[]]$pending)
+        # Jsign's per-file lines go to the log, not into the output of whichever script called this one.
+        & $java @arguments | Out-Host
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -eq 0) { break }
+        $pending = @($pending | Where-Object { -not (Get-AuthenticodeSignature -LiteralPath $_).SignerCertificate })
+        if (-not $pending.Count) { throw "Jsign failed with exit code $exitCode although every file now carries a signature; refusing to trust them." }
+        if ($attempt -ge $attempts) { throw "Jsign failed with exit code $exitCode; $($pending.Count) files are still unsigned after $attempts attempts." }
+        Write-Host "Jsign failed with exit code $exitCode; retrying the $($pending.Count) unsigned files in $($delay * $attempt) seconds (attempt $($attempt + 1) of $attempts)."
+        Start-Sleep -Seconds ($delay * $attempt)
+    }
     foreach ($copy in $renamed.Keys) { Copy-Item -LiteralPath $copy -Destination $renamed[$copy] -Force }
 } finally {
     Remove-Item Env:\FILECAT_JSIGN_STOREPASS -ErrorAction SilentlyContinue
