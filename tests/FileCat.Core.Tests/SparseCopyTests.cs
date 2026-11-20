@@ -122,6 +122,74 @@ public sealed class SparseCopyTests : IDisposable
         Assert.True(StorageBytes(destination) < length / 4);
     }
 
+    [Fact]
+    public void Windows_sparse_copy_refuses_a_newly_allocated_hole_before_publication()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows sparse-file control codes are required.");
+        const int length = 8 * 1024 * 1024;
+        string source = Path.Combine(_dir.Path, "source-race.bin");
+        string destination = Path.Combine(_dir.Path, "copy-race.bin");
+        using (var stream = new FileStream(source, FileMode.CreateNew, FileAccess.Write))
+        {
+            if (!DeviceIoControl(stream.SafeFileHandle, 0x000900C4, 0, 0, 0, 0, out _, 0))
+                Assert.Skip("The test volume cannot mark a file sparse.");
+            stream.SetLength(length);
+            stream.Write(RandomNumberGenerator.GetBytes(4096));
+            stream.Position = length - 4096;
+            stream.Write(RandomNumberGenerator.GetBytes(4096));
+        }
+        if (StorageBytes(source) >= length / 4)
+            Assert.Skip("The test volume did not create a sparse source file.");
+
+        bool wroteNewRange = false;
+        var failure = Assert.Throws<IOException>(() => new PortableFileOperations().CopyFile(source, destination,
+            new FileCopyOptions(), (done, _) =>
+            {
+                if (!wroteNewRange && done >= 4096)
+                {
+                    using var writer = new FileStream(source, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+                    writer.Position = length / 2;
+                    writer.Write(Enumerable.Repeat((byte)0x7B, 4096).ToArray());
+                    writer.Flush(flushToDisk: true);
+                    wroteNewRange = true;
+                }
+                return CopyProgressAction.Continue;
+            }, TestContext.Current.CancellationToken));
+        Assert.True(wroteNewRange);
+        Assert.Contains("allocated ranges changed", failure.Message);
+        Assert.False(File.Exists(destination));
+        Assert.Equal(0x7B, File.ReadAllBytes(source)[length / 2]);
+    }
+
+    [Fact]
+    public void Windows_sparse_copy_verifies_allocated_ranges_across_query_batches()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows sparse-file control codes are required.");
+        const int rangeCount = 300, stride = 8192, length = 4 * 1024 * 1024;
+        string source = Path.Combine(_dir.Path, "source-many-ranges.bin");
+        string destination = Path.Combine(_dir.Path, "copy-many-ranges.bin");
+        using (var stream = new FileStream(source, FileMode.CreateNew, FileAccess.Write))
+        {
+            if (!DeviceIoControl(stream.SafeFileHandle, 0x000900C4, 0, 0, 0, 0, out _, 0))
+                Assert.Skip("The test volume cannot mark a file sparse.");
+            stream.SetLength(length);
+            for (int i = 0; i < rangeCount; i++)
+            {
+                stream.Position = i * stride;
+                stream.WriteByte((byte)(i + 1));
+            }
+        }
+        if (StorageBytes(source) >= length * 3L / 4)
+            Assert.Skip("The test volume did not preserve separated sparse ranges.");
+
+        new PortableFileOperations().CopyFile(source, destination, new FileCopyOptions(), null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(length, new FileInfo(destination).Length);
+        Assert.Equal(SHA256.HashData(File.ReadAllBytes(source)), SHA256.HashData(File.ReadAllBytes(destination)));
+        Assert.True((File.GetAttributes(destination) & FileAttributes.SparseFile) != 0);
+        Assert.True(StorageBytes(destination) < length * 3L / 4);
+    }
+
     private static long Blocks(string path)
     {
         using var process = Process.Start(new ProcessStartInfo("stat")

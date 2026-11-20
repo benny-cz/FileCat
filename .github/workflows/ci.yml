@@ -11,6 +11,12 @@ on:
 permissions:
   contents: read
 
+# Keep one active main CI run and replace only superseded pending main runs.
+# Release tags, manual packaging runs, and pull requests retain distinct groups.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'main' || github.run_id }}
+  cancel-in-progress: false
+
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
