@@ -9,32 +9,43 @@ public sealed unsafe partial class UnixFileRecords
 {
     private const ulong LinuxGetInodeFlags64 = 0x8008_6601; // FS_IOC_GETFLAGS
 
-    private static FileDetailsReport AddExt4DirectoryNamespace(FileDetailsReport report, SafeFileHandle? directory,
-        FactState descriptorState, string? descriptorReason, CancellationToken ct)
+    private static ObservedFact<uint> ReadLinuxExtInodeFlags(SafeFileHandle? file, FactState descriptorState,
+        string? descriptorReason, string format, CancellationToken ct)
     {
-        const string source = "FS_IOC_GETFLAGS on the held ext4 directory";
-        ObservedFact<bool> CaseFoldUnavailable(FactState state, string reason) =>
-            ObservedFact<bool>.Unavailable(state, FactScope.DirectoryPolicy, source, reason);
+        string source = $"FS_IOC_GETFLAGS on the held {format} inode";
+        if (file is null)
+            return ObservedFact<uint>.Unavailable(descriptorState, FactScope.Entry, source, descriptorReason!);
+        uint flags = 0;
+        ct.ThrowIfCancellationRequested();
+        int error = Ioctl((int)file.DangerousGetHandle(), LinuxGetInodeFlags64, &flags) == 0 ? 0 : Marshal.GetLastPInvokeError();
+        ct.ThrowIfCancellationRequested();
+        return error == 0 ? ObservedFact<uint>.Known(flags, FactScope.Entry, source)
+            : ObservedFact<uint>.Unavailable(LinuxMetadataFailure(error), FactScope.Entry, source, $"The inode flag query returned errno {error}.");
+    }
 
-        ObservedFact<bool> caseFold;
-        if (directory is null)
-            caseFold = CaseFoldUnavailable(descriptorState, descriptorReason!);
-        else
+    private static FileDetailsReport AddLinuxExtInodeFlags(FileDetailsReport report, ObservedFact<uint> flags, string format,
+        bool fullReport)
+    {
+        string Describe(uint value) => $"0x{value:X8} · {LsattrText(value, format)}";
+        // Call out historical flags in the summary when they are present. The full report keeps their complete observation.
+        if (flags is { State: FactState.Known, Value: var value } && (value & 7) != 0)
         {
-            uint flags = 0;
-            ct.ThrowIfCancellationRequested();
-            int error = Ioctl((int)directory.DangerousGetHandle(), LinuxGetInodeFlags64, &flags) == 0 ? 0 : Marshal.GetLastPInvokeError();
-            ct.ThrowIfCancellationRequested();
-            caseFold = error == 0
-                ? ObservedFact<bool>.Known((flags & 0x4000_0000) != 0, FactScope.DirectoryPolicy, source) // FS_CASEFOLD_FL
-                : CaseFoldUnavailable(LinuxMetadataFailure(error), $"The inode flag query returned errno {error}.");
+            var summary = report.Summary;
+            report = report with { Summary = summary with { Notes = summary.Notes.Add($"{format} inode flags: {Describe(value)}") } };
         }
+        if (!fullReport) return report;
+        var section = new InspectionSection($"{format} inode flags", [("Recorded flags", flags.Describe(Describe)), ("Observation", flags.Source)]);
+        return report with { Technical = report.Technical with { Sections = [.. report.Technical.Sections, section] } };
+    }
 
+    private static FileDetailsReport AddExt4DirectoryNamespace(FileDetailsReport report, ObservedFact<uint> flags)
+    {
+        const uint caseFold = 0x4000_0000; // FS_CASEFOLD_FL
         var section = new InspectionSection("ext4 directory namespace", [
-            ("Case folding", caseFold.Describe(enabled => enabled ? "Enabled" : "Disabled")),
-            ("Scope", "Name lookup in this directory"), ("Observation", caseFold.Source)])
+            ("Case folding", flags.Describe(value => (value & caseFold) != 0 ? "Enabled" : "Disabled")),
+            ("Scope", "Name lookup in this directory"), ("Observation", flags.Source)])
         {
-            Lines = caseFold is { State: FactState.Known, Value: true }
+            Lines = flags is { State: FactState.Known, Value: var value } && (value & caseFold) != 0
                 ? ["Case-folded lookup compares valid encoded names using Unicode normalization. Stored spellings are preserved.",
                     "For encrypted names, case-folded lookup can depend on key availability."]
                 : [],

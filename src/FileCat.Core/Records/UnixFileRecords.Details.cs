@@ -49,7 +49,17 @@ public sealed unsafe partial class UnixFileRecords
             var fields = new ReadOnlySpan<byte>(bytes, 256);
             var report = ParseLinuxDetails(path, fields);
             var fileSystem = ReadLinuxDetailsFileSystem(fd, fields, noFollow, fullReport, ct, out var zfsMount);
+            string? format = fileSystem.State == FactState.Known ? fileSystem.Value : null;
+            bool ext = format is "ext2" or "ext3" or "ext4";
             report = report with { Summary = report.Summary with { FileSystem = fileSystem } };
+            if (ext)
+            {
+                var snapshot = report.Summary;
+                // Ext-family statx reflects the historical c flag even though the filesystem implements no file compression.
+                var compression = ObservedFact<bool>.Unavailable(FactState.Unsupported, FactScope.Entry, snapshot.Compression.Source,
+                    "Recorded flags are separate. File compression behavior is not implemented by this filesystem.");
+                report = report with { Summary = snapshot with { Compression = compression } };
+            }
             if (report.Summary.Kind == FileObjectKind.SymbolicLink)
             {
                 byte[] buffer = new byte[StoredLinkLimit];
@@ -61,27 +71,33 @@ public sealed unsafe partial class UnixFileRecords
                 var target = DecodeStoredLinkTarget(buffer, count, error, "readlinkat on the held O_PATH descriptor");
                 report = report with { Summary = report.Summary with { Target = target } };
             }
-            if (fullReport && report.Summary is { Kind: FileObjectKind.File or FileObjectKind.Directory,
+            if (report.Summary is { Kind: FileObjectKind.File or FileObjectKind.Directory,
                     Identity: { State: FactState.Known, Value: { } identity } } summary)
             {
                 bool x64 = RuntimeInformation.ProcessArchitecture == Architecture.X64;
-                bool ext4 = x64 && summary.FileSystem is { State: FactState.Known, Value: "ext4" };
-                bool btrfs = x64 && summary.FileSystem is { State: FactState.Known, Value: "btrfs" };
-                if (x64 && zfsMount is not null)
+                bool extInodeFlags = x64 && ext;
+                bool btrfs = fullReport && x64 && format == "btrfs";
+                bool fileExtents = fullReport && summary.Kind == FileObjectKind.File;
+                if (fullReport && x64 && zfsMount is not null)
                     report = AddLinuxZfsDataset(report, fd, zfsMount, ct);
-                if (summary.Kind == FileObjectKind.File || ext4 || btrfs)
+                if (extInodeFlags || btrfs || fileExtents)
                 {
                     var (file, state, reason) = OpenLinuxMetadataDescriptor(fd, identity, summary.Kind, ct);
                     using var descriptor = file;
-                    if (ext4)
+                    if (extInodeFlags)
                     {
-                        report = AddLinuxFscrypt(report, file, state, reason, ct);
-                        if (summary.Kind == FileObjectKind.Directory)
-                            report = AddExt4DirectoryNamespace(report, file, state, reason, ct);
+                        var flags = ReadLinuxExtInodeFlags(file, state, reason, format!, ct);
+                        report = AddLinuxExtInodeFlags(report, flags, format!, fullReport);
+                        if (fullReport && format == "ext4")
+                        {
+                            report = AddLinuxFscrypt(report, file, state, reason, ct);
+                            if (summary.Kind == FileObjectKind.Directory)
+                                report = AddExt4DirectoryNamespace(report, flags);
+                        }
                     }
                     if (btrfs)
                         report = AddLinuxBtrfs(report, file, state, reason, ct);
-                    if (summary.Kind == FileObjectKind.File)
+                    if (fileExtents)
                         report = AddLinuxExtents(report, file is null ? FiemapUnavailable(state, reason!) : ReadLinuxExtents(file, ct));
                 }
             }

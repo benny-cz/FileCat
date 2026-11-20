@@ -142,6 +142,49 @@ public sealed partial class UnixFileDetailsNativeTests
     }
 
     [Theory]
+    [InlineData("ext2")]
+    [InlineData("ext3")]
+    [InlineData("ext4")]
+    public void Linux_details_label_historical_ext_flags_without_claiming_compression(string format)
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64,
+            "Requires the Linux x64 ext-family fixture.");
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_EXT_FLAGS_ROOT");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires the prepared read-only ext2, ext3 and ext4 mounts.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var reader = new UnixFileRecords();
+        string mount = Path.Join(root, format);
+        string title = $"{format} inode flags";
+        const string explanation = "Recorded flag; behavior not implemented by this filesystem";
+        foreach (string name in new[] { "marked.bin", "flagged-directory" })
+        {
+            string path = Path.Join(mount, name);
+            var summary = reader.ReadSummary(path, ct);
+            var full = reader.ReadFull(path, FileDetailsPolicy.MetadataOnly, ct);
+            Assert.Equal(format, summary.FileSystem.Value);
+            Assert.Equal(FactState.Known, summary.Identity.State);
+            Assert.Equal(summary.Identity.Value, full.Summary.Identity.Value);
+            Assert.Equal(FactState.Unsupported, summary.Compression.State);
+            Assert.Equal(FactState.Unsupported, full.Summary.Compression.State);
+            string summaryText = summary.ToReport().ToText();
+            var section = Assert.Single(full.Technical.Sections, item => item.Title == title);
+            var recorded = Assert.Single(section.Fields, field => field.Item1 == "Recorded flags").Item2;
+            foreach (string label in new[] { "recorded c flag", "recorded s flag", "recorded u flag", explanation })
+            {
+                Assert.Contains(label, summaryText);
+                Assert.Contains(label, recorded);
+            }
+            Assert.DoesNotContain("fixture payload canary", full.ToText());
+        }
+        var ordinary = reader.ReadFull(Path.Join(mount, "ordinary.bin"), FileDetailsPolicy.MetadataOnly, ct);
+        Assert.DoesNotContain(explanation, ordinary.ToText());
+        var link = reader.ReadFull(Path.Join(mount, "symlink.bin"), FileDetailsPolicy.MetadataOnly, ct);
+        Assert.Equal(FileObjectKind.SymbolicLink, link.Summary.Kind);
+        Assert.DoesNotContain(link.Technical.Sections, item => item.Title == title);
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void Mac_namespace_requires_matching_volume_and_individually_valid_capabilities(bool apfs)
