@@ -356,9 +356,42 @@ public sealed class SparseCopyTests : IDisposable
         Assert.Equal("FCSPARSELOSS", drive.VolumeLabel);
         Assert.InRange(drive.TotalSize, 128L << 20, 320L << 20);
 
+        RunDeviceLossCopy(control!, Path.Join(volumeRoot!, "partial-copy.bin"));
+    }
+
+    [Fact]
+    public void Windows_sparse_copy_reports_physical_usb_loss_after_a_partial_write()
+    {
+        string? control = Environment.GetEnvironmentVariable("FILECAT_TEST_SPARSE_LOSS_CONTROL");
+        string? volumeRoot = Environment.GetEnvironmentVariable("FILECAT_TEST_SPARSE_LOSS_VOLUME");
+        string? fixtureRoot = Environment.GetEnvironmentVariable("FILECAT_TEST_SPARSE_LOSS_USB_DESTINATION_ROOT");
+        Assert.SkipUnless(OperatingSystem.IsWindows() && !string.IsNullOrWhiteSpace(control) &&
+            !string.IsNullOrWhiteSpace(volumeRoot) && !string.IsNullOrWhiteSpace(fixtureRoot),
+            "Requires an explicitly owned physical removable NTFS device-loss fixture.");
+        Assert.StartsWith("sparse-usb-device-loss-",
+            Path.GetFileName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(control!))),
+            StringComparison.OrdinalIgnoreCase);
+        var drive = new DriveInfo(volumeRoot!);
+        string driveRoot = drive.RootDirectory.FullName;
+        Assert.Equal(driveRoot, Path.GetFullPath(volumeRoot!), ignoreCase: true);
+        Assert.Equal(DriveType.Removable, drive.DriveType);
+        Assert.Equal("NTFS", drive.DriveFormat);
+        Assert.Equal("FCTEST", drive.VolumeLabel);
+        Assert.InRange(drive.TotalSize, 7L << 30, 9L << 30);
+        string owned = Path.TrimEndingDirectorySeparator(Path.GetFullPath(fixtureRoot!));
+        Assert.Equal(driveRoot, Path.GetDirectoryName(owned), ignoreCase: true);
+        Assert.StartsWith("FileCatSparseUsbLoss-", Path.GetFileName(owned), StringComparison.OrdinalIgnoreCase);
+        Assert.True(Directory.Exists(owned));
+        Assert.Equal(FileAttributes.None, File.GetAttributes(owned) & FileAttributes.ReparsePoint);
+
+        RunDeviceLossCopy(control!, Path.Join(owned, "partial-copy.bin"));
+    }
+
+    private void RunDeviceLossCopy(string control, string destination)
+    {
+
         const int length = 16 * 1024 * 1024, extent = 4 * 1024 * 1024;
         string source = Path.Combine(_dir.Path, "source-device-loss.bin");
-        string destination = Path.Join(volumeRoot!, "partial-copy.bin");
         Assert.False(File.Exists(destination));
         using (var stream = new FileStream(source, FileMode.CreateNew, FileAccess.Write))
         {
@@ -380,17 +413,17 @@ public sealed class SparseCopyTests : IDisposable
                     progress = done;
                     if (!signaled && done >= extent)
                     {
-                        File.WriteAllText(Path.Join(control!, "ready"), done.ToString(CultureInfo.InvariantCulture));
+                        File.WriteAllText(Path.Join(control, "ready"), done.ToString(CultureInfo.InvariantCulture));
                         signaled = true;
-                        WaitForFixtureMarker(Path.Join(control!, "detached"), TestContext.Current.CancellationToken);
+                        WaitForFixtureMarker(Path.Join(control, "detached"), TestContext.Current.CancellationToken);
                     }
                     return CopyProgressAction.Continue;
                 }, TestContext.Current.CancellationToken);
         }
         catch (Exception ex) { failure = ex; }
-        finally { File.WriteAllText(Path.Join(control!, "retired"), "1"); }
+        finally { File.WriteAllText(Path.Join(control, "retired"), "1"); }
         Assert.True(signaled);
-        WaitForFixtureMarker(Path.Join(control!, "reattached"), TestContext.Current.CancellationToken);
+        WaitForFixtureMarker(Path.Join(control, "reattached"), TestContext.Current.CancellationToken);
         Assert.IsAssignableFrom<IOException>(failure);
         Assert.Equal(originalDigest, SHA256.HashData(File.ReadAllBytes(source)));
         bool partial = File.Exists(destination);
@@ -406,6 +439,8 @@ public sealed class SparseCopyTests : IDisposable
         while (!File.Exists(path))
         {
             ct.ThrowIfCancellationRequested();
+            if (File.Exists(Path.Join(Path.GetDirectoryName(path)!, "aborted")))
+                throw new IOException("The isolated device-loss controller aborted.");
             if (timer.Elapsed > TimeSpan.FromSeconds(45)) throw new TimeoutException($"Fixture did not create {Path.GetFileName(path)}.");
             Thread.Sleep(20);
         }

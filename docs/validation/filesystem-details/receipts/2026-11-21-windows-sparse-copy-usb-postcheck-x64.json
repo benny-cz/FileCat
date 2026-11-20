@@ -1,0 +1,23 @@
+{
+    "OS":  "Microsoft Windows 11 Pro Insider Preview",
+    "Architecture":  "AMD64",
+    "DiskNumber":  1,
+    "DiskSize":  7796162560,
+    "BusType":  "USB",
+    "CimPnpId":  "USBSTOR\\DISK\u0026VEN_UFD_2.0\u0026PROD_SILICON-POWER8G\u0026REV_DL17\\220191330237F00268148C7D586\u00260",
+    "PnpStatus":  "OK",
+    "VolumeLabel":  "FCTEST",
+    "FileSystem":  "NTFS",
+    "AllocationUnitSize":  4096,
+    "VolumeUniqueId":  "\\\\?\\Volume{65b02dcc-e4d2-11f1-bb46-000c2980895c}\\",
+    "DriveType":  "Removable",
+    "RootEntries":  [
+                        "FileCatSparseUsbLoss-20261121-4c12ab",
+                        "System Volume Information",
+                        "filler.bin",
+                        "new.bin"
+                    ],
+    "DotNetProcesses":  [
+
+                        ]
+}
