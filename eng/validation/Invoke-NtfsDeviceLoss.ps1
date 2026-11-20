@@ -124,8 +124,11 @@ foreach ($case in $cases) {
         if ($case.Phase -eq 'during-set' -and (Test-Path -LiteralPath (Join-Path $caseRoot 'native-returned'))) {
             throw 'The native SET returned before the controller began detachment; this is not a during-call fixture.'
         }
-        Get-FixtureDisk $image $imageSize | Out-Null
+        if ($case.Phase -ne 'during-set') { Get-FixtureDisk $image $imageSize | Out-Null }
         if ($case.Phase -eq 'during-set') {
+            if (Test-Path -LiteralPath (Join-Path $caseRoot 'native-returned-at')) {
+                throw 'The native SET returned before the controller began detachment.'
+            }
             [DateTime]::UtcNow.ToString('O') | Set-Content -LiteralPath (Join-Path $caseRoot 'detach-started')
         }
         Dismount-DiskImage -ImagePath $image | Out-Null
@@ -159,9 +162,18 @@ foreach ($case in $cases) {
         if ($counters.total -ne '1' -or $counters.executed -ne '1' -or $counters.passed -ne '1') {
             throw 'The selected native case must execute and pass.'
         }
+        $nativeReturnUtc = $null
+        if ($case.Phase -eq 'during-set') {
+            $detachStartedUtc = [DateTime]::Parse((Get-Content -Raw -LiteralPath (Join-Path $caseRoot 'detach-started')).Trim(),
+                [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind)
+            $nativeReturnUtc = [DateTime]::Parse((Get-Content -Raw -LiteralPath (Join-Path $caseRoot 'native-returned-at')).Trim(),
+                [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind)
+            if ($nativeReturnUtc -le $detachStartedUtc) { throw 'The native SET returned before detachment began.' }
+        }
         [ordered]@{ Phase = $case.Phase; AllocationUnit = $remounted.AllocationUnitSize; PayloadSHA256 = $hash
             NativeSetSucceeded = if ($case.Phase -eq 'during-set') { (Get-Content -Raw -LiteralPath (Join-Path $caseRoot 'native-returned')).Trim() } else { $null }
             DetachStartedUtc = if ($case.Phase -eq 'during-set') { (Get-Content -Raw -LiteralPath (Join-Path $caseRoot 'detach-started')).Trim() } else { $null }
+            NativeReturnUtc = if ($nativeReturnUtc) { $nativeReturnUtc.ToString('O') } else { $null }
             Test = $case.Test; InterruptedJournalSHA256 = (Get-FileHash -LiteralPath (Join-Path $caseRoot 'interrupted.journal')).Hash
             FreshRetryJournalSHA256 = (Get-FileHash -LiteralPath (Join-Path $caseRoot 'fresh-retry.journal')).Hash
         } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $caseRoot 'device-loss.json')

@@ -58,8 +58,8 @@ internal static unsafe partial class WindowsCompression
             error = ok ? 0 : Marshal.GetLastPInvokeError();
         }
         finally { Volatile.Write(ref returned, 1); }
-        pending?.GetAwaiter().GetResult();
         setReturnedForQualification?.Invoke(ok);
+        pending?.GetAwaiter().GetResult();
         return new(ok, error, Query(file));
     }
 

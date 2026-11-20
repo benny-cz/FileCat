@@ -160,6 +160,7 @@ public sealed class WindowsStorageExecutorTests
             setReturns.Add(succeeded);
             if (duringSet)
             {
+                File.WriteAllText(Path.Join(control, "native-returned-at"), DateTime.UtcNow.ToString("O"));
                 File.WriteAllText(Path.Join(control, "native-returned"), succeeded ? "success" : "failure");
                 WaitForFixture("detached");
             }
