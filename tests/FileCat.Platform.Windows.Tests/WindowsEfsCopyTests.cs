@@ -4,7 +4,7 @@ using FileCat.Core.Resources;
 
 namespace FileCat.Platform.Windows.Tests;
 
-public sealed class WindowsEfsCopyTests
+public sealed partial class WindowsEfsCopyTests
 {
     [Theory]
     [InlineData(JobKind.Copy)]
