@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="c076e438-9b7b-4fd8-9f7a-ecf1d1fdebcf" name="FileCatDenseFixture@4FFC49A2-5FAF-4 2026-11-20 08:04:20" runUser="4FFC49A2-5FAF-4\FileCatDenseFixture" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-20T08:04:20.6537265+01:00" queuing="2026-11-20T08:04:20.6537267+01:00" start="2026-11-20T08:04:17.1869793+01:00" finish="2026-11-20T08:04:20.6583728+01:00" />
+  <TestSettings name="default" id="598639be-5672-4d10-aaba-0d8b998dcd3a">
+    <Deployment runDeploymentRoot="FileCatDenseFixture_4FFC49A2-5FAF-4_2026-11-20_08_04_20" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="22d67511-b77f-4250-8ff4-89c1c517e9c9" testId="7e2af749-dc55-15f4-d753-49b59e909d9a" testName="FileCat.Platform.Windows.Tests.WindowsSparseTransformTests.Dense_NTFS_volume_admits_and_removes_a_small_compressed_file" computerName="4FFC49A2-5FAF-4" duration="00:00:00.4744590" startTime="2026-11-20T08:04:20.0372099+01:00" endTime="2026-11-20T08:04:20.5216249+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="22d67511-b77f-4250-8ff4-89c1c517e9c9">
+      <Output>
+        <StdOut>dense seed complete: position=1048576 eof=1048576 allocation=393216 available=81445785600</StdOut>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsSparseTransformTests.Dense_NTFS_volume_admits_and_removes_a_small_compressed_file" storage="c:\filecatdense\test-package-r8\filecat.platform.windows.tests.dll" id="7e2af749-dc55-15f4-d753-49b59e909d9a">
+      <Execution id="22d67511-b77f-4250-8ff4-89c1c517e9c9" />
+      <TestMethod codeBase="C:\FileCatDense\test-package-r8\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsSparseTransformTests" name="Dense_NTFS_volume_admits_and_removes_a_small_compressed_file" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="7e2af749-dc55-15f4-d753-49b59e909d9a" executionId="22d67511-b77f-4250-8ff4-89c1c517e9c9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="1" executed="1" passed="1" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.14)&#xD;
+[xUnit.net 00:00:00.27]   Discovering: FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:01.87]   Discovered:  FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:02.08]   Starting:    FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:02.66]   Finished:    FileCat.Platform.Windows.Tests (ID = '37cf1680fb3c2791382974332b6f477f6897a62fddbd1674b7dcaf94bf6cf898')&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="4FFC49A2-5FAF-4" outcome="Warning" timestamp="2026-11-20T08:04:20.6064176+01:00">
+        <Text>Data collector 'Blame' message: All tests finished running, Sequence file will not be generated.</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

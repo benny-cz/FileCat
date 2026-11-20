@@ -1,8 +1,12 @@
 using System.Buffers.Binary;
+using System.Runtime.InteropServices;
+using System.Security.AccessControl;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using FileCat.Core.Content;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
+using FileCat.Core.Resources;
 using FileCat.Core.State;
 
 namespace FileCat.Platform.Windows.Tests;
@@ -10,11 +14,49 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed partial class WindowsSparseTransformTests
 {
     [Fact]
+    public void Dense_NTFS_volume_admits_and_removes_a_small_compressed_file()
+    {
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_NTFS_DENSE_ROOT");
+        Assert.SkipUnless(OperatingSystem.IsWindows() && !string.IsNullOrWhiteSpace(root),
+            "Requires the disposable dense NTFS volume.");
+        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
+        string directory = Directory.CreateDirectory(Path.Join(root!, "filecat-dense-preflight-" + Guid.NewGuid().ToString("N"))).FullName;
+        string evidence = Directory.CreateDirectory(Path.Join(root!,
+            "filecat-dense-preflight-evidence-" + Guid.NewGuid().ToString("N"))).FullName;
+        string path = Path.Join(directory, "small.bin");
+        try
+        {
+            using (var data = new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read))
+            {
+                Assert.True(WindowsCompression.InvokeAdmitted(data.SafeFileHandle, StorageAction.Compress).NativeSucceeded);
+                WriteLargeDenseBytes(data, 1L << 20, TestContext.Current.CancellationToken);
+                Assert.Equal(WindowsCompression.Lznt1, WindowsCompression.Query(data.SafeFileHandle).Native);
+            }
+            PrivateDenseEvidence(evidence);
+            var jobs = CreateManager(path, evidence);
+            using (var review = jobs.PrepareStorageReview([ItemRef.ForFileSystemPath(path, EntryKind.File)],
+                StorageAction.RemoveCompression, TestContext.Current.CancellationToken))
+            {
+                var observation = Assert.Single(review.Roots).Observation;
+                Assert.True(observation.Ineligible is null,
+                    $"The prepared dense volume refused removal: {observation.Ineligible?.Code}: {observation.Ineligible?.Message}");
+                Assert.Equal(StorageObservationState.Enabled, observation.Compression);
+            }
+            RunJob(jobs, path, StorageAction.RemoveCompression, changed: true);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+            Directory.Delete(evidence, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Reviewed_removal_above_the_enable_limit_preserves_dense_NTFS_streams()
     {
         string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_NTFS_DENSE_ROOT");
         Assert.SkipUnless(OperatingSystem.IsWindows() && !string.IsNullOrWhiteSpace(root),
-            "Requires a separately prepared disposable 36 GiB NTFS fixture.");
+            "Requires a separately prepared disposable 76 GiB NTFS fixture.");
         Assert.True(WindowsStorageTransforms.SupportsHost(WindowsStorageAbiTests.QualifyNativeArm64Jobs));
         Assert.False(WindowsTokenAuthority.IsHighIntegrity);
         var drive = new DriveInfo(root!);
@@ -22,14 +64,17 @@ public sealed partial class WindowsSparseTransformTests
         Assert.Equal(DriveType.Fixed, drive.DriveType);
         Assert.Equal("NTFS", drive.DriveFormat);
         Assert.Equal("FCATDENSE", drive.VolumeLabel);
-        Assert.InRange(drive.TotalSize, 35L << 30, 36L << 30);
+        Assert.InRange(drive.TotalSize, 74L << 30, 78L << 30);
         const long length = 30_000_000_001L;
-        Assert.True(drive.AvailableFreeSpace >= length + (2L << 30));
+        // NTFS reserves the compressed stream's logical EOF in addition to its physical allocation.
+        // The removal call can need space for the 30 GB uncompressed result before reclaiming it.
+        Assert.True(drive.AvailableFreeSpace >= length + (35L << 30));
         Assert.True(GetDiskFreeSpace(drive.RootDirectory.FullName, out uint sectors, out uint bytes, out _, out _));
         Assert.Equal(4096u, checked(sectors * bytes));
 
         string directory = Directory.CreateDirectory(Path.Join(root, "filecat-dense-" + Guid.NewGuid().ToString("N"))).FullName;
-        string evidence = Directory.CreateTempSubdirectory("filecat-dense-evidence-").FullName;
+        string evidence = Directory.CreateDirectory(Path.Join(root!,
+            "filecat-dense-evidence-" + Guid.NewGuid().ToString("N"))).FullName;
         string path = Path.Join(directory, "dense.bin");
         var ct = TestContext.Current.CancellationToken;
         byte[] namedPayload = "dense fixture named stream"u8.ToArray();
@@ -59,6 +104,7 @@ public sealed partial class WindowsSparseTransformTests
             }
             TestContext.Current.TestOutputHelper!.WriteLine($"before eof={length} id={identity} sha256={expected} named compression={namedCompression.Native}");
 
+            PrivateDenseEvidence(evidence);
             var jobs = CreateManager(path, evidence);
             const StorageAction action = StorageAction.RemoveCompression;
             var job = Submit(jobs, path, action, TimeSpan.FromMinutes(12));
@@ -108,15 +154,49 @@ public sealed partial class WindowsSparseTransformTests
         for (int index = pattern.Length; index < buffer.Length; index += pattern.Length)
             pattern.CopyTo(buffer.AsSpan(index));
         using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var volume = new DriveInfo(Path.GetPathRoot(data.Name)!);
         for (long offset = 0; offset < length; offset += buffer.Length)
         {
             ct.ThrowIfCancellationRequested();
             int count = (int)Math.Min(buffer.Length, length - offset);
             BinaryPrimitives.WriteInt64LittleEndian(buffer, offset);
-            data.Write(buffer.AsSpan(0, count));
+            try
+            {
+                data.Write(buffer.AsSpan(0, count));
+            }
+            catch (IOException error)
+            {
+                WriteDenseProgress(data, volume, $"write failed: {error.Message}");
+                throw;
+            }
             digest.AppendData(buffer, 0, count);
+            if (data.Position % (512L << 20) == 0)
+            {
+                data.Flush(flushToDisk: true);
+                WriteDenseProgress(data, volume, "flushed");
+            }
         }
         data.Flush(flushToDisk: true);
+        WriteDenseProgress(data, volume, "seed complete");
         return Convert.ToHexString(digest.GetHashAndReset());
+    }
+
+    private static unsafe void WriteDenseProgress(FileStream data, DriveInfo volume, string stage)
+    {
+        long allocation = GetInfo(data.SafeFileHandle, 1, out StandardInfo standard, (uint)sizeof(StandardInfo))
+            ? standard.AllocationSize : -1;
+        TestContext.Current.TestOutputHelper!.WriteLine(
+            $"dense {stage}: position={data.Position} eof={data.Length} allocation={allocation} available={volume.AvailableFreeSpace}");
+    }
+
+    private static void PrivateDenseEvidence(string evidence)
+    {
+        string journal = Directory.CreateDirectory(Path.Join(evidence, "journal")).FullName;
+        using var identity = WindowsIdentity.GetCurrent();
+        string sid = identity.User?.Value ?? throw new InvalidOperationException("The fixture identity is unavailable.");
+        var security = new DirectorySecurity();
+        security.SetSecurityDescriptorSddlForm($"O:{sid}D:P(A;OICI;FA;;;{sid})(A;OICI;FA;;;SY)",
+            AccessControlSections.Owner | AccessControlSections.Access);
+        new DirectoryInfo(journal).SetAccessControl(security);
     }
 }
