@@ -68,7 +68,7 @@ The [sparse native transform checkpoint](../validation/filesystem-details/2026-1
 
 The [held sparse compression checkpoint](../validation/filesystem-details/2026-11-17-sparse-held-compression.md) admits sparse files to the C candidate with bounded same-stream layout checks. Reviewed compression jobs preserve tested sparse shapes and refuse incomplete inventories before a mutation call. Wider race, scale and output qualification and product enablement remain open.
 
-The [sparse EFS binding checkpoint](../validation/filesystem-details/2026-11-17-sparse-efs-binding.md) adds bounded sparse main and named stream checks to the EFS pathname candidate. Windows x64 round trips preserved the tested layouts, and observed hole changes resulted in refusal before the call or uncertainty after it. Durable job, recovery key, output and wider native gates remain open.
+The [sparse EFS binding checkpoint](../validation/filesystem-details/2026-11-17-sparse-efs-binding.md) adds bounded sparse main and named stream checks to the EFS pathname candidate. Windows x64 round trips preserved the tested layouts, and observed hole changes resulted in refusal before the call or uncertainty after it. Its [native ARM64 durable-job checkpoint](../validation/filesystem-details/2026-11-17-sparse-efs-binding.md#native-arm64-durable-sparse-efs-jobs-20-november-2026) passed five sparse shapes through reviewed Encrypt and Decrypt jobs with retained call evidence. Windows x64 durable sparse jobs, independent recovery, output and wider native gates remain open.
 
 This controls the conflicting wording below.
 
