@@ -37,6 +37,8 @@ Combining `-VerifyDuplicateRoots` with `-HighContrastPictures` initially restore
 
 The combined receipt `native-storage-duplicate-roots-r3.json` has SHA-256 `53D84C61AC284F850F4BCA5A18E6E0F3BCB253857B9094A9EBBE3BD566CBAE89`. The tested SHA-256 of `FileCat.dll` is `DE59120E93EA8C1F876FBA333EC321AB61F668B4B1D76B6F3954673A07D05E5B`. The Windows platform assembly matched the list run. The focused dialog, filter, picture and storage-command tests on Apple silicon macOS passed all 36 cases.
 
+The x64 VMware path passed again on the revised runner that also supports hosted ARM64. It used the same FileCat assembly as the Operations Stop fixture below. NVDA 2026.3.1 and Windows UI Automation verified both paths in each review in interactive session 1 at 640 × 420 DIP and 96 DPI. The receipt `native-storage-hosted-guard-x64-r1.json` has SHA-256 `1F126964D83A60105745809A868DFD8BDE72AF8C35FA4559E13007A9F25C7A3C`.
+
 ## Stopping and reopening storage history in Operations
 
 On the Windows 11 x64 VM, the `-VerifyOperationsRecovery` fixture used a 640 × 420 DIP client at 96 DPI with the High Contrast preset, Comfortable density and 24 DIP in-app content and file-list fonts. It ran two separately approved compression jobs over two owned files. The qualification host held each successful native SET at a test barrier and withheld the verification result after Stop. This produced a retained uncertain result through the real job and journal path.

@@ -373,9 +373,10 @@ public sealed class StorageCommandIntegrationTests
     }
 
     [AvaloniaFact]
-    public async Task Unsupported_build_keeps_main_menu_and_palette_command_visible_with_no_default_gesture()
+    public async Task Unsupported_build_keeps_compression_visible_with_the_same_reason_in_find_and_the_palette()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        FindWindow? find = null;
         try
         {
             await Until(() => vm.ActiveTab!.Listing.State == ListingState.Complete);
@@ -386,9 +387,30 @@ public sealed class StorageCommandIntegrationTests
             Assert.Equal("File › Inspect", MainMenuModel.PathOf(definition.Id));
             var inspect = MainMenuModel.Layout.SelectMany(menu => menu.Items).OfType<MainMenuModel.Submenu>().Single(menu => menu.Header == "_Inspect");
             Assert.Equal(CommandIds.StorageAttributes, inspect.Items[Array.IndexOf(inspect.Items, CommandIds.Attributes) + 1]);
-            Assert.False(vm.GetAvailability(definition.Id).Enabled); Assert.Contains("NTFS", vm.GetAvailability(definition.Id).Reason);
-            vm.Execute(definition.Id); Assert.False(vm.Dialogs.IsOpen); Assert.Empty(services.Jobs.Jobs);
+            var availability = vm.GetAvailability(definition.Id);
+            Assert.False(availability.Enabled);
+            Assert.Contains("NTFS", availability.Reason);
+            var palette = Assert.Single(vm.CommandSearchEntries(), entry => entry.Id == definition.Id);
+            Assert.False(palette.Enabled);
+            Assert.Equal(availability.Reason, palette.Reason);
+            await vm.ExecuteAsync(definition.Id);
+            Assert.False(vm.Dialogs.IsOpen);
+
+            vm.Execute(CommandIds.FindFiles);
+            await Until(() => FindWindow.OpenWindows.Count == 1);
+            find = FindWindow.OpenWindows.Single();
+            find.NamesBox.Text = "*.txt";
+            find.StartSearch(RefineMode.Replace);
+            await Until(() => find.StorageResultsSettled);
+            var findFiles = find.FindMenu.Items.OfType<MenuItem>().First();
+            findFiles.RaiseEvent(new RoutedEventArgs(MenuItem.SubmenuOpenedEvent));
+            var findItem = Assert.Single(findFiles.Items.OfType<MenuItem>(), item => item.Header as string == definition.Title);
+            Assert.False(findItem.IsEnabled);
+            Assert.Equal(availability.Reason, AutomationProperties.GetHelpText(findItem));
+            find.Run(definition.Id);
+            Assert.False(find.Dialogs.IsOpen);
+            Assert.Empty(services.Jobs.Jobs);
         }
-        finally { AccessibilityTests.Close(services, window, root); }
+        finally { find?.Close(); AccessibilityTests.Close(services, window, root); }
     }
 }

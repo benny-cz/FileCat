@@ -40,8 +40,14 @@ Transport scripts/logs are retained under `.tmp/filecat-storage-operations-*`. T
 | filecat-storage-operations-final-source.tar.gz | `27FDE86AD1771ED39E739E2DC18136881E7A2378B1B509496A0A99B3716D9E96` |
 | filecat-storage-operations-final-ui-patch.tar.gz | `12DBF7795B3176773362EFC2FF2508AAEAD7AB8BBDE11DB3A5DA5EA3D46D432F` |
 
-## Remaining gates
+## Remaining at this checkpoint
 
 Startup/incremental storage history is not yet integrated into MainWindow. The 64-row descriptor limit, More storage history flow, and native retained reviewed-report discovery still need App integration. The current same-session collection must receive that bound before enabling transforms. Live ordinary summaries identify the durable prefix but do not yet page/stream its exact call records through the live report. Recovery export streams the complete inactive evidence only. Fresh current-object observations remain separate work; historical IDs are never mutation authority.
 
 The command/review dialog, revision-safe preparation/Retry/Enter, captured origin and mark-preserving refresh, full high-scale/narrow drawer native UX, and wider native/provider/device/performance/crash/retention matrix remain open. The snapshot acknowledgment UI needs a full native end-to-end qualification. EFS requires resolving the supported binding/conflict protocol, key/recovery flow, native mutation and all output-admission routes. The companion filesystem roadmap still has incomplete collectors and release gates. No entire T-REG/T-REC/T-OUT or roadmap-completion claim follows from these focused passes.
+
+## Disabled compression command in Find and the palette
+
+The default application composition keeps **NTFS compression…** after **Attributes…** in File → Inspect, with no default shortcut. The App fixture opened and completed a standalone Find query. Opening its File submenu exposed the disabled compression item with the same accessible HelpText as the reason in the main command palette. Invoking the command through either entry point opened no review and submitted no job.
+
+All 88 focused menu, command search, storage decisions and Operations cases passed on Windows x64, Ubuntu x64 and Apple silicon with zero skips. Under `.tmp/filecat-efs-live-166b6897-r1/storage-regression-3ffd4438`, the SHA-256 values are `4486DF9F6405EDC9A804A630F8CC322D09E0878FD3422724DD92EE41D2BE7BB7` for `storage-regression-windows-r1.trx`, `4805471E2A7E5C87EC2366CFE71790C3EC9BE6AD948ACC0A97E16ABAFD517DF6` for `storage-regression-ubuntu-r1.trx` and `26AA9E6644AA99EDBD6BBD49279A45D9F08B8C0FB1C40251617D0F797A8A4F20` for `storage-regression-mac.trx`.
