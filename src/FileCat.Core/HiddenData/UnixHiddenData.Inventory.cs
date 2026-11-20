@@ -248,7 +248,13 @@ public sealed partial class UnixHiddenData
     {
         ct.ThrowIfCancellationRequested();
         int descriptor = InventoryOpen(path, MacDirectoryFlags);
-        if (descriptor < 0) throw InventoryError(path, Marshal.GetLastPInvokeError());
+        if (descriptor < 0)
+        {
+            int error = Marshal.GetLastPInvokeError();
+            if (error == 20) // ENOTDIR: a regular file or a path component cannot provide the held-directory adapter.
+                throw new NotSupportedException("A held-object attribute value/action adapter is not qualified for this macOS object.");
+            throw InventoryError(path, error);
+        }
         var directory = new SafeFileHandle(descriptor, ownsHandle: true);
         try
         {
