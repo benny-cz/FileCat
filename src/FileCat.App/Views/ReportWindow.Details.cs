@@ -28,12 +28,20 @@ public sealed partial class ReportWindow
         _detailsReader = reader;
         _openExtraData = openExtraData;
         _openTarget = openTarget;
-        Width = 840; Height = 640; MinWidth = 240; MinHeight = 240;
+        Width = 840; Height = 640; MinWidth = 240; MinHeight = 280;
         // The inherited toolbar and spoken-line controls can exceed a short report's height
         // after wrapping or system text scaling. Keep a report viewport and let focus reveal
         // controls inside their own scroll area.
-        _chromeScroll.MaxHeight = Math.Max(100, ClientSize.Height * 0.58);
-        SizeChanged += (_, e) => _chromeScroll.MaxHeight = Math.Max(100, e.NewSize.Height * 0.58);
+        void FitChrome()
+        {
+            double height = ClientSize.Height > 0 ? ClientSize.Height : Height;
+            double limit = height * 0.58;
+            if (_copyNotice.IsVisible) limit = Math.Min(limit, height - 250);
+            _chromeScroll.MaxHeight = Math.Max(50, limit);
+        }
+        FitChrome();
+        SizeChanged += (_, _) => FitChrome();
+        _copyNotice.PropertyChanged += (_, e) => { if (e.Property == IsVisibleProperty) FitChrome(); };
         _view.Wrap = true; _wrap.IsChecked = true;
         _search.MinWidth = 100;
         _actions.Children.Add(_tier);

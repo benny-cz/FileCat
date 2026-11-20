@@ -40,3 +40,23 @@ and `.tmp/short-details-native-controller.json` (SHA-256
 `F909677D130DA4B72FD4FBEEDD835DDDD610797BE9B5EB567C3E1C30F43E469E`).
 This closes the combined short-window text-size and High Contrast checkpoint
 for Windows x64. F-UI remains partial for its other listed routes and cases.
+
+## Copy feedback in the short window
+
+The original 320 × 420 DIP, 20-DIP-font fixture reached the last spoken-line
+control, but did not show the real **Copy all** feedback. Expanding that
+fixture on Apple silicon made the report text smaller than the required
+80-DIP viewport. The details-only window now reserves space for the report
+when copy feedback appears, and its minimum height is 280 DIP. The fixture
+asserts that the copy notice, status, controls and report text remain within
+the window together.
+
+The corrected Mac fixture passed 1/1 on the Apple-silicon Mac. Its returned
+TRX is `.tmp/mac-copy-notice-r2.trx` (SHA-256
+`37E1751884C8D226E6BBF1ED7A4308047A2D97723A8E3C0A14D2048AA15E9359`).
+The Windows 11 x64 VM then passed the `FileDetailsWindowTests|ReportWindowTests`
+filter: 14 passed, 6 expected platform/fixture skips, 0 failed. The transferred
+test package had SHA-256
+`5A3DA7E43DDF979EAA05F8A71B0B2DB8104263607A61818F4682367575FDC7A6`;
+the returned `.tmp/copy-notice-win-details-and-reports.trx` has SHA-256
+`8E7C13B5B4A0020F7FA1C84BF839A0E99A1D7E09F305FB4BE336915910EF4123`.

@@ -5,6 +5,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using FileCat.App.Controls;
 using FileCat.App.Views;
 using FileCat.Core.Inspect;
 using FileCat.Core.Records;
@@ -190,6 +191,19 @@ public sealed class FileDetailsWindowTests
             Assert.True(controls.Offset.Y > 0, "Focusing the last control must scroll it into view.");
             var visible = last.TranslatePoint(default, viewport)!.Value;
             Assert.InRange(visible.Y, -0.6, viewport.Bounds.Height - last.Bounds.Height + 0.6);
+            var copy = Assert.Single(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Copy all");
+            Assert.True(copy.Focus(NavigationMethod.Tab));
+            copy.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var notice = Assert.Single(window.GetVisualDescendants().OfType<ContentCopyNotice>());
+            for (int attempt = 0; attempt < 100 && !notice.IsVisible; attempt++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            window.UpdateLayout();
+            Assert.Contains("complete original report", notice.ResultText);
+            var noticeAt = notice.TranslatePoint(default, window)!.Value;
+            Assert.InRange(noticeAt.Y, 0, window.ClientSize.Height - notice.Bounds.Height + 0.6);
+            var status = Assert.Single(window.GetVisualDescendants().OfType<Border>(), b => b.Classes.Contains("status"));
+            Assert.True(status.Bounds.Height > 0 && status.TranslatePoint(default, window)!.Value.Y >= 0);
+            Assert.True(viewer.Bounds.Height >= 80, "Copy feedback must leave the report text readable.");
             Assert.True(window.MinWidth <= 320);
         }
         finally { window.Close(); }
