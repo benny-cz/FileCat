@@ -8,7 +8,13 @@ The follow-up matrix added source EOF shrink/growth after the first copied exten
 
 The new race fixture starts with two 4 KiB extents in an 8 MiB sparse source. Its progress callback writes and flushes a new 4 KiB extent into a hole after the first queried extent has been copied. The operation throws the allocated-range-change error and leaves no destination. A second fixture copies 300 separated extents, crossing the 256-record query buffer boundary, and verifies the full hash, sparse attribute and low allocation. Existing all-hole, two-extent and unaligned-EOF cases also passed.
 
-This detects allocation-map changes observed by the second pass. It does not make a snapshot of source bytes or guarantee detection of writes inside an already allocated extent, a change followed by reversal, or a writer racing after the verification pass. Device-loss, native-owner cancellation and within-range write fixtures remain open.
+This detects allocation-map changes observed by the second pass. It does not make a snapshot of source bytes or guarantee detection of a change followed by reversal or a writer racing after the final check. Device-loss and native-owner cancellation fixtures remain open.
+
+## Same-range writer detected by a held source change token
+
+The Windows sparse copy now records a change token on the held source handle before range queries and compares it after copying and the second range pass. A missing token refuses sparse copy. The native fixture rewrote and flushed the first 4 KiB allocated extent after FileCat had copied it, without changing EOF or the allocated-range map. FileCat detected the source revision and removed the partial destination. The source digest changed as expected.
+
+On the disposable Windows 11 x64 VM (build 26340, 4 KiB NTFS, medium integrity RID 8192), the focused `SparseCopyTests` class passed twelve Windows cases with zero failures and five fixture/Unix skips. The test assembly SHA-256 was `F59AADC2E48B5D891A1A5BAE732A57E81EE7A684A1A76726C65668F550255E6F`. The [xUnit XML receipt](receipts/2026-11-20-windows-sparse-copy-revision-x64.xml) has SHA-256 `C0FEB4EC2684EE264C666A0CD895DE6593FB5C4DC3D59C14D6FEA22DBD48E8CB`. This qualifies the observed same-range write on that NTFS fixture. It does not claim an atomic snapshot or detection of every post-check write.
 
 ## Disk-full partial-output cleanup on an owned NTFS VHDX
 

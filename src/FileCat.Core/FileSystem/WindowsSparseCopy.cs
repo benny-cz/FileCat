@@ -17,6 +17,9 @@ internal static partial class WindowsSparseCopy
     {
         if (!OperatingSystem.IsWindows() || length < MinimumLength) return false;
         if (source.Length != length) throw new IOException("The source file changed size before its copy began.");
+        string? sourceRevision = SourceChangeToken.FromHandle(source.SafeFileHandle);
+        if (sourceRevision is null)
+            throw new IOException("The source file's change token is unavailable for a sparse copy.");
 
         var ranges = new AllocatedRange[256];
         using var copiedRanges = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -93,10 +96,13 @@ internal static partial class WindowsSparseCopy
         }
         if (source.Length != length) throw new IOException("The source file changed size during its copy.");
         // A writer can allocate a previously skipped hole after the first range query without changing EOF.
-        // A second bounded pass rejects a range-map change observed before publication.
+        // A second bounded pass rejects a range-map change observed before publication; the change token
+        // also catches writes to already allocated extents when the filesystem reports them.
         if (!copiedRanges.GetHashAndReset().AsSpan().SequenceEqual(RangeDigest(source, length, ct)) ||
             source.Length != length || (File.GetAttributes(source.SafeFileHandle) & FileAttributes.SparseFile) == 0)
             throw new IOException("The source file's allocated ranges changed during its copy.");
+        if (!SourceChangeToken.Holds(SourceChangeToken.FromHandle(source.SafeFileHandle), sourceRevision))
+            throw new IOException("The source file changed during its sparse copy.");
         ct.ThrowIfCancellationRequested();
         destination.SetLength(length); // includes a trailing hole and all-hole files
         return true;

@@ -162,6 +162,46 @@ public sealed class SparseCopyTests : IDisposable
     }
 
     [Fact]
+    public void Windows_sparse_copy_discards_output_when_a_copied_extent_is_rewritten()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows sparse-file control codes are required.");
+        const int length = 8 * 1024 * 1024;
+        string source = Path.Combine(_dir.Path, "source-rewritten.bin");
+        string destination = Path.Combine(_dir.Path, "copy-rewritten.bin");
+        using (var stream = new FileStream(source, FileMode.CreateNew, FileAccess.Write))
+        {
+            if (!DeviceIoControl(stream.SafeFileHandle, 0x000900C4, 0, 0, 0, 0, out _, 0))
+                Assert.Skip("The test volume cannot mark a file sparse.");
+            stream.SetLength(length);
+            stream.Write(RandomNumberGenerator.GetBytes(4096));
+            stream.Position = length - 4096;
+            stream.Write(RandomNumberGenerator.GetBytes(4096));
+        }
+        if (StorageBytes(source) >= length / 4)
+            Assert.Skip("The test volume did not create a sparse source file.");
+
+        byte[] originalDigest = SHA256.HashData(File.ReadAllBytes(source));
+        bool rewrote = false;
+        var failure = Assert.Throws<IOException>(() => new PortableFileOperations().CopyFile(source, destination,
+            new FileCopyOptions(), (done, _) =>
+            {
+                if (!rewrote && done >= 4096)
+                {
+                    using var writer = new FileStream(source, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+                    writer.Position = 0;
+                    writer.Write(Enumerable.Repeat((byte)0x7B, 4096).ToArray());
+                    writer.Flush(flushToDisk: true);
+                    rewrote = true;
+                }
+                return CopyProgressAction.Continue;
+            }, TestContext.Current.CancellationToken));
+        Assert.True(rewrote);
+        Assert.Contains("source file changed during its sparse copy", failure.Message);
+        Assert.False(File.Exists(destination));
+        Assert.NotEqual(originalDigest, SHA256.HashData(File.ReadAllBytes(source)));
+    }
+
+    [Fact]
     public void Windows_sparse_copy_verifies_allocated_ranges_across_query_batches()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows sparse-file control codes are required.");

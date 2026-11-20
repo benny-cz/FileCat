@@ -34,5 +34,6 @@ docs/validation/disk-space/windows-cleanup-legacy-r1014-error2.txt -text -whites
 docs/validation/filesystem-details/receipts/2026-11-20-current-main-*.xml -text -whitespace
 docs/validation/filesystem-details/receipts/2026-11-20-windows-sparse-copy-disk-full-x64.xml -text -whitespace
 docs/validation/filesystem-details/receipts/2026-11-20-windows-sparse-copy-disk-full-x64.json -text -whitespace
+docs/validation/filesystem-details/receipts/2026-11-20-windows-sparse-copy-revision-x64.xml -text -whitespace
 # The macOS archive worker launcher's plists are read by codesign and the system as they are: LF only.
 src/FileCat.App/MacOS/** text eol=lf
