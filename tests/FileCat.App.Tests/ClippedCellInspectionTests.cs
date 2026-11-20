@@ -227,10 +227,14 @@ public sealed class ClippedCellInspectionTests
     {
         // Hover reads the cells drawn by the current frame. Finish that frame before
         // using the arranged row coordinates to deliver input.
+        Dispatcher.UIThread.RunJobs();
         f.Window.CaptureRenderedFrame()?.Dispose();
         var rowPoint = new Point(x, f.List.GetRowBounds(row).Center.Y);
         Assert.True(new Rect(f.List.Bounds.Size).Contains(rowPoint));
         var point = f.List.TranslatePoint(rowPoint, f.Window)!.Value;
+        // Enter the target from outside its row even if a previous headless window
+        // left the pointer at the same screen coordinate.
+        f.Window.MouseMove(new Point(0, 0));
         f.Window.MouseMove(point);
     }
 

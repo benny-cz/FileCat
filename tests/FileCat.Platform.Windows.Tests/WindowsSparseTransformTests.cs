@@ -583,7 +583,7 @@ public sealed partial class WindowsSparseTransformTests
         AssertCallEvidence(jobs, job, changed);
     }
 
-    private static void RunEfsJob(JobManager jobs, string path, StorageAction action, bool changed)
+    private static void RunEfsJob(JobManager jobs, string path, StorageAction action, bool changed, TimeSpan? timeout = null)
     {
         var ct = TestContext.Current.CancellationToken;
         using var review = jobs.PrepareStorageReview([ItemRef.ForFileSystemPath(path, EntryKind.File)], action, ct);
@@ -596,7 +596,7 @@ public sealed partial class WindowsSparseTransformTests
         try
         {
             var job = jobs.SubmitStorage(review, selection, _ => { });
-            Assert.True(finished.Wait(TimeSpan.FromSeconds(45), ct));
+            Assert.True(finished.Wait(timeout ?? TimeSpan.FromSeconds(45), ct));
             Assert.True(job.State == JobState.Completed, $"{job.State}: " + string.Join(", ",
                 job.StorageResult!.Reasons.Select(r => r.Problem.Message).Concat(job.Issues.Select(i => i.Message))));
             Assert.Equal(changed ? 1 : 0, job.StorageResult!.Counts.Changed);
