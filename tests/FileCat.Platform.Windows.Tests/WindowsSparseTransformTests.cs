@@ -384,6 +384,44 @@ public sealed partial class WindowsSparseTransformTests
     }
 
     [Theory]
+    [InlineData("all-hole")]
+    [InlineData("main-holes")]
+    [InlineData("named-holes")]
+    [InlineData("both-holes")]
+    [InlineData("sparse-no-holes")]
+    public void Reviewed_efs_jobs_preserve_sparse_streams_and_record_only_changed_calls(string shape)
+    {
+        RequireFixture();
+        Run(shape, (path, first) =>
+        {
+            bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+            var adapter = new WindowsStorageTransforms(efsSetupBaseDirectory: () => Path.GetDirectoryName(path)!,
+                qualifyNativeArm64: arm64);
+            var candidate = adapter.CreateEfsJobCandidate((_, sid, consent, ct) =>
+            {
+                var setup = adapter.InspectEfsSetup(sid, consent, true, ct);
+                Assert.Null(setup.Problem);
+                return StorageEfsRecoveryApproval.DeclareArrangement(consent, setup,
+                    Assert.Single(setup.Association!.CurrentUserKeys).CertificateSha1, acknowledged: true);
+            });
+            var jobs = CreateManager(path, adapter: candidate);
+            RunEfsJob(jobs, path, StorageAction.EncryptEfs, changed: true);
+            var encrypted = Report("reviewed job encrypt", "changed", path, first);
+            Assert.True(encrypted.Attributes.HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(first.Main.Allocation, encrypted.Main.Allocation);
+            Assert.Equal(first.Named.Allocation, encrypted.Named.Allocation);
+            RunEfsJob(jobs, path, StorageAction.EncryptEfs, changed: false);
+
+            RunEfsJob(jobs, path, StorageAction.DecryptEfs, changed: true);
+            var decrypted = Report("reviewed job decrypt", "changed", path, first);
+            Assert.False(decrypted.Attributes.HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(first.Main.Allocation, decrypted.Main.Allocation);
+            Assert.Equal(first.Named.Allocation, decrypted.Named.Allocation);
+            RunEfsJob(jobs, path, StorageAction.DecryptEfs, changed: false);
+        });
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void Named_sparse_layout_growth_before_or_during_the_call_is_never_reported_as_success(bool duringCall)
@@ -484,7 +522,7 @@ public sealed partial class WindowsSparseTransformTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    private static JobManager CreateManager(string path, string? evidenceRoot = null, WindowsStorageTransforms? adapter = null)
+    private static JobManager CreateManager(string path, string? evidenceRoot = null, IStorageTransforms? adapter = null)
     {
         bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
         return new(new PortableFileOperations(), new ProviderRegistry(), Directory.CreateDirectory(
@@ -519,6 +557,29 @@ public sealed partial class WindowsSparseTransformTests
         Assert.Equal(changed ? 1 : 0, job.StorageResult!.Counts.Changed);
         Assert.Equal(changed ? 0 : 1, job.StorageResult.Counts.AlreadySatisfied);
         AssertCallEvidence(jobs, job, changed);
+    }
+
+    private static void RunEfsJob(JobManager jobs, string path, StorageAction action, bool changed)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var review = jobs.PrepareStorageReview([ItemRef.ForFileSystemPath(path, EntryKind.File)], action, ct);
+        Assert.Null(Assert.Single(review.Roots).Observation.Ineligible);
+        var selection = review.ApproveEfs(action, StorageScope.SelectedItems,
+            new(true, action == StorageAction.EncryptEfs));
+        using var finished = new ManualResetEventSlim();
+        void OnFinished(Job _) => finished.Set();
+        jobs.JobFinished += OnFinished;
+        try
+        {
+            var job = jobs.SubmitStorage(review, selection, _ => { });
+            Assert.True(finished.Wait(TimeSpan.FromSeconds(45), ct));
+            Assert.True(job.State == JobState.Completed, $"{job.State}: " + string.Join(", ",
+                job.StorageResult!.Reasons.Select(r => r.Problem.Message).Concat(job.Issues.Select(i => i.Message))));
+            Assert.Equal(changed ? 1 : 0, job.StorageResult!.Counts.Changed);
+            Assert.Equal(changed ? 0 : 1, job.StorageResult.Counts.AlreadySatisfied);
+            AssertCallEvidence(jobs, job, changed);
+        }
+        finally { jobs.JobFinished -= OnFinished; }
     }
 
     private static void AssertCallEvidence(JobManager jobs, Job job, bool changed)
