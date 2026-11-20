@@ -9,8 +9,10 @@
     sbom-<ver>-<rid>-setup-payload.spdx.json  exact self-contained payload + reviewed dependency identities
     sbom-<ver>-<rid>-portable.spdx.json       exact portable payload + reviewed dependency identities
     sbom-<ver>-<rid>-fdd.spdx.json            exact framework-dependent payload + reviewed dependency identities
-  Signing is a separate release-infrastructure step. This producer currently emits unsigned inputs;
-  no Windows candidate is qualified until a trusted signing provider and final-byte pipeline pass.
+  Without -Sign the payloads are unsigned. -Sign signs every unsigned PE file of both payloads with the identity that
+  eng/signing/Invoke-Jsign.ps1 is configured for, after the notice checks and before the SBOMs and archives, so every
+  later byte pin names signed files; signing/<rid>/ then holds the unsigned-input and signed-output manifests.
+  No Windows candidate is qualified until a trusted signing provider and final-byte pipeline pass.
 #>
 param(
     [string]$Version = "1.0.0-dev",
@@ -18,7 +20,8 @@ param(
     [string]$CandidateRef,
     [string]$Runtime = "win-x64",
     [string]$Configuration = "Release",
-    [string]$ArtifactDirectory
+    [string]$ArtifactDirectory,
+    [switch]$Sign
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
@@ -72,7 +75,8 @@ $sbomSetup = Join-Path $artifacts "sbom-$Version-$Runtime-setup-payload.spdx.jso
 $sbomPortable = Join-Path $artifacts "sbom-$Version-$Runtime-portable.spdx.json"
 $sbomFdd = Join-Path $artifacts "sbom-$Version-$Runtime-fdd.spdx.json"
 
-Remove-Item -Recurse -Force $publish, $fdd -ErrorAction SilentlyContinue
+$signingManifests = Join-Path $artifacts "signing/$Runtime"
+Remove-Item -Recurse -Force $publish, $fdd, $signingManifests -ErrorAction SilentlyContinue
 Remove-Item -Force $sbomSetup, $sbomPortable, $sbomFdd, (Join-Path $artifacts "sbom-$Version-$Runtime.json") -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $artifacts | Out-Null
 
@@ -147,6 +151,10 @@ foreach ($dir in @($publish, $fdd)) {
     New-Item -ItemType Directory -Force -Path $sharpCompress | Out-Null
     Copy-Item (Join-Path $root "licenses/sharpcompress/*") $sharpCompress -Recurse -Force
     Assert-PinnedNotices $sharpCompress 'licenses/sharpcompress'
+}
+
+if ($Sign) {
+    & (Join-Path $PSScriptRoot 'signing/Sign-WindowsPayload.ps1') -Path $publish, $fdd -ManifestDirectory $signingManifests | Out-Host
 }
 
 function Write-ArtifactSbom([string]$Payload, [string]$Kind, [string]$Output, [string[]]$Extra = @()) {

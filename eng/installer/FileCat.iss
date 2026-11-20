@@ -46,6 +46,12 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
+; A signed build (eng/Compile-WindowsInstaller.ps1 -Sign) names its sign tool and a fresh folder for the signed uninstaller.
+#ifdef SignToolName
+SignTool={#SignToolName}
+SignedUninstaller=yes
+SignedUninstallerDir={#SignedUninstallerDir}
+#endif
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked

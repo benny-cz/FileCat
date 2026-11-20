@@ -1,0 +1,72 @@
+name: Windows signing dry run
+
+# Runs FileCat's whole Windows signing pipeline without FileCat's real signing identity: payload signing inside
+# eng/publish.ps1, Setup and uninstaller signing inside the Inno Setup compile, RFC 3161 timestamps, then independent
+# verification of every PE file in the payloads, archives, installer and a silent install, with negative controls.
+# Nothing signed leaves the runner: only manifests, receipts, SBOMs and the verification report are uploaded.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'TestCertificate (throwaway certificate made in the job; no secrets) or ESignerSandbox (SSL.com sandbox; needs the ESIGNER_SANDBOX_* secrets)'
+        type: choice
+        options:
+          - TestCertificate
+          - ESignerSandbox
+        default: TestCertificate
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-signing-dry-run
+  cancel-in-progress: false
+
+jobs:
+  dry-run:
+    name: Sign and verify win-x64 (${{ inputs.mode }})
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Build, sign and package win-x64
+        shell: pwsh
+        env:
+          SIGNING_MODE: ${{ inputs.mode }}
+          FILECAT_ESIGNER_USERNAME: ${{ inputs.mode == 'ESignerSandbox' && secrets.ESIGNER_SANDBOX_USERNAME || '' }}
+          FILECAT_ESIGNER_PASSWORD: ${{ inputs.mode == 'ESignerSandbox' && secrets.ESIGNER_SANDBOX_PASSWORD || '' }}
+          FILECAT_ESIGNER_CREDENTIAL_ID: ${{ inputs.mode == 'ESignerSandbox' && secrets.ESIGNER_SANDBOX_CREDENTIAL_ID || '' }}
+          FILECAT_ESIGNER_TOTP_SECRET: ${{ inputs.mode == 'ESignerSandbox' && secrets.ESIGNER_SANDBOX_TOTP_SECRET || '' }}
+        run: ./eng/signing/Invoke-WindowsSigningDryRun.ps1 -Mode $env:SIGNING_MODE -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-dry-run')
+      - name: Verify every signature, a silent install round trip and the negative controls
+        shell: pwsh
+        run: |
+          $work = Join-Path $env:RUNNER_TEMP 'signing-dry-run'
+          $run = Get-Content -LiteralPath (Join-Path $work 'dry-run.json') -Raw | ConvertFrom-Json
+          $verify = @{
+            Path = @($run.Outputs.Payload) + @($run.Outputs.Zips) + @($run.Outputs.Installer, $run.Outputs.SignedUninstallerDirectory)
+            ExpectedSignerSha256 = $run.ExpectedSignerSHA256
+            SigningManifest = @($run.SigningManifests)
+            Installer = $run.Outputs.Installer
+            ReportPath = Join-Path $work 'verification.json'
+          }
+          if ($run.TrustedRootFile) { $verify.TrustedRootFile = $run.TrustedRootFile }
+          ./eng/signing/Test-WindowsSignatures.ps1 @verify
+      - name: Keep manifests, receipts and the report (never signed bytes)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-signing-dry-run-${{ inputs.mode }}
+          path: |
+            ${{ runner.temp }}/signing-dry-run/dry-run.json
+            ${{ runner.temp }}/signing-dry-run/verification.json
+            ${{ runner.temp }}/signing-dry-run/artifacts/signing/win-x64/*.json
+            ${{ runner.temp }}/signing-dry-run/artifacts/toolchains/inno-setup/*.json
+            ${{ runner.temp }}/signing-dry-run/artifacts/toolchains/inno-setup/*.log
+            ${{ runner.temp }}/signing-dry-run/artifacts/sbom-*.spdx.json
+          if-no-files-found: warn
