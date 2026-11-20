@@ -163,7 +163,7 @@ error "The owned details window is unavailable"''')
         key("key code 36")
 
     def open_find_result():
-        search_command("find files")
+        key("key code 98 using {option down}")
         wait(lambda: "Find files" in window_titles(), "the standalone Find window")
         tab_to("Names")
         key('keystroke "a" using {command down}')
@@ -199,9 +199,10 @@ error "The owned details window is unavailable"''')
         expect_focus("Initial file panel item", "Go to parent location")
         key("key code 125")
         expect_focus("Selected file by keyboard", original.name)
-        speech("VoiceOver speaks the selected file", original.name)
         if find_results:
             open_find_result()
+        else:
+            speech("VoiceOver speaks the selected file", original.name)
         if properties:
             key("key code 36 using {option down}")
         elif find_results:
@@ -209,7 +210,10 @@ error "The owned details window is unavailable"''')
         else:
             search_command("file-system details")
         wait(lambda: "File-system details" in window_titles(), "the selected file details window")
-        speech("VoiceOver announces the details window", "File-system details")
+        if find_results:
+            speech("VoiceOver announces the initial summary", "summary", "observation")
+        else:
+            speech("VoiceOver announces the details window", "File-system details")
         if narrow:
             resize_report()
         if link_target:

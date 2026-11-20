@@ -3,7 +3,7 @@
 
 Build FileCat in Release in an owned checkout below ~/FileCatValidation, then run:
 FILECAT_ORCA_ISOLATED_DISPLAY=1 dbus-run-session -- xvfb-run -a /usr/bin/python3 \
-    linux-orca-filesystem-details.py CHECKOUT REPORT.json [--link-target | --find-results] [--report-size WIDTH HEIGHT] [--properties]
+    linux-orca-filesystem-details.py CHECKOUT REPORT.json [--link-target | --find-results] [--report-size WIDTH HEIGHT] [--properties] [--supplementary]
 
 The report destination must be below ~/FileCatValidation. The runner reads Orca's actual
 speech log, sets only the owned top-level window focus, and keeps the fixture and log.
@@ -27,7 +27,10 @@ def main():
     origin_group.add_argument("--find-results", action="store_true")
     parser.add_argument("--report-size", nargs=2, type=int, metavar=("WIDTH", "HEIGHT"))
     parser.add_argument("--properties", action="store_true")
+    parser.add_argument("--supplementary", action="store_true", help="also open the Find result's attributes in the workspace")
     args = parser.parse_args()
+    if args.supplementary and not args.find_results:
+        parser.error("--supplementary requires --find-results")
     checkout = args.checkout.resolve(strict=True)
     report_path = args.report.resolve()
     approved = (Path.home() / "FileCatValidation").resolve(strict=True)
@@ -134,7 +137,7 @@ def main():
 
     def key(chord):
         keys = {"home": "Home", "down": "Down", "enter": "Return", "alt+f7": "alt+F7",
-                "ctrl+alt+enter": "ctrl+alt+Return", "alt+enter": "alt+Return",
+                "ctrl+alt+enter": "ctrl+alt+Return", "alt+enter": "alt+Return", "alt+shift+enter": "alt+shift+Return",
                 "tab": "Tab", "space": "space", "escape": "Escape"}
         current = subprocess.run(["/usr/bin/xdotool", "getwindowfocus"], check=True, capture_output=True, text=True, timeout=5)
         if current.stdout.strip() not in windows():
@@ -161,24 +164,31 @@ def main():
                                 capture_output=True, text=True, timeout=5)
         return result.stdout if result.returncode == 0 else ""
 
-    def open_find_result():
+    def owned_accessibility():
         from gi import require_version
         require_version("Atspi", "2.0")
         from gi.repository import Atspi
         tree = runpy.run_path(str(native / "linux-atspi-sftp-delayed-listing.py"))["tree"]
+        desktop = Atspi.get_desktop(0)
+
+        def root():
+            for index in range(desktop.get_child_count()):
+                node = desktop.get_child_at_index(index)
+                if node is not None and node.get_process_id() == application.pid:
+                    return node
+            return None
+
+        return tree, wait(root, "the owned accessibility root")
+
+    def open_find_result():
         key("alt+f7")
         find_window = wait(lambda: window_named("Find files"), "the standalone Find window")
         focus(find_window)
-        desktop = Atspi.get_desktop(0)
+        tree, app_node = owned_accessibility()
 
         def find_form():
-            for index in range(desktop.get_child_count()):
-                app_node = desktop.get_child_at_index(index)
-                if app_node is None or app_node.get_process_id() != application.pid:
-                    continue
-                return next((node for node in tree(app_node) if node.get_role_name() in ("frame", "window", "dialog")
-                             and node.get_name() == "Find files"), None)
-            return None
+            return next((node for node in tree(app_node) if node.get_role_name() in ("frame", "window", "dialog")
+                         and node.get_name() == "Find files"), None)
 
         form = wait(find_form, "the owned accessible Find window")
         def entry(name):
@@ -200,6 +210,35 @@ def main():
         key("home")
         hear("Orca speaks the standalone Find result", focused.name)
         return find_window
+
+    def open_find_supplementary(origin_window, app_window):
+        key("alt+shift+enter")
+        tree, app_node = owned_accessibility()
+        attribute_name = "user.filecat-details"
+
+        def workspace_inventory():
+            for node in tree(app_node):
+                if node.get_role_name() != "list item" or (node.get_name() or "").split(",")[0] != attribute_name:
+                    continue
+                ancestor = node.get_parent()
+                while ancestor is not None:
+                    if ancestor.get_role_name() == "list" and str(focused) in (ancestor.get_name() or ""):
+                        return ancestor.get_name()
+                    ancestor = ancestor.get_parent()
+            return None
+
+        evidence["workspaceInventory"] = wait(workspace_inventory, "the selected original's workspace inventory")
+        if window_named("Find:") != origin_window:
+            raise AssertionError("Opening supplementary data replaced standalone Find.")
+        focus(app_window)
+        speech.take()
+        key("home")
+        key("down")
+        hear("Orca speaks the selected original's attribute name", attribute_name)
+        focus(origin_window)
+        hear("Orca still speaks the original Find result", focused.name)
+        if "FILECAT-XATTR-PAYLOAD-CANARY" in json.dumps(evidence["steps"]):
+            raise AssertionError("Names-only browsing spoke an attribute value.")
 
     try:
         evidence["orca"] = subprocess.check_output(["/usr/bin/orca", "--version"], text=True, timeout=10).strip()
@@ -282,6 +321,8 @@ def main():
             evidence["findResultWindowRetained"] = True
         focus(origin_window)
         hear("Focus returns to the selected row", focused.name)
+        if args.supplementary:
+            open_find_supplementary(origin_window, app_window)
         assert sha256(focused) == expected_digest and os.getxattr(focused, "user.filecat-details") == b"FILECAT-XATTR-PAYLOAD-CANARY"
         evidence["passed"] = True
     except Exception as error:
