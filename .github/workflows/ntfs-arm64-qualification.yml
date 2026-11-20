@@ -43,6 +43,10 @@ on:
         description: Qualify a reviewed EFS round trip on a sparse main stream beyond 4 GiB
         type: boolean
         default: false
+      dense_large:
+        description: Qualify reviewed removal above 30 GB on a private 76 GiB dense NTFS volume
+        type: boolean
+        default: false
       volumes:
         description: Qualify compression refusals on prepared 64 KiB and read-only NTFS volumes
         type: boolean
@@ -113,7 +117,7 @@ jobs:
     if: ${{ !inputs.desktop_probe }}
     name: Native storage jobs and EFS output protection
     runs-on: windows-11-arm
-    timeout-minutes: 25
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -407,6 +411,12 @@ jobs:
           if ($counters.total -ne '1' -or $counters.executed -ne '1' -or $counters.passed -ne '1') {
             throw 'The native ARM64 large sparse EFS case must execute and pass.'
           }
+      - name: Qualify large dense removal on native ARM64
+        if: inputs.dense_large
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP ('filecat-native-large-dense-' + [guid]::NewGuid().ToString('N'))
+          ./eng/validation/Invoke-NtfsLargeDense.ps1 -ScratchRoot $root
       - name: Qualify compression refusal on prepared NTFS volumes
         if: inputs.volumes
         shell: pwsh
@@ -708,6 +718,10 @@ jobs:
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-scale.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-sparse.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-large-sparse-efs.trx
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-dense-preflight.trx
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-large-dense.trx
+            ${{ runner.temp }}/filecat-native-large-dense-*/large-dense.json
+            ${{ runner.temp }}/filecat-native-large-dense-*/diskpart.log
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-evidence-limits.trx
             tests/FileCat.Core.Tests/TestResults/native-efs-archive-output.trx
             tests/FileCat.Core.Tests/TestResults/native-efs-recovery-output.trx
