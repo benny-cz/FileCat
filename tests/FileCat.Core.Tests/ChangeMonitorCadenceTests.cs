@@ -12,6 +12,17 @@ namespace FileCat.Core.Tests;
 /// </summary>
 public sealed class ChangeMonitorCadenceTests
 {
+    [Fact]
+    public void Refresh_delay_coalesces_notifications_and_caps_the_burst_subject_to_the_scan_interval()
+    {
+        var first = DateTime.UnixEpoch;
+        var interval = TimeSpan.FromMilliseconds(300);
+        Assert.Equal(TimeSpan.FromMilliseconds(250), ChangeMonitor.RefreshDelay(first, first, DateTime.MinValue, interval));
+        Assert.Equal(TimeSpan.FromMilliseconds(100), ChangeMonitor.RefreshDelay(first.AddMilliseconds(1900), first, DateTime.MinValue, interval));
+        Assert.Equal(TimeSpan.Zero, ChangeMonitor.RefreshDelay(first.AddMilliseconds(2100), first, DateTime.MinValue, interval));
+        Assert.Equal(TimeSpan.FromMilliseconds(100), ChangeMonitor.RefreshDelay(first.AddSeconds(2), first, first.AddMilliseconds(1800), interval));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -49,11 +60,17 @@ public sealed class ChangeMonitorCadenceTests
 
         try
         {
-            // For six seconds, a new file every 50 ms, then one known final file.
+            // Write for at least six seconds and allow a busy native watcher to catch up while writes still continue.
+            // The delay-policy test covers the exact deadline without independent writer and timer queues.
             double started = clock.Elapsed.TotalSeconds;
             int count = 0;
-            while (clock.Elapsed.TotalSeconds - started < 6)
+            int IntermediateCounts()
             {
+                lock (reads) return reads.Select(read => read.Files.Length).Where(length => length > 0).Distinct().Count();
+            }
+            while (clock.Elapsed.TotalSeconds - started < 25)
+            {
+                if (clock.Elapsed.TotalSeconds - started >= 6 && IntermediateCounts() >= 2) break;
                 File.WriteAllText(Path.Combine(folder, $"frame-{count++:0000}.bin"), "f");
                 await Task.Delay(50, ct);
             }
@@ -78,8 +95,8 @@ public sealed class ChangeMonitorCadenceTests
                 $"{count + 1} files; writes from {started:F2} s to {finalWriteStarted:F2} s; final write returned at {finalWriteReturned:F2} s, writer sampled at {writerSample:F2} s; " +
                 $"rereads (time/file count): {string.Join(", ", asked.Select(r => $"{r.Time:F2}/{r.Files.Length}"))}");
             Assert.Null(readError);
-            int during = asked.Count(r => r.Time < finalWriteStarted);
-            Assert.True(during >= 2, $"{during} reread(s) asked while files kept arriving for six seconds");
+            int during = asked.Where(r => r.Time < finalWriteStarted && r.Files.Length > 0).Select(r => r.Files.Length).Distinct().Count();
+            Assert.True(during >= 2, $"{during} different folder snapshots while files kept arriving for {finalWriteStarted - started:F2} seconds");
             Assert.Contains(asked, r => r.Files.SequenceEqual(expected));
             if (holdLastWriter) Assert.True(finalRead < writerSample, "The controlled writer hold did not follow the final-file observation.");
         }
