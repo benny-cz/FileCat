@@ -140,11 +140,14 @@ public sealed partial class JobViewModel : ObservableObject
     public void Refresh()
     {
         var j = Job;
+        // The worker can finish during this refresh. Keep the active flag and the 100% decision
+        // on the same lifecycle snapshot so a still-active view never briefly shows 100%.
+        JobState lifecycleState = j.State;
         // A title and a summary name files (a verification's names its checksum file and who signed it): escaped as names are (§18.3).
         Title = Formatters.SafeName(j.Title);
-        IsFinished = j.State.IsFinished();
-        IsQueued = j.State == JobState.Queued;
-        IsActive = j.State.IsActive();
+        IsFinished = lifecycleState.IsFinished();
+        IsQueued = lifecycleState == JobState.Queued;
+        IsActive = lifecycleState.IsActive();
         CanLimitSpeed = !IsFinished && JobExecutors.MayThrottle(j.Request);
         NeedsDecision = j.State == JobState.AwaitingDecision;
         CanPause = j.State is JobState.Running or JobState.Queued && !j.IsPaused;
@@ -182,7 +185,7 @@ public sealed partial class JobViewModel : ObservableObject
         // The fraction tracks settled work, including skips, not physically copied bytes or a successful outcome.
         var estimate = _progress.Update(new ProgressSample(System.Diagnostics.Stopwatch.GetElapsedTime(_clockStart),
             j.WorkBytesDone, j.WorkBytesTotal, id, it, j.TotalsFinal, j.State == JobState.Running && !j.IsPaused));
-        Percent = j.State is JobState.Completed or JobState.CompletedWithIssues
+        Percent = lifecycleState is JobState.Completed or JobState.CompletedWithIssues
             ? 100 : Math.Min(99, 100 * estimate.Fraction);
         string state = j.State switch
         {
@@ -250,7 +253,7 @@ public sealed partial class JobViewModel : ObservableObject
         const string verifyingSuffix = " (verifying)";
         bool verifying = currentItem.EndsWith(verifyingSuffix, StringComparison.Ordinal);
         PercentText = IsActive && !IsIndeterminate ? $"{Math.Floor(Percent):0}%"
-            : j.State == JobState.Completed ? "100%" : string.Empty;
+            : IsFinished && j.State == JobState.Completed ? "100%" : string.Empty;
         var archivePhase = j.Kind == JobKind.ArchiveUpdate ? j.ArchivePhase : null;
         bool deferred = j.CancellationDeferred && !j.State.IsFinished();
         CanCancel = !deferred;
