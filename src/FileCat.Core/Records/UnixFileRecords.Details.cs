@@ -203,12 +203,33 @@ public sealed unsafe partial class UnixFileRecords
             Owner = Field(8, BinaryPrimitives.ReadUInt32LittleEndian(bytes[20..]), FactScope.Entry),
             Group = Field(0x10, BinaryPrimitives.ReadUInt32LittleEndian(bytes[24..]), FactScope.Entry),
             Compression = Flag(4), FileEncryption = Flag(0x800),
-            Restrictions = ObservedFact<string>.Known($"0x{attrs & supported:X}; supported mask 0x{supported:X}", FactScope.Entry, Source),
+            Restrictions = LinuxRestrictionFlags(attrs, supported, kind, Source),
             Notes = ["Allocation is inode-reported blocks × 512, not exclusive storage or recursive contents.",
                 $"statx field mask: 0x{mask:X}; attribute mask: 0x{supported:X}; raw attributes: 0x{attrs:X}.",
                 "Additional filesystem policies, xattrs and effective access were not queried."]
         };
         return FileDetailsReport.Metadata(snapshot, new InspectionSection("Native statx metadata", [("Returned mask", $"0x{mask:X}"), ("Attribute support mask", $"0x{supported:X}"), ("Raw attributes", $"0x{attrs:X}")]));
+    }
+
+    private static ObservedFact<string> LinuxRestrictionFlags(ulong attributes, ulong supported, FileObjectKind kind, string source)
+    {
+        const ulong immutable = 0x10, append = 0x20, noDump = 0x40, verity = 0x10_0000;
+        ulong applicable = immutable | append | noDump;
+        if (kind == FileObjectKind.File) applicable |= verity;
+        ulong returned = supported & applicable;
+        if (returned == 0)
+            return ObservedFact<string>.Unavailable(FactState.Unsupported, FactScope.Entry, source,
+                "The returned statx attribute mask includes no supported restriction flag for this item.");
+
+        ulong flags = attributes & returned;
+        var descriptions = new List<string>();
+        if ((flags & immutable) != 0) descriptions.Add("Immutable flag set.");
+        if ((flags & append) != 0) descriptions.Add("Append-only flag set.");
+        if ((flags & noDump) != 0) descriptions.Add("No-dump flag set. Backup tools may skip this item.");
+        if ((flags & verity) != 0)
+            descriptions.Add("fs-verity enabled. File data is read-only and checked against its integrity tree on read. Signature trust requires separate verification.");
+        return ObservedFact<string>.Known(descriptions.Count == 0 ? "No returned restriction flag is set."
+            : string.Join(" ", descriptions), FactScope.Entry, source);
     }
 
     private static DetailsIdentity LinuxIdentity(ReadOnlySpan<byte> bytes) => new(

@@ -106,6 +106,43 @@ public sealed partial class UnixFileDetailsNativeTests
     }
 
     [Fact]
+    public void Linux_summary_and_full_report_describe_ext4_restrictions_without_reading_file_data()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux(), "Requires a disposable Linux ext4 volume.");
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_EXT4_RESTRICTIONS_ROOT");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires the prepared ext4 restriction fixtures.");
+
+        var reader = new UnixFileRecords();
+        var ct = TestContext.Current.CancellationToken;
+        foreach (var (name, expected) in new[]
+        {
+            ("verity", "fs-verity enabled. File data is read-only and checked against its integrity tree on read."),
+            ("immutable", "Immutable flag set."),
+            ("append", "Append-only flag set."),
+            ("no-dump", "No-dump flag set."),
+            ("ordinary", "No returned restriction flag is set."),
+        })
+        {
+            string path = Path.Join(root, name);
+            var summary = reader.ReadSummary(path, ct);
+            Assert.Equal("ext4", summary.FileSystem.Value);
+            Assert.Equal(FileObjectKind.File, summary.Kind);
+            Assert.Equal(FactState.Known, summary.Restrictions.State);
+            Assert.Contains(expected, summary.Restrictions.Value);
+            Assert.Equal(FactScope.Entry, summary.Restrictions.Scope);
+            var full = reader.ReadFull(path, FileDetailsPolicy.MetadataOnly, ct);
+            Assert.Equal(summary.Identity.Value, full.Summary.Identity.Value);
+            Assert.Equal(summary.Restrictions, full.Summary.Restrictions);
+            Assert.Contains(expected, full.ToText());
+            Assert.DoesNotContain("ext4-restriction-fixture-payload", full.ToText());
+        }
+        var link = reader.ReadSummary(Path.Join(root, "verity-link"), ct);
+        Assert.Equal(FileObjectKind.SymbolicLink, link.Kind);
+        Assert.Equal("verity", link.Target.Value?.SubstituteName);
+        Assert.DoesNotContain("fs-verity enabled", link.ToReport().ToText());
+    }
+
+    [Fact]
     public void Linux_full_report_observes_casefold_on_the_held_ext4_directory()
     {
         Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64,

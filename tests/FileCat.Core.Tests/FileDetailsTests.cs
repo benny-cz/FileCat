@@ -47,6 +47,31 @@ public sealed class FileDetailsTests
     }
 
     [Fact]
+    public void Linux_restrictions_describe_only_supported_flags_for_the_held_kind()
+    {
+        byte[] bytes = new byte[256];
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes, 1);
+        BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(28), 0x81A4);
+        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(8), 0x10_0070);
+
+        ObservedFact<string> Restrictions(ulong mask)
+        {
+            BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(56), mask);
+            return UnixFileRecords.ParseLinuxDetails("/synthetic", bytes).Summary.Restrictions;
+        }
+
+        Assert.Equal(FactState.Unsupported, Restrictions(0).State);
+        Assert.Equal("Immutable flag set.", Restrictions(0x10).Value);
+        Assert.Contains("Append-only flag set.", Restrictions(0x20).Value);
+        Assert.Contains("Backup tools may skip this item.", Restrictions(0x40).Value);
+        Assert.Contains("fs-verity enabled.", Restrictions(0x10_0000).Value);
+        BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(28), 0x41FF);
+        Assert.Equal(FactState.Unsupported, Restrictions(0x10_0000).State);
+        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(8), 0);
+        Assert.Equal("No returned restriction flag is set.", Restrictions(0x70).Value);
+    }
+
+    [Fact]
     public void Mac_returned_masks_also_require_complete_packed_slots()
     {
         byte[] bytes = new byte[256];
