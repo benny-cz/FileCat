@@ -81,7 +81,7 @@ internal static class AnalysisHistoryBrowser
                         break;
                     case Action.Open:
                         var source = await ProgressAsync("Opening history", dialogs, token => services.AnalysisHistory.OpenHistoryAsync(row, token), cancellation);
-                        var window = new DiskSpaceWindow();
+                        var window = new DiskSpaceWindow(null, () => services.Keymap, AnalysisSessionAdmission.Shared, services);
                         try { await window.AddHistorySessionAsync(services, source, cancellation); window.Show(); notice = "Historical observations opened in a separate analysis window."; }
                         catch { window.ForceClose(); await window.WaitForIndexedCloseAsync(); await source.DisposeAsync(); throw; }
                         break;
