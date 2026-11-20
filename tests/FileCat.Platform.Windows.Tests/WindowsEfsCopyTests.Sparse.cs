@@ -159,12 +159,16 @@ public sealed partial class WindowsEfsCopyTests
     }
 
     [Theory]
-    [InlineData(JobKind.Copy, false)]
-    [InlineData(JobKind.Move, false)]
-    [InlineData(JobKind.Copy, true)]
-    [InlineData(JobKind.Move, true)]
+    [InlineData(JobKind.Copy, false, false)]
+    [InlineData(JobKind.Move, false, false)]
+    [InlineData(JobKind.Copy, true, false)]
+    [InlineData(JobKind.Move, true, false)]
+    [InlineData(JobKind.Copy, false, true)]
+    [InlineData(JobKind.Move, false, true)]
+    [InlineData(JobKind.Copy, true, true)]
+    [InlineData(JobKind.Move, true, true)]
     public async Task Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(
-        JobKind kind, bool sourceOnUsb)
+        JobKind kind, bool sourceOnUsb, bool replaceExisting)
     {
         RequireEfs();
         string? removableRoot = Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_USB_ROOT");
@@ -212,11 +216,19 @@ public sealed partial class WindowsEfsCopyTests
             WriteSparse("usb source main", beforeMain);
             WriteSparse("usb source named", beforeNamed);
 
-            var (job, questions) = await Run(root, new WindowsFileOperations(), kind, [source], destination,
-                _ => new(DecisionAction.CancelJob));
-            Assert.Empty(questions);
-            Assert.Equal(JobState.Completed, job.State);
             string target = Path.Combine(destination, "sparse-usb.bin");
+            if (replaceExisting)
+            {
+                File.WriteAllBytes(target, [0x10, 0x20, 0x30]);
+                File.WriteAllBytes(target + ":proof", [0x40, 0x50]);
+            }
+            var (job, questions) = await Run(root, new WindowsFileOperations(), kind, [source], destination,
+                request => request is ConflictRequest { CanReplace: true }
+                    ? new(DecisionAction.Replace) : new(DecisionAction.CancelJob),
+                replaceExisting ? new TransferOptions { Conflicts = ConflictPolicy.Replace } : null);
+            Assert.DoesNotContain(questions, question => question is ConfirmRequest { ConfirmClass: "decrypt" });
+            if (!replaceExisting) Assert.Empty(questions);
+            Assert.Equal(JobState.Completed, job.State);
             Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
             var afterMain = ObserveSparseStream(target);
             var afterNamed = ObserveSparseStream(target + ":proof");
@@ -224,6 +236,9 @@ public sealed partial class WindowsEfsCopyTests
             WriteSparse("usb copy named", afterNamed);
             AssertSparseCopy(beforeMain, afterMain);
             AssertSparseCopy(beforeNamed, afterNamed);
+            Assert.Equal([target], Directory.GetFiles(destination));
+            Assert.DoesNotContain(Directory.EnumerateFileSystemEntries(destination),
+                item => Path.GetFileName(item).StartsWith(JournalRecovery.StagedPrefix, StringComparison.Ordinal));
             if (kind == JobKind.Move)
             {
                 Assert.False(File.Exists(source));
