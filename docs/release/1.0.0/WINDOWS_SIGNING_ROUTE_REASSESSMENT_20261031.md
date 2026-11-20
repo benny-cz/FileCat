@@ -51,11 +51,21 @@ The owner obtained an SSL.com individual-validated code-signing certificate on 2
 - **Cost.** SSL.com's [eSigner IV/OV pricing](https://www.ssl.com/guide/esigner-pricing-for-code-signing/) lists Tier 1 at $180 a year for 240 signings and Tier 2 at $765 a year for 1,200; the first 30 days are free with unlimited signings. One win-x64 package build costs 57 signings ([E-SIGN-DRYRUN](evidence/E-SIGN-DRYRUN-20261120.md)).
 - **The hosted pipeline is built and passes with a throwaway test certificate.** Payloads, Setup and the uninstaller are signed inside packaging, and every PE file is verified independently with negative controls.
 
-Before any real-identity signature:
+Before the first real-identity signature, which the [Windows signing pilot](../../../.github/workflows/windows-signing-pilot.yml) makes:
 
-1. The owner confirms eSigner custody and keeps the TOTP secret and credential ID.
-2. The owner creates a protected `signing` environment: the owner as the only reviewer, deployments only from `main` and `v*`, and the eSigner username, password, credential ID and TOTP secret as environment secrets. The existing `release` environment stays unchanged.
-3. The owner decides that signatures may show the certificate subject (the owner's legal name and city).
-4. The owner approves replacing the SignPath-specific D-40/section 10.4 contract with this route.
+1. The owner confirms eSigner custody and keeps the TOTP secret (the secret code shown with the eSigner QR code) and the credential ID.
+2. The owner creates the `signing` environment:
+   - **Reviewer:** the owner as required reviewer, with self-review allowed.
+   - **Bypass:** administrator bypass turned off.
+   - **Deployments:** only the `main` branch and `v*` tags.
+   - **Secrets:** `ESIGNER_USERNAME`, `ESIGNER_PASSWORD`, `ESIGNER_CREDENTIAL_ID`, `ESIGNER_TOTP_SECRET`, and `ESIGNER_CERT_SHA256`, which is the SHA-256 of the issued certificate and pins it.
+
+   The existing `release` environment stays unchanged. The pilot's first step refuses any weaker setup.
+3. The owner starts the pilot from `main` and approves the `signing` deployment. One run costs about 57 eSigner signings. The signed files land in a private draft release, which the owner deletes once the result is recorded.
+
+Before any public signed release, as well:
+
+4. The owner decides that signatures may show the certificate subject (the owner's legal name and city).
+5. The owner approves replacing the SignPath-specific D-40/section 10.4 contract with this route.
 
 Agents use the owner's GitHub token but never approve a signing deployment. Because this repository is public, real-identity signed bytes go only to a private draft release, never to workflow artifacts or logs. The stop rule above is unchanged.

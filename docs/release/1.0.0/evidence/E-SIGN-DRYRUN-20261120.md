@@ -10,6 +10,8 @@
 - `eng/signing/Test-WindowsSignatures.ps1` verifies independently of the signing tool. Each file needs WinVerifyTrust, a recomputed image digest and the CMS signature check. A FileCat-signed file also needs the signer SHA-256 pin and exactly one RFC 3161 timestamp that covers the signature, uses a SHA-2 imprint and chains to a timestamping authority Windows trusts. A vendor-signed file must be byte-identical to a vendor input in the signing manifest. ZIPs are extracted, and a silent install, verification of the installed tree and an uninstall run on the disposable runner. Tampered, stripped, untimestamped and foreign-signed copies of real outputs must each be rejected for that reason.
 - `.github/workflows/windows-signing-dry-run.yml` is manual (`workflow_dispatch`) with `contents: read`. It uploads manifests, receipts, SBOMs and the report, never signed files. The test certificate exists only in the job, and the test root is passed to the verifier as its sole custom trust anchor.
 
+Since `af71f8df` this runs as two jobs, with credentials kept away from the build; see [Credential-isolated two-job pipeline](#credential-isolated-two-job-pipeline-and-the-esigner-pilot).
+
 ## Results
 
 | Run | Source | Result |
@@ -51,3 +53,30 @@ No private key is present on the development host. Key custody (SSL.com eSigner 
 - Smart App Control, SmartScreen and ARM64.
 
 The signed bytes stayed on the runner. The [route and stop rule](../WINDOWS_SIGNING_ROUTE_REASSESSMENT_20261031.md#2026-11-20-addendum-sslcom-certificate-and-hosted-signing-dry-run) are unchanged: no RC tag, signed-asset claim or stable publication before a real-identity run, final-byte verification, Smart App Control evidence and the owner's GO.
+
+## Credential-isolated two-job pipeline and the eSigner pilot
+
+The dry run now runs the way a real signing run does, on two machines:
+
+- **Build job, no credentials.** `publish.ps1 -PayloadOnly` publishes and checks both win-x64 payload folders. `eng/signing/Invoke-WindowsSigningRun.ps1 -Phase Build` writes `payload-manifest.json` with every file's size and SHA-256 and reports the manifest's SHA-256 as a job output. The unsigned payload goes to a one-day workflow artifact; it carries no signature or identity.
+- **Signing job.** `Prepare` checks the download against that SHA-256 and every manifest entry. It then does a locked restore, which runs no package code, so the SBOMs can check restored archives; acquires Jsign and Inno Setup; and makes the test signer. Credentials reach only `SignPayload` and `SignInstaller`, which run Jsign and the pinned Inno Setup compiler but no NuGet or MSBuild code. `Package` (`publish.ps1 -FromPayload`) writes the SBOMs and archives and shuts down build servers before the installer is signed.
+- **Canary.** With a pinned signer (`FILECAT_EXPECTED_SIGNER_SHA256`), one canary file is signed and checked before the rest. In a local control, a wrong pin stopped after exactly one signature.
+- **The pilot.** `.github/workflows/windows-signing-pilot.yml` runs this with FileCat's eSigner certificate. `eng/signing/Assert-SigningEnvironment.ps1` refuses to continue unless `signing` exists, requires a reviewer, refuses administrator bypass and allows only `main` and `v*` tags. The verifier also checks revocation and prints no signer identity (`-PrivateIdentity`). Signed files, manifests and the report go only into a private draft release.
+
+| Run | Source | Result |
+|---|---|---|
+| [44803829456](https://github.com/benny-cz/FileCat/actions/runs/44803829456) (pilot) | `af71f8df` | Refused at its first step because `signing` does not exist. No build or signing ran, and afterwards the environment still did not exist, so no unprotected environment was created. |
+| [44803783149](https://github.com/benny-cz/FileCat/actions/runs/44803783149) | `af71f8df` | The build passed, and the signing job matched all 605 downloaded files to the manifest. The locked restore then failed (NU1004), because `dotnet restore -r` replaces the projects' locked runtime list. Fixed in `21b4c683` by passing RuntimeIdentifier, as `dotnet publish -r` does. |
+| [44806445513](https://github.com/benny-cz/FileCat/actions/runs/44806445513) | `21b4c683` | Payload signing with the canary, packaging and installer signing passed. Verification failed because `publish.ps1 -FromPayload` deleted the signing manifests. Fixed in `e18125e5`. |
+| [44809030050](https://github.com/benny-cz/FileCat/actions/runs/44809030050) | `e18125e5` | Pass, with the same counts as the single-job runs. |
+| [44812780579](https://github.com/benny-cz/FileCat/actions/runs/44812780579) | `24f2e661` | Pass at the final source. The log now shows Jsign's 55 per-file lines, with the canary first. |
+
+Run 44812780579 details:
+
+- **Payload manifest SHA-256:** `67C8996D823FCDE7C5035C10ECD7BA9600B63DC9658648E6DC181BD4B24D273B`.
+- **Setup:** 81,984,296 bytes, SHA-256 `965506497889b36ee69d40417d315970de1934ea4c875166810d1ba77ade211e`. Signed by the pinned test signer, with payload inputs unchanged during compilation.
+- **Verification:** 857 PE files, 271 FileCat-signed, 586 vendor-signed, 0 failed; negative controls 4/4 rejected.
+- **Install round trip:** 248 installed PE files, including the signed `unins000.exe`; folder removed.
+- **Hashes (SHA-256):** report `80136710a7a756ef552e4f3224ce9834a5d229bec14ce549fc755c4cdcfe53c0`, `signed-outputs.json` `77768f7d8e3f8e739b7f9c4ab797ab883fd2bccb56fe462c631395cd0da2dc3f`, `unsigned-inputs.json` `4d7efb7144b2f25b49b6df880bb1cf94017cbc5e929fb1148df02f00d23023cf`.
+
+Not yet shown: everything eSigner-specific. That covers authentication with the account's TOTP secret, the credential ID, whether the account makes SSL.com scan files before it signs their digests, Windows-root trust with revocation, and the private draft. The first pilot run tests these.
