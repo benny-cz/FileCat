@@ -53,7 +53,7 @@ public sealed unsafe partial class UnixFileRecords
         int error;
         fixed (byte* data = bytes)
         {
-            length = BtrfsFGetXattr((int)file.DangerousGetHandle(), "btrfs.compression", data, (nuint)bytes.Length);
+            length = LinuxDetailsFGetXattr((int)file.DangerousGetHandle(), "btrfs.compression", data, (nuint)bytes.Length);
             error = length < 0 ? Marshal.GetLastPInvokeError() : 0;
         }
         ct.ThrowIfCancellationRequested();
@@ -108,7 +108,4 @@ public sealed unsafe partial class UnixFileRecords
         ]) { Lines = lines };
         return report with { Technical = report.Technical with { Sections = [.. report.Technical.Sections, section] } };
     }
-
-    [LibraryImport("libc", EntryPoint = "fgetxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
-    private static partial nint BtrfsFGetXattr(int fd, string name, byte* value, nuint size);
 }

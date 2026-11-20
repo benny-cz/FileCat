@@ -147,7 +147,7 @@ public sealed unsafe partial class UnixFileRecords
         return report with
         {
             Technical = report.Technical with { Sections = [.. report.Technical.Sections, section],
-                Warnings = ["Not acquired: supplementary-data values and previews, raw volumes and journals, security value collectors and hard-link names."] },
+                Warnings = ["Not acquired: general supplementary-data values and previews, raw volumes and journals, ACL values, and hard-link names."] },
         };
     }
 

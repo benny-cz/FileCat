@@ -98,7 +98,11 @@ public sealed unsafe partial class UnixFileRecords
                     if (btrfs)
                         report = AddLinuxBtrfs(report, file, state, reason, ct);
                     if (fileExtents)
+                    {
+                        if (x64 && format == "ext4")
+                            report = AddLinuxFileCapabilities(report, file, state, reason, ct);
                         report = AddLinuxExtents(report, file is null ? FiemapUnavailable(state, reason!) : ReadLinuxExtents(file, ct));
+                    }
                 }
             }
             return report;
