@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$TestRoot,
     [Parameter(Mandatory)][string]$NvdaPath,
+    [switch]$HostedArm64,
     [switch]$HighContrastPictures,
     [switch]$VerifyDuplicateRoots,
     [switch]$VerifyOperationsRecovery,
@@ -16,18 +17,29 @@ if (@($VerifyCanceledKeyBackup, $VerifyCompletedKeyBackup, $VerifySelectedFileBa
     throw 'Choose one of the optional fixture modes.'
 }
 $testRoot = [IO.Path]::GetFullPath($TestRoot)
-$validationRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'FileCatValidation')) + '\'
 $nvdaPath = [IO.Path]::GetFullPath($NvdaPath)
-if (!(Get-Process -Id $PID).SessionId -or
-    (Get-CimInstance Win32_ComputerSystem).Manufacturer -notmatch 'VMware' -or
+$session = (Get-Process -Id $PID).SessionId
+if ($HostedArm64) {
+    if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows' -or
+        $env:RUNNER_ARCH -ne 'ARM64' -or ![IO.Path]::IsPathRooted($env:RUNNER_TEMP)) {
+        throw 'Use the hosted Windows ARM64 qualification run.'
+    }
+    $validationRoot = [IO.Path]::GetFullPath((Join-Path $env:RUNNER_TEMP 'filecat-native-nvda')) + '\'
+} else {
+    if ((Get-CimInstance Win32_ComputerSystem).Manufacturer -notmatch 'VMware') {
+        throw 'Use the disposable VMware validation guest.'
+    }
+    $validationRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'FileCatValidation')) + '\'
+}
+if (!$session -or
     !$testRoot.StartsWith($validationRoot, [StringComparison]::OrdinalIgnoreCase) -or
     !$nvdaPath.StartsWith($validationRoot, [StringComparison]::OrdinalIgnoreCase) -or
     (Get-AuthenticodeSignature -LiteralPath $nvdaPath).Status -ne 'Valid') {
-    throw 'Run the owned storage UI fixture with signed NVDA in an interactive VMware test profile.'
+    throw 'Run the owned storage UI fixture with signed NVDA in the interactive validation profile.'
 }
 $log = Join-Path $testRoot 'storage-review-result.json'
 if (Test-Path -LiteralPath $log) { throw 'Use a fresh test root to preserve prior receipts.' }
-$record = [ordered]@{ Passed = $false; Stage = 'process preflight'; Error = $null; Controls = @{}; Speech = @{} }
+$record = [ordered]@{ Passed = $false; Stage = 'process preflight'; Error = $null; Session = $session; Controls = @{}; Speech = @{} }
 $app = $reader = $backupPath = $null
 try {
     if (Get-Process dotnet,testhost,FileCat,FileCat.ShellHost,FileCat.App.Tests,FileCat.*QualificationHost,FileCat.*CrashHarness,nvda -ErrorAction SilentlyContinue) {
@@ -511,6 +523,18 @@ public static class StorageReviewInput {
     $speechPath = Join-Path $fixture 'nvda.log'
     $script:speechIndex = 0
     New-Item -ItemType Directory -Path $left,$right,$state,$nvdaConfig -Force | Out-Null
+    if ($HostedArm64) {
+        $owner = [Security.Principal.WindowsIdentity]::GetCurrent().User
+        $system = [Security.Principal.SecurityIdentifier]::new('S-1-5-18')
+        $access = [Security.AccessControl.DirectorySecurity]::new()
+        $access.SetOwner($owner)
+        $access.SetAccessRuleProtection($true, $false)
+        foreach ($principal in $owner,$system) {
+            $access.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(
+                $principal, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow'))
+        }
+        Set-Acl -LiteralPath $state -AclObject $access
+    }
     if ($HighContrastPictures -or $VerifyOperationsRecovery) {
         [IO.File]::WriteAllText((Join-Path $state 'settings.json'),
             '{"SchemaVersion":1,"Theme":"HighContrast","ThemeAnimations":false,"RowDensity":"Comfortable","FontSize":24,"ContentFontSize":24}')
@@ -561,8 +585,9 @@ public static class StorageReviewInput {
     $record.FileCatDllSHA256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $exe) 'FileCat.dll')).Hash
     $record.WindowsDllSHA256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $exe) 'FileCat.Platform.Windows.dll')).Hash
     $record.NvdaVersion = (Get-Item -LiteralPath $nvdaPath).VersionInfo.ProductVersion
+    $qualification = if ($HostedArm64) { '--ntfs-storage-arm64-review' } else { '--ntfs-storage-review' }
     $applicationArguments = @(
-        '--ntfs-storage-review', '--new-instance', '--reset-layout', '--data', "`"$state`"", '--left', "`"$left`"", '--right', "`"$right`"") +
+        $qualification, '--new-instance', '--reset-layout', '--data', "`"$state`"", '--left', "`"$left`"", '--right', "`"$right`"") +
         $listArgument + $operationsArgument
     $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -PassThru -ArgumentList $applicationArguments
     $main = Await {

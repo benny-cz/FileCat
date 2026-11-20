@@ -30,6 +30,8 @@ On the disposable Windows build 26340 guest, `compact /C /EXE:LZX` produced tran
 
 The native Windows x64 full metadata report now identifies the same transparent file-provider backing as LZX. Its NTFS compression attribute remained clear, the held file ID matched the summary and the report omitted payload bytes and ordinary main-stream placement. The test read the original 256 KiB back exactly after inspection and the refused deletion. The ordinary unbacked control omitted the Windows Overlay Filter section. All 32 focused metadata, extent, range, hard-link and supplementary cases executed and passed at medium integrity. The full suite `wof-details-r1.trx` has SHA-256 `F97F76CA46D3BEC9734862D8D571284DAC40AF2DE132066A09840EF93C4F4E19` and its test assembly has SHA-256 `08813F05CC0C06DCA5D2A3DA15DF56FFE9F25BBFA5B72F474CACE8E7804888F7`. [Microsoft file backing metadata](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_provider_external_info_v1)
 
+The transparent LZX case also executed and passed on the native Windows ARM64 runner. All 19 cases in `native-file-details.trx` passed. The receipt SHA-256 is `44CA558D1CA7BD588B327E3F15A3DD4E68A2929F06A7CD3AD82F491F0E679111`. [Native ARM64 details receipts](https://github.com/benny-cz/FileCat/actions/runs/44644665012)
+
 ## Verification
 
 Pinned SDK builds of Core, Windows tests and App tests passed with zero warnings/errors. Native tests ran in the user-authorized disposable environments:

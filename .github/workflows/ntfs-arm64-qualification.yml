@@ -59,6 +59,10 @@ on:
         description: Drive the native Operations window with the 10,000-file workload
         type: boolean
         default: false
+      desktop:
+        description: Exercise the keyboard and NVDA reviews in the native ARM64 desktop
+        type: boolean
+        default: false
       listing:
         description: Compare native and managed listing at 10,000 and 1,000,000 entries
         type: boolean
@@ -543,6 +547,50 @@ jobs:
           if (!$receipt.Passed -or $receipt.FileCount -ne 10000 -or !$receipt.PrefixSha256 -or $receipt.JournalBytes -le 0) {
             throw 'The native ARM64 Operations driver must complete the full workload and retain its durable journal.'
           }
+      - name: Exercise native storage reviews with the keyboard and NVDA
+        if: inputs.desktop
+        timeout-minutes: 12
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'filecat-native-nvda'
+          New-Item -ItemType Directory -Path $root | Out-Null
+          $project = 'tests/FileCat.ArchiveQualificationHost'
+          $review = Join-Path $root 'reviews'
+          dotnet restore $project --locked-mode -p:RuntimeIdentifier=win-arm64 -p:SelfContained=false
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet publish $project -c Release -r win-arm64 --self-contained false --no-restore -o (Join-Path $review 'app')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build-server shutdown
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          . ./eng/validation/Enter-MediumIntegrityTestProcess.ps1
+          $session = (Get-Process -Id $PID).SessionId
+          [ordered]@{
+            commit = $env:GITHUB_SHA
+            architecture = $env:RUNNER_ARCH
+            integrity = [FileCatCiTokenIntegrity]::IntegrityRid()
+            session = $session
+            os = [Environment]::OSVersion.Version.ToString()
+          } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'environment.json')
+          if (!$session) { throw 'The hosted screen-reader fixture requires an interactive desktop session.' }
+          $installer = Join-Path $root 'nvda_2026.3.1.exe'
+          Invoke-WebRequest -Uri 'https://download.nvaccess.org/releases/2026.3.1/nvda_2026.3.1.exe' -OutFile $installer
+          if ((Get-FileHash -LiteralPath $installer).Hash -ne '6F80A5B0CA720A7D0D314B5BE212F37388BBE81A1107AC3298C1821A1CD3F052' -or
+              (Get-AuthenticodeSignature -LiteralPath $installer).Status -ne 'Valid') {
+            throw 'NVDA did not match the published, signed release.'
+          }
+          $portable = Join-Path $root 'portable'
+          $nvda = Join-Path $portable 'nvda.exe'
+          $creation = Start-Process -FilePath $installer -ArgumentList @('--create-portable-silent', ('"--portable-path={0}"' -f $portable)) -PassThru -Wait
+          if ($creation.ExitCode -ne 0 -or !(Test-Path -LiteralPath $nvda -PathType Leaf)) {
+            throw "The pinned NVDA release did not create the portable copy. Exit code $($creation.ExitCode)."
+          }
+          $desktopPowerShell = Join-Path $env:WINDIR 'System32/WindowsPowerShell/v1.0/powershell.exe'
+          & $desktopPowerShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/FileCat.NativeAcceptance/win-nvda-storage-review.ps1 -TestRoot $review -NvdaPath $nvda -HostedArm64 -HighContrastPictures -VerifyDuplicateRoots
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $receipt = Get-Content -LiteralPath (Join-Path $review 'storage-review-result.json') -Raw | ConvertFrom-Json
+          if (!$receipt.Passed -or $receipt.ReviewedOriginals.Compression.Count -ne 2 -or $receipt.ReviewedOriginals.Efs.Count -ne 2) {
+            throw 'Both native ARM64 reviews must disclose both complete original paths.'
+          }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
@@ -559,6 +607,8 @@ jobs:
             ${{ runner.temp }}/filecat-efs-recovery-*/data/managed-cipher.log
             ${{ runner.temp }}/filecat-native-storage-operations/*.json
             ${{ runner.temp }}/filecat-native-storage-operations/operations-stage.txt
+            ${{ runner.temp }}/filecat-native-nvda/environment.json
+            ${{ runner.temp }}/filecat-native-nvda/reviews/storage-review-result.json
             ${{ runner.temp }}/filecat-native-storage-operations/fixture/data/local/journal/job-storage-*.fcj
             ${{ runner.temp }}/filecat-native-listing-remount-*/mount-samples.json
             ${{ runner.temp }}/filecat-native-listing-remount-*/diskpart.log
