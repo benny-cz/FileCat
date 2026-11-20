@@ -1,9 +1,12 @@
+using System.Reflection;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Views;
@@ -99,31 +102,50 @@ public sealed class FileDetailsWindowTests
         using var io = new DeviceIoScheduler();
         var records = new UnixFileRecords();
         var ct = TestContext.Current.CancellationToken;
-        foreach (string path in new[] { Path.Join(root!, "dataless-file.bin"), Path.Join(root, "dataless-folder", "child.bin") })
+        string outputRoot = Directory.CreateTempSubdirectory("filecat-provider-report-").FullName;
+        try
         {
-            var before = records.ReadSummary(path, ct);
-            Assert.Equal(FactState.Known, before.NativeAttributes.State);
-            Assert.NotEqual(0UL, before.NativeAttributes.Value & dataless);
-
-            using var reader = new FileDetailsReader(records, io, "mac-file-provider-ui", path);
-            var window = new ReportWindow(path, reader);
-            window.Show();
-            try
+            int index = 0;
+            foreach (string path in new[] { Path.Join(root!, "dataless-file.bin"), Path.Join(root, "dataless-folder", "child.bin") })
             {
-                await window.Reading!;
-                Assert.Contains("dataless", window.Text, StringComparison.OrdinalIgnoreCase);
-                await window.SwitchDetailsTierForTestAsync();
-                Assert.Contains("Full record · metadata only", window.Text);
-                Assert.Contains("Native getattrlist metadata", window.Text);
-                Assert.Contains("Downloads were disabled", window.Text);
-            }
-            finally { window.Close(); }
+                var before = records.ReadSummary(path, ct);
+                Assert.Equal(FactState.Known, before.NativeAttributes.State);
+                Assert.NotEqual(0UL, before.NativeAttributes.Value & dataless);
 
-            var after = records.ReadSummary(path, ct);
-            Assert.Equal(before.Identity.Value, after.Identity.Value);
-            Assert.Equal(FactState.Known, after.NativeAttributes.State);
-            Assert.NotEqual(0UL, after.NativeAttributes.Value & dataless);
+                using var reader = new FileDetailsReader(records, io, "mac-file-provider-ui", path);
+                var window = new ReportWindow(path, reader);
+                string target = Path.Join(outputRoot, $"report-{index++}.txt");
+                var storage = DispatchProxy.Create<IStorageProvider, EditSaveCopyTests.StorageProxy>();
+                var picked = DispatchProxy.Create<IStorageFile, EditSaveCopyTests.StorageProxy>();
+                ((EditSaveCopyTests.StorageProxy)(object)picked).Uri = new Uri(target);
+                ((EditSaveCopyTests.StorageProxy)(object)storage).Save = () => Task.FromResult<IStorageFile?>(picked);
+                typeof(TopLevel).GetField("_storageProvider", BindingFlags.NonPublic | BindingFlags.Instance)!
+                    .SetValue(window, storage);
+                window.Show();
+                try
+                {
+                    await window.Reading!;
+                    Assert.Contains("dataless", window.Text, StringComparison.OrdinalIgnoreCase);
+                    await window.SwitchDetailsTierForTestAsync();
+                    Assert.Contains("Full record · metadata only", window.Text);
+                    Assert.Contains("Native getattrlist metadata", window.Text);
+                    Assert.Contains("Downloads were disabled", window.Text);
+                    string report = window.Text;
+                    var binding = BindingFlags.NonPublic | BindingFlags.Instance;
+                    await (Task)typeof(ReportWindow).GetMethod("CopyAsync", binding)!.Invoke(window, [true])!;
+                    Assert.Equal(report, await ClipboardExtensions.TryGetTextAsync(window.Clipboard!));
+                    await (Task)typeof(ReportWindow).GetMethod("SaveAsync", binding)!.Invoke(window, [])!;
+                    Assert.Equal(report, File.ReadAllText(target));
+                }
+                finally { window.Close(); }
+
+                var after = records.ReadSummary(path, ct);
+                Assert.Equal(before.Identity.Value, after.Identity.Value);
+                Assert.Equal(FactState.Known, after.NativeAttributes.State);
+                Assert.NotEqual(0UL, after.NativeAttributes.Value & dataless);
+            }
         }
+        finally { Directory.Delete(outputRoot, recursive: true); }
     }
 
     [AvaloniaFact]
