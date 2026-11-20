@@ -170,6 +170,38 @@ public sealed partial class WindowsStorageInspectionTests
     }
 
     [Fact]
+    public void Efs_candidates_refuse_actual_removable_NTFS_before_key_setup_or_a_job()
+    {
+        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires the disposable normal-user Windows EFS qualification fixture.");
+        string? path = Environment.GetEnvironmentVariable("FILECAT_STORAGE_NATIVE_REMOVABLE_TARGET");
+        if (string.IsNullOrWhiteSpace(path)) Assert.Skip("Set FILECAT_STORAGE_NATIVE_REMOVABLE_TARGET to an owned file on removable NTFS.");
+        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
+        var drive = new DriveInfo(Path.GetPathRoot(path)!);
+        Assert.Equal(DriveType.Removable, drive.DriveType);
+        Assert.Equal("NTFS", drive.DriveFormat);
+        byte[] expected = File.ReadAllBytes(path);
+        FileAttributes attributes = File.GetAttributes(path);
+        string root = Directory.CreateTempSubdirectory("filecat-storage-removable-efs-").FullName;
+        try
+        {
+            var candidate = new WindowsStorageTransforms().CreateEfsJobCandidate();
+            var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), candidate, Path.Join(root, "journal"));
+            foreach (var action in new[] { StorageAction.EncryptEfs, StorageAction.DecryptEfs })
+            {
+                Assert.Null(candidate.Unavailable(action));
+                var refused = Assert.Throws<StorageInspectionException>(() => Inspect(manager, path, action));
+                Assert.Equal("removable-media-unqualified", refused.Problem.Code);
+            }
+            Assert.Empty(manager.Jobs);
+            Assert.False(Directory.Exists(Path.Join(root, "journal")));
+            Assert.Equal(attributes, File.GetAttributes(path));
+            Assert.Equal(expected, File.ReadAllBytes(path));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public unsafe void Compression_enable_size_ceiling_uses_the_held_logical_file_length()
     {
         bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
