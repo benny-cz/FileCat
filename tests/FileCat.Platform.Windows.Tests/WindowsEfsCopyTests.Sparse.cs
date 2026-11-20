@@ -68,9 +68,12 @@ public sealed partial class WindowsEfsCopyTests
     }
 
     [Theory]
-    [InlineData(JobKind.Copy)]
-    [InlineData(JobKind.Move)]
-    public async Task Native_cross_volume_copy_and_move_to_removable_ntfs_preserve_efs_and_sparse_holes(JobKind kind)
+    [InlineData(JobKind.Copy, false)]
+    [InlineData(JobKind.Move, false)]
+    [InlineData(JobKind.Copy, true)]
+    [InlineData(JobKind.Move, true)]
+    public async Task Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(
+        JobKind kind, bool sourceOnUsb)
     {
         RequireEfs();
         string? removableRoot = Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_USB_ROOT");
@@ -81,13 +84,16 @@ public sealed partial class WindowsEfsCopyTests
         Assert.Equal(DriveType.Removable, drive.DriveType);
         Assert.Equal("NTFS", drive.DriveFormat);
         string root = Directory.CreateTempSubdirectory("filecat-efs-sparse-usb-source-").FullName;
-        string destination = Path.Combine(removable, "filecat-efs-sparse-usb-" + Guid.NewGuid().ToString("N"));
-        Assert.Equal(removable, Path.GetDirectoryName(destination));
+        Assert.Equal("NTFS", new DriveInfo(Path.GetPathRoot(root)!).DriveFormat);
+        string usbFixture = Path.Combine(removable, "filecat-efs-sparse-usb-" + Guid.NewGuid().ToString("N"));
+        Assert.Equal(removable, Path.GetDirectoryName(usbFixture));
+        string destination = sourceOnUsb ? Path.Combine(root, "destination") : usbFixture;
         try
         {
+            Directory.CreateDirectory(usbFixture);
             Directory.CreateDirectory(destination);
             const int mainLength = 8 * 1024 * 1024, namedLength = 4 * 1024 * 1024;
-            string source = Path.Combine(root, "sparse-usb.bin");
+            string source = Path.Combine(sourceOnUsb ? usbFixture : root, "sparse-usb.bin");
             using (var main = new FileStream(source, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
             {
                 MarkSparse(main);
@@ -142,7 +148,7 @@ public sealed partial class WindowsEfsCopyTests
         }
         finally
         {
-            if (Directory.Exists(destination)) Directory.Delete(destination, recursive: true);
+            if (Directory.Exists(usbFixture)) Directory.Delete(usbFixture, recursive: true);
             Directory.Delete(root, recursive: true);
         }
     }
