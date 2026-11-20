@@ -14,6 +14,8 @@
   -Installer installs the setup silently into a temporary folder, verifies every installed PE file including the
   uninstaller, uninstalls, and requires the folder to be gone. It runs only on a GitHub Actions runner unless
   -AllowInstallOnThisMachine is given, and needs an elevated process.
+  -PrivateIdentity keeps the signer out of the console and the step summary (failure reasons are shown by category
+  only); the report file keeps every detail and must then stay private.
 #>
 param(
     [Parameter(Mandatory)][string[]]$Path,
@@ -24,6 +26,7 @@ param(
     [string]$Installer,
     [switch]$AllowInstallOnThisMachine,
     [switch]$CheckRevocation,
+    [switch]$PrivateIdentity,
     [Parameter(Mandatory)][string]$ReportPath
 )
 $ErrorActionPreference = 'Stop'
@@ -260,13 +263,16 @@ try {
     [IO.Directory]::CreateDirectory((Split-Path -Parent ([IO.Path]::GetFullPath($ReportPath)))) | Out-Null
     [IO.File]::WriteAllText([IO.Path]::GetFullPath($ReportPath), ($report | ConvertTo-Json -Depth 6))
 
+    $signerLine = if ($PrivateIdentity) { 'Expected signer: pinned (not shown).' } else { "Expected signer SHA-256: ``$ExpectedSignerSha256``." }
     $lines = @('### Authenticode verification', '',
-        "Trust anchor: $($report.TrustAnchor). Expected signer SHA-256: ``$ExpectedSignerSha256``.", '',
+        "Trust anchor: $($report.TrustAnchor). $signerLine Revocation checked: $($CheckRevocation.IsPresent).", '',
         '| PE files | FileCat-signed | Vendor-signed | Failed | Negative controls rejected |', '|---|---|---|---|---|',
         "| $($report.Summary.PeFiles) | $($report.Summary.FileCatSigned) | $($report.Summary.VendorSigned) | $($failed.Count) | $($report.Summary.NegativeControlsRejected) |")
     if ($installation) { $lines += '', "Installer round trip: $($installation.InstalledPeFiles) installed PE files verified, uninstaller ``$($installation.Uninstaller)``, folder removed: $($installation.FolderRemoved)." }
-    foreach ($failure in $failed | Select-Object -First 25) { $lines += "- FAIL ``$($failure.Path)``: $($failure.Failures -join '; ')" }
-    foreach ($control in $blind) { $lines += "- BLIND control ``$($control.Control)``: expected a '$($control.Expected)' rejection, got: $($control.Failures -join '; ')" }
+    # Failure texts can name signers, so a private run shows only their categories (the text before the colon).
+    function Show-Failures($Failures) { if ($PrivateIdentity) { ($Failures | ForEach-Object { ($_ -split ':', 2)[0] }) -join ', ' } else { $Failures -join '; ' } }
+    foreach ($failure in $failed | Select-Object -First 25) { $lines += "- FAIL ``$($failure.Path)``: $(Show-Failures $failure.Failures)" }
+    foreach ($control in $blind) { $lines += "- BLIND control ``$($control.Control)``: expected a '$($control.Expected)' rejection, got: $(Show-Failures $control.Failures)" }
     $lines | ForEach-Object { Write-Host $_ }
     if ($env:GITHUB_STEP_SUMMARY) { Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($lines -join "`n") }
     if (-not $report.Pass) { throw "Signature verification failed: $($failed.Count) files, $($blind.Count) negative controls not rejected. Report: $ReportPath" }

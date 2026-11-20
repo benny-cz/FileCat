@@ -21,9 +21,14 @@ param(
     [string]$Runtime = "win-x64",
     [string]$Configuration = "Release",
     [string]$ArtifactDirectory,
-    [switch]$Sign
+    [switch]$Sign,
+    # Two-phase use keeps signing credentials away from the build: -PayloadOnly publishes and checks the payload folders
+    # and stops; a later -FromPayload run (another machine, given the same folders) signs (-Sign) and packages them.
+    [switch]$PayloadOnly,
+    [switch]$FromPayload
 )
 $ErrorActionPreference = "Stop"
+if ($PayloadOnly -and ($FromPayload -or $Sign)) { throw '-PayloadOnly stops before signing and packaging; it takes neither -FromPayload nor -Sign.' }
 $root = Split-Path $PSScriptRoot -Parent
 $artifacts = if ([string]::IsNullOrWhiteSpace($ArtifactDirectory)) {
     Join-Path $root "artifacts"
@@ -76,85 +81,99 @@ $sbomPortable = Join-Path $artifacts "sbom-$Version-$Runtime-portable.spdx.json"
 $sbomFdd = Join-Path $artifacts "sbom-$Version-$Runtime-fdd.spdx.json"
 
 $signingManifests = Join-Path $artifacts "signing/$Runtime"
-Remove-Item -Recurse -Force $publish, $fdd, $signingManifests -ErrorAction SilentlyContinue
+if ($FromPayload) {
+    foreach ($dir in @($publish, $fdd)) {
+        if (-not (Test-Path -LiteralPath $dir -PathType Container)) { throw "-FromPayload needs the payload folder $dir that a -PayloadOnly run produced." }
+    }
+    Remove-Item -Recurse -Force $signingManifests -ErrorAction SilentlyContinue
+} else {
+    Remove-Item -Recurse -Force $publish, $fdd, $signingManifests -ErrorAction SilentlyContinue
+}
 Remove-Item -Force $sbomSetup, $sbomPortable, $sbomFdd, (Join-Path $artifacts "sbom-$Version-$Runtime.json") -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $artifacts | Out-Null
 
-Write-Host "Publishing self-contained $Runtime ($Version)"
-dotnet publish $project -c $Configuration -r $Runtime --self-contained true -p:PublishReadyToRun=true `
-    @versionArgs -p:DebugType=embedded -o $publish
-if ($LASTEXITCODE -ne 0) { throw "self-contained publish failed" }
+if (-not $FromPayload) {
+    Write-Host "Publishing self-contained $Runtime ($Version)"
+    dotnet publish $project -c $Configuration -r $Runtime --self-contained true -p:PublishReadyToRun=true `
+        @versionArgs -p:DebugType=embedded -o $publish
+    if ($LASTEXITCODE -ne 0) { throw "self-contained publish failed" }
 
-Write-Host "Publishing framework-dependent $Runtime"
-dotnet publish $project -c $Configuration -r $Runtime --self-contained false -p:PublishReadyToRun=true `
-    @versionArgs -p:DebugType=embedded -o $fdd
-if ($LASTEXITCODE -ne 0) { throw "framework-dependent publish failed" }
+    Write-Host "Publishing framework-dependent $Runtime"
+    dotnet publish $project -c $Configuration -r $Runtime --self-contained false -p:PublishReadyToRun=true `
+        @versionArgs -p:DebugType=embedded -o $fdd
+    if ($LASTEXITCODE -ne 0) { throw "framework-dependent publish failed" }
 
-# The per-plan administrator helper (ADR-14) sits beside FileCat.exe; it runs only from Program Files.
-# Only the installed (self-contained) build carries it (DEC-04): the framework-dependent ZIP would make an elevated
-# process resolve the shared .NET runtime, and the portable build lives in a folder its user can change.
-$broker = Join-Path $root "src/FileCat.PrivilegedHost/FileCat.PrivilegedHost.csproj"
-dotnet publish $broker -c $Configuration -r $Runtime --self-contained true -p:PublishReadyToRun=true `
-    @versionArgs -p:DebugType=embedded -o $publish
-if ($LASTEXITCODE -ne 0) { throw "administrator helper publish failed" }
+    # The per-plan administrator helper (ADR-14) sits beside FileCat.exe; it runs only from Program Files.
+    # Only the installed (self-contained) build carries it (DEC-04): the framework-dependent ZIP would make an elevated
+    # process resolve the shared .NET runtime, and the portable build lives in a folder its user can change.
+    $broker = Join-Path $root "src/FileCat.PrivilegedHost/FileCat.PrivilegedHost.csproj"
+    dotnet publish $broker -c $Configuration -r $Runtime --self-contained true -p:PublishReadyToRun=true `
+        @versionArgs -p:DebugType=embedded -o $publish
+    if ($LASTEXITCODE -ne 0) { throw "administrator helper publish failed" }
 
-# The Shell helper (TV-16) runs Windows thumbnail and icon handlers outside FileCat, at low integrity in a job object.
-$shellHost = Join-Path $root "src/FileCat.ShellHost/FileCat.ShellHost.csproj"
-dotnet publish $shellHost -c $Configuration -r $Runtime --self-contained true -p:PublishReadyToRun=true `
-    @versionArgs -p:DebugType=embedded -o $publish
-if ($LASTEXITCODE -ne 0) { throw "Shell helper publish failed" }
-dotnet publish $shellHost -c $Configuration -r $Runtime --self-contained false -p:PublishReadyToRun=true `
-    @versionArgs -p:DebugType=embedded -o $fdd
-if ($LASTEXITCODE -ne 0) { throw "framework-dependent Shell helper publish failed" }
+    # The Shell helper (TV-16) runs Windows thumbnail and icon handlers outside FileCat, at low integrity in a job object.
+    $shellHost = Join-Path $root "src/FileCat.ShellHost/FileCat.ShellHost.csproj"
+    dotnet publish $shellHost -c $Configuration -r $Runtime --self-contained true -p:PublishReadyToRun=true `
+        @versionArgs -p:DebugType=embedded -o $publish
+    if ($LASTEXITCODE -ne 0) { throw "Shell helper publish failed" }
+    dotnet publish $shellHost -c $Configuration -r $Runtime --self-contained false -p:PublishReadyToRun=true `
+        @versionArgs -p:DebugType=embedded -o $fdd
+    if ($LASTEXITCODE -ne 0) { throw "framework-dependent Shell helper publish failed" }
 
-# A notice folder whose SHA256SUMS has the reviewed hash and lists exactly its other files, each with its bytes.
-function Assert-PinnedNotices([string]$Folder, [string]$Name) {
-    $sums = Join-Path $Folder 'SHA256SUMS'
-    if ((Get-FileHash -Algorithm SHA256 -LiteralPath $sums).Hash -ne 'B036603DAC3E8D14A520DEFDB0545DA9DB8F384808F97CFBDF877E70CB05807C') {
-        throw "$Name/SHA256SUMS differs from the reviewed notice set"
-    }
-    $expected = @{}
-    foreach ($line in [IO.File]::ReadAllLines($sums)) {
-        # A relative path with forward slashes only, never rooted or climbing out of the folder.
-        if ($line -cnotmatch '^([0-9a-f]{64})  ([^/\\][^\\]*)$' -or $Matches[2].Split('/') -contains '..') {
-            throw "$Name/SHA256SUMS has a malformed line"
+    # A notice folder whose SHA256SUMS has the reviewed hash and lists exactly its other files, each with its bytes.
+    function Assert-PinnedNotices([string]$Folder, [string]$Name) {
+        $sums = Join-Path $Folder 'SHA256SUMS'
+        if ((Get-FileHash -Algorithm SHA256 -LiteralPath $sums).Hash -ne 'B036603DAC3E8D14A520DEFDB0545DA9DB8F384808F97CFBDF877E70CB05807C') {
+            throw "$Name/SHA256SUMS differs from the reviewed notice set"
         }
-        $expected[$Matches[2]] = $Matches[1]
-    }
-    $actual = @(Get-ChildItem -LiteralPath $Folder -Recurse -File | ForEach-Object {
-        [IO.Path]::GetRelativePath($Folder, $_.FullName).Replace([IO.Path]::DirectorySeparatorChar, '/') } | Where-Object { $_ -cne 'SHA256SUMS' })
-    if ($actual.Count -ne $expected.Count) { throw "$Name has files that SHA256SUMS does not list, or lacks some it does" }
-    foreach ($relative in $actual) {
-        if (-not $expected.ContainsKey($relative) -or
-            (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $Folder $relative)).Hash.ToLowerInvariant() -cne $expected[$relative]) {
-            throw "$Name/$relative differs from its pinned bytes"
+        $expected = @{}
+        foreach ($line in [IO.File]::ReadAllLines($sums)) {
+            # A relative path with forward slashes only, never rooted or climbing out of the folder.
+            if ($line -cnotmatch '^([0-9a-f]{64})  ([^/\\][^\\]*)$' -or $Matches[2].Split('/') -contains '..') {
+                throw "$Name/SHA256SUMS has a malformed line"
+            }
+            $expected[$Matches[2]] = $Matches[1]
         }
+        $actual = @(Get-ChildItem -LiteralPath $Folder -Recurse -File | ForEach-Object {
+            [IO.Path]::GetRelativePath($Folder, $_.FullName).Replace([IO.Path]::DirectorySeparatorChar, '/') } | Where-Object { $_ -cne 'SHA256SUMS' })
+        if ($actual.Count -ne $expected.Count) { throw "$Name has files that SHA256SUMS does not list, or lacks some it does" }
+        foreach ($relative in $actual) {
+            if (-not $expected.ContainsKey($relative) -or
+                (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $Folder $relative)).Hash.ToLowerInvariant() -cne $expected[$relative]) {
+                throw "$Name/$relative differs from its pinned bytes"
+            }
+        }
+    }
+
+    foreach ($dir in @($publish, $fdd)) {
+        Copy-Item (Join-Path $root "LICENSE") $dir -Force
+        Copy-Item (Join-Path $root "THIRD-PARTY-NOTICES.md") $dir -Force
+        dotnet run --project (Join-Path $root "eng/DependencyNotices") -c Release -- `
+            (Join-Path $root "licenses/dependencies") (Join-Path $root "src/FileCat.App/packages.lock.json") $dir (Join-Path $dir "licenses/dependencies")
+        if ($LASTEXITCODE -ne 0) { throw "dependency notice validation failed" }
+        # FileCat.Archives.Rar15.dll is LGPL-2.1-or-later (ported XADMaster code): its full license text ships with it.
+        $xadmaster = Join-Path $dir "licenses/xadmaster"
+        New-Item -ItemType Directory -Force -Path $xadmaster | Out-Null
+        Copy-Item (Join-Path $root "licenses/xadmaster/LICENSE"), (Join-Path $root "licenses/xadmaster/README.md") $xadmaster -Force
+        if ((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $xadmaster "LICENSE")).Hash -ne '9B872A8A070B8AD329C4BD380FB1BF0000F564C75023EC8E1E6803F15364B9E9') {
+            throw "licenses/xadmaster/LICENSE differs from XADMaster's LGPL text"
+        }
+        # FileCat.SharpCompress.dll is FileCat's build of SharpCompress, whose components keep their own licenses: its license
+        # texts, notices and component inventory ship byte for byte, as licenses/sharpcompress/SHA256SUMS pins them.
+        $sharpCompress = Join-Path $dir "licenses/sharpcompress"
+        New-Item -ItemType Directory -Force -Path $sharpCompress | Out-Null
+        Copy-Item (Join-Path $root "licenses/sharpcompress/*") $sharpCompress -Recurse -Force
+        Assert-PinnedNotices $sharpCompress 'licenses/sharpcompress'
     }
 }
 
-foreach ($dir in @($publish, $fdd)) {
-    Copy-Item (Join-Path $root "LICENSE") $dir -Force
-    Copy-Item (Join-Path $root "THIRD-PARTY-NOTICES.md") $dir -Force
-    dotnet run --project (Join-Path $root "eng/DependencyNotices") -c Release -- `
-        (Join-Path $root "licenses/dependencies") (Join-Path $root "src/FileCat.App/packages.lock.json") $dir (Join-Path $dir "licenses/dependencies")
-    if ($LASTEXITCODE -ne 0) { throw "dependency notice validation failed" }
-    # FileCat.Archives.Rar15.dll is LGPL-2.1-or-later (ported XADMaster code): its full license text ships with it.
-    $xadmaster = Join-Path $dir "licenses/xadmaster"
-    New-Item -ItemType Directory -Force -Path $xadmaster | Out-Null
-    Copy-Item (Join-Path $root "licenses/xadmaster/LICENSE"), (Join-Path $root "licenses/xadmaster/README.md") $xadmaster -Force
-    if ((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $xadmaster "LICENSE")).Hash -ne '9B872A8A070B8AD329C4BD380FB1BF0000F564C75023EC8E1E6803F15364B9E9') {
-        throw "licenses/xadmaster/LICENSE differs from XADMaster's LGPL text"
-    }
-    # FileCat.SharpCompress.dll is FileCat's build of SharpCompress, whose components keep their own licenses: its license
-    # texts, notices and component inventory ship byte for byte, as licenses/sharpcompress/SHA256SUMS pins them.
-    $sharpCompress = Join-Path $dir "licenses/sharpcompress"
-    New-Item -ItemType Directory -Force -Path $sharpCompress | Out-Null
-    Copy-Item (Join-Path $root "licenses/sharpcompress/*") $sharpCompress -Recurse -Force
-    Assert-PinnedNotices $sharpCompress 'licenses/sharpcompress'
+if ($PayloadOnly) {
+    Write-Host "Payload folders are ready for signing and packaging: $publish, $fdd"
+    return
 }
 
 if ($Sign) {
-    & (Join-Path $PSScriptRoot 'signing/Sign-WindowsPayload.ps1') -Path $publish, $fdd -ManifestDirectory $signingManifests | Out-Host
+    & (Join-Path $PSScriptRoot 'signing/Sign-WindowsPayload.ps1') -Path $publish, $fdd -ManifestDirectory $signingManifests | Select-Object FilesSigned, DistinctFilesSigned, VendorSigned | Out-Host
 }
 
 function Write-ArtifactSbom([string]$Payload, [string]$Kind, [string]$Output, [string[]]$Extra = @()) {

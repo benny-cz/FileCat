@@ -8,6 +8,7 @@
   over a broken signature. Unsigned PE files with identical bytes (the self-contained and framework-dependent payloads
   share most of them) are signed once and the signed bytes copied to the other places, so each distinct file costs one
   signing. signed-outputs.json then records every file's input and output SHA-256 and the signer that was used.
+  When FILECAT_EXPECTED_SIGNER_SHA256 pins the signer, one canary file is signed and checked before the rest.
 #>
 param(
     [Parameter(Mandatory)][string[]]$Path,
@@ -65,7 +66,19 @@ Write-Manifest 'unsigned-inputs.json' @($files | Select-Object Root, Path, Bytes
 # One signing per distinct unsigned file; the first place it occurs is the one signed.
 $groups = @($files | Where-Object Classification -eq 'Unsigned' | Group-Object InputSHA256)
 $representatives = @($groups | ForEach-Object { $_.Group[0].FullName })
-if ($representatives.Count) { & (Join-Path $PSScriptRoot 'Invoke-Jsign.ps1') @representatives }
+$expected = "$env:FILECAT_EXPECTED_SIGNER_SHA256".ToUpperInvariant()
+if ($representatives.Count -and $expected) {
+    # With a pinned signer, one canary signature comes first: a credential that resolves to another certificate costs
+    # one signing and stops the run before anything else is signed.
+    & (Join-Path $PSScriptRoot 'Invoke-Jsign.ps1') $representatives[0]
+    $canary = $A::Inspect($representatives[0], $false)
+    if (-not $canary.Signer -or $canary.Signer.GetCertHashString([System.Security.Cryptography.HashAlgorithmName]::SHA256) -cne $expected) {
+        throw 'The canary signature is not by the pinned signer; nothing else was signed.'
+    }
+    if ($representatives.Count -gt 1) { & (Join-Path $PSScriptRoot 'Invoke-Jsign.ps1') @($representatives | Select-Object -Skip 1) }
+} elseif ($representatives.Count) {
+    & (Join-Path $PSScriptRoot 'Invoke-Jsign.ps1') @representatives
+}
 $signers = @{}
 foreach ($group in $groups) {
     $signed = $group.Group[0]

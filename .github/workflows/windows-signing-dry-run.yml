@@ -1,9 +1,10 @@
 name: Windows signing dry run
 
-# Runs FileCat's whole Windows signing pipeline without FileCat's real signing identity: payload signing inside
-# eng/publish.ps1, Setup and uninstaller signing inside the Inno Setup compile, RFC 3161 timestamps, then independent
-# verification of every PE file in the payloads, archives, installer and a silent install, with negative controls.
-# Nothing signed leaves the runner: only manifests, receipts, SBOMs and the verification report are uploaded.
+# Runs FileCat's whole Windows signing pipeline without FileCat's real signing identity, split the way a real run is.
+# A build job with no credentials publishes the unsigned payload. A signing job checks that payload against the build
+# job's manifest, signs it, packages it, signs Setup and its uninstaller, then verifies every PE file of the payloads,
+# archives, installer and a silent install independently of the signing tool, with negative controls. Only the unsigned
+# payload, manifests, receipts, SBOMs and the report are uploaded; signed files stay on the runner.
 on:
   workflow_dispatch:
     inputs:
@@ -23,10 +24,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  dry-run:
-    name: Sign and verify win-x64 (${{ inputs.mode }})
+  build:
+    name: Build the unsigned win-x64 payload
     runs-on: windows-2025-vs2026
-    timeout-minutes: 75
+    timeout-minutes: 45
+    outputs:
+      payload_manifest_sha256: ${{ steps.build.outputs.payload_manifest_sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -34,26 +37,71 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
-      - name: Build, sign and package win-x64
+      - name: Publish the unsigned payload and its manifest
+        id: build
+        shell: pwsh
+        run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase Build -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run') -Version 0.0.0-signing-dry-run
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: unsigned-payload-win-x64
+          path: |
+            ${{ runner.temp }}/signing-run/payload-manifest.json
+            ${{ runner.temp }}/signing-run/artifacts/publish/
+          retention-days: 1
+          if-no-files-found: error
+
+  sign:
+    name: Sign and verify win-x64 (${{ inputs.mode }})
+    needs: build
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: unsigned-payload-win-x64
+          path: ${{ runner.temp }}/signing-run
+      - name: Check the payload against the build job's manifest and prepare the tools
         shell: pwsh
         env:
           SIGNING_MODE: ${{ inputs.mode }}
+          PAYLOAD_MANIFEST_SHA256: ${{ needs.build.outputs.payload_manifest_sha256 }}
+        run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase Prepare -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run') -Mode $env:SIGNING_MODE -PayloadManifestSha256 $env:PAYLOAD_MANIFEST_SHA256
+      - name: Sign the payload
+        shell: pwsh
+        env:
           FILECAT_ESIGNER_USERNAME: ${{ inputs.mode == 'ESignerSandbox' && secrets.ESIGNER_SANDBOX_USERNAME || '' }}
           FILECAT_ESIGNER_PASSWORD: ${{ inputs.mode == 'ESignerSandbox' && secrets.ESIGNER_SANDBOX_PASSWORD || '' }}
           FILECAT_ESIGNER_CREDENTIAL_ID: ${{ inputs.mode == 'ESignerSandbox' && secrets.ESIGNER_SANDBOX_CREDENTIAL_ID || '' }}
           FILECAT_ESIGNER_TOTP_SECRET: ${{ inputs.mode == 'ESignerSandbox' && secrets.ESIGNER_SANDBOX_TOTP_SECRET || '' }}
-        run: ./eng/signing/Invoke-WindowsSigningDryRun.ps1 -Mode $env:SIGNING_MODE -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-dry-run')
+        run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase SignPayload -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run')
+      - name: Write SBOMs and archives of the signed payload
+        shell: pwsh
+        run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase Package -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run')
+      - name: Sign Setup and its uninstaller
+        shell: pwsh
+        env:
+          FILECAT_ESIGNER_USERNAME: ${{ inputs.mode == 'ESignerSandbox' && secrets.ESIGNER_SANDBOX_USERNAME || '' }}
+          FILECAT_ESIGNER_PASSWORD: ${{ inputs.mode == 'ESignerSandbox' && secrets.ESIGNER_SANDBOX_PASSWORD || '' }}
+          FILECAT_ESIGNER_CREDENTIAL_ID: ${{ inputs.mode == 'ESignerSandbox' && secrets.ESIGNER_SANDBOX_CREDENTIAL_ID || '' }}
+          FILECAT_ESIGNER_TOTP_SECRET: ${{ inputs.mode == 'ESignerSandbox' && secrets.ESIGNER_SANDBOX_TOTP_SECRET || '' }}
+        run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase SignInstaller -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run')
       - name: Verify every signature, a silent install round trip and the negative controls
         shell: pwsh
         run: |
-          $work = Join-Path $env:RUNNER_TEMP 'signing-dry-run'
-          $run = Get-Content -LiteralPath (Join-Path $work 'dry-run.json') -Raw | ConvertFrom-Json
+          $work = Join-Path $env:RUNNER_TEMP 'signing-run'
+          $run = Get-Content -LiteralPath (Join-Path $work 'run.json') -Raw | ConvertFrom-Json
           # The uninstaller is verified as installed (unins000.exe): Inno Setup's signed-uninstaller folder holds only its
           # signature cache, which Setup applies when it writes the uninstaller.
           $verify = @{
             Path = @($run.Outputs.Payload) + @($run.Outputs.Zips) + @($run.Outputs.Installer)
             ExpectedSignerSha256 = $run.ExpectedSignerSHA256
-            SigningManifest = @($run.SigningManifests)
+            SigningManifest = @(Join-Path $work 'artifacts/signing/win-x64/signed-outputs.json')
             Installer = $run.Outputs.Installer
             ReportPath = Join-Path $work 'verification.json'
           }
@@ -65,10 +113,11 @@ jobs:
         with:
           name: windows-signing-dry-run-${{ inputs.mode }}
           path: |
-            ${{ runner.temp }}/signing-dry-run/dry-run.json
-            ${{ runner.temp }}/signing-dry-run/verification.json
-            ${{ runner.temp }}/signing-dry-run/artifacts/signing/win-x64/*.json
-            ${{ runner.temp }}/signing-dry-run/artifacts/toolchains/inno-setup/*.json
-            ${{ runner.temp }}/signing-dry-run/artifacts/toolchains/inno-setup/*.log
-            ${{ runner.temp }}/signing-dry-run/artifacts/sbom-*.spdx.json
+            ${{ runner.temp }}/signing-run/run.json
+            ${{ runner.temp }}/signing-run/payload-manifest.json
+            ${{ runner.temp }}/signing-run/verification.json
+            ${{ runner.temp }}/signing-run/artifacts/signing/win-x64/*.json
+            ${{ runner.temp }}/signing-run/artifacts/toolchains/inno-setup/*.json
+            ${{ runner.temp }}/signing-run/artifacts/toolchains/inno-setup/*.log
+            ${{ runner.temp }}/signing-run/artifacts/sbom-*.spdx.json
           if-no-files-found: warn
