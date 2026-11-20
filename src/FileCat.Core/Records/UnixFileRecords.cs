@@ -454,7 +454,7 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             bool otherWrite = (mode & UnixFileMode.OtherWrite) != 0;
             if (IsFolder && otherWrite)
                 findings.Add((mode & UnixFileMode.StickyBit) != 0
-                    ? new(false, "Other-user write bit is set. The sticky bit additionally restricts deletion and rename to the entry owner, directory owner or an appropriately privileged process, subject to other access checks.")
+                    ? new(false, "Other-user write bit is set. " + UnixPermissions.StickyDirectoryRestriction)
                     : new(true, "Other-user write bit is set on a directory without the sticky bit. ACLs, search rights, mount options and policy still affect effective access."));
             else if (IsRegular && otherWrite)
                 findings.Add(new(true, "Other-user write bit is set. ACLs, mount options, identity and policy still affect effective access."));
@@ -465,11 +465,11 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             if (IsRegular && (mode & UnixFileMode.SetUser) != 0)
             {
                 bool othersWrite = (mode & (UnixFileMode.GroupWrite | UnixFileMode.OtherWrite)) != 0;
-                string runs = $"Recorded set-user-ID execution attribute for {UnixPermissions.UserName(_uid)}; nosuid, no_new_privs and other execution rules can suppress privilege changes.";
+                string runs = $"Recorded set-user-ID execution attribute for {UnixPermissions.UserName(_uid)}. {UnixPermissions.SetIdSuppression}";
                 findings.Add(new RecordFinding(othersWrite, runs + (othersWrite ? " Group/other write bits are also set." : "")));
             }
             if (IsRegular && (mode & UnixFileMode.SetGroup) != 0)
-                findings.Add(new(false, $"Recorded set-group-ID execution attribute for {UnixPermissions.GroupName(_gid)}; nosuid, no_new_privs and other execution rules can suppress privilege changes."));
+                findings.Add(new(false, $"Recorded set-group-ID execution attribute for {UnixPermissions.GroupName(_gid)}. {UnixPermissions.SetIdSuppression}"));
         }
 
         private static T? Try<T>(Func<T> read) where T : class

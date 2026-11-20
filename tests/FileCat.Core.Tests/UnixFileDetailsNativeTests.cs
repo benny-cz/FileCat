@@ -167,6 +167,7 @@ public sealed partial class UnixFileDetailsNativeTests
             Assert.Equal(summary.Identity.Value, full.Summary.Identity.Value);
             Assert.Equal(FactState.Unsupported, summary.Compression.State);
             Assert.Equal(FactState.Unsupported, full.Summary.Compression.State);
+            Assert.Equal("File compression", summary.CompressionLabel);
             string summaryText = summary.ToReport().ToText();
             var section = Assert.Single(full.Technical.Sections, item => item.Title == title);
             var recorded = Assert.Single(section.Fields, field => field.Item1 == "Recorded flags").Item2;
@@ -182,6 +183,41 @@ public sealed partial class UnixFileDetailsNativeTests
         var link = reader.ReadFull(Path.Join(mount, "symlink.bin"), FileDetailsPolicy.MetadataOnly, ct);
         Assert.Equal(FileObjectKind.SymbolicLink, link.Summary.Kind);
         Assert.DoesNotContain(link.Technical.Sections, item => item.Title == title);
+    }
+
+    [Fact]
+    public void Unix_details_explain_recorded_mode_and_execution_limits_without_inferring_access()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(), "Unix native mode fixture.");
+        using var root = new TempDir();
+        var ct = TestContext.Current.CancellationToken;
+        var reader = new UnixFileRecords();
+        string file = Path.Combine(root.Path, "mode.bin");
+        string directory = Directory.CreateDirectory(Path.Combine(root.Path, "shared")).FullName;
+        File.WriteAllText(file, "execution attribute payload canary");
+        var mode = (UnixFileMode)0xDEB; // 6753, both set-ID bits and the other-user write bit.
+        File.SetUnixFileMode(file, mode);
+        File.SetUnixFileMode(directory, (UnixFileMode)0x3FF); // 1777.
+
+        var summary = reader.ReadSummary(file, ct);
+        var full = reader.ReadFull(file, FileDetailsPolicy.MetadataOnly, ct);
+        Assert.Equal((uint)mode, summary.UnixMode.Value);
+        Assert.Equal(summary.Identity, full.Summary.Identity);
+        var access = Assert.Single(summary.ToReport().Sections, section => section.Title == "Access");
+        Assert.Contains(("Recorded mode", "6753"), access.Fields);
+        Assert.Contains("Other-user write bit is set.", access.Lines);
+        Assert.Contains("Recorded set-user-ID execution attribute.", access.Lines);
+        Assert.Contains("Recorded set-group-ID execution attribute.", access.Lines);
+        Assert.Contains(access.Lines, line => line.Contains("nosuid") && line.Contains("no_new_privs"));
+        var fullAccess = Assert.Single(full.Summary.ToReport().Sections, section => section.Title == "Access");
+        Assert.Equal(access.Lines, fullAccess.Lines);
+        Assert.DoesNotContain("execution attribute payload canary", full.ToText());
+
+        var shared = Assert.Single(reader.ReadSummary(directory, ct).ToReport().Sections, section => section.Title == "Access");
+        Assert.Contains(("Recorded mode", "1777"), shared.Fields);
+        Assert.Contains(shared.Lines, line => line.Contains("entry owner, directory owner or an appropriately privileged process") &&
+            line.Contains("subject to other access checks"));
+        Assert.DoesNotContain(shared.Lines, line => line.Contains("execution attribute"));
     }
 
     [Theory]

@@ -17,6 +17,9 @@ public static unsafe partial class UnixPermissions
 
     public const UnixFileMode AnyExecute = UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute;
 
+    internal const string StickyDirectoryRestriction = "The sticky bit additionally restricts deletion and rename to the entry owner, directory owner or an appropriately privileged process, subject to other access checks.";
+    internal const string SetIdSuppression = "Mount options such as nosuid, process settings such as no_new_privs, and other execution rules can suppress privilege changes.";
+
     /// <summary>"rwxr-xr-x"; set-ID and sticky bits show as s/S and t/T in the execute places, as <c>ls</c> prints them.</summary>
     public static string Format(UnixFileMode mode)
     {

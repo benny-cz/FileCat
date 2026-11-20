@@ -58,7 +58,7 @@ public sealed unsafe partial class UnixFileRecords
                 // Ext-family statx reflects the historical c flag even though the filesystem implements no file compression.
                 var compression = ObservedFact<bool>.Unavailable(FactState.Unsupported, FactScope.Entry, snapshot.Compression.Source,
                     "Recorded flags are separate. File compression behavior is not implemented by this filesystem.");
-                report = report with { Summary = snapshot with { Compression = compression } };
+                report = report with { Summary = snapshot with { Compression = compression, CompressionLabel = "File compression" } };
             }
             if (report.Summary.Kind == FileObjectKind.SymbolicLink)
             {

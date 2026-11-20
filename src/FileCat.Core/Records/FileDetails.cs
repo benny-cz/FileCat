@@ -84,8 +84,26 @@ public sealed record FileDetailsSnapshot(string Path, DateTimeOffset ObservedAt,
             { Lines = Kind == FileObjectKind.Directory ? ["Allocation belongs to this directory object, not its contents."] : ["Allocated space is not a deletion-saving estimate or proof of exclusive ownership."] });
         sections.Add(new("Sharing", [(Kind == FileObjectKind.File ? "Names for this file" : "Native link count", LinkCount.Describe()),
             ("Extent sharing", "Not inspected")]));
-        sections.Add(new("Access", [("Recorded mode", UnixMode.Describe(v => Convert.ToString(v, 8))), ("Owner ID", Owner.Describe()), ("Group ID", Group.Describe()), ("Recorded restrictions", Restrictions.Describe())])
-            { Lines = ["Recorded attributes are not an effective-access decision."] });
+        bool hasUnixMode = UnixMode.State == FactState.Known;
+        var access = new List<string> { hasUnixMode
+            ? "ACLs, directory search rights, mount options, identity and policy also affect effective access."
+            : "Recorded attributes are not an effective-access decision." };
+        if (hasUnixMode && Kind is FileObjectKind.File or FileObjectKind.Directory)
+        {
+            var mode = (UnixFileMode)UnixMode.Value;
+            if ((mode & UnixFileMode.OtherWrite) != 0) access.Add("Other-user write bit is set.");
+            if (Kind == FileObjectKind.Directory && (mode & UnixFileMode.StickyBit) != 0)
+                access.Add(UnixPermissions.StickyDirectoryRestriction);
+            if (Kind == FileObjectKind.File && (mode & (UnixFileMode.SetUser | UnixFileMode.SetGroup)) != 0)
+            {
+                if ((mode & UnixFileMode.SetUser) != 0) access.Add("Recorded set-user-ID execution attribute.");
+                if ((mode & UnixFileMode.SetGroup) != 0) access.Add("Recorded set-group-ID execution attribute.");
+                access.Add(UnixPermissions.SetIdSuppression);
+            }
+        }
+        sections.Add(new("Access", [("Recorded mode", UnixMode.Describe(v => UnixPermissions.Octal((UnixFileMode)v))),
+            ("Owner ID", Owner.Describe()), ("Group ID", Group.Describe()), ("Recorded restrictions", Restrictions.Describe())])
+            { Lines = access });
         sections.Add(new("Extra data", [("Streams, EAs, xattrs and forks", "Not inspected")]));
         if (Cloud.State == FactState.Known && Cloud.Value is { } cloud)
             sections.Add(new("Provider management", [("Pin policy", cloud.PinPolicy), ("Local content", cloud.LocalContent),
