@@ -255,8 +255,6 @@ jobs:
       # The remote clients ship for ARM64 too (release records E-A02: no lane ran them there).
       - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Remote.Tests -LogFileName remote-results.trx -BlameHang
         shell: pwsh
-      - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.App.Tests -LogFileName app-results.trx -BlameHang
-        shell: pwsh
       # Pixels drawn with Skia (scaled icons), read back.
       - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Rendering.Tests -LogFileName rendering-results.trx -BlameHang
         shell: pwsh
@@ -298,6 +296,38 @@ jobs:
         with:
           name: windows-arm64-screenshot
           path: artifacts/screenshots/*.png
+
+  windows-arm64-app:
+    name: Windows ARM64 (App tests)
+    needs: producer-policy
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
+      - run: dotnet build tests/FileCat.App.Tests -c Release -p:RestoreLockedMode=true
+      - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.App.Tests -LogFileName app-results.trx -BlameHang
+        shell: pwsh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: app-test-results-windows-arm64
+          path: |
+            tests/FileCat.App.Tests/TestResults/*.trx
+            tests/FileCat.App.Tests/TestResults/**/Sequence_*.xml
+            tests/FileCat.App.Tests/TestResults/**/*.dmp
 
   portable:
     needs: producer-policy
@@ -441,9 +471,6 @@ jobs:
       - run: python tests/FileCat.NativeAcceptance/test_win_ftp_owned_stage.py
       # A hang (a test server that never answers) fails in minutes with a dump of where, not at the job's time limit.
       - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build --logger "trx;LogFileName=remote-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
-      # P9: the Linux UI runs headless. The macOS App suite runs in macos-app.
-      - if: runner.os == 'Linux'
-        run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
       # Pixels drawn with Skia (scaled icons), read back.
       - run: dotnet test tests/FileCat.Rendering.Tests -c Release --no-build --logger "trx;LogFileName=rendering-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
       # D-51: web pages drawn by WebKitGTK, on a virtual X display; a missing engine fails here instead of skipping.
@@ -499,10 +526,56 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: ${{ runner.os == 'macOS' && format('portable-test-results-{0}', matrix.os) || format('app-test-results-{0}', matrix.os) }}
+          name: portable-test-results-${{ matrix.os }}
           path: |
             **/TestResults/*.trx
             **/TestResults/**/Sequence_*.xml
+
+  ubuntu-app:
+    name: ubuntu-24.04 (App tests)
+    needs: producer-policy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
+      - run: dotnet build tests/FileCat.App.Tests -c Release -p:RestoreLockedMode=true
+      - name: Prepare Linux native test dependencies
+        timeout-minutes: 10
+        run: |
+          /usr/bin/python3 eng/validation/validate-linux-ci-mirror.py --evidence-dir "$RUNNER_TEMP/linux-dependency-controls-mirror"
+          sudo -n env GITHUB_ACTIONS="$GITHUB_ACTIONS" /usr/bin/python3 eng/validation/configure-linux-ci-mirror.py --evidence-file "$RUNNER_TEMP/linux-dependency-controls-mirror/native-source-rewrite.json"
+          /usr/bin/python3 eng/validation/validate-linux-ci-dependencies.py --evidence-dir "$RUNNER_TEMP/linux-dependency-controls"
+          bash eng/validation/prepare-linux-ci-dependencies.sh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: linux-dependency-launcher-controls-app
+          path: |
+            ${{ runner.temp }}/linux-dependency-controls
+            ${{ runner.temp }}/linux-dependency-controls-mirror
+          if-no-files-found: error
+      - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: app-test-results-ubuntu-24.04
+          path: |
+            tests/FileCat.App.Tests/TestResults/*.trx
+            tests/FileCat.App.Tests/TestResults/**/Sequence_*.xml
+            tests/FileCat.App.Tests/TestResults/**/*.dmp
 
   macos-app:
     name: macos-26 (App tests)
@@ -539,7 +612,7 @@ jobs:
   package:
     name: Package (tags only)
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [producer-policy, windows, windows-arm64, portable, macos-app]
+    needs: [producer-policy, windows, windows-arm64, windows-arm64-app, portable, ubuntu-app, macos-app]
     runs-on: windows-2025-vs2026
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
@@ -608,7 +681,7 @@ jobs:
   package-linux:
     name: Package Linux (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [producer-policy, windows, windows-arm64, portable, macos-app]
+    needs: [producer-policy, windows, windows-arm64, windows-arm64-app, portable, ubuntu-app, macos-app]
     runs-on: ubuntu-24.04
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
@@ -678,7 +751,7 @@ jobs:
   package-macos:
     name: Package macOS (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [producer-policy, windows, windows-arm64, portable, macos-app]
+    needs: [producer-policy, windows, windows-arm64, windows-arm64-app, portable, ubuntu-app, macos-app]
     runs-on: macos-26
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
@@ -744,7 +817,7 @@ jobs:
   draft-preview:
     name: Draft preview (consume this run's artifacts only)
     if: startsWith(github.ref, 'refs/tags/v1.0.0-preview.')
-    needs: [producer-policy, windows, windows-arm64, portable, package, package-linux, package-macos]
+    needs: [producer-policy, windows, windows-arm64, windows-arm64-app, portable, ubuntu-app, package, package-linux, package-macos]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     # DEC-09: the only job with release-write authority waits for the release owner's approval in the
