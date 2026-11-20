@@ -190,6 +190,72 @@ public sealed class SparseCopyTests : IDisposable
         Assert.True(StorageBytes(destination) < length * 3L / 4);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Windows_sparse_copy_discards_output_when_source_eof_changes(bool grow)
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows sparse-file control codes are required.");
+        const int length = 8 * 1024 * 1024;
+        string source = Path.Combine(_dir.Path, "source-shrinking.bin");
+        string destination = Path.Combine(_dir.Path, "copy-shrinking.bin");
+        using (var stream = new FileStream(source, FileMode.CreateNew, FileAccess.Write))
+        {
+            if (!DeviceIoControl(stream.SafeFileHandle, 0x000900C4, 0, 0, 0, 0, out _, 0))
+                Assert.Skip("The test volume cannot mark a file sparse.");
+            stream.SetLength(length);
+            stream.WriteByte(0x5A);
+            stream.Position = length - 1;
+            stream.WriteByte(0xA5);
+        }
+        if (StorageBytes(source) >= length / 4)
+            Assert.Skip("The test volume did not create a sparse source file.");
+
+        bool shrank = false;
+        Assert.Throws<IOException>(() => new PortableFileOperations().CopyFile(source, destination,
+            new FileCopyOptions(), (done, _) =>
+            {
+                if (!shrank && done > 0)
+                {
+                    using var writer = new FileStream(source, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+                    writer.SetLength(grow ? length + 4096 : length / 2);
+                    writer.Flush(flushToDisk: true);
+                    shrank = true;
+                }
+                return CopyProgressAction.Continue;
+            }, TestContext.Current.CancellationToken));
+        Assert.True(shrank);
+        Assert.Equal(grow ? length + 4096 : length / 2, new FileInfo(source).Length);
+        Assert.False(File.Exists(destination));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Windows_sparse_copy_discards_output_on_cancellation(bool allHole)
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows sparse-file control codes are required.");
+        const int length = 8 * 1024 * 1024;
+        string source = Path.Combine(_dir.Path, "source-cancel.bin");
+        string destination = Path.Combine(_dir.Path, "copy-cancel.bin");
+        using (var stream = new FileStream(source, FileMode.CreateNew, FileAccess.Write))
+        {
+            if (!DeviceIoControl(stream.SafeFileHandle, 0x000900C4, 0, 0, 0, 0, out _, 0))
+                Assert.Skip("The test volume cannot mark a file sparse.");
+            stream.SetLength(length);
+            if (!allHole) stream.WriteByte(0x5A);
+        }
+        if (StorageBytes(source) >= length / 4)
+            Assert.Skip("The test volume did not create a sparse source file.");
+
+        int callbacks = 0;
+        Assert.ThrowsAny<OperationCanceledException>(() => new PortableFileOperations().CopyFile(source, destination,
+            new FileCopyOptions(), (_, _) => { callbacks++; return CopyProgressAction.Cancel; },
+            TestContext.Current.CancellationToken));
+        Assert.Equal(1, callbacks);
+        Assert.False(File.Exists(destination));
+    }
+
     private static long Blocks(string path)
     {
         using var process = Process.Start(new ProcessStartInfo("stat")

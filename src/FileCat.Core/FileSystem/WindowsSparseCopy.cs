@@ -97,6 +97,7 @@ internal static partial class WindowsSparseCopy
         if (!copiedRanges.GetHashAndReset().AsSpan().SequenceEqual(RangeDigest(source, length, ct)) ||
             source.Length != length || (File.GetAttributes(source.SafeFileHandle) & FileAttributes.SparseFile) == 0)
             throw new IOException("The source file's allocated ranges changed during its copy.");
+        ct.ThrowIfCancellationRequested();
         destination.SetLength(length); // includes a trailing hole and all-hole files
         return true;
     }
