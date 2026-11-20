@@ -254,7 +254,7 @@ jobs:
             @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-hex-output.trx'; Count = '14';
                Filter = 'FullyQualifiedName~HexEfsJournalTests|FullyQualifiedName~HexPatchProvenanceTests' },
             @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-copy-output.trx'; Count = '12';
-               Filter = 'FullyQualifiedName~Native_copy_and_same_volume_move_preserve_efs_and_named_streams_on_ntfs|FullyQualifiedName~Native_copy_preserves_efs_and_sparse_holes_in_main_and_named_streams|FullyQualifiedName~Sparse_EFS_source_replacement_preserves_holes_or_refuses_an_EFS_target|FullyQualifiedName~Copy_then_delete_keeps_the_efs_source|FullyQualifiedName~WindowsEfsReplacementTests' },
+               Filter = 'FullyQualifiedName~Native_copy_and_same_volume_move_preserve_efs_and_named_streams_on_ntfs|FullyQualifiedName~Native_copy_preserves_efs_and_sparse_holes_in_main_and_named_streams|FullyQualifiedName~Sparse_EFS_source_replacement_preserves_holes_or_refuses_an_EFS_target|FullyQualifiedName~Copy_then_delete_keeps_the_efs_source|FullyQualifiedName~Bound_replacement_preserves_the_exact_destination_when_it_becomes_EFS_protected|FullyQualifiedName~An_existing_EFS_target_removes_replace_even_with_a_default_replace_policy' },
             @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-file-details.trx'; Count = '19';
                Filter = $detailsFilter -join '|' },
             @{ Project = 'tests/FileCat.Core.Tests'; Log = 'native-efs-archive-output.trx'; Count = '10';
