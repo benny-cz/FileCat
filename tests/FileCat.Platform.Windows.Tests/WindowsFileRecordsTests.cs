@@ -309,6 +309,15 @@ public sealed partial class WindowsFileRecordsTests
             }
             string ranges = Field(Section(Read(sparse, privileged: false), "Layout on disk"), "Sparse");
             Assert.Contains("bytes in returned allocated ranges, in 1 range", ranges, StringComparison.Ordinal);
+
+            string unallocated = Path.Combine(dir, "unallocated.bin");
+            using (var stream = new FileStream(unallocated, FileMode.CreateNew, FileAccess.ReadWrite))
+            {
+                Assert.True(DeviceIoControl(stream.SafeFileHandle, 0x000900C4 /* FSCTL_SET_SPARSE */, 0, 0, 0, 0, out _, 0));
+                stream.SetLength(10 << 20);
+            }
+            var unallocatedLayout = Section(Read(unallocated, privileged: false), "Layout on disk");
+            Assert.DoesNotContain(unallocatedLayout.Fields, field => field.Name == "Resident" && field.Value.StartsWith("probably", StringComparison.Ordinal));
         }
         finally
         {

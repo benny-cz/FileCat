@@ -563,10 +563,8 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
                 }
                 else if (extentObservation.State == FactState.Known)
                 {
-                    if (_isFolder) fields.Add(("Index", _ntfs ? "small enough to be kept inside its MFT record ($INDEX_ROOT): no clusters of its own" : "no clusters of its own"));
-                    else if (data is null && _ntfs && _size > 0)
-                        fields.Add(("Resident", "probably: no cluster holds it, so its content is kept inside its MFT record"));
-                    else if (_size == 0) fields.Add(("Clusters", "none"));
+                    fields.Add(("Clusters", _size == 0 ? "none returned for the empty main stream" :
+                        "none returned by the mapping query; placement cannot be inferred from this result"));
                 }
                 if (extentObservation.Reason is { } extentProblem)
                     lines.Add("Its cluster inventory is incomplete: " + extentProblem);
