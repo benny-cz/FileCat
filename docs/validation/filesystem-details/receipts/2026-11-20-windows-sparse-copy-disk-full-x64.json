@@ -1,0 +1,13 @@
+{
+    "OsVersion":  "10.0.26340.0",
+    "VolumeId":  "\\\\?\\Volume{bc5941a4-d556-4bca-bc73-ba1eb623b157}\\",
+    "FileSystem":  "NTFS",
+    "AllocationUnitSize":  4096,
+    "TestAssemblySha256":  "B8F98CB69D36EC6AA1F239525C5BBD1DA1BACF82BDE83ABB56FC91609D49D9ED",
+    "XmlSha256":  "73DDEF94BE33EC42F51BE2AF9962A3E0DCA54D1705C5C84F0DCD7DE40ED46E50",
+    "FreeBytesBeforeCopy":  6012928,
+    "FreeBytesAfterCleanup":  6012928,
+    "Passed":  1,
+    "Failed":  0,
+    "Skipped":  0
+}

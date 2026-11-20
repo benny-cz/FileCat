@@ -256,6 +256,51 @@ public sealed class SparseCopyTests : IDisposable
         Assert.False(File.Exists(destination));
     }
 
+    [Fact]
+    public void Windows_sparse_copy_discards_partial_output_on_a_full_NTFS_volume()
+    {
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_SPARSE_FULL_ROOT");
+        Assert.SkipUnless(OperatingSystem.IsWindows() && !string.IsNullOrWhiteSpace(root),
+            "Requires a disposable, nearly full NTFS volume prepared for this native fixture.");
+        var drive = new DriveInfo(root!);
+        Assert.Equal(drive.RootDirectory.FullName, Path.GetFullPath(root!), ignoreCase: true);
+        Assert.Equal("NTFS", drive.DriveFormat);
+        Assert.Equal("FCSPARSEFULL", drive.VolumeLabel);
+        Assert.InRange(drive.TotalSize, 128L << 20, 320L << 20);
+        Assert.InRange(drive.AvailableFreeSpace, 3L << 20, 7L << 20);
+
+        const int length = 16 * 1024 * 1024, extent = 4 * 1024 * 1024;
+        string source = Path.Combine(_dir.Path, "source-full-disk.bin");
+        string destination = Path.Join(root!, "partial-copy.bin");
+        Assert.False(File.Exists(destination));
+        using (var stream = new FileStream(source, FileMode.CreateNew, FileAccess.Write))
+        {
+            Assert.True(DeviceIoControl(stream.SafeFileHandle, 0x000900C4, 0, 0, 0, 0, out _, 0));
+            stream.SetLength(length);
+            stream.Write(RandomNumberGenerator.GetBytes(extent));
+            stream.Position = length - extent;
+            stream.Write(RandomNumberGenerator.GetBytes(extent));
+        }
+        Assert.True(StorageBytes(source) < length);
+        byte[] sourceDigest = SHA256.HashData(File.ReadAllBytes(source));
+        long lastProgress = 0;
+        bool observedSparseDestination = false;
+        var failure = Assert.Throws<IOException>(() => new PortableFileOperations().CopyFile(source, destination,
+            new FileCopyOptions { DisablePreallocation = true }, (done, _) =>
+            {
+                lastProgress = done;
+                observedSparseDestination |= (File.GetAttributes(destination) & FileAttributes.SparseFile) != 0;
+                return CopyProgressAction.Continue;
+            }, TestContext.Current.CancellationToken));
+        Assert.Contains(failure.HResult & 0xffff, new[] { 39, 112 });
+        Assert.InRange(lastProgress, 1, length - 1);
+        Assert.True(observedSparseDestination);
+        Assert.False(File.Exists(destination));
+        Assert.Equal(sourceDigest, SHA256.HashData(File.ReadAllBytes(source)));
+        TestContext.Current.TestOutputHelper!.WriteLine(
+            $"disk-full HRESULT=0x{failure.HResult:X8}; progress={lastProgress}/{length}; source SHA256={Convert.ToHexString(sourceDigest)}");
+    }
+
     private static long Blocks(string path)
     {
         using var process = Process.Start(new ProcessStartInfo("stat")
