@@ -1,0 +1,129 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="90b8670c-6454-4d26-bf8c-5663f58f2cc6" name="@filecat-ubuntu2404 2026-11-20 21:32:56" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-20T21:32:56.8019394+01:00" queuing="2026-11-20T21:32:56.8019491+01:00" start="2026-11-20T21:32:50.0664404+01:00" finish="2026-11-20T21:33:01.2492282+01:00" />
+  <TestSettings name="default" id="612feb89-f9de-4d71-863b-07311b865bba">
+    <Deployment runDeploymentRoot="_filecat-ubuntu2404_2026-11-20_21_32_56" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="1babdc32-5a1c-4fb2-a9e2-c157012a852e" testId="bd77d7ab-61cd-6198-24b8-e55d6f23bb4f" testName="FileCat.App.Tests.FileDetailsWindowTests.Target_failure_is_separate_from_the_link_and_refresh_retires_a_pending_check(state: Denied)" computerName="filecat-ubuntu2404" duration="00:00:00.1888511" startTime="2026-11-20T21:33:00.3592532+01:00" endTime="2026-11-20T21:33:00.5485070+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1babdc32-5a1c-4fb2-a9e2-c157012a852e" />
+    <UnitTestResult executionId="d84c51d4-3010-49dc-81d5-5ad2c2a691cb" testId="4e861682-a161-779c-51ce-7a8e8a466a94" testName="FileCat.App.Tests.HiddenDataUiTests.Copying_a_protected_stream_refuses_before_creating_any_output" computerName="filecat-ubuntu2404" duration="00:00:00.0010000" startTime="2026-11-20T21:33:00.1264794+01:00" endTime="2026-11-20T21:33:00.1287469+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d84c51d4-3010-49dc-81d5-5ad2c2a691cb">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires a disposable Windows VM with EFS enabled.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="817f0a85-2bce-4bcf-8b59-b5aad32d17b7" testId="93ca782d-f5c2-20eb-125c-0f45fd982d6b" testName="FileCat.App.Tests.FileDetailsWindowTests.Mac_live_provider_details_window_keeps_dataless_files_metadata_only" computerName="filecat-ubuntu2404" duration="00:00:00.0010000" startTime="2026-11-20T21:33:00.5511700+01:00" endTime="2026-11-20T21:33:00.5539810+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="817f0a85-2bce-4bcf-8b59-b5aad32d17b7">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires a prepared macOS File Provider domain.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="59169e91-96a2-4840-abb5-39ba7ae86ef4" testId="cdf32c1e-4fc6-2306-3b72-775271b4cd03" testName="FileCat.App.Tests.HiddenDataUiTests.Delete_confirmation_keeps_the_source_identity_from_before_a_refresh" computerName="filecat-ubuntu2404" duration="00:00:00.7742132" startTime="2026-11-20T21:32:59.3465538+01:00" endTime="2026-11-20T21:33:00.1208890+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="59169e91-96a2-4840-abb5-39ba7ae86ef4" />
+    <UnitTestResult executionId="7302f639-4d75-44c5-babf-277fe1b6951f" testId="67b200aa-0d88-f609-969c-54d57c559175" testName="FileCat.App.Tests.FileDetailsWindowTests.Target_failure_is_separate_from_the_link_and_refresh_retires_a_pending_check(state: Missing)" computerName="filecat-ubuntu2404" duration="00:00:00.2177649" startTime="2026-11-20T21:33:00.1396000+01:00" endTime="2026-11-20T21:33:00.3574768+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7302f639-4d75-44c5-babf-277fe1b6951f" />
+    <UnitTestResult executionId="aecc9685-a3ef-49eb-952f-fad4f273d2c3" testId="3ae02039-d1ac-ee56-ac4e-cf7de9c14d1c" testName="FileCat.App.Tests.HiddenDataUiTests.Mac_held_directory_attribute_can_be_reported_copied_and_deleted" computerName="filecat-ubuntu2404" duration="00:00:00.0010000" startTime="2026-11-20T21:32:55.4195339+01:00" endTime="2026-11-20T21:32:55.4710931+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="aecc9685-a3ef-49eb-952f-fad4f273d2c3">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires the held macOS directory xattr adapter.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="75e4601d-d75b-44f0-aa03-b6a79a04ad40" testId="fd7b78ef-e576-9bb2-1a5e-bf5407b74d14" testName="FileCat.App.Tests.HiddenDataUiTests.A_files_streams_and_attributes_open_as_a_list_are_copied_out_and_deleted" computerName="filecat-ubuntu2404" duration="00:00:03.8441898" startTime="2026-11-20T21:32:55.4909092+01:00" endTime="2026-11-20T21:32:59.3381074+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="75e4601d-d75b-44f0-aa03-b6a79a04ad40" />
+    <UnitTestResult executionId="7e943b2d-dd11-4575-b428-d458562a0321" testId="a060d4d9-7d72-1d44-138e-fe76614d34be" testName="FileCat.App.Tests.FileDetailsWindowTests.Full_report_replaces_the_summary_when_the_path_has_a_new_object_with_the_same_size_and_time" computerName="filecat-ubuntu2404" duration="00:00:00.1379796" startTime="2026-11-20T21:33:00.8179556+01:00" endTime="2026-11-20T21:33:00.9560727+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7e943b2d-dd11-4575-b428-d458562a0321" />
+    <UnitTestResult executionId="33f26f58-d242-49e4-8444-9db56ced8d3a" testId="f5531ef5-9b66-5c7a-fa4f-8ead3f97ce5c" testName="FileCat.App.Tests.FileDetailsWindowTests.Narrow_details_reflows_real_toolbar_and_spoken_line_controls" computerName="filecat-ubuntu2404" duration="00:00:00.1135390" startTime="2026-11-20T21:33:00.5551258+01:00" endTime="2026-11-20T21:33:00.6687962+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="33f26f58-d242-49e4-8444-9db56ced8d3a" />
+    <UnitTestResult executionId="bd6d3955-ecec-4f7b-a56d-ad800308f658" testId="d4397ca0-509e-acc8-0bfe-ff2156d7bebe" testName="FileCat.App.Tests.FileDetailsWindowTests.Tier_switch_cancels_stale_publication_pairs_full_with_its_summary_and_retains_failed_refresh" computerName="filecat-ubuntu2404" duration="00:00:00.1438381" startTime="2026-11-20T21:33:00.6711272+01:00" endTime="2026-11-20T21:33:00.8150727+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="bd6d3955-ecec-4f7b-a56d-ad800308f658" />
+    <UnitTestResult executionId="6ffa18b0-503c-4289-8164-639755b0157e" testId="eb46628e-a69e-624c-e4a0-6e1325035e50" testName="FileCat.App.Tests.FileDetailsWindowTests.Unix_link_navigation_requires_a_new_activation_after_the_source_changes" computerName="filecat-ubuntu2404" duration="00:00:00.1645005" startTime="2026-11-20T21:33:00.9589492+01:00" endTime="2026-11-20T21:33:01.1235848+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6ffa18b0-503c-4289-8164-639755b0157e" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.App.Tests.FileDetailsWindowTests.Unix_link_navigation_requires_a_new_activation_after_the_source_changes" storage="/home/benny/filecat-main-3126e90fe/tests/filecat.app.tests/bin/release/net10.0/filecat.app.tests.dll" id="eb46628e-a69e-624c-e4a0-6e1325035e50">
+      <Execution id="6ffa18b0-503c-4289-8164-639755b0157e" />
+      <TestMethod codeBase="/home/benny/FileCat-main-3126e90fe/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.FileDetailsWindowTests" name="Unix_link_navigation_requires_a_new_activation_after_the_source_changes" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.FileDetailsWindowTests.Narrow_details_reflows_real_toolbar_and_spoken_line_controls" storage="/home/benny/filecat-main-3126e90fe/tests/filecat.app.tests/bin/release/net10.0/filecat.app.tests.dll" id="f5531ef5-9b66-5c7a-fa4f-8ead3f97ce5c">
+      <Execution id="33f26f58-d242-49e4-8444-9db56ced8d3a" />
+      <TestMethod codeBase="/home/benny/FileCat-main-3126e90fe/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.FileDetailsWindowTests" name="Narrow_details_reflows_real_toolbar_and_spoken_line_controls" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.FileDetailsWindowTests.Mac_live_provider_details_window_keeps_dataless_files_metadata_only" storage="/home/benny/filecat-main-3126e90fe/tests/filecat.app.tests/bin/release/net10.0/filecat.app.tests.dll" id="93ca782d-f5c2-20eb-125c-0f45fd982d6b">
+      <Execution id="817f0a85-2bce-4bcf-8b59-b5aad32d17b7" />
+      <TestMethod codeBase="/home/benny/FileCat-main-3126e90fe/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.FileDetailsWindowTests" name="Mac_live_provider_details_window_keeps_dataless_files_metadata_only" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.FileDetailsWindowTests.Target_failure_is_separate_from_the_link_and_refresh_retires_a_pending_check(state: Denied)" storage="/home/benny/filecat-main-3126e90fe/tests/filecat.app.tests/bin/release/net10.0/filecat.app.tests.dll" id="bd77d7ab-61cd-6198-24b8-e55d6f23bb4f">
+      <Execution id="1babdc32-5a1c-4fb2-a9e2-c157012a852e" />
+      <TestMethod codeBase="/home/benny/FileCat-main-3126e90fe/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.FileDetailsWindowTests" name="Target_failure_is_separate_from_the_link_and_refresh_retires_a_pending_check" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.HiddenDataUiTests.Copying_a_protected_stream_refuses_before_creating_any_output" storage="/home/benny/filecat-main-3126e90fe/tests/filecat.app.tests/bin/release/net10.0/filecat.app.tests.dll" id="4e861682-a161-779c-51ce-7a8e8a466a94">
+      <Execution id="d84c51d4-3010-49dc-81d5-5ad2c2a691cb" />
+      <TestMethod codeBase="/home/benny/FileCat-main-3126e90fe/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.HiddenDataUiTests" name="Copying_a_protected_stream_refuses_before_creating_any_output" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.FileDetailsWindowTests.Target_failure_is_separate_from_the_link_and_refresh_retires_a_pending_check(state: Missing)" storage="/home/benny/filecat-main-3126e90fe/tests/filecat.app.tests/bin/release/net10.0/filecat.app.tests.dll" id="67b200aa-0d88-f609-969c-54d57c559175">
+      <Execution id="7302f639-4d75-44c5-babf-277fe1b6951f" />
+      <TestMethod codeBase="/home/benny/FileCat-main-3126e90fe/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.FileDetailsWindowTests" name="Target_failure_is_separate_from_the_link_and_refresh_retires_a_pending_check" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.HiddenDataUiTests.Delete_confirmation_keeps_the_source_identity_from_before_a_refresh" storage="/home/benny/filecat-main-3126e90fe/tests/filecat.app.tests/bin/release/net10.0/filecat.app.tests.dll" id="cdf32c1e-4fc6-2306-3b72-775271b4cd03">
+      <Execution id="59169e91-96a2-4840-abb5-39ba7ae86ef4" />
+      <TestMethod codeBase="/home/benny/FileCat-main-3126e90fe/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.HiddenDataUiTests" name="Delete_confirmation_keeps_the_source_identity_from_before_a_refresh" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.FileDetailsWindowTests.Tier_switch_cancels_stale_publication_pairs_full_with_its_summary_and_retains_failed_refresh" storage="/home/benny/filecat-main-3126e90fe/tests/filecat.app.tests/bin/release/net10.0/filecat.app.tests.dll" id="d4397ca0-509e-acc8-0bfe-ff2156d7bebe">
+      <Execution id="bd6d3955-ecec-4f7b-a56d-ad800308f658" />
+      <TestMethod codeBase="/home/benny/FileCat-main-3126e90fe/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.FileDetailsWindowTests" name="Tier_switch_cancels_stale_publication_pairs_full_with_its_summary_and_retains_failed_refresh" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.FileDetailsWindowTests.Full_report_replaces_the_summary_when_the_path_has_a_new_object_with_the_same_size_and_time" storage="/home/benny/filecat-main-3126e90fe/tests/filecat.app.tests/bin/release/net10.0/filecat.app.tests.dll" id="a060d4d9-7d72-1d44-138e-fe76614d34be">
+      <Execution id="7e943b2d-dd11-4575-b428-d458562a0321" />
+      <TestMethod codeBase="/home/benny/FileCat-main-3126e90fe/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.FileDetailsWindowTests" name="Full_report_replaces_the_summary_when_the_path_has_a_new_object_with_the_same_size_and_time" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.HiddenDataUiTests.A_files_streams_and_attributes_open_as_a_list_are_copied_out_and_deleted" storage="/home/benny/filecat-main-3126e90fe/tests/filecat.app.tests/bin/release/net10.0/filecat.app.tests.dll" id="fd7b78ef-e576-9bb2-1a5e-bf5407b74d14">
+      <Execution id="75e4601d-d75b-44f0-aa03-b6a79a04ad40" />
+      <TestMethod codeBase="/home/benny/FileCat-main-3126e90fe/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.HiddenDataUiTests" name="A_files_streams_and_attributes_open_as_a_list_are_copied_out_and_deleted" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.HiddenDataUiTests.Mac_held_directory_attribute_can_be_reported_copied_and_deleted" storage="/home/benny/filecat-main-3126e90fe/tests/filecat.app.tests/bin/release/net10.0/filecat.app.tests.dll" id="3ae02039-d1ac-ee56-ac4e-cf7de9c14d1c">
+      <Execution id="aecc9685-a3ef-49eb-952f-fad4f273d2c3" />
+      <TestMethod codeBase="/home/benny/FileCat-main-3126e90fe/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.HiddenDataUiTests" name="Mac_held_directory_attribute_can_be_reported_copied_and_deleted" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="bd77d7ab-61cd-6198-24b8-e55d6f23bb4f" executionId="1babdc32-5a1c-4fb2-a9e2-c157012a852e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4e861682-a161-779c-51ce-7a8e8a466a94" executionId="d84c51d4-3010-49dc-81d5-5ad2c2a691cb" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="93ca782d-f5c2-20eb-125c-0f45fd982d6b" executionId="817f0a85-2bce-4bcf-8b59-b5aad32d17b7" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="cdf32c1e-4fc6-2306-3b72-775271b4cd03" executionId="59169e91-96a2-4840-abb5-39ba7ae86ef4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="67b200aa-0d88-f609-969c-54d57c559175" executionId="7302f639-4d75-44c5-babf-277fe1b6951f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="3ae02039-d1ac-ee56-ac4e-cf7de9c14d1c" executionId="aecc9685-a3ef-49eb-952f-fad4f273d2c3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="fd7b78ef-e576-9bb2-1a5e-bf5407b74d14" executionId="75e4601d-d75b-44f0-aa03-b6a79a04ad40" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a060d4d9-7d72-1d44-138e-fe76614d34be" executionId="7e943b2d-dd11-4575-b428-d458562a0321" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f5531ef5-9b66-5c7a-fa4f-8ead3f97ce5c" executionId="33f26f58-d242-49e4-8444-9db56ced8d3a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d4397ca0-509e-acc8-0bfe-ff2156d7bebe" executionId="bd6d3955-ecec-4f7b-a56d-ad800308f658" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="eb46628e-a69e-624c-e4a0-6e1325035e50" executionId="6ffa18b0-503c-4289-8164-639755b0157e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="11" executed="8" passed="8" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.14)
+[xUnit.net 00:00:00.52]   Discovering: FileCat.App.Tests
+[xUnit.net 00:00:04.01]   Discovered:  FileCat.App.Tests
+[xUnit.net 00:00:04.37]   Starting:    FileCat.App.Tests
+[xUnit.net 00:00:04.72]       Requires the held macOS directory xattr adapter.
+Test 'FileCat.App.Tests.HiddenDataUiTests.Mac_held_directory_attribute_can_be_reported_copied_and_deleted' was skipped in the test run.
+[xUnit.net 00:00:09.38]       Requires a disposable Windows VM with EFS enabled.
+[xUnit.net 00:00:09.80]       Requires a prepared macOS File Provider domain.
+Test 'FileCat.App.Tests.HiddenDataUiTests.Copying_a_protected_stream_refuses_before_creating_any_output' was skipped in the test run.
+Test 'FileCat.App.Tests.FileDetailsWindowTests.Mac_live_provider_details_window_keeps_dataless_files_metadata_only' was skipped in the test run.
+[xUnit.net 00:00:10.38]   Finished:    FileCat.App.Tests (ID = '5c8bcaade6c2fd0a3dbb53b9e37daf14abf790c740ee186d089d7e84b6f65adb')
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="filecat-ubuntu2404" outcome="Warning" timestamp="2026-11-20T21:32:55.4773235+01:00">
+        <Text>[xUnit.net 00:00:04.72]     FileCat.App.Tests.HiddenDataUiTests.Mac_held_directory_attribute_can_be_reported_copied_and_deleted [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="filecat-ubuntu2404" outcome="Warning" timestamp="2026-11-20T21:33:00.1300205+01:00">
+        <Text>[xUnit.net 00:00:09.38]     FileCat.App.Tests.HiddenDataUiTests.Copying_a_protected_stream_refuses_before_creating_any_output [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="filecat-ubuntu2404" outcome="Warning" timestamp="2026-11-20T21:33:00.5574916+01:00">
+        <Text>[xUnit.net 00:00:09.80]     FileCat.App.Tests.FileDetailsWindowTests.Mac_live_provider_details_window_keeps_dataless_files_metadata_only [SKIP]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>
