@@ -563,8 +563,8 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.MakeDirectory, "Creates a new folder in this panel's folder.");
         r.Describe(CommandIds.Delete, $"Moves the marked items (or the one under the cursor) to {FileCat.Core.Jobs.RecycleText.Destination}; Shift+Del deletes permanently.");
         r.Describe(CommandIds.Properties, "Shows the properties of the item under the cursor.");
-        r.Describe(CommandIds.FileRecord, "Shows filesystem metadata for the captured focused item. Summary reads no content or target contents; Read full record explicitly adds bounded metadata. Unqualified payload previews, extent collectors and raw-volume sections are omitted.");
-        r.Describe(CommandIds.HiddenData, "Lists what the item carries beside its contents: alternate data streams and NTFS attributes on Windows, extended attributes (and the resource fork) on Linux and macOS, each decoded. F3 views one, F5 saves it as a file, F8 deletes it.");
+        r.Describe(CommandIds.FileRecord, "Shows metadata for the focused file or folder. Read full record adds qualified filesystem details. Use the supplementary-data tab to read stream, attribute and fork values.");
+        r.Describe(CommandIds.HiddenData, "Lists supplementary-data names, categories and available lengths. F3 reads a selected value, F5 exports an allowed selection, and F8 requests deletion. Windows extended attribute inventory requires explicit approval.");
         r.Describe(CommandIds.Pack, "Packs the marked items (or the one under the cursor) into a new ZIP file.");
         r.Describe(CommandIds.Unpack, "Unpacks the archive under the cursor, or the marked archives.");
         r.Describe(CommandIds.MarkSelectMask, "Marks the items whose names match a mask, such as *.txt.");
