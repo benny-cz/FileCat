@@ -81,5 +81,65 @@ public sealed class WindowsEfsReplacementTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    [Theory]
+    [InlineData(JobKind.Copy, false)]
+    [InlineData(JobKind.Move, false)]
+    [InlineData(JobKind.Copy, true)]
+    [InlineData(JobKind.Move, true)]
+    public async Task Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(
+        JobKind kind, bool sourceOnUsb)
+    {
+        RequireFixture();
+        string? removableRoot = Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_USB_ROOT");
+        Assert.SkipUnless(!string.IsNullOrWhiteSpace(removableRoot) && Directory.Exists(removableRoot),
+            "Requires a prepared removable NTFS destination owned by the native fixture.");
+        string removable = Path.GetFullPath(removableRoot!);
+        var drive = new DriveInfo(Path.GetPathRoot(removable)!);
+        Assert.Equal(DriveType.Removable, drive.DriveType);
+        Assert.Equal("NTFS", drive.DriveFormat);
+        string root = Directory.CreateTempSubdirectory("filecat-efs-usb-replace-").FullName;
+        Assert.Equal("NTFS", new DriveInfo(Path.GetPathRoot(root)!).DriveFormat);
+        string usbFixture = Path.Combine(removable, "filecat-efs-usb-replace-" + Guid.NewGuid().ToString("N"));
+        Assert.Equal(removable, Path.GetDirectoryName(usbFixture));
+        try
+        {
+            Directory.CreateDirectory(usbFixture);
+            string destination = sourceOnUsb ? Directory.CreateDirectory(Path.Combine(root, "destination")).FullName : usbFixture;
+            string source = Path.Combine(sourceOnUsb ? usbFixture : root, "secret.bin");
+            string target = Path.Combine(destination, "secret.bin");
+            byte[] incoming = [1, 2, 3, 4, 5], existing = [9, 8, 7];
+            byte[] incomingNamed = [6, 5, 4], existingNamed = [3, 2, 1];
+            File.WriteAllBytes(source, incoming);
+            File.WriteAllBytes(source + ":proof", incomingNamed);
+            File.Encrypt(source);
+            File.WriteAllBytes(target, existing);
+            File.WriteAllBytes(target + ":proof", existingNamed);
+            File.Encrypt(target);
+            var files = new WindowsFileOperations();
+            string sourceId = Assert.IsType<string>(files.GetFileIdentity(source));
+            string targetId = Assert.IsType<string>(files.GetFileIdentity(target));
+
+            var (_, questions) = await WindowsEfsCopyTests.Run(root, files, kind, [source], destination,
+                _ => new(DecisionAction.Skip), new TransferOptions { Conflicts = ConflictPolicy.Replace });
+            var conflict = Assert.IsType<ConflictRequest>(Assert.Single(questions));
+            Assert.Contains("EFS", conflict.Title);
+            Assert.False(conflict.CanReplace);
+            Assert.Equal(sourceId, files.GetFileIdentity(source));
+            Assert.Equal(targetId, files.GetFileIdentity(target));
+            Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+            Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(incoming, File.ReadAllBytes(source));
+            Assert.Equal(incomingNamed, File.ReadAllBytes(source + ":proof"));
+            Assert.Equal(existing, File.ReadAllBytes(target));
+            Assert.Equal(existingNamed, File.ReadAllBytes(target + ":proof"));
+            Assert.Equal([target], Directory.GetFiles(destination));
+        }
+        finally
+        {
+            if (Directory.Exists(usbFixture)) Directory.Delete(usbFixture, recursive: true);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static void RequireFixture() => WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
 }
