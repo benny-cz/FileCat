@@ -13,3 +13,11 @@ The `--narrow --voiceover` pass verified a native report window of 520 × 420 po
 The `--narrow --properties` run used Option+Return on the focused file and reached FileCat's canonical File-system details window. The native AX bridge observed the report controls and the same file after Escape. In the 520 × 420 point window, **Copy all** published 2,361 bytes of metadata with the original path and the omission notice. The original file and xattr retained their bytes.
 
 The Apple silicon bundle `LinkTargetStatus-53f808d5-r1.app` had `FileCat.dll` SHA-256 `727489632327CD4D992D3394206E3166B8753C2538480014AA122E80EB38999E`. The receipt `mac-details-properties-893e4d0f-r1.json` has SHA-256 `9049007297DC039E24BD9C2A8F745DCB3C02E638981A4007D8AA3A4FF52246A4`.
+
+## Standalone Find results
+
+On 20 November, the signed Apple silicon build from `85cfc78c3` passed the native keyboard and AX journey with `--find-results --narrow` on Darwin 27.2.0. Command search opened standalone Find. After Enter ran the search, Tab reached the matching result as an `AXRow`. Control+Option+Return opened its File-system details. The keyboard reached Summary, Full and the cached Full view at 520 × 420 points. Escape restored the Find window to the foreground with the original result row focused.
+
+**Copy all** published 3,263 UTF-8 bytes of metadata with the 236-character original path and the omissions notice. Both payload canaries and the unselected entry were absent from the report. The original file and xattr retained their bytes. The Mac receipt `~/FileCatValidation/mac-find-details-85cfc78c-r3.json` has SHA-256 `55EDD2A2E7D63939751D1EF716D5ADBCB9C3C4924F60E880C319D93D790F7960`. The `FileCat.dll` hash was `2DF1E474CE356AB32C1422FA261E0275F8AD4766918F66EC9A7C689B7BABCA0E`.
+
+VoiceOver spoke the starting file row on one repeat. The repeat stopped at command search before opening Find. The complete speech journey from standalone Find remains open.

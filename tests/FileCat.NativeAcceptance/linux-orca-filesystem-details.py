@@ -3,7 +3,7 @@
 
 Build FileCat in Release in an owned checkout below ~/FileCatValidation, then run:
 FILECAT_ORCA_ISOLATED_DISPLAY=1 dbus-run-session -- xvfb-run -a /usr/bin/python3 \
-    linux-orca-filesystem-details.py CHECKOUT REPORT.json [--link-target] [--report-size WIDTH HEIGHT] [--properties]
+    linux-orca-filesystem-details.py CHECKOUT REPORT.json [--link-target | --find-results] [--report-size WIDTH HEIGHT] [--properties]
 
 The report destination must be below ~/FileCatValidation. The runner reads Orca's actual
 speech log, sets only the owned top-level window focus, and keeps the fixture and log.
@@ -22,7 +22,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("checkout", type=Path)
     parser.add_argument("report", type=Path)
-    parser.add_argument("--link-target", action="store_true")
+    origin_group = parser.add_mutually_exclusive_group()
+    origin_group.add_argument("--link-target", action="store_true")
+    origin_group.add_argument("--find-results", action="store_true")
     parser.add_argument("--report-size", nargs=2, type=int, metavar=("WIDTH", "HEIGHT"))
     parser.add_argument("--properties", action="store_true")
     args = parser.parse_args()
@@ -69,7 +71,7 @@ def main():
     expected_digest = sha256(observed_file)
     speech = helpers["SpeechLog"](fixture / "orca-debug.log")
     evidence = dict(passed=False, appDllSha256=sha256(app.with_name("FileCat.dll")), fixture=str(fixture),
-                    propertiesShortcut=args.properties,
+                    propertiesShortcut=args.properties, findResults=args.find_results,
                     speechLog=str(speech.path), input="XTEST on dedicated Xvfb display", steps=[])
     dispatcher = orca = application = None
     speech_runtime = tempfile.TemporaryDirectory(prefix="filecat-details-speech-", dir="/tmp")
@@ -131,7 +133,8 @@ def main():
         evidence["reportSize"] = args.report_size
 
     def key(chord):
-        keys = {"home": "Home", "down": "Down", "ctrl+alt+enter": "ctrl+alt+Return", "alt+enter": "alt+Return",
+        keys = {"home": "Home", "down": "Down", "enter": "Return", "alt+f7": "alt+F7",
+                "ctrl+alt+enter": "ctrl+alt+Return", "alt+enter": "alt+Return",
                 "tab": "Tab", "space": "space", "escape": "Escape"}
         current = subprocess.run(["/usr/bin/xdotool", "getwindowfocus"], check=True, capture_output=True, text=True, timeout=5)
         if current.stdout.strip() not in windows():
@@ -157,6 +160,46 @@ def main():
         result = subprocess.run(["/usr/bin/xclip", "-selection", "clipboard", "-out"],
                                 capture_output=True, text=True, timeout=5)
         return result.stdout if result.returncode == 0 else ""
+
+    def open_find_result():
+        from gi import require_version
+        require_version("Atspi", "2.0")
+        from gi.repository import Atspi
+        tree = runpy.run_path(str(native / "linux-atspi-sftp-delayed-listing.py"))["tree"]
+        key("alt+f7")
+        find_window = wait(lambda: window_named("Find files"), "the standalone Find window")
+        focus(find_window)
+        desktop = Atspi.get_desktop(0)
+
+        def find_form():
+            for index in range(desktop.get_child_count()):
+                app_node = desktop.get_child_at_index(index)
+                if app_node is None or app_node.get_process_id() != application.pid:
+                    continue
+                return next((node for node in tree(app_node) if node.get_role_name() in ("frame", "window", "dialog")
+                             and node.get_name() == "Find files"), None)
+            return None
+
+        form = wait(find_form, "the owned accessible Find window")
+        def entry(name):
+            return wait(lambda: next((node for node in tree(form) if node.get_role_name() == "entry"
+                                      and node.get_name() == name), None), f"the accessible {name} field")
+        names = entry("Names")
+        look_in = entry("Look in")
+        if not look_in.get_editable_text().set_text_contents(str(source)) or not names.get_editable_text().set_text_contents(focused.name):
+            raise AssertionError("Could not set the original Find scope and name.")
+        if not names.get_component().grab_focus():
+            raise AssertionError("Could not focus the Find Names field.")
+        key("enter")
+        row = wait(lambda: next((node for node in tree(form) if node.get_role_name() == "list item"
+                                 and (node.get_name() or "").startswith(focused.name + ",")), None),
+                   "the original file in standalone Find results")
+        if not row.get_parent().get_component().grab_focus():
+            raise AssertionError("Could not focus the Find results list.")
+        speech.take()
+        key("home")
+        hear("Orca speaks the standalone Find result", focused.name)
+        return find_window
 
     try:
         evidence["orca"] = subprocess.check_output(["/usr/bin/orca", "--version"], text=True, timeout=10).strip()
@@ -187,6 +230,7 @@ def main():
         key("home")
         key("down")
         hear("Keyboard focuses the selected file", focused.name)
+        origin_window = open_find_result() if args.find_results else app_window
         key("alt+enter" if args.properties else "ctrl+alt+enter")
         details_window = wait(lambda: window_named("File-system details"), "the separate details window")
         size_report(details_window)
@@ -226,9 +270,17 @@ def main():
         key("space")
         hear("Orca announces the summary", "Summary · observation")
         focus_button("Show full record")
+        if args.find_results:
+            key("space")
+            hear("Orca announces the cached full observation", "Full · observation")
         key("escape")
         wait(lambda: window_named("File-system details") is None, "the details window to close")
-        focus(app_window)
+        if args.find_results:
+            restored = wait(lambda: window_named("Find:"), "the retained standalone Find results window")
+            if restored != origin_window:
+                raise AssertionError("The original Find window was replaced.")
+            evidence["findResultWindowRetained"] = True
+        focus(origin_window)
         hear("Focus returns to the selected row", focused.name)
         assert sha256(focused) == expected_digest and os.getxattr(focused, "user.filecat-details") == b"FILECAT-XATTR-PAYLOAD-CANARY"
         evidence["passed"] = True

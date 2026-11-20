@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise File-system details with native keyboard events and optional muted VoiceOver speech.
 
-Usage: mac-ax-filesystem-details.py BUNDLE.app AX_OBSERVER.swift REPORT.json [--voiceover] [--narrow] [--link-target] [--properties]
+Usage: mac-ax-filesystem-details.py BUNDLE.app AX_OBSERVER.swift REPORT.json [--voiceover] [--narrow] [--link-target | --find-results] [--properties]
 """
 
 import hashlib
@@ -17,13 +17,16 @@ import time
 
 def main():
     options = sys.argv[4:]
-    if len(sys.argv) < 4 or len(options) != len(set(options)) or set(options) - {"--voiceover", "--narrow", "--link-target", "--properties"}:
+    supported_options = {"--voiceover", "--narrow", "--link-target", "--find-results", "--properties"}
+    if (len(sys.argv) < 4 or len(options) != len(set(options)) or set(options) - supported_options
+            or {"--link-target", "--find-results"}.issubset(options)):
         raise SystemExit(__doc__)
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle, source = (Path(arg).resolve(strict=True) for arg in sys.argv[1:3])
     report_path = Path(sys.argv[3]).resolve()
     voiceover, narrow = "--voiceover" in options, "--narrow" in options
     link_target = "--link-target" in options
+    find_results = "--find-results" in options
     properties = "--properties" in options
     if bundle.parent != validation or bundle.suffix != ".app" or report_path.parent != validation or report_path.exists():
         raise ValueError("Use a dedicated application and a fresh result under ~/FileCatValidation.")
@@ -57,7 +60,8 @@ def main():
     subprocess.run(["/usr/bin/xattr", "-w", "org.filecat.details", "FILECAT-XATTR-PAYLOAD-CANARY", str(target_file)], check=True)
     observer = fixture / "ax-observer"
     subprocess.run(["/usr/bin/swiftc", "-framework", "ApplicationServices", str(source), "-o", str(observer)], check=True, timeout=120)
-    evidence = dict(passed=False, platform="macOS accessibility bridge", voiceOver=voiceover, propertiesShortcut=properties, fixture=str(fixture),
+    evidence = dict(passed=False, platform="macOS accessibility bridge", voiceOver=voiceover, propertiesShortcut=properties,
+                    findResults=find_results, fixture=str(fixture),
                     appDllSha256=hashlib.sha256(app.with_name("FileCat.dll").read_bytes()).hexdigest(), steps=[])
     pid = None
     expected_command = f"{app} --new-instance --data {state}"
@@ -120,6 +124,9 @@ if (count of matches) is 0 then return ""
 return name of every window of (item 1 of matches)
 end tell''')
 
+    def front_window():
+        return osa(f'tell application "System Events" to tell (first application process whose unix id is {pid}) to get name of front window')
+
     def resize_report():
         size = osa(f'''tell application "System Events" to tell (first application process whose unix id is {pid})
 repeat with w in windows
@@ -138,15 +145,34 @@ error "The owned details window is unavailable"''')
         evidence["reportSizePoints"] = [width, height]
         evidence["sourcePathLength"] = len(str(original))
 
-    def tab_to(name):
+    def tab_to(name, role=None):
         for _ in range(28):
             record = focused()
-            if name.casefold() in focus_text(record).casefold():
+            if (role is None or record.get("role") == role) and name.casefold() in focus_text(record).casefold():
                 evidence["steps"].append(dict(step=f"Keyboard reaches {name}", focus=record))
                 return
             key("key code 48")
             time.sleep(0.20)
         raise AssertionError(f"Could not reach {name}")
+
+    def search_command(command):
+        key("key code 35 using {control down, shift down}")
+        expect_focus("Command search by keyboard", "Search commands")
+        key(f'keystroke "{command}"')
+        wait(lambda: focused().get("value", "").casefold() == command, "the command search text")
+        key("key code 36")
+
+    def open_find_result():
+        search_command("find files")
+        wait(lambda: "Find files" in window_titles(), "the standalone Find window")
+        tab_to("Names")
+        key('keystroke "a" using {command down}')
+        key(f'keystroke "{original.name}"')
+        wait(lambda: focused().get("value") == original.name, "the exact Find filename")
+        key("key code 36")
+        wait(lambda: f"Find: {original.name}" in window_titles(), "the standalone Find results")
+        tab_to(original.name, role="AXRow")
+        speech("VoiceOver speaks the standalone Find result", original.name)
 
     try:
         if voiceover:
@@ -174,14 +200,14 @@ error "The owned details window is unavailable"''')
         key("key code 125")
         expect_focus("Selected file by keyboard", original.name)
         speech("VoiceOver speaks the selected file", original.name)
+        if find_results:
+            open_find_result()
         if properties:
             key("key code 36 using {option down}")
+        elif find_results:
+            key("key code 36 using {control down, option down}")
         else:
-            key("key code 35 using {control down, shift down}")
-            expect_focus("Command search by keyboard", "Search commands")
-            key('keystroke "file-system details"')
-            wait(lambda: focused().get("value", "").casefold() == "file-system details", "the command search text")
-            key("key code 36")
+            search_command("file-system details")
         wait(lambda: "File-system details" in window_titles(), "the selected file details window")
         speech("VoiceOver announces the details window", "File-system details")
         if narrow:
@@ -205,7 +231,7 @@ repeat with w in windows
 end repeat
 end tell
 error "The owned details window is unavailable"''')
-            wait(lambda: "File-system details" in osa(f'tell application "System Events" to tell (first application process whose unix id is {pid}) to get name of front window'),
+            wait(lambda: "File-system details" in front_window(),
                  "the original link report to regain focus")
             tab_to("Open target location")
             key("key code 49")
@@ -240,8 +266,15 @@ error "The owned details window is unavailable"''')
         key("key code 49")
         speech("VoiceOver announces the summary observation", "summary", "observation")
         tab_to("Show full record")
+        if find_results:
+            key("key code 49")
+            speech("VoiceOver announces the cached full observation", "full", "observation")
         key("key code 53")
         wait(lambda: "File-system details" not in window_titles(), "the details window to close")
+        if find_results:
+            expected_window = f"Find: {original.name}"
+            wait(lambda: front_window() == expected_window, "focus on the standalone Find results window")
+            evidence["returnedWindow"] = expected_window
         expect_focus("Focus returns to the same file", original.name)
         speech("VoiceOver returns to the same file", original.name)
         assert original.read_text(encoding="utf-8") == "FILECAT-DATA-PAYLOAD-CANARY"
