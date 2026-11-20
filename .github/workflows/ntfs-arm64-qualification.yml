@@ -569,12 +569,10 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath $nativeInput -PathType Leaf)) {
             throw 'Could not compile the desktop input fixture before lowering token integrity.'
           }
-          . ./eng/validation/Enter-MediumIntegrityTestProcess.ps1
           $session = (Get-Process -Id $PID).SessionId
           [ordered]@{
             commit = $env:GITHUB_SHA
             architecture = $env:RUNNER_ARCH
-            integrity = [FileCatCiTokenIntegrity]::IntegrityRid()
             session = $session
             os = [Environment]::OSVersion.Version.ToString()
           } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'environment.json')
@@ -591,11 +589,32 @@ jobs:
           if ($creation.ExitCode -ne 0 -or !(Test-Path -LiteralPath $nvda -PathType Leaf)) {
             throw "The pinned NVDA release did not create the portable copy. Exit code $($creation.ExitCode)."
           }
-          & $desktopPowerShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $driver -TestRoot $review -NvdaPath $nvda -HostedArm64 -HighContrastPictures -VerifyDuplicateRoots
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # The review process lowers its own token before launching FileCat and NVDA.
+          # Keep the controller available for one activation of the owned window.
+          $output = Join-Path $root 'review.out.txt'
+          $err = Join-Path $root 'review.err.txt'
+          $arguments = @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',('"{0}"' -f (Resolve-Path $driver).Path),
+            '-TestRoot',('"{0}"' -f $review),'-NvdaPath',('"{0}"' -f $nvda),'-HostedArm64','-HighContrastPictures','-VerifyDuplicateRoots')
+          $run = Start-Process -FilePath $desktopPowerShell -ArgumentList $arguments -WindowStyle Hidden -PassThru `
+            -RedirectStandardOutput $output -RedirectStandardError $err
+          [void]$run.Handle
+          $requested = $false
+          while (!$run.HasExited) {
+            if (!$requested -and (Test-Path -LiteralPath (Join-Path $root 'foreground-request.json'))) {
+              $requested = $true
+              & $desktopPowerShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $driver -ActivateHostedWindow
+              if ($LASTEXITCODE -ne 0) { Write-Warning "The owned-window activation returned $LASTEXITCODE." }
+            }
+            Start-Sleep -Milliseconds 200
+          }
+          if ($run.ExitCode -ne 0) {
+            Get-Content -LiteralPath $err -Tail 30
+            throw "The hosted review returned $($run.ExitCode)."
+          }
           $receipt = Get-Content -LiteralPath (Join-Path $review 'storage-review-result.json') -Raw | ConvertFrom-Json
-          if (!$receipt.Passed -or $receipt.ReviewedOriginals.Compression.Count -ne 2 -or $receipt.ReviewedOriginals.Efs.Count -ne 2) {
-            throw 'Both native ARM64 reviews must disclose both complete original paths.'
+          if (!$receipt.Passed -or $receipt.Integrity -ne 8192 -or
+              $receipt.ReviewedOriginals.Compression.Count -ne 2 -or $receipt.ReviewedOriginals.Efs.Count -ne 2) {
+            throw 'Both native ARM64 reviews must disclose both complete original paths at medium integrity.'
           }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
@@ -615,6 +634,8 @@ jobs:
             ${{ runner.temp }}/filecat-native-storage-operations/operations-stage.txt
             ${{ runner.temp }}/filecat-native-nvda/environment.json
             ${{ runner.temp }}/filecat-native-nvda/reviews/storage-review-result.json
+            ${{ runner.temp }}/filecat-native-nvda/review.out.txt
+            ${{ runner.temp }}/filecat-native-nvda/review.err.txt
             ${{ runner.temp }}/filecat-native-storage-operations/fixture/data/local/journal/job-storage-*.fcj
             ${{ runner.temp }}/filecat-native-listing-remount-*/mount-samples.json
             ${{ runner.temp }}/filecat-native-listing-remount-*/diskpart.log

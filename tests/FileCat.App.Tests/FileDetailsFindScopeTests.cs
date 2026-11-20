@@ -1,6 +1,8 @@
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using FileCat.App.Services;
+using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
 using FileCat.Core.HiddenData;
@@ -27,11 +29,15 @@ public sealed class FileDetailsFindScopeTests
     [AvaloniaFact]
     public async Task Find_supplementary_command_opens_captured_source_in_new_workspace_tab_without_replacing_results()
     {
-        if (!OperatingSystem.IsWindows()) { Assert.Skip("This fixture injects the Windows platform factory; Unix scope qualification is separate."); return; }
         var previous = PlatformFactory.WindowsFactory;
-        PlatformFactory.WindowsFactory = () => new TestPlatform();
-        var (services, vm, main, root) = AccessibilityTests.OpenMainWindow();
-        PlatformFactory.WindowsFactory = previous;
+        (AppServices, MainViewModel, MainWindow, string) fixture;
+        try
+        {
+            if (OperatingSystem.IsWindows()) PlatformFactory.WindowsFactory = () => new TestPlatform();
+            fixture = AccessibilityTests.OpenMainWindow();
+        }
+        finally { PlatformFactory.WindowsFactory = previous; }
+        var (services, vm, main, root) = fixture;
         try
         {
             var ct = TestContext.Current.CancellationToken;
@@ -66,7 +72,6 @@ public sealed class FileDetailsFindScopeTests
         }
         finally
         {
-            PlatformFactory.WindowsFactory = previous;
             foreach (var find in FindWindow.OpenWindows.ToArray()) find.Close();
             AccessibilityTests.Close(services, main, root);
         }

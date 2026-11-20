@@ -4,10 +4,12 @@ param(
     [Parameter(Mandatory)][string]$ReportPath,
     [switch]$NarrowHighContrast,
     [switch]$PictureView,
+    [switch]$FindResults,
     [switch]$VerifyNativeProperties
 )
 
 $ErrorActionPreference = 'Stop'
+if ($FindResults -and $PictureView) { throw 'Choose the Find list fixture or the panel picture fixture.' }
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type @'
@@ -160,6 +162,7 @@ $result = [ordered]@{
     NvdaVersion = (Get-Item -LiteralPath $nvdaPath).VersionInfo.ProductVersion
     NarrowHighContrast = [bool]$NarrowHighContrast
     PictureView = [bool]$PictureView
+    FindResults = [bool]$FindResults
     VerifyNativeProperties = [bool]$VerifyNativeProperties
     Fixture = Split-Path $fixture -Leaf; Steps = @(); Error = $null
 }
@@ -188,6 +191,36 @@ try {
     [void](Take-Speech)
     Send-Key $main @(0x28) $true
     Hear 'the focused file' 'alpha-details\.txt'
+    $origin = $main
+    if ($FindResults) {
+        $result.Stage = 'standalone Find results'
+        Send-Key $main @(0x12, 0x76) # Alt+F7.
+        $origin = Await {
+            $ui::RootElement.FindAll($scope::Children, $all) | Where-Object {
+                $_.Current.ProcessId -eq $application.Id -and $_.Current.Name -eq 'Find files'
+            } | Select-Object -First 1
+        } 'the owned standalone Find window'
+        $findHandle = [IntPtr]$origin.Current.NativeWindowHandle
+        Await { [DetailsNativeInput]::GetForegroundWindow() -eq $findHandle } 'focus in standalone Find' | Out-Null
+        $fields = $origin.FindAll($scope::Descendants, $all)
+        $names = $fields | Where-Object { $_.Current.Name -eq 'Names' -and $_.Current.ControlType.ProgrammaticName -eq 'ControlType.Edit' } | Select-Object -First 1
+        $where = $fields | Where-Object { $_.Current.Name -eq 'Look in' -and $_.Current.ControlType.ProgrammaticName -eq 'ControlType.Edit' } | Select-Object -First 1
+        if (!$names -or !$where) { throw 'The named Find fields are unavailable.' }
+        $where.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($left)
+        $names.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('alpha-details.txt')
+        $names.SetFocus()
+        Send-Key $origin @(0x0D)
+        $findList = Await {
+            $origin.FindAll($scope::Descendants, $all) | Where-Object {
+                $_.Current.ClassName -eq 'FileList' -and
+                    ($_.FindAll($scope::Children, $all) | Where-Object { $_.Current.Name -eq 'alpha-details.txt' })
+            } | Select-Object -First 1
+        } 'the matching original in Find results'
+        $findList.SetFocus()
+        [void](Take-Speech)
+        Send-Key $origin @(0x24) $true
+        Hear 'the focused Find result' 'alpha-details\.txt'
+    }
     if ($PictureView) {
         $result.Stage = 'switch to picture view'
         Add-Type -AssemblyName System.Windows.Forms
@@ -207,7 +240,7 @@ try {
         } 'the same file in the picture grid' | Out-Null
     }
     [void](Take-Speech)
-    Send-Key $main @(0x11, 0x12, 0x0D)
+    Send-Key $origin @(0x11, 0x12, 0x0D)
     $details = Await { OwnedDetails } 'file-system details window'
     Hear 'the details window' 'File-system details'
 
@@ -255,6 +288,13 @@ try {
     Await { !(OwnedDetails) } 'the details window to close' | Out-Null
     $returnedSpeech = if ($PictureView) { 'pictures grid.*alpha-details\.txt' } else { 'alpha-details\.txt' }
     Hear 'focus returning to the same file' $returnedSpeech
+    if ($FindResults) {
+        if ([DetailsNativeInput]::GetForegroundWindow() -ne $findHandle -or
+            !($findList.FindAll($scope::Children, $all) | Where-Object { $_.Current.Name -eq 'alpha-details.txt' })) {
+            throw 'The original Find results window and row are not active.'
+        }
+        $result.FindResultRestored = $true
+    }
     if ($VerifyNativeProperties) {
         $result.Stage = 'native Windows Properties'
         $propertyTitles = @(
@@ -268,10 +308,10 @@ try {
         }
         if (& $findProperties) { throw 'The fixture Properties window was already open.' }
         Await {
-            [DetailsNativeInput]::GetForegroundWindow() -eq [IntPtr]$main.Current.NativeWindowHandle
+            [DetailsNativeInput]::GetForegroundWindow() -eq [IntPtr]$origin.Current.NativeWindowHandle
         } 'the focused FileCat window' | Out-Null
         [void](Take-Speech)
-        Send-Key $main @(0x12, 0x0D)
+        Send-Key $origin @(0x12, 0x0D)
         $properties = Await { & $findProperties } 'the native Properties dialog for the same file'
         Hear 'native Properties for the same file' 'alpha-details(?:\.txt)? Properties'
         if (OwnedDetails) { throw 'Alt+Enter also opened File-system details.' }

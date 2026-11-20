@@ -3,6 +3,7 @@ param(
     [Parameter(Mandatory, ParameterSetName = 'Review')][string]$TestRoot,
     [Parameter(Mandatory, ParameterSetName = 'Review')][string]$NvdaPath,
     [Parameter(Mandatory, ParameterSetName = 'Compile')][string]$NativeInputAssembly,
+    [Parameter(Mandatory, ParameterSetName = 'Activate')][switch]$ActivateHostedWindow,
     [switch]$HostedArm64,
     [switch]$HighContrastPictures,
     [switch]$VerifyDuplicateRoots,
@@ -72,10 +73,12 @@ public static class StorageReviewInput {
         return true;
     }
     public static uint ForegroundProcess() {
-        var foreground = GetForegroundWindow();
-        if (foreground == IntPtr.Zero) return 0;
+        return WindowProcess(GetForegroundWindow());
+    }
+    public static uint WindowProcess(IntPtr window) {
+        if (window == IntPtr.Zero) return 0;
         uint pid;
-        GetWindowThreadProcessId(foreground, out pid);
+        GetWindowThreadProcessId(window, out pid);
         return pid;
     }
     public static int InputDesktopError() {
@@ -90,6 +93,35 @@ if ($PSCmdlet.ParameterSetName -eq 'Compile') {
     Add-Type -TypeDefinition $nativeInputSource -OutputAssembly $NativeInputAssembly -OutputType Library
     return
 }
+function Hosted-ValidationRoot {
+    if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows' -or
+        $env:RUNNER_ARCH -ne 'ARM64' -or ![IO.Path]::IsPathRooted($env:RUNNER_TEMP)) {
+        throw 'Use the hosted Windows ARM64 qualification run.'
+    }
+    return [IO.Path]::GetFullPath((Join-Path $env:RUNNER_TEMP 'filecat-native-nvda'))
+}
+if ($ActivateHostedWindow) {
+    $root = Hosted-ValidationRoot
+    $request = Get-Content -LiteralPath (Join-Path $root 'foreground-request.json') -Raw | ConvertFrom-Json
+    $owned = Get-Process -Id $request.Process
+    $handle = [IntPtr]::new([long]$request.Window)
+    Add-Type -Path (Join-Path $root 'StorageReviewInput.dll')
+    $expected = Join-Path $root 'reviews\app\FileCat.ArchiveQualificationHost.exe'
+    if ($owned.Path -ine $expected -or $owned.SessionId -ne (Get-Process -Id $PID).SessionId -or
+        [StorageReviewInput]::WindowProcess($handle) -ne $owned.Id) {
+        throw 'The hosted activation request does not identify the owned FileCat window.'
+    }
+    $context = [StorageReviewInput]::SetThreadDpiAwarenessContext([IntPtr](-4))
+    if ($context -eq [IntPtr]::Zero) { throw 'Could not use physical pixels for the activation.' }
+    try {
+        [void][StorageReviewInput]::SetForegroundWindow($handle)
+        if ([StorageReviewInput]::GetForegroundWindow() -ne $handle -and ![StorageReviewInput]::ClickUncoveredTitle($handle)) {
+            throw 'The owned FileCat title is covered on the hosted desktop.'
+        }
+    }
+    finally { [void][StorageReviewInput]::SetThreadDpiAwarenessContext($context) }
+    return
+}
 if (@($VerifyCanceledKeyBackup, $VerifyCompletedKeyBackup, $VerifySelectedFileBackup, $VerifyDuplicateRoots,
     $VerifyOperationsRecovery, $VerifyAlreadySatisfied).Where({ $_.IsPresent }).Count -gt 1) {
     throw 'Choose one of the optional fixture modes.'
@@ -98,11 +130,7 @@ $testRoot = [IO.Path]::GetFullPath($TestRoot)
 $nvdaPath = [IO.Path]::GetFullPath($NvdaPath)
 $session = (Get-Process -Id $PID).SessionId
 if ($HostedArm64) {
-    if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows' -or
-        $env:RUNNER_ARCH -ne 'ARM64' -or ![IO.Path]::IsPathRooted($env:RUNNER_TEMP)) {
-        throw 'Use the hosted Windows ARM64 qualification run.'
-    }
-    $validationRoot = [IO.Path]::GetFullPath((Join-Path $env:RUNNER_TEMP 'filecat-native-nvda')) + '\'
+    $validationRoot = (Hosted-ValidationRoot) + '\'
 } else {
     if ((Get-CimInstance Win32_ComputerSystem).Manufacturer -notmatch 'VMware') {
         throw 'Use the disposable VMware validation guest.'
@@ -121,6 +149,10 @@ $record = [ordered]@{ Passed = $false; Stage = 'process preflight'; Error = $nul
 $app = $reader = $backupPath = $null
 $previousDpiContext = [IntPtr]::Zero
 try {
+    if ($HostedArm64) {
+        . (Join-Path $PSScriptRoot '../../eng/validation/Enter-MediumIntegrityTestProcess.ps1')
+        $record.Integrity = [FileCatCiTokenIntegrity]::IntegrityRid()
+    }
     if (Get-Process dotnet,testhost,FileCat,FileCat.ShellHost,FileCat.App.Tests,FileCat.*QualificationHost,FileCat.*CrashHarness,nvda -ErrorAction SilentlyContinue) {
         throw 'A test process is already using this VM.'
     }
@@ -663,7 +695,13 @@ try {
         $record.Foreground.ActivationRequested = [StorageReviewInput]::SetForegroundWindow($handle)
     }
     if ([StorageReviewInput]::GetForegroundWindow() -ne $handle) {
-        if (![StorageReviewInput]::ClickUncoveredTitle($handle)) { throw 'A foreground window covers the owned FileCat fixture.' }
+        if ($HostedArm64) {
+            $request = Join-Path $validationRoot 'foreground-request.json'
+            [IO.File]::WriteAllText("$request.tmp", ([ordered]@{ Process = $app.Id; Window = $handle.ToInt64() } | ConvertTo-Json))
+            [IO.File]::Move("$request.tmp", $request)
+        } elseif (![StorageReviewInput]::ClickUncoveredTitle($handle)) {
+            throw 'A foreground window covers the owned FileCat fixture.'
+        }
         Await { [StorageReviewInput]::GetForegroundWindow() -eq $handle } 'foreground FileCat after NVDA startup' | Out-Null
     }
     $list.SetFocus()
