@@ -201,15 +201,16 @@ public sealed class HiddenDataUiTests
     }
 
     [AvaloniaFact]
-    public async Task Delete_confirmation_keeps_the_file_identity_from_before_a_refresh()
+    public async Task Delete_confirmation_keeps_the_source_identity_from_before_a_refresh()
     {
-        Assert.SkipUnless(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), "Requires a bound supplementary-data adapter.");
+        Assert.SkipUnless(OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(),
+            "Requires a bound supplementary-data adapter.");
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
         {
-            string file = Path.Combine(root, "files", "reviewed.bin");
-            string previous = Path.Combine(root, "files", "previous.bin");
-            string name = OperatingSystem.IsWindows() ? "payload" : "user.filecat.payload";
+            string file = Path.Combine(root, "files", OperatingSystem.IsMacOS() ? "reviewed" : "reviewed.bin");
+            string previous = Path.Combine(root, "files", OperatingSystem.IsMacOS() ? "previous" : "previous.bin");
+            string name = OperatingSystem.IsWindows() ? "payload" : OperatingSystem.IsMacOS() ? "org.filecat.payload" : "user.filecat.payload";
             IHiddenData adapter = OperatingSystem.IsWindows() ? new FileCat.Platform.Windows.WindowsHiddenData() : new UnixHiddenData();
             if (OperatingSystem.IsWindows()) services.Providers.Register(new HiddenDataProvider(adapter));
             WriteFixture("original");
@@ -223,13 +224,15 @@ public sealed class HiddenDataUiTests
             window.KeyPress(Key.Delete, RawInputModifiers.None, PhysicalKey.Delete, null);
             await Until(() => ((OverlayDialogService)vm.Dialogs).IsOpen, "the delete confirmation is open");
 
-            File.Move(file, previous);
+            if (OperatingSystem.IsMacOS()) Directory.Move(file, previous);
+            else File.Move(file, previous);
             WriteFixture("replacement");
             tab.Refresh();
             await Until(() => HasPayload() && tab.Listing.SupplementaryInventory!.Identity != original,
                 "the inventory refreshed to the replacement file while confirmation was open");
             await Click(window, "Delete");
-            await Until(() => vm.Notification?.Contains("different file", StringComparison.Ordinal) == true,
+            await Until(() => vm.Notification?.Contains(OperatingSystem.IsMacOS() ? "different directory" : "different file",
+                    StringComparison.Ordinal) == true,
                 "the stale delete was refused");
 
             var item = new HiddenItem(name, OperatingSystem.IsWindows() ? HiddenKind.Stream : HiddenKind.Attribute, -1);
@@ -241,7 +244,8 @@ public sealed class HiddenDataUiTests
 
             void WriteFixture(string value)
             {
-                File.WriteAllText(file, value + " main bytes");
+                if (OperatingSystem.IsMacOS()) Directory.CreateDirectory(file);
+                else File.WriteAllText(file, value + " main bytes");
                 if (OperatingSystem.IsWindows()) File.WriteAllText(file + ":" + name, value);
                 else Assert.Equal(0, SetAttribute(file, name, Encoding.UTF8.GetBytes(value)));
             }
