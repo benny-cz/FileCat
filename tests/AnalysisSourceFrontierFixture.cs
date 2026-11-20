@@ -25,9 +25,13 @@ internal static class AnalysisSourceFrontierFixture
                 () => Interlocked.Exchange(ref storage, null) ?? throw new InvalidOperationException("Private ownership transferred."), [new(device, () => prepare(privatePath))], PreviewPaths: 2)
                 { CreateProfileQuota = () => AnalysisProfileQuota.Open(Guid.NewGuid()) }); source = null;
             await session.Completion.WaitAsync(TimeSpan.FromMinutes(3), cancellation);
-            Assert.Equal(0UL, session.SourceCloseFailures); Assert.Equal(AnalysisPhase.Finished, session.Snapshot().Phase);
-            Assert.Equal((ulong)(directories * 2 + 2), session.DatasetDescriptor!.Paths); Assert.Equal(NamespaceCoverage.CompleteUnderPolicy, session.DatasetDescriptor.Coverage);
-            var coverage = session.DatasetDescriptor.CoverageDetails; Assert.True(coverage.EnumerationKnown); Assert.True(coverage.Observations.DenominatorFinal);
+            var snapshot = session.Snapshot();
+            Assert.Equal(0UL, session.SourceCloseFailures); Assert.Equal(AnalysisPhase.Finished, snapshot.Phase);
+            var descriptor = session.DatasetDescriptor;
+            Assert.True(descriptor is not null,
+                $"The native scan did not publish a dataset. Issues: {string.Join(", ", snapshot.Issues.Select(issue => issue.Code))}.");
+            Assert.Equal((ulong)(directories * 2 + 2), descriptor.Paths); Assert.Equal(NamespaceCoverage.CompleteUnderPolicy, descriptor.Coverage);
+            var coverage = descriptor.CoverageDetails; Assert.True(coverage.EnumerationKnown); Assert.True(coverage.Observations.DenominatorFinal);
             Assert.Equal((ulong)directories + 1, coverage.Observations.EnumerationRequested); Assert.Equal((ulong)directories + 1, coverage.Observations.EnumerationCompleted);
             Assert.Equal(0UL, coverage.Observations.EnumerationFailed); Assert.Equal(0UL, coverage.UnscheduledDirectories); Assert.Equal((ulong)directories, coverage.Observations.IdentityVerifiedPaths);
             reader = await session.AcquireDatasetAsync(cancellation); Assert.NotNull(reader);
