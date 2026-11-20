@@ -72,6 +72,8 @@ internal sealed class CommandSearchBar
             ItemTemplate = new FuncDataTemplate<CommandSearch.Entry>((entry, _) => Row(entry)),
         };
         AutomationProperties.SetName(_list, "Commands found");
+        _list.ContainerPrepared += (_, e) => AutomationProperties.SetHelpText(e.Container,
+            e.Container is ListBoxItem { Content: CommandSearch.Entry { Enabled: false } entry } ? entry.Reason : null);
         _hint = new TextBlock { Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(8, 4, 8, 4) };
         _helpButton = new Button { Content = "Keyboard reference", Margin = new Thickness(8, 0, 8, 4) };
         AutomationProperties.SetName(_helpButton, "Open all commands and keyboard shortcuts");

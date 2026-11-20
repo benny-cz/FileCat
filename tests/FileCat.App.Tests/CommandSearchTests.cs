@@ -505,6 +505,41 @@ public sealed class CommandSearchTests
     }
 
     [AvaloniaFact]
+    public async Task Inspection_search_result_exposes_only_the_current_unavailable_reason()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var tab = vm.ActiveTab!;
+            await WaitFor(() => tab.Listing.State == Core.Listing.ListingState.Complete, ct);
+            tab.Listing.FocusName("..");
+
+            async Task<string?> SearchHelp(string query, string command)
+            {
+                Assert.True(window.FocusCommandSearch());
+                Type(window, query);
+                var list = window.GetVisualDescendants().OfType<ListBox>()
+                    .Single(l => AutomationProperties.GetName(l) == "Commands found");
+                await WaitFor(() => list.ContainerFromIndex(0) is ListBoxItem
+                    { Content: CommandSearch.Entry entry } && entry.Id == command, ct);
+                var item = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
+                var help = ControlAutomationPeer.CreatePeerForElement(item).GetHelpText();
+                window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+                return help;
+            }
+
+            var unavailable = vm.GetAvailability(CommandIds.FileRecord);
+            Assert.False(unavailable.Enabled);
+            Assert.NotNull(unavailable.Reason);
+            Assert.Equal(unavailable.Reason, await SearchHelp("file-system details", CommandIds.FileRecord));
+            Assert.True(vm.GetAvailability(CommandIds.Settings).Enabled);
+            Assert.True(string.IsNullOrEmpty(await SearchHelp("settings", CommandIds.Settings)));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task The_palette_dialog_is_the_same_search()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
