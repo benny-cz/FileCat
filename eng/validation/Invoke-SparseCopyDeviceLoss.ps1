@@ -23,7 +23,12 @@ if ((!$hostedRunner -and $env:PROCESSOR_ARCHITECTURE -ne 'AMD64') -or
     throw 'Use a fresh owned Windows 11 VM or Actions runner fixture, exact Core test assembly and medium-integrity helper.'
 }
 $os = Get-CimInstance Win32_OperatingSystem
-if ($os.Caption -notlike '*Windows 11*' -or
+if ($os.Caption -notlike '*Windows 11*') {
+    throw 'The owned fixture requires Windows 11.'
+}
+# The hosted runner is private to this job; its preceding build leaves compiler
+# servers running. On the shared VM, reject any existing build or test process.
+if (!$hostedRunner -and
     @(Get-Process dotnet,MSBuild,testhost,VBCSCompiler -ErrorAction SilentlyContinue).Count -ne 0) {
     throw 'The owned Windows 11 VM must have no competing .NET test or build process.'
 }
