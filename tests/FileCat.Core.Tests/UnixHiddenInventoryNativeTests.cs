@@ -39,7 +39,7 @@ public sealed partial class UnixHiddenInventoryNativeTests
             Assert.False(provider.GetCapabilities(HiddenDataProvider.Of(root)).HasFlag(LocationCapabilities.Delete));
             Assert.Throws<NotSupportedException>(() => hidden.Delete(root, item));
             var selected = new ItemRef(HiddenDataProvider.Of(root), item.Name, EntryKind.File)
-                { Ordinal = HiddenIdentities.Ordinal(HiddenKind.Attribute) };
+                { Ordinal = HiddenIdentities.Ordinal(HiddenKind.Attribute), SupplementarySourceIdentity = compression.Identity };
             var report = provider.ReadValueReport(selected, compression.Identity!.Value, TestContext.Current.CancellationToken);
             Assert.True(report.CanPublish);
             Assert.Equal(compression.Identity, Assert.Single(report.Origin.Contributors).Identity);
@@ -77,13 +77,16 @@ public sealed partial class UnixHiddenInventoryNativeTests
             Assert.Equal(0, MacSet(selectedPath, "com.filecat.bound-probe", payload, payload.Length, 0, 0));
             var original = hidden.ReadInventory(selectedPath, new(), TestContext.Current.CancellationToken);
             var selectedRef = new ItemRef(HiddenDataProvider.Of(selectedPath), item.Name, EntryKind.File)
-                { Ordinal = HiddenIdentities.Ordinal(HiddenKind.Attribute) };
+                { Ordinal = HiddenIdentities.Ordinal(HiddenKind.Attribute), SupplementarySourceIdentity = original.Identity };
             Directory.Move(selectedPath, Path.Combine(root, "previous"));
             Directory.CreateDirectory(selectedPath);
             byte[] replacement = "replacement-marker"u8.ToArray();
             Assert.Equal(0, MacSet(selectedPath, "com.filecat.bound-probe", replacement, replacement.Length, 0, 0));
             Assert.Contains("different directory", Assert.Throws<IOException>(() =>
                 provider.ReadValueReport(selectedRef, original.Identity!.Value, TestContext.Current.CancellationToken)).Message);
+            Assert.Contains("different directory", Assert.Throws<IOException>(() => provider.OpenContent(selectedRef)).Message);
+            Assert.Contains("different directory", Assert.Throws<IOException>(() =>
+                output.OpenUnprotectedOutput(selectedRef, ContentOutputKind.Extraction)).Message);
         }
         finally { Directory.Delete(root, true); }
     }

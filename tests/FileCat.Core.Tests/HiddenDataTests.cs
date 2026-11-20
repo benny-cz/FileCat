@@ -74,8 +74,9 @@ public sealed partial class HiddenDataTests
         var adapter = new UnixHiddenData();
         var provider = new HiddenDataProvider(adapter);
         var ct = TestContext.Current.CancellationToken;
-        var item = new ItemRef(HiddenDataProvider.Of(file), name, EntryKind.File) { Ordinal = HiddenIdentities.Ordinal(HiddenKind.Attribute) };
         var original = adapter.ReadInventory(file, new(), ct).Identity!.Value;
+        var item = new ItemRef(HiddenDataProvider.Of(file), name, EntryKind.File)
+            { Ordinal = HiddenIdentities.Ordinal(HiddenKind.Attribute), SupplementarySourceIdentity = original };
         var report = provider.ReadValueReport(item, original, ct);
         Assert.True(report.CanPublish);
         Assert.Equal(original, Assert.Single(report.Origin.Contributors).Identity);
@@ -86,6 +87,9 @@ public sealed partial class HiddenDataTests
         File.WriteAllText(file, "replacement main bytes");
         Assert.Equal(0, SetAttribute(file, name, "replacement attribute"u8.ToArray()));
         Assert.Contains("different file", Assert.Throws<IOException>(() => provider.ReadValueReport(item, original, ct)).Message);
+        Assert.Contains("different file", Assert.Throws<IOException>(() => provider.OpenContent(item)).Message);
+        Assert.Contains("different file", Assert.Throws<IOException>(() =>
+            ((IUnprotectedContentOutput)provider).OpenUnprotectedOutput(item, ContentOutputKind.Extraction)).Message);
         Assert.Contains("original attribute value", report.Text);
         Assert.DoesNotContain("replacement attribute", report.Text);
 

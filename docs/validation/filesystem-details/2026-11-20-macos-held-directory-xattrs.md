@@ -77,3 +77,30 @@ the tested assemblies are
 and `13C1E2AB906E7638296C0F08895FE2A33ED770C031432C5C6B0EDF12043D90E7`.
 Live dataless-directory callbacks, actual compressed backing values, HFS and
 Intel Mac remain unqualified.
+
+## Selection identity on explicit value reads, 20 November 2026
+
+The supplementary listing now carries its observed native file or directory
+identity into each selected value. On Unix, F3 content opens and F5 export
+opens require that identity and compare it with the held source before reading.
+An item reference without the captured identity fails closed and asks for a
+refresh. The value report already used the reviewed identity. This closes the
+case where the selected directory or file is replaced at its pathname between
+listing and an explicit value read. It does not make a concurrent mutation of
+the same object an atomic snapshot; the existing change-token checks still
+apply.
+
+On macOS 27.2.1 arm64, the focused [Core TRX](receipts/2026-11-20-supplementary-selection-identity/mac-core.trx)
+passed 1/1. It now refuses both viewer and export opens after replacing the
+selected directory, in addition to the report refusal. The focused [App TRX](receipts/2026-11-20-supplementary-selection-identity/mac-ui.trx)
+passed 1/1 and completed the directory report and F5 copy through the actual
+listing. The Core and App receipt SHA-256 hashes are
+`EF2990ADF4498C6F45A9D24F39728B1F4772461D634D2C337BC3472D1F3D23AB`
+and `2D695D6E06F976F12CD25D56A8836BB35EF1F5F3A5A886652D0E76F037FAAA87`;
+the tested assembly hashes are
+`8FD031F9466D3AB5DA15D2A345289143D9B6E8662A59A5D4C5F64D829E3C48EE`
+and `3F9617BC2A8324054261D1DC0821A45A9A088E0A92394F58780A44F04CF25835`.
+The corresponding Linux replacement-inode viewer/export assertions are in
+the portable suite, pending the Ubuntu CI run. The disposable Ubuntu VM did
+not remain powered on after two successful VMware start-command returns;
+no VM lock files were removed.

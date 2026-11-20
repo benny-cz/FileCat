@@ -1,3 +1,5 @@
+using FileCat.Core.FileSystem;
+
 namespace FileCat.Core.Resources;
 
 public enum EntryKind : byte
@@ -174,6 +176,9 @@ public sealed class ItemRef : IEquatable<ItemRef>
 
     /// <summary>Captured presentation/safety flags; not part of identity.</summary>
     public EntryFlags Flags { get; init; }
+    /// <summary>Native identity observed with a supplementary-data listing; never persisted with a job.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    internal FileIdentity? SupplementarySourceIdentity { get; init; }
     [System.Text.Json.Serialization.JsonIgnore]
     public uint NativeReparseTag { get; init; }
     [System.Text.Json.Serialization.JsonIgnore]
