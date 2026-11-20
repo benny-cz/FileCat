@@ -1,4 +1,4 @@
-name: Windows ARM64 EFS live FTP qualification
+name: Windows ARM64 EFS live remote qualification
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 jobs:
-  live-ftp:
+  live-remote:
     name: Live EFS upload approval on ARM64
     runs-on: windows-11-arm
     timeout-minutes: 20
@@ -24,23 +24,25 @@ jobs:
       - name: Prepare the loopback servers
         shell: pwsh
         run: |
-          python -m pip install --only-binary=cryptography,cffi --report "$env:RUNNER_TEMP/efs-live-ftp-python.json" pyftpdlib pyopenssl
+          python -m pip install --only-binary=cryptography,cffi,pynacl,bcrypt --report "$env:RUNNER_TEMP/efs-live-remote-python.json" pyftpdlib pyopenssl paramiko
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python tests/FileCat.NativeAcceptance/test_win_ftp_owned_stage.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tests/FileCat.NativeAcceptance/test_win_sftp_owned_stage.py
           exit $LASTEXITCODE
       - name: Build the App tests with locked dependencies
         run: dotnet build tests/FileCat.App.Tests -c Release -p:RestoreLockedMode=true
-      - name: Exercise FTP, FTPES and FTPS at medium integrity
+      - name: Exercise FTP, FTPES, FTPS and SFTP at medium integrity
         shell: pwsh
         run: |
-          ./eng/validation/Test-NativeEfsFtpTransports.ps1 -EvidenceDirectory "$env:RUNNER_TEMP/efs-live-ftp-arm64" -Architecture Arm64
+          ./eng/validation/Test-NativeEfsRemoteTransports.ps1 -EvidenceDirectory "$env:RUNNER_TEMP/efs-live-remote-arm64" -Architecture Arm64
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: native-efs-live-ftp-arm64
+          name: native-efs-live-remote-arm64
           path: |
-            ${{ runner.temp }}/efs-live-ftp-python.json
-            ${{ runner.temp }}/efs-live-ftp-arm64/*.json
-            ${{ runner.temp }}/efs-live-ftp-arm64/*.trx
-            ${{ runner.temp }}/efs-live-ftp-arm64/*-server.log
+            ${{ runner.temp }}/efs-live-remote-python.json
+            ${{ runner.temp }}/efs-live-remote-arm64/*.json
+            ${{ runner.temp }}/efs-live-remote-arm64/*.trx
+            ${{ runner.temp }}/efs-live-remote-arm64/*-server.log
           if-no-files-found: error

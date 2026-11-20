@@ -9,7 +9,8 @@ $repo = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $project = Join-Path $repo 'tests/FileCat.App.Tests'
 $assembly = Join-Path $project 'bin/Release/net10.0/FileCat.App.Tests.dll'
 $controller = Join-Path $PSScriptRoot 'run-medium-integrity-test.ps1'
-$fixture = Join-Path $repo 'tests/FileCat.NativeAcceptance/win-ftp-owned-stage.py'
+$ftpFixture = Join-Path $repo 'tests/FileCat.NativeAcceptance/win-ftp-owned-stage.py'
+$sftpFixture = Join-Path $repo 'tests/FileCat.NativeAcceptance/win-sftp-owned-stage.py'
 $python = (Get-Command python -CommandType Application | Select-Object -First 1).Source
 $shell = (Get-Process -Id $PID).Path
 $root = [IO.Path]::GetFullPath($EvidenceDirectory)
@@ -21,21 +22,26 @@ if ($volume.FileSystem -ne 'NTFS' -or $volume.AllocationUnitSize -ne 4096) {
 }
 New-Item -ItemType Directory -Path $root | Out-Null
 
-function Read-ReadyPort([string]$path, [Diagnostics.Process]$server) {
+function Read-ReadyEndpoint([string]$path, [Diagnostics.Process]$server, [string]$protocol) {
     $clock = [Diagnostics.Stopwatch]::StartNew()
     while (!$server.HasExited -and $clock.Elapsed.TotalSeconds -lt 15) {
         try {
-            $value = [IO.File]::ReadAllText($path).Trim()
+            $lines = [IO.File]::ReadAllLines($path)
         } catch [IO.IOException] {
             Start-Sleep -Milliseconds 100
             continue
         }
-        if ($value -match '^[0-9]{1,5}$' -and [int]$value -ge 1 -and [int]$value -le 65535) {
-            return [int]$value
+        $expectedLines = if ($protocol -eq 'sftp') { 2 } else { 1 }
+        if ($lines.Length -ne $expectedLines -or $lines[0] -notmatch '^[0-9]{1,5}$' -or
+            [int]$lines[0] -lt 1 -or [int]$lines[0] -gt 65535) {
+            throw "The owned $protocol server published an invalid endpoint."
         }
-        throw 'The owned FTP server published an invalid port.'
+        if ($protocol -eq 'sftp' -and $lines[1] -notmatch '^SHA256:[a-zA-Z0-9+/]{43}$') {
+            throw 'The owned SFTP server published an invalid host-key fingerprint.'
+        }
+        return @{ Port = [int]$lines[0]; HostKey = $lines[1] }
     }
-    throw 'The owned FTP server did not publish its port.'
+    throw "The owned $protocol server did not publish its endpoint."
 }
 
 function Set-TestEnvironment([System.Collections.IDictionary]$values) {
@@ -76,7 +82,7 @@ $previous = @{}
 foreach ($name in $lab.Keys) { $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
 New-Item -ItemType Directory -Path $lab.TMP | Out-Null
 
-$routes = [ordered]@{ ftp = 'serve'; ftpes = 'serve-tls'; ftps = 'serve-implicit-tls' }
+$routes = [ordered]@{ ftp = 'serve'; ftpes = 'serve-tls'; ftps = 'serve-implicit-tls'; sftp = '' }
 try {
     foreach ($protocol in $routes.Keys) {
         $folder = Join-Path $root $protocol
@@ -87,22 +93,27 @@ try {
         $start.UseShellExecute = $false
         $start.CreateNoWindow = $true
         $start.RedirectStandardError = $true
-        foreach ($arg in @($fixture, $routes[$protocol], $serverRoot, $ready)) { $start.ArgumentList.Add($arg) }
+        $serverArgs = if ($protocol -eq 'sftp') {
+            @($sftpFixture, $serverRoot, $ready)
+        } else {
+            @($ftpFixture, $routes[$protocol], $serverRoot, $ready)
+        }
+        foreach ($arg in $serverArgs) { $start.ArgumentList.Add($arg) }
         $server = [Diagnostics.Process]::Start($start)
         $serverError = $server.StandardError.ReadToEndAsync()
         try {
-            $port = Read-ReadyPort $ready $server
-            $fingerprint = $null
-            if ($protocol -ne 'ftp') {
+            $endpoint = Read-ReadyEndpoint $ready $server $protocol
+            $certificateSha256 = $null
+            if ($protocol -in @('ftpes', 'ftps')) {
                 $certificate = Join-Path $folder 'owned-ftps-cert.pem'
-                $fingerprint = (& $python $fixture fingerprint $certificate | Out-String).Trim()
-                if ($LASTEXITCODE -ne 0 -or $fingerprint -notmatch '^[0-9A-F]{64}$') {
+                $certificateSha256 = (& $python $ftpFixture fingerprint $certificate | Out-String).Trim()
+                if ($LASTEXITCODE -ne 0 -or $certificateSha256 -notmatch '^[0-9A-F]{64}$') {
                     throw "The owned $protocol certificate fingerprint is unavailable."
                 }
             }
             $lab.FILECAT_EFS_UPLOAD_LAB_PROTOCOL = $protocol
-            $lab.FILECAT_EFS_UPLOAD_LAB_PORT = $port.ToString()
-            $lab.FILECAT_EFS_UPLOAD_LAB_FINGERPRINT = $fingerprint
+            $lab.FILECAT_EFS_UPLOAD_LAB_PORT = $endpoint.Port.ToString()
+            $lab.FILECAT_EFS_UPLOAD_LAB_FINGERPRINT = if ($protocol -eq 'sftp') { $endpoint.HostKey } else { $certificateSha256 }
             Set-TestEnvironment $lab
 
             # The child lowers its own token. The parent retains ownership of its server process.
@@ -122,7 +133,8 @@ try {
             if (Get-ChildItem -LiteralPath $serverRoot -Force) { throw "The $protocol fixture retained remote output." }
             [ordered]@{
                 protocol = $protocol
-                certificateSha256 = $fingerprint
+                certificateSha256 = $certificateSha256
+                hostKeySha256 = $endpoint.HostKey
                 passed = 2
                 remoteFixtureEmpty = $true
                 trxSha256 = (Get-FileHash -LiteralPath $receipt -Algorithm SHA256).Hash
