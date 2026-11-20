@@ -341,6 +341,76 @@ public sealed class SparseCopyTests : IDisposable
             $"disk-full HRESULT=0x{failure.HResult:X8}; progress={lastProgress}/{length}; source SHA256={Convert.ToHexString(sourceDigest)}");
     }
 
+    [Fact]
+    public void Windows_sparse_copy_reports_device_loss_after_a_partial_write()
+    {
+        string? control = Environment.GetEnvironmentVariable("FILECAT_TEST_SPARSE_LOSS_CONTROL");
+        string? volumeRoot = Environment.GetEnvironmentVariable("FILECAT_TEST_SPARSE_LOSS_VOLUME");
+        Assert.SkipUnless(OperatingSystem.IsWindows() && !string.IsNullOrWhiteSpace(control) && !string.IsNullOrWhiteSpace(volumeRoot),
+            "Requires an owned, detached-on-progress NTFS VHDX fixture.");
+        Assert.StartsWith("sparse-device-loss-", Path.GetFileName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(control!))),
+            StringComparison.OrdinalIgnoreCase);
+        var drive = new DriveInfo(volumeRoot!);
+        Assert.Equal(drive.RootDirectory.FullName, Path.GetFullPath(volumeRoot!), ignoreCase: true);
+        Assert.Equal("NTFS", drive.DriveFormat);
+        Assert.Equal("FCSPARSELOSS", drive.VolumeLabel);
+        Assert.InRange(drive.TotalSize, 128L << 20, 320L << 20);
+
+        const int length = 16 * 1024 * 1024, extent = 4 * 1024 * 1024;
+        string source = Path.Combine(_dir.Path, "source-device-loss.bin");
+        string destination = Path.Join(volumeRoot!, "partial-copy.bin");
+        Assert.False(File.Exists(destination));
+        using (var stream = new FileStream(source, FileMode.CreateNew, FileAccess.Write))
+        {
+            Assert.True(DeviceIoControl(stream.SafeFileHandle, 0x000900C4, 0, 0, 0, 0, out _, 0));
+            stream.SetLength(length);
+            stream.Write(RandomNumberGenerator.GetBytes(extent));
+            stream.Position = length - extent;
+            stream.Write(RandomNumberGenerator.GetBytes(extent));
+        }
+        byte[] originalDigest = SHA256.HashData(File.ReadAllBytes(source));
+        bool signaled = false;
+        long progress = 0;
+        Exception? failure = null;
+        try
+        {
+            new PortableFileOperations().CopyFile(source, destination,
+                new FileCopyOptions { DisablePreallocation = true }, (done, _) =>
+                {
+                    progress = done;
+                    if (!signaled && done >= extent)
+                    {
+                        File.WriteAllText(Path.Join(control!, "ready"), done.ToString(CultureInfo.InvariantCulture));
+                        signaled = true;
+                        WaitForFixtureMarker(Path.Join(control!, "detached"), TestContext.Current.CancellationToken);
+                    }
+                    return CopyProgressAction.Continue;
+                }, TestContext.Current.CancellationToken);
+        }
+        catch (Exception ex) { failure = ex; }
+        finally { File.WriteAllText(Path.Join(control!, "retired"), "1"); }
+        Assert.True(signaled);
+        WaitForFixtureMarker(Path.Join(control!, "reattached"), TestContext.Current.CancellationToken);
+        Assert.IsAssignableFrom<IOException>(failure);
+        Assert.Equal(originalDigest, SHA256.HashData(File.ReadAllBytes(source)));
+        bool partial = File.Exists(destination);
+        long partialLength = partial ? new FileInfo(destination).Length : -1;
+        TestContext.Current.TestOutputHelper!.WriteLine(
+            $"device-loss HRESULT=0x{failure!.HResult:X8}; progress={progress}/{length}; " +
+            $"destination present={partial} length={partialLength}; source SHA256={Convert.ToHexString(originalDigest)}");
+    }
+
+    private static void WaitForFixtureMarker(string path, CancellationToken ct)
+    {
+        var timer = Stopwatch.StartNew();
+        while (!File.Exists(path))
+        {
+            ct.ThrowIfCancellationRequested();
+            if (timer.Elapsed > TimeSpan.FromSeconds(45)) throw new TimeoutException($"Fixture did not create {Path.GetFileName(path)}.");
+            Thread.Sleep(20);
+        }
+    }
+
     private static long Blocks(string path)
     {
         using var process = Process.Start(new ProcessStartInfo("stat")
