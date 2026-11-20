@@ -43,8 +43,9 @@ $sbomCheck = & (Join-Path $PSScriptRoot 'Assert-SetupPayloadMatchesSbom.ps1') -P
 $signArguments = ''
 $signedUninstallers = $null
 if ($Sign) {
-    # Inno Setup signs its uninstaller once and keeps the signed copy in this folder. A fresh folder per build means an
-    # uninstaller signed by another identity (a dry run's test certificate, say) is never reused.
+    # Inno Setup signs its uninstaller once and caches that signature in this folder for later builds; Setup applies it
+    # when it writes unins000.exe. A fresh folder per build means a signature by another identity (a dry run's test
+    # certificate, say) is never reused.
     $signedUninstallers = Join-Path $artifacts "signing/win-$Architecture-uninstaller"
     if (Test-Path -LiteralPath $signedUninstallers) { throw 'The signed-uninstaller folder already exists; use a clean package workspace.' }
     [void][IO.Directory]::CreateDirectory($signedUninstallers)

@@ -39,7 +39,13 @@ $badDigest = [int]0x80096010
 
 $trustedRoot = $null
 if ($TrustedRootFile) {
-    $trustedRoot = [System.Security.Cryptography.X509Certificates.X509CertificateLoader]::LoadCertificateFromFile((Resolve-Path -LiteralPath $TrustedRootFile).Path)
+    $rootBytes = [IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $TrustedRootFile).Path)
+    # X509CertificateLoader needs .NET 9; an older PowerShell loads through the constructor it replaces.
+    $trustedRoot = if ('System.Security.Cryptography.X509Certificates.X509CertificateLoader' -as [type]) {
+        [System.Security.Cryptography.X509Certificates.X509CertificateLoader]::LoadCertificate($rootBytes)
+    } else {
+        [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($rootBytes)
+    }
 }
 $vendorInputs = @{}
 foreach ($manifestPath in $SigningManifest) {
@@ -130,14 +136,18 @@ $sources = [System.Collections.Generic.List[object]]::new()
 $localFiles = @{}
 
 function Add-Tree([string]$Root, [string]$Label, [switch]$Keep) {
+    $found = 0
     foreach ($file in Get-ChildItem -LiteralPath $Root -Recurse -File) {
         $relative = [IO.Path]::GetRelativePath($Root, $file.FullName).Replace('\', '/')
         $result = Test-SignedFile $file.FullName "$Label/$relative"
         if ($result) {
+            $found++
             $results.Add($result)
             if ($Keep) { $localFiles[$result.Path] = $file.FullName }
         }
     }
+    # A source with nothing to verify is a mistake in the caller, not a pass.
+    if ($found -eq 0) { throw "$Label contains no PE file to verify." }
 }
 
 try {

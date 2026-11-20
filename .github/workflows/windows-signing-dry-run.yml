@@ -48,8 +48,10 @@ jobs:
         run: |
           $work = Join-Path $env:RUNNER_TEMP 'signing-dry-run'
           $run = Get-Content -LiteralPath (Join-Path $work 'dry-run.json') -Raw | ConvertFrom-Json
+          # The uninstaller is verified as installed (unins000.exe): Inno Setup's signed-uninstaller folder holds only its
+          # signature cache, which Setup applies when it writes the uninstaller.
           $verify = @{
-            Path = @($run.Outputs.Payload) + @($run.Outputs.Zips) + @($run.Outputs.Installer, $run.Outputs.SignedUninstallerDirectory)
+            Path = @($run.Outputs.Payload) + @($run.Outputs.Zips) + @($run.Outputs.Installer)
             ExpectedSignerSha256 = $run.ExpectedSignerSHA256
             SigningManifest = @($run.SigningManifests)
             Installer = $run.Outputs.Installer
