@@ -270,19 +270,28 @@ public sealed class StorageCommandNativeTests
             var nestedTab = origin.Panel.OpenTab(Location.FileSystem(nested), activate: false);
             var unrelatedTab = origin.Panel.OpenTab(Location.FileSystem(unrelated), activate: false);
             var tabs = new[] { origin, branchTab, nestedTab, unrelatedTab };
-            await Until(() => tabs.All(tab => tab.Listing.State == ListingState.Complete));
+            await Until(() => tabs.All(tab => tab.Listing.State == ListingState.Complete && !tab.Listing.IsRefreshing));
+            Assert.Same(origin, vm.ActiveTab);
             origin.Listing.MarkNames(["branch"], true);
             nestedTab.Listing.MarkNames(["content.txt"], true);
             unrelatedTab.Listing.MarkNames(["other.txt"], true);
             Assert.All(new[] { origin, nestedTab, unrelatedTab }, tab => Assert.Equal(1, tab.Listing.MarkedCount));
+            Assert.Equal(branch, Assert.Single(origin.Listing.GetSelection()).FileSystemPath);
             var generations = tabs.Select(tab => tab.Listing.Generation).ToArray();
             var navigation = tabs.Select(tab => tab.NavigationGeneration).ToArray();
 
             string label = efs ? "Decrypt" : "Compress";
-            vm.Execute(efs ? CommandIds.EfsProtection : CommandIds.StorageAttributes);
+            string command = efs ? CommandIds.EfsProtection : CommandIds.StorageAttributes;
+            var availability = vm.GetAvailability(command);
+            Assert.True(availability.Enabled, availability.Reason);
+            var opening = vm.ExecuteAsync(command);
             IEnumerable<RadioButton> Options(string name) => window.GetVisualDescendants().OfType<RadioButton>()
                 .Where(button => AutomationProperties.GetName(button) == name);
-            await Until(() => Options(label).Any());
+            string? Refusal() => window.GetVisualDescendants().OfType<TextBox>().FirstOrDefault(box => box.IsReadOnly &&
+                box.Text?.Contains("Captured locator:", StringComparison.Ordinal) == true)?.Text;
+            await Until(() => Options(label).Any() || opening.IsCompleted || Refusal() is not null);
+            if (opening.IsCompleted) await opening;
+            Assert.True(Options(label).Any(), Refusal() ?? vm.CurrentNotification?.Message ?? "The storage review closed before it exposed an action.");
             Assert.Single(Options(label)).IsChecked = true;
             Assert.Single(Options("Selected folders and their existing contents")).IsChecked = true;
             if (efs) AcceptDecryption(window, "I understand this removes folder encryption defaults and EFS protection");
@@ -290,6 +299,7 @@ public sealed class StorageCommandNativeTests
                 .Single(button => button is not RadioButton && button.Content as string == label);
             await Until(() => primary.IsEnabled);
             primary.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await opening;
             await Until(() => services.Jobs.Jobs.Count == 1 && services.Jobs.Jobs[0].State.IsFinished() &&
                 vm.CurrentNotification?.Message.Contains("changed", StringComparison.OrdinalIgnoreCase) == true);
             var job = Assert.Single(services.Jobs.Jobs);
