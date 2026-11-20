@@ -29,7 +29,8 @@ public sealed partial class UnixFileDetailsNativeTests
             var full = reader.ReadFull(path, FileDetailsPolicy.MetadataOnly, ct);
             Assert.Equal(before.Identity.Value, full.Summary.Identity.Value);
             Assert.Contains(full.Summary.Notes, note => note.Contains("dataless", StringComparison.OrdinalIgnoreCase));
-            Assert.Empty(full.Technical.Sections);
+            Assert.Collection(full.Technical.Sections,
+                section => Assert.Equal("Native getattrlist metadata", section.Title));
 
             var inventory = hidden.ReadInventory(path, new(ShowCompressionBacking: false), ct);
             Assert.False(inventory.BoundToObject);

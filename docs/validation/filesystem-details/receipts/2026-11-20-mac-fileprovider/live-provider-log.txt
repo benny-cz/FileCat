@@ -1,0 +1,30 @@
+Timestamp               Ty Process[PID:TID]
+2026-11-20 21:00:17.825 A  FCFixtureProvider[88514:4c644c] (libsystem_secinit.dylib) AppSandbox
+2026-11-20 21:00:18.109 A  FCFixtureProvider[88514:4c644c] (libsystem_info.dylib) Retrieve User by ID
+2026-11-20 21:00:18.114 Df FCFixtureProvider[88514:4c644c] [org.filecat.validation.nativeprovider:fixture] launch fixture-12760a2e-d
+2026-11-20 21:00:18.115 Df FCFixtureProvider[88514:4c644c] [com.apple.extensionkit:default] Extension `FCFixtureProvider` of type: `service` launched.
+2026-11-20 21:00:18.116 Df FCFixtureProvider[88514:4c644c] [com.apple.extensionkit:launch] Extension Type: '<private>' : <private>
+2026-11-20 21:00:18.116 Df FCFixtureProvider[88514:4c644c] [com.apple.runningboard:connection] Initializing connection
+2026-11-20 21:00:18.117 Df FCFixtureProvider[88514:4c644c] [com.apple.runningboard:process] Removing all cached process handles
+2026-11-20 21:00:18.117 Df FCFixtureProvider[88514:4c6453] [com.apple.runningboard:connection] Sending handshake request attempt #1 to server
+2026-11-20 21:00:18.117 Df FCFixtureProvider[88514:4c6453] [com.apple.runningboard:connection] Creating connection to com.apple.runningboard
+2026-11-20 21:00:18.117 Df FCFixtureProvider[88514:4c6453] [com.apple.xpc:connection] [0x1014f4350] activating connection: mach=true listener=false peer=false name=com.apple.runningboard
+2026-11-20 21:00:18.122 Df FCFixtureProvider[88514:4c6453] [com.apple.runningboard:connection] Handshake succeeded
+2026-11-20 21:00:18.122 Df FCFixtureProvider[88514:4c6453] [com.apple.runningboard:connection] Identity resolved as extension<org.filecat.validation.nativeprovider.ready.extension[config:18272CF1-AA18-37C5-8AB9-9153F8635C4A]((null):1000)(501)>[uuid:5A67D12C-4729-479E-9368-F486349888E1]
+2026-11-20 21:00:18.129 Df FCFixtureProvider[88514:4c644c] [com.apple.xpc:connection] [0x1014fcb10] activating connection: mach=true listener=false peer=false name=com.apple.lsd.mapdb
+2026-11-20 21:00:18.132 E  FCFixtureProvider[88514:4c644c] [com.apple.extensionkit:default] EXExtensionContextClass not defined or invalid type
+2026-11-20 21:00:18.132 E  FCFixtureProvider[88514:4c644c] [com.apple.extensionkit:default] EXExtensionContextClass not defined or invalid type
+2026-11-20 21:00:18.136 Df FCFixtureProvider[88514:4c644c] [com.apple.xpc:connection] [0x1014f86c0] readying connection: mach=false listener=true peer=false name=org.filecat.validation.nativeprovider.ready.extension
+2026-11-20 21:00:18.143 Df FCFixtureProvider[88514:4c644c] [com.apple.BoardServices:Bootstrap] initializing domain XPCService
+2026-11-20 21:00:18.143 Df FCFixtureProvider[88514:4c644c] [com.apple.xpc:connection] [0x1014f86c0] activating connection: mach=false listener=true peer=false name=org.filecat.validation.nativeprovider.ready.extension
+2026-11-20 21:00:18.144 Df FCFixtureProvider[88514:4c6454] [com.apple.xpc:connection] [0x7812c68140] activating connection: mach=false listener=false peer=true name=org.filecat.validation.nativeprovider.ready.extension.peer[1000].0x7812c68140
+2026-11-20 21:00:18.148 Df FCFixtureProvider[88514:4c6454] [com.apple.xpc:connection] [0x7812c68000] activating connection: mach=true listener=false peer=false name=com.apple.cfprefsd.daemon
+2026-11-20 21:00:18.148 Df FCFixtureProvider[88514:4c6453] [com.apple.xpc:connection] [0x7812c68280] activating connection: mach=true listener=false peer=false name=com.apple.cfprefsd.agent
+2026-11-20 21:00:18.152 Df FCFixtureProvider[88514:4c6454] [org.filecat.validation.nativeprovider:fixture] init fixture-12760a2e-d
+2026-11-20 21:00:18.154 A  FCFixtureProvider[88514:4c6454] (CoreFoundation) Updating Key-Value Observers Of Preferences
+2026-11-20 21:00:18.156 Df FCFixtureProvider[88514:4c6453] [com.apple.xpc:connection] [0x7812c683c0] activating connection: mach=true listener=false peer=false name=com.apple.FileProvider
+2026-11-20 21:00:18.196 Df FCFixtureProvider[88514:4c6455] [org.filecat.validation.nativeprovider:fixture] enumerate NSFileProviderWorkingSetContainerItemIdentifier
+2026-11-20 21:00:18.236 Df FCFixtureProvider[88514:4c6454] [org.filecat.validation.nativeprovider:fixture] enumerate NSFileProviderRootContainerItemIdentifier
+2026-11-20 21:00:18.384 Df FCFixtureProvider[88514:4c6454] [org.filecat.validation.nativeprovider:fixture] enumerate NSFileProviderTrashContainerItemIdentifier
+2026-11-20 21:01:09.668 Df FCFixtureProvider[88514:4c6456] [org.filecat.validation.nativeprovider:fixture] enumerate fixture-folder
+2026-11-20 21:01:09.734 Df FCFixtureProvider[88514:4c6456] [org.filecat.validation.nativeprovider:fixture] enumerate fixture-folder
