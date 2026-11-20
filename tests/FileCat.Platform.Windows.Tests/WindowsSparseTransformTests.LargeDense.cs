@@ -47,8 +47,17 @@ public sealed partial class WindowsSparseTransformTests
                 Assert.Equal(WindowsCompression.Lznt1, WindowsCompression.Query(data.SafeFileHandle).Native);
                 Assert.False(File.GetAttributes(data.SafeFileHandle).HasFlag(FileAttributes.SparseFile));
             }
-            File.WriteAllBytes(path + NamedStream, namedPayload);
-            TestContext.Current.TestOutputHelper!.WriteLine($"before eof={length} id={identity} sha256={expected}");
+            WindowsCompression.Format namedCompression;
+            using (var originalNamed = new FileStream(path + NamedStream, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read))
+            {
+                originalNamed.Write(namedPayload);
+                originalNamed.Flush(flushToDisk: true);
+                Assert.Equal(identity, ProtectedHexFile.Identity(originalNamed.SafeFileHandle));
+                namedCompression = WindowsCompression.Query(originalNamed.SafeFileHandle);
+                Assert.True(namedCompression.State is StorageObservationState.Enabled or StorageObservationState.Disabled,
+                    $"The original named stream compression could not be observed: {namedCompression.Error}.");
+            }
+            TestContext.Current.TestOutputHelper!.WriteLine($"before eof={length} id={identity} sha256={expected} named compression={namedCompression.Native}");
 
             var jobs = CreateManager(path, evidence);
             const StorageAction action = StorageAction.RemoveCompression;
@@ -73,6 +82,7 @@ public sealed partial class WindowsSparseTransformTests
             Assert.Equal(identity, ProtectedHexFile.Identity(main.SafeFileHandle));
             Assert.Equal(identity, ProtectedHexFile.Identity(named.SafeFileHandle));
             Assert.Equal(WindowsCompression.None, WindowsCompression.Query(main.SafeFileHandle).Native);
+            Assert.Equal(namedCompression, WindowsCompression.Query(named.SafeFileHandle));
             Assert.False(File.GetAttributes(main.SafeFileHandle).HasFlag(FileAttributes.SparseFile));
             Assert.Equal(length, main.Length);
             string after = Convert.ToHexString(SHA256.HashData(main));

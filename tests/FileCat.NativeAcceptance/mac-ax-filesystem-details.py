@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise File-system details with native keyboard events and optional muted VoiceOver speech.
 
-Usage: mac-ax-filesystem-details.py BUNDLE.app AX_OBSERVER.swift REPORT.json [--voiceover] [--narrow] [--link-target | --find-results] [--properties]
+Usage: mac-ax-filesystem-details.py BUNDLE.app AX_OBSERVER.swift REPORT.json [--voiceover] [--narrow] [--link-target | --find-results] [--properties] [--supplementary]
 """
 
 import hashlib
@@ -17,7 +17,7 @@ import time
 
 def main():
     options = sys.argv[4:]
-    supported_options = {"--voiceover", "--narrow", "--link-target", "--find-results", "--properties"}
+    supported_options = {"--voiceover", "--narrow", "--link-target", "--find-results", "--properties", "--supplementary"}
     if (len(sys.argv) < 4 or len(options) != len(set(options)) or set(options) - supported_options
             or {"--link-target", "--find-results"}.issubset(options)):
         raise SystemExit(__doc__)
@@ -28,6 +28,9 @@ def main():
     link_target = "--link-target" in options
     find_results = "--find-results" in options
     properties = "--properties" in options
+    supplementary = "--supplementary" in options
+    if supplementary and not find_results:
+        raise SystemExit("--supplementary requires --find-results")
     if bundle.parent != validation or bundle.suffix != ".app" or report_path.parent != validation or report_path.exists():
         raise ValueError("Use a dedicated application and a fresh result under ~/FileCatValidation.")
     app = bundle / "Contents" / "MacOS" / "FileCat"
@@ -72,7 +75,7 @@ def main():
     def last_phrase():
         return osa('tell application "VoiceOver" to get content of last phrase')
 
-    def speech(label, *terms):
+    def speech(label, *terms, required=True):
         if not voiceover:
             return
         heard = []
@@ -85,6 +88,11 @@ def main():
 
         try:
             wait(spoken, label, seconds=8)
+            return True
+        except AssertionError:
+            if required:
+                raise
+            return False
         finally:
             evidence["steps"].append(dict(step=label, spoken=heard))
 
@@ -173,6 +181,29 @@ error "The owned details window is unavailable"''')
         wait(lambda: f"Find: {original.name}" in window_titles(), "the standalone Find results")
         tab_to(original.name, role="AXRow")
         speech("VoiceOver speaks the standalone Find result", original.name)
+
+    def open_find_supplementary(find_title):
+        attribute = "org.filecat.details"
+
+        def inventory_window():
+            name = front_window()
+            return name if name != find_title and original.name in name else None
+
+        key("key code 36 using {option down, shift down}")
+        evidence["workspaceInventoryWindow"] = wait(inventory_window, "the selected original's supplementary-data workspace")
+        expect_focus("Workspace focuses the parent row of the attribute inventory", "Go to parent location")
+        key("key code 125")
+        expect_focus("Workspace exposes the selected original's attribute name", attribute)
+        speech("VoiceOver speaks the selected original's attribute name", attribute)
+        key("key code 50 using {command down}")
+        wait(lambda: front_window() == find_title, "focus on the original Find results window")
+        expect_focus("Workspace switch leaves the original Find result focused", original.name)
+        if voiceover:
+            evidence["workspaceReturnSpoken"] = speech(
+                "VoiceOver speaks the retained Find result", original.name, "table row", required=False,
+            )
+        if "FILECAT-XATTR-PAYLOAD-CANARY" in json.dumps(evidence["steps"]):
+            raise AssertionError("Names-only browsing spoke an attribute value.")
 
     try:
         if voiceover:
@@ -281,6 +312,8 @@ error "The owned details window is unavailable"''')
             evidence["returnedWindow"] = expected_window
         expect_focus("Focus returns to the same file", original.name)
         speech("VoiceOver returns to the same file", original.name)
+        if supplementary:
+            open_find_supplementary(expected_window)
         assert original.read_text(encoding="utf-8") == "FILECAT-DATA-PAYLOAD-CANARY"
         xattr = subprocess.check_output(["/usr/bin/xattr", "-p", "org.filecat.details", str(original)], text=True)
         assert xattr.strip() == "FILECAT-XATTR-PAYLOAD-CANARY"
