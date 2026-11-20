@@ -176,10 +176,51 @@ public sealed partial class UnixHiddenData
 
     private static HiddenInventory MacInventory(string path, HiddenInventoryRequest request, CancellationToken ct)
     {
+        // O_DIRECTORY makes the open fail before acquiring a FIFO or device descriptor if a selected directory
+        // changes kind. O_EVTONLY then permits metadata queries on the held directory without opening its data.
+        const int directoryOnly = 0x00100000, eventOnly = 0x00008000, noFollow = 0x00000100, closeOnExec = 0x01000000;
+        int descriptor = InventoryOpen(path, directoryOnly | eventOnly | noFollow | closeOnExec);
+        if (descriptor >= 0)
+        {
+            using var directory = new SafeFileHandle(descriptor, ownsHandle: true);
+            ct.ThrowIfCancellationRequested();
+            var stat = UnixFiles.Stat(directory) ?? throw new IOException("Held directory metadata is unavailable.");
+            if (!stat.IsDirectory) throw new IOException("The held xattr object is not a directory.");
+            const int showCompression = 0x0020;
+            bool compressionView = request.ShowCompressionBacking;
+            InventoryNames ReadHeld(int options) => CollectInventory(path,
+                (buffer, size) => MacFdList(directory, buffer, size, options),
+                name => MacFdGet(directory, name, null, 0, 0, options), ct);
+            InventoryNames held;
+            try { held = ReadHeld(compressionView ? showCompression : 0); }
+            catch (IOException ex) when (compressionView && ex.HResult is 22 or 45) // EINVAL / ENOTSUP for this API view
+            {
+                compressionView = false;
+                held = ReadHeld(0);
+            }
+            int heldAttributes = held.Items.Count(item => item.Kind == HiddenKind.Attribute);
+            int heldForks = held.Items.Length - heldAttributes;
+            string scope = compressionView ? "Darwin held directory compression-visible view" : "Darwin held directory ordinary view";
+            string heldBacking = compressionView ? "Compression backing was included in the requested API view."
+                : request.ShowCompressionBacking ? "Compression backing: not inventoried; this filesystem refused the requested API view."
+                : "Compression backing was not requested.";
+            return new(path, DateTimeOffset.UtcNow, held.Items,
+                [new(HiddenKind.Attribute, held.State, heldAttributes, scope, held.Reason),
+                 new(HiddenKind.ResourceFork, held.State, heldForks, scope, held.Reason)],
+                "flistxattr / fgetxattr size queries on a held directory")
+            {
+                Identity = stat.Identity,
+                BoundToObject = true,
+                ActionsAvailable = false,
+                Notice = $"{heldBacking} No values read. Directory value, export and delete actions are not qualified.",
+            };
+        }
+        if (Marshal.GetLastPInvokeError() == MacMaterializationPolicy.Required)
+            throw InventoryError(path, MacMaterializationPolicy.Required);
         // Path xattr APIs are metadata-only and final-component no-follow. They do not supply a lifetime pin. Keep
         // that missing binding explicit rather than opening an arbitrary replacement device with O_RDONLY/O_EVTONLY.
-        // XATTR_SHOWCOMPRESSION is reserved for a qualified bound adapter. A path-only result must not imply that
-        // this ordinary view inventoried storage backing, even when the caller requested the deeper API view.
+        // The path-only fallback cannot claim the held directory's XATTR_SHOWCOMPRESSION view. Its ordinary view
+        // must not imply that storage backing was inventoried, even when the caller requested the deeper view.
         int options = MacNoFollow;
         var result = CollectInventory(path, (buffer, size) => MacList(path, buffer, size, options), SizeWithoutMaterialization, ct);
         int attributes = result.Items.Count(item => item.Kind == HiddenKind.Attribute);
@@ -229,6 +270,10 @@ public sealed partial class UnixHiddenData
     private static partial nint LinuxFdList(SafeFileHandle file, byte[]? names, nint size);
     [LibraryImport("libc", EntryPoint = "fgetxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial nint LinuxFdGet(SafeFileHandle file, string name, byte[]? value, nint size);
+    [LibraryImport("libc", EntryPoint = "flistxattr", SetLastError = true)]
+    private static partial nint MacFdList(SafeFileHandle directory, byte[]? names, nint size, int options);
+    [LibraryImport("libc", EntryPoint = "fgetxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial nint MacFdGet(SafeFileHandle directory, string name, byte[]? value, nint size, uint position, int options);
     [LibraryImport("libc", EntryPoint = "syscall", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial nint LinuxListXattrAt(nint syscall, int directory, string entry, uint flags, byte[]? names, nint size);
     [LibraryImport("libc", EntryPoint = "syscall", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]

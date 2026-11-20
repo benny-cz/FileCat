@@ -11,7 +11,7 @@ public sealed partial class TabViewModel
         Listing.Provider is HiddenDataProvider { Data.SupportsEaValueQuery: true };
     public bool SupportsSupplementaryReports => IsSupplementaryData && Listing.Provider is HiddenDataProvider { SupportsValueReports: true };
     public bool CanReadSupplementaryReport => SupportsSupplementaryReports && !IsLoading && !Listing.IsRefreshing &&
-        Listing.SupplementaryInventory is { BoundToObject: true, Identity: not null } &&
+        Listing.SupplementaryInventory is { CanAct: true, Identity: not null } &&
         Listing.TryGetFocused(out var item) && item.Kind != EntryKind.Parent && !item.Has(EntryFlags.Unavailable);
     public string SupplementaryInventoryText
     {

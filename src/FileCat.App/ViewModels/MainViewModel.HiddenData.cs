@@ -48,9 +48,9 @@ public sealed partial class MainViewModel
         var inventory = tab.Listing.SupplementaryInventory;
         if (location?.Container is not { IsFileSystem: true } container || tab.IsLoading || tab.Listing.IsRefreshing ||
             tab.Listing.Provider is not HiddenDataProvider provider ||
-            inventory is not { BoundToObject: true, Identity: { } reviewed })
+            inventory is not { CanAct: true, Identity: { } reviewed })
         {
-            Notify(inventory is { BoundToObject: false, Notice: { } reason } ? reason :
+            Notify(inventory is { CanAct: false, Notice: { } reason } ? reason :
                 "Deleting supplementary data requires a current inventory of the file. Refresh the inventory and try again.", true);
             return;
         }

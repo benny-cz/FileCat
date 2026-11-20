@@ -10,7 +10,7 @@ public sealed class HiddenSearchTests
     private sealed class Data : IHiddenData
     {
         public bool IsSupported => true;
-        public int Legacy, Values, EaAdmissions;
+        public int Legacy, Values, EaAdmissions, CompressionViews;
         public IReadOnlyList<HiddenItem> List(string path) { Legacy++; throw new InvalidOperationException(); }
         public byte[] Read(string path, HiddenItem item, int max) { Values++; throw new InvalidOperationException(); }
         public Stream Open(string path, HiddenItem item) => throw new InvalidOperationException();
@@ -18,6 +18,7 @@ public sealed class HiddenSearchTests
         public HiddenInventory ReadInventory(string path, HiddenInventoryRequest request, CancellationToken ct)
         {
             if (request.IncludeEaValues) EaAdmissions++;
+            if (request.ShowCompressionBacking) CompressionViews++;
             string name = Path.GetFileName(path);
             if (name == "denied") throw new UnauthorizedAccessException("test denial");
             var kind = OperatingSystem.IsWindows() ? HiddenKind.Stream : HiddenKind.Attribute;
@@ -45,6 +46,7 @@ public sealed class HiddenSearchTests
         Assert.Equal(2, session.ExtraDataUnexamined); Assert.False(set.IsComplete);
         Assert.Contains(set.Issues, i => i.Contains("2 candidates unexamined", StringComparison.Ordinal));
         Assert.Equal(0, data.Legacy); Assert.Equal(0, data.Values); Assert.Equal(0, data.EaAdmissions);
+        Assert.Equal(0, data.CompressionViews);
     }
 
     [Fact]

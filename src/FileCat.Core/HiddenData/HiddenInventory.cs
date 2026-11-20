@@ -15,6 +15,8 @@ public sealed record HiddenInventory(string Path, DateTimeOffset ObservedAt, Imm
     public const int MaxEntries = 1024, MaxNameBytes = 1024 * 1024;
     public FileIdentity? Identity { get; init; }
     public bool BoundToObject { get; init; }
+    public bool ActionsAvailable { get; init; } = true;
+    public bool CanAct => BoundToObject && ActionsAvailable;
     public bool ValueBearingQueryIssued { get; init; }
     public string? Notice { get; init; }
     public bool IsComplete => Categories.Length > 0 && Categories.All(c => c.State == HiddenInventoryState.Complete);
