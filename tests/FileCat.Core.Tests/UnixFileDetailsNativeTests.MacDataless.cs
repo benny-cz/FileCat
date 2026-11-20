@@ -1,4 +1,5 @@
 using FileCat.Core.FileSystem;
+using FileCat.Core.HiddenData;
 using FileCat.Core.Records;
 using FileCat.Core.Threading;
 
@@ -6,6 +7,42 @@ namespace FileCat.Core.Tests;
 
 public sealed partial class UnixFileDetailsNativeTests
 {
+    [Fact]
+    public void Live_Mac_File_Provider_metadata_keeps_prepared_files_dataless()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "Requires a prepared macOS File Provider domain.");
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_MAC_PROVIDER_ROOT");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Set FILECAT_TEST_MAC_PROVIDER_ROOT to an owned, enabled File Provider root with dataless-file.bin and dataless-folder/child.bin.");
+
+        var reader = new UnixFileRecords();
+        var hidden = new UnixHiddenData();
+        var ct = TestContext.Current.CancellationToken;
+        int priorPolicy = MacMaterializationPolicy.Get();
+        foreach (string path in new[] { Path.Join(root!, "dataless-file.bin"), Path.Join(root, "dataless-folder", "child.bin") })
+        {
+            var before = reader.ReadSummary(path, ct);
+            Assert.Equal(FileObjectKind.File, before.Kind);
+            Assert.Equal(FactState.Known, before.Identity.State);
+            Assert.Equal(FactState.Known, before.NativeAttributes.State);
+            Assert.NotEqual(0UL, before.NativeAttributes.Value & MacMaterializationPolicy.DatalessFlag);
+
+            var full = reader.ReadFull(path, FileDetailsPolicy.MetadataOnly, ct);
+            Assert.Equal(before.Identity.Value, full.Summary.Identity.Value);
+            Assert.Contains(full.Summary.Notes, note => note.Contains("dataless", StringComparison.OrdinalIgnoreCase));
+            Assert.Empty(full.Technical.Sections);
+
+            var inventory = hidden.ReadInventory(path, new(ShowCompressionBacking: false), ct);
+            Assert.False(inventory.BoundToObject);
+            Assert.Equal(priorPolicy, MacMaterializationPolicy.Get());
+
+            var after = reader.ReadSummary(path, ct);
+            Assert.Equal(before.Identity.Value, after.Identity.Value);
+            Assert.Equal(FactState.Known, after.NativeAttributes.State);
+            Assert.NotEqual(0UL, after.NativeAttributes.Value & MacMaterializationPolicy.DatalessFlag);
+            Assert.Equal(priorPolicy, MacMaterializationPolicy.Get());
+        }
+    }
+
     [Fact]
     public async Task Mac_details_suppresses_materialization_and_restores_the_device_worker_even_on_refusal()
     {

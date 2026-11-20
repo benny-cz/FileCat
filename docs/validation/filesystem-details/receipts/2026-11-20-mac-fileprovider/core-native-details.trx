@@ -1,0 +1,716 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="4a0b7beb-9d7b-4f5d-816c-fbacb4ba79af" name="@Mareks-MacBook-Pro 2026-11-20 08:58:02" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-20T08:58:02.0428360+01:00" queuing="2026-11-20T08:58:02.0428360+01:00" start="2026-11-20T08:57:58.7382720+01:00" finish="2026-11-20T08:58:02.1294100+01:00" />
+  <TestSettings name="default" id="b3a5fd22-5789-4242-bb55-2f4ebf4ad89f">
+    <Deployment runDeploymentRoot="_Mareks-MacBook-Pro_2026-11-20_08_58_02" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="2580fa91-bfaa-4b90-bcca-e06ed3a6faaa" testId="440d4f46-4c41-ae08-ff74-269ca43bbf64" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_full_details_distinguish_APFS_shared_private_and_partly_shared_files" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0686250+01:00" endTime="2026-11-20T08:58:02.0692650+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2580fa91-bfaa-4b90-bcca-e06ed3a6faaa">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires a prepared APFS test folder.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="dae44462-bc47-4cfd-8c18-6e25b1f98155" testId="01bd8e50-20a5-ef14-433a-7dbc982be28e" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_keeps_FileVault_separate_from_backing_media(encrypted: False, flags: 0, fileVault: False, backing: False, changing: False)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000066" startTime="2026-11-20T08:58:02.0285160+01:00" endTime="2026-11-20T08:58:02.0285330+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="dae44462-bc47-4cfd-8c18-6e25b1f98155" />
+    <UnitTestResult executionId="9a9cc153-c715-4275-8586-516b9151ed74" testId="2bc5c723-534c-f97f-83de-1463c5c0bca7" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Explicit_relative_target_navigation_resolves_parent_aliases_but_preserves_the_final_object(stored: &quot;../wanted.txt&quot;, expectedKind: File, requiresDirectory: False)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0021317" startTime="2026-11-20T08:58:01.9879220+01:00" endTime="2026-11-20T08:58:01.9900730+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="9a9cc153-c715-4275-8586-516b9151ed74" />
+    <UnitTestResult executionId="1a06dde8-0967-40dc-94d2-ef8447991b53" testId="7e0c93f0-beed-5cd2-5d91-ec15f3e6e4d5" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Explicit_relative_target_navigation_resolves_parent_aliases_but_preserves_the_final_object(stored: &quot;../wanted.txt/&quot;, expectedKind: File, requiresDirectory: True)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0020328" startTime="2026-11-20T08:58:02.0086480+01:00" endTime="2026-11-20T08:58:02.0106990+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1a06dde8-0967-40dc-94d2-ef8447991b53" />
+    <UnitTestResult executionId="4f824461-8ce1-403f-8c6f-ebfe896a2545" testId="dcd1622e-beb5-b140-b91e-63ee9ca9a3bb" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Zfs_mount_records_preserve_escaped_spaces_and_require_an_unambiguous_case_mode" computerName="Mareks-MacBook-Pro" duration="00:00:00.0007834" startTime="2026-11-20T08:58:02.0766390+01:00" endTime="2026-11-20T08:58:02.0774350+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4f824461-8ce1-403f-8c6f-ebfe896a2545" />
+    <UnitTestResult executionId="c187c6f3-25a7-487e-96d6-6b861c852baf" testId="453df8fb-de19-6c59-67d5-f40c6666e60d" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_key_status_requires_a_complete_recognized_reply(length: 128, status: 4, expected: Unsupported)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000065" startTime="2026-11-20T08:58:02.0616690+01:00" endTime="2026-11-20T08:58:02.0616850+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c187c6f3-25a7-487e-96d6-6b861c852baf" />
+    <UnitTestResult executionId="b268c3e9-385e-43c4-8ab2-ef41e8b6614d" testId="66ebd4be-61b6-bc4e-4bdb-25183c252268" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_key_status_requires_a_complete_recognized_reply(length: 128, status: 3, expected: Known)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000143" startTime="2026-11-20T08:58:02.0614650+01:00" endTime="2026-11-20T08:58:02.0614900+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b268c3e9-385e-43c4-8ab2-ef41e8b6614d" />
+    <UnitTestResult executionId="1ccfe210-8962-4571-aa83-61dfc9523447" testId="b241f236-c214-c726-379d-c5b4f92c6384" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_reads_Btrfs_policy_and_subvolume_from_the_held_object" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0739780+01:00" endTime="2026-11-20T08:58:02.0747310+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1ccfe210-8962-4571-aa83-61dfc9523447">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires Linux x64 Btrfs.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="c453df65-347d-4185-8687-7e30ccdb51b7" testId="b86977fb-a292-40d8-3da8-8c1f89d55c8e" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_file_capability_parser_requires_the_complete_known_attribute" computerName="Mareks-MacBook-Pro" duration="00:00:00.0020666" startTime="2026-11-20T08:58:02.0216620+01:00" endTime="2026-11-20T08:58:02.0237480+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c453df65-347d-4185-8687-7e30ccdb51b7" />
+    <UnitTestResult executionId="b57cc4c9-d8de-4bcc-ae06-71a87ccaa928" testId="d69762c6-926f-baf7-b498-1a6cbae998c7" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_policy_checks_returned_version_and_length(version: 3, length: 24, expected: Unsupported)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0001136" startTime="2026-11-20T08:58:02.0275910+01:00" endTime="2026-11-20T08:58:02.0277150+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b57cc4c9-d8de-4bcc-ae06-71a87ccaa928" />
+    <UnitTestResult executionId="be4f7d4a-1a8c-4e4e-ad7f-76304758b7e2" testId="7dca7879-d701-734e-4847-00145a1d89c7" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_observes_casefold_on_the_held_ext4_directory" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0618960+01:00" endTime="2026-11-20T08:58:02.0626030+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="be4f7d4a-1a8c-4e4e-ad7f-76304758b7e2">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires a qualified Linux x64 ext4 fixture.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="83703a57-621b-447b-9a50-6e0165f71954" testId="6e729ed0-2fc3-b09b-7619-6b5b14ef5014" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_rejects_unknown_and_inconsistent_flags(encrypted: False, flags: 1)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000384" startTime="2026-11-20T08:58:02.0672740+01:00" endTime="2026-11-20T08:58:02.0673240+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="83703a57-621b-447b-9a50-6e0165f71954" />
+    <UnitTestResult executionId="87b24f2f-2dbf-4779-be67-7de46d961c0f" testId="6e93d670-18c4-d961-6850-d524d8e28613" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_key_status_requires_a_complete_recognized_reply(length: 127, status: 2, expected: Failed)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000068" startTime="2026-11-20T08:58:02.0615720+01:00" endTime="2026-11-20T08:58:02.0615890+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="87b24f2f-2dbf-4779-be67-7de46d961c0f" />
+    <UnitTestResult executionId="8981d45c-788e-441d-97ca-6f206e15b3df" testId="7b2e923f-8489-8220-65fc-fb09abbddd77" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_ext4_full_details_report_only_the_held_files_recorded_capabilities" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0239360+01:00" endTime="2026-11-20T08:58:02.0242940+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8981d45c-788e-441d-97ca-6f206e15b3df">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires the isolated ext4 file-capability fixture.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="fc7d51f0-a989-4364-b100-283cb2e76af6" testId="020c76d1-b9aa-d9ba-82d0-471c5f7d4aa0" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Btrfs_compression_policy_only_reports_qualified_exact_values(stored: &quot;lzo&quot;, expected: &quot;lzo&quot;)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000053" startTime="2026-11-20T08:58:02.0312550+01:00" endTime="2026-11-20T08:58:02.0312680+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="fc7d51f0-a989-4364-b100-283cb2e76af6" />
+    <UnitTestResult executionId="98427062-833d-4c89-80bb-0c751d19c92d" testId="85c599dc-fec3-8b86-9858-0b1340a0c852" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_full_report_distinguishes_FileVault_and_encrypted_backing_on_the_selected_volume" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0667570+01:00" endTime="2026-11-20T08:58:02.0670950+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="98427062-833d-4c89-80bb-0c751d19c92d">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires plain, FileVault and encrypted-image fixtures.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="9d792069-03cf-4ad5-84cb-d265517f094b" testId="31b2ef23-d09e-ab7e-12ed-04b7773bf1a4" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_rejects_unknown_and_inconsistent_flags(encrypted: True, flags: -1)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000109" startTime="2026-11-20T08:58:02.0676340+01:00" endTime="2026-11-20T08:58:02.0676670+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="9d792069-03cf-4ad5-84cb-d265517f094b" />
+    <UnitTestResult executionId="6182a66f-ae1f-40db-a430-51b9ca591a4c" testId="6c93147b-4857-a17e-a535-093a74c075bb" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid(fixture: &quot;short&quot;)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000061" startTime="2026-11-20T08:58:02.0213380+01:00" endTime="2026-11-20T08:58:02.0213540+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6182a66f-ae1f-40db-a430-51b9ca591a4c" />
+    <UnitTestResult executionId="eca23d94-ed6b-46f1-ba01-40fdbb866faa" testId="b124d8aa-4467-9848-c51c-7fda4d5d1730" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Explicit_relative_target_navigation_resolves_parent_aliases_but_preserves_the_final_object(stored: &quot;jump/../wanted.txt&quot;, expectedKind: File, requiresDirectory: False)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0019050" startTime="2026-11-20T08:58:02.0108220+01:00" endTime="2026-11-20T08:58:02.0127420+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="eca23d94-ed6b-46f1-ba01-40fdbb866faa" />
+    <UnitTestResult executionId="e7688a14-ad63-4a94-b4dd-a06882e7baaa" testId="f66f6a57-0615-7c16-432c-d8103dcd3623" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_summary_of_FIFO_does_not_open_it_for_data_or_wait_for_a_writer" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0244280+01:00" endTime="2026-11-20T08:58:02.0247580+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e7688a14-ad63-4a94-b4dd-a06882e7baaa">
+      <Output>
+        <ErrorInfo>
+          <Message>Linux O_PATH fixture.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="e52285bb-c850-4ab1-8763-22f12afd98fe" testId="f0d4b47e-75a6-5695-e103-26d01cc100bd" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Zfs_accounting_validates_the_returned_filesystem_unit_and_counters(fixture: &quot;available&quot;, expected: Failed)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000060" startTime="2026-11-20T08:58:02.0301970+01:00" endTime="2026-11-20T08:58:02.0302110+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e52285bb-c850-4ab1-8763-22f12afd98fe" />
+    <UnitTestResult executionId="ce60675a-31f9-46d3-98d5-0e213999bee5" testId="3db91432-d012-418d-ee9e-38e6770fcbf6" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_key_status_requires_a_complete_recognized_reply(length: 128, status: 2, expected: Known)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000070" startTime="2026-11-20T08:58:02.0617630+01:00" endTime="2026-11-20T08:58:02.0617780+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ce60675a-31f9-46d3-98d5-0e213999bee5" />
+    <UnitTestResult executionId="5456e9f4-6a64-4f95-a0c0-869e33bd4884" testId="cad58474-7104-b3e3-8e66-8eeb5c71b24f" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_keeps_FileVault_separate_from_backing_media(encrypted: True, flags: 1, fileVault: False, backing: True, changing: False)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000043" startTime="2026-11-20T08:58:02.0286820+01:00" endTime="2026-11-20T08:58:02.0286920+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="5456e9f4-6a64-4f95-a0c0-869e33bd4884" />
+    <UnitTestResult executionId="c9a074a5-cf2f-48b3-9bc0-68803ed911c9" testId="6f6a4a49-6ab4-b243-e6c3-8eea166f1d1f" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Live_Mac_File_Provider_metadata_keeps_prepared_files_dataless" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0889770+01:00" endTime="2026-11-20T08:58:02.0894110+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c9a074a5-cf2f-48b3-9bc0-68803ed911c9">
+      <Output>
+        <ErrorInfo>
+          <Message>Set FILECAT_TEST_MAC_PROVIDER_ROOT to an owned, enabled File Provider root with dataless-file.bin and dataless-folder/child.bin.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="484612cb-4b95-4704-8b8c-86f146a1b09e" testId="13915025-1845-8aa3-b130-f9ac849eb06a" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_details_label_historical_ext_flags_without_claiming_compression(format: &quot;ext3&quot;)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0170810+01:00" endTime="2026-11-20T08:58:02.0179340+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="484612cb-4b95-4704-8b8c-86f146a1b09e">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires the Linux x64 ext-family fixture.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="1c1e77de-29fb-403a-90fa-1040b0ca331b" testId="c2c2abbf-2206-8b45-70df-e828298312d8" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Zfs_accounting_validates_the_returned_filesystem_unit_and_counters(fixture: &quot;unit&quot;, expected: Failed)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000061" startTime="2026-11-20T08:58:02.0302870+01:00" endTime="2026-11-20T08:58:02.0302990+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1c1e77de-29fb-403a-90fa-1040b0ca331b" />
+    <UnitTestResult executionId="8228aa3e-3ae5-4e74-b9bc-fe0dfa2b2c3f" testId="11ce8373-d23b-e3a8-f590-a0c5f9c2b3ce" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_key_status_requires_a_complete_recognized_reply(length: 128, status: 0, expected: Unsupported)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0001973" startTime="2026-11-20T08:58:02.0611580+01:00" endTime="2026-11-20T08:58:02.0613700+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8228aa3e-3ae5-4e74-b9bc-fe0dfa2b2c3f" />
+    <UnitTestResult executionId="63013a59-e8fe-4f8d-a2f3-7895969c444f" testId="bfaeffa7-ca23-90c2-984d-4176a8bf81d7" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_uses_the_actual_nested_ZFS_mount_and_held_accounting" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0583480+01:00" endTime="2026-11-20T08:58:02.0592490+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="63013a59-e8fe-4f8d-a2f3-7895969c444f">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires Linux x64 OpenZFS.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="8a88689c-24b2-4856-8815-ec397089e1a4" testId="6cd30e55-e4f0-1550-c2c2-0fc46614d26b" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_keeps_FileVault_separate_from_backing_media(encrypted: True, flags: 7, fileVault: True, backing: True, changing: True)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0002780" startTime="2026-11-20T08:58:02.0278720+01:00" endTime="2026-11-20T08:58:02.0281610+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8a88689c-24b2-4856-8815-ec397089e1a4" />
+    <UnitTestResult executionId="9190f432-b1c2-4a81-9a12-768f933d55a4" testId="884ba685-11d9-b6e3-7dbe-79b9fd3c2065" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_keeps_FileVault_separate_from_backing_media(encrypted: True, flags: 2, fileVault: True, backing: False, changing: False)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0001629" startTime="2026-11-20T08:58:02.0282440+01:00" endTime="2026-11-20T08:58:02.0284180+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="9190f432-b1c2-4a81-9a12-768f933d55a4" />
+    <UnitTestResult executionId="f39c5f2c-d0aa-43c7-829e-62a93f4acd33" testId="6c8f1c02-61da-ea07-86d7-a7a626309ca0" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_policy_checks_returned_version_and_length(version: 2, length: 12, expected: Failed)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0002518" startTime="2026-11-20T08:58:02.0270230+01:00" endTime="2026-11-20T08:58:02.0272900+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f39c5f2c-d0aa-43c7-829e-62a93f4acd33" />
+    <UnitTestResult executionId="f10d5b79-207f-4862-b0d7-9a88fec46243" testId="b123b35c-8309-84d1-2a96-58fa59d29856" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Btrfs_compression_policy_only_reports_qualified_exact_values(stored: &quot;zstd&quot;, expected: &quot;zstd&quot;)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000056" startTime="2026-11-20T08:58:02.0309320+01:00" endTime="2026-11-20T08:58:02.0309460+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f10d5b79-207f-4862-b0d7-9a88fec46243" />
+    <UnitTestResult executionId="e22915d9-3085-4f33-b7b5-9b9f0cd956f0" testId="1ec8809a-9863-c4b7-ea0e-81c9f14dcc1b" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Btrfs_compression_policy_only_reports_qualified_exact_values(stored: &quot;no&quot;, expected: &quot;Disabled by the inode property&quot;)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000070" startTime="2026-11-20T08:58:02.0308490+01:00" endTime="2026-11-20T08:58:02.0308640+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e22915d9-3085-4f33-b7b5-9b9f0cd956f0" />
+    <UnitTestResult executionId="581c5116-c51b-45b6-b46d-702623cd34b5" testId="247a65f8-da96-2933-2985-db445125ea9c" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_rejects_unknown_and_inconsistent_flags(encrypted: True, flags: 8)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0001499" startTime="2026-11-20T08:58:02.0673940+01:00" endTime="2026-11-20T08:58:02.0675520+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="581c5116-c51b-45b6-b46d-702623cd34b5" />
+    <UnitTestResult executionId="22751abb-9f47-4684-a868-a0f036eafbee" testId="097fd93f-a688-e8e0-99b0-7664d98d029e" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Zfs_accounting_validates_the_returned_filesystem_unit_and_counters(fixture: &quot;valid&quot;, expected: Known)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0008483" startTime="2026-11-20T08:58:02.0288440+01:00" endTime="2026-11-20T08:58:02.0297020+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="22751abb-9f47-4684-a868-a0f036eafbee" />
+    <UnitTestResult executionId="01353226-0c01-45ac-b0f0-27a98731e9ca" testId="57aada45-3bd0-4c8e-26e3-6c6892a6a799" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Btrfs_compression_policy_only_reports_qualified_exact_values(stored: &quot;zlib&quot;, expected: &quot;zlib&quot;)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000060" startTime="2026-11-20T08:58:02.0310150+01:00" endTime="2026-11-20T08:58:02.0310290+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="01353226-0c01-45ac-b0f0-27a98731e9ca" />
+    <UnitTestResult executionId="fc02035e-a682-45a0-bf1d-d0892ca61796" testId="c1636e60-cdd5-5037-c43b-f51abed7ad03" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_rejects_unknown_and_inconsistent_flags(encrypted: False, flags: 2)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000068" startTime="2026-11-20T08:58:02.0677670+01:00" endTime="2026-11-20T08:58:02.0677850+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="fc02035e-a682-45a0-bf1d-d0892ca61796" />
+    <UnitTestResult executionId="eaf72680-5152-4305-9620-18c2f6ab5ce4" testId="f334219a-7a35-6b65-4c31-58b61a583820" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_retains_link_metadata_with_an_unrepresentable_stored_target" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0645580+01:00" endTime="2026-11-20T08:58:02.0648520+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="eaf72680-5152-4305-9620-18c2f6ab5ce4">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires a filesystem that stores non-UTF-8 symlink bytes.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="deca73b3-1883-4234-8703-57880717cedc" testId="71647c64-5eb9-321f-8142-a8a614d2d476" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_policy_checks_returned_version_and_length(version: 2, length: 25, expected: Failed)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000062" startTime="2026-11-20T08:58:02.0274950+01:00" endTime="2026-11-20T08:58:02.0275120+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="deca73b3-1883-4234-8703-57880717cedc" />
+    <UnitTestResult executionId="a769d740-aab8-4f25-8b23-31cfef1a33ff" testId="4d2ebbd0-2312-42fc-4b30-33afe343e76c" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_policy_checks_returned_version_and_length(version: 0, length: 12, expected: Known)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000151" startTime="2026-11-20T08:58:02.0273850+01:00" endTime="2026-11-20T08:58:02.0274120+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a769d740-aab8-4f25-8b23-31cfef1a33ff" />
+    <UnitTestResult executionId="3023de98-6efc-459e-b587-1f75389ce2fc" testId="75a75c72-253b-d77f-697c-2f71f0ae6c38" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Zfs_accounting_validates_the_returned_filesystem_unit_and_counters(fixture: &quot;different&quot;, expected: Changed)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000061" startTime="2026-11-20T08:58:02.0301050+01:00" endTime="2026-11-20T08:58:02.0301190+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3023de98-6efc-459e-b587-1f75389ce2fc" />
+    <UnitTestResult executionId="de5d1b77-59da-401c-9cad-0d0bd43a9c2b" testId="3e1b2b70-a513-fe2d-3dd9-26c9733910c7" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Explicit_relative_target_navigation_resolves_parent_aliases_but_preserves_the_final_object(stored: &quot;../leaf-alias/&quot;, expectedKind: SymbolicLink, requiresDirectory: True)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0208637" startTime="2026-11-20T08:58:01.9664680+01:00" endTime="2026-11-20T08:58:01.9877230+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="de5d1b77-59da-401c-9cad-0d0bd43a9c2b" />
+    <UnitTestResult executionId="ca90f40a-d064-44ee-842a-81755028d850" testId="044f648d-a4e4-0e42-1d22-fe71424d50ec" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Native_summary_describes_files_directories_and_links_without_legacy_value_reads" computerName="Mareks-MacBook-Pro" duration="00:00:00.0043836" startTime="2026-11-20T08:58:02.0693930+01:00" endTime="2026-11-20T08:58:02.0737950+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ca90f40a-d064-44ee-842a-81755028d850" />
+    <UnitTestResult executionId="24cefb1e-686f-4a7b-b34b-2b5b4e3888f2" testId="701309d8-ad32-d8e3-db94-8771893f01db" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Explicit_relative_target_navigation_resolves_parent_aliases_but_preserves_the_final_object(stored: &quot;..&quot;, expectedKind: Directory, requiresDirectory: True)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0165453" startTime="2026-11-20T08:58:01.9902050+01:00" endTime="2026-11-20T08:58:02.0067700+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="24cefb1e-686f-4a7b-b34b-2b5b4e3888f2" />
+    <UnitTestResult executionId="2fcd4e09-61ef-40f6-9db5-ba3608341abc" testId="de63a7d8-f849-d220-9be0-a1696540eb8a" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_details_suppresses_materialization_and_restores_the_device_worker_even_on_refusal" computerName="Mareks-MacBook-Pro" duration="00:00:00.0084981" startTime="2026-11-20T08:58:02.0776240+01:00" endTime="2026-11-20T08:58:02.0867470+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2fcd4e09-61ef-40f6-9db5-ba3608341abc" />
+    <UnitTestResult executionId="f33829d5-f525-4678-a3ac-06e8f82e6224" testId="8035b71f-e5d0-e66d-c04d-56431230f12f" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Zfs_accounting_validates_the_returned_filesystem_unit_and_counters(fixture: &quot;free&quot;, expected: Failed)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0001118" startTime="2026-11-20T08:58:02.0298000+01:00" endTime="2026-11-20T08:58:02.0299240+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f33829d5-f525-4678-a3ac-06e8f82e6224" />
+    <UnitTestResult executionId="1558c12d-b542-4676-8843-e7e401800c1b" testId="7bb132ea-5834-8d77-13a8-53fded20333a" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_details_label_historical_ext_flags_without_claiming_compression(format: &quot;ext2&quot;)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0180190+01:00" endTime="2026-11-20T08:58:02.0181180+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1558c12d-b542-4676-8843-e7e401800c1b">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires the Linux x64 ext-family fixture.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="a5a3681c-b7ae-403e-a77c-64522ee5813e" testId="9e0fddb1-3689-aee4-02be-687efe263044" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_XFS_reports_reflink_sharing_sparse_ranges_and_unwritten_extents" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0748630+01:00" endTime="2026-11-20T08:58:02.0760120+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a5a3681c-b7ae-403e-a77c-64522ee5813e">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires Linux x64 XFS.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="6c0dedfb-96b1-4fae-a5cf-5a7d909240b4" testId="78d2529b-10cd-71b3-65b5-d72dd797d410" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Btrfs_compression_policy_only_reports_qualified_exact_values(stored: &quot;none&quot;, expected: &quot;Disabled by the inode property&quot;)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0001784" startTime="2026-11-20T08:58:02.0304360+01:00" endTime="2026-11-20T08:58:02.0306250+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6c0dedfb-96b1-4fae-a5cf-5a7d909240b4" />
+    <UnitTestResult executionId="1dd35695-6076-4152-a222-db2bde4fcfe5" testId="ecb43a4f-b452-f060-7e1a-9c624934c9b6" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_namespace_requires_matching_volume_and_individually_valid_capabilities(apfs: False)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0001238" startTime="2026-11-20T08:58:02.0167960+01:00" endTime="2026-11-20T08:58:02.0169320+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1dd35695-6076-4152-a222-db2bde4fcfe5" />
+    <UnitTestResult executionId="6c1bf30f-6548-44a0-83b6-7ba8d1500856" testId="787901ba-b133-28d8-68a6-11d649113a25" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_details_label_historical_ext_flags_without_claiming_compression(format: &quot;ext4&quot;)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0182010+01:00" endTime="2026-11-20T08:58:02.0182430+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6c1bf30f-6548-44a0-83b6-7ba8d1500856">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires the Linux x64 ext-family fixture.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="0b5f0518-0c93-4ece-8165-5444248ec0e3" testId="be46a91a-bcbb-d08f-b1ba-95adc47ba29d" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid(fixture: &quot;missing mask&quot;)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000049" startTime="2026-11-20T08:58:02.0214240+01:00" endTime="2026-11-20T08:58:02.0214360+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="0b5f0518-0c93-4ece-8165-5444248ec0e3" />
+    <UnitTestResult executionId="59729c62-616e-403f-8515-456787275b8a" testId="9ff36edd-1f3f-3db6-fac6-c540321abd45" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_FIEMAP_reopens_the_pinned_inode_even_after_its_path_becomes_a_FIFO" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0679060+01:00" endTime="2026-11-20T08:58:02.0684950+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="59729c62-616e-403f-8515-456787275b8a">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires a disposable Linux filesystem with native FIEMAP support.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="382117d3-de29-47cc-ba2a-9b8f7f62eb16" testId="9c9f51af-dfae-9b20-39e9-2791c230d6cd" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_FIEMAP_reports_Btrfs_reflink_sharing_and_omits_the_encoded_physical_locations" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0883430+01:00" endTime="2026-11-20T08:58:02.0888450+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="382117d3-de29-47cc-ba2a-9b8f7f62eb16">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires Linux x64 Btrfs.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="57dd2912-6d04-40ae-b7db-34bb8c62241f" testId="0a6896a3-a15f-d670-4fc9-269f9266922a" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_key_status_requires_a_complete_recognized_reply(length: 128, status: 1, expected: Known)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0015609" startTime="2026-11-20T08:58:02.0594550+01:00" endTime="2026-11-20T08:58:02.0610340+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="57dd2912-6d04-40ae-b7db-34bb8c62241f" />
+    <UnitTestResult executionId="a005f0ee-a36f-4d26-9fc8-4b5d23ef2016" testId="b744eb3a-97aa-bee8-6ab9-b243bb503730" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid(fixture: &quot;valid&quot;)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0017576" startTime="2026-11-20T08:58:02.0193760+01:00" endTime="2026-11-20T08:58:02.0211470+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a005f0ee-a36f-4d26-9fc8-4b5d23ef2016" />
+    <UnitTestResult executionId="aa56c6d8-22b1-4c22-9fcd-2dc772296684" testId="47178d67-48d8-dee0-48bf-4cfb57a3f87d" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid(fixture: &quot;device&quot;)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000046" startTime="2026-11-20T08:58:02.0215040+01:00" endTime="2026-11-20T08:58:02.0215160+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="aa56c6d8-22b1-4c22-9fcd-2dc772296684" />
+    <UnitTestResult executionId="60badf9f-01d5-4c6b-a578-7f57dbc3030c" testId="8de15311-811f-8a88-9480-19885478c45f" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Zfs_accounting_validates_the_returned_filesystem_unit_and_counters(fixture: &quot;short&quot;, expected: Failed)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000073" startTime="2026-11-20T08:58:02.0300090+01:00" endTime="2026-11-20T08:58:02.0300260+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="60badf9f-01d5-4c6b-a578-7f57dbc3030c" />
+    <UnitTestResult executionId="42b6509e-de13-4ae4-bf21-4ab178b354e8" testId="21caeb99-61df-87d5-74e3-8ae1bf909543" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_namespace_requires_matching_volume_and_individually_valid_capabilities(apfs: True)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0037831" startTime="2026-11-20T08:58:02.0129080+01:00" endTime="2026-11-20T08:58:02.0167060+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="42b6509e-de13-4ae4-bf21-4ab178b354e8" />
+    <UnitTestResult executionId="a1709324-4f03-4e48-bc17-11b9090a78ff" testId="76244183-726c-76f3-d63e-260965f2565d" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_Btrfs_compression_is_readable_policy_and_generic_attribute_deletion_refuses_it" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0761390+01:00" endTime="2026-11-20T08:58:02.0765200+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a1709324-4f03-4e48-bc17-11b9090a78ff">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires Linux Btrfs.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="fa270694-d57b-4d5f-aad7-e665b2a29d2d" testId="61136fee-d8ba-58cf-3e5c-be71cec6cf72" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Btrfs_compression_policy_only_reports_qualified_exact_values(stored: &quot;unsupported-value&quot;, expected: null)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000628" startTime="2026-11-20T08:58:02.0307010+01:00" endTime="2026-11-20T08:58:02.0307740+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="fa270694-d57b-4d5f-aad7-e665b2a29d2d" />
+    <UnitTestResult executionId="762f71eb-9327-4eb7-bd7d-29f911474a07" testId="a18fb841-e2ed-c621-5f8e-a175a7039dfb" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_full_report_describes_APFS_case_and_normalization_on_the_observed_volume" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:01.9489130+01:00" endTime="2026-11-20T08:58:01.9632300+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="762f71eb-9327-4eb7-bd7d-29f911474a07">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires two disposable, prepared APFS variants.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="f46eb33a-bf55-4fe6-9e3b-5565a6ee0605" testId="425de25d-c25d-aaf0-c110-c12fa9cbf7c4" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Btrfs_compression_policy_only_reports_qualified_exact_values(stored: &quot;zstd\0&quot;, expected: null)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000051" startTime="2026-11-20T08:58:02.0310970+01:00" endTime="2026-11-20T08:58:02.0311100+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f46eb33a-bf55-4fe6-9e3b-5565a6ee0605" />
+    <UnitTestResult executionId="11fc46ce-5f12-40f9-afdf-606b4fd4ca71" testId="acc4a34e-8ed5-17d9-19c8-1c638825742a" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_summary_and_full_report_describe_ext4_restrictions_without_reading_file_data" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0632650+01:00" endTime="2026-11-20T08:58:02.0636630+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="11fc46ce-5f12-40f9-afdf-606b4fd4ca71">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires a disposable Linux ext4 volume.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="21623c77-0d9e-4a7a-9022-4c6a877fd6db" testId="ffdc50b1-535d-38dd-5f60-50ad72f0f2e8" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_distinguishes_real_ext4_encryption_policies_without_showing_key_or_payload" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0660690+01:00" endTime="2026-11-20T08:58:02.0666440+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="21623c77-0d9e-4a7a-9022-4c6a877fd6db">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires a qualified Linux x64 ext4 fixture.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="46e1612c-0d6e-4353-a43f-6edf926b00ba" testId="2f6aad3d-ab9e-6f50-ae08-c8b023830e15" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_full_report_distinguishes_HFS_Plus_and_HFSX_name_behavior" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0653490+01:00" endTime="2026-11-20T08:58:02.0659530+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="46e1612c-0d6e-4353-a43f-6edf926b00ba">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires two prepared HFS Plus volumes.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="9feeb37a-cea5-4374-b7ba-de8181e7189b" testId="7c63237b-b1af-412e-864c-f8f9325913ed" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid(fixture: &quot;raw device&quot;)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000083" startTime="2026-11-20T08:58:02.0212430+01:00" endTime="2026-11-20T08:58:02.0212610+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="9feeb37a-cea5-4374-b7ba-de8181e7189b" />
+    <UnitTestResult executionId="93d67509-4d5c-450c-ab30-626b09c2ea9b" testId="f3d02c21-b010-0202-d8bd-2eda435d67ae" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_gets_the_mount_type_of_the_held_item_through_a_parent_symlink" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0649790+01:00" endTime="2026-11-20T08:58:02.0652400+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="93d67509-4d5c-450c-ab30-626b09c2ea9b">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires Linux statx and procfs.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="883857cf-5a64-40c8-82f7-a43d55a65b1f" testId="68fee689-8f27-910c-680c-89666a0b9e9d" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_policy_checks_returned_version_and_length(version: 2, length: 24, expected: Known)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0019163" startTime="2026-11-20T08:58:02.0249530+01:00" endTime="2026-11-20T08:58:02.0268880+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="883857cf-5a64-40c8-82f7-a43d55a65b1f" />
+    <UnitTestResult executionId="f40775ca-19ad-4007-a03f-e14f38c55623" testId="a55720fb-f929-8229-4218-31327e818112" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_distinguishes_absent_and_partially_removed_ext4_policy_keys" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T08:58:02.0627620+01:00" endTime="2026-11-20T08:58:02.0631420+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f40775ca-19ad-4007-a03f-e14f38c55623">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires a qualified Linux x64 ext4 fixture.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="5b6fd0c8-0b61-4daa-b82d-7cf5ccc8637d" testId="460d64ff-6686-1883-a854-210cbe568f48" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Btrfs_compression_policy_only_reports_qualified_exact_values(stored: &quot;zstd:5&quot;, expected: null)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000053" startTime="2026-11-20T08:58:02.0311760+01:00" endTime="2026-11-20T08:58:02.0311890+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="5b6fd0c8-0b61-4daa-b82d-7cf5ccc8637d" />
+    <UnitTestResult executionId="353802b2-802a-4683-98c4-b210602e6369" testId="b52162fd-3be6-2ce3-023e-c07aaf071a7f" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_keeps_FileVault_separate_from_backing_media(encrypted: True, flags: 0, fileVault: False, backing: False, changing: False)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0000053" startTime="2026-11-20T08:58:02.0286030+01:00" endTime="2026-11-20T08:58:02.0286160+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="353802b2-802a-4683-98c4-b210602e6369" />
+    <UnitTestResult executionId="afdab099-5ae2-4514-aaa3-42c28d6fd779" testId="2162c1a7-c455-ac92-b8a3-a4ac095c9870" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Unix_details_explain_recorded_mode_and_execution_limits_without_inferring_access" computerName="Mareks-MacBook-Pro" duration="00:00:00.0267655" startTime="2026-11-20T08:58:02.0313760+01:00" endTime="2026-11-20T08:58:02.0581680+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="afdab099-5ae2-4514-aaa3-42c28d6fd779" />
+    <UnitTestResult executionId="c97b9735-80ff-4ab1-a224-de253d7cb954" testId="64fb3115-3ebc-9ed2-9a9e-6835c46e5974" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid(fixture: &quot;overflow&quot;)" computerName="Mareks-MacBook-Pro" duration="00:00:00.0008870" startTime="2026-11-20T08:58:02.0183870+01:00" endTime="2026-11-20T08:58:02.0192850+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c97b9735-80ff-4ab1-a224-de253d7cb954" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid(fixture: &quot;raw device&quot;)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="7c63237b-b1af-412e-864c-f8f9325913ed">
+      <Execution id="9feeb37a-cea5-4374-b7ba-de8181e7189b" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_keeps_FileVault_separate_from_backing_media(encrypted: True, flags: 1, fileVault: False, backing: True, changing: False)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="cad58474-7104-b3e3-8e66-8eeb5c71b24f">
+      <Execution id="5456e9f4-6a64-4f95-a0c0-869e33bd4884" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_APFS_protection_keeps_FileVault_separate_from_backing_media" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_keeps_FileVault_separate_from_backing_media(encrypted: True, flags: 7, fileVault: True, backing: True, changing: True)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="6cd30e55-e4f0-1550-c2c2-0fc46614d26b">
+      <Execution id="8a88689c-24b2-4856-8815-ec397089e1a4" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_APFS_protection_keeps_FileVault_separate_from_backing_media" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Unix_details_explain_recorded_mode_and_execution_limits_without_inferring_access" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="2162c1a7-c455-ac92-b8a3-a4ac095c9870">
+      <Execution id="afdab099-5ae2-4514-aaa3-42c28d6fd779" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Unix_details_explain_recorded_mode_and_execution_limits_without_inferring_access" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_FIEMAP_reports_Btrfs_reflink_sharing_and_omits_the_encoded_physical_locations" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="9c9f51af-dfae-9b20-39e9-2791c230d6cd">
+      <Execution id="382117d3-de29-47cc-ba2a-9b8f7f62eb16" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_FIEMAP_reports_Btrfs_reflink_sharing_and_omits_the_encoded_physical_locations" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_rejects_unknown_and_inconsistent_flags(encrypted: True, flags: -1)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="31b2ef23-d09e-ab7e-12ed-04b7773bf1a4">
+      <Execution id="9d792069-03cf-4ad5-84cb-d265517f094b" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_APFS_protection_rejects_unknown_and_inconsistent_flags" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Zfs_accounting_validates_the_returned_filesystem_unit_and_counters(fixture: &quot;short&quot;, expected: Failed)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="8de15311-811f-8a88-9480-19885478c45f">
+      <Execution id="60badf9f-01d5-4c6b-a578-7f57dbc3030c" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Zfs_accounting_validates_the_returned_filesystem_unit_and_counters" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Zfs_mount_records_preserve_escaped_spaces_and_require_an_unambiguous_case_mode" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="dcd1622e-beb5-b140-b91e-63ee9ca9a3bb">
+      <Execution id="4f824461-8ce1-403f-8c6f-ebfe896a2545" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Zfs_mount_records_preserve_escaped_spaces_and_require_an_unambiguous_case_mode" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_distinguishes_absent_and_partially_removed_ext4_policy_keys" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="a55720fb-f929-8229-4218-31327e818112">
+      <Execution id="f40775ca-19ad-4007-a03f-e14f38c55623" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_full_report_distinguishes_absent_and_partially_removed_ext4_policy_keys" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Btrfs_compression_policy_only_reports_qualified_exact_values(stored: &quot;unsupported-value&quot;, expected: null)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="61136fee-d8ba-58cf-3e5c-be71cec6cf72">
+      <Execution id="fa270694-d57b-4d5f-aad7-e665b2a29d2d" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Btrfs_compression_policy_only_reports_qualified_exact_values" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Btrfs_compression_policy_only_reports_qualified_exact_values(stored: &quot;zlib&quot;, expected: &quot;zlib&quot;)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="57aada45-3bd0-4c8e-26e3-6c6892a6a799">
+      <Execution id="01353226-0c01-45ac-b0f0-27a98731e9ca" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Btrfs_compression_policy_only_reports_qualified_exact_values" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Explicit_relative_target_navigation_resolves_parent_aliases_but_preserves_the_final_object(stored: &quot;jump/../wanted.txt&quot;, expectedKind: File, requiresDirectory: False)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="b124d8aa-4467-9848-c51c-7fda4d5d1730">
+      <Execution id="eca23d94-ed6b-46f1-ba01-40fdbb866faa" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Explicit_relative_target_navigation_resolves_parent_aliases_but_preserves_the_final_object" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Btrfs_compression_policy_only_reports_qualified_exact_values(stored: &quot;zstd\0&quot;, expected: null)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="425de25d-c25d-aaf0-c110-c12fa9cbf7c4">
+      <Execution id="f46eb33a-bf55-4fe6-9e3b-5565a6ee0605" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Btrfs_compression_policy_only_reports_qualified_exact_values" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_key_status_requires_a_complete_recognized_reply(length: 128, status: 4, expected: Unsupported)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="453df8fb-de19-6c59-67d5-f40c6666e60d">
+      <Execution id="c187c6f3-25a7-487e-96d6-6b861c852baf" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_fscrypt_key_status_requires_a_complete_recognized_reply" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Btrfs_compression_policy_only_reports_qualified_exact_values(stored: &quot;no&quot;, expected: &quot;Disabled by the inode property&quot;)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="1ec8809a-9863-c4b7-ea0e-81c9f14dcc1b">
+      <Execution id="e22915d9-3085-4f33-b7b5-9b9f0cd956f0" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Btrfs_compression_policy_only_reports_qualified_exact_values" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_namespace_requires_matching_volume_and_individually_valid_capabilities(apfs: False)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="ecb43a4f-b452-f060-7e1a-9c624934c9b6">
+      <Execution id="1dd35695-6076-4152-a222-db2bde4fcfe5" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_namespace_requires_matching_volume_and_individually_valid_capabilities" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_details_label_historical_ext_flags_without_claiming_compression(format: &quot;ext2&quot;)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="7bb132ea-5834-8d77-13a8-53fded20333a">
+      <Execution id="1558c12d-b542-4676-8843-e7e401800c1b" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_details_label_historical_ext_flags_without_claiming_compression" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid(fixture: &quot;device&quot;)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="47178d67-48d8-dee0-48bf-4cfb57a3f87d">
+      <Execution id="aa56c6d8-22b1-4c22-9fcd-2dc772296684" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_rejects_unknown_and_inconsistent_flags(encrypted: False, flags: 2)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="c1636e60-cdd5-5037-c43b-f51abed7ad03">
+      <Execution id="fc02035e-a682-45a0-bf1d-d0892ca61796" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_APFS_protection_rejects_unknown_and_inconsistent_flags" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_key_status_requires_a_complete_recognized_reply(length: 127, status: 2, expected: Failed)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="6e93d670-18c4-d961-6850-d524d8e28613">
+      <Execution id="87b24f2f-2dbf-4779-be67-7de46d961c0f" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_fscrypt_key_status_requires_a_complete_recognized_reply" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_key_status_requires_a_complete_recognized_reply(length: 128, status: 3, expected: Known)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="66ebd4be-61b6-bc4e-4bdb-25183c252268">
+      <Execution id="b268c3e9-385e-43c4-8ab2-ef41e8b6614d" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_fscrypt_key_status_requires_a_complete_recognized_reply" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Zfs_accounting_validates_the_returned_filesystem_unit_and_counters(fixture: &quot;unit&quot;, expected: Failed)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="c2c2abbf-2206-8b45-70df-e828298312d8">
+      <Execution id="1c1e77de-29fb-403a-90fa-1040b0ca331b" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Zfs_accounting_validates_the_returned_filesystem_unit_and_counters" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Btrfs_compression_policy_only_reports_qualified_exact_values(stored: &quot;none&quot;, expected: &quot;Disabled by the inode property&quot;)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="78d2529b-10cd-71b3-65b5-d72dd797d410">
+      <Execution id="6c0dedfb-96b1-4fae-a5cf-5a7d909240b4" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Btrfs_compression_policy_only_reports_qualified_exact_values" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_details_label_historical_ext_flags_without_claiming_compression(format: &quot;ext4&quot;)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="787901ba-b133-28d8-68a6-11d649113a25">
+      <Execution id="6c1bf30f-6548-44a0-83b6-7ba8d1500856" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_details_label_historical_ext_flags_without_claiming_compression" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_key_status_requires_a_complete_recognized_reply(length: 128, status: 2, expected: Known)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="3db91432-d012-418d-ee9e-38e6770fcbf6">
+      <Execution id="ce60675a-31f9-46d3-98d5-0e213999bee5" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_fscrypt_key_status_requires_a_complete_recognized_reply" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Zfs_accounting_validates_the_returned_filesystem_unit_and_counters(fixture: &quot;available&quot;, expected: Failed)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="f0d4b47e-75a6-5695-e103-26d01cc100bd">
+      <Execution id="e52285bb-c850-4ab1-8763-22f12afd98fe" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Zfs_accounting_validates_the_returned_filesystem_unit_and_counters" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_summary_of_FIFO_does_not_open_it_for_data_or_wait_for_a_writer" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="f66f6a57-0615-7c16-432c-d8103dcd3623">
+      <Execution id="e7688a14-ad63-4a94-b4dd-a06882e7baaa" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_summary_of_FIFO_does_not_open_it_for_data_or_wait_for_a_writer" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Explicit_relative_target_navigation_resolves_parent_aliases_but_preserves_the_final_object(stored: &quot;../wanted.txt&quot;, expectedKind: File, requiresDirectory: False)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="2bc5c723-534c-f97f-83de-1463c5c0bca7">
+      <Execution id="9a9cc153-c715-4275-8586-516b9151ed74" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Explicit_relative_target_navigation_resolves_parent_aliases_but_preserves_the_final_object" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_policy_checks_returned_version_and_length(version: 2, length: 24, expected: Known)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="68fee689-8f27-910c-680c-89666a0b9e9d">
+      <Execution id="883857cf-5a64-40c8-82f7-a43d55a65b1f" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_fscrypt_policy_checks_returned_version_and_length" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_rejects_unknown_and_inconsistent_flags(encrypted: True, flags: 8)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="247a65f8-da96-2933-2985-db445125ea9c">
+      <Execution id="581c5116-c51b-45b6-b46d-702623cd34b5" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_APFS_protection_rejects_unknown_and_inconsistent_flags" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_details_suppresses_materialization_and_restores_the_device_worker_even_on_refusal" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="de63a7d8-f849-d220-9be0-a1696540eb8a">
+      <Execution id="2fcd4e09-61ef-40f6-9db5-ba3608341abc" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_details_suppresses_materialization_and_restores_the_device_worker_even_on_refusal" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_full_details_distinguish_APFS_shared_private_and_partly_shared_files" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="440d4f46-4c41-ae08-ff74-269ca43bbf64">
+      <Execution id="2580fa91-bfaa-4b90-bcca-e06ed3a6faaa" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_full_details_distinguish_APFS_shared_private_and_partly_shared_files" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_key_status_requires_a_complete_recognized_reply(length: 128, status: 0, expected: Unsupported)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="11ce8373-d23b-e3a8-f590-a0c5f9c2b3ce">
+      <Execution id="8228aa3e-3ae5-4e74-b9bc-fe0dfa2b2c3f" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_fscrypt_key_status_requires_a_complete_recognized_reply" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_details_label_historical_ext_flags_without_claiming_compression(format: &quot;ext3&quot;)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="13915025-1845-8aa3-b130-f9ac849eb06a">
+      <Execution id="484612cb-4b95-4704-8b8c-86f146a1b09e" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_details_label_historical_ext_flags_without_claiming_compression" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_full_report_distinguishes_HFS_Plus_and_HFSX_name_behavior" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="2f6aad3d-ab9e-6f50-ae08-c8b023830e15">
+      <Execution id="46e1612c-0d6e-4353-a43f-6edf926b00ba" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_full_report_distinguishes_HFS_Plus_and_HFSX_name_behavior" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid(fixture: &quot;overflow&quot;)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="64fb3115-3ebc-9ed2-9a9e-6835c46e5974">
+      <Execution id="c97b9735-80ff-4ab1-a224-de253d7cb954" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Zfs_accounting_validates_the_returned_filesystem_unit_and_counters(fixture: &quot;different&quot;, expected: Changed)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="75a75c72-253b-d77f-697c-2f71f0ae6c38">
+      <Execution id="3023de98-6efc-459e-b587-1f75389ce2fc" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Zfs_accounting_validates_the_returned_filesystem_unit_and_counters" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Native_summary_describes_files_directories_and_links_without_legacy_value_reads" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="044f648d-a4e4-0e42-1d22-fe71424d50ec">
+      <Execution id="ca90f40a-d064-44ee-842a-81755028d850" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Native_summary_describes_files_directories_and_links_without_legacy_value_reads" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Btrfs_compression_policy_only_reports_qualified_exact_values(stored: &quot;lzo&quot;, expected: &quot;lzo&quot;)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="020c76d1-b9aa-d9ba-82d0-471c5f7d4aa0">
+      <Execution id="fc7d51f0-a989-4364-b100-283cb2e76af6" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Btrfs_compression_policy_only_reports_qualified_exact_values" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_file_capability_parser_requires_the_complete_known_attribute" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="b86977fb-a292-40d8-3da8-8c1f89d55c8e">
+      <Execution id="c453df65-347d-4185-8687-7e30ccdb51b7" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_file_capability_parser_requires_the_complete_known_attribute" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_observes_casefold_on_the_held_ext4_directory" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="7dca7879-d701-734e-4847-00145a1d89c7">
+      <Execution id="be4f7d4a-1a8c-4e4e-ad7f-76304758b7e2" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_full_report_observes_casefold_on_the_held_ext4_directory" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Zfs_accounting_validates_the_returned_filesystem_unit_and_counters(fixture: &quot;free&quot;, expected: Failed)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="8035b71f-e5d0-e66d-c04d-56431230f12f">
+      <Execution id="f33829d5-f525-4678-a3ac-06e8f82e6224" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Zfs_accounting_validates_the_returned_filesystem_unit_and_counters" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_namespace_requires_matching_volume_and_individually_valid_capabilities(apfs: True)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="21caeb99-61df-87d5-74e3-8ae1bf909543">
+      <Execution id="42b6509e-de13-4ae4-bf21-4ab178b354e8" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_namespace_requires_matching_volume_and_individually_valid_capabilities" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_ext4_full_details_report_only_the_held_files_recorded_capabilities" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="7b2e923f-8489-8220-65fc-fb09abbddd77">
+      <Execution id="8981d45c-788e-441d-97ca-6f206e15b3df" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_ext4_full_details_report_only_the_held_files_recorded_capabilities" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_uses_the_actual_nested_ZFS_mount_and_held_accounting" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="bfaeffa7-ca23-90c2-984d-4176a8bf81d7">
+      <Execution id="63013a59-e8fe-4f8d-a2f3-7895969c444f" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_full_report_uses_the_actual_nested_ZFS_mount_and_held_accounting" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid(fixture: &quot;valid&quot;)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="b744eb3a-97aa-bee8-6ab9-b243bb503730">
+      <Execution id="a005f0ee-a36f-4d26-9fc8-4b5d23ef2016" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_full_report_distinguishes_FileVault_and_encrypted_backing_on_the_selected_volume" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="85c599dc-fec3-8b86-9858-0b1340a0c852">
+      <Execution id="98427062-833d-4c89-80bb-0c751d19c92d" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_full_report_distinguishes_FileVault_and_encrypted_backing_on_the_selected_volume" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_Btrfs_compression_is_readable_policy_and_generic_attribute_deletion_refuses_it" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="76244183-726c-76f3-d63e-260965f2565d">
+      <Execution id="a1709324-4f03-4e48-bc17-11b9090a78ff" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_Btrfs_compression_is_readable_policy_and_generic_attribute_deletion_refuses_it" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_distinguishes_real_ext4_encryption_policies_without_showing_key_or_payload" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="ffdc50b1-535d-38dd-5f60-50ad72f0f2e8">
+      <Execution id="21623c77-0d9e-4a7a-9022-4c6a877fd6db" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_full_report_distinguishes_real_ext4_encryption_policies_without_showing_key_or_payload" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_retains_link_metadata_with_an_unrepresentable_stored_target" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="f334219a-7a35-6b65-4c31-58b61a583820">
+      <Execution id="eaf72680-5152-4305-9620-18c2f6ab5ce4" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_retains_link_metadata_with_an_unrepresentable_stored_target" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Explicit_relative_target_navigation_resolves_parent_aliases_but_preserves_the_final_object(stored: &quot;..&quot;, expectedKind: Directory, requiresDirectory: True)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="701309d8-ad32-d8e3-db94-8771893f01db">
+      <Execution id="24cefb1e-686f-4a7b-b34b-2b5b4e3888f2" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Explicit_relative_target_navigation_resolves_parent_aliases_but_preserves_the_final_object" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid(fixture: &quot;short&quot;)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="6c93147b-4857-a17e-a535-093a74c075bb">
+      <Execution id="6182a66f-ae1f-40db-a430-51b9ca591a4c" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_policy_checks_returned_version_and_length(version: 0, length: 12, expected: Known)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="4d2ebbd0-2312-42fc-4b30-33afe343e76c">
+      <Execution id="a769d740-aab8-4f25-8b23-31cfef1a33ff" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_fscrypt_policy_checks_returned_version_and_length" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_XFS_reports_reflink_sharing_sparse_ranges_and_unwritten_extents" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="9e0fddb1-3689-aee4-02be-687efe263044">
+      <Execution id="a5a3681c-b7ae-403e-a77c-64522ee5813e" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_XFS_reports_reflink_sharing_sparse_ranges_and_unwritten_extents" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Explicit_relative_target_navigation_resolves_parent_aliases_but_preserves_the_final_object(stored: &quot;../wanted.txt/&quot;, expectedKind: File, requiresDirectory: True)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="7e0c93f0-beed-5cd2-5d91-ec15f3e6e4d5">
+      <Execution id="1a06dde8-0967-40dc-94d2-ef8447991b53" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Explicit_relative_target_navigation_resolves_parent_aliases_but_preserves_the_final_object" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_policy_checks_returned_version_and_length(version: 2, length: 25, expected: Failed)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="71647c64-5eb9-321f-8142-a8a614d2d476">
+      <Execution id="deca73b3-1883-4234-8703-57880717cedc" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_fscrypt_policy_checks_returned_version_and_length" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_gets_the_mount_type_of_the_held_item_through_a_parent_symlink" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="f3d02c21-b010-0202-d8bd-2eda435d67ae">
+      <Execution id="93d67509-4d5c-450c-ab30-626b09c2ea9b" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_gets_the_mount_type_of_the_held_item_through_a_parent_symlink" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_rejects_unknown_and_inconsistent_flags(encrypted: False, flags: 1)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="6e729ed0-2fc3-b09b-7619-6b5b14ef5014">
+      <Execution id="83703a57-621b-447b-9a50-6e0165f71954" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_APFS_protection_rejects_unknown_and_inconsistent_flags" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_full_report_describes_APFS_case_and_normalization_on_the_observed_volume" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="a18fb841-e2ed-c621-5f8e-a175a7039dfb">
+      <Execution id="762f71eb-9327-4eb7-bd7d-29f911474a07" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_full_report_describes_APFS_case_and_normalization_on_the_observed_volume" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Btrfs_compression_policy_only_reports_qualified_exact_values(stored: &quot;zstd:5&quot;, expected: null)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="460d64ff-6686-1883-a854-210cbe568f48">
+      <Execution id="5b6fd0c8-0b61-4daa-b82d-7cf5ccc8637d" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Btrfs_compression_policy_only_reports_qualified_exact_values" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid(fixture: &quot;missing mask&quot;)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="be46a91a-bcbb-d08f-b1ba-95adc47ba29d">
+      <Execution id="0b5f0518-0c93-4ece-8165-5444248ec0e3" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_APFS_protection_requires_a_bounded_device_and_volume_uuid" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Zfs_accounting_validates_the_returned_filesystem_unit_and_counters(fixture: &quot;valid&quot;, expected: Known)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="097fd93f-a688-e8e0-99b0-7664d98d029e">
+      <Execution id="22751abb-9f47-4684-a868-a0f036eafbee" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Zfs_accounting_validates_the_returned_filesystem_unit_and_counters" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_keeps_FileVault_separate_from_backing_media(encrypted: False, flags: 0, fileVault: False, backing: False, changing: False)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="01bd8e50-20a5-ef14-433a-7dbc982be28e">
+      <Execution id="dae44462-bc47-4cfd-8c18-6e25b1f98155" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_APFS_protection_keeps_FileVault_separate_from_backing_media" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_policy_checks_returned_version_and_length(version: 2, length: 12, expected: Failed)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="6c8f1c02-61da-ea07-86d7-a7a626309ca0">
+      <Execution id="f39c5f2c-d0aa-43c7-829e-62a93f4acd33" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_fscrypt_policy_checks_returned_version_and_length" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_key_status_requires_a_complete_recognized_reply(length: 128, status: 1, expected: Known)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="0a6896a3-a15f-d670-4fc9-269f9266922a">
+      <Execution id="57dd2912-6d04-40ae-b7db-34bb8c62241f" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_fscrypt_key_status_requires_a_complete_recognized_reply" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_keeps_FileVault_separate_from_backing_media(encrypted: True, flags: 0, fileVault: False, backing: False, changing: False)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="b52162fd-3be6-2ce3-023e-c07aaf071a7f">
+      <Execution id="353802b2-802a-4683-98c4-b210602e6369" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_APFS_protection_keeps_FileVault_separate_from_backing_media" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_FIEMAP_reopens_the_pinned_inode_even_after_its_path_becomes_a_FIFO" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="9ff36edd-1f3f-3db6-fac6-c540321abd45">
+      <Execution id="59729c62-616e-403f-8515-456787275b8a" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_FIEMAP_reopens_the_pinned_inode_even_after_its_path_becomes_a_FIFO" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_reads_Btrfs_policy_and_subvolume_from_the_held_object" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="b241f236-c214-c726-379d-c5b4f92c6384">
+      <Execution id="1ccfe210-8962-4571-aa83-61dfc9523447" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_full_report_reads_Btrfs_policy_and_subvolume_from_the_held_object" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_APFS_protection_keeps_FileVault_separate_from_backing_media(encrypted: True, flags: 2, fileVault: True, backing: False, changing: False)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="884ba685-11d9-b6e3-7dbe-79b9fd3c2065">
+      <Execution id="9190f432-b1c2-4a81-9a12-768f933d55a4" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Mac_APFS_protection_keeps_FileVault_separate_from_backing_media" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_summary_and_full_report_describe_ext4_restrictions_without_reading_file_data" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="acc4a34e-8ed5-17d9-19c8-1c638825742a">
+      <Execution id="11fc46ce-5f12-40f9-afdf-606b4fd4ca71" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_summary_and_full_report_describe_ext4_restrictions_without_reading_file_data" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Live_Mac_File_Provider_metadata_keeps_prepared_files_dataless" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="6f6a4a49-6ab4-b243-e6c3-8eea166f1d1f">
+      <Execution id="c9a074a5-cf2f-48b3-9bc0-68803ed911c9" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Live_Mac_File_Provider_metadata_keeps_prepared_files_dataless" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Explicit_relative_target_navigation_resolves_parent_aliases_but_preserves_the_final_object(stored: &quot;../leaf-alias/&quot;, expectedKind: SymbolicLink, requiresDirectory: True)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="3e1b2b70-a513-fe2d-3dd9-26c9733910c7">
+      <Execution id="de5d1b77-59da-401c-9cad-0d0bd43a9c2b" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Explicit_relative_target_navigation_resolves_parent_aliases_but_preserves_the_final_object" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_fscrypt_policy_checks_returned_version_and_length(version: 3, length: 24, expected: Unsupported)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="d69762c6-926f-baf7-b498-1a6cbae998c7">
+      <Execution id="b57cc4c9-d8de-4bcc-ae06-71a87ccaa928" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Linux_fscrypt_policy_checks_returned_version_and_length" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Btrfs_compression_policy_only_reports_qualified_exact_values(stored: &quot;zstd&quot;, expected: &quot;zstd&quot;)" storage="/users/benny/filecatvalidation/filecat-provider-test-20261120/tests/filecat.core.tests/bin/debug/net10.0/filecat.core.tests.dll" id="b123b35c-8309-84d1-2a96-58fa59d29856">
+      <Execution id="f10d5b79-207f-4862-b0d7-9a88fec46243" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/filecat-provider-test-20261120/tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Btrfs_compression_policy_only_reports_qualified_exact_values" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="440d4f46-4c41-ae08-ff74-269ca43bbf64" executionId="2580fa91-bfaa-4b90-bcca-e06ed3a6faaa" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="01bd8e50-20a5-ef14-433a-7dbc982be28e" executionId="dae44462-bc47-4cfd-8c18-6e25b1f98155" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="2bc5c723-534c-f97f-83de-1463c5c0bca7" executionId="9a9cc153-c715-4275-8586-516b9151ed74" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7e0c93f0-beed-5cd2-5d91-ec15f3e6e4d5" executionId="1a06dde8-0967-40dc-94d2-ef8447991b53" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="dcd1622e-beb5-b140-b91e-63ee9ca9a3bb" executionId="4f824461-8ce1-403f-8c6f-ebfe896a2545" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="453df8fb-de19-6c59-67d5-f40c6666e60d" executionId="c187c6f3-25a7-487e-96d6-6b861c852baf" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="66ebd4be-61b6-bc4e-4bdb-25183c252268" executionId="b268c3e9-385e-43c4-8ab2-ef41e8b6614d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b241f236-c214-c726-379d-c5b4f92c6384" executionId="1ccfe210-8962-4571-aa83-61dfc9523447" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b86977fb-a292-40d8-3da8-8c1f89d55c8e" executionId="c453df65-347d-4185-8687-7e30ccdb51b7" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d69762c6-926f-baf7-b498-1a6cbae998c7" executionId="b57cc4c9-d8de-4bcc-ae06-71a87ccaa928" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7dca7879-d701-734e-4847-00145a1d89c7" executionId="be4f7d4a-1a8c-4e4e-ad7f-76304758b7e2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6e729ed0-2fc3-b09b-7619-6b5b14ef5014" executionId="83703a57-621b-447b-9a50-6e0165f71954" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6e93d670-18c4-d961-6850-d524d8e28613" executionId="87b24f2f-2dbf-4779-be67-7de46d961c0f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7b2e923f-8489-8220-65fc-fb09abbddd77" executionId="8981d45c-788e-441d-97ca-6f206e15b3df" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="020c76d1-b9aa-d9ba-82d0-471c5f7d4aa0" executionId="fc7d51f0-a989-4364-b100-283cb2e76af6" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="85c599dc-fec3-8b86-9858-0b1340a0c852" executionId="98427062-833d-4c89-80bb-0c751d19c92d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="31b2ef23-d09e-ab7e-12ed-04b7773bf1a4" executionId="9d792069-03cf-4ad5-84cb-d265517f094b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6c93147b-4857-a17e-a535-093a74c075bb" executionId="6182a66f-ae1f-40db-a430-51b9ca591a4c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b124d8aa-4467-9848-c51c-7fda4d5d1730" executionId="eca23d94-ed6b-46f1-ba01-40fdbb866faa" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f66f6a57-0615-7c16-432c-d8103dcd3623" executionId="e7688a14-ad63-4a94-b4dd-a06882e7baaa" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f0d4b47e-75a6-5695-e103-26d01cc100bd" executionId="e52285bb-c850-4ab1-8763-22f12afd98fe" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="3db91432-d012-418d-ee9e-38e6770fcbf6" executionId="ce60675a-31f9-46d3-98d5-0e213999bee5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="cad58474-7104-b3e3-8e66-8eeb5c71b24f" executionId="5456e9f4-6a64-4f95-a0c0-869e33bd4884" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6f6a4a49-6ab4-b243-e6c3-8eea166f1d1f" executionId="c9a074a5-cf2f-48b3-9bc0-68803ed911c9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="13915025-1845-8aa3-b130-f9ac849eb06a" executionId="484612cb-4b95-4704-8b8c-86f146a1b09e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c2c2abbf-2206-8b45-70df-e828298312d8" executionId="1c1e77de-29fb-403a-90fa-1040b0ca331b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="11ce8373-d23b-e3a8-f590-a0c5f9c2b3ce" executionId="8228aa3e-3ae5-4e74-b9bc-fe0dfa2b2c3f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="bfaeffa7-ca23-90c2-984d-4176a8bf81d7" executionId="63013a59-e8fe-4f8d-a2f3-7895969c444f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6cd30e55-e4f0-1550-c2c2-0fc46614d26b" executionId="8a88689c-24b2-4856-8815-ec397089e1a4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="884ba685-11d9-b6e3-7dbe-79b9fd3c2065" executionId="9190f432-b1c2-4a81-9a12-768f933d55a4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6c8f1c02-61da-ea07-86d7-a7a626309ca0" executionId="f39c5f2c-d0aa-43c7-829e-62a93f4acd33" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b123b35c-8309-84d1-2a96-58fa59d29856" executionId="f10d5b79-207f-4862-b0d7-9a88fec46243" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1ec8809a-9863-c4b7-ea0e-81c9f14dcc1b" executionId="e22915d9-3085-4f33-b7b5-9b9f0cd956f0" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="247a65f8-da96-2933-2985-db445125ea9c" executionId="581c5116-c51b-45b6-b46d-702623cd34b5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="097fd93f-a688-e8e0-99b0-7664d98d029e" executionId="22751abb-9f47-4684-a868-a0f036eafbee" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="57aada45-3bd0-4c8e-26e3-6c6892a6a799" executionId="01353226-0c01-45ac-b0f0-27a98731e9ca" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c1636e60-cdd5-5037-c43b-f51abed7ad03" executionId="fc02035e-a682-45a0-bf1d-d0892ca61796" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f334219a-7a35-6b65-4c31-58b61a583820" executionId="eaf72680-5152-4305-9620-18c2f6ab5ce4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="71647c64-5eb9-321f-8142-a8a614d2d476" executionId="deca73b3-1883-4234-8703-57880717cedc" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4d2ebbd0-2312-42fc-4b30-33afe343e76c" executionId="a769d740-aab8-4f25-8b23-31cfef1a33ff" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="75a75c72-253b-d77f-697c-2f71f0ae6c38" executionId="3023de98-6efc-459e-b587-1f75389ce2fc" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="3e1b2b70-a513-fe2d-3dd9-26c9733910c7" executionId="de5d1b77-59da-401c-9cad-0d0bd43a9c2b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="044f648d-a4e4-0e42-1d22-fe71424d50ec" executionId="ca90f40a-d064-44ee-842a-81755028d850" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="701309d8-ad32-d8e3-db94-8771893f01db" executionId="24cefb1e-686f-4a7b-b34b-2b5b4e3888f2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="de63a7d8-f849-d220-9be0-a1696540eb8a" executionId="2fcd4e09-61ef-40f6-9db5-ba3608341abc" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8035b71f-e5d0-e66d-c04d-56431230f12f" executionId="f33829d5-f525-4678-a3ac-06e8f82e6224" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7bb132ea-5834-8d77-13a8-53fded20333a" executionId="1558c12d-b542-4676-8843-e7e401800c1b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9e0fddb1-3689-aee4-02be-687efe263044" executionId="a5a3681c-b7ae-403e-a77c-64522ee5813e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="78d2529b-10cd-71b3-65b5-d72dd797d410" executionId="6c0dedfb-96b1-4fae-a5cf-5a7d909240b4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ecb43a4f-b452-f060-7e1a-9c624934c9b6" executionId="1dd35695-6076-4152-a222-db2bde4fcfe5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="787901ba-b133-28d8-68a6-11d649113a25" executionId="6c1bf30f-6548-44a0-83b6-7ba8d1500856" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="be46a91a-bcbb-d08f-b1ba-95adc47ba29d" executionId="0b5f0518-0c93-4ece-8165-5444248ec0e3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9ff36edd-1f3f-3db6-fac6-c540321abd45" executionId="59729c62-616e-403f-8515-456787275b8a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9c9f51af-dfae-9b20-39e9-2791c230d6cd" executionId="382117d3-de29-47cc-ba2a-9b8f7f62eb16" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="0a6896a3-a15f-d670-4fc9-269f9266922a" executionId="57dd2912-6d04-40ae-b7db-34bb8c62241f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b744eb3a-97aa-bee8-6ab9-b243bb503730" executionId="a005f0ee-a36f-4d26-9fc8-4b5d23ef2016" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="47178d67-48d8-dee0-48bf-4cfb57a3f87d" executionId="aa56c6d8-22b1-4c22-9fcd-2dc772296684" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8de15311-811f-8a88-9480-19885478c45f" executionId="60badf9f-01d5-4c6b-a578-7f57dbc3030c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="21caeb99-61df-87d5-74e3-8ae1bf909543" executionId="42b6509e-de13-4ae4-bf21-4ab178b354e8" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="76244183-726c-76f3-d63e-260965f2565d" executionId="a1709324-4f03-4e48-bc17-11b9090a78ff" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="61136fee-d8ba-58cf-3e5c-be71cec6cf72" executionId="fa270694-d57b-4d5f-aad7-e665b2a29d2d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a18fb841-e2ed-c621-5f8e-a175a7039dfb" executionId="762f71eb-9327-4eb7-bd7d-29f911474a07" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="425de25d-c25d-aaf0-c110-c12fa9cbf7c4" executionId="f46eb33a-bf55-4fe6-9e3b-5565a6ee0605" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="acc4a34e-8ed5-17d9-19c8-1c638825742a" executionId="11fc46ce-5f12-40f9-afdf-606b4fd4ca71" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ffdc50b1-535d-38dd-5f60-50ad72f0f2e8" executionId="21623c77-0d9e-4a7a-9022-4c6a877fd6db" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="2f6aad3d-ab9e-6f50-ae08-c8b023830e15" executionId="46e1612c-0d6e-4353-a43f-6edf926b00ba" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7c63237b-b1af-412e-864c-f8f9325913ed" executionId="9feeb37a-cea5-4374-b7ba-de8181e7189b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f3d02c21-b010-0202-d8bd-2eda435d67ae" executionId="93d67509-4d5c-450c-ab30-626b09c2ea9b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="68fee689-8f27-910c-680c-89666a0b9e9d" executionId="883857cf-5a64-40c8-82f7-a43d55a65b1f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a55720fb-f929-8229-4218-31327e818112" executionId="f40775ca-19ad-4007-a03f-e14f38c55623" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="460d64ff-6686-1883-a854-210cbe568f48" executionId="5b6fd0c8-0b61-4daa-b82d-7cf5ccc8637d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b52162fd-3be6-2ce3-023e-c07aaf071a7f" executionId="353802b2-802a-4683-98c4-b210602e6369" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="2162c1a7-c455-ac92-b8a3-a4ac095c9870" executionId="afdab099-5ae2-4514-aaa3-42c28d6fd779" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="64fb3115-3ebc-9ed2-9a9e-6835c46e5974" executionId="c97b9735-80ff-4ab1-a224-de253d7cb954" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="74" executed="52" passed="52" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.12)
+[xUnit.net 00:00:00.47]   Discovering: FileCat.Core.Tests
+[xUnit.net 00:00:02.77]   Discovered:  FileCat.Core.Tests
+[xUnit.net 00:00:02.92]   Starting:    FileCat.Core.Tests
+[xUnit.net 00:00:02.97]       Requires two disposable, prepared APFS variants.
+[xUnit.net 00:00:03.02]       Requires the Linux x64 ext-family fixture.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_full_report_describes_APFS_case_and_normalization_on_the_observed_volume' was skipped in the test run.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_details_label_historical_ext_flags_without_claiming_compression(format: "ext3")' was skipped in the test run.
+[xUnit.net 00:00:03.03]       Requires the Linux x64 ext-family fixture.
+[xUnit.net 00:00:03.03]       Requires the Linux x64 ext-family fixture.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_details_label_historical_ext_flags_without_claiming_compression(format: "ext2")' was skipped in the test run.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_details_label_historical_ext_flags_without_claiming_compression(format: "ext4")' was skipped in the test run.
+[xUnit.net 00:00:03.03]       Requires the isolated ext4 file-capability fixture.
+[xUnit.net 00:00:03.03]       Linux O_PATH fixture.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_ext4_full_details_report_only_the_held_files_recorded_capabilities' was skipped in the test run.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_summary_of_FIFO_does_not_open_it_for_data_or_wait_for_a_writer' was skipped in the test run.
+[xUnit.net 00:00:03.06]       Requires Linux x64 OpenZFS.
+[xUnit.net 00:00:03.07]       Requires a qualified Linux x64 ext4 fixture.
+[xUnit.net 00:00:03.07]       Requires a qualified Linux x64 ext4 fixture.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_uses_the_actual_nested_ZFS_mount_and_held_accounting' was skipped in the test run.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_observes_casefold_on_the_held_ext4_directory' was skipped in the test run.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_distinguishes_absent_and_partially_removed_ext4_policy_keys' was skipped in the test run.
+[xUnit.net 00:00:03.07]       Requires a disposable Linux ext4 volume.
+[xUnit.net 00:00:03.07]       Requires a filesystem that stores non-UTF-8 symlink bytes.
+[xUnit.net 00:00:03.07]       Requires Linux statx and procfs.
+[xUnit.net 00:00:03.07]       Requires two prepared HFS Plus volumes.
+[xUnit.net 00:00:03.07]       Requires a qualified Linux x64 ext4 fixture.
+[xUnit.net 00:00:03.07]       Requires plain, FileVault and encrypted-image fixtures.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_summary_and_full_report_describe_ext4_restrictions_without_reading_file_data' was skipped in the test run.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_retains_link_metadata_with_an_unrepresentable_stored_target' was skipped in the test run.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_gets_the_mount_type_of_the_held_item_through_a_parent_symlink' was skipped in the test run.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_full_report_distinguishes_HFS_Plus_and_HFSX_name_behavior' was skipped in the test run.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_distinguishes_real_ext4_encryption_policies_without_showing_key_or_payload' was skipped in the test run.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_full_report_distinguishes_FileVault_and_encrypted_backing_on_the_selected_volume' was skipped in the test run.
+[xUnit.net 00:00:03.07]       Requires a disposable Linux filesystem with native FIEMAP support.
+[xUnit.net 00:00:03.07]       Requires a prepared APFS test folder.
+[xUnit.net 00:00:03.08]       Requires Linux x64 Btrfs.
+[xUnit.net 00:00:03.08]       Requires Linux x64 XFS.
+[xUnit.net 00:00:03.08]       Requires Linux Btrfs.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_FIEMAP_reopens_the_pinned_inode_even_after_its_path_becomes_a_FIFO' was skipped in the test run.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_full_details_distinguish_APFS_shared_private_and_partly_shared_files' was skipped in the test run.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_reads_Btrfs_policy_and_subvolume_from_the_held_object' was skipped in the test run.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_XFS_reports_reflink_sharing_sparse_ranges_and_unwritten_extents' was skipped in the test run.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_Btrfs_compression_is_readable_policy_and_generic_attribute_deletion_refuses_it' was skipped in the test run.
+[xUnit.net 00:00:03.09]       Requires Linux x64 Btrfs.
+[xUnit.net 00:00:03.09]       Set FILECAT_TEST_MAC_PROVIDER_ROOT to an owned, enabled File Provider root with dataless-file.bin and dataless-folder/child.bin.
+[xUnit.net 00:00:03.10]   Finished:    FileCat.Core.Tests (ID = '90f784afd9e0ac6510fdc57dba7e3610afc39426b2c90553629f9e811ffd20a5')
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_FIEMAP_reports_Btrfs_reflink_sharing_and_omits_the_encoded_physical_locations' was skipped in the test run.
+Test 'FileCat.Core.Tests.UnixFileDetailsNativeTests.Live_Mac_File_Provider_metadata_keeps_prepared_files_dataless' was skipped in the test run.
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:01.9650080+01:00">
+        <Text>[xUnit.net 00:00:02.97]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_full_report_describes_APFS_case_and_normalization_on_the_observed_volume [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0183960+01:00">
+        <Text>[xUnit.net 00:00:03.02]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_details_label_historical_ext_flags_without_claiming_compression(format: "ext3") [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0454550+01:00">
+        <Text>[xUnit.net 00:00:03.03]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_details_label_historical_ext_flags_without_claiming_compression(format: "ext2") [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0454620+01:00">
+        <Text>[xUnit.net 00:00:03.03]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_details_label_historical_ext_flags_without_claiming_compression(format: "ext4") [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0456070+01:00">
+        <Text>[xUnit.net 00:00:03.03]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_ext4_full_details_report_only_the_held_files_recorded_capabilities [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0456140+01:00">
+        <Text>[xUnit.net 00:00:03.03]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_summary_of_FIFO_does_not_open_it_for_data_or_wait_for_a_writer [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0626140+01:00">
+        <Text>[xUnit.net 00:00:03.06]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_uses_the_actual_nested_ZFS_mount_and_held_accounting [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0628890+01:00">
+        <Text>[xUnit.net 00:00:03.07]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_observes_casefold_on_the_held_ext4_directory [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0633370+01:00">
+        <Text>[xUnit.net 00:00:03.07]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_distinguishes_absent_and_partially_removed_ext4_policy_keys [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0647200+01:00">
+        <Text>[xUnit.net 00:00:03.07]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_summary_and_full_report_describe_ext4_restrictions_without_reading_file_data [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0650860+01:00">
+        <Text>[xUnit.net 00:00:03.07]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_retains_link_metadata_with_an_unrepresentable_stored_target [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0654470+01:00">
+        <Text>[xUnit.net 00:00:03.07]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_gets_the_mount_type_of_the_held_item_through_a_parent_symlink [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0661470+01:00">
+        <Text>[xUnit.net 00:00:03.07]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_full_report_distinguishes_HFS_Plus_and_HFSX_name_behavior [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0669290+01:00">
+        <Text>[xUnit.net 00:00:03.07]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_distinguishes_real_ext4_encryption_policies_without_showing_key_or_payload [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0672810+01:00">
+        <Text>[xUnit.net 00:00:03.07]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_full_report_distinguishes_FileVault_and_encrypted_backing_on_the_selected_volume [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0691880+01:00">
+        <Text>[xUnit.net 00:00:03.07]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_FIEMAP_reopens_the_pinned_inode_even_after_its_path_becomes_a_FIFO [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0694500+01:00">
+        <Text>[xUnit.net 00:00:03.07]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Mac_full_details_distinguish_APFS_shared_private_and_partly_shared_files [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0750470+01:00">
+        <Text>[xUnit.net 00:00:03.08]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_full_report_reads_Btrfs_policy_and_subvolume_from_the_held_object [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0762290+01:00">
+        <Text>[xUnit.net 00:00:03.08]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_XFS_reports_reflink_sharing_sparse_ranges_and_unwritten_extents [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0767050+01:00">
+        <Text>[xUnit.net 00:00:03.08]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_Btrfs_compression_is_readable_policy_and_generic_attribute_deletion_refuses_it [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0898660+01:00">
+        <Text>[xUnit.net 00:00:03.09]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Linux_FIEMAP_reports_Btrfs_reflink_sharing_and_omits_the_encoded_physical_locations [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T08:58:02.0898730+01:00">
+        <Text>[xUnit.net 00:00:03.09]     FileCat.Core.Tests.UnixFileDetailsNativeTests.Live_Mac_File_Provider_metadata_keeps_prepared_files_dataless [SKIP]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>
