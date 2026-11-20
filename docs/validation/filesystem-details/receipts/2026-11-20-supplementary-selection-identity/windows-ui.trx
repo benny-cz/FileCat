@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="0cec87b9-86b5-4970-b375-e643954cc56b" name="Admin@DESKTOP-A60F1NE 2026-11-20 19:36:29" runUser="DESKTOP-A60F1NE\Admin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-20T19:36:29.4444016+01:00" queuing="2026-11-20T19:36:29.4444075+01:00" start="2026-11-20T19:36:18.9916214+01:00" finish="2026-11-20T19:36:30.3880846+01:00" />
+  <TestSettings name="default" id="8e4749ab-e0aa-4331-b7c7-2d9fe7eafa71">
+    <Deployment runDeploymentRoot="Admin_DESKTOP-A60F1NE_2026-11-20_19_36_29" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="6cfb0f36-5502-43d3-acca-594d96147168" testId="a8491492-b93e-b932-fa1a-4537967f49f7" testName="FileCat.App.Tests.HiddenDataUiTests.A_files_streams_and_attributes_open_as_a_list_are_copied_out_and_deleted" computerName="DESKTOP-A60F1NE" duration="00:00:04.0697295" startTime="2026-11-20T19:36:25.3118816+01:00" endTime="2026-11-20T19:36:29.3965169+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6cfb0f36-5502-43d3-acca-594d96147168" />
+    <UnitTestResult executionId="441838a4-a5dc-4e31-a8b5-7958b9ec31ad" testId="cec2492b-a332-6830-c6ec-ba8f28f3adfe" testName="FileCat.App.Tests.HiddenDataUiTests.Copying_a_protected_stream_refuses_before_creating_any_output" computerName="DESKTOP-A60F1NE" duration="00:00:00.8310740" startTime="2026-11-20T19:36:29.4193664+01:00" endTime="2026-11-20T19:36:30.2506907+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="441838a4-a5dc-4e31-a8b5-7958b9ec31ad" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.App.Tests.HiddenDataUiTests.A_files_streams_and_attributes_open_as_a_list_are_copied_out_and_deleted" storage="c:\users\admin\appdata\local\temp\filecatidentityapp685\filecat.app.tests.dll" id="a8491492-b93e-b932-fa1a-4537967f49f7">
+      <Execution id="6cfb0f36-5502-43d3-acca-594d96147168" />
+      <TestMethod codeBase="C:\Users\admin\AppData\Local\Temp\FileCatIdentityApp685\FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.HiddenDataUiTests" name="A_files_streams_and_attributes_open_as_a_list_are_copied_out_and_deleted" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.HiddenDataUiTests.Copying_a_protected_stream_refuses_before_creating_any_output" storage="c:\users\admin\appdata\local\temp\filecatidentityapp685\filecat.app.tests.dll" id="cec2492b-a332-6830-c6ec-ba8f28f3adfe">
+      <Execution id="441838a4-a5dc-4e31-a8b5-7958b9ec31ad" />
+      <TestMethod codeBase="C:\Users\admin\AppData\Local\Temp\FileCatIdentityApp685\FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.HiddenDataUiTests" name="Copying_a_protected_stream_refuses_before_creating_any_output" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="a8491492-b93e-b932-fa1a-4537967f49f7" executionId="6cfb0f36-5502-43d3-acca-594d96147168" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="cec2492b-a332-6830-c6ec-ba8f28f3adfe" executionId="441838a4-a5dc-4e31-a8b5-7958b9ec31ad" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="2" executed="2" passed="2" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.15)&#xD;
+[xUnit.net 00:00:02.25]   Discovering: FileCat.App.Tests&#xD;
+[xUnit.net 00:00:04.56]   Discovered:  FileCat.App.Tests&#xD;
+[xUnit.net 00:00:04.87]   Starting:    FileCat.App.Tests&#xD;
+[xUnit.net 00:00:10.47]   Finished:    FileCat.App.Tests (ID = '9d7588b92cdd7ba1592bac1a21e3ed37fc9b73a870f579ad898d91d2e41b9335')&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

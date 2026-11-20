@@ -35,10 +35,11 @@ public sealed partial class WindowsHiddenDataTests
             WriteEa(file, name, expected);
             var native = new WindowsHiddenData();
             var provider = new HiddenDataProvider(native);
-            var request = new ItemRef(HiddenDataProvider.Of(file), name, EntryKind.File) { Ordinal = HiddenIdentities.Ordinal(kind) };
             var output = (IUnprotectedContentOutput)provider;
             var ct = TestContext.Current.CancellationToken;
             var identity = native.ReadInventory(file, new(IncludeEaValues: kind == HiddenKind.NtfsAttribute), ct).Identity!.Value;
+            var request = new ItemRef(HiddenDataProvider.Of(file), name, EntryKind.File)
+                { Ordinal = HiddenIdentities.Ordinal(kind), SupplementarySourceIdentity = identity };
             var clearReport = provider.ReadValueReport(request, identity, ct);
             Assert.True(clearReport.CanPublish);
             Assert.Contains("owned supplementary value", clearReport.Text);
@@ -77,7 +78,9 @@ public sealed partial class WindowsHiddenDataTests
             File.WriteAllText(file, "original");
             File.WriteAllBytes(file + ":payload", [1, 2, 3]);
             var provider = (IUnprotectedContentOutput)new HiddenDataProvider(new WindowsHiddenData());
-            var request = new ItemRef(HiddenDataProvider.Of(file), "payload", EntryKind.File) { Ordinal = HiddenIdentities.Ordinal(HiddenKind.Stream) };
+            var identity = new WindowsHiddenData().ReadInventory(file, new(), TestContext.Current.CancellationToken).Identity!.Value;
+            var request = new ItemRef(HiddenDataProvider.Of(file), "payload", EntryKind.File)
+                { Ordinal = HiddenIdentities.Ordinal(HiddenKind.Stream), SupplementarySourceIdentity = identity };
             using var output = provider.OpenUnprotectedOutput(request, ContentOutputKind.Extraction, out var origin)!;
             byte[] next = [0];
             Assert.Equal(1, output.Read(0, next));
@@ -105,9 +108,10 @@ public sealed partial class WindowsHiddenDataTests
             var provider = new HiddenDataProvider(native);
             var ct = TestContext.Current.CancellationToken;
             const string name = "FILECAT.REPORT";
-            var request = new ItemRef(HiddenDataProvider.Of(file), name, EntryKind.File) { Ordinal = HiddenIdentities.Ordinal(kind) };
             Seed("original value");
             var original = native.ReadInventory(file, new(IncludeEaValues: kind == HiddenKind.NtfsAttribute), ct).Identity!.Value;
+            var request = new ItemRef(HiddenDataProvider.Of(file), name, EntryKind.File)
+                { Ordinal = HiddenIdentities.Ordinal(kind), SupplementarySourceIdentity = original };
             var report = provider.ReadValueReport(request, original, ct);
             Assert.Equal(ReportContentKind.Payload, report.ContentKind);
             Assert.True(report.CanPublish);
@@ -118,6 +122,9 @@ public sealed partial class WindowsHiddenDataTests
             Seed("another value");
             var refusal = Assert.Throws<IOException>(() => provider.ReadValueReport(request, original, ct));
             Assert.Contains("different file", refusal.Message);
+            Assert.Contains("different file", Assert.Throws<IOException>(() => provider.OpenContent(request)).Message);
+            Assert.Contains("different file", Assert.Throws<IOException>(() =>
+                ((IUnprotectedContentOutput)provider).OpenUnprotectedOutput(request, ContentOutputKind.Extraction)).Message);
             Assert.True(report.CanPublish);
             Assert.Contains("original value", report.Text);
             Assert.Contains("different file", Assert.Throws<IOException>(() => provider.DeleteReviewedValue(request, original, ct)).Message);
@@ -318,8 +325,8 @@ public sealed partial class WindowsHiddenDataTests
             Assert.Equal(0x80, required.NativeFlags); Assert.Equal(HiddenMetadataRole.RequiredMetadata, required.Role);
             Assert.Throws<NotSupportedException>(() => hidden.Delete(file, required with { NativeFlags = 0, Role = HiddenMetadataRole.Ordinary }));
             var provider = new HiddenDataProvider(hidden); var location = HiddenDataProvider.Of(file);
-            var streamRef = new ItemRef(location, "SAME", EntryKind.File) { Ordinal = 1 };
-            var eaRef = new ItemRef(location, "SAME", EntryKind.File) { Ordinal = 3 };
+            var streamRef = new ItemRef(location, "SAME", EntryKind.File) { Ordinal = 1, SupplementarySourceIdentity = admitted.Identity };
+            var eaRef = new ItemRef(location, "SAME", EntryKind.File) { Ordinal = 3, SupplementarySourceIdentity = admitted.Identity };
             using (var stream = provider.OpenContent(streamRef)!)
             { byte[] buffer = new byte[64]; Assert.Equal("stream value", Encoding.UTF8.GetString(buffer, 0, stream.Read(0, buffer))); }
             using (var ea = provider.OpenContent(eaRef)!)

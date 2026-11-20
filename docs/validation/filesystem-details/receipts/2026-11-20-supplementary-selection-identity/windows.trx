@@ -1,0 +1,70 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="5ca66343-5d0f-4b98-b064-7861788578b0" name="Admin@DESKTOP-A60F1NE 2026-11-20 19:31:48" runUser="DESKTOP-A60F1NE\Admin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-20T19:31:48.1059060+01:00" queuing="2026-11-20T19:31:48.1059552+01:00" start="2026-11-20T19:31:42.8709040+01:00" finish="2026-11-20T19:31:48.1126394+01:00" />
+  <TestSettings name="default" id="097f4957-600d-490a-9d6d-3bc5989e1531">
+    <Deployment runDeploymentRoot="Admin_DESKTOP-A60F1NE_2026-11-20_19_31_48" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="3cbf1f29-0124-4edb-8f03-7f7a0bbc7c19" testId="e1c4c723-5f60-5f23-db1b-c5df21b07d34" testName="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests.Reviewed_supplementary_actions_refuse_a_replacement_file(kind: Stream)" computerName="DESKTOP-A60F1NE" duration="00:00:00.0426236" startTime="2026-11-20T19:31:47.8178805+01:00" endTime="2026-11-20T19:31:47.8606534+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3cbf1f29-0124-4edb-8f03-7f7a0bbc7c19" />
+    <UnitTestResult executionId="578e7b7b-c991-42bc-809f-a56f09dcaaab" testId="5cbdfb94-5f8a-d550-b57d-638710424bda" testName="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests.The_hidden_data_place_lists_each_item_with_what_it_says_and_serves_it" computerName="DESKTOP-A60F1NE" duration="00:00:00.0267416" startTime="2026-11-20T19:31:47.9064475+01:00" endTime="2026-11-20T19:31:47.9333000+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="578e7b7b-c991-42bc-809f-a56f09dcaaab" />
+    <UnitTestResult executionId="8d629dec-d4ec-4eb4-b3f3-03b2867ad736" testId="fcabeb0f-bec7-8a80-7cc9-feeb51e0ebdc" testName="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests.Bounded_inventory_and_actions_keep_ADS_EA_categories_folder_streams_and_required_roles" computerName="DESKTOP-A60F1NE" duration="00:00:00.0285414" startTime="2026-11-20T19:31:47.8767881+01:00" endTime="2026-11-20T19:31:47.9054356+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8d629dec-d4ec-4eb4-b3f3-03b2867ad736" />
+    <UnitTestResult executionId="e22e653d-0ce9-4a62-b50f-77f4c95d26f1" testId="5f921a65-fc2b-18e9-db85-f5fcab06e1e0" testName="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests.Opened_stream_output_refuses_a_later_efs_change_before_reading_more_bytes" computerName="DESKTOP-A60F1NE" duration="00:00:00.0305477" startTime="2026-11-20T19:31:47.9339038+01:00" endTime="2026-11-20T19:31:47.9645959+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e22e653d-0ce9-4a62-b50f-77f4c95d26f1" />
+    <UnitTestResult executionId="8df52a4c-f801-4905-9d31-88b9438c045a" testId="013c7b4e-76ea-e476-16f5-9dce290429e2" testName="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests.Reviewed_supplementary_actions_refuse_a_replacement_file(kind: NtfsAttribute)" computerName="DESKTOP-A60F1NE" duration="00:00:00.0148169" startTime="2026-11-20T19:31:47.8611172+01:00" endTime="2026-11-20T19:31:47.8760631+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8df52a4c-f801-4905-9d31-88b9438c045a" />
+    <UnitTestResult executionId="8667c44b-b4c6-4031-ac09-d858ee9a8a82" testId="f610e04a-79e4-687c-997d-8562c977a474" testName="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests.Protected_values_are_viewable_and_refused_by_derived_output(kind: Stream)" computerName="DESKTOP-A60F1NE" duration="00:00:00.2368352" startTime="2026-11-20T19:31:47.5253101+01:00" endTime="2026-11-20T19:31:47.7749848+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8667c44b-b4c6-4031-ac09-d858ee9a8a82" />
+    <UnitTestResult executionId="d280e797-82cb-4e83-9129-aaf2ffb52db7" testId="216ff95e-4ee4-f7c5-4eaa-b749bf1f5877" testName="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests.Protected_values_are_viewable_and_refused_by_derived_output(kind: NtfsAttribute)" computerName="DESKTOP-A60F1NE" duration="00:00:00.0329976" startTime="2026-11-20T19:31:47.7820449+01:00" endTime="2026-11-20T19:31:47.8152240+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d280e797-82cb-4e83-9129-aaf2ffb52db7" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests.Opened_stream_output_refuses_a_later_efs_change_before_reading_more_bytes" storage="c:\users\admin\appdata\local\temp\filecatidentity685\filecat.platform.windows.tests.dll" id="5f921a65-fc2b-18e9-db85-f5fcab06e1e0">
+      <Execution id="e22e653d-0ce9-4a62-b50f-77f4c95d26f1" />
+      <TestMethod codeBase="C:\Users\admin\AppData\Local\Temp\FileCatIdentity685\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests" name="Opened_stream_output_refuses_a_later_efs_change_before_reading_more_bytes" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests.Protected_values_are_viewable_and_refused_by_derived_output(kind: NtfsAttribute)" storage="c:\users\admin\appdata\local\temp\filecatidentity685\filecat.platform.windows.tests.dll" id="216ff95e-4ee4-f7c5-4eaa-b749bf1f5877">
+      <Execution id="d280e797-82cb-4e83-9129-aaf2ffb52db7" />
+      <TestMethod codeBase="C:\Users\admin\AppData\Local\Temp\FileCatIdentity685\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests" name="Protected_values_are_viewable_and_refused_by_derived_output" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests.Protected_values_are_viewable_and_refused_by_derived_output(kind: Stream)" storage="c:\users\admin\appdata\local\temp\filecatidentity685\filecat.platform.windows.tests.dll" id="f610e04a-79e4-687c-997d-8562c977a474">
+      <Execution id="8667c44b-b4c6-4031-ac09-d858ee9a8a82" />
+      <TestMethod codeBase="C:\Users\admin\AppData\Local\Temp\FileCatIdentity685\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests" name="Protected_values_are_viewable_and_refused_by_derived_output" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests.The_hidden_data_place_lists_each_item_with_what_it_says_and_serves_it" storage="c:\users\admin\appdata\local\temp\filecatidentity685\filecat.platform.windows.tests.dll" id="5cbdfb94-5f8a-d550-b57d-638710424bda">
+      <Execution id="578e7b7b-c991-42bc-809f-a56f09dcaaab" />
+      <TestMethod codeBase="C:\Users\admin\AppData\Local\Temp\FileCatIdentity685\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests" name="The_hidden_data_place_lists_each_item_with_what_it_says_and_serves_it" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests.Bounded_inventory_and_actions_keep_ADS_EA_categories_folder_streams_and_required_roles" storage="c:\users\admin\appdata\local\temp\filecatidentity685\filecat.platform.windows.tests.dll" id="fcabeb0f-bec7-8a80-7cc9-feeb51e0ebdc">
+      <Execution id="8d629dec-d4ec-4eb4-b3f3-03b2867ad736" />
+      <TestMethod codeBase="C:\Users\admin\AppData\Local\Temp\FileCatIdentity685\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests" name="Bounded_inventory_and_actions_keep_ADS_EA_categories_folder_streams_and_required_roles" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests.Reviewed_supplementary_actions_refuse_a_replacement_file(kind: NtfsAttribute)" storage="c:\users\admin\appdata\local\temp\filecatidentity685\filecat.platform.windows.tests.dll" id="013c7b4e-76ea-e476-16f5-9dce290429e2">
+      <Execution id="8df52a4c-f801-4905-9d31-88b9438c045a" />
+      <TestMethod codeBase="C:\Users\admin\AppData\Local\Temp\FileCatIdentity685\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests" name="Reviewed_supplementary_actions_refuse_a_replacement_file" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests.Reviewed_supplementary_actions_refuse_a_replacement_file(kind: Stream)" storage="c:\users\admin\appdata\local\temp\filecatidentity685\filecat.platform.windows.tests.dll" id="e1c4c723-5f60-5f23-db1b-c5df21b07d34">
+      <Execution id="3cbf1f29-0124-4edb-8f03-7f7a0bbc7c19" />
+      <TestMethod codeBase="C:\Users\admin\AppData\Local\Temp\FileCatIdentity685\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests" name="Reviewed_supplementary_actions_refuse_a_replacement_file" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="e1c4c723-5f60-5f23-db1b-c5df21b07d34" executionId="3cbf1f29-0124-4edb-8f03-7f7a0bbc7c19" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5cbdfb94-5f8a-d550-b57d-638710424bda" executionId="578e7b7b-c991-42bc-809f-a56f09dcaaab" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="fcabeb0f-bec7-8a80-7cc9-feeb51e0ebdc" executionId="8d629dec-d4ec-4eb4-b3f3-03b2867ad736" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5f921a65-fc2b-18e9-db85-f5fcab06e1e0" executionId="e22e653d-0ce9-4a62-b50f-77f4c95d26f1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="013c7b4e-76ea-e476-16f5-9dce290429e2" executionId="8df52a4c-f801-4905-9d31-88b9438c045a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f610e04a-79e4-687c-997d-8562c977a474" executionId="8667c44b-b4c6-4031-ac09-d858ee9a8a82" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="216ff95e-4ee4-f7c5-4eaa-b749bf1f5877" executionId="d280e797-82cb-4e83-9129-aaf2ffb52db7" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="7" executed="7" passed="7" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.15)&#xD;
+[xUnit.net 00:00:01.51]   Discovering: FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:03.47]   Discovered:  FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:03.77]   Starting:    FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:04.32]   Finished:    FileCat.Platform.Windows.Tests (ID = '0e297f51a324f596b1d3653414af772756d2271f81666e4c69a6769977e1f8cf')&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

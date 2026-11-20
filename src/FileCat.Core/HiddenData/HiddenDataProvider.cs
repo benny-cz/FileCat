@@ -115,8 +115,13 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
 
     public override IContentSource? OpenContent(ItemRef item)
     {
-        if (hidden is not UnixHiddenData) return new HiddenContentSource(hidden, FileOf(item.Parent), RequestedValue(item));
-        return OpenBoundOutput(FileOf(item.Parent), RequestedValue(item), new OutputEfsObservation(), ReviewedUnixIdentity(item));
+        string file = FileOf(item.Parent);
+        var value = RequestedValue(item);
+        if (hidden is UnixHiddenData)
+            return OpenBoundOutput(file, value, new OutputEfsObservation(), ReviewedSourceIdentity(item));
+        if (hidden is IHiddenValueRead reviewed)
+            return new HiddenContentSource(reviewed.OpenReviewedValue(file, value, ReviewedSourceIdentity(item)), file, value, null);
+        return new HiddenContentSource(hidden, file, value);
     }
 
     void IUnprotectedContentOutput.RequireClearOutputSource(Location location, ContentOutputKind kind)
@@ -133,11 +138,10 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
     private IContentSource? OpenForOutput(ItemRef item, out OutputEfsObservation? provenance)
     {
         provenance = new OutputEfsObservation();
-        return OpenBoundOutput(FileOf(item.Parent), RequestedValue(item), provenance,
-            hidden is UnixHiddenData ? ReviewedUnixIdentity(item) : null);
+        return OpenBoundOutput(FileOf(item.Parent), RequestedValue(item), provenance, ReviewedSourceIdentity(item));
     }
 
-    private static FileIdentity ReviewedUnixIdentity(ItemRef item) => item.SupplementarySourceIdentity
+    private static FileIdentity ReviewedSourceIdentity(ItemRef item) => item.SupplementarySourceIdentity
         ?? throw new NotSupportedException("The supplementary source identity is unavailable; refresh the inventory and try again.");
 
     private HiddenContentSource OpenBoundOutput(string file, HiddenItem value, OutputEfsObservation provenance, FileIdentity? reviewed) =>
@@ -215,6 +219,12 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
 internal interface IHiddenValueDeletion
 {
     void DeleteReviewedValue(string path, HiddenItem item, FileIdentity reviewed, CancellationToken ct);
+}
+
+/// <summary>Viewer read from the listed native object; Windows EFS values remain viewable in memory.</summary>
+internal interface IHiddenValueRead
+{
+    Stream OpenReviewedValue(string path, HiddenItem item, FileIdentity reviewed);
 }
 
 internal interface IHiddenValueOutput
