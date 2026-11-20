@@ -1,5 +1,8 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using FileCat.App.Views;
@@ -155,7 +158,7 @@ public sealed class FileDetailsWindowTests
         using var io = new DeviceIoScheduler();
         using var records = new Records();
         using var reader = new FileDetailsReader(records, io, "details-layout", "/captured");
-        var window = new ReportWindow("/captured", reader) { Width = 320, Height = 900 };
+        var window = new ReportWindow("/captured", reader) { Width = 320, Height = 420, FontSize = 20 };
         window.Show();
         try
         {
@@ -168,6 +171,25 @@ public sealed class FileDetailsWindowTests
                 Assert.True(control.Bounds.Width <= 304, name);
                 Assert.True(control.IsEffectivelyVisible, name);
             }
+            var controls = Assert.Single(window.GetVisualDescendants().OfType<ScrollViewer>(), s => s.Name == "ReportControlsScroll");
+            var viewport = Assert.Single(controls.GetVisualDescendants().OfType<ScrollContentPresenter>(),
+                p => ReferenceEquals(p.TemplatedParent, controls));
+            Assert.True(controls.Extent.Height > controls.Viewport.Height, "Wrapped controls need a scrollable viewport.");
+            Assert.True(viewport.Bounds.Height <= window.ClientSize.Height * 0.6);
+            var viewer = Assert.Single(window.GetVisualDescendants().OfType<FileCat.App.Controls.TextViewer>());
+            Assert.True(viewer.Bounds.Height >= 80, "The report text must retain a readable viewport.");
+            var last = Assert.Single(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Next report line");
+            Assert.True(last.Focus(NavigationMethod.Tab));
+            for (int attempt = 0; attempt < 100; attempt++)
+            {
+                window.UpdateLayout();
+                if (last.TranslatePoint(default, viewport) is { } point &&
+                    point.Y >= -0.6 && point.Y + last.Bounds.Height <= viewport.Bounds.Height + 0.6) break;
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            }
+            Assert.True(controls.Offset.Y > 0, "Focusing the last control must scroll it into view.");
+            var visible = last.TranslatePoint(default, viewport)!.Value;
+            Assert.InRange(visible.Y, -0.6, viewport.Bounds.Height - last.Bounds.Height + 0.6);
             Assert.True(window.MinWidth <= 320);
         }
         finally { window.Close(); }

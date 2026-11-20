@@ -45,6 +45,12 @@ public sealed partial class ReportWindow : Window
     private readonly Button _copyDisplayed = new() { Content = "Copy displayed text" };
     private readonly Button _save = new() { Content = "Save as…" };
     private readonly WrapPanel _actions = new() { Margin = new Thickness(8, 2), ItemSpacing = 8, LineSpacing = 4 };
+    private readonly ScrollViewer _chromeScroll = new()
+    {
+        Name = "ReportControlsScroll",
+        HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+    };
     private CancellationTokenSource? _saving;
     private readonly TextBlock _status = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center, TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis };
     private string? _searchNotice;
@@ -122,13 +128,14 @@ public sealed partial class ReportWindow : Window
         var root = new DockPanel();
         var toolbarSurface = ThemeLayers.OpaqueControls(toolbar);
         var navigationSurface = ThemeLayers.OpaqueControls(lineNavigation);
-        DockPanel.SetDock(toolbarSurface, Dock.Top);
-        DockPanel.SetDock(navigationSurface, Dock.Top);
+        var chrome = new StackPanel();
+        chrome.Children.Add(toolbarSurface);
+        chrome.Children.Add(_actions);
+        chrome.Children.Add(navigationSurface);
+        _chromeScroll.Content = chrome;
+        DockPanel.SetDock(_chromeScroll, Dock.Top);
         DockPanel.SetDock(statusBar, Dock.Bottom);
-        root.Children.Add(toolbarSurface);
-        DockPanel.SetDock(_actions, Dock.Top);
-        root.Children.Add(_actions);
-        root.Children.Add(navigationSurface);
+        root.Children.Add(_chromeScroll);
         root.Children.Add(statusBar);
         DockPanel.SetDock(_copyNotice, Dock.Bottom);
         root.Children.Add(_copyNotice);
