@@ -113,6 +113,39 @@ jobs:
           name: arm64-input-desktop-probe
           path: ${{ runner.temp }}/filecat-arm64-input-desktop.json
 
+  large-dense:
+    if: ${{ inputs.dense_large && !inputs.desktop_probe }}
+    name: Native ARM64 large dense removal
+    runs-on: windows-11-arm
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Build with locked dependencies
+        shell: pwsh
+        run: dotnet build tests/FileCat.Platform.Windows.Tests -c Release -p:RestoreLockedMode=true
+      - name: Qualify large dense removal on native ARM64
+        timeout-minutes: 105
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP ('filecat-native-large-dense-' + [guid]::NewGuid().ToString('N'))
+          ./eng/validation/Invoke-NtfsLargeDense.ps1 -ScratchRoot $root
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: native-arm64-large-dense
+          path: |
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-dense-preflight.trx
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-large-dense.trx
+            ${{ runner.temp }}/filecat-native-large-dense-*/large-dense.json
+            ${{ runner.temp }}/filecat-native-large-dense-*/diskpart.log
+            ${{ runner.temp }}/filecat-native-large-dense-*/dense-progress.log
+          if-no-files-found: warn
+
   native-storage-abi:
     if: ${{ !inputs.desktop_probe }}
     name: Native storage jobs and EFS output protection
@@ -411,12 +444,6 @@ jobs:
           if ($counters.total -ne '1' -or $counters.executed -ne '1' -or $counters.passed -ne '1') {
             throw 'The native ARM64 large sparse EFS case must execute and pass.'
           }
-      - name: Qualify large dense removal on native ARM64
-        if: inputs.dense_large
-        shell: pwsh
-        run: |
-          $root = Join-Path $env:RUNNER_TEMP ('filecat-native-large-dense-' + [guid]::NewGuid().ToString('N'))
-          ./eng/validation/Invoke-NtfsLargeDense.ps1 -ScratchRoot $root
       - name: Qualify compression refusal on prepared NTFS volumes
         if: inputs.volumes
         shell: pwsh
@@ -718,10 +745,6 @@ jobs:
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-scale.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-sparse.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-large-sparse-efs.trx
-            tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-dense-preflight.trx
-            tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-large-dense.trx
-            ${{ runner.temp }}/filecat-native-large-dense-*/large-dense.json
-            ${{ runner.temp }}/filecat-native-large-dense-*/diskpart.log
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-evidence-limits.trx
             tests/FileCat.Core.Tests/TestResults/native-efs-archive-output.trx
             tests/FileCat.Core.Tests/TestResults/native-efs-recovery-output.trx

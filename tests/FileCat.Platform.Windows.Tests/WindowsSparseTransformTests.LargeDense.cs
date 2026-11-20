@@ -185,8 +185,17 @@ public sealed partial class WindowsSparseTransformTests
     {
         long allocation = GetInfo(data.SafeFileHandle, 1, out StandardInfo standard, (uint)sizeof(StandardInfo))
             ? standard.AllocationSize : -1;
-        TestContext.Current.TestOutputHelper!.WriteLine(
-            $"dense {stage}: position={data.Position} eof={data.Length} allocation={allocation} available={volume.AvailableFreeSpace}");
+        string message = $"dense {stage}: position={data.Position} eof={data.Length} allocation={allocation} available={volume.AvailableFreeSpace}";
+        TestContext.Current.TestOutputHelper!.WriteLine(message);
+        string? progressPath = Environment.GetEnvironmentVariable("FILECAT_TEST_NTFS_DENSE_PROGRESS");
+        if (!string.IsNullOrWhiteSpace(progressPath))
+        {
+            // A cancelled hosted job may have no TRX. Keep best-effort phase evidence
+            // on the runner's host volume without making the storage test depend on it.
+            try { File.AppendAllText(progressPath, $"{DateTimeOffset.UtcNow:O} {message}{Environment.NewLine}"); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
     }
 
     private static void PrivateDenseEvidence(string evidence)

@@ -26,6 +26,7 @@ $testResult = Join-Path $project 'TestResults/native-storage-large-dense.trx'
 $previousRoot = $env:FILECAT_TEST_NTFS_DENSE_ROOT
 $previousJobs = $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS
 $previousArchitecture = $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE
+$previousProgress = $env:FILECAT_TEST_NTFS_DENSE_PROGRESS
 $previousTemp = $env:TEMP
 $previousTmp = $env:TMP
 $partitionId = $null
@@ -89,6 +90,7 @@ try {
     $env:FILECAT_TEST_NTFS_DENSE_ROOT = $drive.RootDirectory.FullName
     $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS = '1'
     $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
+    $env:FILECAT_TEST_NTFS_DENSE_PROGRESS = Join-Path $root 'dense-progress.log'
     $env:TEMP = $root
     $env:TMP = $root
     & (Join-Path $PSScriptRoot 'run-medium-integrity-test.ps1') -Project $project -LogFileName 'native-storage-dense-preflight.trx' `
@@ -121,6 +123,7 @@ finally {
     $env:FILECAT_TEST_NTFS_DENSE_ROOT = $previousRoot
     $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS = $previousJobs
     $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = $previousArchitecture
+    $env:FILECAT_TEST_NTFS_DENSE_PROGRESS = $previousProgress
     $env:TEMP = $previousTemp
     $env:TMP = $previousTmp
     if (Test-Path -LiteralPath $image -PathType Leaf) {
