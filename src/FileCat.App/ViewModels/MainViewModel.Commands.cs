@@ -157,6 +157,10 @@ public sealed partial class MainViewModel
                        Services.Providers.For(openLoc).GetChildLocation(openLoc, openItem) is not null
                     ? CommandAvailability.Yes
                     : CommandAvailability.No("The focused item is not a folder.");
+            case CommandIds.Delete or CommandIds.DeletePermanent when loc?.Scheme == Schemes.HiddenData &&
+                tab?.Listing.SupplementaryInventory is not { CanDelete: true, Identity: not null }:
+                return CommandAvailability.No(tab?.Listing.SupplementaryInventory?.Notice ??
+                    "Deleting supplementary data requires a current bound inventory. Refresh the inventory and try again.");
             // What the location itself cannot do is dimmed with its reason (the key bar, the palette), not offered and refused.
             case CommandIds.Delete or CommandIds.DeletePermanent when loc is not null && loc.Scheme != Schemes.ResultSet && (caps & LocationCapabilities.Delete) == 0:
                 return CommandAvailability.No(Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.Delete));

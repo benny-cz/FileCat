@@ -101,6 +101,9 @@ public sealed class HiddenDataUiTests
             {
                 Assert.Contains("Compression backing: not inventoried", tab.SupplementaryInventoryText);
                 Assert.True(payloadRow.Has(EntryFlags.Unavailable));
+                tab.Listing.SetFocus(Rows(tab).FindIndex(e => e.Name == payload) + (tab.Listing.HasParentRow ? 1 : 0));
+                Assert.False(vm.GetAvailability(CommandIds.Delete).Enabled);
+                Assert.False(vm.GetAvailability(CommandIds.DeletePermanent).Enabled);
                 Assert.Throws<NotSupportedException>(() => services.Providers.For(tab.Location!).OpenContent(
                     services.Providers.For(tab.Location!).GetItemRef(tab.Location!, payloadRow)));
                 return;
@@ -175,6 +178,7 @@ public sealed class HiddenDataUiTests
             var row = Assert.Single(Rows(tab), candidate => candidate.Name == name);
             Assert.False(row.Has(EntryFlags.Unavailable));
             tab.Listing.SetFocus(Rows(tab).FindIndex(candidate => candidate.Name == name) + (tab.Listing.HasParentRow ? 1 : 0));
+            Assert.True(vm.GetAvailability(CommandIds.Delete).Enabled);
             var report = await OpenSelectedValueReport(window);
             try { Assert.Contains("held directory value", report.Text); }
             finally { report.Close(); }
