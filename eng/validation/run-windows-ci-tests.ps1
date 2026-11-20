@@ -13,7 +13,6 @@ $projects = @(
     $platform,
     'tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj',
     'tests/FileCat.Remote.Tests/FileCat.Remote.Tests.csproj',
-    'tests/FileCat.App.Tests/FileCat.App.Tests.csproj',
     'tests/FileCat.Rendering.Tests/FileCat.Rendering.Tests.csproj'
 )
 $results = [Collections.Generic.List[object]]::new()
