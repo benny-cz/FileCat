@@ -100,7 +100,15 @@ and `2D695D6E06F976F12CD25D56A8836BB35EF1F5F3A5A886652D0E76F037FAAA87`;
 the tested assembly hashes are
 `8FD031F9466D3AB5DA15D2A345289143D9B6E8662A59A5D4C5F64D829E3C48EE`
 and `3F9617BC2A8324054261D1DC0821A45A9A088E0A92394F58780A44F04CF25835`.
-The corresponding Linux replacement-inode viewer/export assertions are in
-the portable suite, pending the Ubuntu CI run. The disposable Ubuntu VM did
-not remain powered on after two successful VMware start-command returns;
-no VM lock files were removed.
+On Ubuntu 24.04.5 x64, the focused [Core TRX](receipts/2026-11-20-supplementary-selection-identity/linux-core.trx)
+passed 1/1. It refused report, viewer and export opens after an inode
+replacement. The focused [App TRX](receipts/2026-11-20-supplementary-selection-identity/linux-ui.trx)
+passed 1/1 and completed the listed-value report, F5 copy and deletion. The
+Core and App receipt SHA-256 hashes are
+`9BE318D84CEB5674367D9ACCCE919284FFCF499B1492A2D4694A8874EFAC59F1`
+and `2BC5739B032181E4DD1A1A0850489AA47A75C240D05A2F70223CD17DE1B38735`;
+the tested assembly hashes are
+`7277D4E85B20BAAE25BE80AB6F2254C9740EE90B8FE9003E11A0776BE35C5787`
+and `8DFC304911068DB13DBA95771A7130436C069CD234FDE2ADAF72A5EEF3063FEB`.
+The isolated source copy was removed after the run, restoring the VM's prior
+free space.
