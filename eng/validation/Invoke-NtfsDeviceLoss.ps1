@@ -42,7 +42,8 @@ function Get-FixtureDisk([string]$Image, [long]$ExpectedSize = 256MB) {
     while ($true) {
         $mounted = Get-DiskImage -ImagePath $Image
         if ($mounted.ImagePath -ine $Image) { throw 'The mounted device is outside the owned VHDX fixture.' }
-        $disks = if ($mounted.Attached) { @($mounted | Get-Disk -ErrorAction SilentlyContinue) } else { @() }
+        $disks = @()
+        if ($mounted.Attached) { $disks = @($mounted | Get-Disk -ErrorAction SilentlyContinue) }
         if ($disks.Count -gt 1) { throw 'The mounted device is outside the owned VHDX fixture.' }
         if ($disks.Count -eq 1) {
             if ($disks[0].IsBoot -or $disks[0].IsSystem -or $disks[0].Size -ne $ExpectedSize) {
@@ -50,7 +51,7 @@ function Get-FixtureDisk([string]$Image, [long]$ExpectedSize = 256MB) {
             }
             return $disks[0]
         }
-        if ($timer.Elapsed.TotalSeconds -ge 15) { throw 'The owned VHDX was not enumerated as a disk within 15 seconds.' }
+        if ($timer.Elapsed.TotalSeconds -ge 30) { throw 'The owned VHDX was not enumerated as a disk within 30 seconds.' }
         Start-Sleep -Milliseconds 250
     }
 }
@@ -185,7 +186,11 @@ foreach ($case in $cases) {
         Ensure-FixtureCloudFilter $remounted
         New-Item -ItemType File -Path (Join-Path $caseRoot 'reattached') | Out-Null
         $exitWait = if ($case.Phase -eq 'during-set') { 180000 } else { 45000 }
-        if (!$test.WaitForExit($exitWait) -or $test.ExitCode -ne 0) { throw 'The native test failed after remount.' }
+        $exited = $test.WaitForExit($exitWait)
+        $testExitCode = if ($exited) { $test.ExitCode } else { $null }
+        if (!$exited -or $testExitCode -ne 0) {
+            throw "The native test failed after remount (exited=$exited, exit code=$testExitCode)."
+        }
         $trxPath = if ($OwnedWindows11X64) { Join-Path $caseRoot $trx }
             else { Join-Path $project "TestResults/$trx" }
         [xml]$result = Get-Content -Raw -LiteralPath $trxPath

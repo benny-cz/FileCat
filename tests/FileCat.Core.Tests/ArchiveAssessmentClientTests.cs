@@ -81,13 +81,19 @@ public sealed class ArchiveAssessmentClientTests
     public async Task A_stalled_worker_is_stopped_and_reaped_on_no_progress_or_user_cancellation(bool cancel)
     {
         Scripted? process = null;
+        var launched = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var queue = new ArchiveWorkerQueue();
-        var client = new ArchiveAssessmentClient((nonce, _) => process = new Scripted(Hello(nonce), stalled: true), queue,
+        var client = new ArchiveAssessmentClient((nonce, _) =>
+        { process = new Scripted(Hello(nonce), stalled: true); launched.TrySetResult(); return process; }, queue,
             cancel ? TimeSpan.FromSeconds(5) : TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(10));
         using var token = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        if (cancel) token.CancelAfter(100);
         if (cancel)
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.AssessAsync(Request, () => throw new InvalidOperationException(), token.Token));
+        {
+            var assessment = client.AssessAsync(Request, () => throw new InvalidOperationException(), token.Token);
+            await launched.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            token.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => assessment);
+        }
         else
             Assert.Equal(ArchiveWriteReason.BudgetExceeded, (await Assert.ThrowsAsync<ArchiveWriteException>(() =>
                 client.AssessAsync(Request, () => throw new InvalidOperationException(), token.Token))).Reason);

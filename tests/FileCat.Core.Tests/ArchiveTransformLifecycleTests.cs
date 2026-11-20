@@ -52,11 +52,18 @@ public sealed class ArchiveTransformLifecycleTests
     public async Task Cancellation_stops_and_reaps_a_stalled_transform_before_releasing_its_queue()
     {
         var invocation = Empty(); Scripted? child = null; var queue = new ArchiveWorkerQueue(); using var stage = new MemoryStream();
+        var launched = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var client = new ArchiveTransformClient((nonce, _) =>
-        { using var bytes = new MemoryStream(); new ArchiveWorkerProtocol(nonce, ArchiveWritePolicy.MaxWorkerWireBytes).Write(bytes, ArchiveWorkerMessage.Hello, ArchiveTransformWire.Hello); return child = new(bytes.ToArray(), stalled: true); }, queue);
-        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Ct); cancellation.CancelAfter(100);
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.RebuildAsync(invocation, stage,
-            () => throw new InvalidOperationException(), _ => throw new InvalidOperationException(), cancellation.Token));
+        {
+            using var bytes = new MemoryStream(); new ArchiveWorkerProtocol(nonce, ArchiveWritePolicy.MaxWorkerWireBytes).Write(bytes, ArchiveWorkerMessage.Hello, ArchiveTransformWire.Hello);
+            child = new(bytes.ToArray(), stalled: true); launched.TrySetResult(); return child;
+        }, queue);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        var rebuild = client.RebuildAsync(invocation, stage,
+            () => throw new InvalidOperationException(), _ => throw new InvalidOperationException(), cancellation.Token);
+        await launched.Task.WaitAsync(TimeSpan.FromSeconds(5), Ct);
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => rebuild);
         Assert.True(child!.Killed); Assert.True(child.Disposed); using var reservation = await queue.EnterAsync(Ct);
     }
 }
