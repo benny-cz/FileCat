@@ -15,6 +15,16 @@ public class UnixFileOperations : PortableFileOperations
     public const string QuarantineAttribute = "com.apple.quarantine";
     public const string OriginAttribute = "user.xdg.origin.url";
 
+    public override bool CanRetainRenameTarget(string destination) => true;
+
+    public override void MoveToFreeName(string source, string destination)
+    {
+        PathUtil.RefuseAmbiguousUnixName(source);
+        PathUtil.RefuseAmbiguousUnixName(destination);
+        int errno = UnixRename.NoReplace(source, destination);
+        if (errno != 0) throw UnixRename.Failure(errno, source, destination);
+    }
+
     /// <summary>
     /// A rename, never a copy: .NET's File.Move copies and deletes when a rename crosses file systems (btrfs subvolumes,
     /// bind mounts, overlays), unguarded, which the job engine then does itself, verified and journaled. Without

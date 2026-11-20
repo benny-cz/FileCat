@@ -168,6 +168,12 @@ public interface IFileSystemOperations
     /// </summary>
     void Move(string source, string destination, bool replaceExisting, bool writeThrough = false);
 
+    /// <summary>Whether a rename may retain the conflicting item under a free sibling name.</summary>
+    bool CanRetainRenameTarget(string destination) => CanReplaceReviewed(destination);
+
+    /// <summary>Claims a free name without falling back to a rename that may overwrite it.</summary>
+    void MoveToFreeName(string source, string destination) => Move(source, destination, replaceExisting: false, writeThrough: true);
+
     /// <summary>
     /// Atomically avoid overwriting a different destination object after its review: its complete content
     /// (<paramref name="expectedSha256"/>), or, for a file beyond the content-review budget or one a cloud provider keeps
@@ -329,6 +335,11 @@ public class PortableFileOperations : IFileSystemOperations
         DateTime? expectedModifiedUtc = null) => null;
 
     public virtual bool CanReplaceReviewed(string destination) => false;
+
+    public virtual bool CanRetainRenameTarget(string destination) => CanReplaceReviewed(destination);
+
+    public virtual void MoveToFreeName(string source, string destination) =>
+        Move(source, destination, replaceExisting: false, writeThrough: true);
 
     public virtual bool HeldDirectoryRedirected(IDisposable lease) => false;
 

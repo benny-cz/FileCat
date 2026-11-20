@@ -16,7 +16,8 @@ public sealed class RenameReplaceTests
         var providers = new ProviderRegistry();
         providers.Register(new LocalFileSystemProvider());
         var jobs = new JobManager(files, providers, root.Dir("journal"));
-        var job = jobs.Submit(new JobRequest { Kind = JobKind.Rename, Sources = [ItemRef.ForFileSystemPath(from, EntryKind.File)], NewName = to });
+        var kind = Directory.Exists(from) ? EntryKind.Directory : EntryKind.File;
+        var job = jobs.Submit(new JobRequest { Kind = JobKind.Rename, Sources = [ItemRef.ForFileSystemPath(from, kind)], NewName = to });
         var deadline = DateTime.UtcNow.AddSeconds(20);
         while (!job.State.IsFinished())
         {
@@ -69,5 +70,58 @@ public sealed class RenameReplaceTests
         Assert.False(asked.CanReplace);
         Assert.Equal("old", File.ReadAllText(b));
         Assert.Equal("renamed", File.ReadAllText(a));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Failed_folder_publication_preserves_the_original_and_any_new_occupant(bool taken)
+    {
+        using var root = new TempDir();
+        string a = root.Dir("a"), b = root.Dir("b");
+        root.File("a/identity", "incoming");
+        root.File("b/identity", "existing");
+        var files = new RetainedRenameTestFiles(() =>
+        {
+            if (taken) root.File("b/identity", "new occupant");
+            throw new IOException("Controlled failure publishing the incoming folder.");
+        });
+        string? backupName = null;
+        var job = await Rename(files, root, a, "b", question =>
+        {
+            var conflict = Assert.IsType<ConflictRequest>(question.Request);
+            Assert.True(conflict.CanReplace);
+            backupName = conflict.RenameBackupName;
+            Assert.NotNull(backupName);
+            return DecisionAction.Replace;
+        });
+        Assert.NotEqual(JobState.Completed, job.State);
+        Assert.Equal("incoming", File.ReadAllText(Path.Combine(a, "identity")));
+        Assert.Equal(taken ? "new occupant" : "existing", File.ReadAllText(Path.Combine(b, "identity")));
+        Assert.NotNull(backupName);
+        string backup = Path.Combine(root.Path, backupName);
+        if (taken)
+        {
+            Assert.Equal("existing", File.ReadAllText(Path.Combine(backup, "identity")));
+            Assert.Contains(job.Issues, issue => issue.Path == backup && issue.Outcome == StepOutcome.PartiallyApplied);
+        }
+        else Assert.False(Directory.Exists(backup));
+    }
+
+    private sealed class RetainedRenameTestFiles(Action failPublication) : PortableFileOperations
+    {
+        public override bool CanRetainRenameTarget(string destination) => true;
+
+        public override string? GetFileIdentity(string path)
+        {
+            string marker = Path.Combine(path, "identity");
+            return File.Exists(marker) ? File.ReadAllText(marker) : null;
+        }
+
+        public override void MoveToFreeName(string source, string destination)
+        {
+            if (Path.GetFileName(source) == "a") failPublication();
+            base.MoveToFreeName(source, destination);
+        }
     }
 }

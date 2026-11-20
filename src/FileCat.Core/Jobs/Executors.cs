@@ -2391,33 +2391,19 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
             Job.RootFailed(0);
             return;
         }
-        bool caseOnly = string.Equals(src, dst, StringComparison.OrdinalIgnoreCase);
-        var existing = caseOnly ? null : Fs.TryGetInfo(dst);
-        QuestionReview? atQuestion = null;
-        bool replace = false;
+        var existing = Fs.TryGetInfo(dst);
         if (existing is not null)
         {
-            // Replace as a Move replaces (review finding C7 of f134ba37): offered only where the destination can be replaced
-            // bound to its review, and only the destination the question showed.
-            bool efs = IsEfsProtected(existing);
-            bool replaceable = !existing.IsDirectory && !existing.IsLink && !info.IsDirectory && !efs && Fs.CanReplaceReviewed(dst);
-            var request = new ConflictRequest(efs ? "The destination uses Windows EFS" : "An item with this name already exists", newName, info, existing, src, dst,
-                CanReplace: replaceable, false, existing.IsDirectory != info.IsDirectory, false, null, null);
-            atQuestion = ReviewAtQuestion(request, dst);
-            var d = Job.Ask(request);
-            if (d.Action == DecisionAction.Replace && replaceable) replace = true;
-            else if (d.Action == DecisionAction.Skip)
+            string? sourceIdentity = Fs.GetFileIdentity(src), targetIdentity = Fs.GetFileIdentity(dst);
+            bool otherSpelling = string.Equals(src, dst, StringComparison.OrdinalIgnoreCase) ||
+                !OperatingSystem.IsWindows() && string.Equals(src.Normalize(), dst.Normalize(), StringComparison.OrdinalIgnoreCase);
+            // A case-sensitive directory can contain both spellings. If they resolve to the same entry,
+            // the ordinary rename path still handles case-only and normalization-only renames.
+            if (!otherSpelling || sourceIdentity != targetIdentity)
             {
-                Job.ItemSkipped();
-                Job.RootFailed(0);
+                ResolveRenameConflict(src, dst, info, existing, sourceIdentity, targetIdentity);
                 return;
             }
-            else throw new OperationCanceledException();
-        }
-        if (replace)
-        {
-            Replace(src, dst, existing!, atQuestion);
-            return;
         }
         int step = Journal.Intent("rename", src, dst);
         bool ok = TryIo(src, "rename the item", () =>
@@ -2438,10 +2424,33 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
         Job.RootCompleted(0);
     }
 
-    /// <summary>The rename over the reviewed destination, which stays at a recovery name if it cannot be removed.</summary>
-    private void Replace(string src, string dst, FileSystemItemInfo found, QuestionReview? atQuestion)
+    private void ResolveRenameConflict(string src, string dst, FileSystemItemInfo incoming, FileSystemItemInfo existing,
+        string? sourceIdentity, string? targetIdentity)
     {
-        if (ReviewForReplacement(dst, found, atQuestion) is not { } review)
+        bool efs = IsEfsProtected(existing);
+        bool same = sourceIdentity is not null && sourceIdentity == targetIdentity;
+        bool typeMismatch = existing.IsDirectory != incoming.IsDirectory;
+        bool eligible = !same && !typeMismatch && !existing.IsLink && !efs;
+        bool replaceFile = eligible && !existing.IsDirectory && Fs.CanReplaceReviewed(dst);
+        string? backupName = eligible && !replaceFile && sourceIdentity is not null && targetIdentity is not null &&
+            !existing.Attributes.HasFlag(FileAttributes.ReparsePoint) && Fs.CanRetainRenameTarget(dst)
+            ? $"Saved before rename {Guid.NewGuid():N}.bak" : null;
+        var request = new ConflictRequest(efs ? "The destination uses Windows EFS" : "An item with this name already exists",
+            Path.GetFileName(dst), incoming, existing, src, dst, replaceFile || backupName is not null, same, typeMismatch, false, null, null)
+        { RenameBackupName = backupName };
+        var atQuestion = replaceFile ? ReviewAtQuestion(request, dst) : null;
+        var decision = Job.Ask(request);
+        if (decision.Action == DecisionAction.Skip)
+        {
+            Job.ItemSkipped();
+            Job.RootFailed(0);
+            return;
+        }
+        if (decision.Action != DecisionAction.Replace || !request.CanReplace) throw new OperationCanceledException();
+
+        string? backup = backupName is null ? null : Path.Combine(Path.GetDirectoryName(dst)!, backupName);
+        var review = replaceFile ? ReviewForReplacement(dst, existing, atQuestion) : null;
+        if (replaceFile && review is null)
         {
             Job.ItemSkipped();
             Issue(IssueSeverity.Warning, dst, ChangedSinceQuestion, StepOutcome.CanceledBeforeChange);
@@ -2449,11 +2458,13 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
             return;
         }
         int step = Journal.Intent("rename-replace", src, dst, null, durable: true);
+        if (backup is not null) Journal.ReplacementRecovery(step, backup);
         BoundReplacement? bound = null;
         // Held open by another program: asked as in use, and Retry tries the same replacement again.
         if (!TryIo(dst, "replace the existing item", () =>
             {
-                bound = ReplaceReviewed(src, dst, review, step);
+                bound = backup is null ? ReplaceReviewed(src, dst, review, step)
+                    : ReplaceKeepingOriginal(src, dst, backup, incoming, existing, sourceIdentity!, targetIdentity!);
                 if (bound.InUse is { } busy) throw busy;
             }))
         {
@@ -2462,7 +2473,8 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
             Job.RootFailed(0);
             return;
         }
-        Journal.Done(step, bound!.Published ? StepOutcome.Committed : Unpublished(bound));
+        if (backup is not null && bound!.RetainedPath is not null) Journal.RequireRecovery();
+        else Journal.Done(step, bound!.Published ? StepOutcome.Committed : Unpublished(bound));
         if (bound.RetainedPath is not null)
             Issue(IssueSeverity.Warning, bound.RetainedPath, bound.Reason ?? "The replaced file remains at this recovery name.", StepOutcome.PartiallyApplied);
         if (!bound.Published)
@@ -2472,8 +2484,44 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
             Job.RootFailed(0);
             return;
         }
+        if (backup is not null)
+            Issue(IssueSeverity.Info, backup, "The previous item was saved under a backup name in the same folder.", StepOutcome.Committed);
         Job.ItemDone();
         Job.RootCompleted(0);
+    }
+
+    private BoundReplacement ReplaceKeepingOriginal(string src, string dst, string backup, FileSystemItemInfo incoming,
+        FileSystemItemInfo existing, string sourceIdentity, string targetIdentity)
+    {
+        CheckAdministratorPaths(src, dst);
+        if (Fs.GetFileIdentity(src) != sourceIdentity || Fs.TryGetInfo(src) != incoming ||
+            Fs.GetFileIdentity(dst) != targetIdentity || Fs.TryGetInfo(dst) != existing)
+            return new(false, true, Reason: "The source or destination changed after the conflict question.");
+
+        Fs.MoveToFreeName(dst, backup);
+        // Publication and rollback both claim a free name so a new occupant survives either path.
+        try
+        {
+            Job.Token.ThrowIfCancellationRequested();
+            if (Fs.GetFileIdentity(backup) != targetIdentity || Fs.GetFileIdentity(src) != sourceIdentity)
+                throw new IOException("The source or destination changed during the rename.");
+            Fs.MoveToFreeName(src, dst);
+            return new(true, false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        {
+            try
+            {
+                if (Fs.GetFileIdentity(backup) != targetIdentity)
+                    return new(false, true, backup, "The backup changed and was kept for review.");
+                Fs.MoveToFreeName(backup, dst);
+                return new(false, false, Reason: "The original destination was restored. " + ErrorText.Describe(ex));
+            }
+            catch (Exception restore) when (restore is IOException or UnauthorizedAccessException)
+            {
+                return new(false, false, backup, "The original destination is at the backup name. " + ErrorText.Describe(restore));
+            }
+        }
     }
 }
 

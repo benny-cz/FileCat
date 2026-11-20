@@ -436,12 +436,14 @@ public sealed partial class MainViewModel
 
     private static string? ValidateSiblingName(string dir, string name, string? current = null)
     {
-        if (PathUtil.ValidateNewName(name) is { } bad) return bad;
-        if (current is not null && string.Equals(name, current, StringComparison.Ordinal)) return "The name is unchanged.";
+        if (ValidateRenameName(name, current) is { } problem) return problem;
         bool caseOnly = current is not null && string.Equals(name, current, StringComparison.OrdinalIgnoreCase);
         if (!caseOnly && (File.Exists(Path.Combine(dir, name)) || Directory.Exists(Path.Combine(dir, name)))) return "An item with this name already exists here.";
         return null;
     }
+
+    private static string? ValidateRenameName(string name, string? current) =>
+        PathUtil.ValidateNewName(name) ?? (string.Equals(name, current, StringComparison.Ordinal) ? "The name is unchanged." : null);
 
     /// <summary>File-system names being edited in their rows now: the rename a Shell New command offers never takes over one.</summary>
     private int _inlineRenames;
@@ -472,7 +474,6 @@ public sealed partial class MainViewModel
             return;
         }
         var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
-        var dir = Path.GetDirectoryName(item.FileSystemPath!)!;
         string? newName;
         _inlineRenames++;
         try
@@ -481,7 +482,7 @@ public sealed partial class MainViewModel
             {
                 Text = f.Name,
                 SelectStem = !f.IsContainer,
-                Validate = n => ValidateSiblingName(dir, n, f.Name),
+                Validate = n => ValidateRenameName(n, f.Name),
                 ConfirmText = "Rename",
             });
         }
@@ -849,6 +850,15 @@ public sealed partial class MainViewModel
     private void EnqueueDecision(PendingDecision decision)
     {
         if (decision.Task.IsCompleted || decision.Job.Token.IsCancellationRequested) return;
+        // A rename conflict can finish the inline interaction while its originating panel is still active.
+        if (decision.Job.Kind == JobKind.Rename && decision.Request is ConflictRequest &&
+            _inlineRenames == 0 && !_showingDecision && !Dialogs.IsOpen &&
+            _jobOrigins.TryGetValue(decision.Job, out var origin) &&
+            ReferenceEquals(ActiveTab, origin.Tab) && Equals(origin.Tab.Location, origin.Location))
+        {
+            _ = ReviewDecisionAsync(decision.Job);
+            return;
+        }
         // Background work never replaces the user's input surface. The job's persistent attention state and
         // Review decision action remain available in both the compact strip and Operations (Ctrl+J).
         Operations.Refresh(decision.Job);

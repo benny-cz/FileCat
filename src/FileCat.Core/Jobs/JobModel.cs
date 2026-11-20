@@ -339,6 +339,7 @@ public sealed record ConflictRequest(string Title, string Message, FileSystemIte
     bool CanReplace, bool SameItem, bool TypeMismatch, bool IncomingIsNewer, string? SuggestedIncomingName, string? SuggestedExistingName) : DecisionRequest(Title, Message)
 {
     public override string ClassKey => TypeMismatch ? "conflict-type" : Incoming.IsDirectory ? "conflict-dir" : "conflict-file";
+    public string? RenameBackupName { get; init; }
 }
 
 public sealed record ErrorRequest(string Title, string Message, string Path, bool CanRetry, string ErrorClass) : DecisionRequest(Title, Message)

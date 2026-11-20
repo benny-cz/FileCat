@@ -373,6 +373,26 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         var row = DialogLayout.Actions(buttons);
         row.HorizontalAlignment = HorizontalAlignment.Right;
         foreach (var button in buttons) button.ContentTemplate ??= DialogLayout.WrappingText;
+        row.KeyDown += (_, e) =>
+        {
+            if (e.KeyModifiers != KeyModifiers.None || e.Source is not Button current) return;
+            int step = e.Key switch
+            {
+                Key.Left or Key.Up => -1,
+                Key.Right or Key.Down => 1,
+                _ => 0,
+            };
+            int index = Array.IndexOf(buttons, current);
+            if (step == 0 || index < 0) return;
+            // Keep the action order even when the footer wraps onto more than one line.
+            for (int offset = 1; offset < buttons.Length; offset++)
+            {
+                var next = buttons[(index + step * offset + buttons.Length) % buttons.Length];
+                if (!next.Focusable || !CanFocus(next) || !next.Focus(NavigationMethod.Directional)) continue;
+                e.Handled = true;
+                break;
+            }
+        };
         return row;
     }
 

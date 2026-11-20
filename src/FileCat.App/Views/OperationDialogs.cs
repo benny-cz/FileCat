@@ -522,6 +522,7 @@ public static class OperationDialogs
 
     private static async Task<Decision> ConflictAsync(MainViewModel vm, Job job, ConflictRequest c, DialogCloser closer)
     {
+        bool rename = job.Kind == JobKind.Rename;
         var body = new StackPanel { Spacing = 8 };
         body.Children.Add(Muted(job.Title));
         // The title above usually names the destination already: the folder is repeated only when it says more.
@@ -561,7 +562,9 @@ public static class OperationDialogs
             body.Children.Add(remoteReplacementWarning);
         }
         if (c.TypeMismatch) body.Children.Add(new TextBlock { Text = "A file and a folder cannot replace each other.", TextWrapping = TextWrapping.Wrap, Classes = { "warning" } });
-        if (c.SameItem) body.Children.Add(new TextBlock { Text = "Source and destination are the same item: only a renamed copy is possible.", TextWrapping = TextWrapping.Wrap, Classes = { "warning" } });
+        if (c.SameItem) body.Children.Add(new TextBlock { Text = rename ? "Both names refer to the same item." : "Source and destination are the same item: only a renamed copy is possible.", TextWrapping = TextWrapping.Wrap, Classes = { "warning" } });
+        if (c.RenameBackupName is { } backup)
+            body.Children.Add(Text($"The existing item will be kept in this folder as “{Formatters.SafeName(backup)}”."));
         void SuggestedName(string label, string? name)
         {
             if (name is null) return;
@@ -620,16 +623,16 @@ public static class OperationDialogs
         body.Children.Add(tools);
         body.Children.Add(compareResult);
         var applyAll = new CheckBox { Content = "Do the same for other conflicts in this operation" };
-        body.Children.Add(applyAll);
+        if (!rename) body.Children.Add(applyAll);
 
         var buttons = new List<DialogButton>();
         if (c.CanReplace)
         {
             buttons.Add(new DialogButton("Replace", DecisionAction.Replace, IsDanger: true));
-            buttons.Add(new DialogButton("Replace if newer", DecisionAction.ReplaceIfNewer, IsDanger: true));
+            if (!rename) buttons.Add(new DialogButton("Replace if newer", DecisionAction.ReplaceIfNewer, IsDanger: true));
         }
         buttons.Add(new DialogButton("Skip", DecisionAction.Skip, IsDefault: true));
-        buttons.Add(new DialogButton("Keep both", DecisionAction.KeepBothRenameIncoming));
+        if (!rename) buttons.Add(new DialogButton("Keep both", DecisionAction.KeepBothRenameIncoming));
         if (c.SuggestedExistingName is not null && !c.TypeMismatch)
             buttons.Add(new DialogButton("Rename existing", DecisionAction.KeepBothRenameExisting));
         buttons.Add(new DialogButton("Cancel operation", DecisionAction.CancelJob, IsCancel: true));
