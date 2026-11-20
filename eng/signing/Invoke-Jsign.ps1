@@ -70,7 +70,8 @@ try {
     $listFile = Join-Path $scratch 'files.txt'
     [IO.File]::WriteAllLines($listFile, $list)
     $arguments.Add("@$listFile")
-    & $java @arguments
+    # Jsign's per-file lines go to the log, not into the output of whichever script called this one.
+    & $java @arguments | Out-Host
     if ($LASTEXITCODE -ne 0) { throw "Jsign failed with exit code $LASTEXITCODE." }
     foreach ($copy in $renamed.Keys) { Copy-Item -LiteralPath $copy -Destination $renamed[$copy] -Force }
 } finally {
