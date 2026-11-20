@@ -145,10 +145,21 @@ foreach ($case in $cases) {
         $hash = (Get-FileHash -LiteralPath $target).Hash
         Set-Content -LiteralPath (Join-Path $caseRoot 'target.txt') -Value $target -Encoding ascii
         [Environment]::SetEnvironmentVariable($case.Variable, $caseRoot)
-        $test = Start-Process -FilePath $powerShell -ArgumentList @(
+        $testStart = @{
+            FilePath = $powerShell
+            ArgumentList = @(
             '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', "`"$qualification`"",
-            '-Project', "`"$project`"", '-LogFileName', $trx, '-Filter', "FullyQualifiedName~$($case.Test)") -PassThru -WindowStyle Hidden `
-            -RedirectStandardOutput (Join-Path $caseRoot 'test.stdout.log') -RedirectStandardError (Join-Path $caseRoot 'test.stderr.log')
+            '-Project', "`"$project`"", '-LogFileName', $trx, '-Filter', "FullyQualifiedName~$($case.Test)")
+            PassThru = $true
+            WindowStyle = 'Hidden'
+        }
+        # Windows PowerShell 5.1 can return a null ExitCode for a Start-Process object when
+        # standard output is redirected. The owned x64 launcher writes its own logs.
+        if (!$OwnedWindows11X64) {
+            $testStart.RedirectStandardOutput = Join-Path $caseRoot 'test.stdout.log'
+            $testStart.RedirectStandardError = Join-Path $caseRoot 'test.stderr.log'
+        }
+        $test = Start-Process @testStart
         $marker = if ($case.Phase -eq 'during-set') { 'in-flight' } else { 'prepared' }
         Wait-FixtureMarker $caseRoot $test $marker 90
         if ($case.Phase -eq 'during-set' -and (Test-Path -LiteralPath (Join-Path $caseRoot 'native-returned'))) {
