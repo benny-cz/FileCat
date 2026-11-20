@@ -104,8 +104,9 @@ switch ($Phase) {
         Write-Host "Payload verified: $($expected.Count) files match the build job's manifest."
 
         # The SBOMs check every package the payload takes against the restored archives; restoring runs no package code.
+        # RuntimeIdentifier, as dotnet publish -r sets it: restore's own -r would replace the projects' locked runtime list.
         foreach ($project in 'src/FileCat.App/FileCat.App.csproj', 'src/FileCat.PrivilegedHost/FileCat.PrivilegedHost.csproj', 'src/FileCat.ShellHost/FileCat.ShellHost.csproj') {
-            dotnet restore (Join-Path $repo $project) -r win-x64 -p:SelfContained=true -p:PublishReadyToRun=true
+            dotnet restore (Join-Path $repo $project) -p:RuntimeIdentifier=win-x64 -p:SelfContained=true -p:PublishReadyToRun=true
             if ($LASTEXITCODE -ne 0) { throw "Locked restore failed: $project" }
         }
         $jsign = & (Join-Path $PSScriptRoot 'Acquire-Jsign.ps1') -ToolRoot (Join-Path $WorkDirectory 'tools/jsign')
