@@ -39,6 +39,10 @@ on:
         description: Qualify sparse main and named streams through native storage transforms
         type: boolean
         default: false
+      sparse_large_efs:
+        description: Qualify a reviewed EFS round trip on a sparse main stream beyond 4 GiB
+        type: boolean
+        default: false
       volumes:
         description: Qualify compression refusals on prepared 64 KiB and read-only NTFS volumes
         type: boolean
@@ -369,6 +373,40 @@ jobs:
               throw 'The native 10,000-file benchmark must execute and pass.'
             }
           }
+      - name: Qualify large sparse EFS on native ARM64
+        if: inputs.sparse_large_efs
+        shell: pwsh
+        run: |
+          $fixture = Join-Path $env:RUNNER_TEMP 'filecat-native-storage-abi-fixture'
+          if (!(Test-Path -LiteralPath $fixture -PathType Container)) {
+            throw 'The prepared private NTFS fixture is missing.'
+          }
+          $volumeRoot = [IO.Path]::GetPathRoot($fixture)
+          $freeBytes = (Get-PSDrive -Name $volumeRoot[0]).Free
+          [ordered]@{
+            commit = $env:GITHUB_SHA
+            fixture = $fixture
+            freeBytesBefore = $freeBytes
+            testAssembly = (Get-FileHash tests/FileCat.Platform.Windows.Tests/bin/Release/net10.0/FileCat.Platform.Windows.Tests.dll).Hash
+          } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'filecat-native-storage-abi-evidence/large-sparse-efs.json')
+          if ($freeBytes -le 24GB) { throw "Large sparse EFS requires more than 24 GiB free; observed $freeBytes bytes." }
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ROOT = $fixture
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS = '1'
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_OUTPUTS = '1'
+          $env:FILECAT_TEST_EFS = '1'
+          $env:FILECAT_TEST_SPARSE_TRANSFORMS = '1'
+          $env:FILECAT_TEST_SPARSE_LARGE_EFS = '1'
+          $env:FILECAT_TEST_SPARSE_LARGE_EFS_ROOT = $fixture
+          $env:TMP = $fixture
+          $env:TEMP = $fixture
+          ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Platform.Windows.Tests -LogFileName native-storage-large-sparse-efs.trx -Filter 'FullyQualifiedName~Reviewed_efs_jobs_preserve_a_sparse_file_beyond_the_four_gib_boundary'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          [xml]$receipt = Get-Content -LiteralPath 'tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-large-sparse-efs.trx' -Raw
+          $counters = $receipt.TestRun.ResultSummary.Counters
+          if ($counters.total -ne '1' -or $counters.executed -ne '1' -or $counters.passed -ne '1') {
+            throw 'The native ARM64 large sparse EFS case must execute and pass.'
+          }
       - name: Qualify compression refusal on prepared NTFS volumes
         if: inputs.volumes
         shell: pwsh
@@ -669,6 +707,7 @@ jobs:
             tests/FileCat.Platform.Windows.Tests/TestResults/native-listing-volume-cold-*.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-scale.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-sparse.trx
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-large-sparse-efs.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-evidence-limits.trx
             tests/FileCat.Core.Tests/TestResults/native-efs-archive-output.trx
             tests/FileCat.Core.Tests/TestResults/native-efs-recovery-output.trx
