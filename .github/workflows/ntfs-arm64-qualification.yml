@@ -595,8 +595,10 @@ jobs:
           $err = Join-Path $root 'review.err.txt'
           $arguments = @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',('"{0}"' -f (Resolve-Path $driver).Path),
             '-TestRoot',('"{0}"' -f $review),'-NvdaPath',('"{0}"' -f $nvda),'-HostedArm64','-HighContrastPictures','-VerifyDuplicateRoots')
+          # Start-Process inherits the PowerShell 7 module path unless we supply the Windows PowerShell path.
+          $modules = Join-Path (Split-Path -Parent $desktopPowerShell) 'Modules'
           $run = Start-Process -FilePath $desktopPowerShell -ArgumentList $arguments -WindowStyle Hidden -PassThru `
-            -RedirectStandardOutput $output -RedirectStandardError $err
+            -Environment @{ PSModulePath = $modules } -RedirectStandardOutput $output -RedirectStandardError $err
           [void]$run.Handle
           $requested = $false
           while (!$run.HasExited) {
