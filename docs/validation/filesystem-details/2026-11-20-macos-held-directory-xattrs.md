@@ -21,8 +21,8 @@ records the observed directory identity, and requests the compression-visible
 view when selected. If that view is unsupported, it retries the ordinary view
 on the same descriptor and says compression backing was not inventoried.
 Ordinary files, symlinks and special nodes retain the partial no-follow path
-view. Directory value, export and delete actions remain unavailable until
-their own bound action protocol is qualified. The saved-search predicate still
+view. At this inventory checkpoint, directory value, export and delete
+actions remained unavailable. The saved-search predicate still
 requests only its declared ordinary xattr view, including on directories.
 
 The focused Mac Core run passed 11 tests, skipped four Linux or unprepared
@@ -38,7 +38,42 @@ The tested Core and App assemblies had SHA-256
 `267D148372DAF3BB42D49CD073C9E89D26B08EC0A6959E343B2EDA2C053C703C`
 and `B23C7E8E60D360F93FC14DD4BA3C8F0499A878E98AB5B254567F1F393951B506`.
 
-This qualifies the tested local APFS directory inventory only. It does not
-qualify a regular-file descriptor, compression-visible file attributes,
-value actions, dataless File Provider callbacks, other filesystems, or Intel
-Macs. F-EXTRA and N-MAC remain partial.
+This inventory checkpoint qualifies the tested local APFS directory only. The
+subsequent value-action checkpoint below extends that scope; regular-file
+descriptor binding, dataless File Provider callbacks, other filesystems and
+Intel Macs remain open. F-EXTRA and N-MAC remain partial.
+
+## Held-directory explicit values and export, 20 November 2026
+
+A separate native probe on the same Apple silicon APFS data volume opened a
+directory with `O_DIRECTORY | O_EVTONLY | O_NOFOLLOW | O_CLOEXEC` and read its
+exact xattr value through `fgetxattr` in both ordinary and
+`XATTR_SHOWCOMPRESSION` views. Both calls returned the eight-byte fixture
+value. This established that the held descriptor supports explicit value
+reads without opening the directory data fork.
+
+FileCat now reacquires and checks a held directory for each explicit read. It
+resolves the exact typed name on that descriptor, caps the value at 16 MiB,
+observes its identity and change token around the read, and runs the entire
+acquisition under the thread's no-materialization policy. The same captured
+value supplies the selected-value report and F5 copy. Darwin directory xattr
+deletion remains disabled; files, symlinks and special objects still have no
+bound value action.
+
+On macOS 27.2.1 arm64, the focused [Core TRX](receipts/2026-11-20-mac-held-directory-value/core.trx)
+passed 1/1 with no skips or failures. It checked direct value read, report
+provenance, export-source bytes and provenance, deletion refusal, symlink
+refusal and reviewed-identity refusal after replacing the selected directory.
+The focused [App TRX](receipts/2026-11-20-mac-held-directory-value/app.trx)
+passed 1/1 with no skips or failures; its headless UI opened the directory
+attribute, displayed the selected-value report, completed an F5 copy into a
+file, verified the bytes and exposed no delete capability. The prior ordinary
+file UI test also passed, with two Windows-only tests skipped. The Core and
+App result SHA-256 digests are respectively
+`0F8D9736464F20F1E4441E4CA2044D0C6C42C13F171EB90EA714F179F7C66DD1`
+and `D19EF0F43E772725290A1F8F337AE91090B5FA354F3CF169A8D4AEC44A9AE133`;
+the tested assemblies are
+`A4C627A435BB7E068A5B7C5E384EE53C6C536907B38AE2F46C95D8BEEA5C7E0A`
+and `13C1E2AB906E7638296C0F08895FE2A33ED770C031432C5C6B0EDF12043D90E7`.
+Live dataless-directory callbacks, actual compressed backing values, HFS and
+Intel Mac remain unqualified.

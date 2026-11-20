@@ -17,6 +17,8 @@ public sealed record HiddenInventory(string Path, DateTimeOffset ObservedAt, Imm
     public bool BoundToObject { get; init; }
     public bool ActionsAvailable { get; init; } = true;
     public bool CanAct => BoundToObject && ActionsAvailable;
+    public bool DeletionAvailable { get; init; } = true;
+    public bool CanDelete => CanAct && DeletionAvailable;
     public bool ValueBearingQueryIssued { get; init; }
     public string? Notice { get; init; }
     public bool IsComplete => Categories.Length > 0 && Categories.All(c => c.State == HiddenInventoryState.Complete);

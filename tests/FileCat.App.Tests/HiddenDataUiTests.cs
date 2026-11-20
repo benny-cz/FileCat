@@ -152,6 +152,45 @@ public sealed class HiddenDataUiTests
     }
 
     [AvaloniaFact]
+    public async Task Mac_held_directory_attribute_can_be_reported_and_copied_without_a_delete_action()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "Requires the held macOS directory xattr adapter.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            const string name = "org.filecat.payload";
+            string directory = Directory.CreateDirectory(Path.Combine(root, "files", "held")).FullName;
+            string destination = Directory.CreateDirectory(Path.Combine(root, "out")).FullName;
+            Assert.Equal(0, SetAttribute(directory, name, "held directory value"u8.ToArray()));
+            var sourcePanel = vm.Workspace.Panels[0];
+            var tab = sourcePanel.ActiveTab!;
+            vm.Workspace.Panels[1].ActiveTab!.Navigate(Location.FileSystem(destination));
+            tab.Navigate(HiddenDataProvider.Of(directory));
+            vm.Workspace.Activate(sourcePanel);
+            await Until(() => tab.Listing.State == ListingState.Complete && Rows(tab).Any(row => row.Name == name),
+                () => "the held directory attribute is listed. " + tab.SupplementaryInventoryText);
+            Assert.False(Assert.IsType<HiddenDataProvider>(tab.Listing.Provider)
+                .GetCapabilities(tab.Location!).HasFlag(LocationCapabilities.Delete));
+            var row = Assert.Single(Rows(tab), candidate => candidate.Name == name);
+            Assert.False(row.Has(EntryFlags.Unavailable));
+            tab.Listing.SetFocus(Rows(tab).FindIndex(candidate => candidate.Name == name) + (tab.Listing.HasParentRow ? 1 : 0));
+            var report = await OpenSelectedValueReport(window);
+            try { Assert.Contains("held directory value", report.Text); }
+            finally { report.Close(); }
+
+            vm.Execute(CommandIds.Copy);
+            await Click(window, "Copy");
+            await Until(() => services.Jobs.Jobs.Count > 0 && services.Jobs.Jobs[^1].State.IsFinished(),
+                "the held directory attribute copy finishes");
+            Assert.Equal(JobState.Completed, services.Jobs.Jobs[^1].State);
+            Assert.Equal("held directory value", File.ReadAllText(Path.Combine(destination, name)));
+            Assert.Equal("held directory value", Encoding.UTF8.GetString(new UnixHiddenData().Read(directory,
+                new HiddenItem(name, HiddenKind.Attribute, -1), 64)));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Delete_confirmation_keeps_the_file_identity_from_before_a_refresh()
     {
         Assert.SkipUnless(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), "Requires a bound supplementary-data adapter.");

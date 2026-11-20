@@ -58,7 +58,8 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
 
     /// <summary>Listed, read (F3, and F5 through the job engine, which carries the file's download mark onto what it saves), and deleted.</summary>
     public override LocationCapabilities GetCapabilities(Location location) =>
-        LocationCapabilities.Enumerate | LocationCapabilities.ReadContent | LocationCapabilities.Delete;
+        LocationCapabilities.Enumerate | LocationCapabilities.ReadContent |
+        (OperatingSystem.IsMacOS() ? LocationCapabilities.None : LocationCapabilities.Delete);
 
     public override string ExplainUnavailable(Location location, LocationCapabilities capability) => capability switch
     {
@@ -128,7 +129,7 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
     private IContentSource? OpenForOutput(ItemRef item, out OutputEfsObservation? provenance)
     {
         provenance = new OutputEfsObservation();
-        if (!OperatingSystem.IsWindows()) return OpenContent(item);
+        if (OperatingSystem.IsLinux()) return OpenContent(item);
         return OpenBoundOutput(FileOf(item.Parent), RequestedValue(item), provenance, reviewed: null);
     }
 
