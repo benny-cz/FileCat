@@ -22,7 +22,7 @@ public sealed partial class UnixHiddenInventoryNativeTests
             Assert.True(compression.IsComplete);
             Assert.True(compression.BoundToObject);
             Assert.True(compression.CanAct);
-            Assert.False(compression.CanDelete);
+            Assert.True(compression.CanDelete);
             Assert.NotNull(compression.Identity);
             Assert.Contains("compression-visible", compression.Categories[0].Scope);
             Assert.Contains("included in the requested API view", compression.Notice);
@@ -36,8 +36,7 @@ public sealed partial class UnixHiddenInventoryNativeTests
                 Assert.Equal(payload, bytes.ToArray());
             }
             var provider = new HiddenDataProvider(hidden);
-            Assert.False(provider.GetCapabilities(HiddenDataProvider.Of(root)).HasFlag(LocationCapabilities.Delete));
-            Assert.Throws<NotSupportedException>(() => hidden.Delete(root, item));
+            Assert.True(provider.GetCapabilities(HiddenDataProvider.Of(root)).HasFlag(LocationCapabilities.Delete));
             var selected = new ItemRef(HiddenDataProvider.Of(root), item.Name, EntryKind.File)
                 { Ordinal = HiddenIdentities.Ordinal(HiddenKind.Attribute), SupplementarySourceIdentity = compression.Identity };
             var report = provider.ReadValueReport(selected, compression.Identity!.Value, TestContext.Current.CancellationToken);
@@ -56,6 +55,9 @@ public sealed partial class UnixHiddenInventoryNativeTests
                 Assert.False(receipt.HasUnknownInput);
                 Assert.Equal(compression.Identity, Assert.Single(receipt.Contributors).Identity);
             }
+
+            provider.DeleteReviewedValue(selected, compression.Identity!.Value, TestContext.Current.CancellationToken);
+            Assert.Empty(hidden.ReadInventory(root, new(), TestContext.Current.CancellationToken).Items);
 
             var ordinary = hidden.ReadInventory(root, new(ShowCompressionBacking: false), TestContext.Current.CancellationToken);
             Assert.True(ordinary.IsComplete);
@@ -87,6 +89,10 @@ public sealed partial class UnixHiddenInventoryNativeTests
             Assert.Contains("different directory", Assert.Throws<IOException>(() => provider.OpenContent(selectedRef)).Message);
             Assert.Contains("different directory", Assert.Throws<IOException>(() =>
                 output.OpenUnprotectedOutput(selectedRef, ContentOutputKind.Extraction)).Message);
+            Assert.Contains("different directory", Assert.Throws<IOException>(() =>
+                provider.DeleteReviewedValue(selectedRef, original.Identity!.Value, TestContext.Current.CancellationToken)).Message);
+            Assert.Contains(hidden.ReadInventory(selectedPath, new(), TestContext.Current.CancellationToken).Items,
+                observed => observed.Name == "com.filecat.bound-probe");
         }
         finally { Directory.Delete(root, true); }
     }

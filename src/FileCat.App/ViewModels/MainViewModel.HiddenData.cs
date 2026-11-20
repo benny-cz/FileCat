@@ -60,6 +60,7 @@ public sealed partial class MainViewModel
             text += " Without its download mark the file opens without the warning the system gives downloaded files.";
         if (!await Dialogs.ConfirmAsync("Delete", text, "Delete", danger: true)) return;
         var failures = new List<string>();
+        var uncertain = new List<string>();
         string device = Services.Providers.For(Core.Resources.Location.FileSystem(file)).GetDeviceKey(Core.Resources.Location.FileSystem(file));
         await Core.Records.FileObservationRequests.RunOwned(Services.Io, device, Core.Threading.IoPriority.Interactive, ct =>
         {
@@ -69,6 +70,11 @@ public sealed partial class MainViewModel
                 {
                     ct.ThrowIfCancellationRequested();
                     provider.DeleteReviewedValue(item, reviewed, ct);
+                }
+                catch (HiddenDataMutationUncertainException ex)
+                {
+                    uncertain.Add($"{item.Name}: {ex.Message}");
+                    break;
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
                 {
@@ -82,7 +88,8 @@ public sealed partial class MainViewModel
         // failure so the next visible row reads the provider's actual current count.
         Services.Metadata.Forget("hidden", file);
         if (Equals(tab.Location, location)) tab.Refresh();
-        if (failures.Count > 0) Notify("Not deleted: " + string.Join("; ", failures), true);
+        if (uncertain.Count > 0) Notify("Deletion needs review: " + string.Join("; ", uncertain), true);
+        else if (failures.Count > 0) Notify("Not deleted: " + string.Join("; ", failures), true);
         else Notify(items.Count == 1 ? $"Deleted “{items[0].Name}”." : $"Deleted {items.Count} streams and attributes.");
     }
 }

@@ -59,6 +59,8 @@ public interface IHiddenData
     void Delete(string path, HiddenItem item);
 }
 
+public sealed class HiddenDataMutationUncertainException(string message) : IOException(message);
+
 /// <summary>What the systems and browsers write on every download: common, so not what a search for hidden data wants.</summary>
 public static class DownloadMarks
 {

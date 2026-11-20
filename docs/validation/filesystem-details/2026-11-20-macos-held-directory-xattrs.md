@@ -112,3 +112,9 @@ the tested assembly hashes are
 and `8DFC304911068DB13DBA95771A7130436C069CD234FDE2ADAF72A5EEF3063FEB`.
 The isolated source copy was removed after the run, restoring the VM's prior
 free space.
+
+## Held-directory attribute deletion, 20 November 2026
+
+On macOS 27.2.1 arm64, an isolated libc probe confirmed that `fremovexattr` can remove an ordinary attribute through the same `O_DIRECTORY | O_EVTONLY | O_NOFOLLOW` descriptor used by the qualified held-directory inventory. FileCat now offers deletion only when the directory inventory is complete in the compression-visible API view. Immediately before removal it reopens the directory without following links, compares the captured identity, resolves the exact category and native name from a fresh complete inventory, refuses managed or unqualified roles, and checks that the held revision did not change. Cancellation is checked before the native removal, never after its effect may have occurred. An unsuccessful restoration of the thread's no-materialization policy after removal reports an uncertain effect and stops the deletion batch.
+
+The focused [native Core TRX](receipts/2026-11-20-macos-held-directory-delete/mac-core.trx) passed 1/1. It exercised the provider's reviewed deletion of an ordinary directory attribute and verified an empty subsequent inventory; after replacing a selected directory at its pathname, the same action refused the stale identity and left the replacement attribute present. The TRX SHA-256 is `1E0DE6C95BC01FF0457F7C755EDDE480D241DDAB8D62CD27DC5DEC0F1341A301`; the tested Core assembly SHA-256 is `04AA170546F3368DB597A3E3D918C365E26DD65E4A1FB5592DFF72AB70179AB6`. Windows host builds of Core.Tests and App.Tests passed with zero warnings and errors. This qualifies ordinary held-directory attribute deletion on the tested APFS Mac. Regular-file deletion and dataless-provider callbacks remain outside this result.

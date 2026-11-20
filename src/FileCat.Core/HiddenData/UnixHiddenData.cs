@@ -83,6 +83,11 @@ public sealed partial class UnixHiddenData : IHiddenData, IHiddenValueOutput, IH
 
     private static void DeleteCore(string path, HiddenItem item, FileIdentity? reviewed, CancellationToken ct)
     {
+        if (OperatingSystem.IsMacOS())
+        {
+            DeleteMacDirectoryValue(path, item, reviewed, ct);
+            return;
+        }
         using var file = OpenActionFile(path, item, ct);
         if (reviewed is { } expected && UnixFiles.Stat(file)?.Identity != expected)
             throw new IOException("The supplementary value belongs to a different file. Refresh the inventory and try again.");

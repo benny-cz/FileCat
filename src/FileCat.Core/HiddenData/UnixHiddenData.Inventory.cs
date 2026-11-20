@@ -202,8 +202,9 @@ public sealed partial class UnixHiddenData
                 Identity = stat.Identity,
                 BoundToObject = true,
                 ActionsAvailable = held.State == HiddenInventoryState.Complete,
-                DeletionAvailable = false,
-                Notice = $"{heldBacking} No values read for this inventory. Explicit directory value reads and exports use a fresh held descriptor; deletion is unavailable.",
+                DeletionAvailable = compressionView,
+                Notice = $"{heldBacking} No values read for this inventory. Explicit directory value reads and exports use a fresh held descriptor." +
+                    (compressionView ? " Deletion requires a fresh held descriptor and complete compression-visible inventory." : " Deletion requires a complete compression-visible inventory."),
             };
         }
         if (Marshal.GetLastPInvokeError() == MacMaterializationPolicy.Required)
@@ -292,6 +293,42 @@ public sealed partial class UnixHiddenData
         }, (failure, reason) => throw new IOException(reason));
     }
 
+    private static void DeleteMacDirectoryValue(string path, HiddenItem item, FileIdentity? reviewed, CancellationToken ct)
+    {
+        if (item.Kind is not (HiddenKind.Attribute or HiddenKind.ResourceFork) || item.Name.Length == 0 || item.Name.Contains('\0') ||
+            !Encoding.UTF8.GetString(new UTF8Encoding(false, true).GetBytes(item.Name)).Equals(item.Name, StringComparison.Ordinal))
+            throw new NotSupportedException("The attribute category or native name is invalid; refresh required.");
+        bool removed = false;
+        // Cancellation is checked before the native call, never after its effect may have occurred.
+        _ = MacMaterializationPolicy.Run(default, () =>
+        {
+            using var directory = OpenMacActionDirectory(path, ct);
+            var stat = UnixFiles.Stat(directory) ?? throw new IOException("Held directory metadata is unavailable.");
+            if (reviewed is { } expected && stat.Identity != expected)
+                throw new IOException("The supplementary value belongs to a different directory. Refresh the inventory and try again.");
+            string? before = SourceChangeToken.FromHandle(directory);
+            if (before is null) throw new IOException("Held directory revision is unavailable; refresh required.");
+            var (names, compressionView) = CollectMacHeldInventory(path, directory, showCompression: true, ct);
+            if (!compressionView) throw new NotSupportedException("Deletion requires a complete compression-visible directory inventory.");
+            if (names.State != HiddenInventoryState.Complete)
+                throw new IOException("The attribute category could not be completely resolved; refresh required. " + names.Reason);
+            var current = names.Items.SingleOrDefault(i => i.Kind == item.Kind && i.Name == item.Name)
+                ?? throw new FileNotFoundException("The exact attribute is missing; refresh required.", path);
+            if (HiddenMetadataRoles.DeleteRefusal(current) is { } reason) throw new NotSupportedException(reason);
+            if (SourceChangeToken.FromHandle(directory) != before)
+                throw new IOException("The directory changed before its attribute could be removed; refresh required.");
+            ct.ThrowIfCancellationRequested();
+            if (MacFdRemove(directory, current.Name, 0) != 0) throw InventoryError(path, Marshal.GetLastPInvokeError());
+            removed = true;
+            return new object();
+        }, (failure, reason) =>
+        {
+            if (failure == MacMaterializationPolicy.Failure.RestoreFailed && removed)
+                throw new HiddenDataMutationUncertainException("The attribute may have been removed, but FileCat could not restore the metadata policy. Refresh the inventory before another action.");
+            throw new IOException(reason);
+        });
+    }
+
     private static byte[] ReadMacHeldAttribute(SafeFileHandle directory, string path, string name, int max, int options)
     {
         for (int attempt = 0; attempt < 3; attempt++)
@@ -350,6 +387,8 @@ public sealed partial class UnixHiddenData
     private static partial nint MacFdList(SafeFileHandle directory, byte[]? names, nint size, int options);
     [LibraryImport("libc", EntryPoint = "fgetxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial nint MacFdGet(SafeFileHandle directory, string name, byte[]? value, nint size, uint position, int options);
+    [LibraryImport("libc", EntryPoint = "fremovexattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial int MacFdRemove(SafeFileHandle directory, string name, int options);
     [LibraryImport("libc", EntryPoint = "syscall", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial nint LinuxListXattrAt(nint syscall, int directory, string entry, uint flags, byte[]? names, nint size);
     [LibraryImport("libc", EntryPoint = "syscall", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
