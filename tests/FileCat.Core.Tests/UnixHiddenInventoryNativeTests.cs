@@ -70,10 +70,12 @@ public sealed partial class UnixHiddenInventoryNativeTests
             string fifo = Path.Combine(root, "fifo"), link = Path.Combine(root, "directory-link");
             Assert.Equal(0, Fifo(fifo, 0x180));
             string nested = Directory.CreateDirectory(Path.Combine(root, "real-directory")).FullName;
+            Assert.Equal(0, MacSet(nested, item.Name, "must-not-read"u8.ToArray(), "must-not-read"u8.Length, 0, 0));
             File.CreateSymbolicLink(link, nested);
             Assert.False(hidden.ReadInventory(fifo, new(), TestContext.Current.CancellationToken).BoundToObject);
             Assert.False(hidden.ReadInventory(link, new(), TestContext.Current.CancellationToken).BoundToObject);
-            Assert.Throws<IOException>(() => hidden.Read(link, item, 32));
+            Assert.True(Record.Exception(() => hidden.Read(link, item, 32)) is IOException or NotSupportedException,
+                "A symlink must be refused before its target attribute can be read.");
 
             string selectedPath = Directory.CreateDirectory(Path.Combine(root, "selected")).FullName;
             Assert.Equal(0, MacSet(selectedPath, "com.filecat.bound-probe", payload, payload.Length, 0, 0));
