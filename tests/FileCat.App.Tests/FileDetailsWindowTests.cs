@@ -24,7 +24,12 @@ public sealed class FileDetailsWindowTests
         {
             if (Fail) throw new IOException("fixture failure");
             return new(path, DateTimeOffset.Parse("2026-11-17T10:00:00Z").AddMinutes(++Summaries), Guid.NewGuid())
-                { Kind = FileObjectKind.File, Notes = ["Summary " + Summaries] };
+            {
+                Kind = FileObjectKind.File,
+                Identity = ObservedFact<DetailsIdentity>.Known(new("fixture-volume", "recycled-id"), FactScope.Entry, "fixture"),
+                LogicalSize = ObservedFact<long>.Known(64, FactScope.MainData, "fixture"),
+                Notes = ["Summary " + Summaries],
+            };
         }
         public FileDetailsReport ReadFull(string path, FileDetailsPolicy policy, CancellationToken ct)
         {
@@ -77,6 +82,71 @@ public sealed class FileDetailsWindowTests
             Assert.Equal("Read full record", window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Read full record").Content);
         }
         finally { records.Release.Set(); window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task Full_report_replaces_the_summary_when_the_path_has_a_new_object_with_the_same_size_and_time()
+    {
+        using var io = new DeviceIoScheduler();
+        IFileRecords records = OperatingSystem.IsWindows()
+            ? new FileCat.Platform.Windows.WindowsFileRecords()
+            : new UnixFileRecords();
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateTempSubdirectory("filecat-details-replaced-").FullName;
+        string path = Path.Join(root, "entry.txt");
+        string previousPath = Path.Join(root, "retired.txt");
+        const string oldPayload = "original-payload";
+        const string newPayload = "replaced-payload";
+        using var reader = new FileDetailsReader(records, io, "details-replaced", path);
+        var window = new ReportWindow(path, reader);
+        try
+        {
+            File.WriteAllText(path, oldPayload);
+            var oldSummary = records.ReadSummary(path, ct);
+            Assert.Equal(FactState.Known, oldSummary.Identity.State);
+            var oldId = oldSummary.Identity.Value!;
+            string oldEvidence = oldId.Device + " / " + oldId.Object;
+            window.Show();
+            await window.Reading!;
+            Assert.Contains(oldEvidence, window.Text);
+
+            DateTime timestamp = File.GetLastWriteTimeUtc(path);
+            File.Move(path, previousPath);
+            File.WriteAllText(path, newPayload);
+            File.SetLastWriteTimeUtc(path, timestamp);
+            var replacement = records.ReadSummary(path, ct);
+            Assert.Equal(FactState.Known, replacement.Identity.State);
+            Assert.Equal(FactState.Known, replacement.LogicalSize.State);
+            Assert.Equal(oldSummary.LogicalSize.Value, replacement.LogicalSize.Value);
+            Assert.Equal(timestamp, File.GetLastWriteTimeUtc(path));
+            var newId = replacement.Identity.Value!;
+            Assert.NotEqual(oldId, newId);
+            string newEvidence = newId.Device + " / " + newId.Object;
+
+            await window.SwitchDetailsTierForTestAsync();
+            string full = window.Text;
+            Assert.Contains(path, full);
+            Assert.Contains("Full record · metadata only", full);
+            Assert.Contains(newEvidence, full);
+            Assert.DoesNotContain(oldEvidence, full);
+            Assert.Contains("Changed object: identity differs from the previous observation.", full);
+            Assert.DoesNotContain(oldPayload, full);
+            Assert.DoesNotContain(newPayload, full);
+            await window.SwitchDetailsTierForTestAsync();
+            Assert.Contains(newEvidence, window.Text);
+            Assert.DoesNotContain(oldEvidence, window.Text);
+            await window.SwitchDetailsTierForTestAsync();
+            Assert.Equal(full, window.Text);
+            Assert.Equal(oldPayload, File.ReadAllText(previousPath));
+            Assert.Equal(newPayload, File.ReadAllText(path));
+        }
+        finally
+        {
+            window.Close();
+            File.Delete(path);
+            File.Delete(previousPath);
+            Directory.Delete(root);
+        }
     }
 
     [AvaloniaFact]

@@ -270,28 +270,49 @@ public sealed class StorageCommandNativeTests
             var nestedTab = origin.Panel.OpenTab(Location.FileSystem(nested), activate: false);
             var unrelatedTab = origin.Panel.OpenTab(Location.FileSystem(unrelated), activate: false);
             var tabs = new[] { origin, branchTab, nestedTab, unrelatedTab };
-            await Until(() => tabs.All(tab => tab.Listing.State == ListingState.Complete && !tab.Listing.IsRefreshing));
-            Assert.Same(origin, vm.ActiveTab);
+            bool ListingsSettled() => tabs.All(tab => tab.Listing.State == ListingState.Complete && !tab.Listing.IsRefreshing);
+            await Until(ListingsSettled);
             origin.Listing.MarkNames(["branch"], true);
             nestedTab.Listing.MarkNames(["content.txt"], true);
             unrelatedTab.Listing.MarkNames(["other.txt"], true);
-            Assert.All(new[] { origin, nestedTab, unrelatedTab }, tab => Assert.Equal(1, tab.Listing.MarkedCount));
-            Assert.Equal(branch, Assert.Single(origin.Listing.GetSelection()).FileSystemPath);
-            var generations = tabs.Select(tab => tab.Listing.Generation).ToArray();
             var navigation = tabs.Select(tab => tab.NavigationGeneration).ToArray();
 
             string label = efs ? "Decrypt" : "Compress";
             string command = efs ? CommandIds.EfsProtection : CommandIds.StorageAttributes;
-            var availability = vm.GetAvailability(command);
-            Assert.True(availability.Enabled, availability.Reason);
-            var opening = vm.ExecuteAsync(command);
             IEnumerable<RadioButton> Options(string name) => window.GetVisualDescendants().OfType<RadioButton>()
                 .Where(button => AutomationProperties.GetName(button) == name);
             string? Refusal() => window.GetVisualDescendants().OfType<TextBox>().FirstOrDefault(box => box.IsReadOnly &&
                 box.Text?.Contains("Captured locator:", StringComparison.Ordinal) == true)?.Text;
-            await Until(() => Options(label).Any() || opening.IsCompleted || Refusal() is not null);
+            Task OpenReview()
+            {
+                Assert.Same(origin, vm.ActiveTab);
+                Assert.Equal(navigation, tabs.Select(tab => tab.NavigationGeneration));
+                Assert.All(new[] { origin, nestedTab, unrelatedTab }, tab => Assert.Equal(1, tab.Listing.MarkedCount));
+                Assert.Equal(branch, Assert.Single(origin.Listing.GetSelection()).FileSystemPath);
+                var availability = vm.GetAvailability(command);
+                Assert.True(availability.Enabled, availability.Reason);
+                return vm.ExecuteAsync(command);
+            }
+            Task WaitForReview(Task request) => Until(() => Options(label).Any() || request.IsCompleted || Refusal() is not null);
+
+            int capturedGeneration = origin.Listing.Generation;
+            var opening = OpenReview();
+            await WaitForReview(opening);
+            // Initial filesystem notifications can arrive after the first listing completes. Reissue the
+            // command once after FileCat explicitly retires that review and the original listing settles.
+            if (opening.IsCompleted && origin.Listing.Generation != capturedGeneration &&
+                vm.CurrentNotification?.Message == "The selected listing changed while checking. Nothing was changed.")
+            {
+                await opening;
+                Assert.Empty(services.Jobs.Jobs);
+                await Until(ListingsSettled);
+                opening = OpenReview();
+                await WaitForReview(opening);
+            }
             if (opening.IsCompleted) await opening;
             Assert.True(Options(label).Any(), Refusal() ?? vm.CurrentNotification?.Message ?? "The storage review closed before it exposed an action.");
+            await Until(ListingsSettled);
+            var generations = tabs.Select(tab => tab.Listing.Generation).ToArray();
             Assert.Single(Options(label)).IsChecked = true;
             Assert.Single(Options("Selected folders and their existing contents")).IsChecked = true;
             if (efs) AcceptDecryption(window, "I understand this removes folder encryption defaults and EFS protection");
