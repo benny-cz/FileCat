@@ -17,21 +17,21 @@ $project = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../tests/FileCat.
 $qualification = Join-Path $PSScriptRoot 'run-medium-integrity-test.ps1'
 $powerShell = (Get-Process -Id $PID).Path
 
-function Get-FixtureDisk([string]$Image) {
+function Get-FixtureDisk([string]$Image, [long]$ExpectedSize = 256MB) {
     $mounted = Get-DiskImage -ImagePath $Image
     $disks = @($mounted | Get-Disk)
     if (!$mounted.Attached -or $mounted.ImagePath -ine $Image -or $disks.Count -ne 1 -or
-        $disks[0].IsBoot -or $disks[0].IsSystem -or $disks[0].Size -ne 256MB) {
+        $disks[0].IsBoot -or $disks[0].IsSystem -or $disks[0].Size -ne $ExpectedSize) {
         throw 'The mounted device is outside the owned VHDX fixture.'
     }
     return $disks[0]
 }
 
-function Wait-FixtureMarker([string]$CaseRoot, $Process, [string]$Name) {
+function Wait-FixtureMarker([string]$CaseRoot, $Process, [string]$Name, [int]$TimeoutSeconds = 45) {
     $timer = [Diagnostics.Stopwatch]::StartNew()
     while (!(Test-Path -LiteralPath (Join-Path $CaseRoot $Name))) {
         if ($Process.HasExited) { throw "The native test exited before $Name with code $($Process.ExitCode)." }
-        if ($timer.Elapsed.TotalSeconds -ge 45) { throw "Timed out waiting for $Name." }
+        if ($timer.Elapsed.TotalSeconds -ge $TimeoutSeconds) { throw "Timed out waiting for $Name." }
         Start-Sleep -Milliseconds 150
     }
 }
@@ -60,12 +60,15 @@ $cases = @(
         Test = 'Detaching_the_owned_volume_after_intent_does_not_mutate_or_replay_the_prepared_call' }
     @{ Phase = 'after-set'; Variable = 'FILECAT_STORAGE_NATIVE_DEVICE_LOSS_AFTER_SET_CONTROL'
         Test = 'Detaching_after_native_compression_returns_retains_uncertainty_without_replay' }
+    @{ Phase = 'during-set'; Variable = 'FILECAT_STORAGE_NATIVE_DEVICE_LOSS_DURING_SET_CONTROL'; ImageSize = 2048MB; PayloadMiB = 768
+        Test = 'Detaching_while_native_compression_is_pending_retains_uncertainty_without_replay' }
     @{ Phase = 'after-encrypt'; Variable = 'FILECAT_TEST_EFS_ENCRYPT_DEVICE_LOSS_CONTROL'; Efs = $true
         Test = 'Detaching_after_native_Efs_encryption_retains_the_reviewed_key_and_uncertain_effect' }
     @{ Phase = 'after-decrypt'; Variable = 'FILECAT_TEST_EFS_DECRYPT_DEVICE_LOSS_CONTROL'; Efs = $true
         Test = 'Detaching_after_native_Efs_decryption_retains_an_uncertain_effect_without_key_evidence' }
 )
 foreach ($case in $cases) {
+    $imageSize = if ($case.ImageSize) { [long]$case.ImageSize } else { 256MB }
     $caseRoot = Join-Path $root $case.Phase
     New-Item -ItemType Directory -Path $caseRoot | Out-Null
     $image = Join-Path $caseRoot 'fixture.vhdx'
@@ -74,14 +77,14 @@ foreach ($case in $cases) {
     $test = $null
     $previous = [Environment]::GetEnvironmentVariable($case.Variable)
     try {
-        "create vdisk file=`"$image`" maximum=256 type=expandable" | Set-Content -LiteralPath $command -Encoding ascii
+        "create vdisk file=`"$image`" maximum=$($imageSize / 1MB) type=expandable" | Set-Content -LiteralPath $command -Encoding ascii
         & diskpart.exe /s $command | Set-Content -LiteralPath (Join-Path $caseRoot 'diskpart.log')
         if ($LASTEXITCODE -or !(Test-Path -LiteralPath $image -PathType Leaf)) { throw 'DiskPart could not create the fixture.' }
         Mount-DiskImage -ImagePath $image -NoDriveLetter | Out-Null
-        $disk = Get-FixtureDisk $image
+        $disk = Get-FixtureDisk $image $imageSize
         if ($disk.PartitionStyle -ne 'RAW') { throw 'The newly created fixture disk is not empty.' }
         $disk | Initialize-Disk -PartitionStyle GPT | Out-Null
-        $partition = Get-FixtureDisk $image | New-Partition -UseMaximumSize -AssignDriveLetter
+        $partition = Get-FixtureDisk $image $imageSize | New-Partition -UseMaximumSize -AssignDriveLetter
         $partitionId = $partition.Guid
         $letter = $partition.DriveLetter
         if (!$partitionId -or [string]$letter -notmatch '^[A-Z]$') { throw 'The new fixture partition could not be bound.' }
@@ -90,9 +93,25 @@ foreach ($case in $cases) {
         Ensure-FixtureCloudFilter $volume
 
         $target = Join-Path "${letter}:\" 'filecat-device-loss.bin'
-        $payload = [byte[]]::new(1MB)
-        $payload[91] = 78
-        [IO.File]::WriteAllBytes($target, $payload)
+        if ($case.PayloadMiB) {
+            $payload = [byte[]]::new(1MB)
+            $random = [Security.Cryptography.RandomNumberGenerator]::Create()
+            $stream = [IO.FileStream]::new($target, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+            try {
+                for ($i = 0; $i -lt $case.PayloadMiB; $i++) {
+                    $random.GetBytes($payload)
+                    $stream.Write($payload, 0, $payload.Length)
+                }
+                $stream.Flush($true)
+            }
+            finally { $stream.Dispose(); $random.Dispose() }
+            if ((Get-Volume -DriveLetter $letter).SizeRemaining -le 800MB) { throw 'Insufficient free space for the pending native compression fixture.' }
+        }
+        else {
+            $payload = [byte[]]::new(1MB)
+            $payload[91] = 78
+            [IO.File]::WriteAllBytes($target, $payload)
+        }
         $hash = (Get-FileHash -LiteralPath $target).Hash
         Set-Content -LiteralPath (Join-Path $caseRoot 'target.txt') -Value $target -Encoding ascii
         [Environment]::SetEnvironmentVariable($case.Variable, $caseRoot)
@@ -100,17 +119,24 @@ foreach ($case in $cases) {
             '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', "`"$qualification`"",
             '-Project', "`"$project`"", '-LogFileName', $trx, '-Filter', "FullyQualifiedName~$($case.Test)") -PassThru -WindowStyle Hidden `
             -RedirectStandardOutput (Join-Path $caseRoot 'test.stdout.log') -RedirectStandardError (Join-Path $caseRoot 'test.stderr.log')
-        Wait-FixtureMarker $caseRoot $test 'prepared'
-        Get-FixtureDisk $image | Out-Null
+        $marker = if ($case.Phase -eq 'during-set') { 'in-flight' } else { 'prepared' }
+        Wait-FixtureMarker $caseRoot $test $marker 90
+        if ($case.Phase -eq 'during-set' -and (Test-Path -LiteralPath (Join-Path $caseRoot 'native-returned'))) {
+            throw 'The native SET returned before the controller began detachment; this is not a during-call fixture.'
+        }
+        Get-FixtureDisk $image $imageSize | Out-Null
+        if ($case.Phase -eq 'during-set') {
+            [DateTime]::UtcNow.ToString('O') | Set-Content -LiteralPath (Join-Path $caseRoot 'detach-started')
+        }
         Dismount-DiskImage -ImagePath $image | Out-Null
         if ((Get-DiskImage -ImagePath $image).Attached -or (Get-Volume -DriveLetter $letter -ErrorAction SilentlyContinue)) {
             throw 'The fixture remained accessible after dismount.'
         }
         New-Item -ItemType File -Path (Join-Path $caseRoot 'detached') | Out-Null
-        Wait-FixtureMarker $caseRoot $test 'retired'
+        Wait-FixtureMarker $caseRoot $test 'retired' 120
 
         Mount-DiskImage -ImagePath $image | Out-Null
-        $partitions = @(Get-FixtureDisk $image | Get-Partition | Where-Object Guid -eq $partitionId)
+        $partitions = @(Get-FixtureDisk $image $imageSize | Get-Partition | Where-Object Guid -eq $partitionId)
         if ($partitions.Count -ne 1) { throw 'The original partition is absent after remount.' }
         if ($partitions[0].DriveLetter -ne $letter) {
             if (Get-Volume -DriveLetter $letter -ErrorAction SilentlyContinue) { throw 'The original fixture drive letter is occupied.' }
@@ -126,13 +152,16 @@ foreach ($case in $cases) {
         }
         Ensure-FixtureCloudFilter $remounted
         New-Item -ItemType File -Path (Join-Path $caseRoot 'reattached') | Out-Null
-        if (!$test.WaitForExit(45000) -or $test.ExitCode -ne 0) { throw 'The native test failed after remount.' }
+        $exitWait = if ($case.Phase -eq 'during-set') { 180000 } else { 45000 }
+        if (!$test.WaitForExit($exitWait) -or $test.ExitCode -ne 0) { throw 'The native test failed after remount.' }
         [xml]$result = Get-Content -Raw -LiteralPath (Join-Path $project "TestResults/$trx")
         $counters = $result.TestRun.ResultSummary.Counters
         if ($counters.total -ne '1' -or $counters.executed -ne '1' -or $counters.passed -ne '1') {
             throw 'The selected native case must execute and pass.'
         }
         [ordered]@{ Phase = $case.Phase; AllocationUnit = $remounted.AllocationUnitSize; PayloadSHA256 = $hash
+            NativeSetSucceeded = if ($case.Phase -eq 'during-set') { (Get-Content -Raw -LiteralPath (Join-Path $caseRoot 'native-returned')).Trim() } else { $null }
+            DetachStartedUtc = if ($case.Phase -eq 'during-set') { (Get-Content -Raw -LiteralPath (Join-Path $caseRoot 'detach-started')).Trim() } else { $null }
             Test = $case.Test; InterruptedJournalSHA256 = (Get-FileHash -LiteralPath (Join-Path $caseRoot 'interrupted.journal')).Hash
             FreshRetryJournalSHA256 = (Get-FileHash -LiteralPath (Join-Path $caseRoot 'fresh-retry.journal')).Hash
         } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $caseRoot 'device-loss.json')
@@ -145,7 +174,7 @@ foreach ($case in $cases) {
         }
         if (Test-Path -LiteralPath $image -PathType Leaf) {
             if ((Get-DiskImage -ImagePath $image).Attached) {
-                Get-FixtureDisk $image | Out-Null
+                Get-FixtureDisk $image $imageSize | Out-Null
                 Dismount-DiskImage -ImagePath $image | Out-Null
             }
             if (!(Get-DiskImage -ImagePath $image).Attached) { Remove-Item -LiteralPath $image }

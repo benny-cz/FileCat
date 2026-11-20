@@ -26,14 +26,17 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
     private readonly Func<string> _windowsDirectory;
     private readonly Func<string> _efsSetupBaseDirectory;
     private readonly Action<bool>? _compressionSetReturnedForQualification;
+    private readonly Action? _compressionSetPendingForQualification;
     private readonly bool _qualifyNativeArm64;
     private readonly WindowsEfsKeys _efsKeys;
     internal WindowsStorageTransforms(Func<string>? windowsDirectory = null, Func<string>? efsSetupBaseDirectory = null,
-        Action<bool>? compressionSetReturnedForQualification = null, bool qualifyNativeArm64 = false)
+        Action<bool>? compressionSetReturnedForQualification = null, bool qualifyNativeArm64 = false,
+        Action? compressionSetPendingForQualification = null)
     {
         _windowsDirectory = windowsDirectory ?? (() => Environment.GetFolderPath(Environment.SpecialFolder.Windows));
         _efsSetupBaseDirectory = efsSetupBaseDirectory ?? (() => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
         _compressionSetReturnedForQualification = compressionSetReturnedForQualification;
+        _compressionSetPendingForQualification = compressionSetPendingForQualification;
         _qualifyNativeArm64 = qualifyNativeArm64;
         _efsKeys = new(qualifyNativeArm64);
     }

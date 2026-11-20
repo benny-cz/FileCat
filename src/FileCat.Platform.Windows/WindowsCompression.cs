@@ -32,7 +32,8 @@ internal static unsafe partial class WindowsCompression
 
     /// <summary>No cancellation boundary may occur after durable intent/call admission and before this SET.
     /// Always observes the same held stream after return, including native failure. Success alone is not the outcome.</summary>
-    internal static CallResult InvokeAdmitted(SafeFileHandle file, StorageAction action, Action<bool>? setReturnedForQualification = null)
+    internal static CallResult InvokeAdmitted(SafeFileHandle file, StorageAction action, Action<bool>? setReturnedForQualification = null,
+        Action? setPendingForQualification = null)
     {
         ushort desired = action switch
         {
@@ -40,8 +41,24 @@ internal static unsafe partial class WindowsCompression
             StorageAction.RemoveCompression => None,
             _ => throw new ArgumentOutOfRangeException(nameof(action), "This primitive only changes classic NTFS compression."),
         };
-        bool ok = Control(file, SetCompression, &desired, sizeof(ushort), null, 0, out _, 0);
-        int error = ok ? 0 : Marshal.GetLastPInvokeError();
+        // The opt-in device-loss fixture signals from another thread only if this synchronous SET has not returned
+        // after a short delay. The controller must still observe an interrupted native result before claiming loss
+        // during the call; this marker alone is not evidence that the thread entered the kernel.
+        int returned = 0;
+        Task? pending = setPendingForQualification is null ? null : Task.Run(() =>
+        {
+            Thread.Sleep(250);
+            if (Volatile.Read(ref returned) == 0) setPendingForQualification();
+        });
+        bool ok;
+        int error;
+        try
+        {
+            ok = Control(file, SetCompression, &desired, sizeof(ushort), null, 0, out _, 0);
+            error = ok ? 0 : Marshal.GetLastPInvokeError();
+        }
+        finally { Volatile.Write(ref returned, 1); }
+        pending?.GetAwaiter().GetResult();
         setReturnedForQualification?.Invoke(ok);
         return new(ok, error, Query(file));
     }
