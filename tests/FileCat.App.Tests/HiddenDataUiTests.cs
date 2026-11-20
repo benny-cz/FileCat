@@ -152,7 +152,7 @@ public sealed class HiddenDataUiTests
     }
 
     [AvaloniaFact]
-    public async Task Mac_held_directory_attribute_can_be_reported_and_copied_without_a_delete_action()
+    public async Task Mac_held_directory_attribute_can_be_reported_copied_and_deleted()
     {
         Assert.SkipUnless(OperatingSystem.IsMacOS(), "Requires the held macOS directory xattr adapter.");
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
@@ -169,7 +169,8 @@ public sealed class HiddenDataUiTests
             vm.Workspace.Activate(sourcePanel);
             await Until(() => tab.Listing.State == ListingState.Complete && Rows(tab).Any(row => row.Name == name),
                 () => "the held directory attribute is listed. " + tab.SupplementaryInventoryText);
-            Assert.False(Assert.IsType<HiddenDataProvider>(tab.Listing.Provider)
+            Assert.True(tab.Listing.SupplementaryInventory!.CanDelete);
+            Assert.True(Assert.IsType<HiddenDataProvider>(tab.Listing.Provider)
                 .GetCapabilities(tab.Location!).HasFlag(LocationCapabilities.Delete));
             var row = Assert.Single(Rows(tab), candidate => candidate.Name == name);
             Assert.False(row.Has(EntryFlags.Unavailable));
@@ -186,6 +187,15 @@ public sealed class HiddenDataUiTests
             Assert.Equal("held directory value", File.ReadAllText(Path.Combine(destination, name)));
             Assert.Equal("held directory value", Encoding.UTF8.GetString(new UnixHiddenData().Read(directory,
                 new HiddenItem(name, HiddenKind.Attribute, -1), 64)));
+            await Until(() => !((OverlayDialogService)vm.Dialogs).IsOpen, "the copy dialog closed");
+            tab.Listing.SetFocus(Rows(tab).FindIndex(candidate => candidate.Name == name) + (tab.Listing.HasParentRow ? 1 : 0));
+            window.KeyPress(Key.Delete, RawInputModifiers.None, PhysicalKey.Delete, null);
+            await Click(window, "Delete");
+            await Until(() => tab.Listing.State == ListingState.Complete && !tab.Listing.IsRefreshing &&
+                Rows(tab).All(candidate => candidate.Name != name),
+                () => "the held directory attribute is gone. " + vm.Notification);
+            Assert.Empty(new UnixHiddenData().ReadInventory(directory, new(), TestContext.Current.CancellationToken).Items);
+            Assert.Equal("held directory value", File.ReadAllText(Path.Combine(destination, name)));
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }
