@@ -82,8 +82,7 @@ internal sealed unsafe partial class WindowsPermissionService
         };
         var expectedDacl = WindowsPermissionDescriptor.ProjectDacl(expectedControl, bytes, authority);
         // NTFS can collapse repeated explicit ACEs during a protection change. The review promises each occurrence.
-        if (expectedDacl.Entries.Where(entry => entry.Kind != WindowsAceKind.Opaque && (entry.Flags & InheritedAce) == 0)
-            .GroupBy(entry => (entry.Type, entry.Flags, entry.Principal)).Any(rules => rules.Skip(1).Any()))
+        if (WindowsPermissionAclPatch.HasRepeatedExplicitRules(expectedDacl))
             throw new NotSupportedException("Windows may merge repeated access rules during this inheritance change. FileCat cannot preserve each reviewed rule.");
         return (original with
         {

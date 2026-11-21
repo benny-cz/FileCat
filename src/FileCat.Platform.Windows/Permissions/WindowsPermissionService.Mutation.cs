@@ -33,7 +33,9 @@ internal sealed unsafe partial class WindowsPermissionService
     internal static PermissionSnapshot PreviewChange(PermissionSnapshot original, PermissionDelta change) => Project(original, change).Expected;
 
     internal bool CanReviewNativePropagation(PermissionSnapshot snapshot) =>
-        _qualifyNativePropagation && ReviewedPermissionOperation.ProcessRefusal() is null &&
+        _qualifyNativePropagation && IsReviewableNtfsFolder(snapshot);
+
+    private static bool IsReviewableNtfsFolder(PermissionSnapshot snapshot) => ReviewedPermissionOperation.ProcessRefusal() is null &&
         snapshot is { BindingProblem: null, Mount: null, Model: PermissionModel.WindowsDescriptor,
             Binding: { FileSystem: "NTFS", ReadOnly: false, LinkCount: > 0,
                 Identity.Kind: PermissionObjectKind.Directory or PermissionObjectKind.VolumeRoot },
@@ -75,16 +77,17 @@ internal sealed unsafe partial class WindowsPermissionService
     }
 
     private static (ReviewedPermissionOperation Review, PermissionSnapshot Expected) PrepareChange(PermissionInspection inspection, ItemRef source,
-        PermissionDraft draft, PropagationBoundary? boundary, CancellationToken ct, InheritanceParent? inheritanceParent = null)
+        PermissionDraft draft, PropagationBoundary? boundary, CancellationToken ct, InheritanceParent? inheritanceParent = null,
+        bool folderOnly = false)
     {
-        var prepared = PrepareChangeTarget(inspection, source, draft.Changes[0], boundary, ct, inheritanceParent);
+        var prepared = PrepareChangeTarget(inspection, source, draft.Changes[0], boundary, ct, inheritanceParent, folderOnly: folderOnly);
         try { return (new(draft.Scope, [prepared.Target]), prepared.Expected); }
         catch { prepared.Target.Mutation.Dispose(); throw; }
     }
 
     private static (ReviewedPermissionTarget Target, PermissionSnapshot Expected) PrepareChangeTarget(PermissionInspection inspection,
         ItemRef source, PermissionDelta change, PropagationBoundary? boundary, CancellationToken ct, InheritanceParent? inheritanceParent = null,
-        ImmutableArray<PermissionIdentity> treeAncestry = default)
+        ImmutableArray<PermissionIdentity> treeAncestry = default, bool folderOnly = false)
     {
         var original = inspection.Snapshot;
         bool propagates = boundary is not null;
@@ -92,7 +95,8 @@ internal sealed unsafe partial class WindowsPermissionService
         var binding = original.Binding!;
         var before = RequireRevision(original);
         bool capturedFile = !treeAncestry.IsDefault;
-        var projection = Project(original, change, directory: propagates, inheritanceParent, ensureRule: capturedFile);
+        var projection = folderOnly ? ProjectFolderOnly(original, change) :
+            Project(original, change, directory: propagates, inheritanceParent, ensureRule: capturedFile);
         var expected = RequireRevision(projection.Expected);
         if (propagates && before == expected)
             throw new NotSupportedException("This native inheritance route needs a change to the selected folder's access rules.");
@@ -122,15 +126,16 @@ internal sealed unsafe partial class WindowsPermissionService
                     throw new PermissionBindingConflictException("The original path no longer identifies the held object.");
                 uint access = projection.Section == OwnerInformation ? WriteOwner : WriteDac;
                 string leaf = volumeRoot ? @"\??\" + pin.Root : pin.Names[^1];
-                var admitted = Open(parent, leaf, security: true, ct, access, allowDirectoryWrite: propagates);
+                var admitted = Open(parent, leaf, security: true, ct, access, allowDirectoryWrite: propagates || folderOnly);
                 mutation = new WindowsDiscretionaryMutation(original, pin.Root, pin.Names, pin.Chain, admitted, token, change,
-                    projection.Section, projection.Bytes, boundary, inheritanceParent, capturedFile);
+                    projection.Section, projection.Bytes, boundary, inheritanceParent, capturedFile, folderOnly);
                 var actual = mutation.CheckCurrent(DiscretionarySections, ct);
                 if (actual.Binding != binding || RequireRevision(actual) != before)
                     throw new PermissionBindingConflictException("Windows security changed after inspection.");
             }
             var component = new ReviewedPermissionComponent(change, before, expected,
                 propagates ? "Windows SetSecurityInfo native propagation" :
+                folderOnly ? "Windows NtSetSecurityObject folder DACL" :
                 projection.Section == OwnerInformation ? "Windows SetSecurityInfo owner" : "Windows SetSecurityInfo DACL");
             var target = new ReviewedPermissionTarget(source, original.Subject, binding, [component], expected, mutation);
             mutation = null;
@@ -180,7 +185,7 @@ internal sealed unsafe partial class WindowsPermissionService
 
     private sealed class WindowsDiscretionaryMutation(PermissionSnapshot original, string root, string[] names, FileStamp[] inspectedChain,
         SafeFileHandle admitted, WindowsPermissionToken.Stamp token, PermissionDelta reviewedChange, uint section, ImmutableArray<byte> bytes,
-        PropagationBoundary? boundary, InheritanceParent? inheritanceParent, bool capturedFile) : IBoundPermissionMutation
+        PropagationBoundary? boundary, InheritanceParent? inheritanceParent, bool capturedFile, bool folderOnly) : IBoundPermissionMutation
     {
         private FileStamp? _checked;
 
@@ -200,6 +205,7 @@ internal sealed unsafe partial class WindowsPermissionService
 
         public PermissionMutationReturn Apply(PermissionDelta change, CancellationToken cancellation)
         {
+            bool recheckName = capturedFile || folderOnly;
             var checkedStamp = _checked;
             _checked = null;
             if (!ReferenceEquals(reviewedChange, change) || checkedStamp is null)
@@ -212,22 +218,29 @@ internal sealed unsafe partial class WindowsPermissionService
                     if (inheritanceParent is not null) RequireUnchangedInheritanceParent(original, boundary, inheritanceParent, cancellation);
                 }
                 if (WindowsPermissionToken.CurrentStamp() != token || ReadStamp(cancellation) != checkedStamp ||
-                    capturedFile && CheckNamespace(checkedStamp.Value, cancellation) != true)
-                    return new(RejectedBeforeChange: true, BindingConflict: boundary is not null || capturedFile);
+                    recheckName && CheckNamespace(checkedStamp.Value, cancellation) != true)
+                    return new(RejectedBeforeChange: true, BindingConflict: boundary is not null || recheckName);
             }
             catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { return new(CanceledBeforeChange: true); }
-            catch (PermissionBindingConflictException error) when (boundary is not null || capturedFile)
+            catch (PermissionBindingConflictException error) when (boundary is not null || recheckName)
             {
                 return new(RejectedBeforeChange: true, BindingConflict: true, Detail: error.Message);
             }
             catch (Exception error) when (error is ReadFailure or Win32Exception or IOException or UnauthorizedAccessException)
             {
-                return new(RejectedBeforeChange: true, Detail: error.Message, FailedWithoutDispatch: boundary is not null || capturedFile);
+                return new(RejectedBeforeChange: true, Detail: error.Message, FailedWithoutDispatch: boundary is not null || recheckName);
             }
             uint errorCode;
             fixed (byte* payload = bytes.AsSpan())
-                errorCode = SetSecurityInfo(admitted, 1 /* SE_FILE_OBJECT */, section,
+            {
+                if (folderOnly)
+                {
+                    int status = NtSetSecurityObject(admitted, section, payload);
+                    errorCode = status < 0 ? (uint)StatusToDosError(status) : 0;
+                }
+                else errorCode = SetSecurityInfo(admitted, 1 /* SE_FILE_OBJECT */, section,
                     section == OwnerInformation ? payload : null, null, (section & DaclInformation) != 0 ? payload : null, null);
+            }
             return errorCode == 0 ? new() : new((int)errorCode,
                 RejectedBeforeChange: boundary is null && (errorCode is 5 or 87 or 1307 or 1314 or 1336));
         }

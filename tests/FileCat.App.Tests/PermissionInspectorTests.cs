@@ -1015,6 +1015,64 @@ public sealed class PermissionInspectorTests
     }
 
     [AvaloniaFact]
+    public async Task Windows_folder_only_editor_applies_one_reviewed_rule_for_the_selected_folder()
+    {
+        if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_WINDOWS_SCOPE") != "1" ||
+            ReviewedPermissionOperation.ProcessRefusal() is not null)
+            Assert.Skip("Requires the ordinary Windows x64 NTFS scope fixture.");
+
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
+        {
+            var parent = Directory.CreateDirectory(Path.Combine(folder, "parent"));
+            using var actor = WindowsIdentity.GetCurrent();
+            var acl = new DirectorySecurity();
+            acl.SetAccessRuleProtection(true, false);
+            acl.AddAccessRule(new FileSystemAccessRule(actor.User!, FileSystemRights.FullControl,
+                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+            parent.SetAccessControl(acl);
+            var selected = parent.CreateSubdirectory("selected");
+            File.WriteAllText(Path.Combine(selected.FullName, "existing.txt"), "existing child");
+        }, permissionService: new WindowsPermissionService(qualifyFolderOnly: true));
+        string selected = Path.Combine(root, "files", "parent", "selected");
+        string child = Path.Combine(selected, "existing.txt");
+        byte[] childAcl = new FileInfo(child).GetAccessControl(AccessControlSections.Access).GetSecurityDescriptorBinaryForm();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var tab = vm.ActiveTab!;
+            tab.Navigate(Location.FileSystem(Path.GetDirectoryName(selected)!));
+            await Until(() => tab.Listing.State == ListingState.Complete && tab.Listing.FocusName("selected"), ct);
+            vm.Execute(CommandIds.PermissionsOwnership);
+            await Until(() => FindButton(window, "Edit selected folder access rules…") is not null, ct);
+            Assert.Null(FindButton(window, "Review Windows inheritance…"));
+            Click(FindButton(window, "Edit selected folder access rules…")!);
+            await Until(() => window.GetVisualDescendants().OfType<WindowsAccessEditor>().Any(), ct);
+            Assert.True(TextPresent(window, "Scope · Selected folder"));
+            Assert.True(TextPresent(window, "Windows can inherit these rules when it creates new children."));
+            var editor = window.GetVisualDescendants().OfType<WindowsAccessEditor>().Single();
+            editor.GetVisualDescendants().OfType<CheckBox>().Single(box => Equals(box.Content, "Add an explicit entry")).IsChecked = true;
+            editor.GetVisualDescendants().OfType<CheckBox>().Single(box => Equals(box.Content, "Inherit into files")).IsChecked = true;
+            editor.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "New Windows entry SID").Text = "S-1-5-32-546";
+            editor.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "Windows access mask").Text = "00000080";
+            await Until(() => FindButton(window, "Apply")?.IsEnabled == true, ct);
+            Assert.Empty(services.Jobs.Jobs);
+            Click(FindButton(window, "Apply")!);
+            await Until(() => services.Jobs.Jobs.SingleOrDefault()?.PermissionResults.Count == 1, ct);
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(PermissionScope.Objects, job.PermissionReviewScope);
+            var result = Assert.Single(job.PermissionResults);
+            Assert.Equal(PermissionVerdict.Verified, result.Verdict);
+            Assert.Equal("Windows NtSetSecurityObject folder DACL", Assert.Single(result.Components).NativeCall);
+            Assert.Equal(childAcl, new FileInfo(child).GetAccessControl(AccessControlSections.Access).GetSecurityDescriptorBinaryForm());
+            string future = Path.Combine(selected, "future.txt");
+            File.WriteAllText(future, "future child");
+            var rules = new FileInfo(future).GetAccessControl(AccessControlSections.Access).GetAccessRules(false, true, typeof(SecurityIdentifier));
+            Assert.Contains(rules.OfType<FileSystemAccessRule>(), rule => rule.IdentityReference.Value == "S-1-5-32-546" && rule.IsInherited);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Windows_file_tree_editor_requires_path_review_and_limits_dispatch_to_captured_files()
     {
         if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_WINDOWS_SCOPE") != "1" ||

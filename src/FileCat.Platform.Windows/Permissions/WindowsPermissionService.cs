@@ -9,13 +9,14 @@ namespace FileCat.Platform.Windows.Permissions;
 
 internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbReads = false, bool qualifyRefsReads = false,
     bool qualifyAccessEstimates = false, bool qualifyNativePropagation = false, bool qualifyInheritanceChanges = false,
-    bool qualifyFileTrees = false) : IPermissionService
+    bool qualifyFileTrees = false, bool qualifyFolderOnly = false) : IPermissionService
 {
     private const string Source = "Windows GetSecurityInfo";
     private readonly bool _qualifyAccessEstimates = qualifyAccessEstimates;
     private readonly bool _qualifyNativePropagation = qualifyNativePropagation;
     private readonly bool _qualifyInheritanceChanges = qualifyInheritanceChanges;
     private readonly bool _qualifyFileTrees = qualifyFileTrees;
+    private readonly bool _qualifyFolderOnly = qualifyFolderOnly;
     private const uint ReadControl = 0x20000, OpenNoRecall = 0x400000;
     private const uint UnsafeAttributes = (uint)(FileAttributes.ReparsePoint | FileAttributes.Offline) | 0x00440000;
     internal const PermissionSections DiscretionarySections = PermissionSections.Owner | PermissionSections.Group |

@@ -33,7 +33,8 @@ public sealed partial class MainViewModel
             WindowsPermissionService => WindowsPermissionService.EditRefusal(item.Snapshot),
             _ => "Editing is unavailable for this object."
         } : "Editing is unavailable for this object.").ToArray();
-        var view = new PermissionInspectorView(inspected.Select(item => (item.Name, item.Snapshot)).ToArray(), copy, refusals, Services.PermissionPrincipalNames);
+        var view = new PermissionInspectorView(inspected.Select(item => (item.Name, item.Snapshot)).ToArray(), copy,
+            refusals.Select((refusal, index) => WindowsFolderOnlyAvailable(index) ? null : refusal).ToArray(), Services.PermissionPrincipalNames);
         var buttons = new List<DialogButton> { new("Close", "close", IsDefault: true, IsCancel: true) };
         bool AclAvailable(int index) => refusals[index] is null && (Services.Permissions is LinuxPermissionService linux && linux.CanEditAccessAcl(inspected[index].Snapshot) ||
             Services.Permissions is DarwinPermissionService && DarwinPermissionService.CanEditAcl(inspected[index].Snapshot) ||
@@ -65,6 +66,9 @@ public sealed partial class MainViewModel
         bool WindowsFileTreeAvailable(int index) => inspected[index].Source is { Kind: EntryKind.Directory } source &&
             source.FileSystemPath == inspected[index].Snapshot.Subject.RawLocator &&
             Services.Permissions is WindowsPermissionService windows && windows.CanReviewFileTree(inspected[index].Snapshot);
+        bool WindowsFolderOnlyAvailable(int index) => inspected[index].Source is { Kind: EntryKind.Directory } source &&
+            source.FileSystemPath == inspected[index].Snapshot.Subject.RawLocator &&
+            Services.Permissions is WindowsPermissionService windows && windows.CanReviewFolderOnly(inspected[index].Snapshot);
         bool ProtectionAvailable(int index) => refusals[index] is null && Services.Permissions switch
         {
             DarwinPermissionService => DarwinPermissionService.CanEditProtection(inspected[index].Snapshot),
@@ -106,6 +110,9 @@ public sealed partial class MainViewModel
         if (Enumerable.Range(0, inspected.Length).Any(WindowsFileTreeAvailable))
             buttons.Insert(0, new("Add access rule to descendant files…", "windows-file-tree")
                 { IsAvailable = () => WindowsFileTreeAvailable(view.SelectedSubject) });
+        if (Enumerable.Range(0, inspected.Length).Any(WindowsFolderOnlyAvailable))
+            buttons.Insert(0, new("Edit selected folder access rules…", "windows-folder-only")
+                { IsAvailable = () => WindowsFolderOnlyAvailable(view.SelectedSubject) });
         if (Enumerable.Range(0, inspected.Length).Any(SftpReviewAvailable))
             buttons.Insert(0, new("Review SFTP permissions…", "sftp") { IsAvailable = () => SftpReviewAvailable(view.SelectedSubject) });
         if (inspected.Any(CanInspectWithLinuxAuthorization))
@@ -133,6 +140,8 @@ public sealed partial class MainViewModel
         else if (answer is "windows-file-tree" && WindowsFileTreeAvailable(view.SelectedSubject) && !Services.Io.IsStopped &&
             Services.Permissions is WindowsPermissionService windowsFileTree)
             await ShowWindowsFileTreeAsync(dialogs, inspected[view.SelectedSubject], windowsFileTree, origin);
+        else if (answer is "windows-folder-only" && WindowsFolderOnlyAvailable(view.SelectedSubject) && !Services.Io.IsStopped)
+            await ShowBoundPermissionEditorAsync(dialogs, inspected[view.SelectedSubject], copy, "acl", origin, windowsFolderOnly: true);
         else if ((answer is "mode-tree" && ModeTreeAvailable(view.SelectedSubject) || answer is "reset-tree" && ResetTreeAvailable(view.SelectedSubject) ||
             answer is "inherit-tree" && DarwinAclTreeAvailable(view.SelectedSubject)) &&
             !Services.Io.IsStopped)
@@ -315,7 +324,7 @@ public sealed partial class MainViewModel
     private async Task ShowBoundPermissionEditorAsync(IDialogService dialogs, InspectedPermission item, Func<string, Task>? copy,
         string command, PermissionSelection? origin, SftpPermissionEdit? sftpEdit = null, LinuxAuthorizedPermissionEdit? authorizedLinux = null,
         nint windowsAuthorizationOwner = 0, WindowsPermissionService.PropagationBoundary? windowsPropagation = null,
-        WindowsInheritanceOptions? windowsInheritance = null)
+        WindowsInheritanceOptions? windowsInheritance = null, bool windowsFolderOnly = false)
     {
         var snapshot = authorizedLinux?.Snapshot ?? item.Snapshot;
         var source = item.Source ?? throw new InvalidOperationException("The reviewed object lacks its original source.");
@@ -342,7 +351,7 @@ public sealed partial class MainViewModel
             ? new UnixPermissionModeEditor(bit => (originalMode & (ushort)bit) != 0,
             snapshot.Access.Value?.Acl is PosixAcl original && original.Entries.Any(row => row.Tag == PosixAclTag.Mask)) : null;
         var windowsAcl = windows && command == "acl" && snapshot.Access.Value?.Acl is WindowsDacl dacl
-            ? new WindowsAccessEditor(dacl, snapshot.Subject.Authority.Id, copy, directory: windowsPropagation is not null) : null;
+            ? new WindowsAccessEditor(dacl, snapshot.Subject.Authority.Id, copy, directory: windowsFolderOnly || windowsPropagation is not null) : null;
         (string Label, WindowsInheritanceAction? Action)[] inheritanceChoices = windowsInheritance is null ? [] :
             snapshot.Inheritance.Value?.IsProtected == true
             ? [("Edit access rules", null), ("Enable inheritance from parent", WindowsInheritanceAction.Enable)]
@@ -515,6 +524,7 @@ public sealed partial class MainViewModel
         {
             Wrapped(Formatters.SafeName(snapshot.Subject.DisplayPath)),
             Wrapped(windowsPropagation is not null ? "Scope · Selected folder and Windows inheritance" :
+                windowsFolderOnly ? "Scope · Selected folder" :
                 defaults ? "Scope · Defaults for new children of the selected directory" : "Scope · Selected object"),
             new TextBlock { Text = "Owner choices come from FileCat's ordinary Windows token.", IsVisible = owner is not null },
             fields, preview, accept, problem, result, stop, current
@@ -525,6 +535,11 @@ public sealed partial class MainViewModel
             layout.Children.Insert(2, Wrapped("Applying this reviewed change requires a separate administrator approval."));
         if (windowsAudit is not null)
             layout.Children.Insert(3, Wrapped("Windows audit policy determines whether successful or failed access creates an event."));
+        if (windowsFolderOnly)
+        {
+            layout.Children.Insert(2, Wrapped($"Volume · {Formatters.SafeName(snapshot.Binding!.MountRoot)}"));
+            layout.Children.Insert(3, Wrapped("The write targets the selected folder's DACL. Windows can inherit these rules when it creates new children."));
+        }
         if (windowsPropagation is { } boundary)
         {
             layout.Children.Insert(2, Wrapped($"Volume · {Formatters.SafeName(boundary.Root.MountRoot)}"));
@@ -838,6 +853,7 @@ public sealed partial class MainViewModel
                     PermissionModel.WindowsDescriptor when authorizedWindows => WindowsPermissionService.PreviewAuthorizedChange(snapshot, change),
                     PermissionModel.WindowsDescriptor when windowsPropagation is not null =>
                         WindowsPermissionService.PreviewPropagation(snapshot, change, windowsInheritance?.Parent),
+                    PermissionModel.WindowsDescriptor when windowsFolderOnly => WindowsPermissionService.PreviewFolderOnly(snapshot, change),
                     PermissionModel.WindowsDescriptor => WindowsPermissionService.PreviewChange(snapshot, change),
                     PermissionModel.DarwinAcl when change is ChangePermissionMode changeMode => DarwinPermissionService.PreviewMode(snapshot, changeMode),
                     _ => LinuxPermissionService.PreviewAccessChange(snapshot, change)
@@ -965,6 +981,8 @@ public sealed partial class MainViewModel
                     {
                         PermissionModel.WindowsDescriptor when windowsPropagation is not null && Services.Permissions is WindowsPermissionService windowsService
                             => windowsService.PrepareNativePropagation(item.Inspection, source, draft, windowsPropagation, ct, windowsInheritance?.Parent),
+                        PermissionModel.WindowsDescriptor when windowsFolderOnly && Services.Permissions is WindowsPermissionService folderService
+                            => folderService.PrepareFolderOnly(item.Inspection, source, draft, ct),
                         PermissionModel.WindowsDescriptor => WindowsPermissionService.Prepare(item.Inspection, source, draft, ct),
                         PermissionModel.DarwinAcl => DarwinPermissionService.Prepare(item.Inspection, source, draft, acceptClear, ct, darwinGroupAuthority),
                         _ => LinuxPermissionService.Prepare(item.Inspection, source, draft, acceptClear, ct, groupAuthority)

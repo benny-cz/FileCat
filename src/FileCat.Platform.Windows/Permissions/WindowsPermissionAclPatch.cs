@@ -10,6 +10,10 @@ internal static class WindowsPermissionAclPatch
 {
     private const byte Inherited = 0x10;
 
+    internal static bool HasRepeatedExplicitRules(WindowsDacl dacl) => dacl.Entries
+        .Where(entry => entry.Kind != WindowsAceKind.Opaque && (entry.Flags & Inherited) == 0)
+        .GroupBy(entry => (entry.Type, entry.Flags, entry.Principal)).Any(rules => rules.Skip(1).Any());
+
     internal static WindowsAce SimpleEntry(WindowsAceKind kind, Principal principal, uint mask, byte flags = 0)
     {
         byte type = kind switch
