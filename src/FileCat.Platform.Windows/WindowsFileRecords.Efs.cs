@@ -72,13 +72,18 @@ public sealed unsafe partial class WindowsFileRecords
             count = MaxEfsEntries;
         }
         var array = (EfsHashEntry**)header->Entries;
-        int empty = 0, badSid = 0, badHash = 0;
+        int empty = 0, shortEntry = 0, badSid = 0, badHash = 0;
         for (int i = 0; i < count; i++)
         {
             var entry = array[i];
             if (entry == null)
             {
                 empty++;
+                continue;
+            }
+            if (entry->TotalLength < sizeof(EfsHashEntry))
+            {
+                shortEntry++;
                 continue;
             }
             string? sid = null;
@@ -97,6 +102,7 @@ public sealed unsafe partial class WindowsFileRecords
             entries.Add(new EfsEntry(sid, thumbprint, EfsText(entry->Display)));
         }
         if (empty > 0) problems.Add($"{empty:N0} of its entries are empty.");
+        if (shortEntry > 0) problems.Add($"{shortEntry:N0} of its entries are shorter than an EFS certificate record header.");
         if (badSid > 0) problems.Add($"{badSid:N0} of its entries name a SID that is not valid.");
         if (badHash > 0) problems.Add($"{badHash:N0} of its entries have no certificate hash, or one longer than {MaxEfsHash} bytes.");
         return entries;
