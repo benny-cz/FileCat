@@ -42,7 +42,7 @@ This receipt maps the N-WIN, N-LINUX and N-MAC expectations in the ledger to nat
 | APFS sharing and private fields keep their scope | `Mac_full_details_distinguish_APFS_shared_private_and_partly_shared_files` |
 | FileVault | `Mac_full_report_distinguishes_FileVault_and_encrypted_backing_on_the_selected_volume` and the APFS protection tests |
 
-**Evidence:** macOS 27.2.1 on Apple silicon. **Open:** Intel Macs, other macOS versions, and FileVault on more hardware. None was available.
+**Evidence:** macOS 27.2.1 on Apple silicon, plus CI's portable runs on macOS 26. FileCat ships only an `osx-arm64` Mac package, so Intel Macs are outside N-MAC's scope. **Open:** FileVault on more hardware, which was not available.
 
 ## Live File Provider rerun
 
