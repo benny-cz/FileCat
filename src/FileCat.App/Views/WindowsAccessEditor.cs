@@ -24,7 +24,7 @@ internal sealed class WindowsAccessEditor : StackPanel
         (FileSystemRights.ChangePermissions, "Write DACL"), (FileSystemRights.TakeOwnership, "Write owner"),
         (FileSystemRights.Synchronize, "Synchronize")
     ];
-    private readonly WindowsDacl _baseline;
+    private readonly WindowsDacl? _baseline;
     private readonly string _authority;
     private readonly ListBox _entries = new() { MinHeight = 80, MaxHeight = 210, ItemTemplate =
         new FuncDataTemplate<string>((value, _) => new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap }) };
@@ -45,20 +45,20 @@ internal sealed class WindowsAccessEditor : StackPanel
     private bool _setting;
     private uint _initialMask;
 
-    internal WindowsAccessEditor(WindowsDacl baseline, string authority, Func<string, Task>? copy, bool directory = false)
+    internal WindowsAccessEditor(WindowsDacl? baseline, string authority, Func<string, Task>? copy, bool directory = false)
     {
         _baseline = baseline;
         _authority = authority;
         Spacing = 8;
         AutomationProperties.SetName(_entries, "Ordered Windows access entries");
-        _entries.ItemsSource = baseline.Entries.Select((entry, index) => $"{index + 1}. {Describe(entry)}").ToArray();
+        _entries.ItemsSource = baseline?.Entries.Select((entry, index) => $"{index + 1}. {Describe(entry)}").ToArray();
         AutomationProperties.SetName(_sid, "New Windows entry SID");
         AutomationProperties.SetName(_kind, "New Windows entry type");
         AutomationProperties.SetName(_preset, directory ? "Folder rights preset" : "File rights preset");
         AutomationProperties.SetName(_mask, "Windows access mask");
         AutomationProperties.SetLiveSetting(_notice, AutomationLiveSetting.Polite);
-        Children.Add(_entries);
-        if (copy is not null)
+        if (baseline is not null) Children.Add(_entries);
+        if (baseline is not null && copy is not null)
         {
             var copySid = new Button { Content = "Copy selected SID" };
             copySid.Click += async (_, _) => { if (Selected?.Principal is { } principal) await copy(principal.Id); };
@@ -66,7 +66,7 @@ internal sealed class WindowsAccessEditor : StackPanel
             copySid.IsEnabled = false;
             Children.Add(copySid);
         }
-        Children.Add(Row(_add, _remove, _reset));
+        Children.Add(baseline is null ? _reset : Row(_add, _remove, _reset));
         Children.Add(_special);
         _special.Children.Add(_kind);
         _special.Children.Add(_sid);
@@ -124,13 +124,14 @@ internal sealed class WindowsAccessEditor : StackPanel
             _setting = false;
             StartEntry();
         };
-        _entries.SelectedIndex = baseline.Entries.Length > 0 ? 0 : -1;
+        _entries.SelectedIndex = baseline is { Entries.Length: > 0 } ? 0 : -1;
         StartEntry();
     }
 
     internal event Action? Changed;
-    private bool Adding => _add.IsChecked == true;
-    private WindowsAce? Selected => (uint)_entries.SelectedIndex < (uint)_baseline.Entries.Length ? _baseline.Entries[_entries.SelectedIndex] : null;
+    private bool Adding => _baseline is null || _add.IsChecked == true;
+    private WindowsAce? Selected => _baseline is { } baseline && (uint)_entries.SelectedIndex < (uint)baseline.Entries.Length
+        ? baseline.Entries[_entries.SelectedIndex] : null;
     private bool CanEditSelected => Selected is { Kind: not WindowsAceKind.Opaque, Flags: var flags, Principal: not null } && (flags & 0x10) == 0;
 
     internal (PermissionDelta? Change, string? Error) ReadChange()

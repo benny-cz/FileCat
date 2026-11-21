@@ -1015,6 +1015,58 @@ public sealed class PermissionInspectorTests
     }
 
     [AvaloniaFact]
+    public async Task Windows_file_tree_editor_requires_path_review_and_limits_dispatch_to_captured_files()
+    {
+        if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_WINDOWS_SCOPE") != "1" ||
+            ReviewedPermissionOperation.ProcessRefusal() is not null)
+            Assert.Skip("Requires the ordinary Windows x64 NTFS scope fixture.");
+
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
+        {
+            var child = Directory.CreateDirectory(Path.Combine(folder, "selected"));
+            File.WriteAllText(Path.Combine(child.FullName, "capture.txt"), "captured");
+        }, permissionService: new WindowsPermissionService(qualifyFileTrees: true));
+        string selected = Path.Combine(root, "files", "selected");
+        string captured = Path.Combine(selected, "capture.txt");
+        string late = Path.Combine(selected, "late.txt");
+        byte[] folderAcl = new DirectoryInfo(selected).GetAccessControl(AccessControlSections.Access).GetSecurityDescriptorBinaryForm();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var tab = vm.ActiveTab!;
+            await Until(() => tab.Listing.State == ListingState.Complete && tab.Listing.FocusName("selected"), ct);
+            vm.Execute(CommandIds.PermissionsOwnership);
+            await Until(() => FindButton(window, "Add access rule to descendant files…") is not null, ct);
+            Click(FindButton(window, "Add access rule to descendant files…")!);
+            await Until(() => window.GetVisualDescendants().OfType<WindowsAccessEditor>().Any(), ct);
+            var editor = window.GetVisualDescendants().OfType<WindowsAccessEditor>().Single();
+            Assert.False(FindButton(window, "Capture file review")!.IsEnabled);
+            editor.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "New Windows entry SID").Text = "S-1-5-32-546";
+            editor.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "Windows access mask").Text = "00000080";
+            await Until(() => FindButton(window, "Capture file review")?.IsEnabled == true, ct);
+            Click(FindButton(window, "Capture file review")!);
+            await Until(() => FindButton(window, "Apply to captured files")?.IsEnabled == true, ct);
+            Assert.Empty(services.Jobs.Jobs);
+            Assert.True(TextPresent(window, "Later arrivals are outside this review."));
+            File.WriteAllText(late, "later arrival");
+            Click(FindButton(window, "Apply to captured files")!);
+            await Until(() => services.Jobs.Jobs.SingleOrDefault()?.PermissionResults.Count == 1, ct);
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(PermissionScope.ReviewedTree, job.PermissionReviewScope);
+            Assert.Equal(PermissionVerdict.Verified, Assert.Single(job.PermissionResults).Verdict);
+            Assert.Equal(captured, Assert.Single(job.Request.Sources).FileSystemPath);
+            Assert.Equal(folderAcl, new DirectoryInfo(selected).GetAccessControl(AccessControlSections.Access).GetSecurityDescriptorBinaryForm());
+            Assert.True(HasCapturedRule(captured));
+            Assert.False(HasCapturedRule(late));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+
+        static bool HasCapturedRule(string path) => new FileInfo(path).GetAccessControl(AccessControlSections.Access)
+            .GetAccessRules(includeExplicit: true, includeInherited: false, typeof(SecurityIdentifier)).OfType<FileSystemAccessRule>()
+            .Any(rule => rule.IdentityReference.Value == "S-1-5-32-546" && rule.FileSystemRights.HasFlag(FileSystemRights.ReadAttributes));
+    }
+
+    [AvaloniaFact]
     public async Task Windows_editor_applies_a_preset_and_an_advanced_right_to_one_explicit_entry()
     {
         if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_NTFS") != "1" ||

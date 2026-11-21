@@ -30,6 +30,8 @@ internal sealed record ReviewedPermissionTreeSource(PermissionSubject Subject, P
 internal sealed class ReviewedPermissionOperation : IDisposable
 {
     internal const int TargetLimit = 128, ComponentLimit = 16, LocatorLimit = 32767;
+    private const PermissionSections WindowsDiscretionary = PermissionSections.Owner | PermissionSections.Group |
+        PermissionSections.Access | PermissionSections.Inheritance;
     private int _state; // review, submitted, released
     internal PermissionScope Scope { get; }
     internal ImmutableArray<ReviewedPermissionTarget> Targets { get; }
@@ -56,10 +58,14 @@ internal sealed class ReviewedPermissionOperation : IDisposable
             ValidatePropagation(targets);
         if (tree is not null)
         {
+            bool windowsFileTree = tree.Entries[0].VisitOnly;
+            if (windowsFileTree) ValidateWindowsFileTree(tree, scope, treeSource);
+            else if (tree.Entries.Any(entry => entry.VisitOnly))
+                throw new ArgumentException("This tree scope requires a reviewed change for each captured descendant.", nameof(tree));
             if (treeSource is not null) ValidateTreeSource(tree, treeSource, targets, scope);
-            var entries = tree.Entries.Where(entry => treeSource is null || entry.ParentIndex >= 0)
+            var entries = tree.Entries.Where(entry => !entry.VisitOnly && (treeSource is null || entry.ParentIndex >= 0))
                 .OrderByDescending(entry => entry.Depth).ToArray();
-            if (entries.Length != targets.Length || entries.Where((entry, index) => !MatchesTreeEntry(entry, targets[index], scope, treeSource)).Any())
+            if (entries.Length != targets.Length || entries.Where((entry, index) => !MatchesTreeEntry(entry, targets[index], scope, treeSource, windowsFileTree)).Any())
                 throw new ArgumentException("A tree operation must use its captured objects and changes in children-first order.", nameof(targets));
         }
         long footprint = 0;
@@ -110,11 +116,23 @@ internal sealed class ReviewedPermissionOperation : IDisposable
         TreeSource = treeSource;
     }
 
+    private static void ValidateWindowsFileTree(PermissionTreeManifest tree, PermissionScope scope, ReviewedPermissionTreeSource? source)
+    {
+        if (scope != PermissionScope.ReviewedTree || source is not null || tree.RootCount != 1 || tree.Entries.Any(entry =>
+                entry.Binding is not { FileSystem: "NTFS", ReadOnly: false } || entry.Subject.LinkPolicy != PermissionLinkPolicy.NoFollow ||
+                entry.Draft.Scope != scope || !entry.VisitOnly &&
+                (entry.Binding is not { Identity.Kind: PermissionObjectKind.File, LinkCount: 1 } ||
+                    entry.Draft.Changes is not [AddWindowsAce { Entry.Flags: 0 }])))
+            throw new ArgumentException("A Windows file tree needs one captured directory root and independently bound NTFS files.", nameof(tree));
+    }
+
     private static bool MatchesTreeEntry(PermissionTreeEntry entry, ReviewedPermissionTarget target, PermissionScope scope,
-        ReviewedPermissionTreeSource? source) =>
+        ReviewedPermissionTreeSource? source, bool windowsFileTree) =>
         entry.Subject == target.Subject && entry.Binding == target.Binding && entry.Subject.LinkPolicy == PermissionLinkPolicy.NoFollow &&
         entry.Draft.Scope == scope && target.Components is [var component] &&
-        (source is null ? component.Change is ChangePermissionMode : source.Binding.DarwinRoute != DarwinBindingRoute.None
+        (windowsFileTree ? component.Change is AddWindowsAce { Entry.Flags: 0 } &&
+            component.Before.Sections == WindowsDiscretionary && component.Expected.Sections == WindowsDiscretionary
+        : source is null ? component.Change is ChangePermissionMode : source.Binding.DarwinRoute != DarwinBindingRoute.None
             ? entry.Binding.DarwinRoute != DarwinBindingRoute.None && component.Change is ApplyDarwinAcl &&
                 component.Before.Sections == DarwinPermissionService.AccessChangeSections && component.Expected.Sections == component.Before.Sections
             : component.Change is ChangePosixAcl { IsDefault: false, Entries.IsDefaultOrEmpty: false }) && component.Before == entry.Before &&
@@ -136,12 +154,10 @@ internal sealed class ReviewedPermissionOperation : IDisposable
 
     private static void ValidatePropagation(ImmutableArray<ReviewedPermissionTarget> targets)
     {
-        const PermissionSections discretionary = PermissionSections.Owner | PermissionSections.Group |
-            PermissionSections.Access | PermissionSections.Inheritance;
         if (targets is not [var root] || root.Binding?.Identity.Kind is not (PermissionObjectKind.Directory or PermissionObjectKind.VolumeRoot) ||
             root.Subject.LinkPolicy != PermissionLinkPolicy.NoFollow || !PermissionSnapshots.Matches(root.Subject, root.Binding.Identity) ||
             root.Components is not [{ Change: AddWindowsAce or ChangeWindowsAce or ChangeWindowsInheritance } component] ||
-            component.Before.Sections != discretionary || component.Expected.Sections != discretionary || component.Expected != root.Final)
+            component.Before.Sections != WindowsDiscretionary || component.Expected.Sections != WindowsDiscretionary || component.Expected != root.Final)
             throw new ArgumentException("Native propagation requires one reviewed Windows folder DACL change with root verification.", nameof(targets));
         if (component.Before == component.Expected)
             throw new NotSupportedException("Repairing inheritance when the root already matches requires a qualified repair operation.");

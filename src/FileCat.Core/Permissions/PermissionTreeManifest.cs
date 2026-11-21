@@ -3,7 +3,10 @@ using System.Collections.Immutable;
 namespace FileCat.Core.Permissions;
 
 internal sealed record PermissionTreeEntry(int ParentIndex, int Depth, PermissionSubject Subject, PermissionBinding Binding,
-    PermissionRevision Before, PermissionDraft Draft);
+    PermissionRevision Before, PermissionDraft Draft)
+{
+    internal bool VisitOnly { get; init; }
+}
 
 internal readonly record struct PermissionTreeSummary(int Roots, int InaccessibleBranches, int ExcludedEntries, int Aliases, int ProtectedEntries = 0);
 
@@ -70,8 +73,10 @@ internal sealed class PermissionTreeManifest
             if (entry.ParentIndex < -1 || entry.ParentIndex >= ordinals.Count || entry.Depth < 0 || entry.Depth >= PermissionSnapshots.MaxPathDepth ||
                 entry.Subject.RawLocator is not { Length: > 0 and <= ReviewedPermissionOperation.LocatorLimit } || !Path.IsPathFullyQualified(entry.Subject.RawLocator) ||
                 entry.Binding.Identity.Kind is not (PermissionObjectKind.File or PermissionObjectKind.Directory or PermissionObjectKind.VolumeRoot) ||
-                !PermissionSnapshots.Matches(entry.Subject, entry.Binding.Identity) || entry.Before.Sections == PermissionSections.None ||
-                entry.Draft.Scope is not (PermissionScope.ReviewedTree or PermissionScope.ResetTree) || entry.Draft.Changes.IsDefault)
+                !PermissionSnapshots.Matches(entry.Subject, entry.Binding.Identity) || entry.Draft.Changes.IsDefault ||
+                (entry.VisitOnly ? entry.Binding.Identity.Kind != PermissionObjectKind.Directory || !entry.Draft.Changes.IsEmpty ||
+                    entry.Before != default : entry.Before.Sections == PermissionSections.None) ||
+                entry.Draft.Scope is not (PermissionScope.ReviewedTree or PermissionScope.ResetTree))
                 throw new ArgumentException("The tree contains an entry without bounded ancestry, identity or reviewed section evidence.", nameof(discovery));
 
             int parentIndex = entry.ParentIndex < 0 ? -1 : ordinals[entry.ParentIndex];

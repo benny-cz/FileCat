@@ -55,12 +55,17 @@ internal static class WindowsPermissionAclPatch
         return Serialize(observed, entries);
     }
 
-    internal static ImmutableArray<byte> InsertCanonical(WindowsDacl baseline, WindowsAce entry, string authority, bool directory = false)
+    internal static ImmutableArray<byte> InsertCanonical(WindowsDacl baseline, WindowsAce entry, string authority, bool directory = false,
+        bool ensure = false)
     {
         var observed = RequireExplicitAcl(baseline, authority);
         var addition = ValidateSimpleEntry(entry, authority);
         if ((!directory && addition.Flags != 0) || (directory && (addition.Flags & ~0x03) != 0))
             throw new NotSupportedException("This access entry has inheritance flags outside the reviewed scope.");
+        if (ensure && observed.Entries.Any(rule => rule.Bytes.AsSpan().SequenceEqual(addition.Bytes.AsSpan())))
+            return Serialize(observed, observed.Entries);
+        if (ensure && observed.Entries.Any(rule => rule.Type == addition.Type && rule.Flags == addition.Flags && rule.Principal == addition.Principal))
+            throw new NotSupportedException("A similar explicit rule already exists. Review its rights separately.");
         int insertion = observed.Entries.Length;
         int lastBlock = -1;
         for (int index = 0; index < observed.Entries.Length; index++)

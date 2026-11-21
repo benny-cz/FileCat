@@ -62,6 +62,9 @@ public sealed partial class MainViewModel
         bool WindowsPropagationAvailable(int index) => inspected[index].Source is { Kind: EntryKind.Directory } source &&
             source.FileSystemPath == inspected[index].Snapshot.Subject.RawLocator &&
             Services.Permissions is WindowsPermissionService windows && windows.CanReviewNativePropagation(inspected[index].Snapshot);
+        bool WindowsFileTreeAvailable(int index) => inspected[index].Source is { Kind: EntryKind.Directory } source &&
+            source.FileSystemPath == inspected[index].Snapshot.Subject.RawLocator &&
+            Services.Permissions is WindowsPermissionService windows && windows.CanReviewFileTree(inspected[index].Snapshot);
         bool ProtectionAvailable(int index) => refusals[index] is null && Services.Permissions switch
         {
             DarwinPermissionService => DarwinPermissionService.CanEditProtection(inspected[index].Snapshot),
@@ -100,6 +103,9 @@ public sealed partial class MainViewModel
         if (Enumerable.Range(0, inspected.Length).Any(WindowsPropagationAvailable))
             buttons.Insert(0, new("Review Windows inheritance…", "windows-propagation")
                 { IsAvailable = () => WindowsPropagationAvailable(view.SelectedSubject) });
+        if (Enumerable.Range(0, inspected.Length).Any(WindowsFileTreeAvailable))
+            buttons.Insert(0, new("Add access rule to descendant files…", "windows-file-tree")
+                { IsAvailable = () => WindowsFileTreeAvailable(view.SelectedSubject) });
         if (Enumerable.Range(0, inspected.Length).Any(SftpReviewAvailable))
             buttons.Insert(0, new("Review SFTP permissions…", "sftp") { IsAvailable = () => SftpReviewAvailable(view.SelectedSubject) });
         if (inspected.Any(CanInspectWithLinuxAuthorization))
@@ -124,6 +130,9 @@ public sealed partial class MainViewModel
             await ShowWindowsAclEstimateAsync(dialogs, inspected[view.SelectedSubject], windows);
         else if (answer is "windows-propagation" && WindowsPropagationAvailable(view.SelectedSubject) && !Services.Io.IsStopped)
             await ShowWindowsPropagationEditorAsync(dialogs, inspected[view.SelectedSubject], copy, origin);
+        else if (answer is "windows-file-tree" && WindowsFileTreeAvailable(view.SelectedSubject) && !Services.Io.IsStopped &&
+            Services.Permissions is WindowsPermissionService windowsFileTree)
+            await ShowWindowsFileTreeAsync(dialogs, inspected[view.SelectedSubject], windowsFileTree, origin);
         else if ((answer is "mode-tree" && ModeTreeAvailable(view.SelectedSubject) || answer is "reset-tree" && ResetTreeAvailable(view.SelectedSubject) ||
             answer is "inherit-tree" && DarwinAclTreeAvailable(view.SelectedSubject)) &&
             !Services.Io.IsStopped)

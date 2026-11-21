@@ -225,7 +225,10 @@ public sealed partial class WindowsPermissionScopeTests(ITestOutputHelper output
         return await RunJob(operation, ct);
     }
 
-    private static async Task<PermissionResult> RunJob(ReviewedPermissionOperation review, CancellationToken ct)
+    private static async Task<PermissionResult> RunJob(ReviewedPermissionOperation review, CancellationToken ct) =>
+        Assert.Single(await RunJobResults(review, ct));
+
+    private static async Task<IReadOnlyList<PermissionResult>> RunJobResults(ReviewedPermissionOperation review, CancellationToken ct)
     {
         var directory = Directory.CreateTempSubdirectory("filecat-permission-scope-journal-");
         try
@@ -239,7 +242,7 @@ public sealed partial class WindowsPermissionScopeTests(ITestOutputHelper output
             var job = jobs.SubmitPermissions(review);
             Assert.Same(job, await finished.Task.WaitAsync(TimeSpan.FromSeconds(30), ct));
             Assert.Equal(review.Scope, job.PermissionReviewScope);
-            return Assert.Single(job.PermissionResults);
+            return job.PermissionResults;
         }
         finally { directory.Delete(recursive: true); }
     }
