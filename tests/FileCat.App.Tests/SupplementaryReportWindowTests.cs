@@ -390,10 +390,19 @@ public sealed class SupplementaryReportWindowTests
                 "source" => window.CopyTextAsync(displayed: false, explicitVisible: true, clipboard),
                 _ => window.CopyTextAsync(displayed: true, explicitVisible: true, clipboard),
             };
-            // Control: the same variant publishes when nothing retires it.
-            await ClipboardExtensions.SetTextAsync(clipboard, "existing clipboard text");
-            await Copy();
-            string? copied = await ClipboardExtensions.TryGetTextAsync(clipboard);
+            // Control: the same variant publishes when nothing retires it. A slow runner may still be laying out the
+            // report, when the copy has no captured scope yet and publishes nothing, so the control retries until it does.
+            string? copied = null;
+            for (int attempt = 0; attempt < 50; attempt++)
+            {
+                await ClipboardExtensions.SetTextAsync(clipboard, "existing clipboard text");
+                await Copy();
+                copied = await ClipboardExtensions.TryGetTextAsync(clipboard);
+                if (copied != "existing clipboard text") break;
+                window.UpdateLayout();
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                await Task.Delay(100, TestContext.Current.CancellationToken);
+            }
             Assert.NotEqual("existing clipboard text", copied);
             Assert.Contains("File-system details", copied); // the report's first line is always captured
 

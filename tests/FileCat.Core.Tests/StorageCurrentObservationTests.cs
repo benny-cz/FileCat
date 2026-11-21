@@ -43,17 +43,21 @@ public sealed class StorageCurrentObservationTests
             throw new InvalidOperationException("An observation never opens a traversal.");
     }
 
+    // A fully qualified path on this platform; a relative path is lexically invalid everywhere.
+    private static string P(string name) => OperatingSystem.IsWindows() ? @"C:\data\" + name : "/data/" + name;
+
     private static JobManager Manager(TempDir temp, IStorageTransforms adapter) =>
         new(new PortableFileOperations(), new ProviderRegistry(), adapter, Path.Join(temp.Path, "journal")) { MaxConcurrent = 0 };
 
     [Fact]
     public void Each_recorded_object_is_observed_read_only_and_released_with_failures_kept_to_that_object()
     {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Storage targets are Windows drive paths; other platforms refuse them before any adapter.");
         using var temp = new TempDir();
         var adapter = new Adapter();
         var manager = Manager(temp, adapter);
-        var observed = manager.ObserveStorageObjects([(@"C:\data\compressed.bin", false), (@"C:\data\missing.bin", false),
-            (@"C:\data\junction", true), (@"C:\data\bad:stream", false), (@"C:\data\folder", true)], TestContext.Current.CancellationToken);
+        var observed = manager.ObserveStorageObjects([(P("compressed.bin"), false), (P("missing.bin"), false),
+            (P("junction"), true), ("data/relative.bin", false), (P("folder"), true)], TestContext.Current.CancellationToken);
         Assert.Equal(5, observed.Count);
         Assert.Equal((StorageObservationState.Enabled, (string?)null), (observed[0].Observation!.Compression, observed[0].Problem?.Code));
         Assert.Equal(("open-status-C0000034", (StorageObservation?)null), (observed[1].Problem?.Code, observed[1].Observation));
@@ -62,7 +66,7 @@ public sealed class StorageCurrentObservationTests
         Assert.Equal(("source-path", (StorageObservation?)null), (observed[3].Problem?.Code, observed[3].Observation));
         Assert.True(observed[4].Observation!.IsDirectory);
         Assert.All(adapter.Actions, action => Assert.Null(action)); // read-only: no action is ever requested
-        Assert.Equal(4, adapter.Actions.Count); // the lexically invalid path never reached the adapter
+        Assert.Equal(4, adapter.Actions.Count); // the relative, lexically invalid path never reached the adapter
         Assert.All(adapter.Pins, pin => Assert.Equal(1, pin.Disposals));
         Assert.Empty(manager.Jobs);
         Assert.False(Directory.Exists(Path.Join(temp.Path, "journal")));
@@ -74,7 +78,7 @@ public sealed class StorageCurrentObservationTests
         using var temp = new TempDir();
         var reason = new StorageProblem(StorageReasonKind.FileCatBoundary, "elevated-process", "Open FileCat as your usual Windows user.", false);
         var adapter = new Adapter(reason);
-        var observed = Manager(temp, adapter).ObserveStorageObjects([(@"C:\a.bin", false), (@"C:\b", true)], TestContext.Current.CancellationToken);
+        var observed = Manager(temp, adapter).ObserveStorageObjects([(P("a.bin"), false), (P("b"), true)], TestContext.Current.CancellationToken);
         Assert.All(observed, o => { Assert.Null(o.Observation); Assert.Same(reason, o.Problem); });
         Assert.Empty(adapter.Actions);
     }
@@ -85,7 +89,7 @@ public sealed class StorageCurrentObservationTests
         using var temp = new TempDir();
         var adapter = new Adapter();
         var manager = Manager(temp, adapter);
-        var many = Enumerable.Range(0, 66).Select(i => ($@"C:\data\file{i}.bin", false)).ToArray();
+        var many = Enumerable.Range(0, 66).Select(i => (P($"file{i}.bin"), false)).ToArray();
         Assert.Throws<ArgumentException>(() => manager.ObserveStorageObjects(many, TestContext.Current.CancellationToken));
         Assert.Empty(adapter.Actions);
         Assert.Equal(65, manager.ObserveStorageObjects(many[..65], TestContext.Current.CancellationToken).Count);
