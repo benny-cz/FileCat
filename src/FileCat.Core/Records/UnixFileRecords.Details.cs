@@ -346,7 +346,7 @@ public sealed unsafe partial class UnixFileRecords
         catch (Exception ex) when (ex is IOException or InvalidDataException) { return Unavailable(FactState.Failed, "The second link sample failed."); }
     }
 
-    private static bool HasMacIdentityTimestamps(ReadOnlySpan<byte> fields)
+    internal static bool HasMacIdentityTimestamps(ReadOnlySpan<byte> fields)
     {
         // Creation and change times occupy bytes 32–47 and 64–79 of the packed result.
         const uint timestamps = 0x200 | 0x800; // ATTR_CMN_CRTIME | ATTR_CMN_CHGTIME

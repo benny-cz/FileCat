@@ -201,6 +201,27 @@ public sealed class HiddenInventoryTests
         Assert.False(DownloadMarks.IsDownloadMark(new("user.xdg.origin.url", HiddenKind.Attribute, 0), windows: false, mac: true));
     }
 
+    [Fact]
+    public void Decmpfs_header_shorter_than_sixteen_bytes_never_declares_a_method_or_size()
+    {
+        byte[] header = new byte[16]; "fpmc"u8.CopyTo(header);
+        BitConverter.TryWriteBytes(header.AsSpan(4), 11u); BitConverter.TryWriteBytes(header.AsSpan(8), 4096ul);
+        Assert.StartsWith("Header declares LZFSE", HiddenDataDecoder.Describe(new("com.apple.decmpfs", HiddenKind.Attribute, 16), header).Summary);
+        for (int length = 0; length < 16; length++)
+        {
+            var (summary, details) = HiddenDataDecoder.Describe(new("com.apple.decmpfs", HiddenKind.Attribute, length), header.AsSpan(0, length));
+            Assert.DoesNotContain("declares", summary);
+            Assert.DoesNotContain("LZFSE", summary);
+            Assert.DoesNotContain("uncompressed", summary);
+            Assert.DoesNotContain("Compressed by", summary);
+            if (length < 4) continue; // not even a decmpfs magic: ordinary bounded text/binary evidence
+            Assert.Equal("Truncated decmpfs header; representation not interpreted", summary);
+            Assert.Equal([Convert.ToHexString(header, 0, length).ToLowerInvariant()], details);
+        }
+        // A short value with a different magic is not interpreted as decmpfs at all.
+        Assert.DoesNotContain("decmpfs", HiddenDataDecoder.Describe(new("com.apple.decmpfs", HiddenKind.Attribute, 8), "cmpf\0\0\0\0"u8).Summary);
+    }
+
     [Theory]
     [InlineData(2u, 1048576ul, "representation not interpreted")]
     [InlineData(99u, 1048576ul, "representation not interpreted")]

@@ -109,6 +109,132 @@ public sealed class ReparsePresentationTests
         Assert.Equal(ReparsePayloadState.Malformed, ReparsePayloadReader.Parse(buffer.AsSpan(0, 7)).State);
     }
 
+    /// <summary>A complete reparse buffer: tag, ReparseDataLength, reserved, the link header and both names.</summary>
+    private static byte[] LinkBuffer(uint tag, string substitute, string print, int padding = 0)
+    {
+        byte[] sub = Encoding.Unicode.GetBytes(substitute), shown = Encoding.Unicode.GetBytes(print);
+        int header = tag == ReparseLinks.SymbolicLinkTag ? 12 : 8;
+        byte[] buffer = new byte[8 + header + sub.Length + shown.Length + padding];
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer, tag);
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(4), (ushort)(buffer.Length - 8));
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(8 + 2), (ushort)sub.Length);
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(8 + 4), (ushort)sub.Length);
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(8 + 6), (ushort)shown.Length);
+        sub.CopyTo(buffer, 8 + header);
+        shown.CopyTo(buffer, 8 + header + sub.Length);
+        return buffer;
+    }
+
+    [Theory]
+    [InlineData(ReparseLinks.SymbolicLinkTag, 0)]
+    [InlineData(ReparseLinks.SymbolicLinkTag, 4)]
+    [InlineData(ReparseLinks.MountPointTag, 0)]
+    [InlineData(ReparseLinks.MountPointTag, 4)]
+    public void Odd_or_out_of_range_name_offsets_inside_a_full_length_buffer_are_refused(uint tag, int field)
+    {
+        byte[] buffer = LinkBuffer(tag, @"\??\C:\target", @"C:\target", padding: 6);
+        Assert.Equal(new StoredLinkTarget(@"\??\C:\target", @"C:\target", false), ReparsePayloadReader.Parse(buffer).Link);
+        int names = buffer.Length - 8 - (tag == ReparseLinks.SymbolicLinkTag ? 12 : 8);
+        int length = BinaryPrimitives.ReadUInt16LittleEndian(buffer.AsSpan(8 + field + 2));
+        // Odd, one name-unit past the end, at the end with a non-empty name, beyond the payload and at the 16-bit limit.
+        foreach (int offset in new[] { 1, 3, names - length + 1, names - length + 2, names, names + 2, ushort.MaxValue - 1, ushort.MaxValue })
+        {
+            byte[] damaged = buffer.ToArray();
+            BinaryPrimitives.WriteUInt16LittleEndian(damaged.AsSpan(8 + field), (ushort)offset);
+            var parsed = ReparsePayloadReader.Parse(damaged);
+            Assert.True(parsed.State == ReparsePayloadState.Malformed, $"offset {offset}");
+            Assert.Null(parsed.Link);
+            Assert.Null(RecordText.ReparseTarget(parsed));
+            Assert.Equal(buffer.Length - 8, parsed.RawData.Length); // bounded raw evidence, not a decoded name
+            Assert.Null(ReparsePresentation.ParseLink(tag, damaged.AsSpan(8)));
+        }
+        // A declared name length that runs past the full buffer is refused the same way.
+        byte[] overlong = buffer.ToArray();
+        int start = BinaryPrimitives.ReadUInt16LittleEndian(overlong.AsSpan(8 + field));
+        BinaryPrimitives.WriteUInt16LittleEndian(overlong.AsSpan(8 + field + 2), (ushort)(names - start + 2));
+        Assert.Equal(ReparsePayloadState.Malformed, ReparsePayloadReader.Parse(overlong).State);
+    }
+
+    [Fact]
+    public void Reparse_payloads_above_the_sixteen_KiB_cap_are_refused_without_retaining_their_bytes()
+    {
+        const int Cap = 16 * 1024;
+        byte[] atCap = new byte[Cap];
+        LinkBuffer(ReparseLinks.SymbolicLinkTag, @"\??\C:\target", @"C:\target").CopyTo(atCap, 0);
+        BinaryPrimitives.WriteUInt16LittleEndian(atCap.AsSpan(4), Cap - 8);
+        var accepted = ReparsePayloadReader.Parse(atCap);
+        Assert.Equal(ReparsePayloadState.Known, accepted.State);
+        Assert.Equal(Cap - 8, accepted.RawData.Length);
+        Assert.Equal(@"\??\C:\target", accepted.Link?.SubstituteName);
+        Assert.NotNull(ReparsePresentation.ParseLink(ReparseLinks.SymbolicLinkTag, atCap.AsSpan(8)));
+
+        byte[] over = new byte[Cap + 1];
+        atCap.CopyTo(over, 0);
+        BinaryPrimitives.WriteUInt16LittleEndian(over.AsSpan(4), Cap + 1 - 8);
+        foreach (var refused in new[] { ReparsePayloadReader.Parse(over), ReparsePayloadReader.ParseData(ReparseLinks.SymbolicLinkTag, over.AsSpan(8)) })
+        {
+            Assert.Equal(ReparsePayloadState.Malformed, refused.State);
+            Assert.True(refused.RawData.IsEmpty);
+            Assert.Null(refused.Link);
+        }
+        Assert.Null(ReparsePresentation.ParseLink(ReparseLinks.SymbolicLinkTag, over.AsSpan(8)));
+        // A buffer larger than the native maximum is refused even when its declared data length would fit.
+        BinaryPrimitives.WriteUInt16LittleEndian(over.AsSpan(4), Cap - 8);
+        Assert.Equal(ReparsePayloadState.Malformed, ReparsePayloadReader.Parse(over).State);
+        byte[] vendor = new byte[Cap + 1];
+        BinaryPrimitives.WriteUInt32LittleEndian(vendor, 0x20000001);
+        Assert.Equal(ReparsePayloadState.Malformed, ReparsePayloadReader.Parse(vendor).State);
+        foreach (uint tag in new[] { ReparseLinks.MountPointTag, 0x80000017u, ReparseLinks.AppExecutionAliasTag, ReparseLinks.WslSymbolicLinkTag, 0x9000F01Au })
+        {
+            var data = ReparsePayloadReader.ParseData(tag, new byte[Cap - 8 + 1]);
+            Assert.Equal(ReparsePayloadState.Malformed, data.State);
+            Assert.True(data.RawData.IsEmpty);
+        }
+    }
+
+    [Theory]
+    [InlineData(0x80000023u, "Unix-domain socket")]
+    [InlineData(0x80000024u, "WSL FIFO")]
+    [InlineData(0x80000025u, "WSL character device")]
+    [InlineData(0x80000026u, "WSL block device")]
+    public void Wsl_special_file_tags_are_special_objects_never_links(uint tag, string label)
+    {
+        var description = ReparsePresentation.Describe(tag);
+        Assert.Equal(ReparseKind.Special, description.Kind);
+        Assert.Equal(label, description.Label);
+        Assert.False(description.HasLinkPresentation);
+        Assert.False(description.IsNameSurrogate);
+        Assert.Null(ReparsePresentation.ParseLink(tag, LinkBuffer(ReparseLinks.SymbolicLinkTag, "target", "target").AsSpan(8)));
+        Assert.Equal(ReparsePayloadState.Unsupported, ReparsePayloadReader.ParseData(tag, [1, 2, 3, 4]).State);
+        Assert.Null(RecordText.ReparseTarget(tag, [1, 2, 3, 4]));
+        if (!OperatingSystem.IsWindows()) return;
+        var entry = new EntryData("special", EntryKind.File) { Attributes = (uint)FileAttributes.ReparsePoint, NativeReparseTag = tag, Flags = EntryFlags.Link };
+        var origin = Location.FileSystem(Path.GetTempPath());
+        Assert.Equal(label, EntryPresentation.Kind(entry, origin));
+        Assert.False(EntryPresentation.IsLink(entry, origin));
+    }
+
+    [Fact]
+    public void Every_cloud_subtag_is_cloud_managed_and_lookalike_tags_are_not()
+    {
+        for (uint subtag = 0; subtag <= 0xF; subtag++)
+        {
+            uint tag = 0x9000001A | subtag << 12;
+            Assert.True(ReparsePresentation.IsCloudTag(tag), $"0x{tag:X8}");
+            var description = ReparsePresentation.Describe(tag);
+            Assert.Equal(ReparseKind.Cloud, description.Kind);
+            Assert.Equal("Cloud-managed item", description.Label);
+            Assert.False(description.HasLinkPresentation);
+            Assert.Null(RecordText.ReparseTarget(tag, [1, 0, 0, 0]));
+        }
+        // Directory bit clear, a bit outside the subtag nibble, another low tag, and the name-surrogate bit.
+        foreach (uint lookalike in new[] { 0x8000F01Au, 0x9001001Au, 0x9000F01Bu, 0xB000F01Au, 0x1000F01Au })
+        {
+            Assert.False(ReparsePresentation.IsCloudTag(lookalike), $"0x{lookalike:X8}");
+            Assert.NotEqual(ReparseKind.Cloud, ReparsePresentation.Describe(lookalike).Kind);
+        }
+    }
+
     [Fact]
     public void Tag_survives_spill_mapped_scan_update_and_view_without_using_provider_payload()
     {
