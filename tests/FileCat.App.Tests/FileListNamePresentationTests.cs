@@ -19,6 +19,20 @@ public sealed class FileListNamePresentationTests
 {
     private sealed record ProviderDetails(string KindText, string DetailsText) : IDisplayDetails;
 
+    [AvaloniaFact]
+    public void Provider_owned_kind_is_shared_by_picture_tiles_and_spoken_files_and_folders()
+    {
+        var location = new Location(Schemes.Sftp, "/owned", session: "fixture");
+        foreach (var kind in new[] { EntryKind.File, EntryKind.Directory })
+        {
+            var entry = new EntryData("managed", kind) { Tag = new ProviderDetails("Provider item", "Provider details") };
+            Assert.Equal("Provider item", EntryPresentation.Kind(entry, location));
+            Assert.Equal("Provider item", FileListControl.PictureDetail(entry, location));
+            Assert.Equal("Provider item", FileListControl.ItemKind(entry));
+            Assert.DoesNotContain("Provider item", FileListControl.ItemWarnings(entry, location));
+        }
+    }
+
     private sealed class CloudRootShell : PortableShellServices
     {
         internal IReadOnlyList<CloudSyncRoot> Roots { get; set; } = [];
