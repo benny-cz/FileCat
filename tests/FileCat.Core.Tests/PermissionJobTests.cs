@@ -195,7 +195,7 @@ public sealed partial class PermissionJobTests
         var component = Assert.Single(target.Components);
         _ = target.Mutation.CheckCurrent(component.Before.Sections, ct);
         if (replaceBeforeDispatch) Replace();
-        var call = target.Mutation.Apply(component.Change);
+        var call = target.Mutation.Apply(component.Change, ct);
         Assert.Equal(replaceBeforeDispatch, call.BindingConflict);
         Assert.Null(call.NativeError);
         if (!replaceBeforeDispatch) Replace();
@@ -263,7 +263,7 @@ public sealed partial class PermissionJobTests
         var target = Assert.Single(review.Targets);
         var component = Assert.Single(target.Components);
         _ = target.Mutation.CheckCurrent(component.Before.Sections, ct);
-        var call = target.Mutation.Apply(component.Change);
+        var call = target.Mutation.Apply(component.Change, ct);
         Assert.False(call.BindingConflict);
         Assert.Null(call.NativeError);
         Assert.True(ExchangeFixtureData(path, companion, 1) == 0, $"exchangedata errno {Marshal.GetLastPInvokeError()}");
@@ -367,7 +367,7 @@ public sealed partial class PermissionJobTests
         var target = Assert.Single(review.Targets);
         var component = Assert.Single(target.Components);
         Assert.Equal(component.Before, PermissionRevision.Read(target.Mutation.CheckCurrent(component.Before.Sections, ct), component.Before.Sections));
-        Assert.Null(target.Mutation.Apply(component.Change).NativeError);
+        Assert.Null(target.Mutation.Apply(component.Change, ct).NativeError);
         File.WriteAllText(Path.Join(item.Parent.Path, "unrelated"), "fixture");
         var readback = target.Mutation.Observe(component.Expected.Sections);
         Assert.True(readback.FolderChanged);
@@ -388,7 +388,7 @@ public sealed partial class PermissionJobTests
         var target = Assert.Single(review.Targets);
         var component = Assert.Single(target.Components);
         _ = target.Mutation.CheckCurrent(component.Before.Sections, ct);
-        var call = target.Mutation.Apply(component.Change);
+        var call = target.Mutation.Apply(component.Change, ct);
         Assert.False(call.BindingConflict);
         Assert.Null(call.NativeError);
         File.Move(path, moved);
