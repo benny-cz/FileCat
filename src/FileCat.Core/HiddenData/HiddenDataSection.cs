@@ -13,8 +13,15 @@ public static class HiddenDataSection
     private const int MaxRows = 40;
     private const int ReadBytes = 4096;
 
+    /// <summary>
+    /// Test observation of this value-bearing legacy acquisition (names and value excerpts), raised before any query.
+    /// The metadata-only details routes must never raise it; nothing in the application subscribes.
+    /// </summary>
+    internal static event Action<string>? Acquiring;
+
     public static InspectionSection? Of(IHiddenData hidden, string path)
     {
+        Acquiring?.Invoke(path);
         if (!hidden.IsSupported) return null;
         IReadOnlyList<HiddenItem> items;
         try { items = hidden.List(path); }

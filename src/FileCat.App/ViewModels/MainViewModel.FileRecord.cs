@@ -19,10 +19,16 @@ public sealed partial class MainViewModel
             Notify("FileCat does not read file-system records on this system.", true);
     }
 
+    /// <summary>
+    /// Headless dispatch tests observe this route with a fake reader on every OS, including the Unix Properties
+    /// fallback, without native I/O. The application never sets it and always uses the platform adapter.
+    /// </summary>
+    internal IFileRecords? FileRecordsForTests { get; set; }
+
     /// <summary>The selected panel item and context-menu paths share one exact-path report route.</summary>
     private bool ShowFileRecordForPath(string path)
     {
-        var records = Services.Platform.FileRecords;
+        var records = FileRecordsForTests ?? Services.Platform.FileRecords;
         if (!records.IsSupported) return false;
         var subject = Location.FileSystem(path);
         string device = Services.Providers.For(subject).GetDeviceKey(subject);

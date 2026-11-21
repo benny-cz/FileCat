@@ -1,9 +1,11 @@
 using System.Reflection;
 using System.Text;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
 using FileCat.App.Views;
 using FileCat.Core.FileSystem;
 using FileCat.Core.HiddenData;
@@ -299,13 +301,173 @@ public sealed class SupplementaryReportWindowTests
         finally { window.Close(); Directory.Delete(root, recursive: true); }
     }
 
+    /// <summary>"tier" reads the full record; "cached" switches between two already-acquired tiers without any read.</summary>
+    private static async Task PrepareRetirement(ReportWindow window, string retire)
+    {
+        if (retire != "cached") return;
+        await window.SwitchDetailsTierForTestAsync(); // read the full record: both tiers are now cached
+        await window.SwitchDetailsTierForTestAsync(); // back to the cached summary
+    }
+
+    private static async Task Retire(ReportWindow window, MetadataRecords records, string retire)
+    {
+        int reads = records.Reads;
+        if (retire == "close")
+        {
+            window.Close();
+            return;
+        }
+        await window.SwitchDetailsTierForTestAsync();
+        Assert.Contains(UnqualifiedPayload, window.Text); // the full record is displayed while the output is still pending
+        if (retire == "cached") Assert.Equal(reads, records.Reads);
+    }
+
+    [AvaloniaTheory]
+    [InlineData("tier")]
+    [InlineData("cached")]
+    [InlineData("close")]
+    public async Task A_tier_switch_or_close_cancels_a_pending_details_save_before_its_first_write(string retire)
+    {
+        string root = Directory.CreateTempSubdirectory("filecat-details-pending-save-").FullName;
+        string target = Path.Combine(root, "report.txt");
+        using var io = new DeviceIoScheduler();
+        var records = new MetadataRecords("Pending save fixture", ReportContentKind.MetadataOnly);
+        using var reader = new FileDetailsReader(records, io, "report-pending-save", Path.Combine(root, "observation"));
+        var window = new ReportWindow("observation", reader);
+        var pending = new TaskCompletionSource<IStorageFile?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        int pickerCalls = 0;
+        InstallPicker(window, () => { pickerCalls++; return pending.Task; });
+        try
+        {
+            window.Show();
+            await window.Reading!;
+            await PrepareRetirement(window, retire);
+            var save = Save(window);
+            Assert.Equal(1, pickerCalls);
+            await Retire(window, records, retire);
+            pending.SetResult(Chosen(target));
+            await save.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            Assert.False(File.Exists(target));
+            Assert.Empty(Directory.GetFiles(root));
+            if (retire != "close") Assert.DoesNotContain("Saved as", window.StatusText);
+        }
+        finally
+        {
+            pending.TrySetResult(null);
+            if (window.IsVisible) window.Close();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [AvaloniaTheory]
+    [InlineData("tier", "all")]
+    [InlineData("tier", "source")]
+    [InlineData("tier", "displayed")]
+    [InlineData("cached", "all")]
+    [InlineData("cached", "source")]
+    [InlineData("cached", "displayed")]
+    [InlineData("close", "all")]
+    [InlineData("close", "source")]
+    [InlineData("close", "displayed")]
+    public async Task A_tier_switch_or_close_cancels_a_pending_details_copy_before_publication(string retire, string variant)
+    {
+        using var io = new DeviceIoScheduler();
+        var records = new MetadataRecords("Pending copy fixture", ReportContentKind.MetadataOnly);
+        using var reader = new FileDetailsReader(records, io, "report-pending-copy", "/observation");
+        var window = new ReportWindow("observation", reader);
+        SemaphoreSlim? held = null;
+        try
+        {
+            window.Show();
+            await window.Reading!;
+            await PrepareRetirement(window, retire);
+            window.UpdateLayout();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            var clipboard = window.Clipboard!;
+            Task Copy() => variant switch
+            {
+                "all" => CopyAll(window),
+                "source" => window.CopyTextAsync(displayed: false, explicitVisible: true, clipboard),
+                _ => window.CopyTextAsync(displayed: true, explicitVisible: true, clipboard),
+            };
+            // Control: the same variant publishes when nothing retires it.
+            await ClipboardExtensions.SetTextAsync(clipboard, "existing clipboard text");
+            await Copy();
+            string? copied = await ClipboardExtensions.TryGetTextAsync(clipboard);
+            Assert.NotEqual("existing clipboard text", copied);
+            Assert.Contains("File-system details", copied); // the report's first line is always captured
+
+            await ClipboardExtensions.SetTextAsync(clipboard, "existing clipboard text");
+            held = (SemaphoreSlim)typeof(ReportWindow).GetField("_copyWrites", InstanceFields)!.GetValue(window)!;
+            await held.WaitAsync(TestContext.Current.CancellationToken); // hold publication at its gate
+            var copy = Copy();
+            await Retire(window, records, retire);
+            held.Release();
+            held = null;
+            await copy.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.Equal("existing clipboard text", await ClipboardExtensions.TryGetTextAsync(clipboard));
+        }
+        finally
+        {
+            held?.Release();
+            if (window.IsVisible) window.Close();
+        }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public async Task A_real_text_selection_copy_is_classified_like_every_other_copy_variant(bool encrypted, bool unknown)
+    {
+        const string text = "Fixture supplementary report\nsecond value line";
+        var window = ReportWindow.ForSupplementaryValue("fixture", _ => Task.FromResult(Report(text, encrypted, unknown)));
+        try
+        {
+            window.Show();
+            await Until(() => window.Text == text);
+            window.UpdateLayout();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            var viewer = Assert.Single(window.GetVisualDescendants().OfType<FileCat.App.Controls.TextViewer>());
+            Assert.True(viewer.Focus());
+            var clipboard = window.Clipboard!;
+            await ClipboardExtensions.SetTextAsync(clipboard, "existing clipboard text");
+            // The viewer's own select-all gesture, then the window's Ctrl+C route for a source selection.
+            window.KeyPress(Avalonia.Input.Key.A, Avalonia.Input.RawInputModifiers.Control, Avalonia.Input.PhysicalKey.A, "a");
+            Assert.True(viewer.HasSelection);
+            window.KeyPress(Avalonia.Input.Key.C, Avalonia.Input.RawInputModifiers.Control, Avalonia.Input.PhysicalKey.C, "c");
+            bool allowed = !encrypted && !unknown;
+            if (allowed)
+            {
+                for (int i = 0; i < 400 && await ClipboardExtensions.TryGetTextAsync(clipboard) != text; i++)
+                    await Task.Delay(20, TestContext.Current.CancellationToken);
+                Assert.Equal(text, await ClipboardExtensions.TryGetTextAsync(clipboard));
+            }
+            else
+            {
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                await Task.Delay(100, TestContext.Current.CancellationToken);
+                Assert.Equal("existing clipboard text", await ClipboardExtensions.TryGetTextAsync(clipboard));
+                Assert.True(viewer.HasSelection); // refused output leaves the selection for an explicit later choice
+            }
+        }
+        finally { window.Close(); }
+    }
+
     private sealed class MetadataRecords(string? note = null, ReportContentKind? fullContent = null) : IFileRecords
     {
+        private int _reads;
         internal string? Note { get; set; } = note;
+        /// <summary>Every snapshot acquisition, including the one paired with a full record.</summary>
+        internal int Reads => Volatile.Read(ref _reads);
         public bool IsSupported => true;
         public InspectionReport Read(string path, CancellationToken ct) => throw new InvalidOperationException("Legacy report read.");
-        public FileDetailsSnapshot ReadSummary(string path, CancellationToken ct) => new(path, DateTimeOffset.UtcNow, Guid.NewGuid())
-            { Kind = FileObjectKind.File, Notes = Note is { } current ? [current] : [] };
+        public FileDetailsSnapshot ReadSummary(string path, CancellationToken ct)
+        {
+            Interlocked.Increment(ref _reads);
+            return new(path, DateTimeOffset.UtcNow, Guid.NewGuid()) { Kind = FileObjectKind.File, Notes = Note is { } current ? [current] : [] };
+        }
         public FileDetailsReport ReadFull(string path, FileDetailsPolicy policy, CancellationToken ct) =>
             fullContent is { } kind ? FileDetailsReport.Metadata(ReadSummary(path, ct),
                 new InspectionSection("Fixture", [("Detail", UnqualifiedPayload)])) with { ContentKind = kind }

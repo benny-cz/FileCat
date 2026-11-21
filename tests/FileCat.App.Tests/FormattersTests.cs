@@ -38,6 +38,65 @@ public sealed class FormattersTests
         Assert.Equal(string.Empty, Formatters.Attributes(new Core.Resources.EntryData("..", Core.Resources.EntryKind.Parent)));
     }
 
+    [Theory]
+    [InlineData(0xA000000Cu, true)]  // symbolic link
+    [InlineData(0xA0000003u, true)]  // junction or volume mount
+    [InlineData(0xA000001Du, true)]  // WSL symbolic link
+    [InlineData(0x00000000u, false)] // tag unavailable
+    [InlineData(0x9000F01Au, false)] // Cloud Files
+    [InlineData(0x80000017u, false)] // WOF
+    [InlineData(0x8000001Bu, false)] // app execution alias
+    [InlineData(0x80000024u, false)] // WSL FIFO
+    [InlineData(0xA000FFFFu, false)] // unknown name surrogate
+    [InlineData(0x8000FFFFu, false)] // unknown non-surrogate
+    public void Windows_reparse_letter_and_folder_size_cell_follow_the_confirmed_link_type(uint tag, bool link)
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Windows native reparse presentation.");
+        var origin = Core.Resources.Location.FileSystem(Path.GetTempPath());
+        var folder = new Core.Resources.EntryData("reparse", Core.Resources.EntryKind.Directory)
+        {
+            Attributes = (uint)(FileAttributes.Directory | FileAttributes.ReparsePoint),
+            NativeReparseTag = tag,
+            Flags = Core.Resources.EntryFlags.Link, // the legacy operational flag every local reparse row carries
+        };
+        Assert.Equal(link ? "L" : "P", Formatters.Attributes(folder, origin));
+        Assert.Equal(link ? "<LINK>" : "<DIR>", Formatters.SizeCell(folder, origin));
+
+        // R stays read-only, C/E keep their letters and order; only the reparse letter is interpreted.
+        var decorated = folder;
+        decorated.Attributes |= (uint)(FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System |
+            FileAttributes.Archive | FileAttributes.Compressed | FileAttributes.Encrypted);
+        Assert.Equal("RHSACE" + (link ? "L" : "P"), Formatters.Attributes(decorated, origin));
+        // A counted size wins over either placeholder; files show their size, never <LINK>.
+        var counted = folder;
+        counted.Flags |= Core.Resources.EntryFlags.SizeComputed;
+        counted.Size = 2048;
+        Assert.Equal(Formatters.Size(2048), Formatters.SizeCell(counted, origin));
+        var file = new Core.Resources.EntryData("reparse.bin", Core.Resources.EntryKind.File, 512)
+            { Attributes = (uint)FileAttributes.ReparsePoint, NativeReparseTag = tag, Flags = Core.Resources.EntryFlags.Link };
+        Assert.Equal(link ? "L" : "P", Formatters.Attributes(file, origin));
+        Assert.Equal(Formatters.Size(512), Formatters.SizeCell(file, origin));
+        // Presentation never rewrites the operational flag.
+        Assert.True(folder.Has(Core.Resources.EntryFlags.Link) && file.Has(Core.Resources.EntryFlags.Link));
+    }
+
+    [Fact]
+    public void Provider_links_keep_their_letter_and_size_cell_from_the_provider_flag()
+    {
+        var remote = new Core.Resources.Location(Core.Resources.Schemes.Sftp, "/home", session: "fixture");
+        var link = new Core.Resources.EntryData("linked", Core.Resources.EntryKind.Directory) { Flags = Core.Resources.EntryFlags.Link };
+        var folder = new Core.Resources.EntryData("folder", Core.Resources.EntryKind.Directory);
+        Assert.Equal("L", Formatters.Attributes(link, remote));
+        Assert.Equal("<LINK>", Formatters.SizeCell(link, remote));
+        Assert.Equal(string.Empty, Formatters.Attributes(folder, remote));
+        Assert.Equal("<DIR>", Formatters.SizeCell(folder, remote));
+        // Windows reparse bits on a provider row do not invent P or a reparse interpretation.
+        folder.Attributes = (uint)FileAttributes.ReparsePoint;
+        folder.NativeReparseTag = 0x9000F01A;
+        Assert.DoesNotContain("P", Formatters.Attributes(folder, remote));
+        Assert.Equal("<DIR>", Formatters.SizeCell(folder, remote));
+    }
+
     /// <summary>
     /// §18.3 and V23 B14: a name cannot turn itself around (a right-to-left override would show "photo" RLO "gpj.exe" as
     /// "photoexe.jpg") or break its one line (the Unicode line and paragraph separators, which may hide a name's end).

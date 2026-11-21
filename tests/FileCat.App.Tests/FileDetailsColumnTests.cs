@@ -133,6 +133,102 @@ public sealed class FileDetailsColumnTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    /// <summary>Per-name hard-link facts: known counts, a partial lower bound and an unreturned (unknown) zero.</summary>
+    private sealed class LinkRecords(IReadOnlyDictionary<string, ObservedFact<uint>> links) : IFileRecords
+    {
+        public bool IsSupported => true;
+        public InspectionReport Read(string path, CancellationToken ct) => throw new InvalidOperationException("Legacy reader invoked.");
+        public FileDetailsReport ReadFull(string path, FileDetailsPolicy policy, CancellationToken ct) => throw new InvalidOperationException("Full reader invoked.");
+        public FileDetailsSnapshot ReadSummary(string path, CancellationToken ct) => new(path, DateTimeOffset.UtcNow, Guid.NewGuid())
+        {
+            Kind = FileObjectKind.File,
+            LinkCount = links.TryGetValue(Path.GetFileName(path), out var fact) ? fact : ObservedFact<uint>.Known(1, FactScope.Entry, "fixture"),
+            ReparseTag = ObservedFact<uint>.Unavailable(FactState.NotApplicable, FactScope.Entry, "fixture", "No reparse tag."),
+        };
+    }
+
+    /// <summary>Names-only inventories: a complete count, a partial lower bound, or nothing inspected.</summary>
+    private sealed class InventoryData(IReadOnlyDictionary<string, (int Items, bool Complete)> counts) : Core.HiddenData.IHiddenData
+    {
+        public bool IsSupported => true;
+        public IReadOnlyList<Core.HiddenData.HiddenItem> List(string path) => throw new InvalidOperationException("The combined list reads values.");
+        public Core.HiddenData.HiddenInventory ReadInventory(string path, Core.HiddenData.HiddenInventoryRequest request, CancellationToken ct)
+        {
+            var (count, complete) = counts.TryGetValue(Path.GetFileName(path), out var known) ? known : (0, true);
+            return new(path, DateTimeOffset.UtcNow,
+                [.. Enumerable.Range(0, count).Select(i => new Core.HiddenData.HiddenItem("stream" + i, Core.HiddenData.HiddenKind.Stream, 1))],
+                [new(Core.HiddenData.HiddenKind.Stream, Core.HiddenData.HiddenInventoryState.Complete, count, "fixture"),
+                 new(Core.HiddenData.HiddenKind.NtfsAttribute, complete ? Core.HiddenData.HiddenInventoryState.Complete : Core.HiddenData.HiddenInventoryState.NotInspected, 0, "fixture")],
+                "fixture") { BoundToObject = true };
+        }
+        public byte[] Read(string path, Core.HiddenData.HiddenItem item, int max) => throw new InvalidOperationException("Value read.");
+        public Stream Open(string path, Core.HiddenData.HiddenItem item) => throw new InvalidOperationException("Value open.");
+        public void Delete(string path, Core.HiddenData.HiddenItem item) => throw new InvalidOperationException("Deletion.");
+    }
+
+    [AvaloniaFact]
+    public async Task Partial_and_unknown_zero_counts_sort_last_in_both_directions_and_never_as_exact_numbers()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        var previousHidden = BuiltInFields.HiddenDataSource;
+        static ObservedFact<uint> Links(uint count) => ObservedFact<uint>.Known(count, FactScope.Entry, "fixture");
+        var links = new Dictionary<string, ObservedFact<uint>>(StringComparer.Ordinal)
+        {
+            ["a.txt"] = Links(5), ["b.txt"] = Links(2), ["c-three.bin"] = Links(3), ["d-zero.bin"] = Links(0), ["e-one.bin"] = Links(1),
+            // A lower bound with the same value as b.txt, and an unreturned field whose default value is zero.
+            ["f-partial.bin"] = new(FactState.Partial, 2, FactScope.Entry, "fixture", "At least two names were enumerated."),
+            ["g-unknown.bin"] = ObservedFact<uint>.Unavailable(FactState.Unsupported, FactScope.Entry, "fixture", "The link count was not returned."),
+        };
+        var inventories = new Dictionary<string, (int, bool)>(StringComparer.Ordinal)
+        {
+            ["a.txt"] = (5, true), ["b.txt"] = (2, true), ["c-three.bin"] = (3, true), ["d-zero.bin"] = (0, true), ["e-one.bin"] = (1, true),
+            ["f-partial.bin"] = (2, false), ["g-unknown.bin"] = (0, false),
+        };
+        foreach (var field in FileDetailsFields.Create(new LinkRecords(links), OperatingSystem.IsWindows())) services.Metadata.Register(field);
+        BuiltInFields.HiddenDataSource = new InventoryData(inventories);
+        try
+        {
+            var tab = vm.Workspace.ActiveTab!;
+            foreach (string name in new[] { "c-three.bin", "d-zero.bin", "e-one.bin", "f-partial.bin", "g-unknown.bin" })
+                File.WriteAllText(Path.Combine(root, "files", name), name);
+            tab.Refresh();
+            await Until(() => tab.Listing.State == ListingState.Complete && !tab.Listing.IsRefreshing && tab.Listing.TotalCount == 7);
+            string[] Names() => Enumerable.Range(0, tab.Listing.VisibleCount).Select(i => tab.Listing.GetVisible(i))
+                .Where(entry => entry.Kind != EntryKind.Parent).Select(entry => entry.Name).ToArray();
+            string Text(string name, string field)
+            {
+                int index = tab.Listing.FindStoreIndex(name);
+                return tab.GetMetadataText(tab.Listing.Store[index], index, field, out _);
+            }
+            string[] exact = ["d-zero.bin", "e-one.bin", "b.txt", "c-three.bin", "a.txt"];
+            string[] unknown = ["f-partial.bin", "g-unknown.bin"];
+            foreach (string field in new[] { "hidden", FileDetailsFields.HardLinks })
+            {
+                await tab.AnalyzeAsync(field);
+                await Until(() => tab.Listing.AppliedViewSpecVersion == tab.Listing.ViewSpecVersion && tab.Listing.Sort.MetadataId == field);
+                Assert.False(tab.Listing.Sort.Descending);
+                Assert.Equal(exact, Names()[..5]);
+                Assert.Equal(unknown, Names()[5..].Order(StringComparer.Ordinal));
+                tab.Listing.Sort = tab.Listing.Sort with { Descending = true };
+                await Until(() => tab.Listing.AppliedViewSpecVersion == tab.Listing.ViewSpecVersion);
+                Assert.Equal(Enumerable.Reverse(exact), Names()[..5]);
+                Assert.Equal(unknown, Names()[5..].Order(StringComparer.Ordinal));
+            }
+            // The lower bound and the uninspected zero read as such, never as the exact numbers they resemble.
+            Assert.Equal("2+", Text("f-partial.bin", "hidden"));
+            Assert.Equal("Not inspected", Text("g-unknown.bin", "hidden"));
+            Assert.Equal("0", Text("d-zero.bin", "hidden"));
+            Assert.Equal("Partial", Text("f-partial.bin", FileDetailsFields.HardLinks));
+            Assert.NotEqual("0", Text("g-unknown.bin", FileDetailsFields.HardLinks));
+            Assert.Equal("0", Text("d-zero.bin", FileDetailsFields.HardLinks));
+        }
+        finally
+        {
+            BuiltInFields.HiddenDataSource = previousHidden;
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
     [AvaloniaFact]
     public async Task Canceling_result_analysis_retires_publication_while_the_original_read_finishes()
     {
