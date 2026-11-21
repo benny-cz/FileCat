@@ -18,6 +18,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
+          # The throwaway server runs under x64 emulation (its dependencies have x64 wheels); the SMB client is native.
+          architecture: x64
       - name: Probe a case-distinct share on port 4445
         shell: pwsh
         run: |
