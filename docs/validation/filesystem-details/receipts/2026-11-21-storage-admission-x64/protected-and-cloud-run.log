@@ -1,0 +1,10 @@
+2026-11-21T11:52:33.6371127+01:00 start
+2026-11-21T11:52:33.6810723+01:00 os build 26340.9843 26H2 edition Professional arch AMD64
+2026-11-21T11:52:40.4509560+01:00 packet sha256 0C3930D9D8D177B977E3BD8632E6C9B3DCA398F337FD439AC2C71A4B8CD444F5
+2026-11-21T11:52:40.4596005+01:00 tests dll 22C364A01A137A59AFC6BB71865535892656A88C038E95F60C7962F0B617986A platform dll 3AC69810A78027F4DD43D7ECD12361F2F9D5E31AD1110179B328D0B89EA41310
+2026-11-21T11:52:49.7371871+01:00 fixture nofilter unit 4096 letter 'E' id \\?\Volume{e1eeee0e-8f3e-4e10-9fee-be66e4654e6a}\ bus File Backed Virtual
+2026-11-21T11:52:49.7608626+01:00 cldflt instances:  | Instances for CldFlt filter: |  | Volume Name                              Altitude        Instance Name       Frame  VlStatus | -------------------------------------  ------------  ----------------------  -----  -------- | C:                                        180451     CldFlt                    0     | \Device\HarddiskVolumeShadowCopy2         180451     CldFlt                    0    
+2026-11-21T11:52:49.7608626+01:00 registered sync root ids: 
+2026-11-21T11:53:01.9328564+01:00 child exit 0
+2026-11-21T11:53:02.4845967+01:00 fixtures removed 1
+2026-11-21T11:53:02.4845967+01:00 done

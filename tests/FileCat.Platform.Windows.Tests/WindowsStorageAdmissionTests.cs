@@ -80,6 +80,55 @@ public sealed class WindowsStorageAdmissionTests
     }
 
     [Fact]
+    public void Each_physical_refusal_has_its_own_reason_kind_and_precedence()
+    {
+        var held = new StorageObjectIdentity(7, "held") { VolumeBinding = "v" };
+        var root = new StorageObjectIdentity(5, "root") { VolumeBinding = "v" };
+        var windows = new StorageObjectIdentity(6, "windows") { VolumeBinding = "v" };
+        var ordinary = new WindowsStorageTransforms.VolumeFacts("v", 0x10 | 0x20000, 4096);
+        WindowsStorageTransforms.NodeFacts File(uint attributes = 0x20, uint links = 1, bool directory = false, bool deleting = false,
+            StorageObjectIdentity? identity = null) => new(identity ?? held, attributes, links, 1, directory, deleting, 0);
+        (string?, StorageReasonKind?) Check(WindowsStorageTransforms.NodeFacts facts, WindowsStorageTransforms.VolumeFacts? volume = null,
+            bool compression = true, StorageObjectIdentity[]? ancestry = null, StorageObjectIdentity? expected = null)
+        {
+            var problem = WindowsStorageTransforms.PhysicalProblem(expected ?? held, ancestry ?? [root, held], root, volume ?? ordinary, facts, windows, compression);
+            return (problem?.Code, problem?.Kind);
+        }
+
+        Assert.Equal((null, null), Check(File()));
+        Assert.Equal((null, null), Check(File(0x10, 2, directory: true)));
+        Assert.Equal(("entry-changed", StorageReasonKind.IdentityChanged), Check(File(identity: root with { ObjectId = "other" })));
+        Assert.Equal(("entry-changed", StorageReasonKind.IdentityChanged), Check(File(deleting: true)));
+        Assert.Equal(("volume-root", StorageReasonKind.FileCatBoundary), Check(File(identity: root), ancestry: [root], expected: root));
+        Assert.Equal(("windows-tree", StorageReasonKind.FileCatBoundary), Check(File(), ancestry: [root, windows, held]));
+        Assert.Equal(("system-entry", StorageReasonKind.FileCatBoundary), Check(File(0x24)));
+        Assert.Equal(("reparse-entry", StorageReasonKind.FileCatBoundary), Check(File(0x400)));
+        foreach (uint managed in new[] { 0x1000u, 0x80000u, 0x100000u, 0x400000u })
+            Assert.Equal(("cloud-entry", StorageReasonKind.FileCatBoundary), Check(File(0x20 | managed)));
+        Assert.Equal((null, null), Check(File(0x20 | 0x40000))); // queried FILE_BASIC_INFO 0x40000 is the EA indication
+        Assert.Equal(("multiple-names", StorageReasonKind.FileCatBoundary), Check(File(links: 2)));
+        Assert.Equal(("multiple-names", StorageReasonKind.FileCatBoundary), Check(File(links: 0)));
+        Assert.Equal(("sparse-entry", StorageReasonKind.FileCatBoundary), Check(File(0x10 | 0x200, directory: true)));
+        Assert.Equal((null, null), Check(File(0x20 | 0x200)));
+        Assert.Equal(("read-only-volume", StorageReasonKind.PermissionOrPolicy), Check(File(), ordinary with { Flags = ordinary.Flags | 0x80000 }));
+        Assert.Equal(("allocation-unit-unknown", StorageReasonKind.Unknown), Check(File(), ordinary with { AllocationUnit = 0 }));
+        Assert.Equal(("allocation-unit", StorageReasonKind.FileCatBoundary), Check(File(), ordinary with { AllocationUnit = 8192 }));
+        Assert.Equal((null, null), Check(File(), ordinary with { AllocationUnit = 8192 }, compression: false));
+        Assert.Equal(("volume-compression", StorageReasonKind.WindowsLimitation), Check(File(), ordinary with { Flags = 0x20000 }));
+        Assert.Equal(("volume-efs", StorageReasonKind.WindowsLimitation), Check(File(), ordinary with { Flags = 0x10 }, compression: false));
+        // Precedence: identity before policy, policy before volume capability.
+        Assert.Equal("entry-changed", Check(File(0x404, deleting: true), ordinary with { AllocationUnit = 0 }).Item1);
+        Assert.Equal("system-entry", Check(File(0x404), ordinary with { Flags = 0x80000 }).Item1);
+
+        Assert.Equal(("compression-unknown", StorageReasonKind.Unknown),
+            (WindowsStorageTransforms.StateProblem(StorageObservationState.Unknown, StorageObservationState.Disabled)?.Code,
+             WindowsStorageTransforms.StateProblem(StorageObservationState.Unknown, StorageObservationState.Disabled)?.Kind));
+        Assert.Equal("inconsistent-storage", WindowsStorageTransforms.StateProblem(StorageObservationState.Enabled, StorageObservationState.Enabled)?.Code);
+        Assert.Null(WindowsStorageTransforms.StateProblem(StorageObservationState.Enabled, StorageObservationState.Disabled));
+        Assert.Null(WindowsStorageTransforms.StateProblem(StorageObservationState.Disabled, StorageObservationState.Enabled));
+    }
+
+    [Fact]
     public void The_system_volume_resolves_to_its_held_binding_and_reports_a_fixed_attachment()
     {
         Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client fixture.");

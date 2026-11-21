@@ -500,6 +500,63 @@ public sealed partial class WindowsStorageExecutorTests
         finally { Directory.Delete(temp, true); }
     }
 
+    [Fact]
+    public void Protected_tree_descendants_are_skipped_in_a_recursive_job_while_name_lookalikes_stay_ordinary()
+    {
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs; RequireNormal(arm64);
+        string temp = Directory.CreateTempSubdirectory("filecat-storage-protected-job-").FullName;
+        string? otherVolumeAnchor = null;
+        try
+        {
+            string scope = Directory.CreateDirectory(Path.Join(temp, "scope")).FullName;
+            string active = Directory.CreateDirectory(Path.Join(scope, "active-windows")).FullName;
+            string nested = Directory.CreateDirectory(Path.Join(active, "System32")).FullName;
+            string inside = Path.Join(nested, "inside.dll"); File.WriteAllText(inside, "protected bytes");
+            var lookalikes = new[] { "Windows", "Program Files", "ProgramData" }.Select(name =>
+            {
+                string folder = Directory.CreateDirectory(Path.Join(scope, name)).FullName;
+                string file = Path.Join(folder, "ordinary.bin"); File.WriteAllText(file, name + " bytes");
+                return (folder, file);
+            }).ToArray();
+            var adapter = new WindowsStorageTransforms(windowsDirectory: () => active, qualifyNativeArm64: arm64);
+            var manager = Manager(temp, adapter, arm64);
+            using (var review = manager.PrepareStorageReview([ItemRef.ForFileSystemPath(inside, EntryKind.File)], StorageAction.Compress, Stop))
+            {
+                var refusal = Assert.Single(review.Roots).Observation.Ineligible;
+                Assert.Equal(("windows-tree", StorageReasonKind.FileCatBoundary, false), (refusal?.Code, refusal!.Kind, refusal.IsError));
+            }
+            var job = Run(manager, StorageScope.ExistingDescendants, ItemRef.ForFileSystemPath(scope, EntryKind.Directory));
+            var result = job.StorageResult!;
+            Output?.WriteLine($"Protected tree job: {job.State}; changed {result.Counts.Changed}, skipped {result.Counts.Skipped}; " +
+                $"reasons {string.Join(',', result.Reasons.Select(r => r.Problem.Code + "×" + r.Count))}");
+            Assert.Equal(JobState.CompletedWithIssues, job.State);
+            Assert.Equal((7L, 1L), (result.Counts.Changed, result.Counts.Skipped));
+            Assert.Contains(result.Reasons, r => r.Problem.Code == "windows-tree");
+            Assert.True(Compressed(scope));
+            Assert.All(lookalikes, l => { Assert.True(Compressed(l.folder)); Assert.True(Compressed(l.file)); });
+            Assert.Equal((false, false, false), (Compressed(active), Compressed(nested), Compressed(inside)));
+            Assert.Equal("protected bytes", File.ReadAllText(inside));
+
+            // An anchor on another volume protects only its own tree there.
+            string? owned = Environment.GetEnvironmentVariable("FILECAT_STORAGE_NATIVE_NOFILTER_ROOT");
+            if (!string.IsNullOrWhiteSpace(owned))
+            {
+                otherVolumeAnchor = Directory.CreateDirectory(Path.Join(owned, "anchor-" + Guid.NewGuid().ToString("N"))).FullName;
+                string remote = Path.Join(otherVolumeAnchor, "inside.bin"); File.WriteAllText(remote, "other volume");
+                var elsewhere = Manager(temp, new WindowsStorageTransforms(windowsDirectory: () => otherVolumeAnchor, qualifyNativeArm64: arm64), arm64);
+                using (var there = elsewhere.PrepareStorageReview([ItemRef.ForFileSystemPath(remote, EntryKind.File)], StorageAction.Compress, Stop))
+                    Assert.Equal("windows-tree", Assert.Single(there.Roots).Observation.Ineligible?.Code);
+                using (var here = elsewhere.PrepareStorageReview([ItemRef.ForFileSystemPath(inside, EntryKind.File)], StorageAction.Compress, Stop))
+                    Assert.Null(Assert.Single(here.Roots).Observation.Ineligible);
+            }
+        }
+        finally
+        {
+            if (otherVolumeAnchor is not null) Directory.Delete(otherVolumeAnchor, recursive: true);
+            Directory.Delete(temp, true);
+        }
+    }
+
     private static Job Submit(JobManager manager, ReviewedStorageRoots review, StorageAction action, StorageScope scope)
     {
         using var finished = new ManualResetEventSlim();

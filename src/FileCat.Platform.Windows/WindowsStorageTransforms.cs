@@ -160,10 +160,7 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
             var format = WindowsCompression.Query(file);
             ct.ThrowIfCancellationRequested();
             compression = format.State;
-            if (compression == StorageObservationState.Unknown)
-                problem = Problem(StorageReasonKind.Unknown, "compression-unknown", "The main-data compression format could not be established.");
-            else if (compression == StorageObservationState.Enabled && efs == StorageObservationState.Enabled)
-                problem = Problem(StorageReasonKind.Unknown, "inconsistent-storage", "Both compression and EFS were observed; automatic conversion is refused.");
+            problem = StateProblem(compression, efs);
         }
         return new(new(compression, efs, facts.Identity, facts.IsDirectory, problem),
             (facts.Attributes & (uint)FileAttributes.ReadOnly) != 0,
@@ -191,10 +188,18 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
         }
     }
 
+    /// <summary>An unreadable main-data format, or compression and EFS observed together, refuses any change.</summary>
+    internal static StorageProblem? StateProblem(StorageObservationState compression, StorageObservationState efs) =>
+        compression == StorageObservationState.Unknown
+            ? Problem(StorageReasonKind.Unknown, "compression-unknown", "The main-data compression format could not be established.")
+            : compression == StorageObservationState.Enabled && efs == StorageObservationState.Enabled
+                ? Problem(StorageReasonKind.Unknown, "inconsistent-storage", "Both compression and EFS were observed; automatic conversion is refused.")
+                : null;
+
     private static bool NeedsChange(StorageObservationState current, StorageAction action) =>
         action is StorageAction.Compress or StorageAction.EncryptEfs ? current != StorageObservationState.Enabled : current != StorageObservationState.Disabled;
 
-    private static StorageProblem? PhysicalProblem(StorageObjectIdentity expected, IEnumerable<StorageObjectIdentity> ancestry,
+    internal static StorageProblem? PhysicalProblem(StorageObjectIdentity expected, IEnumerable<StorageObjectIdentity> ancestry,
         StorageObjectIdentity volumeRoot, VolumeFacts volume, NodeFacts facts, StorageObjectIdentity protectedWindows, bool compressionPolicy = true)
     {
         if (facts.Identity != expected || facts.DeletePending) return Problem(StorageReasonKind.IdentityChanged, "entry-changed", "The held entry changed or is being deleted.");
@@ -252,8 +257,8 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
         }
         public void Dispose() { try { file.Dispose(); } finally { Interlocked.Exchange(ref _charge, null)?.Dispose(); } }
     }
-    private sealed record NodeFacts(StorageObjectIdentity Identity, uint Attributes, uint Links, long Size, bool IsDirectory, bool DeletePending, uint CaseFlags);
-    private sealed record VolumeFacts(string Binding, uint Flags, ulong AllocationUnit);
+    internal sealed record NodeFacts(StorageObjectIdentity Identity, uint Attributes, uint Links, long Size, bool IsDirectory, bool DeletePending, uint CaseFlags);
+    internal sealed record VolumeFacts(string Binding, uint Flags, ulong AllocationUnit);
     private sealed record Node(Held Handle, NodeFacts Facts);
     private sealed class NativePath(List<Node> nodes, VolumeFacts volume, int ownedFrom = 0) : IDisposable
     {

@@ -1,0 +1,169 @@
+<TestRun id="0c372e31-50e9-4697-af76-de3a52743157" name="Admin@DESKTOP-A60F1NE 2026-11-21T10:52:51.9798083+00:00" runUser="Admin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-21T10:52:51.9798083+00:00" queuing="2026-11-21T10:52:51.9798083+00:00" start="2026-11-21T10:52:51.9798083+00:00" finish="2026-11-21T11:53:01.3683384+01:00" />
+  <TestSettings name="default" id="6c4d5628-128d-4c3b-a1a4-ab366a4594ad" />
+  <Results>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsStorageExecutorTests.Protected_tree_descendants_are_skipped_in_a_recursive_job_while_name_lookalikes_stay_ordinary" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="90ea8518-1165-440f-9215-22fb44b9fbf6" executionId="90ea8518-1165-440f-9215-22fb44b9fbf6" computerName="DESKTOP-A60F1NE" duration="00:00:00.6507458" startTime="2026-11-21T10:52:51.9798083+00:00" endTime="2026-11-21T10:52:52.6431368+00:00">
+      <Output>
+        <TextMessages>
+          <Message>Protected tree job: CompletedWithIssues; changed 7, skipped 1; reasons windows-tree×1</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.A_cloud_placeholder_reads_its_state_without_being_downloaded" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b21f4d36-9dbb-47a5-90ae-3bac492a4c08" executionId="b21f4d36-9dbb-47a5-90ae-3bac492a4c08" computerName="DESKTOP-A60F1NE" duration="00:00:08.2803684" startTime="2026-11-21T10:52:52.6609902+00:00" endTime="2026-11-21T10:53:00.9414760+00:00">
+      <Output>
+        <TextMessages>
+          <Message>Supplementary data was omitted for this cloud-managed or offline item.
+File-system record · NTFS</Message>
+          <Message></Message>
+          <Message>Item</Message>
+          <Message>  Path        C:\Users\Admin\AppData\Local\Temp\filecat-record-tests\8c825591a8b9422689c4456a076284d4\cloud.txt</Message>
+          <Message>  Kind        file with a reparse point</Message>
+          <Message>  Volume      C:\ · NTFS · serial 4602-6289</Message>
+          <Message>  MFT record  248 245 (0x3C9B5), sequence 37</Message>
+          <Message>  File ID     0x002500000003C9B5</Message>
+          <Message>  Parent      record 248 244, sequence 38 · C:\Users\Admin\AppData\Local\Temp\filecat-record-tests\8c825591a8b9422689c4456a076284d4</Message>
+          <Message>  Attributes  0x00401620: archive, sparse, reparse point, offline, recall on data access</Message>
+          <Message>  8.3 name    none (its name fits 8.3, or 8.3 names are off on this volume)</Message>
+          <Message>  Hard links  1 (this name only)</Message>
+          <Message></Message>
+          <Message>Reparse point</Message>
+          <Message>  Tag   0x9000401A Cloud Files placeholder (OneDrive, iCloud, and other sync apps) · Microsoft, can be a folder</Message>
+          <Message>  Data  140 bytes</Message>
+          <Message></Message>
+          <Message>  0000  01 00 8C 00 46 65 52 70 BE 69 DF 26 88 00 00 00  ....FeRp.i.&amp;....</Message>
+          <Message>  0010  02 00 0A 00 07 00 01 00 60 00 00 00 0A 00 04 00  ........`.......</Message>
+          <Message>  0020  64 00 00 00 06 00 08 00 7C 00 00 00 11 00 12 00  d.......|.......</Message>
+          <Message>  0030  68 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  h...............</Message>
+          <Message>  0040  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................</Message>
+          <Message>  0050  00 00 00 00 00 00 00 00 00 00 00 00 0A 00 04 00  ................</Message>
+          <Message>  0060  84 00 00 00 01 00 00 00 40 00 00 00 66 69 6C 65  ........@...file</Message>
+          <Message>  0070  63 61 74 2D 69 64 65 6E 74 69 74 79 2D 31 00 00  cat-identity-1..</Message>
+          <Message>  … 12 more bytes</Message>
+          <Message></Message>
+          <Message>Cloud placeholder (Cloud Files)</Message>
+          <Message>  On this device  0 bytes of 5 000 bytes (4,88 KiB): none of it (only in the cloud)</Message>
+          <Message>  Validated       0 bytes (what its provider has confirmed is current)</Message>
+          <Message>  Changed here    0 bytes</Message>
+          <Message>  Pin state       unspecified (its provider decides)</Message>
+          <Message>  In sync         in sync (provider-reported)</Message>
+          <Message>  File ID         0x002500000003C9B5 (its own)</Message>
+          <Message>  Sync root       C:\Users\Admin\AppData\Local\Temp\filecat-record-tests\8c825591a8b9422689c4456a076284d4 · file ID 0x002600000003C9B4</Message>
+          <Message>  Provider        FileCat test 1.0 · idle</Message>
+          <Message>  Downloads       full (all of it before a read completes)</Message>
+          <Message>  Folders         always full (folders are always complete on this device)</Message>
+          <Message>  Its identity    18 bytes: its provider's own name for it (below)</Message>
+          <Message></Message>
+          <Message>  Cloud Files metadata is requested through the item's metadata handle. FileCat requests no content or state</Message>
+          <Message>  mutation; providers may still perform network or OS activity. Pin policy, reported local data and</Message>
+          <Message>  synchronization are separate observations.</Message>
+          <Message>  Its identity:</Message>
+          <Message>  0000  66 69 6C 65 63 61 74 2D 69 64 65 6E 74 69 74 79  filecat-identity</Message>
+          <Message>  0010  2D 31                                            -1</Message>
+          <Message></Message>
+          <Message>Layout on disk</Message>
+          <Message>  Size          5 000 bytes (4,88 KiB)</Message>
+          <Message>  Allocated     0 bytes</Message>
+          <Message>  Cluster size  4 096 bytes (4 KiB)</Message>
+          <Message>  Sparse        yes (stored ranges were not queried for this cloud-managed or offline item)</Message>
+          <Message>  Fragments     0 (1 extent on the volume)</Message>
+          <Message></Message>
+          <Message>  VCN  LCN  Clusters  Where</Message>
+          <Message>  ───  ───  ────────  ───────────────────────</Message>
+          <Message>    0  —          16  sparse (nothing stored)</Message>
+          <Message></Message>
+          <Message>Supplementary data was omitted for this cloud-managed or offline item.
+File-system record · NTFS</Message>
+          <Message></Message>
+          <Message>Item</Message>
+          <Message>  Path        C:\Users\Admin\AppData\Local\Temp\filecat-record-tests\8c825591a8b9422689c4456a076284d4\cloud.txt</Message>
+          <Message>  Kind        file with a reparse point</Message>
+          <Message>  Volume      C:\ · NTFS · serial 4602-6289</Message>
+          <Message>  MFT record  248 245 (0x3C9B5), sequence 37</Message>
+          <Message>  File ID     0x002500000003C9B5</Message>
+          <Message>  Parent      record 248 244, sequence 38 · C:\Users\Admin\AppData\Local\Temp\filecat-record-tests\8c825591a8b9422689c4456a076284d4</Message>
+          <Message>  Attributes  0x00401620: archive, sparse, reparse point, offline, recall on data access</Message>
+          <Message>  8.3 name    none (its name fits 8.3, or 8.3 names are off on this volume)</Message>
+          <Message>  Hard links  1 (this name only)</Message>
+          <Message></Message>
+          <Message>Reparse point</Message>
+          <Message>  Tag   0x9000401A Cloud Files placeholder (OneDrive, iCloud, and other sync apps) · Microsoft, can be a folder</Message>
+          <Message>  Data  140 bytes</Message>
+          <Message></Message>
+          <Message>  0000  01 00 8C 00 46 65 52 70 BE 69 DF 26 88 00 00 00  ....FeRp.i.&amp;....</Message>
+          <Message>  0010  02 00 0A 00 07 00 01 00 60 00 00 00 0A 00 04 00  ........`.......</Message>
+          <Message>  0020  64 00 00 00 06 00 08 00 7C 00 00 00 11 00 12 00  d.......|.......</Message>
+          <Message>  0030  68 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  h...............</Message>
+          <Message>  0040  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................</Message>
+          <Message>  0050  00 00 00 00 00 00 00 00 00 00 00 00 0A 00 04 00  ................</Message>
+          <Message>  0060  84 00 00 00 01 00 00 00 40 00 00 00 66 69 6C 65  ........@...file</Message>
+          <Message>  0070  63 61 74 2D 69 64 65 6E 74 69 74 79 2D 31 00 00  cat-identity-1..</Message>
+          <Message>  … 12 more bytes</Message>
+          <Message></Message>
+          <Message>Cloud placeholder (Cloud Files)</Message>
+          <Message>  On this device  0 bytes of 5 000 bytes (4,88 KiB): none of it (only in the cloud)</Message>
+          <Message>  Validated       0 bytes (what its provider has confirmed is current)</Message>
+          <Message>  Changed here    0 bytes</Message>
+          <Message>  Pin state       unspecified (its provider decides)</Message>
+          <Message>  In sync         in sync (provider-reported)</Message>
+          <Message>  File ID         0x002500000003C9B5 (its own)</Message>
+          <Message>  Sync root       C:\Users\Admin\AppData\Local\Temp\filecat-record-tests\8c825591a8b9422689c4456a076284d4 · file ID 0x002600000003C9B4</Message>
+          <Message>  Provider        FileCat test 1.0 · idle</Message>
+          <Message>  Downloads       full (all of it before a read completes)</Message>
+          <Message>  Folders         always full (folders are always complete on this device)</Message>
+          <Message>  Its identity    18 bytes: its provider's own name for it (below)</Message>
+          <Message></Message>
+          <Message>  Cloud Files metadata is requested through the item's metadata handle. FileCat requests no content or state</Message>
+          <Message>  mutation; providers may still perform network or OS activity. Pin policy, reported local data and</Message>
+          <Message>  synchronization are separate observations.</Message>
+          <Message>  Its identity:</Message>
+          <Message>  0000  66 69 6C 65 63 61 74 2D 69 64 65 6E 74 69 74 79  filecat-identity</Message>
+          <Message>  0010  2D 31                                            -1</Message>
+          <Message></Message>
+          <Message>Layout on disk</Message>
+          <Message>  Size          5 000 bytes (4,88 KiB)</Message>
+          <Message>  Allocated     0 bytes</Message>
+          <Message>  Cluster size  4 096 bytes (4 KiB)</Message>
+          <Message>  Sparse        yes (stored ranges were not queried for this cloud-managed or offline item)</Message>
+          <Message>  Fragments     0 (1 extent on the volume)</Message>
+          <Message></Message>
+          <Message>  VCN  LCN  Clusters  Where</Message>
+          <Message>  ───  ───  ────────  ───────────────────────</Message>
+          <Message>    0  —          16  sparse (nothing stored)</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Storage_changes_never_enter_a_registered_sync_root_or_ask_its_provider_for_data" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="56356afe-99f7-4035-a06d-248050e0c7c2" executionId="56356afe-99f7-4035-a06d-248050e0c7c2" computerName="DESKTOP-A60F1NE" duration="00:00:00.4204275" startTime="2026-11-21T10:53:00.9442505+00:00" endTime="2026-11-21T10:53:01.3648656+00:00">
+      <Output>
+        <TextMessages>
+          <Message>Parent job: CompletedWithIssues; changed 2, skipped 1; reasons reparse-entry×1</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsStorageExecutorTests.Protected_tree_descendants_are_skipped_in_a_recursive_job_while_name_lookalikes_stay_ordinary" id="90ea8518-1165-440f-9215-22fb44b9fbf6" storage="C:\fc-run\c4\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="90ea8518-1165-440f-9215-22fb44b9fbf6" />
+      <TestMethod codeBase="C:\fc-run\c4\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsStorageExecutorTests" name="Protected_tree_descendants_are_skipped_in_a_recursive_job_while_name_lookalikes_stay_ordinary" adapterTypeName="executor://0c372e31-50e9-4697-af76-de3a52743157/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.A_cloud_placeholder_reads_its_state_without_being_downloaded" id="b21f4d36-9dbb-47a5-90ae-3bac492a4c08" storage="C:\fc-run\c4\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="b21f4d36-9dbb-47a5-90ae-3bac492a4c08" />
+      <TestMethod codeBase="C:\fc-run\c4\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="A_cloud_placeholder_reads_its_state_without_being_downloaded" adapterTypeName="executor://0c372e31-50e9-4697-af76-de3a52743157/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Storage_changes_never_enter_a_registered_sync_root_or_ask_its_provider_for_data" id="56356afe-99f7-4035-a06d-248050e0c7c2" storage="C:\fc-run\c4\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="56356afe-99f7-4035-a06d-248050e0c7c2" />
+      <TestMethod codeBase="C:\fc-run\c4\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Storage_changes_never_enter_a_registered_sync_root_or_ask_its_provider_for_data" adapterTypeName="executor://0c372e31-50e9-4697-af76-de3a52743157/xunit.v3/3.2.2" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="90ea8518-1165-440f-9215-22fb44b9fbf6" executionId="90ea8518-1165-440f-9215-22fb44b9fbf6" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b21f4d36-9dbb-47a5-90ae-3bac492a4c08" executionId="b21f4d36-9dbb-47a5-90ae-3bac492a4c08" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="56356afe-99f7-4035-a06d-248050e0c7c2" executionId="56356afe-99f7-4035-a06d-248050e0c7c2" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="3" executed="3" passed="3" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+  </ResultSummary>
+</TestRun>
