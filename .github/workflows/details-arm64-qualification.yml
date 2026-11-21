@@ -1,0 +1,128 @@
+name: Details ARM64 qualification
+
+# File-system details and native listing fixtures that need ARM64 hardware. The hosted ARM64 runners are the only ARM64
+# machines available:
+# - linux-arm64 package: Unix details on ubuntu-24.04-arm, including an ext4 inline_data volume;
+# - Windows on Arm: owned FAT32, exFAT and ReFS (Dev Drive) volumes on windows-11-arm, at medium integrity.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  linux-arm64:
+    name: Linux ARM64 (Unix details)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - run: dotnet build tests/FileCat.Core.Tests -c Release -p:RestoreLockedMode=true
+      - name: Prepare an owned ext4 inline_data volume
+        run: |
+          uname -a
+          ldd --version | head -n 1
+          truncate -s 64M "$RUNNER_TEMP/inline.img"
+          mkfs.ext4 -q -F -O inline_data "$RUNNER_TEMP/inline.img"
+          sudo mkdir -p /mnt/fc-inline
+          sudo mount -o loop "$RUNNER_TEMP/inline.img" /mnt/fc-inline
+          sudo chown "$(id -u):$(id -g)" /mnt/fc-inline
+          echo probe > /mnt/fc-inline/probe
+          lsattr /mnt/fc-inline/probe
+          rm /mnt/fc-inline/probe
+      - name: Run the Unix details classes
+        env:
+          FILECAT_TEST_EXT4_INLINE_ROOT: /mnt/fc-inline
+        run: >-
+          dotnet test tests/FileCat.Core.Tests -c Release --no-build
+          --filter "FullyQualifiedName~UnixFileDetailsNativeTests|FullyQualifiedName~UnixFileDetailsColumnsNativeTests|FullyQualifiedName~FileDetailsTests|FullyQualifiedName~FileDetailsOwnershipTests|FullyQualifiedName~UnixHiddenInventoryNativeTests|FullyQualifiedName~HiddenInventoryTests|FullyQualifiedName~HiddenDataTests|FullyQualifiedName~HiddenSearchTests|FullyQualifiedName~SearchTraversalPredicateTests|FullyQualifiedName~ReparsePresentationTests"
+          --logger "trx;LogFileName=linux-arm64-details.trx"
+      - name: Remove the inline_data volume
+        if: always()
+        run: sudo umount /mnt/fc-inline || true
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: details-linux-arm64
+          path: tests/FileCat.Core.Tests/TestResults/*.trx
+
+  windows-arm64-volumes:
+    name: Windows ARM64 (prepared volumes)
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - run: dotnet build tests/FileCat.Platform.Windows.Tests -c Release -p:RestoreLockedMode=true
+      - name: Prepare owned FAT32, exFAT and ReFS volumes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'fc-volumes'
+          New-Item -ItemType Directory -Force $root | Out-Null
+          $log = Join-Path $root 'volumes.log'
+          function New-Fixture([string]$Name, [string]$FileSystem, [switch]$DevDrive) {
+              # FAT32 needs 512-byte sectors, which a .vhd provides.
+              $image = Join-Path $root ("$Name." + $(if ($FileSystem -eq 'FAT32') { 'vhd' } else { 'vhdx' }))
+              $size = if ($DevDrive) { 51200 } else { 1024 }
+              "create vdisk file=`"$image`" maximum=$size type=expandable" | Set-Content (Join-Path $root "$Name-dp.txt") -Encoding ascii
+              & diskpart.exe /s (Join-Path $root "$Name-dp.txt") | Out-File (Join-Path $root "$Name-dp.log")
+              if (!(Test-Path $image)) { throw "vdisk creation failed: $Name" }
+              Mount-DiskImage -ImagePath $image -NoDriveLetter | Out-Null
+              $disk = Get-DiskImage -ImagePath $image | Get-Disk
+              if ($disk.PartitionStyle -ne 'RAW' -or $disk.IsBoot -or $disk.IsSystem) { throw "unexpected fixture disk: $Name" }
+              $disk | Initialize-Disk -PartitionStyle GPT
+              $part = $disk | New-Partition -UseMaximumSize -AssignDriveLetter
+              $label = 'FC' + $Name.ToUpperInvariant()
+              if ($DevDrive) { $vol = Format-Volume -Partition $part -DevDrive -NewFileSystemLabel $label -Confirm:$false }
+              else { $vol = Format-Volume -Partition $part -FileSystem $FileSystem -NewFileSystemLabel $label -Confirm:$false }
+              $letter = (Get-Partition -DiskNumber $disk.Number -PartitionNumber $part.PartitionNumber).DriveLetter
+              Add-Content $log "fixture $Name fs $($vol.FileSystem) unit $($vol.AllocationUnitSize) letter $letter"
+              $target = "${letter}:\filecat-fixture.txt"
+              Set-Content -LiteralPath $target -Value 'Owned volume fixture' -Encoding ascii
+              return $target
+          }
+          "FILECAT_STORAGE_NATIVE_FAT_TARGET=$(New-Fixture 'fat' 'FAT32')" | Add-Content $env:GITHUB_ENV
+          "FILECAT_STORAGE_NATIVE_EXFAT_TARGET=$(New-Fixture 'exfat' 'exFAT')" | Add-Content $env:GITHUB_ENV
+          try { "FILECAT_STORAGE_NATIVE_REFS_TARGET=$(New-Fixture 'refs' 'ReFS' -DevDrive)" | Add-Content $env:GITHUB_ENV }
+          catch { Add-Content $log "ReFS Dev Drive unavailable: $_" }
+          Get-Content $log
+          [System.Environment]::OSVersion.VersionString
+          $env:PROCESSOR_ARCHITECTURE
+      - name: Run the details and listing fixtures at medium integrity
+        shell: pwsh
+        run: |
+          $filter = @(
+              'FullyQualifiedName~WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes'
+              'FullyQualifiedName~WindowsEnumerationParityTests'
+              'FullyQualifiedName~WindowsDetailsLongNameTests'
+              'FullyQualifiedName~WindowsHiddenDataTests.Metadata_reports_carry_no_resident_slack_stream_or_EA_value_sentinel'
+              'FullyQualifiedName~WindowsDetailsNativeGapTests'
+          ) -join '|'
+          ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Platform.Windows.Tests -LogFileName windows-arm64-volumes.trx -Filter $filter
+      - name: Detach the fixture volumes
+        if: always()
+        shell: pwsh
+        run: |
+          Get-ChildItem (Join-Path $env:RUNNER_TEMP 'fc-volumes') -Include *.vhd, *.vhdx -Recurse -ErrorAction SilentlyContinue |
+              ForEach-Object { try { Dismount-DiskImage -ImagePath $_.FullName | Out-Null } catch { } }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: details-windows-arm64-volumes
+          path: |
+            tests/FileCat.Platform.Windows.Tests/TestResults/**/*.trx
+            ${{ runner.temp }}/fc-volumes/*.log
