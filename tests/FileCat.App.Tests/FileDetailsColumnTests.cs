@@ -169,7 +169,13 @@ public sealed class FileDetailsColumnTests
     [AvaloniaFact]
     public async Task Partial_and_unknown_zero_counts_sort_last_in_both_directions_and_never_as_exact_numbers()
     {
-        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        // The files exist before the first listing: writing them later let a late folder-watcher refresh clear the
+        // analyzed values after the sort, which made this test fail intermittently.
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
+        {
+            foreach (string name in new[] { "c-three.bin", "d-zero.bin", "e-one.bin", "f-partial.bin", "g-unknown.bin" })
+                File.WriteAllText(Path.Combine(folder, name), name);
+        });
         var previousHidden = BuiltInFields.HiddenDataSource;
         static ObservedFact<uint> Links(uint count) => ObservedFact<uint>.Known(count, FactScope.Entry, "fixture");
         var links = new Dictionary<string, ObservedFact<uint>>(StringComparer.Ordinal)
@@ -189,9 +195,6 @@ public sealed class FileDetailsColumnTests
         try
         {
             var tab = vm.Workspace.ActiveTab!;
-            foreach (string name in new[] { "c-three.bin", "d-zero.bin", "e-one.bin", "f-partial.bin", "g-unknown.bin" })
-                File.WriteAllText(Path.Combine(root, "files", name), name);
-            tab.Refresh();
             await Until(() => tab.Listing.State == ListingState.Complete && !tab.Listing.IsRefreshing && tab.Listing.TotalCount == 7);
             string[] Names() => Enumerable.Range(0, tab.Listing.VisibleCount).Select(i => tab.Listing.GetVisible(i))
                 .Where(entry => entry.Kind != EntryKind.Parent).Select(entry => entry.Name).ToArray();
