@@ -52,3 +52,17 @@ The prepared File Provider fixture domain on the Mac was still enabled. Its prov
 - `Live_Mac_File_Provider_directory_metadata_keeps_the_prepared_folder_bound`: the folder kept its identity and the thread materialization policy.
 
 The fixture folder carries only the `uchg` flag, not `dataless`. Dataless-flagged folders and packages therefore remain open for F-PARSER.
+
+## Hosted ARM64 runners
+
+The only ARM64 machines available are GitHub-hosted runners. The manual workflow `details-arm64-qualification.yml` (commit `8d20739bd`) passed in [run 44935244040](https://github.com/benny-cz/FileCat/actions/runs/44935244040).
+
+**Windows on Arm** (`windows-11-arm`, medium integrity): the runner created owned FAT32 (4 KiB), exFAT (32 KiB) and ReFS Dev Drive (4 KiB) volumes. 15 tests passed and 3 skipped, because the 64 KiB, read-only and no-filter variables were not set ([TRX](receipts/2026-11-21-native-rows/windows-arm64-volumes.trx) `ca3eadfa…`, [volume log](receipts/2026-11-21-native-rows/windows-arm64-volumes.log)). The tests that passed:
+
+- details on all three volumes;
+- native and managed listing parity on all three;
+- the denied folder and the compatibility junction;
+- case-distinct and 255-unit names;
+- the NTFS omission sentinels, the long name beyond MAX_PATH and the native columns.
+
+**Linux ARM64** (`ubuntu-24.04-arm`): the Unix details, columns, supplementary data, search and reparse classes. 145 tests passed and none failed ([TRX](receipts/2026-11-21-native-rows/linux-arm64-details.trx) `9efe88b1…`). That includes the ext4 inline_data sentinel on a loop-mounted volume and the native column test against `stat`. The skips are fixtures scoped to Linux x64 (the qualified ext-family and Btrfs fixtures) and the macOS-only cases.
