@@ -140,7 +140,7 @@ internal sealed class ReviewedPermissionOperation : IDisposable
             PermissionSections.Access | PermissionSections.Inheritance;
         if (targets is not [var root] || root.Binding?.Identity.Kind is not (PermissionObjectKind.Directory or PermissionObjectKind.VolumeRoot) ||
             root.Subject.LinkPolicy != PermissionLinkPolicy.NoFollow || !PermissionSnapshots.Matches(root.Subject, root.Binding.Identity) ||
-            root.Components is not [{ Change: AddWindowsAce or ChangeWindowsAce } component] ||
+            root.Components is not [{ Change: AddWindowsAce or ChangeWindowsAce or ChangeWindowsInheritance } component] ||
             component.Before.Sections != discretionary || component.Expected.Sections != discretionary || component.Expected != root.Final)
             throw new ArgumentException("Native propagation requires one reviewed Windows folder DACL change with root verification.", nameof(targets));
         if (component.Before == component.Expected)

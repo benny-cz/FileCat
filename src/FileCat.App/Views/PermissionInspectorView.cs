@@ -283,7 +283,7 @@ internal sealed class PermissionInspectorView : StackPanel
         _subject.Children.Add(status);
     }
 
-    private static string WindowsRule(WindowsAce entry)
+    internal static string WindowsRule(WindowsAce entry)
     {
         string identity = entry.Principal is { } principal ? " · " + Formatters.SafeName(principal.Id) : string.Empty;
         string rights = entry.Mask is uint mask ? $" · mask 0x{mask:X8}" : string.Empty;

@@ -85,7 +85,8 @@ public sealed class AppServices : IDisposable
                 qualifySmbReads: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_SMB_PERMISSIONS") == "1",
                 qualifyRefsReads: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_REFS_PERMISSIONS") == "1",
                 qualifyAccessEstimates: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_ACL_ESTIMATE") == "1",
-                qualifyNativePropagation: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_ACL_PROPAGATION") == "1")
+                qualifyNativePropagation: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_ACL_PROPAGATION") == "1",
+                qualifyInheritanceChanges: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_ACL_INHERITANCE") == "1")
             : OperatingSystem.IsLinux() ? new LinuxPermissionService(
                 qualifyMountProjections: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_LINUX_MOUNT_PERMISSIONS") == "1")
             : OperatingSystem.IsMacOS() ? new DarwinPermissionService() : new NoPermissionService());

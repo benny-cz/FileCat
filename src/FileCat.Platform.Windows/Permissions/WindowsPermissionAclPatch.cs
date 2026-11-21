@@ -77,6 +77,26 @@ internal static class WindowsPermissionAclPatch
         return Serialize(observed, observed.Entries.Insert(insertion, addition));
     }
 
+    internal static ImmutableArray<byte> ConvertInheritance(WindowsDacl baseline, string authority, WindowsInheritanceAction action)
+    {
+        var observed = RequireExplicitAcl(baseline, authority);
+        if (action == WindowsInheritanceAction.ProtectCopy)
+        {
+            var entries = observed.Entries.Select(entry =>
+            {
+                if ((entry.Flags & Inherited) == 0) return entry;
+                if (entry.Kind == WindowsAceKind.Opaque)
+                    throw new NotSupportedException("An inherited rule uses a format FileCat cannot convert to an explicit rule.");
+                byte flags = (byte)(entry.Flags & ~Inherited);
+                return entry with { Flags = flags, Bytes = entry.Bytes.SetItem(1, flags) };
+            }).ToImmutableArray();
+            return Serialize(observed, entries);
+        }
+        if (action is WindowsInheritanceAction.ProtectRemove or WindowsInheritanceAction.Enable)
+            return Serialize(observed, observed.Entries.Where(entry => (entry.Flags & Inherited) == 0).ToImmutableArray());
+        throw new ArgumentOutOfRangeException(nameof(action));
+    }
+
     private static WindowsDacl RequireExplicitAcl(WindowsDacl baseline, string authority)
     {
         var observed = WindowsPermissionDescriptor.Dacl(baseline.SecurityDescriptor.AsSpan(), authority);

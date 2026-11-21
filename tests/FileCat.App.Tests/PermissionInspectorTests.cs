@@ -955,6 +955,65 @@ public sealed class PermissionInspectorTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Windows_folder_inheritance_editor_previews_protection_and_parent_merge(bool enable)
+    {
+        if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_WINDOWS_SCOPE") != "1" ||
+            ReviewedPermissionOperation.ProcessRefusal() is not null)
+            Assert.Skip("Requires the ordinary Windows x64 NTFS scope fixture.");
+
+        string? path = null;
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
+        {
+            var parent = Directory.CreateDirectory(Path.Combine(folder, "parent"));
+            using var actor = WindowsIdentity.GetCurrent();
+            var acl = new DirectorySecurity();
+            acl.SetAccessRuleProtection(true, false);
+            acl.AddAccessRule(new FileSystemAccessRule(actor.User!, FileSystemRights.FullControl,
+                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+            acl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier("S-1-5-32-546"), FileSystemRights.ReadAttributes,
+                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+            parent.SetAccessControl(acl);
+            var selected = parent.CreateSubdirectory("selected");
+            if (enable)
+            {
+                var protectedAcl = new DirectorySecurity();
+                protectedAcl.SetAccessRuleProtection(true, false);
+                protectedAcl.AddAccessRule(new FileSystemAccessRule(actor.User!, FileSystemRights.FullControl, AccessControlType.Allow));
+                selected.SetAccessControl(protectedAcl);
+            }
+            path = selected.FullName;
+        }, permissionService: new WindowsPermissionService(qualifyNativePropagation: true, qualifyInheritanceChanges: true));
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var tab = vm.ActiveTab!;
+            tab.Navigate(Location.FileSystem(Path.GetDirectoryName(path!)!));
+            await Until(() => tab.Listing.State == ListingState.Complete && tab.Listing.FocusName("selected"), ct);
+            vm.Execute(CommandIds.PermissionsOwnership);
+            await Until(() => FindButton(window, "Review Windows inheritance…") is not null, ct);
+            Click(FindButton(window, "Review Windows inheritance…")!);
+            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(box =>
+                AutomationProperties.GetName(box) == "Windows DACL inheritance action"), ct);
+            var choice = window.GetVisualDescendants().OfType<ComboBox>().Single(box =>
+                AutomationProperties.GetName(box) == "Windows DACL inheritance action");
+            choice.SelectedIndex = 1;
+            await Until(() => TextPresent(window, enable ? "Inherited from reviewed parent" : "becomes explicit"), ct);
+            Assert.False(FindButton(window, "Apply")!.IsEnabled);
+            window.GetVisualDescendants().OfType<CheckBox>().Single(box =>
+                Equals(box.Content, "Allow Windows to update inheriting descendants")).IsChecked = true;
+            await Until(() => FindButton(window, "Apply")?.IsEnabled == true, ct);
+            Click(FindButton(window, "Apply")!);
+            await Until(() => TextPresent(window, "Descendant effects are unverified."), ct);
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(PermissionVerdict.Verified, Assert.Single(job.PermissionResults).Verdict);
+            Assert.Equal(!enable, new DirectoryInfo(path!).GetAccessControl(AccessControlSections.Access).AreAccessRulesProtected);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaFact]
     public async Task Windows_editor_applies_a_preset_and_an_advanced_right_to_one_explicit_entry()
     {

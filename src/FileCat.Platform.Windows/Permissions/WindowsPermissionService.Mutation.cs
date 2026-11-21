@@ -41,19 +41,26 @@ internal sealed unsafe partial class WindowsPermissionService
         PermissionSnapshots.IsLocal(snapshot.Subject) && snapshot.Subject.LinkPolicy == PermissionLinkPolicy.NoFollow &&
         PermissionRevision.Read(snapshot, DiscretionarySections) is not null;
 
-    internal static PermissionSnapshot PreviewPropagation(PermissionSnapshot original, PermissionDelta change) =>
-        Project(original, change, directory: true).Expected;
+    internal static PermissionSnapshot PreviewPropagation(PermissionSnapshot original, PermissionDelta change, InheritanceParent? parent = null) =>
+        Project(original, change, directory: true, parent).Expected;
 
     internal (ReviewedPermissionOperation Review, PermissionSnapshot Expected) PrepareNativePropagation(PermissionInspection inspection,
-        ItemRef source, PermissionDraft draft, PropagationBoundary boundary, CancellationToken ct)
+        ItemRef source, PermissionDraft draft, PropagationBoundary boundary, CancellationToken ct, InheritanceParent? parent = null)
     {
         ct.ThrowIfCancellationRequested();
         if (!CanReviewNativePropagation(inspection.Snapshot) || draft.Scope != PermissionScope.NativePropagation ||
-            draft.Changes is not [AddWindowsAce or ChangeWindowsAce] || source.Kind != EntryKind.Directory ||
+            draft.Changes is not [AddWindowsAce or ChangeWindowsAce or ChangeWindowsInheritance] || source.Kind != EntryKind.Directory ||
             source.FileSystemPath != inspection.Snapshot.Subject.RawLocator)
             throw new NotSupportedException("Native inheritance requires one reviewed access-rule change on the original local NTFS folder.");
-        RequireUnchangedPropagationBoundary(inspection.Snapshot, boundary, ct);
-        return PrepareChange(inspection, source, draft, boundary, ct);
+        var snapshot = inspection.Snapshot;
+        if (draft.Changes[0] is ChangeWindowsInheritance && !CanReviewInheritanceChange(snapshot))
+            throw new NotSupportedException("Inheritance protection changes are unavailable on this route.");
+        RequireUnchangedPropagationBoundary(snapshot, boundary, ct);
+        if (draft.Changes[0] is ChangeWindowsInheritance { Action: WindowsInheritanceAction.Enable })
+            RequireUnchangedInheritanceParent(snapshot, boundary, parent ??
+                throw new NotSupportedException("A verified parent DACL is required to enable inheritance."), ct);
+        else parent = null;
+        return PrepareChange(inspection, source, draft, boundary, ct, parent);
     }
 
     internal static (ReviewedPermissionOperation Review, PermissionSnapshot Expected) Prepare(PermissionInspection inspection, ItemRef source,
@@ -68,7 +75,7 @@ internal sealed unsafe partial class WindowsPermissionService
     }
 
     private static (ReviewedPermissionOperation Review, PermissionSnapshot Expected) PrepareChange(PermissionInspection inspection, ItemRef source,
-        PermissionDraft draft, PropagationBoundary? boundary, CancellationToken ct)
+        PermissionDraft draft, PropagationBoundary? boundary, CancellationToken ct, InheritanceParent? inheritanceParent = null)
     {
         var original = inspection.Snapshot;
         bool propagates = boundary is not null;
@@ -76,7 +83,7 @@ internal sealed unsafe partial class WindowsPermissionService
         var binding = original.Binding!;
         var before = RequireRevision(original);
         var change = draft.Changes[0];
-        var projection = Project(original, change, directory: propagates);
+        var projection = Project(original, change, directory: propagates, inheritanceParent);
         var expected = RequireRevision(projection.Expected);
         if (propagates && before == expected)
             throw new NotSupportedException("This native inheritance route needs a change to the selected folder's access rules.");
@@ -107,7 +114,7 @@ internal sealed unsafe partial class WindowsPermissionService
                 string leaf = volumeRoot ? @"\??\" + pin.Root : pin.Names[^1];
                 var admitted = Open(parent, leaf, security: true, ct, access, allowDirectoryWrite: propagates);
                 mutation = new WindowsDiscretionaryMutation(original, pin.Root, pin.Names, pin.Chain, admitted, token, change,
-                    projection.Section, projection.Bytes, boundary);
+                    projection.Section, projection.Bytes, boundary, inheritanceParent);
                 var actual = mutation.CheckCurrent(DiscretionarySections, ct);
                 if (actual.Binding != binding || RequireRevision(actual) != before)
                     throw new PermissionBindingConflictException("Windows security changed after inspection.");
@@ -126,7 +133,7 @@ internal sealed unsafe partial class WindowsPermissionService
     }
 
     private static (PermissionSnapshot Expected, uint Section, ImmutableArray<byte> Bytes) Project(PermissionSnapshot original,
-        PermissionDelta change, bool directory = false)
+        PermissionDelta change, bool directory = false, InheritanceParent? parent = null)
     {
         string authority = original.Subject.Authority.Id;
         if (change is AssignPermissionPrincipal { IsOwner: true } owner)
@@ -137,6 +144,8 @@ internal sealed unsafe partial class WindowsPermissionService
         }
         if (original.Access.Value?.Acl is not WindowsDacl baseline || original.Inheritance.Value is not { } control)
             throw new NotSupportedException("A readable Windows DACL and control are required.");
+        if (directory && change is ChangeWindowsInheritance inheritance)
+            return ProjectInheritance(original, baseline, control, inheritance, parent);
         var bytes = change switch
         {
             ChangeWindowsAce replacement => WindowsPermissionAclPatch.Replace(baseline, replacement, authority),
@@ -162,7 +171,7 @@ internal sealed unsafe partial class WindowsPermissionService
 
     private sealed class WindowsDiscretionaryMutation(PermissionSnapshot original, string root, string[] names, FileStamp[] inspectedChain,
         SafeFileHandle admitted, WindowsPermissionToken.Stamp token, PermissionDelta reviewedChange, uint section, ImmutableArray<byte> bytes,
-        PropagationBoundary? boundary) : IBoundPermissionMutation
+        PropagationBoundary? boundary, InheritanceParent? inheritanceParent) : IBoundPermissionMutation
     {
         private FileStamp? _checked;
 
@@ -188,7 +197,11 @@ internal sealed unsafe partial class WindowsPermissionService
                 throw new InvalidOperationException("Windows permission writes require the rechecked reviewed component.");
             try
             {
-                if (boundary is not null) RequireUnchangedPropagationBoundary(original, boundary, cancellation);
+                if (boundary is not null)
+                {
+                    RequireUnchangedPropagationBoundary(original, boundary, cancellation);
+                    if (inheritanceParent is not null) RequireUnchangedInheritanceParent(original, boundary, inheritanceParent, cancellation);
+                }
                 if (WindowsPermissionToken.CurrentStamp() != token || ReadStamp(cancellation) != checkedStamp)
                     return new(RejectedBeforeChange: true, BindingConflict: boundary is not null);
             }
@@ -204,7 +217,7 @@ internal sealed unsafe partial class WindowsPermissionService
             uint errorCode;
             fixed (byte* payload = bytes.AsSpan())
                 errorCode = SetSecurityInfo(admitted, 1 /* SE_FILE_OBJECT */, section,
-                    section == OwnerInformation ? payload : null, null, section == DaclInformation ? payload : null, null);
+                    section == OwnerInformation ? payload : null, null, (section & DaclInformation) != 0 ? payload : null, null);
             return errorCode == 0 ? new() : new((int)errorCode,
                 RejectedBeforeChange: boundary is null && (errorCode is 5 or 87 or 1307 or 1314 or 1336));
         }

@@ -157,8 +157,26 @@ public sealed partial class MainViewModel
             var device = Services.Providers.For(item.Source!.Parent).GetDeviceKey(item.Source.Parent);
             var boundary = await Services.Io.RunOwned(device, IoPriority.Interactive,
                 ct => WindowsPermissionService.CapturePropagationBoundary(item.Snapshot, ct));
+            WindowsInheritanceOptions? options = null;
+            if (Services.Permissions is WindowsPermissionService service && service.CanReviewInheritanceChange(item.Snapshot))
+            {
+                options = new(null, null);
+                if (item.Snapshot.Inheritance.Value?.IsProtected == true)
+                {
+                    try
+                    {
+                        var parent = await Services.Io.RunOwned(device, IoPriority.Interactive,
+                            ct => WindowsPermissionService.CaptureInheritanceParent(item.Snapshot, boundary, ct));
+                        options = new(parent, null);
+                    }
+                    catch (Exception error) when (error is IOException or NotSupportedException or UnauthorizedAccessException)
+                    {
+                        options = new(null, Formatters.SafeName(error.Message));
+                    }
+                }
+            }
             if (!Services.Io.IsStopped)
-                await ShowBoundPermissionEditorAsync(dialogs, item, copy, "acl", origin, windowsPropagation: boundary);
+                await ShowBoundPermissionEditorAsync(dialogs, item, copy, "acl", origin, windowsPropagation: boundary, windowsInheritance: options);
         }
         catch (OperationCanceledException) { }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
@@ -167,6 +185,8 @@ public sealed partial class MainViewModel
                 await dialogs.AlertAsync("Windows inheritance unavailable", Formatters.SafeName(error.Message));
         }
     }
+
+    private sealed record WindowsInheritanceOptions(WindowsPermissionService.InheritanceParent? Parent, string? Reason);
 
     private async Task ShowWindowsAclEstimateAsync(IDialogService dialogs, InspectedPermission item, WindowsPermissionService windows)
     {
@@ -285,7 +305,8 @@ public sealed partial class MainViewModel
 
     private async Task ShowBoundPermissionEditorAsync(IDialogService dialogs, InspectedPermission item, Func<string, Task>? copy,
         string command, PermissionSelection? origin, SftpPermissionEdit? sftpEdit = null, LinuxAuthorizedPermissionEdit? authorizedLinux = null,
-        nint windowsAuthorizationOwner = 0, WindowsPermissionService.PropagationBoundary? windowsPropagation = null)
+        nint windowsAuthorizationOwner = 0, WindowsPermissionService.PropagationBoundary? windowsPropagation = null,
+        WindowsInheritanceOptions? windowsInheritance = null)
     {
         var snapshot = authorizedLinux?.Snapshot ?? item.Snapshot;
         var source = item.Source ?? throw new InvalidOperationException("The reviewed object lacks its original source.");
@@ -313,6 +334,15 @@ public sealed partial class MainViewModel
             snapshot.Access.Value?.Acl is PosixAcl original && original.Entries.Any(row => row.Tag == PosixAclTag.Mask)) : null;
         var windowsAcl = windows && command == "acl" && snapshot.Access.Value?.Acl is WindowsDacl dacl
             ? new WindowsAccessEditor(dacl, snapshot.Subject.Authority.Id, copy, directory: windowsPropagation is not null) : null;
+        (string Label, WindowsInheritanceAction? Action)[] inheritanceChoices = windowsInheritance is null ? [] :
+            snapshot.Inheritance.Value?.IsProtected == true
+            ? [("Edit access rules", null), ("Enable inheritance from parent", WindowsInheritanceAction.Enable)]
+            : [("Edit access rules", null), ("Protect and copy inherited rules", WindowsInheritanceAction.ProtectCopy),
+                ("Protect and remove inherited rules", WindowsInheritanceAction.ProtectRemove)];
+        var inheritanceChoice = windowsInheritance is not null && windowsAcl is not null
+            ? new ComboBox { ItemsSource = inheritanceChoices.Select(choice => choice.Label).ToArray(), SelectedIndex = 0 }
+            : null;
+        if (inheritanceChoice is not null) AutomationProperties.SetName(inheritanceChoice, "Windows DACL inheritance action");
         var windowsAudit = authorizedWindows && command == "audit" && snapshot.Audit.Value?.Acl is WindowsSacl sacl
             ? new WindowsAuditEditor(sacl, snapshot.Subject.Authority.Id) : null;
         ComboBox? owner = null;
@@ -452,6 +482,9 @@ public sealed partial class MainViewModel
         }
         Control fields = groupFields ?? (Control?)acl ?? (Control?)mode ?? (Control?)windowsAcl ?? (Control?)windowsAudit ?? owner
             ?? throw new NotSupportedException("This file has no supported permissions editor.");
+        if (inheritanceChoice is not null)
+            fields = new StackPanel { Spacing = 8, Children =
+                { new Label { Content = "Access rule or inheritance change", Target = inheritanceChoice }, inheritanceChoice, fields } };
         var problem = PermissionNotice();
         var result = PermissionNotice();
         var preview = new ListBox { MaxHeight = 180, IsVisible = false, ItemTemplate =
@@ -489,6 +522,8 @@ public sealed partial class MainViewModel
             layout.Children.Insert(3, Wrapped($"Inspected {Formatters.Plural(boundary.Members.Length, "path", "paths")} including the selected folder."));
             layout.Children.Insert(4, Wrapped("Windows may update eligible existing descendants and inheritance for future children. " +
                 "FileCat verifies the selected folder. Descendant effects remain unverified."));
+            if (windowsInheritance?.Parent is { } parent)
+                layout.Children.Insert(5, Wrapped("Reviewed inheritance parent · " + Formatters.SafeName(parent.Locator)));
         }
         if (sftpEdit is not null)
         {
@@ -544,6 +579,12 @@ public sealed partial class MainViewModel
         if (darwinAcl is not null) darwinAcl.Changed += DraftChanged;
         if (mode is not null) mode.Changed += DraftChanged;
         if (windowsAcl is not null) windowsAcl.Changed += DraftChanged;
+        if (inheritanceChoice is not null)
+            inheritanceChoice.SelectionChanged += (_, _) =>
+            {
+                windowsAcl!.IsVisible = inheritanceChoice.SelectedIndex == 0;
+                DraftChanged();
+            };
         if (windowsAudit is not null) windowsAudit.Changed += DraftChanged;
         if (owner is not null) owner.SelectionChanged += (_, _) => DraftChanged();
         if (group is not null) group.SelectionChanged += (_, _) => DraftChanged();
@@ -753,7 +794,17 @@ public sealed partial class MainViewModel
             }
             else if (windowsAcl is not null)
             {
-                (change, error) = windowsAcl.ReadChange();
+                int inheritanceIndex = inheritanceChoice?.SelectedIndex ?? 0;
+                if (inheritanceIndex > 0 && inheritanceChoices[inheritanceIndex].Action is { } action)
+                {
+                    if (action == WindowsInheritanceAction.Enable && windowsInheritance?.Parent is null)
+                    {
+                        error = windowsInheritance?.Reason ?? "A verified parent DACL is required.";
+                        return null;
+                    }
+                    change = new ChangeWindowsInheritance(action);
+                }
+                else (change, error) = windowsAcl.ReadChange();
                 if (change is null) return null;
             }
             else if (windowsAudit is not null)
@@ -776,7 +827,8 @@ public sealed partial class MainViewModel
                 var expected = snapshot.Model switch
                 {
                     PermissionModel.WindowsDescriptor when authorizedWindows => WindowsPermissionService.PreviewAuthorizedChange(snapshot, change),
-                    PermissionModel.WindowsDescriptor when windowsPropagation is not null => WindowsPermissionService.PreviewPropagation(snapshot, change),
+                    PermissionModel.WindowsDescriptor when windowsPropagation is not null =>
+                        WindowsPermissionService.PreviewPropagation(snapshot, change, windowsInheritance?.Parent),
                     PermissionModel.WindowsDescriptor => WindowsPermissionService.PreviewChange(snapshot, change),
                     PermissionModel.DarwinAcl when change is ChangePermissionMode changeMode => DarwinPermissionService.PreviewMode(snapshot, changeMode),
                     _ => LinuxPermissionService.PreviewAccessChange(snapshot, change)
@@ -903,7 +955,7 @@ public sealed partial class MainViewModel
                     var prepared = snapshot.Model switch
                     {
                         PermissionModel.WindowsDescriptor when windowsPropagation is not null && Services.Permissions is WindowsPermissionService windowsService
-                            => windowsService.PrepareNativePropagation(item.Inspection, source, draft, windowsPropagation, ct),
+                            => windowsService.PrepareNativePropagation(item.Inspection, source, draft, windowsPropagation, ct, windowsInheritance?.Parent),
                         PermissionModel.WindowsDescriptor => WindowsPermissionService.Prepare(item.Inspection, source, draft, ct),
                         PermissionModel.DarwinAcl => DarwinPermissionService.Prepare(item.Inspection, source, draft, acceptClear, ct, darwinGroupAuthority),
                         _ => LinuxPermissionService.Prepare(item.Inspection, source, draft, acceptClear, ct, groupAuthority)
@@ -969,6 +1021,7 @@ public sealed partial class MainViewModel
 
     private static string[] DescribeWindowsPermissionDiff(PermissionSnapshot original, PermissionSnapshot expected, PermissionDelta change) => change switch
     {
+        ChangeWindowsInheritance inheritance => DescribeWindowsInheritance(original, expected, inheritance.Action),
         AssignPermissionPrincipal owner => [$"Owner · {Formatters.SafeName(original.Owner.Value?.Id ?? "unavailable")} → {Formatters.SafeName(owner.Principal.Id)}"],
         ChangeWindowsAce { Replacement: null } removed when expected.Access.Value?.Acl is WindowsDacl { Entries.IsEmpty: true } =>
             [$"Remove entry {removed.Occurrence + 1} · {WindowsAccessEditor.Describe(removed.Expected)}", "The resulting empty DACL grants no discretionary access."],
@@ -982,6 +1035,27 @@ public sealed partial class MainViewModel
         ChangeWindowsAuditAce added => [$"Add audit entry · {WindowsAuditEditor.Describe(added.Replacement)}"],
         _ => []
     };
+
+    private static string[] DescribeWindowsInheritance(PermissionSnapshot original, PermissionSnapshot expected, WindowsInheritanceAction action)
+    {
+        var before = (WindowsDacl)original.Access.Value!.Value.Acl;
+        var after = (WindowsDacl)expected.Access.Value!.Value.Acl;
+        var rows = new List<string> { action == WindowsInheritanceAction.Enable ? "Enable DACL inheritance from the reviewed parent" : "Protect the DACL" };
+        for (int index = 0; index < before.Entries.Length; index++)
+        {
+            var entry = before.Entries[index];
+            if ((entry.Flags & 0x10) == 0) continue;
+            rows.Add(action == WindowsInheritanceAction.ProtectCopy
+                ? $"Rule {index + 1} becomes explicit · {PermissionInspectorView.WindowsRule(after.Entries[index])}"
+                : $"Remove inherited rule {index + 1} · {PermissionInspectorView.WindowsRule(entry)}");
+        }
+        if (action == WindowsInheritanceAction.Enable)
+            for (int index = 0; index < after.Entries.Length; index++)
+                if ((after.Entries[index].Flags & 0x10) != 0)
+                    rows.Add($"Inherited from reviewed parent · {PermissionInspectorView.WindowsRule(after.Entries[index])}");
+        if (after.Entries.IsEmpty) rows.Add("The resulting empty DACL grants no discretionary access.");
+        return rows.ToArray();
+    }
 
     private static string[] DescribeProtectionDiff(PermissionSnapshot original, PermissionSnapshot expected)
     {

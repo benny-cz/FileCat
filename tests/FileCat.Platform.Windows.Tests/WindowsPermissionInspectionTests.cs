@@ -102,6 +102,21 @@ public sealed class WindowsPermissionInspectionTests
     }
 
     [Fact]
+    public void Protecting_a_DACL_copies_or_removes_inherited_occurrences_without_reordering()
+    {
+        byte[] first = Simple(0, 0, 1), inheritedDeny = Simple(1, 0x13, 2), inheritedAllow = Simple(0, 0x10, 1);
+        var original = WindowsPermissionDescriptor.Dacl(Descriptor(true, [first, inheritedDeny, inheritedAllow]), "local");
+        Assert.Equal(Descriptor(true, [first, Simple(1, 3, 2), first])[20..],
+            WindowsPermissionAclPatch.ConvertInheritance(original, "local", WindowsInheritanceAction.ProtectCopy).ToArray());
+        Assert.Equal(Descriptor(true, [first])[20..],
+            WindowsPermissionAclPatch.ConvertInheritance(original, "local", WindowsInheritanceAction.ProtectRemove).ToArray());
+        var unknown = WindowsPermissionDescriptor.Dacl(Descriptor(true, [first, [0xe0, 0x10, 4, 0]]), "local");
+        Assert.Throws<NotSupportedException>(() => WindowsPermissionAclPatch.ConvertInheritance(unknown, "local", WindowsInheritanceAction.ProtectCopy));
+        Assert.Equal(Descriptor(true, [first])[20..],
+            WindowsPermissionAclPatch.ConvertInheritance(unknown, "local", WindowsInheritanceAction.ProtectRemove).ToArray());
+    }
+
+    [Fact]
     public void A_projected_DACL_uses_only_discretionary_descriptor_control()
     {
         byte[] descriptor = Descriptor(true, [Simple(0, 0, 1)]);
