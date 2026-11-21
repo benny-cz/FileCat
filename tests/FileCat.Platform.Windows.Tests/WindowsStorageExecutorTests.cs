@@ -14,7 +14,7 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed class WindowsStorageJobEvidenceCollection;
 
 [Collection("Windows storage job evidence")]
-public sealed class WindowsStorageExecutorTests
+public sealed partial class WindowsStorageExecutorTests
 {
     private static CancellationToken Stop => TestContext.Current.CancellationToken;
     private static void RequireNormal(bool qualifyNativeArm64 = false)
