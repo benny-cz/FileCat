@@ -508,8 +508,8 @@ public partial class OperationsView : UserControl
                 return;
             }
             var snapshot = OperationReport.Capture(job);
-            await Task.Run(() => OperationReport.SaveAtomic(path, snapshot, CancellationToken.None));
-            main.Notify($"Saved the report for {Formatters.SafeName(job.Title)} to {Formatters.SafeName(path)}.");
+            string? warning = await Task.Run(() => OperationReport.SaveAtomic(path, snapshot, CancellationToken.None));
+            main.Notify(warning ?? $"Saved the report for {Formatters.SafeName(job.Title)} to {Formatters.SafeName(path)}.", warning is not null);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {

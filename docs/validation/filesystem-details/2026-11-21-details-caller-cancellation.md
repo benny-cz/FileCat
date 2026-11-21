@@ -1,0 +1,5 @@
+# Details caller cancellation — 21 November 2026
+
+`FileDetailsReader` now retires the public Summary/Full result task as soon as its linked caller token is canceled. The active device worker still owns the native delegate and its shared observation permit until the delegate returns. The request's cancellation registration is disposed with that request after the worker boundary; its callback only completes the publication task and does not acquire the reader lock.
+
+On the Windows x64 workstation with .NET SDK 10.0.101, the focused `FileDetailsOwnershipTests` selection passed **7/7**, zero failures or skips. Two new blocked-read cases exercised Summary and Full separately: caller cancellation completed the returned task before the native read was released, and a fifth request remained blocked by the four-per-device allowance until the real read returned. The `FileDetailsReader.cs` source SHA-256 was `785351C6B97F16A1F357F9CC5298708352A4F77941182D657CDDBE9742710F6A`. This deterministic ownership test did not call a native filesystem adapter or use a VM; F-LIFE's wider native qualification remains partial.

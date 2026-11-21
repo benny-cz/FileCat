@@ -140,6 +140,29 @@ public sealed class HiddenInventoryTests
         Assert.Contains("kept growing", result.Reason);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Shrinking_Unix_attribute_names_never_publish_an_exact_complete_count(bool retainOne)
+    {
+        byte[] probed = "user.one\0user.two\0"u8.ToArray();
+        byte[] returned = retainOne ? "user.one\0"u8.ToArray() : [];
+        int lengthQueries = 0;
+        var result = UnixHiddenData.CollectInventory("fixture", (buffer, _) =>
+        {
+            if (buffer is null) return probed.Length;
+            returned.CopyTo(buffer, 0);
+            return returned.Length;
+        }, _ => { lengthQueries++; return 4; }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HiddenInventoryState.Changed, result.State);
+        Assert.Equal(retainOne ? new[] { "user.one" } : Array.Empty<string>(), result.Items.Select(item => item.Name));
+        Assert.Equal(0, lengthQueries);
+        var inventory = new HiddenInventory("fixture", DateTimeOffset.UtcNow, result.Items,
+            [new(HiddenKind.Attribute, result.State, result.Items.Length, "fixture")], "fixture");
+        Assert.Null(inventory.ExactCount);
+    }
+
     [Fact]
     public void Mac_attribute_length_that_requires_materialization_refuses_the_whole_inventory()
     {

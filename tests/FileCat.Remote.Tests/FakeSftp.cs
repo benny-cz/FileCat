@@ -66,6 +66,8 @@ internal sealed class FakeSftpServer
 
     /// <summary>Called once, on the first write of an upload (outside the server's lock), then cleared.</summary>
     public Action? DuringUpload { get; set; }
+    /// <summary>Called before reading a staged file's server metadata, outside the server's lock.</summary>
+    public Action<string>? BeforeStat { get; set; }
     /// <summary>One synchronization point after an uploaded stage takes its public name.</summary>
     public Action? AfterRename { get; set; }
 
@@ -213,6 +215,7 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
     public RemoteStat? Stat(string path)
     {
         Check();
+        server.BeforeStat?.Invoke(path);
         lock (server.Lock)
         {
             if (server.NoStatAfterOpen.Contains(path) && server.OpenedForRead.Contains(path)) return null;

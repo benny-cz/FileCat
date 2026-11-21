@@ -57,6 +57,39 @@ public sealed class FileDetailsOwnershipTests
         foreach (var old in superseded) await Assert.ThrowsAnyAsync<OperationCanceledException>(() => old);
     }
 
+    [Theory]
+    [InlineData(FileDetailsTier.Summary)]
+    [InlineData(FileDetailsTier.Full)]
+    public async Task Caller_cancellation_retires_publication_while_the_started_read_keeps_its_permit(FileDetailsTier tier)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        string device = Guid.NewGuid().ToString();
+        using var io = new DeviceIoScheduler(threadsPerDevice: 1, maxThreadsPerDevice: 1);
+        using var records = new BlockedRecords();
+        using var first = await DetailsAdmission.AcquireAsync(device, ct);
+        using var second = await DetailsAdmission.AcquireAsync(device, ct);
+        using var third = await DetailsAdmission.AcquireAsync(device, ct);
+        using var reader = new FileDetailsReader(records, io, device, "captured");
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        Task<IDisposable>? waiting = null;
+        try
+        {
+            var result = reader.ReadAsync(tier, cancel.Token);
+            Assert.True(records.Entered.Wait(TimeSpan.FromSeconds(10), ct));
+            cancel.Cancel();
+            Assert.True(result.IsCanceled); // The native delegate has not returned yet.
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => result);
+            waiting = DetailsAdmission.AcquireAsync(device, ct);
+            Assert.False(waiting.IsCompleted); // Its real owner still occupies the fourth slot.
+        }
+        finally
+        {
+            records.Release.Set();
+            if (waiting is not null) (await waiting.WaitAsync(TimeSpan.FromSeconds(10), ct)).Dispose();
+        }
+        Assert.Equal(1, records.Calls);
+    }
+
     [Fact]
     public async Task Device_and_process_admission_are_reserved_together_and_leases_are_idempotent()
     {
@@ -79,6 +112,53 @@ public sealed class FileDetailsOwnershipTests
             using var next = await ninth.WaitAsync(TimeSpan.FromSeconds(10), ct);
         }
         finally { foreach (var lease in leases) lease.Dispose(); }
+    }
+
+    [Fact]
+    public async Task Device_case_variants_share_the_same_four_observation_permits()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        string device = "Volume-" + Guid.NewGuid().ToString("N");
+        using var first = await DetailsAdmission.AcquireAsync(device, ct);
+        using var second = await DetailsAdmission.AcquireAsync(device, ct);
+        using var third = await DetailsAdmission.AcquireAsync(device, ct);
+        using var fourth = await DetailsAdmission.AcquireAsync(device, ct);
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var variant = DetailsAdmission.AcquireAsync(device.ToLowerInvariant(), cancel.Token);
+        try
+        {
+            Assert.False(variant.IsCompleted);
+            first.Dispose();
+            using var fifth = await variant.WaitAsync(TimeSpan.FromSeconds(10), ct);
+        }
+        finally
+        {
+            cancel.Cancel();
+            if (variant.IsCompletedSuccessfully) (await variant).Dispose();
+        }
+    }
+
+    [Fact]
+    public async Task Nested_observation_accepts_the_admitted_devices_case_variant()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        string device = "Volume-" + Guid.NewGuid().ToString("N");
+        using var io = new DeviceIoScheduler(threadsPerDevice: 1, maxThreadsPerDevice: 1);
+        bool nested = await FileObservationRequests.RunOwned(io, device, IoPriority.Interactive, token =>
+        {
+            Assert.True(FileObservationRequests.IsAdmittedFor(device.ToLowerInvariant()));
+            return ReadNestedCaseVariant(io, device, token);
+        }, ct).WaitAsync(TimeSpan.FromSeconds(10), ct);
+        Assert.True(nested);
+    }
+
+    private static bool ReadNestedCaseVariant(DeviceIoScheduler io, string device, CancellationToken ct)
+    {
+        // An admitted worker must run the nested read inline, without queueing behind itself.
+        var nested = FileObservationRequests.RunOwned(io, device.ToLowerInvariant(), IoPriority.Interactive,
+            _ => FileObservationRequests.IsAdmittedFor(device), ct);
+        Assert.True(nested.IsCompleted);
+        return nested.GetAwaiter().GetResult();
     }
 
     [Fact]

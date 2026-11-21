@@ -284,6 +284,9 @@ public interface IFileSystemOperations
     /// <summary>Identity of the actual file open for reading, when the platform can establish it.</summary>
     string? GetOpenedFileIdentity(SafeFileHandle file) => null;
 
+    /// <summary>Attributes of the actual opened file, including its current EFS state on Windows.</summary>
+    FileAttributes GetOpenedFileAttributes(SafeFileHandle file) => File.GetAttributes(file);
+
     /// <summary>
     /// Where <paramref name="path"/> really is: its full path with every link on the way and at its end resolved
     /// (junctions, symbolic links, and on Windows mapped drives, as a UNC path). Null where the platform cannot tell or the
@@ -848,6 +851,8 @@ public class PortableFileOperations : IFileSystemOperations
         PathUtil.HasAmbiguousUnixName(path) ? null : UnixFiles.Stat(path) is { } s ? s.Identity.ToString() : null;
 
     public virtual string? GetOpenedFileIdentity(SafeFileHandle file) => UnixFiles.Stat(file)?.Identity.ToString();
+
+    public virtual FileAttributes GetOpenedFileAttributes(SafeFileHandle file) => File.GetAttributes(file);
 
     /// <summary>Linux and macOS: realpath (Windows overrides with the handle's final path).</summary>
     public virtual string? GetFinalPath(string path) =>

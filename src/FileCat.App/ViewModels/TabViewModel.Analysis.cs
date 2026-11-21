@@ -126,7 +126,7 @@ public sealed partial class TabViewModel
                         if (value.Value is Principal p)
                             name = names?.Answers.GetValueOrDefault(p) ?? new PrincipalName(NameStatus.NotRequested);
                         else if (field?.ObservationLane != true || value.Observation == MetadataObservation.Current)
-                            key ??= retained?.Values.Key(i) ?? field?.CaptureKey(value) ?? value.Value as IComparable;
+                            key ??= retained?.Values.Key(i) ?? field?.CaptureKey(value);
                     }
                     // Verification reports contain arbitrary detail/check graphs. Ordering retains only the
                     // existing scalar rank and observation state, never that report graph.

@@ -142,7 +142,7 @@ internal static partial class OperationReport
             Line($"Report warning: only {Count(written)} of {Count(snapshot.Issues.Retained)} retained details were readable at export time.");
     }
 
-    internal static void SaveAtomic(string destination, Snapshot snapshot, CancellationToken cancellationToken)
+    internal static string? SaveAtomic(string destination, Snapshot snapshot, CancellationToken cancellationToken)
     {
         if (!Path.IsPathFullyQualified(destination)) throw new ArgumentException("A local absolute report path is required.", nameof(destination));
         string directory = Path.GetDirectoryName(destination)!;
@@ -157,7 +157,10 @@ internal static partial class OperationReport
                 stream.Flush(flushToDisk: true);
             }
             cancellationToken.ThrowIfCancellationRequested();
+            if (OperatingSystem.IsWindows())
+                return FileCat.Platform.Windows.WindowsMetadataReportOutput.PublishStaged(destination, temp, cancellationToken);
             File.Move(temp, destination, overwrite: true);
+            return null;
         }
         finally
         {

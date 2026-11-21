@@ -137,6 +137,13 @@ public sealed partial class UnixHiddenData
             if (got > names.Length) return new([], HiddenInventoryState.Failed, "Native names length exceeds the supplied buffer.");
             var parsed = ParseInventoryNames(names.AsSpan(0, (int)got));
             if (parsed.State != HiddenInventoryState.Complete) return parsed;
+            // A shorter result proves the namespace changed after the size probe. In particular, a
+            // positive probe followed by an empty list must not become a complete zero inventory.
+            if (got < required) return parsed with
+            {
+                State = HiddenInventoryState.Changed,
+                Reason = "Attribute names changed between the size probe and the bounded list query."
+            };
             var items = ImmutableArray.CreateBuilder<HiddenItem>(parsed.Items.Length);
             bool changed = false;
             foreach (var item in parsed.Items)

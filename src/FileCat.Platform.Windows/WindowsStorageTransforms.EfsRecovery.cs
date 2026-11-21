@@ -7,6 +7,24 @@ namespace FileCat.Platform.Windows;
 
 internal sealed unsafe partial class WindowsStorageTransforms
 {
+    internal sealed class EfsRecoveryProviderAccess(string invokerSid)
+    {
+        private readonly HashSet<string> _accessed = new(StringComparer.Ordinal);
+
+        internal bool Record(string selectedCertificate, StorageEfsKeyEvidence compared)
+        {
+            if (compared is not { State: StorageEfsKeyState.MatchedAvailable, CertificatePresent: true,
+                    ProviderAssociationPresent: true } || compared.InvokerSid != invokerSid ||
+                compared.CertificateSha1 != selectedCertificate)
+                return false;
+            _accessed.Add(selectedCertificate);
+            return true;
+        }
+
+        internal Action<Action>? OwnerForBackup(string certificateSha1, Action<Action>? invokeProviderOwner) =>
+            _accessed.Contains(certificateSha1) ? invokeProviderOwner : null;
+    }
+
     private StorageEfsRecoveryApproval? ReviewEfsRecovery(Job job, string invokerSid, StorageEfsConsent consent, CancellationToken ct,
         WindowsEfsKeys.InvokeBackupWizard? invokeWizard, Action<Action>? invokeProviderOwner)
     {
@@ -25,13 +43,14 @@ internal sealed unsafe partial class WindowsStorageTransforms
         if (setupDecision.Action != DecisionAction.Proceed || setupDecision.ApplyToAll) return null;
 
         var setup = InspectEfsSetup(invokerSid, consent, explicitSetupAccepted: true, ct, allowProviderInteraction: invokeProviderOwner is not null);
+        RecordSetupCleanupIssue(job, setup);
         ct.ThrowIfCancellationRequested();
         if (setup.Canceled) return null;
         if (setup.Problem is { } failed) throw new StorageInspectionException(failed);
         var association = setup.Association ?? throw Refuse("efs-setup-association", "Windows did not establish the actual setup key association.");
         string? previous = null;
         string? selectedCertificate = null;
-        var accessedCapiKeys = new HashSet<string>(StringComparer.Ordinal);
+        var providerAccess = new EfsRecoveryProviderAccess(invokerSid);
         while (true)
         {
             ct.ThrowIfCancellationRequested();
@@ -61,13 +80,11 @@ internal sealed unsafe partial class WindowsStorageTransforms
                     ? _efsKeys.AccessReviewedCapiKey(association, selected.CertificateSha1, selected.OwnerWindow, explicitlyRequested: true, ct)
                     : _efsKeys.AccessReviewedCngKey(association, selected.CertificateSha1, selected.OwnerWindow, explicitlyRequested: true, ct, invokeProviderOwner));
                 ct.ThrowIfCancellationRequested();
-                if (compared is { State: StorageEfsKeyState.MatchedAvailable, CertificatePresent: true, ProviderAssociationPresent: true } &&
-                    compared.InvokerSid == invokerSid && compared.CertificateSha1 == selectedCertificate)
+                if (providerAccess.Record(selectedCertificate, compared))
                 {
                     association = association with { CurrentUserKeys = association.CurrentUserKeys.Select(key =>
                         key.InvokerSid == invokerSid && key.CertificateSha1 == selectedCertificate ? compared : key).ToImmutableArray() };
                     setup = setup with { Association = association };
-                    if (provider == StorageEfsKeyProvider.Capi) accessedCapiKeys.Add(compared.CertificateSha1);
                     previous = null;
                 }
                 else previous = compared.Problem?.Message ?? "Windows could not verify access to this EFS key.";
@@ -85,10 +102,31 @@ internal sealed unsafe partial class WindowsStorageTransforms
 
             var backup = job.RunEfsRecoveryInteraction(() => _efsKeys.BackUpAssociatedCertificate(association,
                 selected.CertificateSha1, selected.OwnerWindow, explicitlyRequested: true, ct, invokeWizard,
-                accessedCapiKeys.Contains(selected.CertificateSha1) ? invokeProviderOwner : null));
+                providerAccess.OwnerForBackup(selected.CertificateSha1, invokeProviderOwner)));
             ct.ThrowIfCancellationRequested();
             if (backup.Completion is { } completed) return StorageEfsRecoveryApproval.RecordWindowsExport(consent, setup, completed);
             previous = backup.Problem?.Message ?? "Windows canceled the backup. You can retry or declare an existing recovery arrangement.";
         }
+    }
+
+    internal static void RecordSetupCleanupIssue(Job job, StorageEfsSetupResult setup)
+    {
+        ArgumentNullException.ThrowIfNull(job);
+        ArgumentNullException.ThrowIfNull(setup);
+        if (setup.CleanupProblem is not { } cleanup) return;
+        // Setup may also have failed or been canceled. A separate issue keeps the exact retained
+        // artifact visible even when no recovery-choice dialog can be shown afterward.
+        job.AddIssue(new JobIssue(IssueSeverity.Error,
+            setup.RetainedSetupPath ?? setup.AttemptedSetupPath ?? "EFS setup artifact",
+            cleanup.Message, StepOutcome.PartiallyApplied)
+        {
+            Cause = cleanup.Code,
+            RequestedAction = "EFS key setup",
+            CommittedEffect = "Owned setup artifact retained for review",
+            SourceDisposition = "No selected item changed by this setup attempt",
+            Certainty = setup.RetainedSetupIdentity is { } identity
+                ? "Captured setup identity: " + identity + ". Verify it before cleanup."
+                : "The setup identity could not be retained. Verify the artifact before cleanup.",
+        });
     }
 }

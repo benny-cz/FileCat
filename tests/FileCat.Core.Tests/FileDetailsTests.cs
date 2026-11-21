@@ -46,6 +46,24 @@ public sealed class FileDetailsTests
         Assert.Equal(FactState.Failed, UnixFileRecords.ParseLinuxDetails("/synthetic", bytes).Summary.Allocated.State);
     }
 
+    [Theory]
+    [InlineData(0u, FactState.Unsupported, FactState.Unsupported)]
+    [InlineData(0x200u, FactState.Failed, FactState.Unsupported)]
+    [InlineData(0x400u, FactState.Unsupported, FactState.Failed)]
+    [InlineData(0x600u, FactState.Failed, FactState.Failed)]
+    public void Unreturned_statx_slots_cannot_report_overflow(uint mask, FactState sizeState, FactState allocationState)
+    {
+        byte[] bytes = new byte[256];
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes, mask);
+        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(40), ulong.MaxValue);
+        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(48), ulong.MaxValue);
+        var summary = UnixFileRecords.ParseLinuxDetails("/synthetic", bytes).Summary;
+        Assert.Equal(sizeState, summary.LogicalSize.State);
+        Assert.Equal(allocationState, summary.Allocated.State);
+        if (sizeState == FactState.Unsupported) Assert.Contains("mask does not include", summary.LogicalSize.Reason);
+        if (allocationState == FactState.Unsupported) Assert.Contains("mask does not include", summary.Allocated.Reason);
+    }
+
     [Fact]
     public void Linux_restrictions_describe_only_supported_flags_for_the_held_kind()
     {

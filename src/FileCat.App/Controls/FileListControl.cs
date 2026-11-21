@@ -2247,6 +2247,7 @@ public sealed partial class FileListControl : Control
     internal static string ItemKind(in EntryData e) => e.Kind switch
     {
         EntryKind.Parent => "parent navigation",
+        EntryKind.Directory when e.Tag is IDisplayDetails { KindText.Length: > 0 } details => Formatters.SafeName(details.KindText),
         EntryKind.Directory => "folder",
         EntryKind.Drive => "drive",
         EntryKind.Server => "server",

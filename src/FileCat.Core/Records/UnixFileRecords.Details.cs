@@ -199,8 +199,12 @@ public sealed unsafe partial class UnixFileRecords
         {
             Kind = kind,
             Identity = Field(0x100, LinuxIdentity(bytes), FactScope.Entry),
-            LogicalSize = rawSize <= long.MaxValue ? Field(0x200, (long)rawSize, FactScope.Entry) : ObservedFact<long>.Unavailable(FactState.Failed, FactScope.Entry, Source, "Size overflow."),
-            Allocated = blocks <= long.MaxValue / 512 ? Field(0x400, (long)blocks * 512, FactScope.Entry) : ObservedFact<long>.Unavailable(FactState.Failed, FactScope.Entry, Source, "Allocation overflow."),
+            LogicalSize = (mask & 0x200) == 0 ? Field(0x200, 0L, FactScope.Entry)
+                : rawSize <= long.MaxValue ? Field(0x200, (long)rawSize, FactScope.Entry)
+                : ObservedFact<long>.Unavailable(FactState.Failed, FactScope.Entry, Source, "Size overflow."),
+            Allocated = (mask & 0x400) == 0 ? Field(0x400, 0L, FactScope.Entry)
+                : blocks <= long.MaxValue / 512 ? Field(0x400, (long)blocks * 512, FactScope.Entry)
+                : ObservedFact<long>.Unavailable(FactState.Failed, FactScope.Entry, Source, "Allocation overflow."),
             LinkCount = Field(4, BinaryPrimitives.ReadUInt32LittleEndian(bytes[16..]), FactScope.Entry),
             NativeAttributes = ObservedFact<ulong>.Known(attrs & supported, FactScope.Entry, Source + " · supported mask only"),
             UnixMode = Field(2, mode & 0xFFF, FactScope.Entry),

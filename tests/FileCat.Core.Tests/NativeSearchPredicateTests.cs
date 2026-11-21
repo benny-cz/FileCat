@@ -48,6 +48,7 @@ public sealed class NativeSearchPredicateTests
         Assert.False(criteria.TryBuildQuery(DateTime.UtcNow, [], null, out var query, out var error));
         Assert.Null(query);
         Assert.Contains("both required and excluded", error);
+        Assert.Contains("conflicting attribute states", criteria.Advanced.Summary());
     }
 
     [Theory]

@@ -97,15 +97,18 @@ public sealed unsafe partial class WindowsHiddenData
         while (at <= bytes.Length - 24)
         {
             uint next = BinaryPrimitives.ReadUInt32LittleEndian(bytes[at..]), length = BinaryPrimitives.ReadUInt32LittleEndian(bytes[(at + 4)..]);
-            if (length == 0 || (length & 1) != 0 || length > 65532 || length > bytes.Length - at - 24 || next != 0 && (next < 24 + length || next > bytes.Length - at || (next & 7) != 0))
+            if ((length & 1) != 0 || length > 65532 || length > bytes.Length - at - 24 || next != 0 && (next < 24 + length || next > bytes.Length - at || (next & 7) != 0))
                 return new(items.ToImmutable(), HiddenInventoryState.Failed, "Malformed stream metadata record.");
+            if (length == 0 && (at != 0 || next != 0))
+                return new(items.ToImmutable(), HiddenInventoryState.Failed, "An unnamed default stream cannot appear with other stream records.");
             string raw;
             try { raw = new UnicodeEncoding(false, false, true).GetString(bytes.Slice(at + 24, (int)length)); }
             catch (DecoderFallbackException) { return new(items.ToImmutable(), HiddenInventoryState.Failed, "Stream name is not valid UTF-16; actions are unavailable."); }
             long size = BinaryPrimitives.ReadInt64LittleEndian(bytes[(at + 8)..]);
-            if (size < 0 || !raw.StartsWith(':') || !raw.EndsWith(":$DATA", StringComparison.OrdinalIgnoreCase))
+            // FILE_STREAM_INFORMATION also permits an empty name for the unnamed default stream.
+            if (size < 0 || length != 0 && (!raw.StartsWith(':') || !raw.EndsWith(":$DATA", StringComparison.OrdinalIgnoreCase)))
                 return new(items.ToImmutable(), HiddenInventoryState.Failed, "Unqualified stream record or size.");
-            if (!raw.Equals("::$DATA", StringComparison.OrdinalIgnoreCase))
+            if (length != 0 && !raw.Equals("::$DATA", StringComparison.OrdinalIgnoreCase))
             {
                 string name = raw[1..^6];
                 if (name.Length == 0 || name.IndexOfAny(['\0', ':', '/', '\\']) >= 0 || !names.Add(name))

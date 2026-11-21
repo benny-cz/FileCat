@@ -15,13 +15,26 @@ public sealed class FileDetailsReader(IFileRecords records, DeviceIoScheduler io
     private Request? _active, _pending;
     private bool _pumping, _closed;
 
-    private sealed class Request(FileDetailsTier tier, CancellationToken token) : IDisposable
+    private sealed class Request : IDisposable
     {
-        public FileDetailsTier Tier { get; } = tier;
-        public CancellationTokenSource Cancel { get; } = CancellationTokenSource.CreateLinkedTokenSource(token);
+        private readonly CancellationTokenRegistration _cancelResult;
+        public Request(FileDetailsTier tier, CancellationToken token)
+        {
+            Tier = tier;
+            Cancel = CancellationTokenSource.CreateLinkedTokenSource(token);
+            // The publication task retires immediately for caller cancellation. RunOwned still
+            // owns the in-flight native call and its permit until the delegate actually returns.
+            _cancelResult = Cancel.Token.Register(static state =>
+            {
+                var request = (Request)state!;
+                request.Result.TrySetCanceled(request.Cancel.Token);
+            }, this);
+        }
+        public FileDetailsTier Tier { get; }
+        public CancellationTokenSource Cancel { get; }
         public TaskCompletionSource<FileDetailsObservation> Result { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public void Retire() { Cancel.Cancel(); Result.TrySetCanceled(Cancel.Token); }
-        public void Dispose() => Cancel.Dispose();
+        public void Retire() => Cancel.Cancel();
+        public void Dispose() { _cancelResult.Dispose(); Cancel.Dispose(); }
     }
 
     public Task<FileDetailsObservation> ReadAsync(FileDetailsTier tier, CancellationToken ct)
@@ -102,7 +115,8 @@ public sealed class FileDetailsReader(IFileRecords records, DeviceIoScheduler io
 internal static class DetailsAdmission
 {
     private static readonly object Gate = new();
-    private static readonly Dictionary<string, int> Devices = new(StringComparer.Ordinal);
+    // Match DeviceIoScheduler's device queue identity, including Windows drive/UNC case variants.
+    private static readonly Dictionary<string, int> Devices = new(StringComparer.OrdinalIgnoreCase);
     private static int _total;
     private static TaskCompletionSource _changed = NewSignal();
     private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);

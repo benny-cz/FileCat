@@ -161,6 +161,8 @@ public sealed partial class FileListControl
     {
         if (entry.Kind == EntryKind.Parent) return "Parent folder";
         if (!entry.IsContainer && entry.Has(EntryFlags.Offline)) return "Opening may require a download";
+        if (entry.Tag is IDisplayDetails && EntryPresentation.Kind(entry, location) is { Length: > 0 } providerKind)
+            return Formatters.SafeName(providerKind);
         if ((entry.Attributes & (uint)FileAttributes.ReparsePoint) != 0 && EntryPresentation.IsWindowsFileSystem(entry, location) &&
             EntryPresentation.Kind(entry, location) is { Length: > 0 } kind)
             return kind;

@@ -10,6 +10,42 @@ namespace FileCat.App.Tests;
 
 public sealed class MetadataOutcomeUiTests
 {
+    [AvaloniaFact]
+    public async Task Explicit_sort_keys_that_cannot_be_parsed_stay_unknown_in_both_directions()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-metadata-keys-" + Guid.NewGuid().ToString("N"));
+        string folder = Directory.CreateDirectory(Path.Combine(root, "files")).FullName;
+        File.WriteAllText(Path.Combine(folder, "a-invalid.txt"), "bad");
+        File.WriteAllText(Path.Combine(folder, "b-low.txt"), "2");
+        File.WriteAllText(Path.Combine(folder, "c-high.txt"), "10");
+        try
+        {
+            using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: Path.Combine(root, "state")));
+            services.Metadata.Register(new MetadataField("numeric-text", "Numeric text", MetadataCost.Cheap, _ => true,
+                (path, _) => File.ReadAllText(path), value => (string)value!,
+                SortKey: value => int.TryParse(value as string, out int number) ? number : null));
+            var workspace = new WorkspaceViewModel(services);
+            var panel = new PanelViewModel(workspace, services);
+            workspace.Panels.Add(panel);
+            var tab = panel.OpenTab(Location.FileSystem(folder));
+            try
+            {
+                await FileListFixture.Wait(() => tab.Listing.State == ListingState.Complete);
+                await tab.AnalyzeAsync("numeric-text");
+                string[] Names() => Enumerable.Range(0, tab.Listing.VisibleCount)
+                    .Select(i => tab.Listing.GetVisible(i)).Where(e => e.Kind == EntryKind.File).Select(e => e.Name).ToArray();
+                Assert.Equal(["b-low.txt", "c-high.txt", "a-invalid.txt"], Names());
+                Assert.Contains("retains all 3 items", tab.Banner);
+
+                tab.SortByMetadata("numeric-text");
+                await FileListFixture.Wait(() => tab.Listing.AppliedViewSpecVersion == tab.Listing.ViewSpecVersion);
+                Assert.Equal(["c-high.txt", "b-low.txt", "a-invalid.txt"], Names());
+            }
+            finally { tab.Dispose(); }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [AvaloniaTheory]
     [InlineData(MetadataState.Denied, MetadataObservation.Current, "no access")]
     [InlineData(MetadataState.Available, MetadataObservation.LastKnown, "known (last known)")]
