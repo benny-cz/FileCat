@@ -90,6 +90,16 @@ public sealed class FileDetailsFieldsTests
         Assert.Contains("unknown type", type.Format(unknown.Value)); Assert.Null(type.CaptureKey(unknown));
         records.Kind = FileObjectKind.Socket;
         Assert.Equal(MetadataState.Unsupported, metadata.Compute(FileDetailsFields.HardLinks, path, entry, TestContext.Current.CancellationToken).State);
+
+        // A regular file with a link tag has no qualified count; a Cloud Files placeholder is a regular file that also
+        // shows its cloud subtype.
+        records.Kind = FileObjectKind.File; records.Tag = ReparseLinks.SymbolicLinkTag; metadata.ForgetField(FileDetailsFields.HardLinks);
+        Assert.Equal(MetadataState.Unsupported, metadata.Compute(FileDetailsFields.HardLinks, path, entry, TestContext.Current.CancellationToken).State);
+        records.Tag = 0x9000701A; metadata.ForgetField(FileDetailsFields.HardLinks); metadata.ForgetField(type.Id);
+        var links = metadata.Compute(FileDetailsFields.HardLinks, path, entry, TestContext.Current.CancellationToken);
+        Assert.Equal(MetadataState.Available, links.State);
+        Assert.Equal(7u, metadata.Field(FileDetailsFields.HardLinks)!.CaptureKey(links));
+        Assert.Equal("Cloud-managed item", type.CaptureKey(metadata.Compute(type.Id, path, entry, TestContext.Current.CancellationToken)));
     }
 
     [Fact]

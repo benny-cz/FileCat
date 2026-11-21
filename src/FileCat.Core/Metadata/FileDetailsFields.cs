@@ -26,7 +26,7 @@ public static class FileDetailsFields
                 snapshot.Kind == FileObjectKind.Directory
                     ? "This directory object's allocation; contents are not counted."
                     : "Filesystem/server-reported allocation; not exclusive ownership or a deletion-saving estimate.")),
-            Field(HardLinks, "Hard links", false, snapshot => snapshot.Kind == FileObjectKind.File && (!windows || snapshot.ReparseTag.State == FactState.NotApplicable)
+            Field(HardLinks, "Hard links", false, snapshot => snapshot.Kind == FileObjectKind.File && (!windows || FileDetailsTargets.IsOrdinaryWindowsEntry(snapshot))
                 ? Value(snapshot, snapshot.LinkCount, value => value.ToString(CultureInfo.CurrentCulture), value => value,
                     "Names for this regular file; sharing of extents is not inferred.")
                 : new(MetadataState.Unsupported, Detail: "Hard-link counts are shown only for a qualified regular-file observation.")),

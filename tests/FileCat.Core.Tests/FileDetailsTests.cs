@@ -282,6 +282,10 @@ public sealed class FileDetailsTests
     [InlineData(FileObjectKind.File, FactState.Known, FileSystem.ReparseLinks.WslSymbolicLinkTag, false)]
     [InlineData(FileObjectKind.Directory, FactState.Failed, 0u, false)]
     [InlineData(FileObjectKind.SymbolicLink, FactState.NotApplicable, 0u, false)]
+    // Cloud Files placeholders, as the exposed details view reports them: ordinary files and folders to operations.
+    [InlineData(FileObjectKind.File, FactState.Known, 0x9000001Au, true)]
+    [InlineData(FileObjectKind.Directory, FactState.Known, 0x9000701Au, true)]
+    [InlineData(FileObjectKind.SymbolicLink, FactState.Known, 0x9000001Au, false)]
     public void Windows_target_navigation_requires_a_confirmed_ordinary_entry(FileObjectKind kind, FactState state, uint tag, bool allowed)
     {
         var observed = new FileDetailsSnapshot(@"C:\target", DateTimeOffset.UtcNow, Guid.NewGuid())

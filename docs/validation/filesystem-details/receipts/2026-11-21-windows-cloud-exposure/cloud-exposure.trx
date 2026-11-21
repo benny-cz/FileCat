@@ -1,0 +1,690 @@
+<TestRun id="e5e60eb2-e309-48c5-8545-b872fa822eff" name="Admin@DESKTOP-A60F1NE 2026-11-21T19:24:51.6612417+00:00" runUser="Admin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-21T19:24:51.6612417+00:00" queuing="2026-11-21T19:24:51.6612417+00:00" start="2026-11-21T19:24:51.6612417+00:00" finish="2026-11-21T20:25:48.8149801+01:00" />
+  <TestSettings name="default" id="6c4d5628-128d-4c3b-a1a4-ab366a4594ad" />
+  <Results>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.PlaceholderViewTests.Pool_threads_leave_with_the_mode_they_arrived_with_after_failure_and_cancellation" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="57b187ae-3492-43de-bb82-089970bed139" executionId="57b187ae-3492-43de-bb82-089970bed139" computerName="DESKTOP-A60F1NE" duration="00:00:00.0916080" startTime="2026-11-21T19:24:51.6612417+00:00" endTime="2026-11-21T19:24:51.7749071+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.PlaceholderViewTests.Exposure_is_scoped_to_the_calling_thread_and_always_restored" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="bb1c0bac-3c27-4dd2-a420-a867474a22ec" executionId="bb1c0bac-3c27-4dd2-a420-a867474a22ec" computerName="DESKTOP-A60F1NE" duration="00:00:00.0118032" startTime="2026-11-21T19:24:51.8005074+00:00" endTime="2026-11-21T19:24:51.8125599+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.PlaceholderViewTests.Without_the_export_the_read_keeps_the_view_the_thread_has" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="d92dc3ee-20be-4ae9-923b-8089305bd839" executionId="d92dc3ee-20be-4ae9-923b-8089305bd839" computerName="DESKTOP-A60F1NE" duration="00:00:00.0006147" startTime="2026-11-21T19:24:51.8128046+00:00" endTime="2026-11-21T19:24:51.8135389+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.Native_listing_preserves_names_attributes_batches_and_metadata_without_child_opens" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="55ec258a-1ed7-4431-b43c-e77148b8be89" executionId="55ec258a-1ed7-4431-b43c-e77148b8be89" computerName="DESKTOP-A60F1NE" duration="00:00:01.8378369" startTime="2026-11-21T19:24:51.6613549+00:00" endTime="2026-11-21T19:24:53.5116747+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.Enumeration_performance_records_native_and_managed_timings_on_a_prepared_directory" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="3dd71a4a-fc2a-4e16-b463-dc3d88883593" executionId="3dd71a4a-fc2a-4e16-b463-dc3d88883593" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:24:53.5124724+00:00" endTime="2026-11-21T19:24:53.5139344+00:00">
+      <Output>
+        <StdOut>Set FILECAT_ENUM_FIXTURE to a deliberately prepared scale directory; no user-tree scan.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.Native_listing_matches_long_paths_and_distinguishes_junction_and_symlink_tags" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f1bc52aa-f9d5-45f3-ae9f-683a9dc375cd" executionId="f1bc52aa-f9d5-45f3-ae9f-683a9dc375cd" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:24:53.5142075+00:00" endTime="2026-11-21T19:24:53.5156864+00:00">
+      <Output>
+        <StdOut>Requires the prepared Windows NTFS link fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.Native_listing_matches_managed_listing_on_a_prepared_mapped_and_unc_smb_folder" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="daccc5b2-2162-4398-b50d-3e79bc7efe77" executionId="daccc5b2-2162-4398-b50d-3e79bc7efe77" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:24:53.5158853+00:00" endTime="2026-11-21T19:24:53.5184088+00:00">
+      <Output>
+        <StdOut>Set FILECAT_ENUM_MAPPED_SMB_ROOT and FILECAT_ENUM_NATIVE_SMB_ROOT to the same prepared SMB fixture folder.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.An_empty_directory_has_no_entries_and_a_missing_directory_fails_before_publication(native: False)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4792f279-7a84-49c3-a9f6-88489608ca05" executionId="4792f279-7a84-49c3-a9f6-88489608ca05" computerName="DESKTOP-A60F1NE" duration="00:00:00.0022776" startTime="2026-11-21T19:24:53.5196137+00:00" endTime="2026-11-21T19:24:53.5219690+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.An_empty_directory_has_no_entries_and_a_missing_directory_fails_before_publication(native: True)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="e83a6c07-496c-4ab2-acb0-cbde9046caf4" executionId="e83a6c07-496c-4ab2-acb0-cbde9046caf4" computerName="DESKTOP-A60F1NE" duration="00:00:00.0013326" startTime="2026-11-21T19:24:53.5220323+00:00" endTime="2026-11-21T19:24:53.5234183+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.An_unsupported_open_uses_managed_listing_before_any_publication(firstError: 50, retryError: 50)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b5b7a319-d276-4d16-a604-2f21db13e81a" executionId="b5b7a319-d276-4d16-a604-2f21db13e81a" computerName="DESKTOP-A60F1NE" duration="00:00:00.0083324" startTime="2026-11-21T19:24:53.5240059+00:00" endTime="2026-11-21T19:24:53.5324229+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.An_unsupported_open_uses_managed_listing_before_any_publication(firstError: 87, retryError: 87)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="8ba5027a-df5c-4429-aa0c-d23680a46173" executionId="8ba5027a-df5c-4429-aa0c-d23680a46173" computerName="DESKTOP-A60F1NE" duration="00:00:00.0026734" startTime="2026-11-21T19:24:53.5325080+00:00" endTime="2026-11-21T19:24:53.5352679+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.An_unsupported_open_uses_managed_listing_before_any_publication(firstError: 87, retryError: 120)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="9740a6d9-bd47-4c4b-ad8f-40c24b7c7ade" executionId="9740a6d9-bd47-4c4b-ad8f-40c24b7c7ade" computerName="DESKTOP-A60F1NE" duration="00:00:00.0022444" startTime="2026-11-21T19:24:53.5353629+00:00" endTime="2026-11-21T19:24:53.5376806+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.An_unsupported_open_uses_managed_listing_before_any_publication(firstError: 120, retryError: 0)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="24026121-6da6-4fec-a75b-63f0d1213762" executionId="24026121-6da6-4fec-a75b-63f0d1213762" computerName="DESKTOP-A60F1NE" duration="00:00:00.0018452" startTime="2026-11-21T19:24:53.5377480+00:00" endTime="2026-11-21T19:24:53.5396553+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.A_find_next_failure_publishes_the_native_prefix_and_never_restarts(error: 50)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0ab7ca95-8bb2-404f-b064-ec41d0c0f29d" executionId="0ab7ca95-8bb2-404f-b064-ec41d0c0f29d" computerName="DESKTOP-A60F1NE" duration="00:00:00.0092499" startTime="2026-11-21T19:24:53.5402054+00:00" endTime="2026-11-21T19:24:53.5496025+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.A_find_next_failure_publishes_the_native_prefix_and_never_restarts(error: 87)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="d8d271df-3536-438a-a1dd-e180cd6f4b16" executionId="d8d271df-3536-438a-a1dd-e180cd6f4b16" computerName="DESKTOP-A60F1NE" duration="00:00:00.0032098" startTime="2026-11-21T19:24:53.5496900+00:00" endTime="2026-11-21T19:24:53.5529722+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.A_find_next_failure_publishes_the_native_prefix_and_never_restarts(error: 120)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="31b61f11-008e-4092-a041-2c14ede68026" executionId="31b61f11-008e-4092-a041-2c14ede68026" computerName="DESKTOP-A60F1NE" duration="00:00:00.0026357" startTime="2026-11-21T19:24:53.5530476+00:00" endTime="2026-11-21T19:24:53.5557430+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.A_successful_open_without_large_fetch_keeps_native_tags" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="d399a56a-6aa4-41c6-8537-52581d8041a2" executionId="d399a56a-6aa4-41c6-8537-52581d8041a2" computerName="DESKTOP-A60F1NE" duration="00:00:00.0009934" startTime="2026-11-21T19:24:53.5560039+00:00" endTime="2026-11-21T19:24:53.5570726+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Summary_and_metadata_full_inspect_one_object_without_legacy_payload_sections" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="6dcf5421-4e39-4fcb-bf32-116202a62123" executionId="6dcf5421-4e39-4fcb-bf32-116202a62123" computerName="DESKTOP-A60F1NE" duration="00:00:00.1945970" startTime="2026-11-21T19:24:51.6613940+00:00" endTime="2026-11-21T19:24:51.8681131+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: \&quot;FILECAT_STORAGE_NATIVE_64K_TARGET\&quot;, expectedFormat: \&quot;NTFS\&quot;)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="e9642acc-85ba-4029-9f5c-c58407020836" executionId="e9642acc-85ba-4029-9f5c-c58407020836" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:24:51.8810131+00:00" endTime="2026-11-21T19:24:51.8835643+00:00">
+      <Output>
+        <StdOut>Set FILECAT_STORAGE_NATIVE_64K_TARGET to a file on the prepared volume.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: \&quot;FILECAT_STORAGE_NATIVE_READONLY_TARGET\&quot;, expectedFormat: \&quot;NTFS\&quot;)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a0eb8120-9a20-4e3f-9667-bae5249fe36e" executionId="a0eb8120-9a20-4e3f-9667-bae5249fe36e" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:24:51.8837206+00:00" endTime="2026-11-21T19:24:51.8841234+00:00">
+      <Output>
+        <StdOut>Set FILECAT_STORAGE_NATIVE_READONLY_TARGET to a file on the prepared volume.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: \&quot;FILECAT_STORAGE_NATIVE_FAT_TARGET\&quot;, expectedFormat: \&quot;FAT32\&quot;)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b0a6b4f8-1d59-448c-b48f-bc9368b38a7a" executionId="b0a6b4f8-1d59-448c-b48f-bc9368b38a7a" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:24:51.8841977+00:00" endTime="2026-11-21T19:24:51.8843220+00:00">
+      <Output>
+        <StdOut>Set FILECAT_STORAGE_NATIVE_FAT_TARGET to a file on the prepared volume.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: \&quot;FILECAT_STORAGE_NATIVE_EXFAT_TARGET\&quot;, expectedFormat: \&quot;exFAT\&quot;)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="563129a2-d48b-4645-ba33-26c1e039fb96" executionId="563129a2-d48b-4645-ba33-26c1e039fb96" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:24:51.8843598+00:00" endTime="2026-11-21T19:24:51.8844804+00:00">
+      <Output>
+        <StdOut>Set FILECAT_STORAGE_NATIVE_EXFAT_TARGET to a file on the prepared volume.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: \&quot;FILECAT_STORAGE_NATIVE_REFS_TARGET\&quot;, expectedFormat: \&quot;ReFS\&quot;)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4701afe8-c60d-4925-abf3-d1f8d149cf51" executionId="4701afe8-c60d-4925-abf3-d1f8d149cf51" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:24:51.8845764+00:00" endTime="2026-11-21T19:24:51.8846960+00:00">
+      <Output>
+        <StdOut>Set FILECAT_STORAGE_NATIVE_REFS_TARGET to a file on the prepared volume.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_refuse_a_missing_or_denied_subject_with_a_typed_error_and_no_snapshot" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="33395985-f88b-4db9-86c0-2c75cb48aff2" executionId="33395985-f88b-4db9-86c0-2c75cb48aff2" computerName="DESKTOP-A60F1NE" duration="00:00:00.3655512" startTime="2026-11-21T19:24:51.8848742+00:00" endTime="2026-11-21T19:24:52.2506314+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsDetailsNativeGapTests.A_new_name_with_the_same_size_and_time_stays_cached_until_expiry_and_Get_and_Compute_then_read_again" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="c7d42093-eea6-413b-9ae3-afbbcd9ce653" executionId="c7d42093-eea6-413b-9ae3-afbbcd9ce653" computerName="DESKTOP-A60F1NE" duration="00:00:00.1913445" startTime="2026-11-21T19:24:51.6612420+00:00" endTime="2026-11-21T19:24:51.8654312+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsDetailsNativeGapTests.Native_columns_report_allocation_names_and_reparse_types_for_files_links_sparse_files_and_folders" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="d9834f2d-c12f-411d-a8d2-f75cf51e01a6" executionId="d9834f2d-c12f-411d-a8d2-f75cf51e01a6" computerName="DESKTOP-A60F1NE" duration="00:00:00.4192569" startTime="2026-11-21T19:24:51.8657392+00:00" endTime="2026-11-21T19:24:52.2851769+00:00">
+      <Output>
+        <TextMessages>
+          <Message>sparse allocation while its only write was cached: 0 B; cluster 4 096 B</Message>
+          <Message>plain      allocated    Available   12 288 B                   key=12288</Message>
+          <Message>plain      hard-links   Available   1                          key=1</Message>
+          <Message>plain      reparse-type Absent      -                          key=none</Message>
+          <Message>linked     allocated    Available   12 288 B                   key=12288</Message>
+          <Message>linked     hard-links   Available   2                          key=2</Message>
+          <Message>linked     reparse-type Absent      -                          key=none</Message>
+          <Message>other name allocated    Available   12 288 B                   key=12288</Message>
+          <Message>other name hard-links   Available   2                          key=2</Message>
+          <Message>other name reparse-type Absent      -                          key=none</Message>
+          <Message>sparse     allocated    Available   65 536 B                   key=65536</Message>
+          <Message>sparse     hard-links   Available   1                          key=1</Message>
+          <Message>sparse     reparse-type Absent      -                          key=none</Message>
+          <Message>folder     allocated    Available   0 B                        key=0</Message>
+          <Message>folder     hard-links   Absent      -                          key=none</Message>
+          <Message>folder     reparse-type Absent      -                          key=none</Message>
+          <Message>junction   allocated    Available   0 B                        key=0</Message>
+          <Message>junction   hard-links   Absent      -                          key=none</Message>
+          <Message>junction   reparse-type Available   Junction or volume mount   key=Junction or volume mount</Message>
+          <Message>file link  allocated    Available   0 B                        key=0</Message>
+          <Message>file link  hard-links   Unsupported -                          key=none</Message>
+          <Message>file link  reparse-type Available   Symbolic link              key=Symbolic link</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Case_distinct_and_255_unit_names_are_listed_exactly_on_both_routes" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="10328ef0-311f-49c7-ad46-8504b5a32594" executionId="10328ef0-311f-49c7-ad46-8504b5a32594" computerName="DESKTOP-A60F1NE" duration="00:00:00.1483727" startTime="2026-11-21T19:24:51.6613072+00:00" endTime="2026-11-21T19:24:51.8220571+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.A_folder_that_cannot_be_listed_fails_the_same_way_on_both_routes_before_publication" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="d3ac0738-c51c-4943-b052-28cd8d196f18" executionId="d3ac0738-c51c-4943-b052-28cd8d196f18" computerName="DESKTOP-A60F1NE" duration="00:00:00.0400359" startTime="2026-11-21T19:24:51.8223317+00:00" endTime="2026-11-21T19:24:51.8626334+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Container_detection_marks_the_same_files_on_both_routes" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4d6aaa4d-8ab2-4b75-9470-04ffde3549f8" executionId="4d6aaa4d-8ab2-4b75-9470-04ffde3549f8" computerName="DESKTOP-A60F1NE" duration="00:00:00.3670310" startTime="2026-11-21T19:24:51.8629236+00:00" endTime="2026-11-21T19:24:52.2302541+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.The_system_drive_root_lists_the_same_names_kinds_and_attributes" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0f7a236c-e7c1-4211-9537-125aa35aca67" executionId="0f7a236c-e7c1-4211-9537-125aa35aca67" computerName="DESKTOP-A60F1NE" duration="00:00:00.0128465" startTime="2026-11-21T19:24:52.2307923+00:00" endTime="2026-11-21T19:24:52.2437405+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.A_compatibility_junction_that_refuses_listing_names_the_same_listable_target_on_both_routes" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="c9747067-e3cc-4533-aab8-16ead18a7be4" executionId="c9747067-e3cc-4533-aab8-16ead18a7be4" computerName="DESKTOP-A60F1NE" duration="00:00:00.0121066" startTime="2026-11-21T19:24:52.2443334+00:00" endTime="2026-11-21T19:24:52.2565561+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: \&quot;FILECAT_STORAGE_NATIVE_FAT_TARGET\&quot;)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="c3303331-8c24-4b65-a206-c4f422744d13" executionId="c3303331-8c24-4b65-a206-c4f422744d13" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:24:52.2570857+00:00" endTime="2026-11-21T19:24:52.2586731+00:00">
+      <Output>
+        <StdOut>Set FILECAT_STORAGE_NATIVE_FAT_TARGET to an item on the prepared volume.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: \&quot;FILECAT_STORAGE_NATIVE_EXFAT_TARGET\&quot;)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f2aed8ba-60a5-4814-b7d3-ddf1e618b8f5" executionId="f2aed8ba-60a5-4814-b7d3-ddf1e618b8f5" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:24:52.2587801+00:00" endTime="2026-11-21T19:24:52.2594772+00:00">
+      <Output>
+        <StdOut>Set FILECAT_STORAGE_NATIVE_EXFAT_TARGET to an item on the prepared volume.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: \&quot;FILECAT_STORAGE_NATIVE_REFS_TARGET\&quot;)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="3f6d1328-f312-4ea8-b456-3fb558864c86" executionId="3f6d1328-f312-4ea8-b456-3fb558864c86" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:24:52.2595287+00:00" endTime="2026-11-21T19:24:52.2596922+00:00">
+      <Output>
+        <StdOut>Set FILECAT_STORAGE_NATIVE_REFS_TARGET to an item on the prepared volume.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: \&quot;FILECAT_STORAGE_NATIVE_NOFILTER_ROOT\&quot;)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a729f736-7fc4-4c67-91a9-5251b18c5578" executionId="a729f736-7fc4-4c67-91a9-5251b18c5578" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:24:52.2597954+00:00" endTime="2026-11-21T19:24:52.2600241+00:00">
+      <Output>
+        <StdOut>Set FILECAT_STORAGE_NATIVE_NOFILTER_ROOT to an item on the prepared volume.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.A_cloud_sync_root_and_its_placeholder_folders_are_folders_not_links" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="2f77a5e8-0291-431c-a6e0-6b5524de573a" executionId="2f77a5e8-0291-431c-a6e0-6b5524de573a" computerName="DESKTOP-A60F1NE" duration="00:00:00.1407204" startTime="2026-11-21T19:24:51.6613597+00:00" endTime="2026-11-21T19:24:51.8141834+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Security_descriptors_are_compared_part_by_part_not_as_text" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="8b08bab7-499a-47c7-94e6-48304ae4a985" executionId="8b08bab7-499a-47c7-94e6-48304ae4a985" computerName="DESKTOP-A60F1NE" duration="00:00:00.0259398" startTime="2026-11-21T19:24:51.8144314+00:00" endTime="2026-11-21T19:24:51.8405476+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.As_administrator_the_MFT_record_shows_a_creation_time_set_afterwards" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="28a3f359-7ef1-40db-a4a0-b0431534e436" executionId="28a3f359-7ef1-40db-a4a0-b0431534e436" computerName="DESKTOP-A60F1NE" duration="00:00:01.4237498" startTime="2026-11-21T19:24:51.8407219+00:00" endTime="2026-11-21T19:24:53.2647093+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Canceling_a_started_EFS_user_query_waits_for_return_and_skips_recovery_query" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="91386a1c-f9a9-4303-81c5-b7fd1e7e8e7c" executionId="91386a1c-f9a9-4303-81c5-b7fd1e7e8e7c" computerName="DESKTOP-A60F1NE" duration="00:00:00.0094249" startTime="2026-11-21T19:24:53.2657996+00:00" endTime="2026-11-21T19:24:53.2753141+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.A_junction_names_its_target_and_a_sparse_file_its_stored_ranges" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="92e5f689-9942-4529-8cdf-2e9b80aa3987" executionId="92e5f689-9942-4529-8cdf-2e9b80aa3987" computerName="DESKTOP-A60F1NE" duration="00:00:00.0486972" startTime="2026-11-21T19:24:53.2762530+00:00" endTime="2026-11-21T19:24:53.3250720+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Storage_changes_from_another_process_refuse_the_sync_root_and_its_placeholder" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="8df0a16b-08e4-4b53-9003-e060f8715480" executionId="8df0a16b-08e4-4b53-9003-e060f8715480" computerName="DESKTOP-A60F1NE" duration="00:00:01.2045459" startTime="2026-11-21T19:24:53.3263965+00:00" endTime="2026-11-21T19:24:54.5331354+00:00">
+      <Output>
+        <TextMessages>
+          <Message>Child: Compress refused the sync root as cloud-sync-root and the placeholder as cloud-entry</Message>
+          <Message>Child: RemoveCompression refused the sync root as cloud-sync-root and the placeholder as cloud-entry</Message>
+          <Message>Child: recursive job CompletedWithIssues; changed 2, skipped 1; reasons cursor-entry-changedx1</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.A_precanceled_record_read_never_opens_the_item" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="5383ceef-0908-42c0-b9d0-1eba5f05b616" executionId="5383ceef-0908-42c0-b9d0-1eba5f05b616" computerName="DESKTOP-A60F1NE" duration="00:00:00.0005398" startTime="2026-11-21T19:24:54.5387690+00:00" endTime="2026-11-21T19:24:54.5394045+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.As_administrator_the_indexes_show_the_entries_an_item_had_left_behind" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="d9417888-f55a-4c8f-ab6c-43f3f597fb61" executionId="d9417888-f55a-4c8f-ab6c-43f3f597fb61" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:24:54.5396262+00:00" endTime="2026-11-21T19:24:54.5409366+00:00">
+      <Output>
+        <StdOut>Needs Windows and an administrator's high token.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Cloud_exposure_child_describes_and_operates_as_its_parent_asks" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4baf232e-cfd1-4870-b77e-3f9111300817" executionId="4baf232e-cfd1-4870-b77e-3f9111300817" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:24:54.5411134+00:00" endTime="2026-11-21T19:24:54.5441096+00:00">
+      <Output>
+        <StdOut>Started only by the cross-process Cloud Files exposure fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.A_cloud_placeholder_reads_its_state_without_being_downloaded" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="045e7e6c-68d3-48ad-a34b-05c7c99a1751" executionId="045e7e6c-68d3-48ad-a34b-05c7c99a1751" computerName="DESKTOP-A60F1NE" duration="00:00:08.4284972" startTime="2026-11-21T19:24:54.5442810+00:00" endTime="2026-11-21T19:25:02.9726614+00:00">
+      <Output>
+        <TextMessages>
+          <Message>Supplementary data was omitted for this cloud-managed or offline item.
+File-system record · NTFS</Message>
+          <Message></Message>
+          <Message>Item</Message>
+          <Message>  Path        C:\Users\Admin\AppData\Local\Temp\filecat-record-tests\a581a29b15e943b7b4d1ccf1d8b94d55\cloud.txt</Message>
+          <Message>  Kind        file with a reparse point</Message>
+          <Message>  Volume      C:\ · NTFS · serial 4602-6289</Message>
+          <Message>  MFT record  248 079 (0x3C90F), sequence 47</Message>
+          <Message>  File ID     0x002F00000003C90F</Message>
+          <Message>  Parent      record 248 078, sequence 46 · C:\Users\Admin\AppData\Local\Temp\filecat-record-tests\a581a29b15e943b7b4d1ccf1d8b94d55</Message>
+          <Message>  Attributes  0x00401620: archive, sparse, reparse point, offline, recall on data access</Message>
+          <Message>  8.3 name    none (its name fits 8.3, or 8.3 names are off on this volume)</Message>
+          <Message>  Hard links  1 (this name only)</Message>
+          <Message></Message>
+          <Message>Reparse point</Message>
+          <Message>  Tag   0x9000401A Cloud Files placeholder (OneDrive, iCloud, and other sync apps) · Microsoft, can be a folder</Message>
+          <Message>  Data  140 bytes</Message>
+          <Message></Message>
+          <Message>  0000  01 00 8C 00 46 65 52 70 BE 69 DF 26 88 00 00 00  ....FeRp.i.&amp;....</Message>
+          <Message>  0010  02 00 0A 00 07 00 01 00 60 00 00 00 0A 00 04 00  ........`.......</Message>
+          <Message>  0020  64 00 00 00 06 00 08 00 7C 00 00 00 11 00 12 00  d.......|.......</Message>
+          <Message>  0030  68 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  h...............</Message>
+          <Message>  0040  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................</Message>
+          <Message>  0050  00 00 00 00 00 00 00 00 00 00 00 00 0A 00 04 00  ................</Message>
+          <Message>  0060  84 00 00 00 01 00 00 00 40 00 00 00 66 69 6C 65  ........@...file</Message>
+          <Message>  0070  63 61 74 2D 69 64 65 6E 74 69 74 79 2D 31 00 00  cat-identity-1..</Message>
+          <Message>  … 12 more bytes</Message>
+          <Message></Message>
+          <Message>Cloud placeholder (Cloud Files)</Message>
+          <Message>  On this device  0 bytes of 5 000 bytes (4,88 KiB): none of it (only in the cloud)</Message>
+          <Message>  Validated       0 bytes (what its provider has confirmed is current)</Message>
+          <Message>  Changed here    0 bytes</Message>
+          <Message>  Pin state       unspecified (its provider decides)</Message>
+          <Message>  In sync         in sync (provider-reported)</Message>
+          <Message>  File ID         0x002F00000003C90F (its own)</Message>
+          <Message>  Sync root       C:\Users\Admin\AppData\Local\Temp\filecat-record-tests\a581a29b15e943b7b4d1ccf1d8b94d55 · file ID 0x002E00000003C90E</Message>
+          <Message>  Provider        FileCat test 1.0 · idle</Message>
+          <Message>  Downloads       full (all of it before a read completes)</Message>
+          <Message>  Folders         always full (folders are always complete on this device)</Message>
+          <Message>  Its identity    18 bytes: its provider's own name for it (below)</Message>
+          <Message></Message>
+          <Message>  Cloud Files metadata is requested through the item's metadata handle. FileCat requests no content or state</Message>
+          <Message>  mutation; providers may still perform network or OS activity. Pin policy, reported local data and</Message>
+          <Message>  synchronization are separate observations.</Message>
+          <Message>  Its identity:</Message>
+          <Message>  0000  66 69 6C 65 63 61 74 2D 69 64 65 6E 74 69 74 79  filecat-identity</Message>
+          <Message>  0010  2D 31                                            -1</Message>
+          <Message></Message>
+          <Message>Layout on disk</Message>
+          <Message>  Size          5 000 bytes (4,88 KiB)</Message>
+          <Message>  Allocated     0 bytes</Message>
+          <Message>  Cluster size  4 096 bytes (4 KiB)</Message>
+          <Message>  Sparse        yes (stored ranges were not queried for this cloud-managed or offline item)</Message>
+          <Message>  Fragments     0 (1 extent on the volume)</Message>
+          <Message></Message>
+          <Message>  VCN  LCN  Clusters  Where</Message>
+          <Message>  ───  ───  ────────  ───────────────────────</Message>
+          <Message>    0  —          16  sparse (nothing stored)</Message>
+          <Message></Message>
+          <Message>Supplementary data was omitted for this cloud-managed or offline item.
+File-system record · NTFS</Message>
+          <Message></Message>
+          <Message>Item</Message>
+          <Message>  Path        C:\Users\Admin\AppData\Local\Temp\filecat-record-tests\a581a29b15e943b7b4d1ccf1d8b94d55\cloud.txt</Message>
+          <Message>  Kind        file with a reparse point</Message>
+          <Message>  Volume      C:\ · NTFS · serial 4602-6289</Message>
+          <Message>  MFT record  248 079 (0x3C90F), sequence 47</Message>
+          <Message>  File ID     0x002F00000003C90F</Message>
+          <Message>  Parent      record 248 078, sequence 46 · C:\Users\Admin\AppData\Local\Temp\filecat-record-tests\a581a29b15e943b7b4d1ccf1d8b94d55</Message>
+          <Message>  Attributes  0x00401620: archive, sparse, reparse point, offline, recall on data access</Message>
+          <Message>  8.3 name    none (its name fits 8.3, or 8.3 names are off on this volume)</Message>
+          <Message>  Hard links  1 (this name only)</Message>
+          <Message></Message>
+          <Message>Reparse point</Message>
+          <Message>  Tag   0x9000401A Cloud Files placeholder (OneDrive, iCloud, and other sync apps) · Microsoft, can be a folder</Message>
+          <Message>  Data  140 bytes</Message>
+          <Message></Message>
+          <Message>  0000  01 00 8C 00 46 65 52 70 BE 69 DF 26 88 00 00 00  ....FeRp.i.&amp;....</Message>
+          <Message>  0010  02 00 0A 00 07 00 01 00 60 00 00 00 0A 00 04 00  ........`.......</Message>
+          <Message>  0020  64 00 00 00 06 00 08 00 7C 00 00 00 11 00 12 00  d.......|.......</Message>
+          <Message>  0030  68 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  h...............</Message>
+          <Message>  0040  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................</Message>
+          <Message>  0050  00 00 00 00 00 00 00 00 00 00 00 00 0A 00 04 00  ................</Message>
+          <Message>  0060  84 00 00 00 01 00 00 00 40 00 00 00 66 69 6C 65  ........@...file</Message>
+          <Message>  0070  63 61 74 2D 69 64 65 6E 74 69 74 79 2D 31 00 00  cat-identity-1..</Message>
+          <Message>  … 12 more bytes</Message>
+          <Message></Message>
+          <Message>Cloud placeholder (Cloud Files)</Message>
+          <Message>  On this device  0 bytes of 5 000 bytes (4,88 KiB): none of it (only in the cloud)</Message>
+          <Message>  Validated       0 bytes (what its provider has confirmed is current)</Message>
+          <Message>  Changed here    0 bytes</Message>
+          <Message>  Pin state       unspecified (its provider decides)</Message>
+          <Message>  In sync         in sync (provider-reported)</Message>
+          <Message>  File ID         0x002F00000003C90F (its own)</Message>
+          <Message>  Sync root       C:\Users\Admin\AppData\Local\Temp\filecat-record-tests\a581a29b15e943b7b4d1ccf1d8b94d55 · file ID 0x002E00000003C90E</Message>
+          <Message>  Provider        FileCat test 1.0 · idle</Message>
+          <Message>  Downloads       full (all of it before a read completes)</Message>
+          <Message>  Folders         always full (folders are always complete on this device)</Message>
+          <Message>  Its identity    18 bytes: its provider's own name for it (below)</Message>
+          <Message></Message>
+          <Message>  Cloud Files metadata is requested through the item's metadata handle. FileCat requests no content or state</Message>
+          <Message>  mutation; providers may still perform network or OS activity. Pin policy, reported local data and</Message>
+          <Message>  synchronization are separate observations.</Message>
+          <Message>  Its identity:</Message>
+          <Message>  0000  66 69 6C 65 63 61 74 2D 69 64 65 6E 74 69 74 79  filecat-identity</Message>
+          <Message>  0010  2D 31                                            -1</Message>
+          <Message></Message>
+          <Message>Layout on disk</Message>
+          <Message>  Size          5 000 bytes (4,88 KiB)</Message>
+          <Message>  Allocated     0 bytes</Message>
+          <Message>  Cluster size  4 096 bytes (4 KiB)</Message>
+          <Message>  Sparse        yes (stored ranges were not queried for this cloud-managed or offline item)</Message>
+          <Message>  Fragments     0 (1 extent on the volume)</Message>
+          <Message></Message>
+          <Message>  VCN  LCN  Clusters  Where</Message>
+          <Message>  ───  ───  ────────  ───────────────────────</Message>
+          <Message>    0  —          16  sparse (nothing stored)</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.As_administrator_a_DACL_stored_without_inheritance_marks_is_the_same_as_Windows_reports" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="485246b4-2345-4683-b531-eedd03f5d66a" executionId="485246b4-2345-4683-b531-eedd03f5d66a" computerName="DESKTOP-A60F1NE" duration="00:00:00.6214345" startTime="2026-11-21T19:25:02.9730815+00:00" endTime="2026-11-21T19:25:03.5946842+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Another_process_describes_placeholders_as_cloud_files_and_operates_on_them_as_ordinary_ones" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="003f7779-7e0c-4c71-aef0-291de7620a7c" executionId="003f7779-7e0c-4c71-aef0-291de7620a7c" computerName="DESKTOP-A60F1NE" duration="00:00:00.9524725" startTime="2026-11-21T19:25:03.5952148+00:00" endTime="2026-11-21T19:25:04.5477716+00:00">
+      <Output>
+        <TextMessages>
+          <Message>Child: cloud.txt tag 0x9000401A, attributes 0x00401620 (disguised 0x00400020), flags Offline</Message>
+          <Message>Child: folder tag 0x9000601A, attributes 0x00000410 (disguised 0x00000010), flags None</Message>
+          <Message>Child: gone.txt tag 0x9000601A, attributes 0x00000420 (disguised 0x00000020), flags None</Message>
+          <Message>Child: kept.txt tag 0x9000601A, attributes 0x00000420 (disguised 0x00000020), flags None</Message>
+          <Message>Child: moved.txt tag 0x9000601A, attributes 0x00000420 (disguised 0x00000020), flags None</Message>
+          <Message>Child: cloud.txt details tag 0x9000401A; record: pin state unspecified (its provider decides); provider FileCat exposure test 1.0 · idle</Message>
+          <Message>Child: kept.txt details tag 0x9000601A; record: pin state unspecified (its provider decides); provider FileCat exposure test 1.0 · idle</Message>
+          <Message>Child: folder details tag 0x9000601A; record: pin state unspecified (its provider decides); provider FileCat exposure test 1.0 · idle</Message>
+          <Message>Child: copied kept.txt and folder out, moved moved.txt into folder, deleted gone.txt, found folder\inner.txt</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.A_folder_says_where_each_permission_applies" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="3a41c230-2631-4f91-8226-c031f53a2578" executionId="3a41c230-2631-4f91-8226-c031f53a2578" computerName="DESKTOP-A60F1NE" duration="00:00:00.0092894" startTime="2026-11-21T19:25:04.5483397+00:00" endTime="2026-11-21T19:25:04.5577169+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.As_administrator_a_folder_shows_the_names_its_index_kept_after_deletes" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="7413f8fc-bf2a-41d5-999c-ba994b5be8de" executionId="7413f8fc-bf2a-41d5-999c-ba994b5be8de" computerName="DESKTOP-A60F1NE" duration="00:00:00.9307484" startTime="2026-11-21T19:25:04.5580012+00:00" endTime="2026-11-21T19:25:05.4889391+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.As_administrator_the_ObjId_and_Reparse_indexes_hold_the_items_entries_as_Windows_reports_them" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="78242a2f-4841-4c31-8d60-fa594dd5c5a7" executionId="78242a2f-4841-4c31-8d60-fa594dd5c5a7" computerName="DESKTOP-A60F1NE" duration="00:00:18.8132619" startTime="2026-11-21T19:25:05.4893904+00:00" endTime="2026-11-21T19:25:24.3023605+00:00">
+      <Output>
+        <TextMessages>
+          <Message>
+File-system record · NTFS</Message>
+          <Message></Message>
+          <Message>Object ID index ($ObjId:$O)</Message>
+          <Message>  Index        $ObjId, record 25 · 131 object IDs in use · 6 blocks of 4 KiB, 6 in use · all read</Message>
+          <Message>  Compared     matches: Windows reports no object ID for it, and no entry in $O names its record</Message>
+          <Message>  Left behind  nothing for this record in the unused space of its nodes</Message>
+          <Message></Message>
+          <Message>  NTFS lists every object ID on the volume in $ObjId's $O index, with the record of the item that has it and the</Message>
+          <Message>  IDs it was born with: link tracking finds a moved item through it. Read from the volume, and compared with</Message>
+          <Message>  what Windows reports for this item.</Message>
+          <Message></Message>
+          <Message>Reparse index ($Reparse:$R)</Message>
+          <Message>  Index        $Reparse, record 26 · 8 002 reparse points in use · 423 blocks of 4 KiB, 133 in use · all read</Message>
+          <Message>  Its entry    tag 0xA0000003 junction or volume mount · Microsoft, name surrogate (points elsewhere) → record 248 081, sequence 42</Message>
+          <Message>  Compared     matches what Windows reports (FSCTL_GET_REPARSE_POINT): tag 0xA0000003, for this item's record</Message>
+          <Message>  Left behind  nothing for this record in the unused space of its nodes</Message>
+          <Message></Message>
+          <Message>  NTFS lists every reparse point on the volume in $Reparse's $R index, by tag and record, so that it can find</Message>
+          <Message>  them without reading every record. Read from the volume, and compared with what Windows reports for this item.</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Live_log_gate_requires_its_own_time_change_not_other_timestamp_signs" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="54883880-973f-4af4-a031-f5b5c4b470fb" executionId="54883880-973f-4af4-a031-f5b5c4b470fb" computerName="DESKTOP-A60F1NE" duration="00:00:00.0008912" startTime="2026-11-21T19:25:24.3027139+00:00" endTime="2026-11-21T19:25:24.3037739+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.A_file_reads_with_its_exact_times_IDs_links_layout_and_permissions" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="8e6c1857-e10e-4380-a2c9-44f995833232" executionId="8e6c1857-e10e-4380-a2c9-44f995833232" computerName="DESKTOP-A60F1NE" duration="00:00:00.0126786" startTime="2026-11-21T19:25:24.3041033+00:00" endTime="2026-11-21T19:25:24.3168551+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Summary_preserves_the_native_missing_target_status" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="586e4fa4-109e-46c7-aa98-c2e7ac01c1ea" executionId="586e4fa4-109e-46c7-aa98-c2e7ac01c1ea" computerName="DESKTOP-A60F1NE" duration="00:00:00.0016802" startTime="2026-11-21T19:25:24.3171419+00:00" endTime="2026-11-21T19:25:24.3188964+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Cloud_listing_child_lists_or_opens_as_its_parent_asks" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="3c4a986e-1a94-41f5-8902-511fac15dcc7" executionId="3c4a986e-1a94-41f5-8902-511fac15dcc7" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:25:24.3191267+00:00" endTime="2026-11-21T19:25:24.3204542+00:00">
+      <Output>
+        <StdOut>Started only by the Cloud Files listing parent fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Cloud_storage_child_reviews_and_compresses_as_its_parent_asks" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="142686f2-b98c-42cf-b197-6329c0b618a5" executionId="142686f2-b98c-42cf-b197-6329c0b618a5" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:25:24.3205783+00:00" endTime="2026-11-21T19:25:24.3225106+00:00">
+      <Output>
+        <StdOut>Started only by the cross-process Cloud Files storage fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.An_EFS_certificate_list_is_read_with_its_counts_and_lengths_checked" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="2c71d13d-7d1f-409b-a77f-0dc835d1bdaf" executionId="2c71d13d-7d1f-409b-a77f-0dc835d1bdaf" computerName="DESKTOP-A60F1NE" duration="00:00:00.0120385" startTime="2026-11-21T19:25:24.3226541+00:00" endTime="2026-11-21T19:25:24.3347702+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Listing_a_sync_root_opens_none_of_its_placeholders_on_either_route" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="99e501d8-0607-4846-afc0-f4747e0376df" executionId="99e501d8-0607-4846-afc0-f4747e0376df" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:25:24.3350443+00:00" endTime="2026-11-21T19:25:43.8134944+00:00">
+      <Output>
+        <TextMessages>
+          <Message>Child: process placeholder mode 1; native tags 0x9000401A; attributes 0x00401620, disguised 0x00400020</Message>
+          <Message>Child: Windows refused the data access without a read control open (ERROR_CLOUD_FILE_ACCESS_DENIED)</Message>
+          <Message>Placeholder opens: listing 0; first control the provider observed: none</Message>
+        </TextMessages>
+        <StdOut>No control open from another process reached the provider on this Windows build, so it cannot show whether listing opened placeholders. Windows refused the data access without a read control with ERROR_CLOUD_FILE_ACCESS_DENIED.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Storage_changes_never_enter_a_registered_sync_root_or_ask_its_provider_for_data" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="9cf470aa-1121-407b-88a7-a1c5fba14fb1" executionId="9cf470aa-1121-407b-88a7-a1c5fba14fb1" computerName="DESKTOP-A60F1NE" duration="00:00:00.4554534" startTime="2026-11-21T19:25:43.8139099+00:00" endTime="2026-11-21T19:25:44.2694378+00:00">
+      <Output>
+        <TextMessages>
+          <Message>Parent job: CompletedWithIssues; changed 2, skipped 1; reasons reparse-entry×1</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.The_record_lists_the_files_streams_with_what_they_say" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="cfd5bc20-a477-4910-b7bf-bad6a69a4b44" executionId="cfd5bc20-a477-4910-b7bf-bad6a69a4b44" computerName="DESKTOP-A60F1NE" duration="00:00:00.0203378" startTime="2026-11-21T19:25:44.2697200+00:00" endTime="2026-11-21T19:25:44.2901489+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.An_object_ID_says_when_its_birth_ID_was_made" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0be34f8b-7a41-4d3b-a599-410e30e4d162" executionId="0be34f8b-7a41-4d3b-a599-410e30e4d162" computerName="DESKTOP-A60F1NE" duration="00:00:00.0108678" startTime="2026-11-21T19:25:44.2903703+00:00" endTime="2026-11-21T19:25:44.3013222+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.As_administrator_the_record_lists_the_runs_of_every_non_resident_attribute" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="796622fd-a6bd-4bee-993c-f6a00ecf6cf6" executionId="796622fd-a6bd-4bee-993c-f6a00ecf6cf6" computerName="DESKTOP-A60F1NE" duration="00:00:01.4179462" startTime="2026-11-21T19:25:44.3015531+00:00" endTime="2026-11-21T19:25:45.7195732+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.As_administrator_the_live_log_shows_creation_and_a_time_change_while_history_is_retained" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="227c9223-4f4f-4e21-9eab-0c8360979cda" executionId="227c9223-4f4f-4e21-9eab-0c8360979cda" computerName="DESKTOP-A60F1NE" duration="00:00:03.0691207" startTime="2026-11-21T19:25:45.7199221+00:00" endTime="2026-11-21T19:25:48.7891043+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Without_administrator_rights_the_report_says_first_what_it_leaves_out" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="ec21a2de-10af-4089-b163-615abec1e504" executionId="ec21a2de-10af-4089-b163-615abec1e504" computerName="DESKTOP-A60F1NE" duration="00:00:00.0140190" startTime="2026-11-21T19:25:48.7895799+00:00" endTime="2026-11-21T19:25:48.8036847+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.An_encrypted_file_lists_who_can_decrypt_it_without_changing_it" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b46dccab-5acc-40c0-a0cc-4fcdbcc3d113" executionId="b46dccab-5acc-40c0-a0cc-4fcdbcc3d113" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:25:48.8041527+00:00" endTime="2026-11-21T19:25:48.8063859+00:00">
+      <Output>
+        <StdOut>Set FILECAT_TEST_EFS=1 to encrypt a test file with EFS (it makes this user an EFS certificate if there is none).</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Full_details_observe_the_case_flag_on_each_held_NTFS_directory" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="64436ae5-c04c-4596-938b-5301752eb095" executionId="64436ae5-c04c-4596-938b-5301752eb095" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T19:25:48.8067687+00:00" endTime="2026-11-21T19:25:48.8074530+00:00">
+      <Output>
+        <StdOut>Requires a disposable NTFS fixture with both directory policies prepared.</StdOut>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Platform.Windows.Tests.PlaceholderViewTests.Pool_threads_leave_with_the_mode_they_arrived_with_after_failure_and_cancellation" id="57b187ae-3492-43de-bb82-089970bed139" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="57b187ae-3492-43de-bb82-089970bed139" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.PlaceholderViewTests" name="Pool_threads_leave_with_the_mode_they_arrived_with_after_failure_and_cancellation" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.PlaceholderViewTests.Exposure_is_scoped_to_the_calling_thread_and_always_restored" id="bb1c0bac-3c27-4dd2-a420-a867474a22ec" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="bb1c0bac-3c27-4dd2-a420-a867474a22ec" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.PlaceholderViewTests" name="Exposure_is_scoped_to_the_calling_thread_and_always_restored" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.PlaceholderViewTests.Without_the_export_the_read_keeps_the_view_the_thread_has" id="d92dc3ee-20be-4ae9-923b-8089305bd839" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="d92dc3ee-20be-4ae9-923b-8089305bd839" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.PlaceholderViewTests" name="Without_the_export_the_read_keeps_the_view_the_thread_has" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.Native_listing_preserves_names_attributes_batches_and_metadata_without_child_opens" id="55ec258a-1ed7-4431-b43c-e77148b8be89" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="55ec258a-1ed7-4431-b43c-e77148b8be89" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationTests" name="Native_listing_preserves_names_attributes_batches_and_metadata_without_child_opens" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.Enumeration_performance_records_native_and_managed_timings_on_a_prepared_directory" id="3dd71a4a-fc2a-4e16-b463-dc3d88883593" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="3dd71a4a-fc2a-4e16-b463-dc3d88883593" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationTests" name="Enumeration_performance_records_native_and_managed_timings_on_a_prepared_directory" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.Native_listing_matches_long_paths_and_distinguishes_junction_and_symlink_tags" id="f1bc52aa-f9d5-45f3-ae9f-683a9dc375cd" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="f1bc52aa-f9d5-45f3-ae9f-683a9dc375cd" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationTests" name="Native_listing_matches_long_paths_and_distinguishes_junction_and_symlink_tags" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.Native_listing_matches_managed_listing_on_a_prepared_mapped_and_unc_smb_folder" id="daccc5b2-2162-4398-b50d-3e79bc7efe77" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="daccc5b2-2162-4398-b50d-3e79bc7efe77" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationTests" name="Native_listing_matches_managed_listing_on_a_prepared_mapped_and_unc_smb_folder" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.An_empty_directory_has_no_entries_and_a_missing_directory_fails_before_publication(native: False)" id="4792f279-7a84-49c3-a9f6-88489608ca05" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="4792f279-7a84-49c3-a9f6-88489608ca05" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationTests" name="An_empty_directory_has_no_entries_and_a_missing_directory_fails_before_publication" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.An_empty_directory_has_no_entries_and_a_missing_directory_fails_before_publication(native: True)" id="e83a6c07-496c-4ab2-acb0-cbde9046caf4" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="e83a6c07-496c-4ab2-acb0-cbde9046caf4" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationTests" name="An_empty_directory_has_no_entries_and_a_missing_directory_fails_before_publication" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.An_unsupported_open_uses_managed_listing_before_any_publication(firstError: 50, retryError: 50)" id="b5b7a319-d276-4d16-a604-2f21db13e81a" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="b5b7a319-d276-4d16-a604-2f21db13e81a" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationTests" name="An_unsupported_open_uses_managed_listing_before_any_publication" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.An_unsupported_open_uses_managed_listing_before_any_publication(firstError: 87, retryError: 87)" id="8ba5027a-df5c-4429-aa0c-d23680a46173" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="8ba5027a-df5c-4429-aa0c-d23680a46173" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationTests" name="An_unsupported_open_uses_managed_listing_before_any_publication" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.An_unsupported_open_uses_managed_listing_before_any_publication(firstError: 87, retryError: 120)" id="9740a6d9-bd47-4c4b-ad8f-40c24b7c7ade" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="9740a6d9-bd47-4c4b-ad8f-40c24b7c7ade" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationTests" name="An_unsupported_open_uses_managed_listing_before_any_publication" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.An_unsupported_open_uses_managed_listing_before_any_publication(firstError: 120, retryError: 0)" id="24026121-6da6-4fec-a75b-63f0d1213762" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="24026121-6da6-4fec-a75b-63f0d1213762" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationTests" name="An_unsupported_open_uses_managed_listing_before_any_publication" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.A_find_next_failure_publishes_the_native_prefix_and_never_restarts(error: 50)" id="0ab7ca95-8bb2-404f-b064-ec41d0c0f29d" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="0ab7ca95-8bb2-404f-b064-ec41d0c0f29d" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationTests" name="A_find_next_failure_publishes_the_native_prefix_and_never_restarts" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.A_find_next_failure_publishes_the_native_prefix_and_never_restarts(error: 87)" id="d8d271df-3536-438a-a1dd-e180cd6f4b16" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="d8d271df-3536-438a-a1dd-e180cd6f4b16" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationTests" name="A_find_next_failure_publishes_the_native_prefix_and_never_restarts" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.A_find_next_failure_publishes_the_native_prefix_and_never_restarts(error: 120)" id="31b61f11-008e-4092-a041-2c14ede68026" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="31b61f11-008e-4092-a041-2c14ede68026" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationTests" name="A_find_next_failure_publishes_the_native_prefix_and_never_restarts" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationTests.A_successful_open_without_large_fetch_keeps_native_tags" id="d399a56a-6aa4-41c6-8537-52581d8041a2" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="d399a56a-6aa4-41c6-8537-52581d8041a2" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationTests" name="A_successful_open_without_large_fetch_keeps_native_tags" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Summary_and_metadata_full_inspect_one_object_without_legacy_payload_sections" id="6dcf5421-4e39-4fcb-bf32-116202a62123" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="6dcf5421-4e39-4fcb-bf32-116202a62123" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests" name="Summary_and_metadata_full_inspect_one_object_without_legacy_payload_sections" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: \&quot;FILECAT_STORAGE_NATIVE_64K_TARGET\&quot;, expectedFormat: \&quot;NTFS\&quot;)" id="e9642acc-85ba-4029-9f5c-c58407020836" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="e9642acc-85ba-4029-9f5c-c58407020836" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests" name="Native_details_describe_owned_files_on_their_actual_volumes" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: \&quot;FILECAT_STORAGE_NATIVE_READONLY_TARGET\&quot;, expectedFormat: \&quot;NTFS\&quot;)" id="a0eb8120-9a20-4e3f-9667-bae5249fe36e" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="a0eb8120-9a20-4e3f-9667-bae5249fe36e" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests" name="Native_details_describe_owned_files_on_their_actual_volumes" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: \&quot;FILECAT_STORAGE_NATIVE_FAT_TARGET\&quot;, expectedFormat: \&quot;FAT32\&quot;)" id="b0a6b4f8-1d59-448c-b48f-bc9368b38a7a" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="b0a6b4f8-1d59-448c-b48f-bc9368b38a7a" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests" name="Native_details_describe_owned_files_on_their_actual_volumes" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: \&quot;FILECAT_STORAGE_NATIVE_EXFAT_TARGET\&quot;, expectedFormat: \&quot;exFAT\&quot;)" id="563129a2-d48b-4645-ba33-26c1e039fb96" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="563129a2-d48b-4645-ba33-26c1e039fb96" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests" name="Native_details_describe_owned_files_on_their_actual_volumes" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: \&quot;FILECAT_STORAGE_NATIVE_REFS_TARGET\&quot;, expectedFormat: \&quot;ReFS\&quot;)" id="4701afe8-c60d-4925-abf3-d1f8d149cf51" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="4701afe8-c60d-4925-abf3-d1f8d149cf51" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests" name="Native_details_describe_owned_files_on_their_actual_volumes" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_refuse_a_missing_or_denied_subject_with_a_typed_error_and_no_snapshot" id="33395985-f88b-4db9-86c0-2c75cb48aff2" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="33395985-f88b-4db9-86c0-2c75cb48aff2" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests" name="Native_details_refuse_a_missing_or_denied_subject_with_a_typed_error_and_no_snapshot" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsDetailsNativeGapTests.A_new_name_with_the_same_size_and_time_stays_cached_until_expiry_and_Get_and_Compute_then_read_again" id="c7d42093-eea6-413b-9ae3-afbbcd9ce653" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="c7d42093-eea6-413b-9ae3-afbbcd9ce653" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsDetailsNativeGapTests" name="A_new_name_with_the_same_size_and_time_stays_cached_until_expiry_and_Get_and_Compute_then_read_again" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsDetailsNativeGapTests.Native_columns_report_allocation_names_and_reparse_types_for_files_links_sparse_files_and_folders" id="d9834f2d-c12f-411d-a8d2-f75cf51e01a6" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="d9834f2d-c12f-411d-a8d2-f75cf51e01a6" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsDetailsNativeGapTests" name="Native_columns_report_allocation_names_and_reparse_types_for_files_links_sparse_files_and_folders" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Case_distinct_and_255_unit_names_are_listed_exactly_on_both_routes" id="10328ef0-311f-49c7-ad46-8504b5a32594" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="10328ef0-311f-49c7-ad46-8504b5a32594" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="Case_distinct_and_255_unit_names_are_listed_exactly_on_both_routes" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.A_folder_that_cannot_be_listed_fails_the_same_way_on_both_routes_before_publication" id="d3ac0738-c51c-4943-b052-28cd8d196f18" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="d3ac0738-c51c-4943-b052-28cd8d196f18" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="A_folder_that_cannot_be_listed_fails_the_same_way_on_both_routes_before_publication" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Container_detection_marks_the_same_files_on_both_routes" id="4d6aaa4d-8ab2-4b75-9470-04ffde3549f8" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="4d6aaa4d-8ab2-4b75-9470-04ffde3549f8" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="Container_detection_marks_the_same_files_on_both_routes" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.The_system_drive_root_lists_the_same_names_kinds_and_attributes" id="0f7a236c-e7c1-4211-9537-125aa35aca67" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="0f7a236c-e7c1-4211-9537-125aa35aca67" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="The_system_drive_root_lists_the_same_names_kinds_and_attributes" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.A_compatibility_junction_that_refuses_listing_names_the_same_listable_target_on_both_routes" id="c9747067-e3cc-4533-aab8-16ead18a7be4" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="c9747067-e3cc-4533-aab8-16ead18a7be4" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="A_compatibility_junction_that_refuses_listing_names_the_same_listable_target_on_both_routes" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: \&quot;FILECAT_STORAGE_NATIVE_FAT_TARGET\&quot;)" id="c3303331-8c24-4b65-a206-c4f422744d13" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="c3303331-8c24-4b65-a206-c4f422744d13" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="Prepared_volumes_list_the_same_entries_on_both_routes" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: \&quot;FILECAT_STORAGE_NATIVE_EXFAT_TARGET\&quot;)" id="f2aed8ba-60a5-4814-b7d3-ddf1e618b8f5" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="f2aed8ba-60a5-4814-b7d3-ddf1e618b8f5" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="Prepared_volumes_list_the_same_entries_on_both_routes" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: \&quot;FILECAT_STORAGE_NATIVE_REFS_TARGET\&quot;)" id="3f6d1328-f312-4ea8-b456-3fb558864c86" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="3f6d1328-f312-4ea8-b456-3fb558864c86" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="Prepared_volumes_list_the_same_entries_on_both_routes" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: \&quot;FILECAT_STORAGE_NATIVE_NOFILTER_ROOT\&quot;)" id="a729f736-7fc4-4c67-91a9-5251b18c5578" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="a729f736-7fc4-4c67-91a9-5251b18c5578" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="Prepared_volumes_list_the_same_entries_on_both_routes" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.A_cloud_sync_root_and_its_placeholder_folders_are_folders_not_links" id="2f77a5e8-0291-431c-a6e0-6b5524de573a" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="2f77a5e8-0291-431c-a6e0-6b5524de573a" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="A_cloud_sync_root_and_its_placeholder_folders_are_folders_not_links" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Security_descriptors_are_compared_part_by_part_not_as_text" id="8b08bab7-499a-47c7-94e6-48304ae4a985" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="8b08bab7-499a-47c7-94e6-48304ae4a985" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Security_descriptors_are_compared_part_by_part_not_as_text" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.As_administrator_the_MFT_record_shows_a_creation_time_set_afterwards" id="28a3f359-7ef1-40db-a4a0-b0431534e436" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="28a3f359-7ef1-40db-a4a0-b0431534e436" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="As_administrator_the_MFT_record_shows_a_creation_time_set_afterwards" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Canceling_a_started_EFS_user_query_waits_for_return_and_skips_recovery_query" id="91386a1c-f9a9-4303-81c5-b7fd1e7e8e7c" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="91386a1c-f9a9-4303-81c5-b7fd1e7e8e7c" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Canceling_a_started_EFS_user_query_waits_for_return_and_skips_recovery_query" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.A_junction_names_its_target_and_a_sparse_file_its_stored_ranges" id="92e5f689-9942-4529-8cdf-2e9b80aa3987" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="92e5f689-9942-4529-8cdf-2e9b80aa3987" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="A_junction_names_its_target_and_a_sparse_file_its_stored_ranges" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Storage_changes_from_another_process_refuse_the_sync_root_and_its_placeholder" id="8df0a16b-08e4-4b53-9003-e060f8715480" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="8df0a16b-08e4-4b53-9003-e060f8715480" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Storage_changes_from_another_process_refuse_the_sync_root_and_its_placeholder" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.A_precanceled_record_read_never_opens_the_item" id="5383ceef-0908-42c0-b9d0-1eba5f05b616" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="5383ceef-0908-42c0-b9d0-1eba5f05b616" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="A_precanceled_record_read_never_opens_the_item" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.As_administrator_the_indexes_show_the_entries_an_item_had_left_behind" id="d9417888-f55a-4c8f-ab6c-43f3f597fb61" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="d9417888-f55a-4c8f-ab6c-43f3f597fb61" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="As_administrator_the_indexes_show_the_entries_an_item_had_left_behind" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Cloud_exposure_child_describes_and_operates_as_its_parent_asks" id="4baf232e-cfd1-4870-b77e-3f9111300817" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="4baf232e-cfd1-4870-b77e-3f9111300817" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Cloud_exposure_child_describes_and_operates_as_its_parent_asks" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.A_cloud_placeholder_reads_its_state_without_being_downloaded" id="045e7e6c-68d3-48ad-a34b-05c7c99a1751" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="045e7e6c-68d3-48ad-a34b-05c7c99a1751" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="A_cloud_placeholder_reads_its_state_without_being_downloaded" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.As_administrator_a_DACL_stored_without_inheritance_marks_is_the_same_as_Windows_reports" id="485246b4-2345-4683-b531-eedd03f5d66a" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="485246b4-2345-4683-b531-eedd03f5d66a" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="As_administrator_a_DACL_stored_without_inheritance_marks_is_the_same_as_Windows_reports" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Another_process_describes_placeholders_as_cloud_files_and_operates_on_them_as_ordinary_ones" id="003f7779-7e0c-4c71-aef0-291de7620a7c" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="003f7779-7e0c-4c71-aef0-291de7620a7c" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Another_process_describes_placeholders_as_cloud_files_and_operates_on_them_as_ordinary_ones" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.A_folder_says_where_each_permission_applies" id="3a41c230-2631-4f91-8226-c031f53a2578" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="3a41c230-2631-4f91-8226-c031f53a2578" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="A_folder_says_where_each_permission_applies" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.As_administrator_a_folder_shows_the_names_its_index_kept_after_deletes" id="7413f8fc-bf2a-41d5-999c-ba994b5be8de" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="7413f8fc-bf2a-41d5-999c-ba994b5be8de" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="As_administrator_a_folder_shows_the_names_its_index_kept_after_deletes" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.As_administrator_the_ObjId_and_Reparse_indexes_hold_the_items_entries_as_Windows_reports_them" id="78242a2f-4841-4c31-8d60-fa594dd5c5a7" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="78242a2f-4841-4c31-8d60-fa594dd5c5a7" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="As_administrator_the_ObjId_and_Reparse_indexes_hold_the_items_entries_as_Windows_reports_them" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Live_log_gate_requires_its_own_time_change_not_other_timestamp_signs" id="54883880-973f-4af4-a031-f5b5c4b470fb" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="54883880-973f-4af4-a031-f5b5c4b470fb" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Live_log_gate_requires_its_own_time_change_not_other_timestamp_signs" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.A_file_reads_with_its_exact_times_IDs_links_layout_and_permissions" id="8e6c1857-e10e-4380-a2c9-44f995833232" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="8e6c1857-e10e-4380-a2c9-44f995833232" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="A_file_reads_with_its_exact_times_IDs_links_layout_and_permissions" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Summary_preserves_the_native_missing_target_status" id="586e4fa4-109e-46c7-aa98-c2e7ac01c1ea" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="586e4fa4-109e-46c7-aa98-c2e7ac01c1ea" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Summary_preserves_the_native_missing_target_status" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Cloud_listing_child_lists_or_opens_as_its_parent_asks" id="3c4a986e-1a94-41f5-8902-511fac15dcc7" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="3c4a986e-1a94-41f5-8902-511fac15dcc7" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Cloud_listing_child_lists_or_opens_as_its_parent_asks" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Cloud_storage_child_reviews_and_compresses_as_its_parent_asks" id="142686f2-b98c-42cf-b197-6329c0b618a5" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="142686f2-b98c-42cf-b197-6329c0b618a5" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Cloud_storage_child_reviews_and_compresses_as_its_parent_asks" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.An_EFS_certificate_list_is_read_with_its_counts_and_lengths_checked" id="2c71d13d-7d1f-409b-a77f-0dc835d1bdaf" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="2c71d13d-7d1f-409b-a77f-0dc835d1bdaf" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="An_EFS_certificate_list_is_read_with_its_counts_and_lengths_checked" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Listing_a_sync_root_opens_none_of_its_placeholders_on_either_route" id="99e501d8-0607-4846-afc0-f4747e0376df" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="99e501d8-0607-4846-afc0-f4747e0376df" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Listing_a_sync_root_opens_none_of_its_placeholders_on_either_route" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Storage_changes_never_enter_a_registered_sync_root_or_ask_its_provider_for_data" id="9cf470aa-1121-407b-88a7-a1c5fba14fb1" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="9cf470aa-1121-407b-88a7-a1c5fba14fb1" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Storage_changes_never_enter_a_registered_sync_root_or_ask_its_provider_for_data" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.The_record_lists_the_files_streams_with_what_they_say" id="cfd5bc20-a477-4910-b7bf-bad6a69a4b44" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="cfd5bc20-a477-4910-b7bf-bad6a69a4b44" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="The_record_lists_the_files_streams_with_what_they_say" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.An_object_ID_says_when_its_birth_ID_was_made" id="0be34f8b-7a41-4d3b-a599-410e30e4d162" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="0be34f8b-7a41-4d3b-a599-410e30e4d162" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="An_object_ID_says_when_its_birth_ID_was_made" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.As_administrator_the_record_lists_the_runs_of_every_non_resident_attribute" id="796622fd-a6bd-4bee-993c-f6a00ecf6cf6" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="796622fd-a6bd-4bee-993c-f6a00ecf6cf6" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="As_administrator_the_record_lists_the_runs_of_every_non_resident_attribute" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.As_administrator_the_live_log_shows_creation_and_a_time_change_while_history_is_retained" id="227c9223-4f4f-4e21-9eab-0c8360979cda" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="227c9223-4f4f-4e21-9eab-0c8360979cda" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="As_administrator_the_live_log_shows_creation_and_a_time_change_while_history_is_retained" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Without_administrator_rights_the_report_says_first_what_it_leaves_out" id="ec21a2de-10af-4089-b163-615abec1e504" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="ec21a2de-10af-4089-b163-615abec1e504" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Without_administrator_rights_the_report_says_first_what_it_leaves_out" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.An_encrypted_file_lists_who_can_decrypt_it_without_changing_it" id="b46dccab-5acc-40c0-a0cc-4fcdbcc3d113" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="b46dccab-5acc-40c0-a0cc-4fcdbcc3d113" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="An_encrypted_file_lists_who_can_decrypt_it_without_changing_it" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Full_details_observe_the_case_flag_on_each_held_NTFS_directory" id="64436ae5-c04c-4596-938b-5301752eb095" storage="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="64436ae5-c04c-4596-938b-5301752eb095" />
+      <TestMethod codeBase="C:\fc-run\s10\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Full_details_observe_the_case_flag_on_each_held_NTFS_directory" adapterTypeName="executor://e5e60eb2-e309-48c5-8545-b872fa822eff/xunit.v3/3.2.2" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="57b187ae-3492-43de-bb82-089970bed139" executionId="57b187ae-3492-43de-bb82-089970bed139" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="bb1c0bac-3c27-4dd2-a420-a867474a22ec" executionId="bb1c0bac-3c27-4dd2-a420-a867474a22ec" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="d92dc3ee-20be-4ae9-923b-8089305bd839" executionId="d92dc3ee-20be-4ae9-923b-8089305bd839" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="55ec258a-1ed7-4431-b43c-e77148b8be89" executionId="55ec258a-1ed7-4431-b43c-e77148b8be89" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="3dd71a4a-fc2a-4e16-b463-dc3d88883593" executionId="3dd71a4a-fc2a-4e16-b463-dc3d88883593" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f1bc52aa-f9d5-45f3-ae9f-683a9dc375cd" executionId="f1bc52aa-f9d5-45f3-ae9f-683a9dc375cd" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="daccc5b2-2162-4398-b50d-3e79bc7efe77" executionId="daccc5b2-2162-4398-b50d-3e79bc7efe77" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4792f279-7a84-49c3-a9f6-88489608ca05" executionId="4792f279-7a84-49c3-a9f6-88489608ca05" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="e83a6c07-496c-4ab2-acb0-cbde9046caf4" executionId="e83a6c07-496c-4ab2-acb0-cbde9046caf4" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b5b7a319-d276-4d16-a604-2f21db13e81a" executionId="b5b7a319-d276-4d16-a604-2f21db13e81a" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="8ba5027a-df5c-4429-aa0c-d23680a46173" executionId="8ba5027a-df5c-4429-aa0c-d23680a46173" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="9740a6d9-bd47-4c4b-ad8f-40c24b7c7ade" executionId="9740a6d9-bd47-4c4b-ad8f-40c24b7c7ade" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="24026121-6da6-4fec-a75b-63f0d1213762" executionId="24026121-6da6-4fec-a75b-63f0d1213762" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0ab7ca95-8bb2-404f-b064-ec41d0c0f29d" executionId="0ab7ca95-8bb2-404f-b064-ec41d0c0f29d" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="d8d271df-3536-438a-a1dd-e180cd6f4b16" executionId="d8d271df-3536-438a-a1dd-e180cd6f4b16" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="31b61f11-008e-4092-a041-2c14ede68026" executionId="31b61f11-008e-4092-a041-2c14ede68026" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="d399a56a-6aa4-41c6-8537-52581d8041a2" executionId="d399a56a-6aa4-41c6-8537-52581d8041a2" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="6dcf5421-4e39-4fcb-bf32-116202a62123" executionId="6dcf5421-4e39-4fcb-bf32-116202a62123" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="e9642acc-85ba-4029-9f5c-c58407020836" executionId="e9642acc-85ba-4029-9f5c-c58407020836" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a0eb8120-9a20-4e3f-9667-bae5249fe36e" executionId="a0eb8120-9a20-4e3f-9667-bae5249fe36e" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b0a6b4f8-1d59-448c-b48f-bc9368b38a7a" executionId="b0a6b4f8-1d59-448c-b48f-bc9368b38a7a" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="563129a2-d48b-4645-ba33-26c1e039fb96" executionId="563129a2-d48b-4645-ba33-26c1e039fb96" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4701afe8-c60d-4925-abf3-d1f8d149cf51" executionId="4701afe8-c60d-4925-abf3-d1f8d149cf51" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="33395985-f88b-4db9-86c0-2c75cb48aff2" executionId="33395985-f88b-4db9-86c0-2c75cb48aff2" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="c7d42093-eea6-413b-9ae3-afbbcd9ce653" executionId="c7d42093-eea6-413b-9ae3-afbbcd9ce653" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="d9834f2d-c12f-411d-a8d2-f75cf51e01a6" executionId="d9834f2d-c12f-411d-a8d2-f75cf51e01a6" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="10328ef0-311f-49c7-ad46-8504b5a32594" executionId="10328ef0-311f-49c7-ad46-8504b5a32594" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="d3ac0738-c51c-4943-b052-28cd8d196f18" executionId="d3ac0738-c51c-4943-b052-28cd8d196f18" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4d6aaa4d-8ab2-4b75-9470-04ffde3549f8" executionId="4d6aaa4d-8ab2-4b75-9470-04ffde3549f8" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0f7a236c-e7c1-4211-9537-125aa35aca67" executionId="0f7a236c-e7c1-4211-9537-125aa35aca67" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="c9747067-e3cc-4533-aab8-16ead18a7be4" executionId="c9747067-e3cc-4533-aab8-16ead18a7be4" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="c3303331-8c24-4b65-a206-c4f422744d13" executionId="c3303331-8c24-4b65-a206-c4f422744d13" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f2aed8ba-60a5-4814-b7d3-ddf1e618b8f5" executionId="f2aed8ba-60a5-4814-b7d3-ddf1e618b8f5" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="3f6d1328-f312-4ea8-b456-3fb558864c86" executionId="3f6d1328-f312-4ea8-b456-3fb558864c86" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a729f736-7fc4-4c67-91a9-5251b18c5578" executionId="a729f736-7fc4-4c67-91a9-5251b18c5578" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="2f77a5e8-0291-431c-a6e0-6b5524de573a" executionId="2f77a5e8-0291-431c-a6e0-6b5524de573a" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="8b08bab7-499a-47c7-94e6-48304ae4a985" executionId="8b08bab7-499a-47c7-94e6-48304ae4a985" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="28a3f359-7ef1-40db-a4a0-b0431534e436" executionId="28a3f359-7ef1-40db-a4a0-b0431534e436" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="91386a1c-f9a9-4303-81c5-b7fd1e7e8e7c" executionId="91386a1c-f9a9-4303-81c5-b7fd1e7e8e7c" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="92e5f689-9942-4529-8cdf-2e9b80aa3987" executionId="92e5f689-9942-4529-8cdf-2e9b80aa3987" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="8df0a16b-08e4-4b53-9003-e060f8715480" executionId="8df0a16b-08e4-4b53-9003-e060f8715480" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="5383ceef-0908-42c0-b9d0-1eba5f05b616" executionId="5383ceef-0908-42c0-b9d0-1eba5f05b616" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="d9417888-f55a-4c8f-ab6c-43f3f597fb61" executionId="d9417888-f55a-4c8f-ab6c-43f3f597fb61" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4baf232e-cfd1-4870-b77e-3f9111300817" executionId="4baf232e-cfd1-4870-b77e-3f9111300817" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="045e7e6c-68d3-48ad-a34b-05c7c99a1751" executionId="045e7e6c-68d3-48ad-a34b-05c7c99a1751" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="485246b4-2345-4683-b531-eedd03f5d66a" executionId="485246b4-2345-4683-b531-eedd03f5d66a" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="003f7779-7e0c-4c71-aef0-291de7620a7c" executionId="003f7779-7e0c-4c71-aef0-291de7620a7c" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="3a41c230-2631-4f91-8226-c031f53a2578" executionId="3a41c230-2631-4f91-8226-c031f53a2578" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="7413f8fc-bf2a-41d5-999c-ba994b5be8de" executionId="7413f8fc-bf2a-41d5-999c-ba994b5be8de" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="78242a2f-4841-4c31-8d60-fa594dd5c5a7" executionId="78242a2f-4841-4c31-8d60-fa594dd5c5a7" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="54883880-973f-4af4-a031-f5b5c4b470fb" executionId="54883880-973f-4af4-a031-f5b5c4b470fb" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="8e6c1857-e10e-4380-a2c9-44f995833232" executionId="8e6c1857-e10e-4380-a2c9-44f995833232" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="586e4fa4-109e-46c7-aa98-c2e7ac01c1ea" executionId="586e4fa4-109e-46c7-aa98-c2e7ac01c1ea" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="3c4a986e-1a94-41f5-8902-511fac15dcc7" executionId="3c4a986e-1a94-41f5-8902-511fac15dcc7" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="142686f2-b98c-42cf-b197-6329c0b618a5" executionId="142686f2-b98c-42cf-b197-6329c0b618a5" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="2c71d13d-7d1f-409b-a77f-0dc835d1bdaf" executionId="2c71d13d-7d1f-409b-a77f-0dc835d1bdaf" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="99e501d8-0607-4846-afc0-f4747e0376df" executionId="99e501d8-0607-4846-afc0-f4747e0376df" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="9cf470aa-1121-407b-88a7-a1c5fba14fb1" executionId="9cf470aa-1121-407b-88a7-a1c5fba14fb1" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="cfd5bc20-a477-4910-b7bf-bad6a69a4b44" executionId="cfd5bc20-a477-4910-b7bf-bad6a69a4b44" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0be34f8b-7a41-4d3b-a599-410e30e4d162" executionId="0be34f8b-7a41-4d3b-a599-410e30e4d162" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="796622fd-a6bd-4bee-993c-f6a00ecf6cf6" executionId="796622fd-a6bd-4bee-993c-f6a00ecf6cf6" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="227c9223-4f4f-4e21-9eab-0c8360979cda" executionId="227c9223-4f4f-4e21-9eab-0c8360979cda" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="ec21a2de-10af-4089-b163-615abec1e504" executionId="ec21a2de-10af-4089-b163-615abec1e504" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b46dccab-5acc-40c0-a0cc-4fcdbcc3d113" executionId="b46dccab-5acc-40c0-a0cc-4fcdbcc3d113" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="64436ae5-c04c-4596-938b-5301752eb095" executionId="64436ae5-c04c-4596-938b-5301752eb095" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="65" executed="46" passed="46" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="19" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+  </ResultSummary>
+</TestRun>

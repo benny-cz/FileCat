@@ -19,7 +19,7 @@ public sealed partial class WindowsFileRecordsTests
 {
     private const string CloudListingRoot = "FILECAT_TEST_CLOUD_LISTING_ROOT";
     private const string CloudListingMode = "FILECAT_TEST_CLOUD_LISTING_MODE";
-    private const int CloudListingCount = 40;
+    private const int CloudListingCount = 40, ErrorCloudFileAccessDenied = 395;
     private static int _placeholderOpens;
 
     // Ordered from what the claim needs to what the provider may be told: metadata-only opens first, then an open for
@@ -54,17 +54,33 @@ public sealed partial class WindowsFileRecordsTests
             await new WindowsFileSystemProvider { UseNativeEnumeration = true }.EnumerateAsync(location, native, TestContext.Current.CancellationToken);
             Assert.Equal(CloudListingCount, native.Entries.Count);
             Assert.Equal(managed.Entries.Keys.Order(StringComparer.Ordinal), native.Entries.Keys.Order(StringComparer.Ordinal));
-            Assert.All(native.Entries, pair => Assert.Equal(managed.Entries[pair.Key].Attributes, pair.Value.Attributes));
-            // Windows may disguise another provider's placeholders as ordinary files for this process; record what it saw.
+            // Windows disguises another provider's placeholders for this process. The native route exposes them for
+            // presentation (X-LIST): each carries its cloud tag and reparse bit, and the flags stay the disguised listing's.
+            Assert.All(native.Entries, pair =>
+            {
+                var disguised = managed.Entries[pair.Key];
+                Assert.True(ReparsePresentation.IsCloudTag(pair.Value.NativeReparseTag), $"{pair.Key}: tag 0x{pair.Value.NativeReparseTag:X8}");
+                Assert.NotEqual(0u, pair.Value.Attributes & (uint)FileAttributes.ReparsePoint);
+                Assert.Equal(disguised.Attributes, pair.Value.Attributes & ~(uint)WindowsFileSystemProvider.DisguisedPlaceholderAttributes);
+                Assert.Equal(disguised.Flags, pair.Value.Flags);
+            });
             var tags = native.Entries.Values.Select(entry => entry.NativeReparseTag).Distinct().Order().Select(tag => $"0x{tag:X8}");
             TestContext.Current.TestOutputHelper?.WriteLine($"Child: process placeholder mode {RtlQueryProcessPlaceholderCompatibilityMode()}; " +
-                $"native tags {string.Join(',', tags)}; attributes 0x{(int)native.Entries.Values.First().Attributes:X8}");
+                $"native tags {string.Join(',', tags)}; attributes 0x{(int)native.Entries.Values.First().Attributes:X8}, " +
+                $"disguised 0x{(int)managed.Entries.Values.First().Attributes:X8}");
             return;
         }
         int index = int.Parse(mode, CultureInfo.InvariantCulture);
         var control = PlaceholderControls[index];
         using var probe = CreateFile(Path.Combine(root, $"placeholder-{index}.txt"), control.Access, 7, 0, 3, control.Flags, 0);
-        Assert.False(probe.IsInvalid, $"Open the {control.Kind} control: {Marshal.GetLastPInvokeError()}");
+        int error = probe.IsInvalid ? Marshal.GetLastPInvokeError() : 0;
+        if (error == ErrorCloudFileAccessDenied)
+        {
+            // Windows itself refused the open, so the provider cannot be told about it: no evidence either way.
+            TestContext.Current.TestOutputHelper?.WriteLine($"Child: Windows refused the {control.Kind} control open (ERROR_CLOUD_FILE_ACCESS_DENIED)");
+            return;
+        }
+        Assert.False(probe.IsInvalid, $"Open the {control.Kind} control: {error}");
     }
 
     [Fact]
@@ -89,10 +105,12 @@ public sealed partial class WindowsFileRecordsTests
             Assert.Equal(0, listingOpens);
             Assert.Equal(fetchesBefore, Volatile.Read(ref _fetches));
             int observed = -1;
+            var refused = new List<string>();
             for (int i = 0; i < PlaceholderControls.Length && observed < 0; i++)
             {
                 int seen = Volatile.Read(ref _placeholderOpens);
-                await RunCloudListingChild(exe, root, i.ToString(CultureInfo.InvariantCulture));
+                if ((await RunCloudListingChild(exe, root, i.ToString(CultureInfo.InvariantCulture))).Contains("Windows refused", StringComparison.Ordinal))
+                    refused.Add(PlaceholderControls[i].Kind);
                 var deadline = DateTime.UtcNow.AddSeconds(5);
                 while (Volatile.Read(ref _placeholderOpens) == seen && DateTime.UtcNow < deadline) await Task.Delay(50, TestContext.Current.CancellationToken);
                 if (Volatile.Read(ref _placeholderOpens) != seen) observed = i;
@@ -100,7 +118,8 @@ public sealed partial class WindowsFileRecordsTests
             TestContext.Current.TestOutputHelper?.WriteLine(
                 $"Placeholder opens: listing {listingOpens}; first control the provider observed: {(observed < 0 ? "none" : PlaceholderControls[observed].Kind)}");
             if (observed < 0)
-                Assert.Skip("No control open from another process reached the provider on this Windows build, so it cannot show whether listing opened placeholders.");
+                Assert.Skip("No control open from another process reached the provider on this Windows build, so it cannot show whether listing opened placeholders." +
+                    (refused.Count > 0 ? $" Windows refused the {string.Join(" and ", refused)} control with ERROR_CLOUD_FILE_ACCESS_DENIED." : ""));
             if (observed == 2)
                 Assert.Skip("This Windows build reports only data-access opens to the provider. Listing caused none, but metadata-only opens are unobservable here.");
         }
@@ -118,10 +137,11 @@ public sealed partial class WindowsFileRecordsTests
     }
 
     /// <summary>Runs the child test once and requires that it actually ran and passed: a skipped child proves nothing.</summary>
-    private static Task RunCloudListingChild(string exe, string root, string mode) =>
+    private static Task<string> RunCloudListingChild(string exe, string root, string mode) =>
         RunCloudChild(exe, nameof(Cloud_listing_child_lists_or_opens_as_its_parent_asks), new() { [CloudListingRoot] = root, [CloudListingMode] = mode }, mode);
 
-    internal static async Task RunCloudChild(string exe, string method, Dictionary<string, string> environment, string mode)
+    /// <summary>Returns the child's output.</summary>
+    internal static async Task<string> RunCloudChild(string exe, string method, Dictionary<string, string> environment, string mode)
     {
         var start = new ProcessStartInfo(exe) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
         foreach (string argument in new[] { "-method", typeof(WindowsFileRecordsTests).FullName + "." + method, "-noLogo", "-showLiveOutput" })
@@ -139,6 +159,7 @@ public sealed partial class WindowsFileRecordsTests
             Assert.True(child.ExitCode == 0 && Regex.IsMatch(text, @"Total: 1, Errors: 0, Failed: 0, Skipped: 0"),
                 $"The '{mode}' child did not run and pass its one test (exit {child.ExitCode}): {text}");
             foreach (Match line in Regex.Matches(text, @"Child: [^\r\n]*")) TestContext.Current.TestOutputHelper?.WriteLine(line.Value);
+            return text;
         }
         finally { if (!child.HasExited) child.Kill(entireProcessTree: true); }
     }

@@ -20,12 +20,12 @@ public sealed unsafe partial class WindowsFileSystemProvider
         ct.ThrowIfCancellationRequested();
         string pattern = WindowsFileOperations.Long(Path.Join(location.Path, "*"));
         var data = new FindData();
-        var cursor = api.Open(pattern, largeFetch: true, &data, out int error);
+        var cursor = Open(ref api, pattern, largeFetch: true, &data, out int error);
         if (cursor.IsInvalid && error is 50 or 87)
         {
             cursor.Dispose();
             ct.ThrowIfCancellationRequested();
-            cursor = api.Open(pattern, largeFetch: false, &data, out error);
+            cursor = Open(ref api, pattern, largeFetch: false, &data, out error);
         }
         using (cursor)
         {
@@ -54,14 +54,16 @@ public sealed unsafe partial class WindowsFileSystemProvider
                     {
                         Created = Time(data.CreatedHigh, data.CreatedLow), Attributes = data.Attributes,
                         NativeReparseTag = (attributes & FileAttributes.ReparsePoint) != 0 ? data.ReparseTag : 0,
-                        Flags = MapFlags(attributes),
+                        // Operations decide on the flags. An exposed Cloud Files placeholder gets the disguised view's: an
+                        // ordinary file or folder, never a link. Its attributes and tag still present it.
+                        Flags = MapFlags(IsExposedPlaceholder(attributes, data.ReparseTag) ? attributes & ~DisguisedPlaceholderAttributes : attributes),
                     };
                     if (!directory && ContainerDetector?.IsContainer(name) == true) entry.Flags |= EntryFlags.Container;
                     batch[count++] = entry;
                     if (count == batch.Length) { sink.AddBatch(batch); count = 0; }
                 }
                 ct.ThrowIfCancellationRequested();
-                if (api.Advance(cursor, &data, out error)) continue;
+                if (Advance(ref api, cursor, &data, out error)) continue;
                 ct.ThrowIfCancellationRequested();
                 if (count > 0) sink.AddBatch(batch.AsSpan(0, count));
                 ct.ThrowIfCancellationRequested();
@@ -70,6 +72,31 @@ public sealed unsafe partial class WindowsFileSystemProvider
             }
         }
     }
+
+    // Only the directory queries see Cloud Files placeholders exposed (FILECAT_CLOUD_PLACEHOLDER_EXPOSURE_PLAN.md). FileCat's
+    // own code between them, the sink and the refused-link check included, keeps the thread's previous view.
+    private static SafeHandle Open<TFindApi>(ref TFindApi api, string pattern, bool largeFetch, FindData* data, out int error)
+        where TFindApi : IFindApi
+    {
+        using var exposed = PlaceholderView.Expose();
+        return api.Open(pattern, largeFetch, data, out error);
+    }
+
+    private static bool Advance<TFindApi>(ref TFindApi api, SafeHandle cursor, FindData* data, out int error)
+        where TFindApi : IFindApi
+    {
+        using var exposed = PlaceholderView.Expose();
+        return api.Advance(cursor, data, out error);
+    }
+
+    /// <summary>
+    /// What Windows hides from a process that is not the provider, for another provider's placeholder. Observed on
+    /// Windows 11 x64: a placeholder only in the cloud lists as 0x00401620 exposed and as 0x00400020 disguised.
+    /// </summary>
+    internal const FileAttributes DisguisedPlaceholderAttributes = FileAttributes.ReparsePoint | FileAttributes.SparseFile | FileAttributes.Offline;
+
+    internal static bool IsExposedPlaceholder(FileAttributes attributes, uint tag) =>
+        (attributes & FileAttributes.ReparsePoint) != 0 && ReparsePresentation.IsCloudTag(tag);
 
     private static long Time(uint high, uint low)
     {

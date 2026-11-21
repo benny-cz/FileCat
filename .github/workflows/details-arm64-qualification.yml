@@ -3,7 +3,8 @@ name: Details ARM64 qualification
 # File-system details and native listing fixtures that need ARM64 hardware. The hosted ARM64 runners are the only ARM64
 # machines available:
 # - linux-arm64 package: Unix details on ubuntu-24.04-arm, including an ext4 inline_data volume;
-# - Windows on Arm: owned FAT32, exFAT and ReFS (Dev Drive) volumes on windows-11-arm, at medium integrity.
+# - Windows on Arm: owned FAT32, exFAT and ReFS (Dev Drive) volumes and a temporary Cloud Files sync root on
+#   windows-11-arm, at medium integrity.
 on:
   workflow_dispatch:
 
@@ -113,6 +114,21 @@ jobs:
               'FullyQualifiedName~WindowsDetailsNativeGapTests'
           ) -join '|'
           ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Platform.Windows.Tests -LogFileName windows-arm64-volumes.trx -Filter $filter
+      # Cloud placeholder exposure (X-ARM64): a temporary sync root served by the test process, read and operated on
+      # from a child process in Windows's default disguised mode.
+      - name: Run the Cloud Files exposure fixtures at medium integrity
+        if: always()
+        shell: pwsh
+        env:
+          FILECAT_TEST_CLOUD_FILES: '1'
+        run: |
+          $filter = @(
+              'FullyQualifiedName~PlaceholderViewTests'
+              'FullyQualifiedName~WindowsFileRecordsTests.Another_process_describes_placeholders_as_cloud_files_and_operates_on_them_as_ordinary_ones'
+              'FullyQualifiedName~WindowsFileRecordsTests.Listing_a_sync_root_opens_none_of_its_placeholders_on_either_route'
+              'FullyQualifiedName~WindowsFileRecordsTests.A_cloud_placeholder_reads_its_state_without_being_downloaded'
+          ) -join '|'
+          ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Platform.Windows.Tests -LogFileName windows-arm64-cloud.trx -Filter $filter
       - name: Detach the fixture volumes
         if: always()
         shell: pwsh

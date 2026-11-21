@@ -1,0 +1,8 @@
+2026-11-21T20:24+01:00 Windows 11 Pro Insider build 26340.9843 x64 VM; medium integrity (Mandatory Label S-1-16-8192); FILECAT_TEST_CLOUD_FILES=1
+tests dll FF252CF371BF51C40A918915B5E2074D734698DCB9F72DAD2EBDAF5C2A4C3E0A
+platform dll D6B103DCE691F7F1B3F5946C42628B68EA92C0A14CFAFD4C77FFF1125088D244
+classes PlaceholderViewTests, WindowsFileRecordsTests, WindowsEnumerationParityTests, WindowsEnumerationTests, WindowsFileDetailsTests, WindowsDetailsNativeGapTests
+result total 65, passed 46, failed 0, skipped 19 (cloud-exposure.trx, sha256 b6fc2ce38ea1954d60bef1598e74e13a53031f102f28345325599f331f3d5dd0)
+control comparison: the same VM, a build of f01ff2930 (before exposure), Listing_a_sync_root_opens_none_of_its_placeholders_on_either_route alone:
+  the data-access control open failed with 395 (ERROR_CLOUD_FILE_ACCESS_DENIED), as it does with exposure (control-refusal-before-change.trx)
+guest run folder C:c-run removed after each lane; no test process left behind
