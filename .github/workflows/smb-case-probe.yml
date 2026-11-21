@@ -1,0 +1,56 @@
+name: SMB case-distinct probe (ARM64)
+
+# Temporary feasibility probe for N-ENUM's Windows on Arm SMB case: can the hosted windows-11-arm runner reach a user-mode
+# SMB server (impacket) on an alternative TCP port that exposes names differing only in case? Throwaway loopback
+# credentials; nothing leaves the runner.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Windows ARM64 (SMB case-distinct probe)
+    runs-on: windows-11-arm
+    timeout-minutes: 20
+    steps:
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: Probe a case-distinct share on port 4445
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          [Environment]::OSVersion.VersionString
+          $env:PROCESSOR_ARCHITECTURE
+          python -c "import platform, sys; print(platform.machine(), sys.version)"
+          python -m pip install --quiet impacket 2>&1 | Select-Object -Last 5
+          $scripts = python -c "import sysconfig; print(sysconfig.get_path('scripts'))"
+          Get-ChildItem $scripts -Filter 'smbserver*' | Select-Object -ExpandProperty FullName
+          $root = Join-Path $env:RUNNER_TEMP 'smb-case'
+          New-Item -ItemType Directory $root | Out-Null
+          fsutil.exe file setCaseSensitiveInfo $root enable
+          Set-Content -LiteralPath (Join-Path $root 'Case.txt') 'upper'
+          Set-Content -LiteralPath (Join-Path $root 'case.txt') 'lower'
+          New-Item -ItemType Directory (Join-Path $root 'owned-folder') | Out-Null
+          cmd /c dir $root
+          Get-SmbClientConfiguration | Select-Object RequireSecuritySignature, EnableSecuritySignature, EnableInsecureGuestLogons | Format-List
+          Set-SmbClientConfiguration -RequireSecuritySignature $false -Force -Confirm:$false
+          $log = Join-Path $env:RUNNER_TEMP 'smbserver.log'
+          $server = Start-Process -FilePath python -PassThru -WindowStyle Hidden -RedirectStandardOutput $log -RedirectStandardError "$log.err" `
+              -ArgumentList @((Join-Path $scripts 'smbserver.py'), '-smb2support', '-port', '4445', '-username', 'fc', '-password', 'FcProbe-1', 'FIXTURE', $root)
+          Start-Sleep 6
+          Get-NetTCPConnection -LocalPort 4445 -State Listen -ErrorAction SilentlyContinue | Format-Table LocalAddress, LocalPort, OwningProcess
+          (Get-Command New-SmbMapping).Parameters.Keys | Where-Object { $_ -match 'Port' }
+          try { New-SmbMapping -LocalPath 'Z:' -RemotePath '\\127.0.0.1\FIXTURE' -TcpPort 4445 -UserName 'fc' -Password 'FcProbe-1' -ErrorAction Stop | Format-List }
+          catch { "New-SmbMapping failed: $_" }
+          cmd /c "net use Y: \\127.0.0.1\FIXTURE /TCPPORT:4445 /user:fc FcProbe-1"
+          "== Z:"; cmd /c dir Z:\
+          "== Y:"; cmd /c dir Y:\
+          "== UNC"; cmd /c dir \\127.0.0.1\FIXTURE
+          Get-ChildItem Z:\ -Force -ErrorAction SilentlyContinue | Format-Table Name, Length, Attributes
+          Get-SmbConnection | Format-Table ServerName, ShareName, Dialect, NumOpens
+          "== server log"; Get-Content $log, "$log.err" -ErrorAction SilentlyContinue | Select-Object -Last 40
+          Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+          exit 0
