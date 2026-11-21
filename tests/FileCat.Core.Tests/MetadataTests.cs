@@ -9,6 +9,14 @@ namespace FileCat.Core.Tests;
 public class MetadataTests
 {
     [Fact]
+    public void An_explicit_sort_selector_can_leave_a_displayed_value_unknown()
+    {
+        Assert.Equal(new Version(2, 1), BuiltInFields.Version.CaptureKey(new(MetadataState.Available, "2.1")));
+        Assert.Null(BuiltInFields.Version.CaptureKey(new(MetadataState.Available, "unparseable version")));
+        Assert.Equal("target", BuiltInFields.LinkTarget.CaptureKey(new(MetadataState.Available, "target")));
+    }
+
+    [Fact]
     public void Refreshed_folder_retires_a_same_size_restored_time_row_claim_only_there()
     {
         using var dir = new TempDir();

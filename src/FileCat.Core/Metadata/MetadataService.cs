@@ -68,7 +68,9 @@ public sealed record MetadataField(
     Func<EntryData, bool>? AppliesToEntry = null)
 {
     public IComparable? CaptureKey(MetadataValue value) => value.State == MetadataState.Available &&
-        (!ObservationLane || value.Observation == MetadataObservation.Current) ? SortKey?.Invoke(value.Value) ?? value.Value as IComparable : null;
+        (!ObservationLane || value.Observation == MetadataObservation.Current)
+            ? SortKey is { } select ? select(value.Value) : value.Value as IComparable
+            : null;
 }
 
 /// <summary>
