@@ -33,7 +33,9 @@ public sealed unsafe partial class WindowsFileSystemProvider
             if (cursor.IsInvalid)
             {
                 if (error is 50 or 87 or 120) return base.EnumerateAsync(location, sink, ct); // no publication yet
-                if (error == 2) return Task.CompletedTask;
+                // "No match" is ambiguous: an empty share or FAT root reports it, and so does a server that answers a
+                // missing folder with "no such file". The managed route opens the folder first and tells them apart.
+                if (error == 2) return base.EnumerateAsync(location, sink, ct);
                 if (error == 5 && ListableTargetOfRefusedLink(location.Path) is { } target)
                     throw new LinkListingRefusedException(location.Path, target, new UnauthorizedAccessException(new Win32Exception(error).Message));
                 throw EnumerationError(location.Path, error);
