@@ -47,7 +47,7 @@ The fixture now records a refused control as unobservable and skips with that re
 
 The manual [ARM64 qualification workflow](../../../.github/workflows/details-arm64-qualification.yml) ran the exposure fixtures at commit `8365cc331` on the hosted `windows-11-arm` runner at medium integrity, in [run 44941140487](https://github.com/benny-cz/FileCat/actions/runs/44941140487). Six tests: five passed and one skipped ([TRX](receipts/2026-11-21-windows-cloud-exposure/windows-arm64-cloud.trx), `7f9399fd…`).
 
-- The child saw the same tags, attributes and flags as on x64. Its managed listing carried no tag, which is the view Windows on Arm production shows, because it keeps the managed route.
+- The child saw the same tags, attributes and flags as on x64. Its managed listing carried no tag. That was Windows on Arm production's view until the [case-distinct SMB receipt](2026-11-21-windows-arm64-smb-case.md) moved it to the native route, which this child qualified.
 - The summaries, full reports and file records described all three placeholders as Cloud Files placeholders, and copy, move, delete and Find behaved as on x64, with no data request.
 - `PlaceholderViewTests` and the in-process placeholder test passed.
 - The listing test skipped as it did on the VM at 16:42: the runner reports data-access opens only. There, the listing caused none, and Windows did not refuse the control.

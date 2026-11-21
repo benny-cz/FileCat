@@ -68,12 +68,15 @@ public sealed class WindowsPlatform : PortablePlatform
     }
 
     /// <summary>
-    /// The native tag-bearing listing (F4) is qualified on x64 (N-ENUM, F-ENUM); an Arm64 process keeps the managed route
-    /// until its remaining SMB case-distinct fixture passes. Both publish the same names, attributes and batches.
+    /// The native tag-bearing listing (F4) is qualified on x64 and on Windows on Arm (N-ENUM, F-ENUM), including the
+    /// case-distinct SMB fixture. A process emulated on another architecture keeps the managed route. Both publish the same
+    /// names, attributes and batches.
     /// </summary>
     protected override LocalFileSystemProvider CreateFileSystemProvider() => new WindowsFileSystemProvider
     {
-        UseNativeEnumeration = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.X64 &&
-            System.Runtime.InteropServices.RuntimeInformation.OSArchitecture == System.Runtime.InteropServices.Architecture.X64,
+        UseNativeEnumeration = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture ==
+                System.Runtime.InteropServices.RuntimeInformation.OSArchitecture &&
+            System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture is
+                System.Runtime.InteropServices.Architecture.X64 or System.Runtime.InteropServices.Architecture.Arm64,
     };
 }

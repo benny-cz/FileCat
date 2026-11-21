@@ -92,7 +92,7 @@ try {
         build = $os.BuildNumber
         filesystem = $volume.FileSystem
         server = "impacket $impacket smbserver.py on 127.0.0.1:$Port"
-        serverPython = (& $ServerPython -c "import platform, sys; print(platform.machine(), sys.version.split()[0])")
+        serverPython = (& $ServerPython -c "import sys; print(sys.version)")  # the build tag, e.g. (AMD64) under emulation
         smbDialect = $connection.Dialect
         mapped = $mappedRoot
         unc = $unc
