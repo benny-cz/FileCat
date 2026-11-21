@@ -7,7 +7,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows;
 
-/// <summary>Qualification-stage C adapter. WindowsPlatform keeps the unsupported adapter until execution gates close.</summary>
+/// <summary>The NTFS compression adapter. WindowsPlatform composes it through <see cref="CreateRelease"/>; the EFS candidate stays a qualification-only wrapper.</summary>
 internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransforms, IStorageEfsSetup
 {
     // Native x64 removal can allocate a hole at this length. Keep the unqualified large sparse scope unavailable.
@@ -21,6 +21,23 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
     internal static bool IsNativeArm64QualificationHost => RuntimeInformation.ProcessArchitecture == Architecture.Arm64 &&
         RuntimeInformation.OSArchitecture == Architecture.Arm64 && IsWindows11Client;
     internal static bool SupportsHost(bool qualifyNativeArm64) => IsQualifiedHost || qualifyNativeArm64 && IsNativeArm64QualificationHost;
+
+    /// <summary>
+    /// The released composition: NTFS compression only (Compress and Remove compression), where the private storage
+    /// evidence is qualified - a Windows 11 x64 client process at normal integrity. EFS stays unavailable until its own
+    /// release gates close; every other host gets its specific reason and no adapter.
+    /// </summary>
+    internal static IStorageTransforms CreateRelease() => WindowsStorageReviewEvidence.IsSupportedHost
+        ? new WindowsStorageTransforms() : new NoStorageTransforms(ReleaseUnavailable());
+
+    internal static StorageProblem ReleaseUnavailable() =>
+        Core.State.WindowsTokenAuthority.IsHighIntegrity
+            ? Problem(StorageReasonKind.FileCatBoundary, "elevated-process", "Open FileCat as your usual Windows user to change NTFS compression; an administrator window does not change it.")
+            : RuntimeInformation.OSArchitecture == Architecture.Arm64
+                ? Problem(StorageReasonKind.FileCatBoundary, "arm64-unqualified", "NTFS compression changes are not yet qualified on Windows on Arm.")
+                : !IsWindows11Client
+                    ? Problem(StorageReasonKind.FileCatBoundary, "windows-version", "NTFS compression changes in FileCat require Windows 11 (not Windows Server or Windows 10).")
+                    : Problem(StorageReasonKind.FileCatBoundary, "target-unqualified", "NTFS compression changes are not qualified on this system.");
     [LibraryImport("shlwapi.dll")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]

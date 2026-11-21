@@ -80,11 +80,12 @@ public interface IStorageTransforms
     IStorageTraversal OpenReviewedRoot(IStorageReviewLease root, StorageAction action, CancellationToken ct);
 }
 
-public sealed class NoStorageTransforms : IStorageTransforms
+/// <summary>No storage adapter: every action is unavailable, with the composition's specific reason when it gives one.</summary>
+public sealed class NoStorageTransforms(StorageProblem? reason = null) : IStorageTransforms
 {
-    public StorageProblem Unavailable(StorageAction action) => OperatingSystem.IsWindows()
+    public StorageProblem Unavailable(StorageAction action) => reason ?? (OperatingSystem.IsWindows()
         ? new(StorageReasonKind.FileCatBoundary, "build-unqualified", "NTFS storage changes are not enabled in this build while qualification is unfinished.", false)
-        : new(StorageReasonKind.WindowsLimitation, "platform", "NTFS compression requires a qualified Windows NTFS volume.", false);
+        : new(StorageReasonKind.WindowsLimitation, "platform", "NTFS compression requires a qualified Windows NTFS volume.", false));
     public IStorageReviewLease InspectRoot(StorageTarget target, StorageAction? action, CancellationToken ct) => throw new NotSupportedException("Storage transformations are unsupported on this platform.");
     public IStorageTraversal OpenReviewedRoot(IStorageReviewLease root, StorageAction action, CancellationToken ct) => throw new NotSupportedException(Unavailable(action).Message);
 }

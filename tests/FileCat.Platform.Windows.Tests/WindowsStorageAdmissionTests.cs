@@ -80,6 +80,29 @@ public sealed class WindowsStorageAdmissionTests
     }
 
     [Fact]
+    public void The_release_composition_is_compression_only_and_needs_the_qualified_normal_process()
+    {
+        var release = WindowsStorageTransforms.CreateRelease();
+        Assert.False(release is IStorageEfsJobAdapter);
+        Assert.False(release is IStorageEfsFileBackup);
+        if (WindowsStorageReviewEvidence.IsSupportedHost)
+        {
+            Assert.IsType<WindowsStorageTransforms>(release);
+            Assert.Null(release.Unavailable(StorageAction.Compress));
+            Assert.Null(release.Unavailable(StorageAction.RemoveCompression));
+            Assert.Equal("efs-unqualified", release.Unavailable(StorageAction.EncryptEfs)?.Code);
+            Assert.Equal("efs-unqualified", release.Unavailable(StorageAction.DecryptEfs)?.Code);
+            return;
+        }
+        Assert.IsType<NoStorageTransforms>(release);
+        var reason = WindowsStorageTransforms.ReleaseUnavailable();
+        Assert.Contains(reason.Code, new[] { "elevated-process", "arm64-unqualified", "windows-version", "target-unqualified" });
+        Assert.Equal(WindowsTokenAuthority.IsHighIntegrity, reason.Code == "elevated-process");
+        foreach (var action in Enum.GetValues<StorageAction>()) Assert.Equal(reason, release.Unavailable(action));
+        Assert.Throws<NotSupportedException>(() => release.InspectRoot(default!, StorageAction.Compress, Stop));
+    }
+
+    [Fact]
     public void Each_physical_refusal_has_its_own_reason_kind_and_precedence()
     {
         var held = new StorageObjectIdentity(7, "held") { VolumeBinding = "v" };

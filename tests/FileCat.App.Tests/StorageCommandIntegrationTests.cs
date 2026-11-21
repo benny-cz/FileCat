@@ -961,9 +961,31 @@ public sealed class StorageCommandIntegrationTests
     }
 
     [AvaloniaFact]
-    public async Task Unsupported_build_keeps_compression_visible_with_the_same_reason_in_find_and_the_palette()
+    public async Task The_default_composition_offers_compression_without_EFS_only_where_private_evidence_is_qualified()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            await Until(() => vm.ActiveTab!.Listing.State == ListingState.Complete);
+            vm.ActiveTab!.Listing.SetFocus(1);
+            var availability = vm.GetAvailability(CommandIds.StorageAttributes);
+            bool qualified = OperatingSystem.IsWindows() && FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost;
+            Assert.Equal(qualified, availability.Enabled);
+            if (!qualified) Assert.Contains("NTFS", availability.Reason);
+            // EFS is never part of the released composition: neither command is advertised or available.
+            Assert.False(vm.AdvertisesEfsCommand(CommandIds.EfsProtection));
+            Assert.False(vm.AdvertisesEfsCommand(CommandIds.EfsFileBackup));
+            Assert.False(vm.GetAvailability(CommandIds.EfsProtection).Enabled);
+            Assert.False(vm.GetAvailability(CommandIds.EfsFileBackup).Enabled);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Unsupported_build_keeps_compression_visible_with_the_same_reason_in_find_and_the_palette()
+    {
+        // An unavailable composition: an unqualified host, an elevated process or a non-Windows platform.
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(storageTransforms: new NoStorageTransforms());
         FindWindow? find = null;
         var listItems = new List<MenuItem>();
         try
