@@ -14,7 +14,7 @@ internal static class WindowsMetadataReportOutput
     private const int WriteChunkSize = 64 * 1024;
 
     internal static string? Save(string path, string text, Action directOutputStarted, CancellationToken ct,
-        Action? afterCommit = null, Action? beforeCommit = null)
+        Action? afterCommit = null, Action? beforeCommit = null, bool includeBom = true, bool atomicOutput = false)
     {
         ct.ThrowIfCancellationRequested();
         var contents = Encoding.UTF8.GetBytes(text);
@@ -26,25 +26,38 @@ internal static class WindowsMetadataReportOutput
         {
             // For a network destination, only a new file has qualified publication semantics.
             ct.ThrowIfCancellationRequested();
+            if (atomicOutput)
+            {
+                if (File.Exists(path)) throw new IOException("Choose a new file name for this network report destination.");
+                WriteNewAtomic(path, contents, ct, includeBom);
+                return null;
+            }
             using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
             directOutputStarted();
-            Write(file.SafeFileHandle, contents, ct);
+            Write(file.SafeFileHandle, contents, ct, includeBom);
             return null;
         }
 
         string extended = path.StartsWith(@"\\?\", StringComparison.Ordinal) ? path : @"\\?\" + path;
         string native = @"\??\" + extended[4..];
         ct.ThrowIfCancellationRequested();
-        int status = TryOpen(null, native, WriteAccess, 0, Create, NoFollowFile, out var created);
-        using (created)
+        int status = TryOpen(null, native, atomicOutput ? ReadAttributes | Synchronize : WriteAccess,
+            atomicOutput ? ShareAll : 0, atomicOutput ? Open : Create, NoFollowFile, out var first);
+        using (first)
         {
-            if (status >= 0)
+            if (status >= 0 && !atomicOutput)
             {
                 directOutputStarted();
-                Write(created, contents, ct);
+                Write(first, contents, ct, includeBom);
                 return null;
             }
         }
+        if (atomicOutput && status == NameNotFound)
+        {
+            WriteNewAtomic(path, contents, ct, includeBom);
+            return null;
+        }
+        if (atomicOutput && status >= 0) status = NameCollision;
         if (status != NameCollision) throw Error(status, "Create the report file");
 
         ct.ThrowIfCancellationRequested();
@@ -60,7 +73,7 @@ internal static class WindowsMetadataReportOutput
             {
                 RequireClearFile(output);
                 if (ProtectedHexFile.Identity(output) != identity) throw Changed();
-                Write(output, contents, ct);
+                Write(output, contents, ct, includeBom);
                 ct.ThrowIfCancellationRequested();
                 VerifyDestination(native, identity);
             }
@@ -76,14 +89,58 @@ internal static class WindowsMetadataReportOutput
         }
         else
         {
+            if (atomicOutput)
+            {
+                // This volume cannot contain EFS files. Keep text-exchange replacement atomic,
+                // while the EFS-capable branch above retains its bound transactional replacement.
+                string temporary = Path.Combine(Path.GetDirectoryName(path)!, $".filecat-text-{Guid.NewGuid():N}.tmp");
+                bool createdTemporary = false;
+                try
+                {
+                    using (var staged = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                    {
+                        createdTemporary = true;
+                        Write(staged.SafeFileHandle, contents, ct, includeBom);
+                    }
+                    ct.ThrowIfCancellationRequested();
+                    using (var current = OpenOrThrow(null, native, ReadAttributes | Synchronize, ShareAll, Open,
+                        NoFollowFile, "Recheck the report destination"))
+                    {
+                        RequireClearFile(current);
+                        if (ProtectedHexFile.Identity(current) != identity || WindowsFileTransaction.CanEncrypt(current)) throw Changed();
+                    }
+                    File.Move(temporary, path, overwrite: true);
+                    createdTemporary = false;
+                }
+                finally { if (createdTemporary && File.Exists(temporary)) File.Delete(temporary); }
+                return null;
+            }
             using var output = OpenOrThrow(null, native, WriteAccess, ShareRead, Open, NoFollowFile, "Open the existing report destination for writing");
             RequireClearFile(output);
             if (ProtectedHexFile.Identity(output) != identity || WindowsFileTransaction.CanEncrypt(output)) throw Changed();
             ct.ThrowIfCancellationRequested();
             directOutputStarted();
-            Write(output, contents, ct);
+            Write(output, contents, ct, includeBom);
         }
         return null;
+    }
+
+    private static void WriteNewAtomic(string path, ReadOnlySpan<byte> contents, CancellationToken ct, bool includeBom)
+    {
+        string temporary = Path.Combine(Path.GetDirectoryName(path)!, $".filecat-text-{Guid.NewGuid():N}.tmp");
+        bool created = false;
+        try
+        {
+            using (var staged = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                created = true;
+                Write(staged.SafeFileHandle, contents, ct, includeBom);
+            }
+            ct.ThrowIfCancellationRequested();
+            File.Move(temporary, path, overwrite: false);
+            created = false;
+        }
+        finally { if (created && File.Exists(temporary)) File.Delete(temporary); }
     }
 
     private static void VerifyDestination(string native, FileIdentity identity)
@@ -104,11 +161,11 @@ internal static class WindowsMetadataReportOutput
 
     private static IOException Changed() => new("The report destination changed while it was being opened. Choose the file again.");
 
-    private static void Write(SafeFileHandle file, ReadOnlySpan<byte> contents, CancellationToken ct)
+    private static void Write(SafeFileHandle file, ReadOnlySpan<byte> contents, CancellationToken ct, bool includeBom)
     {
         ct.ThrowIfCancellationRequested();
-        var preamble = Encoding.UTF8.Preamble;
-        RandomAccess.Write(file, preamble, 0);
+        ReadOnlySpan<byte> preamble = includeBom ? Encoding.UTF8.Preamble : ReadOnlySpan<byte>.Empty;
+        if (!preamble.IsEmpty) RandomAccess.Write(file, preamble, 0);
         int written = 0;
         while (written < contents.Length)
         {
