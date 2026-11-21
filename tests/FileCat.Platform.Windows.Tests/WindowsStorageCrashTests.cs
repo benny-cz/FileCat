@@ -19,9 +19,10 @@ public sealed class WindowsStorageCrashTests
     private const string ChildRoot = "FILECAT_STORAGE_CRASH_CHILD_ROOT", ChildPhase = "FILECAT_STORAGE_CRASH_PHASE";
     private static CancellationToken Stop => TestContext.Current.CancellationToken;
 
-    private static JobManager Manager(string root, WindowsStorageTransforms adapter) =>
+    private static JobManager Manager(string root, WindowsStorageTransforms adapter, bool arm64) =>
         new(new PortableFileOperations(), new ProviderRegistry(), Path.Join(root, "journals"), ArchiveJobBackends.Empty, adapter,
-            WindowsStorageReviewEvidence.CreateJournal, WindowsStorageReviewEvidence.Backend);
+            arm64 ? WindowsStorageReviewEvidence.CreateArm64QualificationJournal : WindowsStorageReviewEvidence.CreateJournal,
+            arm64 ? WindowsStorageReviewEvidence.Arm64QualificationBackend : WindowsStorageReviewEvidence.Backend);
 
     /// <summary>The child half: only runs inside the process the parent starts.</summary>
     [Fact]
@@ -35,7 +36,8 @@ public sealed class WindowsStorageCrashTests
             File.WriteAllText(Path.Join(root, "phase-reached"), marker);
             Process.GetCurrentProcess().Kill(); // TerminateProcess: no unwinding, finalizers or flush on the way out
         }
-        var adapter = new WindowsStorageTransforms(
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64,
             compressionSetStartingForQualification: () =>
             {
                 int call = Interlocked.Increment(ref starting);
@@ -53,7 +55,7 @@ public sealed class WindowsStorageCrashTests
             {
                 if (Interlocked.Increment(ref returned) == 1 && phase == "after-first-call") Die(phase);
             });
-        var manager = Manager(root, adapter);
+        var manager = Manager(root, adapter, arm64);
         string data = Path.Join(root, "data");
         var sources = new[] { "first.bin", "second.bin" }.Select(n => ItemRef.ForFileSystemPath(Path.Join(data, n), EntryKind.File)).ToArray();
         using var review = manager.PrepareStorageReview(sources, StorageAction.Compress, Stop);
@@ -69,7 +71,8 @@ public sealed class WindowsStorageCrashTests
     [Fact]
     public void A_job_running_in_another_process_owns_its_evidence_until_it_finishes()
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows 11 client NTFS fixture (x64, or native ARM64 when opted in).");
         Assert.False(WindowsTokenAuthority.IsHighIntegrity, "Storage jobs must run in the normal user process.");
         string exe = Path.ChangeExtension(typeof(WindowsStorageCrashTests).Assembly.Location, ".exe");
         Assert.SkipUnless(File.Exists(exe), "The fixture needs the test assembly's own executable.");
@@ -85,7 +88,7 @@ public sealed class WindowsStorageCrashTests
             while (!File.Exists(Path.Join(root, "holding")) && !child.HasExited && DateTime.UtcNow < limit) Thread.Sleep(50);
             Assert.True(File.Exists(Path.Join(root, "holding")), "The child did not reach its held call.");
 
-            var manager = Manager(root, new WindowsStorageTransforms());
+            var manager = Manager(root, new WindowsStorageTransforms(qualifyNativeArm64: arm64), arm64);
             var row = Assert.Single(manager.ReadStorageHistoryPage(ct: Stop).Rows);
             var candidate = manager.StorageHistoryCandidate(row.FileName);
             Assert.False(manager.IsInterrupted(candidate, Stop));
@@ -137,7 +140,8 @@ public sealed class WindowsStorageCrashTests
     [InlineData("before-second-call", true, false)]
     public void A_killed_process_leaves_a_pending_review_of_the_recorded_prefix_and_no_replay(string phase, bool firstCompressed, bool secondCompressed)
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows 11 client NTFS fixture (x64, or native ARM64 when opted in).");
         Assert.False(WindowsTokenAuthority.IsHighIntegrity, "Storage jobs must run in the normal user process.");
         string exe = Path.ChangeExtension(typeof(WindowsStorageCrashTests).Assembly.Location, ".exe");
         Assert.SkipUnless(File.Exists(exe), "The crash fixture needs the test assembly's own executable.");
@@ -163,7 +167,7 @@ public sealed class WindowsStorageCrashTests
             Assert.Equal(phase, File.ReadAllText(Path.Join(root, "phase-reached")));
 
             // A fresh process view of the same private evidence.
-            var manager = Manager(root, new WindowsStorageTransforms());
+            var manager = Manager(root, new WindowsStorageTransforms(qualifyNativeArm64: arm64), arm64);
             var page = manager.ReadStorageHistoryPage(ct: Stop);
             var row = Assert.Single(page.Rows);
             TestContext.Current.TestOutputHelper?.WriteLine($"History row: {row.Status}; action {row.Action}; roots {row.RootCount}");

@@ -154,7 +154,8 @@ public sealed class WindowsStorageAdmissionTests
     [Fact]
     public void The_system_volume_resolves_to_its_held_binding_and_reports_a_fixed_attachment()
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows 11 client fixture (x64, or native ARM64 when opted in).");
         string system = Environment.SystemDirectory;
         using (var held = File.OpenHandle(system, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete,
             FileOptions.None | (FileOptions)0x02000000 /* FILE_FLAG_BACKUP_SEMANTICS */))
@@ -185,7 +186,8 @@ public sealed class WindowsStorageAdmissionTests
     [Fact]
     public void A_hot_plug_disk_that_reports_fixed_media_is_refused_at_review()
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows 11 client fixture (x64, or native ARM64 when opted in).");
         string? target = Environment.GetEnvironmentVariable("FILECAT_STORAGE_NATIVE_HOTPLUG_TARGET");
         if (string.IsNullOrWhiteSpace(target)) Assert.Skip("Set FILECAT_STORAGE_NATIVE_HOTPLUG_TARGET to an existing item on a hot-plug fixed disk.");
         bool folder = Directory.Exists(target);
@@ -199,7 +201,7 @@ public sealed class WindowsStorageAdmissionTests
         string evidence = Directory.CreateTempSubdirectory("filecat-storage-hotplug-evidence-").FullName;
         try
         {
-            var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), new WindowsStorageTransforms(),
+            var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), new WindowsStorageTransforms(qualifyNativeArm64: arm64),
                 Path.Join(evidence, "journal"));
             foreach (var action in new[] { StorageAction.Compress, StorageAction.RemoveCompression })
             {
@@ -220,7 +222,8 @@ public sealed class WindowsStorageAdmissionTests
     [Fact]
     public void Reviewed_jobs_run_on_an_owned_volume_where_no_Cloud_Files_filter_answers()
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows 11 client fixture (x64, or native ARM64 when opted in).");
         string? owned = Environment.GetEnvironmentVariable("FILECAT_STORAGE_NATIVE_NOFILTER_ROOT");
         if (string.IsNullOrWhiteSpace(owned)) Assert.Skip("Set FILECAT_STORAGE_NATIVE_NOFILTER_ROOT to an owned directory on a prepared volume.");
         Assert.False(WindowsTokenAuthority.IsHighIntegrity, "Storage jobs must run in the normal user process.");
@@ -242,7 +245,8 @@ public sealed class WindowsStorageAdmissionTests
 
             var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(),
                 Directory.CreateDirectory(Path.Join(evidence, "journals")).FullName, ArchiveJobBackends.Empty,
-                new WindowsStorageTransforms(), WindowsStorageReviewEvidence.CreateJournal, WindowsStorageReviewEvidence.Backend);
+                new WindowsStorageTransforms(qualifyNativeArm64: arm64), arm64 ? WindowsStorageReviewEvidence.CreateArm64QualificationJournal : WindowsStorageReviewEvidence.CreateJournal,
+                arm64 ? WindowsStorageReviewEvidence.Arm64QualificationBackend : WindowsStorageReviewEvidence.Backend);
             var source = ItemRef.ForFileSystemPath(file, EntryKind.File);
             var compressed = Run(manager, StorageAction.Compress, source);
             Assert.Equal(JobState.Completed, compressed.State);

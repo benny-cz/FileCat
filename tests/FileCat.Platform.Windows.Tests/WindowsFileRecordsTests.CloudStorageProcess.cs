@@ -29,8 +29,11 @@ public sealed partial class WindowsFileRecordsTests
         if (string.IsNullOrEmpty(parent) || string.IsNullOrEmpty(evidence)) Assert.Skip("Started only by the cross-process Cloud Files storage fixture.");
         var ct = TestContext.Current.CancellationToken;
         string root = Path.Join(parent, "sync"), file = Path.Join(root, "cloud.txt");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs; // the parent's opt-in reaches the child through its environment
         var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), Directory.CreateDirectory(Path.Join(evidence, "journals")).FullName,
-            ArchiveJobBackends.Empty, new WindowsStorageTransforms(), WindowsStorageReviewEvidence.CreateJournal, WindowsStorageReviewEvidence.Backend);
+            ArchiveJobBackends.Empty, new WindowsStorageTransforms(qualifyNativeArm64: arm64),
+            arm64 ? WindowsStorageReviewEvidence.CreateArm64QualificationJournal : WindowsStorageReviewEvidence.CreateJournal,
+            arm64 ? WindowsStorageReviewEvidence.Arm64QualificationBackend : WindowsStorageReviewEvidence.Backend);
         string Refusal(string path, EntryKind kind, StorageAction action)
         {
             try
@@ -65,7 +68,8 @@ public sealed partial class WindowsFileRecordsTests
     {
         Assert.SkipWhen(!OperatingSystem.IsWindows(), "Cloud Files are Windows'.");
         if (!Opted("FILECAT_TEST_CLOUD_FILES")) Assert.Skip("Set FILECAT_TEST_CLOUD_FILES=1 to register a temporary Cloud Files sync root in a test folder.");
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "The released compression target is a Windows 11 x64 client.");
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(WindowsStorageAbiTests.QualifyNativeArm64Jobs),
+            "A qualified compression host: a Windows 11 x64 client, or native ARM64 when opted in.");
         Assert.SkipWhen(WindowsTokenAuthority.IsHighIntegrity, "Storage jobs run in the normal user process.");
         string parent = NewFolder(), root = Path.Join(parent, "sync"), sibling = Path.Join(parent, "sibling.txt");
         string file = Path.Join(root, "cloud.txt"), evidence = NewFolder(); // outside the recursive scope

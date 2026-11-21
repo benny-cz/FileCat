@@ -11,12 +11,13 @@ public sealed partial class WindowsStorageTraversalTests
     [InlineData(false)]
     public void A_real_held_call_obeys_durable_intent_and_Stop_on_both_sides_of_admission(bool stopBeforeAdmission)
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows 11 client NTFS fixture (x64, or native ARM64 when opted in).");
         string root = Directory.CreateTempSubdirectory("filecat-storage-call-journal-").FullName;
         try
         {
             string path = Path.Join(root, "item"); File.WriteAllText(path, "held journal/native integration payload");
-            var adapter = new WindowsStorageTransforms();
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
             var preparation = Review(adapter, path, EntryKind.File, StorageAction.Compress);
             using var review = preparation.Review; using var owner = preparation.Owner;
             var request = new JobRequest
