@@ -265,4 +265,40 @@ public sealed class FileDetailsColumnTests
         }
         finally { release.Set(); AccessibilityTests.Close(services, window, root); }
     }
+
+    /// <summary>
+    /// F-META on Windows: Analyze reads the real metadata reader for 2,002 files of one folder, retains every row's
+    /// outcome and orders by the native allocation. The elapsed time goes to the test output; only a generous bound is asserted.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task Native_allocated_analysis_of_two_thousand_files_is_timed_and_retains_every_row()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Windows native metadata reader.");
+        const int Generated = 2000, Listed = Generated + 2; // plus the fixture's a.txt and b.txt
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
+        {
+            for (int i = 0; i < Generated; i++) File.WriteAllBytes(Path.Join(folder, $"native-{i:D4}.bin"), new byte[i % 5 * 4096]);
+        });
+        foreach (var field in FileDetailsFields.Create(new FileCat.Platform.Windows.WindowsFileRecords(), windows: true)) services.Metadata.Register(field);
+        try
+        {
+            var tab = vm.Workspace.ActiveTab!;
+            for (int i = 0; i < 3000 && !(tab.Listing.State == ListingState.Complete && !tab.Listing.IsRefreshing && tab.Listing.TotalCount == Listed); i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            Assert.Equal(Listed, tab.Listing.TotalCount);
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            await tab.AnalyzeAsync(FileDetailsFields.Allocated);
+            watch.Stop();
+            TestContext.Current.TestOutputHelper?.WriteLine($"Analyze Allocated over {Listed:N0} native rows: {watch.Elapsed.TotalMilliseconds:F0} ms. {tab.Banner}");
+            Assert.Contains($"Read Allocated for {Listed:N0} items: {Listed:N0} current values.", tab.Banner);
+            Assert.Contains($"The order retains all {Listed:N0} items' results.", tab.Banner);
+            Assert.Equal(Listed, tab.Listing.AppliedMetadataCoverage?.Count);
+            Assert.True(watch.Elapsed < TimeSpan.FromMinutes(2), $"Analyze took {watch.Elapsed}.");
+            // The largest files (four clusters of data) sort last in ascending order.
+            var last = tab.Listing.GetVisible(tab.Listing.VisibleCount - 1).Name;
+            Assert.Matches(@"^native-\d{4}\.bin$", last);
+            Assert.Equal(4, int.Parse(last[7..11], System.Globalization.CultureInfo.InvariantCulture) % 5);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
 }
