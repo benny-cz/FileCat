@@ -1030,14 +1030,22 @@ public sealed class StorageCommandIntegrationTests
     [AvaloniaFact]
     public async Task The_default_composition_offers_compression_without_EFS_only_where_private_evidence_is_qualified()
     {
-        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        // The headless test application registers no Windows platform (App.OnFrameworkInitializationCompleted does that
+        // for the real app), so compose the shipped one here; otherwise this would only ever see the portable platform.
+        var previousFactory = FileCat.Core.Platform.PlatformFactory.WindowsFactory;
+        FileCat.Core.Platform.PlatformFactory.WindowsFactory = () => new FileCat.Platform.Windows.WindowsPlatform();
+        AppServices services; MainViewModel vm; MainWindow window; string root;
+        try { (services, vm, window, root) = AccessibilityTests.OpenMainWindow(); }
+        finally { FileCat.Core.Platform.PlatformFactory.WindowsFactory = previousFactory; }
         try
         {
             await Until(() => vm.ActiveTab!.Listing.State == ListingState.Complete);
             vm.ActiveTab!.Listing.SetFocus(1);
             var availability = vm.GetAvailability(CommandIds.StorageAttributes);
             bool qualified = OperatingSystem.IsWindows() && FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost;
-            Assert.Equal(qualified, availability.Enabled);
+            Assert.True(qualified == availability.Enabled, $"Qualified host {qualified}, command enabled {availability.Enabled}: {availability.Reason}");
+            if (OperatingSystem.IsWindows())
+                Assert.Equal(qualified, services.Platform.StorageTransforms is not FileCat.Core.FileSystem.NoStorageTransforms);
             if (!qualified) Assert.Contains("NTFS", availability.Reason);
             // EFS is never part of the released composition: neither command is advertised or available.
             Assert.False(vm.AdvertisesEfsCommand(CommandIds.EfsProtection));

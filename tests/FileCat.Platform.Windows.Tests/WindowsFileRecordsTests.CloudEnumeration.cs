@@ -50,16 +50,33 @@ public sealed partial class WindowsFileRecordsTests
                 $"{entry.Name} carries tag 0x{entry.NativeReparseTag:X8}"));
             Assert.All(native.Entries, pair => Assert.Equal(managed.Entries[pair.Key].Attributes, pair.Value.Attributes));
             int listingOpens = Volatile.Read(ref _placeholderOpens) - opensBefore;
-            // Positive control: one metadata-only open of a placeholder is reported to the provider.
-            using (var probe = CreateFile(Path.Combine(root, "placeholder-0.txt"), 0x0010_0080, 7, 0, 3, 0x0220_0000, 0))
-                Assert.False(probe.IsInvalid, "Open the control placeholder: " + Marshal.GetLastPInvokeError());
-            var deadline = DateTime.UtcNow.AddSeconds(10);
-            while (Volatile.Read(ref _placeholderOpens) - opensBefore == listingOpens && DateTime.UtcNow < deadline) await Task.Delay(50);
-            int controlOpens = Volatile.Read(ref _placeholderOpens) - opensBefore - listingOpens;
-            TestContext.Current.TestOutputHelper?.WriteLine($"Placeholder opens: listing {listingOpens}, control {controlOpens}");
-            Assert.True(controlOpens >= 1, "The provider did not observe the control open, so the instrument proves nothing.");
             Assert.Equal(0, listingOpens);
             Assert.Equal(fetchesBefore, Volatile.Read(ref _fetches));
+            // Positive controls: an explicit open must reach the provider, or the zero above proves nothing. Not every build
+            // reports a metadata-only open (26100 in CI and 26340 reported no no-follow one), so the controls step from
+            // metadata-only opens to an open for data access without a read; each uses its own placeholder.
+            (string Kind, uint Access, uint Flags)[] controls =
+            [
+                ("metadata-only no-follow", 0x0010_0080, 0x0220_0000),
+                ("metadata-only", 0x0010_0080, 0x0200_0000),
+                ("data access without a read", 0x0012_0089, 0x0200_0000),
+            ];
+            int observed = -1;
+            for (int i = 0; i < controls.Length && observed < 0; i++)
+            {
+                int seen = Volatile.Read(ref _placeholderOpens);
+                using (var probe = CreateFile(Path.Combine(root, $"placeholder-{i}.txt"), controls[i].Access, 7, 0, 3, controls[i].Flags, 0))
+                    Assert.False(probe.IsInvalid, $"Open the {controls[i].Kind} control: {Marshal.GetLastPInvokeError()}");
+                var deadline = DateTime.UtcNow.AddSeconds(5);
+                while (Volatile.Read(ref _placeholderOpens) == seen && DateTime.UtcNow < deadline) await Task.Delay(50);
+                if (Volatile.Read(ref _placeholderOpens) != seen) observed = i;
+            }
+            TestContext.Current.TestOutputHelper?.WriteLine(
+                $"Placeholder opens: listing {listingOpens}; first control the provider observed: {(observed < 0 ? "none" : controls[observed].Kind)}");
+            if (observed < 0)
+                Assert.Skip("No control open reached the provider on this Windows build, so it cannot show whether listing opened placeholders.");
+            if (observed == 2)
+                Assert.Skip("This Windows build reports only data-access opens to the provider. Listing caused none, but metadata-only opens are unobservable here.");
         }
         finally
         {
