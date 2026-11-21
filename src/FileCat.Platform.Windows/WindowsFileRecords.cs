@@ -79,7 +79,10 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             _ntfs = fileSystem == "NTFS";
             _refs = fileSystem == "ReFS";
             var remote = RemoteProtocol(item);
-            _remote = remote is not null || PathUtil.IsUncPath(path);
+            // FileRemoteProtocolInfo can be unavailable on a mapped share. Its root still identifies a network drive;
+            // do not issue the EFS user/recovery pathname queries against that server.
+            _remote = remote is not null || PathUtil.IsUncPath(path) ||
+                Native.NativeMethods.GetDriveType(root) == Native.NativeMethods.DRIVE_REMOTE;
             ReadBasics();
             _clusterSize = _remote ? 0 : ClusterSize(root);
             _latest = FileUsn(item);

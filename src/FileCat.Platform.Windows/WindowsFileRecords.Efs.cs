@@ -72,13 +72,18 @@ public sealed unsafe partial class WindowsFileRecords
             count = MaxEfsEntries;
         }
         var array = (EfsHashEntry**)header->Entries;
-        int empty = 0, badSid = 0, badHash = 0;
+        int empty = 0, shortEntry = 0, badSid = 0, badHash = 0;
         for (int i = 0; i < count; i++)
         {
             var entry = array[i];
             if (entry == null)
             {
                 empty++;
+                continue;
+            }
+            if (entry->TotalLength < sizeof(EfsHashEntry))
+            {
+                shortEntry++;
                 continue;
             }
             string? sid = null;
@@ -97,6 +102,7 @@ public sealed unsafe partial class WindowsFileRecords
             entries.Add(new EfsEntry(sid, thumbprint, EfsText(entry->Display)));
         }
         if (empty > 0) problems.Add($"{empty:N0} of its entries are empty.");
+        if (shortEntry > 0) problems.Add($"{shortEntry:N0} of its entries are shorter than an EFS certificate record header.");
         if (badSid > 0) problems.Add($"{badSid:N0} of its entries name a SID that is not valid.");
         if (badHash > 0) problems.Add($"{badHash:N0} of its entries have no certificate hash, or one longer than {MaxEfsHash} bytes.");
         return entries;
@@ -157,8 +163,10 @@ public sealed unsafe partial class WindowsFileRecords
                 // A folder's $EFS names whom it was encrypted for; files made in it get keys of their own.
                 fields.Add((users ? _isFolder ? "Encrypted for" : "Can decrypt it" : "Recovery agents", failed is not null
                     ? "not read: " + failed
+                    : problems.Count > 0 && entries.Count == 0 ? "not completely read"
                     : entries.Count == 0 ? "none"
-                    : $"{entries.Count:N0} {(users ? entries.Count == 1 ? "user" : "users" : entries.Count == 1 ? "agent" : "agents")}"));
+                    : $"{entries.Count:N0} {(users ? entries.Count == 1 ? "user" : "users" : entries.Count == 1 ? "agent" : "agents")}" +
+                      (problems.Count > 0 ? " shown (partial)" : "")));
                 foreach (var e in entries)
                     rows.Add([role, e.Thumbprint.Length > 0 ? e.Thumbprint : "—", e.Display ?? "—", Who(e.Sid)]);
                 foreach (var problem in problems) lines.AddRange(Wrap((users ? "Its users: " : "Its recovery agents: ") + problem, "• "));

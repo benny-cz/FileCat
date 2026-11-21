@@ -68,10 +68,10 @@ public sealed partial class WindowsFileRecordsTests
             *(WindowsFileRecords.EfsHashBlob*)p = new WindowsFileRecords.EfsHashBlob { Length = length, Data = data };
             return p;
         }
-        nint Entry(nint sid, nint hash, nint display)
+        nint Entry(nint sid, nint hash, nint display, uint length = 32)
         {
             nint p = Alloc(sizeof(WindowsFileRecords.EfsHashEntry));
-            *(WindowsFileRecords.EfsHashEntry*)p = new WindowsFileRecords.EfsHashEntry { TotalLength = 32, Sid = sid, Hash = hash, Display = display };
+            *(WindowsFileRecords.EfsHashEntry*)p = new WindowsFileRecords.EfsHashEntry { TotalLength = length, Sid = sid, Hash = hash, Display = display };
             return p;
         }
         nint HashList(uint count, params nint[] entries)
@@ -100,6 +100,12 @@ public sealed partial class WindowsFileRecordsTests
             Assert.Equal(new WindowsFileRecords.EfsEntry("S-1-5-32-544", Convert.ToHexString(hash), "admin(admin@HOST)?"), entries[0]);
             Assert.Equal(new WindowsFileRecords.EfsEntry(null, "", null), entries[1]);
             Assert.Equal(["1 of its entries are empty.", "1 of its entries name a SID that is not valid.", "1 of its entries have no certificate hash, or one longer than 64 bytes."], problems);
+
+            // The API's declared entry length must cover the pointer fields before any are inspected.
+            problems.Clear();
+            Assert.Empty(WindowsFileRecords.ReadEfsList(HashList(1,
+                Entry(Bytes(sid), Blob(20, Bytes(hash)), Text("must not be read"), length: 4)), problems));
+            Assert.Contains("shorter than an EFS certificate record header", Assert.Single(problems), StringComparison.Ordinal);
 
             // A count beyond any real list is read only as far as the cap; a count with no array is said.
             problems.Clear();
