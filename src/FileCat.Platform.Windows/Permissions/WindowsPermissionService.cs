@@ -132,7 +132,8 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
                 previous = current;
                 current = Open(previous, names[i], security: false, ct,
                     readAccess: i == names.Length - 1 ? leafReadAccess : 0, backupIntent: backupIntent);
-                chain[i + 1] = Screen(current, volume, root: false, authority, ct, checkCloud: isNtfs);
+                // The held parent has just passed the same screen, including its own sync-root query.
+                chain[i + 1] = Screen(current, volume, root: false, authority, ct, checkCloud: isNtfs, parentOutsideSyncRoot: isNtfs);
                 if (i < names.Length - 1 && chain[i + 1].Identity.Kind != PermissionObjectKind.Directory)
                     throw new ReadFailure(PermissionReadStatus.Stale, "An original ancestor is no longer a directory.");
             }
@@ -147,8 +148,12 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
         finally { previous?.Dispose(); current?.Dispose(); }
     }
 
+    // Held regular-file handles whose sync-root clearance came from their screened parent (see Screen).
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<SafeFileHandle, object> CloudClearedByParent = new();
+    private static readonly object CloudClearedMarker = new();
+
     private static FileStamp Screen(SafeFileHandle handle, string volume, bool root, PermissionAuthority authority, CancellationToken ct,
-        bool checkCloud = true)
+        bool checkCloud = true, bool parentOutsideSyncRoot = false)
     {
         ct.ThrowIfCancellationRequested();
         var basic = NtFile.GetBasic(handle);
@@ -160,9 +165,16 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
         if (checkCloud)
         {
             int cloud = WindowsStorageCloudQuery.Query(handle, ct);
-            if (cloud != unchecked((int)0x80070186)) // ERROR_CLOUD_FILE_NOT_UNDER_SYNC_ROOT
+            // A handle opened with the parent-granted FILE_READ_ATTRIBUTES alone cannot be queried. A regular file without
+            // placeholder attributes whose screened parent lies outside every sync root cannot be within one; a folder could
+            // itself be a registered root, so it still needs a direct answer.
+            // Later re-screens of the same held handle reuse that inference.
+            bool inferred = cloud < 0 && !NtFile.IsDirectory(basic.FileAttributes) &&
+                (parentOutsideSyncRoot || CloudClearedByParent.TryGetValue(handle, out _));
+            if (cloud != unchecked((int)0x80070186) && !inferred) // ERROR_CLOUD_FILE_NOT_UNDER_SYNC_ROOT
                 throw new ReadFailure(PermissionReadStatus.Unsupported, cloud == 0
                     ? "The original is within a cloud sync root." : "Cloud sync-root membership could not be ruled out.", cloud);
+            if (inferred) CloudClearedByParent.AddOrUpdate(handle, CloudClearedMarker);
         }
         return ReadFileStamp(handle, basic, volume, root, authority, ct);
     }
@@ -221,10 +233,10 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
             using var security = Open(parent, name, security: true, ct);
             bool root = metadata.Identity.Kind == PermissionObjectKind.VolumeRoot;
             bool checkCloud = snapshot.Binding?.FileSystem != "ReFS";
-            if (Screen(security, metadata.Identity.MountInstance, root, snapshot.Subject.Authority, ct, checkCloud) != metadata)
+            if (Screen(security, metadata.Identity.MountInstance, root, snapshot.Subject.Authority, ct, checkCloud, parentOutsideSyncRoot: checkCloud && !root) != metadata)
                 throw new ReadFailure(PermissionReadStatus.Stale, "The security handle did not match the screened object.");
             var result = ReadHeldDescriptor(snapshot, requested, security, ct);
-            if (Screen(security, metadata.Identity.MountInstance, root, snapshot.Subject.Authority, ct, checkCloud) != metadata)
+            if (Screen(security, metadata.Identity.MountInstance, root, snapshot.Subject.Authority, ct, checkCloud, parentOutsideSyncRoot: checkCloud && !root) != metadata)
                 throw new ReadFailure(PermissionReadStatus.Stale, "The object changed while reading its security descriptor.");
             return result;
         }
