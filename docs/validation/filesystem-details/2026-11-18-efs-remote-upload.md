@@ -19,3 +19,9 @@ On 2026-11-19 the medium-integrity Windows x64 VM passed 39 controlled SFTP uplo
 Production SFTP, FTP, FTPES and FTPS connectors each passed an approved and a declined 2 MiB sparse EFS upload against the disposable Ubuntu servers. A separate connection observed an empty destination at the review. Each approved case published one file whose bytes matched on read-back. The server directory stayed empty after decline, and all originals stayed encrypted. The Windows driver log and per-protocol XML results are under `.tmp` with prefix `filecat-sparse-upload-9762f943-r1-live`.
 
 Ubuntu passed 191 portable remote cases with 15 platform or fixture skips. The build-host result is `.tmp/filecat-sparse-upload-9762f943-r1-portable.trx`.
+
+## Fresh source check before publication, 21 November 2026
+
+After staging a Windows local-file upload, the SFTP/FTP-family path now checks the actual reopened source's EFS attributes and captured opened identity before and after optional read-back hashing, then checks a fresh open immediately before publishing the remote name. A synthetic EFS flip after staging with source length and modification time unchanged refused publication in both Native and ReadBack verification modes. A synthetic opened-identity swap also refused publication. The full `SftpJobTests` class passed **41/41** in an isolated Windows x64 source checkout. These are deterministic controls, with no native EFS conversion or live server in this slice.
+
+The final source check closes before the server rename so ordinary competing-source-write and move handling stays intact. A concurrent source protection change in that interval remains an **open E-OUT4 native qualification gap**. The tests establish refusal for changes observed at their injection points and no final remote name in the fake server; they do not establish a race-free publication boundary or close the EFS output release gate.
