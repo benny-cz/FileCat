@@ -131,12 +131,16 @@ public static partial class ElevationBroker
                     var review = Task.Run(() => WindowsPermissionService.DescribeAuthorizedChange(step, requester, helper, cancellation),
                         CancellationToken.None).WaitAsync(cancellation).GetAwaiter().GetResult();
                     if (!Current() || !Verify()) return null;
-                    string scopeText = $"Hard-link count {scope.LinkCount}. Other names for this file are unknown.";
+                    bool volumeRoot = scope.Kind == PermissionObjectKind.VolumeRoot;
+                    string scopeText = volumeRoot
+                        ? "This write targets the selected volume root. Existing child ACLs stay in place. New children can inherit these rules."
+                        : $"Hard-link count {scope.LinkCount}. Other names for this file are unknown.";
                     string impact = review.Owner switch
                     {
                         { CanUseWriteOwner: true } => "The helper uses the administrator's right to write the owner. If Windows denies that access, approval allows restore privilege for this same owner assignment.",
                         not null => "The helper uses restore privilege to assign the reviewed owner from the requesting Windows token.",
                         _ when scope.Sections == PermissionSections.Audit => "The helper uses the system security privilege for this change. Windows audit policy determines whether events are recorded.",
+                        _ when volumeRoot => "The helper overrides discretionary permissions for this single volume-root access change.",
                         _ => "The helper overrides the file's discretionary permissions for this one reviewed change."
                     };
                     string actor = review.Owner is not null && helper.UserSid != requester.UserSid

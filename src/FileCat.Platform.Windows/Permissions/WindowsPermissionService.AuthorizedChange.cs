@@ -12,19 +12,25 @@ namespace FileCat.Platform.Windows.Permissions;
 
 internal sealed unsafe partial class WindowsPermissionService
 {
-    internal static bool SupportsAuthorizedChange(ElevatedStep step) =>
-        step is
+    internal static bool SupportsAuthorizedChange(ElevatedStep step)
+    {
+        if (step is not
+            {
+                Verb: ElevatedVerb.ChangeFileSecurity,
+                Path: { } path,
+                FileSecurity: { Scope: PermissionScope.Objects } scope
+            }) return false;
+        if (scope.Kind == PermissionObjectKind.VolumeRoot)
+            return NtfsMetadataVolume.CanonicalGuid(path) == path && scope.FileIds is { Count: 1 } &&
+                scope.Sections == PermissionSections.Access && IsRuleEdit(scope.Change);
+        return scope.Kind == PermissionObjectKind.File &&
+            (scope is { Sections: PermissionSections.Owner, Change.Operation: ElevatedFileSecurityOperation.AssignOwner } ||
+                scope.Sections is PermissionSections.Access or PermissionSections.Audit && IsRuleEdit(scope.Change));
+    }
+
+    private static bool IsRuleEdit(ElevatedFileSecurityChange? change) => change is
         {
-            Verb: ElevatedVerb.ChangeFileSecurity,
-            Path: not null,
-            FileSecurity: { Kind: PermissionObjectKind.File, Scope: PermissionScope.Objects } scope
-        } && scope is
-        {
-            Sections: PermissionSections.Owner, Change.Operation: ElevatedFileSecurityOperation.AssignOwner
-        } or
-        {
-            Sections: PermissionSections.Access or PermissionSections.Audit,
-            Change.Operation: ElevatedFileSecurityOperation.AddRule or ElevatedFileSecurityOperation.ReplaceRule or
+            Operation: ElevatedFileSecurityOperation.AddRule or ElevatedFileSecurityOperation.ReplaceRule or
                 ElevatedFileSecurityOperation.RemoveRule
         };
 
@@ -37,6 +43,7 @@ internal sealed unsafe partial class WindowsPermissionService
     private static (PermissionSnapshot Expected, uint Section, ImmutableArray<byte> Bytes) ProjectAuthorizedChange(
         PermissionSnapshot original, PermissionDelta delta)
     {
+        if (original.Binding?.Identity.Kind == PermissionObjectKind.VolumeRoot) return ProjectFolderOnly(original, delta);
         if (delta is not ChangeWindowsAuditAce audit) return Project(original, delta);
         if (original.Audit.Value?.Acl is not WindowsSacl baseline)
             throw new NotSupportedException("The complete system ACL is required to edit an audit entry.");
@@ -108,6 +115,7 @@ internal sealed unsafe partial class WindowsPermissionService
             var reviewed = step.FileSecurity!;
             bool owner = reviewed.Sections == PermissionSections.Owner;
             bool audit = reviewed.Sections == PermissionSections.Audit;
+            bool volumeRoot = reviewed.Kind == PermissionObjectKind.VolumeRoot;
             if (owner != ownerAssignment.HasValue)
                 throw new UnauthorizedAccessException("The owner change requires verified requester and administrator tokens.");
             if (ownerAssignment is { CanUseWriteOwner: true } &&
@@ -146,19 +154,24 @@ internal sealed unsafe partial class WindowsPermissionService
                         if (ownerAssignment is { } assignment)
                             assignment.Verify(requester.ReadOwnerChoices(subject.Authority.Id), actor.ReadOwnerChoices(subject.Authority.Id));
                         if (binding != currentBinding || chain[^1] != current[^1] ||
-                            Screen(file, binding.Identity.MountInstance, root: false, subject.Authority, cancellation) != chain[^1])
+                            Screen(file, binding.Identity.MountInstance, volumeRoot, subject.Authority, cancellation) != chain[^1])
                             return new FileSecurityApply(FileSecurityChangeStatus.Conflict);
 
                         CheckRequest();
                         fixed (byte* payload = bytes.AsSpan())
                         {
                             dispatched = true;
-                            errorCode = SetSecurityInfo(file, 1 /* SE_FILE_OBJECT */, section,
+                            if (volumeRoot)
+                            {
+                                int status = NtSetSecurityObject(file, section, payload);
+                                errorCode = status < 0 ? (uint)StatusToDosError(status) : 0;
+                            }
+                            else errorCode = SetSecurityInfo(file, 1 /* SE_FILE_OBJECT */, section,
                                 owner ? payload : null, null, section == DaclInformation ? payload : null, audit ? payload : null);
                         }
 
                         // Observe the same handle after dispatch, including when cancellation or a Win32 error races the write.
-                        var after = Screen(file, binding.Identity.MountInstance, root: false, subject.Authority, CancellationToken.None);
+                        var after = Screen(file, binding.Identity.MountInstance, volumeRoot, subject.Authority, CancellationToken.None);
                         if (after.Identity != chain[^1].Identity || after.Links != reviewed.LinkCount)
                             return new FileSecurityApply(FileSecurityChangeStatus.Uncertain, errorCode);
                         var observed = ReadAuthorizedChangeSnapshot(subject, binding, file, after, audit, CancellationToken.None);
@@ -205,11 +218,11 @@ internal sealed unsafe partial class WindowsPermissionService
     private static (string Root, string[] Names, PermissionSubject Subject) AuthorizedChangeSubject(ElevatedStep step)
     {
         if (!ElevationBroker.IsNativeFileSecurityHost || !SupportsAuthorizedChange(step))
-            throw new NotSupportedException("The installed helper requires a reviewed owner, access or audit rule change on one local file.");
+            throw new NotSupportedException("The installed helper requires a reviewed security change on a local NTFS file or volume root.");
         string path = step.Path!;
         var (root, names) = SplitLocalPath(path);
         var authority = new PermissionAuthority(PermissionAuthorityKind.Local, "local", 0);
-        return (root, names, new(Location.FileSystem(path), path, path, authority, PermissionObjectKind.File, PermissionLinkPolicy.NoFollow));
+        return (root, names, new(Location.FileSystem(path), path, path, authority, step.FileSecurity!.Kind, PermissionLinkPolicy.NoFollow));
     }
 
     private static (PermissionSnapshot Before, uint Section, ImmutableArray<byte> Bytes) CheckAuthorizedChange(
@@ -274,7 +287,7 @@ internal sealed unsafe partial class WindowsPermissionService
                 delta = new AddWindowsAce(replacement!);
             }
         }
-        if (reviewed.LinkCount > 1 && ownerSid != requesterSid &&
+        if (reviewed.Kind == PermissionObjectKind.File && reviewed.LinkCount > 1 && ownerSid != requesterSid &&
             !StrictlyRestrictsFileAccess(original.Access.Value?.Acl as WindowsDacl, delta))
             throw new UnauthorizedAccessException("A file owned by another account has additional hard-link names. Only a strictly restrictive change can be approved.");
 
@@ -299,8 +312,8 @@ internal sealed unsafe partial class WindowsPermissionService
                     Source, now, new PermissionAclValue(sacl)) };
             })
             : ReadHeldDescriptor(candidate, DiscretionarySections, file, cancellation);
-        if (Screen(file, binding.Identity.MountInstance, root: false, subject.Authority, cancellation) != stamp)
-            throw new PermissionBindingConflictException("The held Windows file changed while reading security.");
+        if (Screen(file, binding.Identity.MountInstance, binding.Identity.Kind == PermissionObjectKind.VolumeRoot, subject.Authority, cancellation) != stamp)
+            throw new PermissionBindingConflictException("The held Windows item changed while reading security.");
         return snapshot;
     }
 

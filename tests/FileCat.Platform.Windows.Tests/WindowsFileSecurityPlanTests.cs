@@ -58,6 +58,56 @@ public sealed class WindowsFileSecurityPlanTests
         Assert.NotEmpty(ElevationPlanCodec.Validate(item with { Steps = [root with { Verb = ElevatedVerb.DeleteTree }] }, Now));
     }
 
+    [Fact]
+    public void An_authorized_volume_root_write_admits_only_one_direct_discretionary_rule_edit()
+    {
+        var plan = Plan(change: true);
+        var template = Assert.Single(plan.Steps);
+        var allow = new ElevatedFileSecurityRule(ElevatedFileSecurityRuleType.Allow, "S-1-1-0", 1, 0x03);
+        var add = new ElevatedFileSecurityChange(ElevatedFileSecurityOperation.AddRule, Id(3, 64), Id(4, 64), NewRule: allow);
+        var scope = template.FileSecurity! with
+        {
+            Kind = PermissionObjectKind.VolumeRoot,
+            FileIds = [Id(1)],
+            Sections = PermissionSections.Access,
+            Change = add
+        };
+        var root = template with { Path = Root, FileSecurity = scope };
+        foreach (var change in new[]
+        {
+            add,
+            add with { Operation = ElevatedFileSecurityOperation.RemoveRule, Index = 0, OldRule = allow, NewRule = null },
+            add with { Operation = ElevatedFileSecurityOperation.ReplaceRule, Index = 0, OldRule = allow, NewRule = allow with { Rights = 3 } }
+        })
+        {
+            var step = root with { FileSecurity = scope with { Change = change } };
+            var encoded = ElevationPlanCodec.Serialize(plan with { Steps = [step] });
+            var parsed = ElevationPlanCodec.Parse(encoded);
+            Assert.Empty(ElevationPlanCodec.Validate(parsed, Now));
+            Assert.True(WindowsPermissionService.SupportsAuthorizedChange(Assert.Single(parsed.Steps)));
+            Assert.Throws<InvalidDataException>(() => ElevationPlanRunner.Run(parsed, () => false, _ => { }));
+        }
+
+        var audit = allow with { Type = ElevatedFileSecurityRuleType.Audit, Flags = 0x43 };
+        foreach (var invalid in new[]
+        {
+            root with { Path = @"Z:\" },
+            root with { Path = Root + "folder" },
+            root with { FileSecurity = scope with { FileIds = [Id(1), Id(2)] } },
+            root with { FileSecurity = scope with { Scope = PermissionScope.NativePropagation } },
+            root with { FileSecurity = scope with { Sections = PermissionSections.Audit, Change = add with { NewRule = audit } } },
+            root with { FileSecurity = scope with { Sections = PermissionSections.Owner, Change = new(
+                ElevatedFileSecurityOperation.AssignOwner, add.Before, add.Expected, OwnerSid: allow.Sid) } },
+            root with { FileSecurity = scope with { Change = add with { Operation = ElevatedFileSecurityOperation.ProtectAcl, NewRule = null } } }
+        })
+        {
+            Assert.NotEmpty(ElevationPlanCodec.Validate(plan with { Steps = [invalid] }, Now));
+            Assert.False(WindowsPermissionService.SupportsAuthorizedChange(invalid));
+        }
+        foreach (var verb in Enum.GetValues<ElevatedVerb>().Where(verb => verb != ElevatedVerb.ChangeFileSecurity))
+            Assert.NotEmpty(ElevationPlanCodec.Validate(plan with { Steps = [root with { Verb = verb }] }, Now));
+    }
+
     [Theory]
     [InlineData(@"Z:\test.txt")]
     [InlineData(@"\\server\share\test.txt")]

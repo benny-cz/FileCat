@@ -69,6 +69,10 @@ public static partial class ElevationPlanCodec
             return "The security change lacks a supported scope and a distinct reviewed revision.";
 
         bool hasIndex = change.Index is >= 0 and < 16384;
+        if (scope.Kind == PermissionObjectKind.VolumeRoot && (scope.Scope != PermissionScope.Objects ||
+            scope.Sections != PermissionSections.Access || change.Operation is not
+                (ElevatedFileSecurityOperation.AddRule or ElevatedFileSecurityOperation.ReplaceRule or ElevatedFileSecurityOperation.RemoveRule)))
+            return "A volume-root change takes one reviewed discretionary access entry and selected-object scope.";
         if (change.Operation == ElevatedFileSecurityOperation.AssignOwner)
             return scope.Sections == PermissionSections.Owner && scope.Scope == PermissionScope.Objects &&
                 CanonicalSid(change.OwnerSid) && change.Index is null && change.OldRule is null && change.NewRule is null

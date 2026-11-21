@@ -10,22 +10,26 @@ namespace FileCat.Platform.Windows.Permissions;
 internal sealed partial class WindowsPermissionService
 {
     internal static ReviewedPermissionOperation PrepareAuthorizedChange(PermissionInspection inspection, ItemRef source,
-        PermissionDraft draft, PermissionRevision accepted, bool portable, string exchangeRoot, nint owner, CancellationToken cancellation)
+        PermissionDraft draft, PermissionRevision accepted, bool portable, string exchangeRoot, nint owner, CancellationToken cancellation,
+        bool approveVolumeRoot = false)
     {
         cancellation.ThrowIfCancellationRequested();
         var snapshot = inspection.Snapshot;
         if (portable || !ElevationBroker.IsNativeFileSecurityHost || !CanBindAuthorizedInspection(snapshot) ||
-            snapshot.Binding is not { Identity.Kind: PermissionObjectKind.File, ReadOnly: false } binding ||
+            snapshot.Binding is not { Identity.Kind: PermissionObjectKind.File or PermissionObjectKind.VolumeRoot, ReadOnly: false } binding ||
             source.FileSystemPath != snapshot.Subject.RawLocator || draft.Scope != PermissionScope.Objects || draft.Changes.Length != 1)
-            throw new NotSupportedException("Review one owner or discretionary ACL change on the original local NTFS file.");
+            throw new NotSupportedException("Review one security change on the original local NTFS file or volume root.");
 
         var delta = draft.Changes[0];
+        bool volumeRoot = binding.Identity.Kind == PermissionObjectKind.VolumeRoot;
+        if (volumeRoot && (!approveVolumeRoot || source.Kind != EntryKind.Directory || delta is not (AddWindowsAce or ChangeWindowsAce)))
+            throw new NotSupportedException("Approve one discretionary access rule change for the reviewed volume root.");
         var before = RequireAuthorizedRevision(snapshot, delta.Section);
         var expected = RequireAuthorizedRevision(PreviewAuthorizedChange(snapshot, delta), delta.Section);
         if (accepted != expected || expected == before)
             throw new PermissionBindingConflictException("The projected Windows descriptor differs from the approved change.");
         using var requester = NtfsMetadataPeer.HoldSelf(elevated: false);
-        if (binding.LinkCount > 1 && snapshot.Owner.Value?.Id != requester.UserSid.Value &&
+        if (!volumeRoot && binding.LinkCount > 1 && snapshot.Owner.Value?.Id != requester.UserSid.Value &&
             !StrictlyRestrictsFileAccess(snapshot.Access.Value?.Acl as WindowsDacl, delta))
             throw new UnauthorizedAccessException("A file owned by another account has additional hard-link names. Only a strictly restrictive change can be approved.");
         WindowsPermissionToken.Stamp? ownerToken = null;
@@ -51,7 +55,7 @@ internal sealed partial class WindowsPermissionService
                 _ => "DACL"
             };
             var component = new ReviewedPermissionComponent(delta, before, expected,
-                $"Windows administrator SetSecurityInfo {sectionName}");
+                volumeRoot ? "Windows administrator NtSetSecurityObject volume-root DACL" : $"Windows administrator SetSecurityInfo {sectionName}");
             return new(PermissionScope.Objects, [new(source, snapshot.Subject, binding, [component], expected, mutation)]);
         }
         catch

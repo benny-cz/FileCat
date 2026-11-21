@@ -354,8 +354,8 @@ public sealed partial class MainViewModel
         var snapshot = authorizedLinux?.Snapshot ?? item.Snapshot;
         var source = item.Source ?? throw new InvalidOperationException("The reviewed object lacks its original source.");
         bool windows = snapshot.Model == PermissionModel.WindowsDescriptor;
-        bool windowsVolumeRoot = windowsFolderOnly && snapshot.Binding?.Identity.Kind == PermissionObjectKind.VolumeRoot;
         bool authorizedWindows = windowsAuthorizationOwner != 0;
+        bool windowsVolumeRoot = (windowsFolderOnly || authorizedWindows) && snapshot.Binding?.Identity.Kind == PermissionObjectKind.VolumeRoot;
         bool darwin = snapshot.Model == PermissionModel.DarwinAcl;
         bool linux = Services.Permissions is LinuxPermissionService && sftpEdit is null;
         bool defaults = command == "defaults";
@@ -377,7 +377,7 @@ public sealed partial class MainViewModel
             ? new UnixPermissionModeEditor(bit => (originalMode & (ushort)bit) != 0,
             snapshot.Access.Value?.Acl is PosixAcl original && original.Entries.Any(row => row.Tag == PosixAclTag.Mask)) : null;
         var windowsAcl = windows && command == "acl" && snapshot.Access.Value?.Acl is WindowsDacl dacl
-            ? new WindowsAccessEditor(dacl, snapshot.Subject.Authority.Id, copy, directory: windowsFolderOnly || windowsPropagation is not null) : null;
+            ? new WindowsAccessEditor(dacl, snapshot.Subject.Authority.Id, copy, directory: windowsFolderOnly || windowsVolumeRoot || windowsPropagation is not null) : null;
         (string Label, WindowsInheritanceAction? Action)[] inheritanceChoices = windowsInheritance is null ? [] :
             snapshot.Inheritance.Value?.IsProtected == true
             ? [("Edit access rules", null), ("Enable inheritance from parent", WindowsInheritanceAction.Enable)]
@@ -563,7 +563,7 @@ public sealed partial class MainViewModel
             layout.Children.Insert(2, Wrapped("Applying this reviewed change requires a separate administrator approval."));
         if (windowsAudit is not null)
             layout.Children.Insert(3, Wrapped("Windows audit policy determines whether successful or failed access creates an event."));
-        if (windowsFolderOnly)
+        if (windowsFolderOnly || windowsVolumeRoot)
         {
             layout.Children.Insert(2, Wrapped($"Volume · {Formatters.SafeName(snapshot.Binding!.MountRoot)}"));
             layout.Children.Insert(3, Wrapped(windowsVolumeRoot
@@ -1006,7 +1006,8 @@ public sealed partial class MainViewModel
                 {
                     if (authorizedLinux is not null) return authorizedLinux.Prepare(source, draft, acceptClear, acceptedRevision!.Value, ct);
                     if (authorizedWindows) return WindowsPermissionService.PrepareAuthorizedChange(item.Inspection, source, draft, acceptedRevision!.Value,
-                        Services.Paths.IsPortable, Services.Paths.ElevationExchangeDirectory, windowsAuthorizationOwner, ct);
+                        Services.Paths.IsPortable, Services.Paths.ElevationExchangeDirectory, windowsAuthorizationOwner, ct,
+                        approveVolumeRoot: windowsVolumeRoot && acceptClear);
                     if (sftpEdit is not null) return sftpEdit.Prepare(draft, sftpPlan!, acceptClear, ct);
                     var prepared = snapshot.Model switch
                     {

@@ -51,8 +51,9 @@ public sealed partial class MainViewModel
                 owner != WindowsPermissionOwner()) return;
 
             var snapshot = observation.Snapshot;
+            bool volumeRoot = Services.Permissions is WindowsPermissionService windows && windows.CanReviewVolumeRoot(snapshot);
             string? refusal = WindowsPermissionService.EditRefusal(snapshot);
-            var view = new PermissionInspectorView([(item.Name, snapshot)], copy, [refusal], Services.PermissionPrincipalNames);
+            var view = new PermissionInspectorView([(item.Name, snapshot)], copy, [volumeRoot ? null : refusal], Services.PermissionPrincipalNames);
             var buttons = new List<DialogButton> { new("Close", "close", IsDefault: true, IsCancel: true) };
             if (refusal is null)
             {
@@ -62,6 +63,7 @@ public sealed partial class MainViewModel
                 if (snapshot.Audit.Value?.Acl is WindowsSacl { Revision: null or 2 or 4 })
                     buttons.Insert(0, new("Edit audit rules…", "audit"));
             }
+            if (volumeRoot) buttons.Insert(0, new("Edit volume root access rules…", "acl"));
             var choice = await dialogs.ShowCustomAsync("Authorized permissions and ownership", view, buttons, resizable: true,
                 behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(740, 550) });
             if (choice is string command && command is "owner" or "acl" or "audit" && buttons.Any(button => Equals(button.Result, command)) &&
