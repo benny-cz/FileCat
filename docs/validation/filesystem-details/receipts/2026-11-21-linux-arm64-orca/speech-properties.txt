@@ -1,0 +1,126 @@
+Screen reader on.
+source — FileCat — runner frame.
+Panel 1, source, /home/runner/FileCatValidation/details-orca-sn823x6w/source.
+List with 3 items.
+Go to parent location, parent navigation, 1 of 3.
+not selected.
+alpha-details.txt, file, 27 bytes, modified 11/21/2026 22:13:24, not marked, 2 of 3.
+not selected.
+left alt
+return
+Line 1 of 1. Reading file-system metadata…
+alpha-details.txt · File-system details — FileCat frame.
+Line 1 of 42. File-system details
+Summary · observation 22:13:29 · F5 reads this tier again
+File-system details read only entry File-system details /  / Item /   Path         /home/runner/FileCatValidation/details-orca-sn823x6w/source/alpha-details.txt /   Kind         File /   Observed     2026-11-21T22:13:29.0635340+00:00 /   Scope        Focused item only; marked items are not included. /   File system  ext4 /  / Storage /   Logical size                   27 bytes /   Allocated                      4,096 bytes (4 KiB) · Entry · statx on O_PATH descriptor /   File compression               Unsupported: Recorded flags are separate. File compression behavior is not implemented by this filesystem. /   Recorded file encryption flag  Off /   Sparse indication              NotInspected: No qualified observation was requested. /  /   Allocated space is not a deletion-saving estimate or proof of exclusive ownership. /  / Sharing /   Names for this file  1 /   Extent sharing       Not inspected /  / Access.
+No selection; Copy visible source text copies the visible lines; utf-8; wrapped.
+tab
+No selection; Copy visible source text copies the visible lines; utf-8; wrapped.
+Refresh push button.
+Read it again (F5)
+tab
+Find in the report entry Find (Ctrl+F)
+Find (Ctrl+F)
+tab
+Aa check box not checked.
+Match case.
+tab
+Wrap check box checked.
+Wrap long lines (F2)
+tab
+Copy all push button.
+Copy the complete original report text. Ctrl+C copies selected source text or the visible lines; Ctrl+Shift+C uses displayed text.
+tab
+Copy visible source text push button.
+tab
+Copy displayed text push button.
+Copy selected text or visible lines with tabs expanded and controls shown as symbols. Visual wraps add no line endings.
+tab
+Save as… push button.
+Save the report as a text file.
+tab
+Read full record push button.
+space
+Line 1 of 43. Previous observation · reading… · showing observation 2026-11-21T22:13:29.0635340+00:00
+Line 1 of 64. File-system details
+Full · observation 22:13:42 · F5 reads this tier again
+tab
+Open attributes push button.
+Opens the captured item's names, kinds and lengths in a new workspace tab. Values are read only through an explicit action; Windows extended attributes require separate admission.
+tab
+Next report line push button.
+tab
+File-system details read only entry File-system details /  / Item /   Path         /home/runner/FileCatValidation/details-orca-sn823x6w/source/alpha-details.txt /   Kind         File /   Observed     2026-11-21T22:13:42.9307122+00:00 /   Scope        Focused item only; marked items are not included. /   File system  ext4 /  / Storage /   Logical size                   27 bytes /   Allocated                      4,096 bytes (4 KiB) · Entry · statx on O_PATH descriptor /   File compression               Unsupported: Recorded flags are separate. File compression behavior is not implemented by this filesystem. /   Recorded file encryption flag  Off /   Sparse indication              NotInspected: No qualified observation was requested. /  /   Allocated space is not a deletion-saving estimate or proof of exclusive ownership. /  / Sharing /   Names for this file  1 /   Extent sharing       Not inspected /  / Access.
+No selection; Copy visible source text copies the visible lines; utf-8; wrapped.
+tab
+Refresh push button.
+Read it again (F5)
+tab
+Find in the report entry Find (Ctrl+F)
+Find (Ctrl+F)
+tab
+Aa check box not checked.
+Match case.
+tab
+Wrap check box checked.
+Wrap long lines (F2)
+tab
+Copy all push button.
+Copy the complete original report text. Ctrl+C copies selected source text or the visible lines; Ctrl+Shift+C uses displayed text.
+space
+The whole report is on the clipboard.
+tab
+Copy visible source text push button.
+tab
+Copy displayed text push button.
+Copy selected text or visible lines with tabs expanded and controls shown as symbols. Visual wraps add no line endings.
+tab
+Save as… push button.
+Save the report as a text file.
+tab
+Show summary push button.
+space
+Line 1 of 42. File-system details
+Summary · observation 22:13:42 · F5 reads this tier again
+tab
+Open attributes push button.
+Opens the captured item's names, kinds and lengths in a new workspace tab. Values are read only through an explicit action; Windows extended attributes require separate admission.
+tab
+Next report line push button.
+tab
+Dismiss copy result push button.
+tab
+Copy result and completeness read only entry Copied the complete original report: 2,550 characters. Tabs and logical line endings are preserved.
+tab
+File-system details read only entry File-system details /  / Item /   Path         /home/runner/FileCatValidation/details-orca-sn823x6w/source/alpha-details.txt /   Kind         File /   Observed     2026-11-21T22:13:42.9307122+00:00 /   Scope        Focused item only; marked items are not included. /   File system  ext4 /  / Storage /   Logical size                   27 bytes /   Allocated                      4,096 bytes (4 KiB) · Entry · statx on O_PATH descriptor /   File compression               Unsupported: Recorded flags are separate. File compression behavior is not implemented by this filesystem. /   Recorded file encryption flag  Off /   Sparse indication              NotInspected: No qualified observation was requested. /  /   Allocated space is not a deletion-saving estimate or proof of exclusive ownership. /  / Sharing /   Names for this file  1 /   Extent sharing       Not inspected.
+No selection; Copy visible source text copies the visible lines; utf-8; wrapped.
+tab
+Refresh push button.
+Read it again (F5)
+tab
+Find in the report entry Find (Ctrl+F)
+Find (Ctrl+F)
+tab
+Aa check box not checked.
+Match case.
+tab
+Wrap check box checked.
+Wrap long lines (F2)
+tab
+Copy all push button.
+Copy the complete original report text. Ctrl+C copies selected source text or the visible lines; Ctrl+Shift+C uses displayed text.
+tab
+Copy visible source text push button.
+tab
+Copy displayed text push button.
+Copy selected text or visible lines with tabs expanded and controls shown as symbols. Visual wraps add no line endings.
+tab
+Save as… push button.
+Save the report as a text file.
+tab
+Show full record push button.
+source — FileCat — runner frame.
+escape
+alpha-details.txt, file, 27 bytes, modified 11/21/2026 22:13:24, not marked, 2 of 3.
+not selected.
+Screen reader off.
