@@ -1,0 +1,172 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="9b98a0a0-f9b2-4036-8f1e-b1d6f5d65e08" name="runneradmin@runnervmjtlf1 2026-11-20 15:57:18" runUser="runnervmjtlf1\runneradmin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-20T15:58:15.4627917-08:00" queuing="2026-11-20T15:58:15.4627982-08:00" start="2026-11-20T15:00:00.2293867-08:00" finish="2026-11-20T15:58:25.9858461-08:00" />
+  <TestSettings name="default" id="d0b47701-7d16-4f27-a645-9a0fbd3a8ae4">
+    <Deployment runDeploymentRoot="runneradmin_runnervmjtlf1_2026-11-20_15_57_18" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="377fd2b3-69cd-4331-8b69-0a0fc9edbd7a" testId="063ad0ab-2a29-f3bf-6445-ba388fb4b90e" testName="FileCat.Platform.Windows.Tests.WindowsSparseTransformTests.Reviewed_removal_above_the_enable_limit_preserves_dense_NTFS_streams" computerName="runnervmjtlf1" duration="00:50:49.9102713" startTime="2026-11-20T15:00:02.8792301-08:00" endTime="2026-11-20T15:51:45.4934014-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="377fd2b3-69cd-4331-8b69-0a0fc9edbd7a">
+      <Output>
+        <StdOut>dense flushed: position=536870912 eof=536870912 allocation=264241152 available=80632565760&#xD;
+dense flushed: position=1073741824 eof=1073741824 allocation=465567744 available=79892267008&#xD;
+dense flushed: position=1610612736 eof=1610612736 allocation=666894336 available=79151702016&#xD;
+dense flushed: position=2147483648 eof=2147483648 allocation=868220928 available=78411407360&#xD;
+dense flushed: position=2684354560 eof=2684354560 allocation=1069547520 available=77671112704&#xD;
+dense flushed: position=3221225472 eof=3221225472 allocation=1220411392 available=76981010432&#xD;
+dense flushed: position=3758096384 eof=3758096384 allocation=1413349376 available=76249104384&#xD;
+dense flushed: position=4294967296 eof=4294967296 allocation=1644036096 available=75479187456&#xD;
+dense flushed: position=4831838208 eof=4831838208 allocation=1836974080 available=74747269120&#xD;
+dense flushed: position=5368709120 eof=5368709120 allocation=2029912064 available=74015363072&#xD;
+dense flushed: position=5905580032 eof=5905580032 allocation=2222850048 available=73283194880&#xD;
+dense flushed: position=6442450944 eof=6442450944 allocation=2417885184 available=72549191680&#xD;
+dense flushed: position=6979321856 eof=6979321856 allocation=2646474752 available=71781621760&#xD;
+dense flushed: position=7516192768 eof=7516192768 allocation=2839412736 available=71049453568&#xD;
+dense flushed: position=8053063680 eof=8053063680 allocation=3032350720 available=70317547520&#xD;
+dense flushed: position=8589934592 eof=8589934592 allocation=3225288704 available=69585641472&#xD;
+dense flushed: position=9126805504 eof=9126805504 allocation=3455975424 available=68815712256&#xD;
+dense flushed: position=9663676416 eof=9663676416 allocation=3648913408 available=68083806208&#xD;
+dense flushed: position=10200547328 eof=10200547328 allocation=3841851392 available=67351638016&#xD;
+dense flushed: position=10737418240 eof=10737418240 allocation=4034789376 available=66619731968&#xD;
+dense flushed: position=11274289152 eof=11274289152 allocation=4229824512 available=65885716480&#xD;
+dense flushed: position=11811160064 eof=11811160064 allocation=4458414080 available=65117896704&#xD;
+dense flushed: position=12348030976 eof=12348030976 allocation=4651352064 available=64385990656&#xD;
+dense flushed: position=12884901888 eof=12884901888 allocation=4844290048 available=63654084608&#xD;
+dense flushed: position=13421772800 eof=13421772800 allocation=5037228032 available=62921904128&#xD;
+dense flushed: position=13958643712 eof=13958643712 allocation=5267914752 available=62152249344&#xD;
+dense flushed: position=14495514624 eof=14495514624 allocation=5460852736 available=61420343296&#xD;
+dense flushed: position=15032385536 eof=15032385536 allocation=5653790720 available=60688175104&#xD;
+dense flushed: position=15569256448 eof=15569256448 allocation=5846728704 available=59956256768&#xD;
+dense flushed: position=16106127360 eof=16106127360 allocation=6041763840 available=59221991424&#xD;
+dense flushed: position=16642998272 eof=16642998272 allocation=6270353408 available=58454433792&#xD;
+dense flushed: position=17179869184 eof=17179869184 allocation=6463291392 available=57722527744&#xD;
+dense flushed: position=17716740096 eof=17716740096 allocation=6656229376 available=56990347264&#xD;
+dense flushed: position=18253611008 eof=18253611008 allocation=6849167360 available=56258441216&#xD;
+dense flushed: position=18790481920 eof=18790481920 allocation=7079854080 available=55488786432&#xD;
+dense flushed: position=19327352832 eof=19327352832 allocation=7272792064 available=54756618240&#xD;
+dense flushed: position=19864223744 eof=19864223744 allocation=7465730048 available=54024712192&#xD;
+dense flushed: position=20401094656 eof=20401094656 allocation=7658668032 available=53292793856&#xD;
+dense flushed: position=20937965568 eof=20937965568 allocation=7853703168 available=52558528512&#xD;
+dense flushed: position=21474836480 eof=21474836480 allocation=8082292736 available=51790970880&#xD;
+dense flushed: position=22011707392 eof=22011707392 allocation=8275230720 available=51058802688&#xD;
+dense flushed: position=22548578304 eof=22548578304 allocation=8468168704 available=50326884352&#xD;
+dense flushed: position=23085449216 eof=23085449216 allocation=8661106688 available=49594978304&#xD;
+dense flushed: position=23622320128 eof=23622320128 allocation=8891793408 available=48825061376&#xD;
+dense flushed: position=24159191040 eof=24159191040 allocation=9084731392 available=48093155328&#xD;
+dense flushed: position=24696061952 eof=24696061952 allocation=9277669376 available=47361236992&#xD;
+dense flushed: position=25232932864 eof=25232932864 allocation=9470607360 available=46629068800&#xD;
+dense flushed: position=25769803776 eof=25769803776 allocation=9665642496 available=45895065600&#xD;
+dense flushed: position=26306674688 eof=26306674688 allocation=9894232064 available=45127507968&#xD;
+dense flushed: position=26843545600 eof=26843545600 allocation=10087170048 available=44395327488&#xD;
+dense flushed: position=27380416512 eof=27380416512 allocation=10280108032 available=43663421440&#xD;
+dense flushed: position=27917287424 eof=27917287424 allocation=10473046016 available=42931253248&#xD;
+dense flushed: position=28454158336 eof=28454158336 allocation=10703732736 available=42161598464&#xD;
+dense flushed: position=28991029248 eof=28991029248 allocation=10896670720 available=41429680128&#xD;
+dense flushed: position=29527900160 eof=29527900160 allocation=11089608704 available=40697511936&#xD;
+dense seed complete: position=30000000001 eof=30000000001 allocation=11255570432 available=40057585664&#xD;
+before eof=30000000001 id=9EDAD74BDAD71E79:28000000000002000000000000000000 sha256=0DE5095AE6D94C8C4CA0E07E708ADCE2AD882AEE27142846C37D4442E5585115 named compression=0</StdOut>
+        <ErrorInfo>
+          <Message>System.IO.IOException : The process cannot access the file 'dense.bin' because it is being used by another process.</Message>
+          <StackTrace>   at System.IO.FileSystem.RemoveDirectoryRecursive(String fullPath, WIN32_FIND_DATA&amp; findData, Boolean topLevel)&#xD;
+   at System.IO.FileSystem.RemoveDirectory(String fullPath, Boolean recursive)&#xD;
+   at FileCat.Platform.Windows.Tests.WindowsSparseTransformTests.Reviewed_removal_above_the_enable_limit_preserves_dense_NTFS_streams() in C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\WindowsSparseTransformTests.LargeDense.cs:line 144&#xD;
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)&#xD;
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsSparseTransformTests.Reviewed_removal_above_the_enable_limit_preserves_dense_NTFS_streams" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="063ad0ab-2a29-f3bf-6445-ba388fb4b90e">
+      <Execution id="377fd2b3-69cd-4331-8b69-0a0fc9edbd7a" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsSparseTransformTests" name="Reviewed_removal_above_the_enable_limit_preserves_dense_NTFS_streams" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="063ad0ab-2a29-f3bf-6445-ba388fb4b90e" executionId="377fd2b3-69cd-4331-8b69-0a0fc9edbd7a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="1" executed="1" passed="0" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.15)&#xD;
+[xUnit.net 00:00:00.28]   Discovering: FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:01.81]   Discovered:  FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:02.06]   Starting:    FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:52:14.82]       System.IO.IOException : The process cannot access the file 'dense.bin' because it is being used by another process.&#xD;
+[xUnit.net 00:52:14.83]       Stack Trace:&#xD;
+[xUnit.net 00:52:24.37]            at System.IO.FileSystem.RemoveDirectoryRecursive(String fullPath, WIN32_FIND_DATA&amp; findData, Boolean topLevel)&#xD;
+[xUnit.net 00:52:24.37]            at System.IO.FileSystem.RemoveDirectory(String fullPath, Boolean recursive)&#xD;
+[xUnit.net 00:52:25.34]         C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\WindowsSparseTransformTests.LargeDense.cs(144,0): at FileCat.Platform.Windows.Tests.WindowsSparseTransformTests.Reviewed_removal_above_the_enable_limit_preserves_dense_NTFS_streams()&#xD;
+[xUnit.net 00:52:26.08]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)&#xD;
+[xUnit.net 00:52:26.08]            at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)&#xD;
+[xUnit.net 00:52:26.08]       Output:&#xD;
+[xUnit.net 00:52:26.08]         dense flushed: position=536870912 eof=536870912 allocation=264241152 available=80632565760&#xD;
+[xUnit.net 00:52:26.08]         dense flushed: position=1073741824 eof=1073741824 allocation=465567744 available=79892267008&#xD;
+[xUnit.net 00:52:26.08]         dense flushed: position=1610612736 eof=1610612736 allocation=666894336 available=79151702016&#xD;
+[xUnit.net 00:52:26.08]         dense flushed: position=2147483648 eof=2147483648 allocation=868220928 available=78411407360&#xD;
+[xUnit.net 00:52:26.08]         dense flushed: position=2684354560 eof=2684354560 allocation=1069547520 available=77671112704&#xD;
+[xUnit.net 00:52:26.08]         dense flushed: position=3221225472 eof=3221225472 allocation=1220411392 available=76981010432&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=3758096384 eof=3758096384 allocation=1413349376 available=76249104384&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=4294967296 eof=4294967296 allocation=1644036096 available=75479187456&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=4831838208 eof=4831838208 allocation=1836974080 available=74747269120&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=5368709120 eof=5368709120 allocation=2029912064 available=74015363072&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=5905580032 eof=5905580032 allocation=2222850048 available=73283194880&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=6442450944 eof=6442450944 allocation=2417885184 available=72549191680&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=6979321856 eof=6979321856 allocation=2646474752 available=71781621760&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=7516192768 eof=7516192768 allocation=2839412736 available=71049453568&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=8053063680 eof=8053063680 allocation=3032350720 available=70317547520&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=8589934592 eof=8589934592 allocation=3225288704 available=69585641472&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=9126805504 eof=9126805504 allocation=3455975424 available=68815712256&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=9663676416 eof=9663676416 allocation=3648913408 available=68083806208&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=10200547328 eof=10200547328 allocation=3841851392 available=67351638016&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=10737418240 eof=10737418240 allocation=4034789376 available=66619731968&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=11274289152 eof=11274289152 allocation=4229824512 available=65885716480&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=11811160064 eof=11811160064 allocation=4458414080 available=65117896704&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=12348030976 eof=12348030976 allocation=4651352064 available=64385990656&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=12884901888 eof=12884901888 allocation=4844290048 available=63654084608&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=13421772800 eof=13421772800 allocation=5037228032 available=62921904128&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=13958643712 eof=13958643712 allocation=5267914752 available=62152249344&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=14495514624 eof=14495514624 allocation=5460852736 available=61420343296&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=15032385536 eof=15032385536 allocation=5653790720 available=60688175104&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=15569256448 eof=15569256448 allocation=5846728704 available=59956256768&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=16106127360 eof=16106127360 allocation=6041763840 available=59221991424&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=16642998272 eof=16642998272 allocation=6270353408 available=58454433792&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=17179869184 eof=17179869184 allocation=6463291392 available=57722527744&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=17716740096 eof=17716740096 allocation=6656229376 available=56990347264&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=18253611008 eof=18253611008 allocation=6849167360 available=56258441216&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=18790481920 eof=18790481920 allocation=7079854080 available=55488786432&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=19327352832 eof=19327352832 allocation=7272792064 available=54756618240&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=19864223744 eof=19864223744 allocation=7465730048 available=54024712192&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=20401094656 eof=20401094656 allocation=7658668032 available=53292793856&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=20937965568 eof=20937965568 allocation=7853703168 available=52558528512&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=21474836480 eof=21474836480 allocation=8082292736 available=51790970880&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=22011707392 eof=22011707392 allocation=8275230720 available=51058802688&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=22548578304 eof=22548578304 allocation=8468168704 available=50326884352&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=23085449216 eof=23085449216 allocation=8661106688 available=49594978304&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=23622320128 eof=23622320128 allocation=8891793408 available=48825061376&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=24159191040 eof=24159191040 allocation=9084731392 available=48093155328&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=24696061952 eof=24696061952 allocation=9277669376 available=47361236992&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=25232932864 eof=25232932864 allocation=9470607360 available=46629068800&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=25769803776 eof=25769803776 allocation=9665642496 available=45895065600&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=26306674688 eof=26306674688 allocation=9894232064 available=45127507968&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=26843545600 eof=26843545600 allocation=10087170048 available=44395327488&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=27380416512 eof=27380416512 allocation=10280108032 available=43663421440&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=27917287424 eof=27917287424 allocation=10473046016 available=42931253248&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=28454158336 eof=28454158336 allocation=10703732736 available=42161598464&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=28991029248 eof=28991029248 allocation=10896670720 available=41429680128&#xD;
+[xUnit.net 00:52:26.09]         dense flushed: position=29527900160 eof=29527900160 allocation=11089608704 available=40697511936&#xD;
+[xUnit.net 00:52:26.09]         dense seed complete: position=30000000001 eof=30000000001 allocation=11255570432 available=40057585664&#xD;
+[xUnit.net 00:52:26.09]         before eof=30000000001 id=9EDAD74BDAD71E79:28000000000002000000000000000000 sha256=0DE5095AE6D94C8C4CA0E07E708ADCE2AD882AEE27142846C37D4442E5585115 named compression=0&#xD;
+[xUnit.net 00:55:33.35]   Finished:    FileCat.Platform.Windows.Tests (ID = 'a01939c32015dcf8cf76016c79755b847ab552dac5bad90e3e6dd7668fd98cae')&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="runnervmjtlf1" outcome="Error" timestamp="2026-11-20T15:52:39.5377412-08:00">
+        <Text>[xUnit.net 00:52:12.08]     FileCat.Platform.Windows.Tests.WindowsSparseTransformTests.Reviewed_removal_above_the_enable_limit_preserves_dense_NTFS_streams [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

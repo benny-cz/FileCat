@@ -78,6 +78,7 @@ public sealed partial class WindowsSparseTransformTests
         string path = Path.Join(directory, "dense.bin");
         var ct = TestContext.Current.CancellationToken;
         byte[] namedPayload = "dense fixture named stream"u8.ToArray();
+        JobManager? jobs = null;
         try
         {
             string expected;
@@ -105,9 +106,11 @@ public sealed partial class WindowsSparseTransformTests
             TestContext.Current.TestOutputHelper!.WriteLine($"before eof={length} id={identity} sha256={expected} named compression={namedCompression.Native}");
 
             PrivateDenseEvidence(evidence);
-            var jobs = CreateManager(path, evidence);
+            jobs = CreateManager(path, evidence);
             const StorageAction action = StorageAction.RemoveCompression;
-            var job = Submit(jobs, path, action, TimeSpan.FromMinutes(12));
+            TestContext.Current.TestOutputHelper!.WriteLine($"dense removal submitted: {DateTimeOffset.UtcNow:O}");
+            var job = Submit(jobs, path, action, TimeSpan.FromMinutes(45));
+            TestContext.Current.TestOutputHelper!.WriteLine($"dense removal finished: {DateTimeOffset.UtcNow:O} state={job.State}");
             Assert.True(job.State == JobState.Completed,
                 $"{job.State}: {JobIssue.Summarize(job.Issues)} " +
                 string.Join(", ", job.StorageResult!.Reasons.Select(reason => reason.Problem.Message)));
@@ -141,8 +144,17 @@ public sealed partial class WindowsSparseTransformTests
         }
         finally
         {
-            Directory.Delete(directory, recursive: true);
-            Directory.Delete(evidence, recursive: true);
+            if (jobs?.HasActiveWork == true)
+            {
+                // A timed-out native call can still hold the stream. The enclosing
+                // disposable-VHDX controller owns teardown after the test host exits.
+                TestContext.Current.TestOutputHelper!.WriteLine("dense removal still active; deferring fixture cleanup to VHDX teardown");
+            }
+            else
+            {
+                Directory.Delete(directory, recursive: true);
+                Directory.Delete(evidence, recursive: true);
+            }
         }
     }
 

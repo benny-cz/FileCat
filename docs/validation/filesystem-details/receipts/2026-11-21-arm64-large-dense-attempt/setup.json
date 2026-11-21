@@ -1,0 +1,10 @@
+{
+  "Commit": "e53d5b141935161875d2f993a1673a908df9f20f",
+  "TestAssemblySha256": "8C96D2F8310B93616E3D1FB05628CBA2BA3B1A729B5CBF19F9493FB8203FC8BB",
+  "Image": "C:\\a\\_temp\\filecat-native-large-dense-e62c5900bee94a2d9f329fdf79c56338\\large-dense.vhdx",
+  "VolumeId": "\\\\?\\Volume{1e5c48db-1d24-4d93-89d5-de4599dc1eda}\\",
+  "VolumeRoot": "D:\\",
+  "FreeHostBefore": 128236126208,
+  "FreeFixtureBefore": 81436307456,
+  "AllocationUnitSize": 4096
+}

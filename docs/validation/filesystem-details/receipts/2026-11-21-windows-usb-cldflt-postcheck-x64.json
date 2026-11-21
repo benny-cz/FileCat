@@ -1,0 +1,24 @@
+{
+    "FltmcExit":  0,
+    "CldFltPresent":  false,
+    "ProbePathPresent":  false,
+    "RootEntries":  [
+                        "filler.bin",
+                        "new.bin",
+                        "System Volume Information"
+                    ],
+    "Instances":  [
+                      "Instances for E: volume:",
+                      "",
+                      "Filter                  Altitude        Instance Name       Frame   SprtFtrs  VlStatus",
+                      "--------------------  ------------  ----------------------  -----   --------  --------",
+                      "FsDepends                407000     FsDepends                 0     0000000f  ",
+                      "UCPD                     385250.5   UCPD - Top Instance       0     0000000f  ",
+                      "wesp                     329500     wesp Instance             0     00000004  ",
+                      "WdFilter                 328010     WdFilter Instance         0     0000000f  ",
+                      "applockerfltr            265000     def                       0     0000000f  ",
+                      "bfs                      150000     bfs                       0     0000000f  ",
+                      "Wof                       40700     Wof Instance              0     0000000f  ",
+                      "FileInfo                  40500     FileInfo                  0     0000000f  "
+                  ]
+}

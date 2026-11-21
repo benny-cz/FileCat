@@ -1,0 +1,9 @@
+{
+    "Attached":  true,
+    "Detached":  true,
+    "BeforeHresult":  "0x80070001",
+    "AttachedHresult":  "0x80070186",
+    "AfterDetachHresult":  "0x80070001",
+    "Error":  null,
+    "Cleaned":  true
+}
