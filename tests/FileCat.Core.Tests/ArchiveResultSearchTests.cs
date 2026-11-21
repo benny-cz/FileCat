@@ -203,6 +203,27 @@ public sealed class ArchiveResultSearchTests : IDisposable
         Assert.Equal(0, provider.ChildLocations);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Archive_member_without_a_required_time_is_unexamined(bool creation)
+    {
+        var parent = Parent();
+        var provider = new ControlledArchive([new("unknown.txt", EntryKind.File, 10)]);
+        List<(ItemRef Item, string Relative)> within = [(new(parent, "unknown.txt", EntryKind.File), "original")];
+        var criteria = new SearchCriteria { Advanced = new AdvancedSearchCriteria
+        {
+            Created = new TimeCriterion { Mode = creation ? TimeFilterMode.Within : TimeFilterMode.Any },
+            Modified = new TimeCriterion { Mode = creation ? TimeFilterMode.Any : TimeFilterMode.Within },
+        } };
+        var (result, session) = Run(criteria, within, ControlledMembers(provider), expectedComplete: false);
+        Assert.Empty(result.Snapshot());
+        var issue = Assert.Single(session.Log);
+        Assert.Equal(SearchLogKind.Inaccessible, issue.Kind);
+        Assert.Contains(creation ? "creation time" : "modification time", issue.Detail, StringComparison.Ordinal);
+        Assert.Single(result.Issues);
+    }
+
     [Fact]
     public void Cancellation_during_revalidation_marks_the_result_incomplete_without_claiming_missing_members()
     {

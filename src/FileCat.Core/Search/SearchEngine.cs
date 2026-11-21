@@ -184,7 +184,7 @@ public sealed class SearchSession
     public long Matches;
     public long ExtraDataUnexamined;
     public long NativePredicateUnexamined;
-    private long _inaccessibleScopes;
+    private long _unexaminedScopes;
     public volatile string? CurrentFolder;
     public volatile bool Finished;
     public volatile bool RegexTimedOut;
@@ -284,7 +284,8 @@ public sealed class SearchSession
                     Walk(root, root, 0, ct);
                 }
             }
-            _results.IsComplete = !_truncated && ExtraDataUnexamined == 0 && NativePredicateUnexamined == 0 && _inaccessibleScopes == 0;
+            _results.IsComplete = !_truncated && ExtraDataUnexamined == 0 && NativePredicateUnexamined == 0 &&
+                _unexaminedScopes == 0 && !RegexTimedOut;
         }
         catch (OperationCanceledException)
         {
@@ -318,7 +319,7 @@ public sealed class SearchSession
 
     private void AddLog(SearchLogKind kind, string path, string? detail = null, Location? parent = null, string? name = null)
     {
-        if (kind == SearchLogKind.Inaccessible) Interlocked.Increment(ref _inaccessibleScopes);
+        if (kind is SearchLogKind.Inaccessible or SearchLogKind.Skipped) Interlocked.Increment(ref _unexaminedScopes);
         lock (_logLock)
         {
             if (_log.Count < MaxLog) _log.Add(new SearchLogEntry(kind, path, detail, parent, name));
@@ -540,7 +541,12 @@ public sealed class SearchSession
         { UnexaminedMember(member); return false; }
         if ((_query.AttributesSet & FileAttributes.Directory) != 0 && !isDir) return false;
         if ((_query.AttributesClear & FileAttributes.Directory) != 0 && isDir) return false;
-        if (_query.CreatedAfterUtc is not null || _query.CreatedBeforeUtc is not null) return false;
+        if (_query.CreatedAfterUtc is not null || _query.CreatedBeforeUtc is not null)
+        {
+            AddLog(SearchLogKind.Inaccessible, member.ToString(),
+                "The archive member's creation time is unavailable; creation-time criteria cannot be checked.", member.Parent, member.Name);
+            return false;
+        }
         if (_query.Names is { } names && !names.IsMatch(member.Name, isDir))
         {
             if (names.RegexTimedOut) RegexTimedOut = true;
@@ -559,7 +565,12 @@ public sealed class SearchSession
         }
         if (_query.ModifiedAfterUtc is not null || _query.ModifiedBeforeUtc is not null)
         {
-            if (member.Modified <= 0) return false;
+            if (member.Modified <= 0 || member.Modified > DateTime.MaxValue.Ticks)
+            {
+                AddLog(SearchLogKind.Inaccessible, member.ToString(),
+                    "The archive member's modification time is unavailable or invalid; modification-time criteria cannot be checked.", member.Parent, member.Name);
+                return false;
+            }
             var modified = new DateTime(member.Modified, DateTimeKind.Utc);
             if (_query.ModifiedAfterUtc is { } after && modified < after) return false;
             if (_query.ModifiedBeforeUtc is { } before && modified > before) return false;
