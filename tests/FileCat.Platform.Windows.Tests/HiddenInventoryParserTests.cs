@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Collections.Immutable;
 using System.Text;
 using FileCat.Core.HiddenData;
 
@@ -30,5 +31,25 @@ public sealed class HiddenInventoryParserTests
         Assert.Equal(HiddenInventoryState.Failed, WindowsHiddenData.ParseEaInventory(record.AsSpan(0, 11)).State);
         record[0] = 4;
         Assert.Equal(HiddenInventoryState.Failed, WindowsHiddenData.ParseEaInventory(record).State);
+    }
+
+    [Fact]
+    public void Combined_inventory_keeps_the_bounded_EA_prefix_and_its_partial_state()
+    {
+        var streams = new WindowsHiddenData.InventoryPart(Enumerable.Range(0, 1022)
+            .Select(i => new HiddenItem($"s{i}", HiddenKind.Stream, 0)).ToImmutableArray(), HiddenInventoryState.Complete);
+        var eas = new WindowsHiddenData.InventoryPart(Enumerable.Range(0, 3)
+            .Select(i => new HiddenItem($"ea{i}", HiddenKind.NtfsAttribute, 0)).ToImmutableArray(), HiddenInventoryState.Complete, Acquired: true);
+        var (items, boundedEa) = WindowsHiddenData.MergeInventoryParts(streams, eas);
+        Assert.Equal(HiddenInventory.MaxEntries, items.Length);
+        Assert.Equal(["ea0", "ea1"], boundedEa.Items.Select(item => item.Name));
+        Assert.Equal(HiddenInventoryState.Partial, boundedEa.State);
+        Assert.True(boundedEa.Acquired);
+        Assert.Contains("combined 1,024-entry", boundedEa.Problem, StringComparison.Ordinal);
+
+        var failed = WindowsHiddenData.MergeInventoryParts(streams, eas with
+        { State = HiddenInventoryState.Failed, Problem = "Native query failed." }).Ea;
+        Assert.Equal(HiddenInventoryState.Failed, failed.State);
+        Assert.Contains("Native query failed.", failed.Problem, StringComparison.Ordinal);
     }
 }

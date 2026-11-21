@@ -34,9 +34,7 @@ public sealed unsafe partial class WindowsHiddenData
         {
             var eas = ReadEaInventory(file, ct);
             acquired = eas.Acquired;
-            int bytes = items.Sum(i => i.Name.Length * 2 + 64) + eas.Items.Sum(i => i.Name.Length * 2 + 64);
-            if (items.Length + eas.Items.Length <= HiddenInventory.MaxEntries && bytes <= HiddenInventory.MaxNameBytes) items = items.AddRange(eas.Items);
-            else eas = eas with { Items = [], State = HiddenInventoryState.Partial, Problem = "The combined 1,024-entry/1 MiB metadata limit was reached." };
+            (items, eas) = MergeInventoryParts(streams, eas);
             categories.Add(new(HiddenKind.NtfsAttribute, eas.State, eas.Items.Length, "held object; native EA buffer includes values", eas.Problem));
         }
         else categories.Add(new(HiddenKind.NtfsAttribute, HiddenInventoryState.NotInspected, 0, "EA query returns names and values", "Use Read extended attributes to admit that query."));
@@ -46,6 +44,32 @@ public sealed unsafe partial class WindowsHiddenData
     }
 
     internal sealed record InventoryPart(ImmutableArray<HiddenItem> Items, HiddenInventoryState State, string? Problem = null, bool Acquired = false);
+
+    internal static (ImmutableArray<HiddenItem> Items, InventoryPart Ea) MergeInventoryParts(InventoryPart streams, InventoryPart eas)
+    {
+        var combined = streams.Items.ToBuilder();
+        int retainedBytes = streams.Items.Sum(item => item.Name.Length * 2 + 64);
+        int included = 0;
+        foreach (var item in eas.Items)
+        {
+            int cost = item.Name.Length * 2 + 64;
+            if (combined.Count == HiddenInventory.MaxEntries || cost > HiddenInventory.MaxNameBytes - retainedBytes) break;
+            combined.Add(item);
+            retainedBytes += cost;
+            included++;
+        }
+        if (included != eas.Items.Length)
+        {
+            const string limit = "The combined 1,024-entry/1 MiB metadata limit was reached.";
+            eas = eas with
+            {
+                Items = eas.Items.Take(included).ToImmutableArray(),
+                State = eas.State == HiddenInventoryState.Complete ? HiddenInventoryState.Partial : eas.State,
+                Problem = string.IsNullOrWhiteSpace(eas.Problem) ? limit : eas.Problem + " " + limit,
+            };
+        }
+        return (combined.ToImmutable(), eas);
+    }
 
     internal static InventoryPart ReadStreamInventory(SafeFileHandle file, CancellationToken ct)
     {
