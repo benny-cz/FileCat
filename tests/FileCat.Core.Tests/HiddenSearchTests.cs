@@ -7,6 +7,22 @@ namespace FileCat.Core.Tests;
 
 public sealed class HiddenSearchTests
 {
+    [Fact]
+    public void Visible_managed_metadata_matches_Find_without_gaining_a_deletion_route()
+    {
+        var kind = OperatingSystem.IsWindows() ? HiddenKind.Stream : HiddenKind.Attribute;
+        foreach (var role in new[] { HiddenMetadataRole.StorageBacking, HiddenMetadataRole.StoragePolicy,
+                     HiddenMetadataRole.SecurityMetadata, HiddenMetadataRole.RequiredMetadata, HiddenMetadataRole.Unqualified })
+        {
+            var item = new HiddenItem("visible.metadata", kind, 8) { Role = role };
+            Assert.True(HiddenSearch.IsPositiveInOrdinaryView(item));
+            Assert.NotNull(HiddenMetadataRoles.DeleteRefusal(item));
+        }
+        var mark = new HiddenItem(OperatingSystem.IsWindows() ? "Zone.Identifier" : OperatingSystem.IsMacOS() ? "com.apple.quarantine" : "user.xdg.origin.url", kind, 8)
+        { Role = HiddenMetadataRole.Ordinary };
+        Assert.False(HiddenSearch.IsPositiveInOrdinaryView(mark));
+    }
+
     private sealed class Data : IHiddenData
     {
         public bool IsSupported => true;
