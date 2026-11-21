@@ -153,7 +153,10 @@ public sealed partial class MetadataService : IDisposable
     public MetadataValue Get(string fieldId, string path, in EntryData entry, string deviceKey, bool slowLocation, Func<bool>? isStillWanted = null)
     {
         var value = SelectCached(fieldId, path, entry, slowLocation, out var field, out var key);
-        if (key is null || field is null || slowLocation && field.Cost >= MetadataCost.Expensive) return value;
+        // Analysis fields are produced only by the explicit Compute path, including on local rows.
+        // A retained result may still be displayed by Get without starting another read.
+        if (key is null || field is null || field.Cost == MetadataCost.Analysis ||
+            slowLocation && field.Cost >= MetadataCost.Expensive) return value;
         var refresh = EffectiveRefresh(field, slowLocation);
         if (value.State != MetadataState.NotRequested)
         {
@@ -184,7 +187,7 @@ public sealed partial class MetadataService : IDisposable
         if (!TryEligibleField(fieldId, entry, out field, out var rejection)) return rejection;
         key = Key(path, entry, fieldId);
         if (_cache.TryGetValue(key, out var value)) return QualifyCached(field!, key, value, slowLocation);
-        return slowLocation && field!.Cost >= MetadataCost.Expensive
+        return slowLocation && field!.Cost == MetadataCost.Expensive
             ? new MetadataValue(MetadataState.Unsupported, Detail: "Not computed automatically on slow locations.")
             : _inFlight.ContainsKey(key) ? MetadataValue.Pending : new MetadataValue(MetadataState.NotRequested);
     }
