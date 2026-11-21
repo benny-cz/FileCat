@@ -51,8 +51,34 @@ public sealed class AdvancedTextFileExchangeTests
                 AdvancedTextFileExchange.WriteUtf8AtomicAsync(path, "not written", canceled.Token));
             Assert.Equal(definition, await File.ReadAllTextAsync(path, ct));
             Assert.Equal([path], Directory.GetFiles(root));
+
+            string fresh = Path.Combine(root, "new-definitions.txt");
+            await AdvancedTextFileExchange.WriteUtf8AtomicAsync(fresh, definition, ct);
+            Assert.Equal(Encoding.UTF8.GetBytes(definition), await File.ReadAllBytesAsync(fresh, ct));
+            Assert.Equal(new[] { path, fresh }.Order(), Directory.GetFiles(root).Order());
         }
         finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task Windows_text_export_refuses_to_replace_an_Efs_destination_before_staging_bytes()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows() && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires an opt-in Windows EFS fixture.");
+        string root = Directory.CreateTempSubdirectory("fc-settings-efs-export-").FullName;
+        string path = Path.Combine(root, "definitions.txt");
+        try
+        {
+            const string original = "Protected settings export";
+            File.WriteAllText(path, original);
+            File.Encrypt(path);
+            await Assert.ThrowsAnyAsync<IOException>(() => AdvancedTextFileExchange.WriteUtf8AtomicAsync(path,
+                "replacement", TestContext.Current.CancellationToken));
+            Assert.True(File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(original, File.ReadAllText(path));
+            Assert.Equal([path], Directory.GetFiles(root));
+        }
+        finally { Directory.Delete(root, recursive: true); }
     }
 
     [AvaloniaFact]

@@ -505,19 +505,19 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
         {
             if ((_attributes & 0x400) == 0) return null;
             var output = new byte[16 * 1024];
-            if (Ioctl(_item, FsctlGetReparsePoint, [], output, out int got) != 0 || got < 8)
+            if (Ioctl(_item, FsctlGetReparsePoint, [], output, out int got) != 0)
                 return new InspectionSection("Reparse point", [("Tag", RecordText.ReparseTag(_reparseTag))]) { Lines = ["Its data could not be read: " + LastError()] };
-            uint tag = BinaryPrimitives.ReadUInt32LittleEndian(output);
-            int length = BinaryPrimitives.ReadUInt16LittleEndian(output.AsSpan(4));
-            int start = (tag & 0x8000_0000) != 0 ? 8 : 24;
-            if (got > output.Length || got < start || length > got - start)
-                return new InspectionSection("Reparse point", [("Tag", RecordText.ReparseTag(tag))]) { Lines = ["Malformed or truncated reparse data; no target interpreted."] };
-            var data = output.AsSpan(start, Math.Max(0, Math.Min(length, got - start)));
-            var fields = new List<(string, string)> { ("Tag", RecordText.ReparseTag(tag)) };
-            if (start == 24) fields.Add(("Vendor", new Guid(output.AsSpan(8, 16)).ToString("B")));
-            if (RecordText.ReparseTarget(tag, data) is { } target) fields.Add(("Says", target));
-            fields.Add(("Data", $"{length:N0} bytes"));
-            return new InspectionSection("Reparse point", fields) { Lines = RecordText.HexLines(data, 128) };
+            var payload = got is >= 0 and <= 16 * 1024
+                ? ReparsePayloadReader.Parse(output.AsSpan(0, got))
+                : new ReparsePayload(_reparseTag, null, ReparsePayloadState.Malformed, []);
+            if (payload.State == ReparsePayloadState.Malformed)
+                return new InspectionSection("Reparse point", [("Tag", RecordText.ReparseTag(payload.Tag))])
+                    { Lines = ["Malformed or truncated reparse data; no target interpreted."] };
+            var fields = new List<(string, string)> { ("Tag", RecordText.ReparseTag(payload.Tag)) };
+            if (payload.Vendor is { } vendor) fields.Add(("Vendor", vendor.ToString("B")));
+            if (RecordText.ReparseTarget(payload) is { } target) fields.Add(("Says", target));
+            fields.Add(("Data", $"{payload.RawData.Length:N0} bytes"));
+            return new InspectionSection("Reparse point", fields) { Lines = RecordText.HexLines(payload.RawData.AsSpan(), 128) };
         }
 
         private InspectionSection LayoutSection()

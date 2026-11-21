@@ -147,6 +147,42 @@ public sealed class SupplementaryReportWindowTests
         }
     }
 
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Saving_a_general_metadata_report_preserves_an_existing_Efs_destination(bool protectDestination)
+    {
+        Assert.SkipWhen(protectDestination && (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") != "1"),
+            "The encrypted destination requires an opt-in Windows NTFS fixture.");
+        string root = Directory.CreateTempSubdirectory("filecat-general-report-").FullName;
+        string target = Path.Combine(root, "report.txt");
+        var window = new ReportWindow("File list", "fixture", _ => Task.FromResult("Current metadata report"));
+        InstallPicker(window, () => Task.FromResult<IStorageFile?>(Chosen(target)));
+        try
+        {
+            const string original = "Existing report";
+            File.WriteAllText(target, original);
+            if (protectDestination) File.Encrypt(target);
+            window.Show();
+            await window.Reading!;
+            await Save(window);
+            if (protectDestination)
+            {
+                Assert.Contains("EFS protection", window.StatusText);
+                Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+                Assert.Equal(original, File.ReadAllText(target));
+            }
+            else
+            {
+                Assert.Equal("Current metadata report", File.ReadAllText(target));
+                Assert.True(File.ReadAllBytes(target).AsSpan().StartsWith(Encoding.UTF8.Preamble));
+                Assert.StartsWith("Saved as", window.StatusText);
+            }
+            Assert.Equal([target], Directory.GetFiles(root));
+        }
+        finally { window.Close(); Directory.Delete(root, recursive: true); }
+    }
+
     [AvaloniaFact]
     public async Task Saving_metadata_reports_a_partial_file_when_the_native_volume_fills()
     {
