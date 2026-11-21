@@ -43,7 +43,15 @@ So the disguise removes the reparse point, sparse and offline attributes (`0x160
 
 The fixture now records a refused control as unobservable and skips with that reason; it does not fail. The listing itself still caused no open notification and no data request. The "no per-entry opens" claim keeps resting on the earlier observation and on the source: the listing uses one directory query handle and opens no child.
 
+## Windows on Arm (X-ARM64)
+
+The manual [ARM64 qualification workflow](../../../.github/workflows/details-arm64-qualification.yml) ran the exposure fixtures at commit `8365cc331` on the hosted `windows-11-arm` runner at medium integrity, in [run 44941140487](https://github.com/benny-cz/FileCat/actions/runs/44941140487). Six tests: five passed and one skipped ([TRX](receipts/2026-11-21-windows-cloud-exposure/windows-arm64-cloud.trx), `7f9399fd…`).
+
+- The child saw the same tags, attributes and flags as on x64. Its managed listing carried no tag, which is the view Windows on Arm production shows, because it keeps the managed route.
+- The summaries, full reports and file records described all three placeholders as Cloud Files placeholders, and copy, move, delete and Find behaved as on x64, with no data request.
+- `PlaceholderViewTests` and the in-process placeholder test passed.
+- The listing test skipped as it did on the VM at 16:42: the runner reports data-access opens only. There, the listing caused none, and Windows did not refuse the control.
+
 ## Not covered here
 
-- **Windows on Arm:** production keeps the managed route there, so listings show no Cloud Files subtype. Details are exposed there too; X-ARM64 runs these fixtures through the [ARM64 qualification workflow](../../../.github/workflows/details-arm64-qualification.yml).
 - **Real providers:** OneDrive, Dropbox and iCloud placeholders were not read here. The fixture's provider uses the same Cloud Files API.

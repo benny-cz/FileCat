@@ -1,6 +1,6 @@
 # Cloud Files placeholder exposure: implementation plan
 
-**Status, 21 November 2026:** implemented. X-LIST, X-DETAILS, X-POLICY, X-THREAD and X-NOEXPORT passed on the Windows 11 x64 VM ([receipt](../validation/filesystem-details/2026-11-21-windows-cloud-exposure.md)); X-ARM64 runs through the hosted ARM64 qualification workflow. This plan closes the Cloud Files items left open in the [File-system details plan](FILECAT_FILESYSTEM_DETAILS_AND_FEATURES_PLAN.md): F-TYPE and N-PROVIDER.
+**Status, 21 November 2026:** implemented and qualified. X-LIST, X-DETAILS, X-POLICY, X-THREAD and X-NOEXPORT passed on the Windows 11 x64 VM, and X-ARM64 passed on the hosted `windows-11-arm` runner ([receipt](../validation/filesystem-details/2026-11-21-windows-cloud-exposure.md)). This plan closes the Cloud Files items left open in the [File-system details plan](FILECAT_FILESYSTEM_DETAILS_AND_FEATURES_PLAN.md): F-TYPE and N-PROVIDER.
 
 ## 1. Problem
 
