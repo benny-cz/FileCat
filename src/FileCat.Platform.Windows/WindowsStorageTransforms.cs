@@ -15,7 +15,9 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
 
     // The qualification target is the Windows 11 client, not a Server product with the same build number.
     private static bool IsWindows11Client => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000) && !IsOS(29 /* OS_ANYSERVER */);
-    internal static bool IsQualifiedHost => RuntimeInformation.ProcessArchitecture == Architecture.X64 && IsWindows11Client;
+    // An x64 process emulated on Arm64 Windows runs a different native stack from the qualified x64 target.
+    internal static bool IsQualifiedHost => RuntimeInformation.ProcessArchitecture == Architecture.X64 &&
+        RuntimeInformation.OSArchitecture == Architecture.X64 && IsWindows11Client;
     internal static bool IsNativeArm64QualificationHost => RuntimeInformation.ProcessArchitecture == Architecture.Arm64 &&
         RuntimeInformation.OSArchitecture == Architecture.Arm64 && IsWindows11Client;
     internal static bool SupportsHost(bool qualifyNativeArm64) => IsQualifiedHost || qualifyNativeArm64 && IsNativeArm64QualificationHost;
@@ -149,7 +151,7 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
                 ? "This file uses external storage backing, which this workflow does not change."
                 : "External storage backing could not be ruled out; storage changes are unavailable.");
         }
-        if (problem is null) problem = SyncRootProblem(file, ct);
+        if (problem is null) problem = SyncRootProblemAfterHeldWalk(file, volume.Binding, ct);
         if (problem is null)
         {
             ct.ThrowIfCancellationRequested();
