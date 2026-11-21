@@ -96,7 +96,7 @@ internal sealed unsafe partial class WindowsPermissionService
         var before = RequireRevision(original);
         bool reset = change is ResetWindowsDacl;
         var projection = change is ResetWindowsDacl replacement ? ProjectTreeReset(original, replacement) :
-            folderOnly ? ProjectFolderOnly(original, change) :
+            folderOnly ? ProjectFolderOnly(original, change, ensureRule: !treeAncestry.IsDefault) :
             Project(original, change, directory: propagates, inheritanceParent, ensureRule: !treeAncestry.IsDefault);
         var expected = RequireRevision(projection.Expected);
         if (propagates && before == expected)

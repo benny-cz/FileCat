@@ -58,14 +58,14 @@ internal sealed class ReviewedPermissionOperation : IDisposable
             ValidatePropagation(targets);
         if (tree is not null)
         {
-            bool windowsFileTree = tree.Entries[0].VisitOnly;
-            if (windowsFileTree) ValidateWindowsFileTree(tree, scope, treeSource);
+            bool windowsAccessTree = tree.Entries[0].VisitOnly;
+            if (windowsAccessTree) ValidateWindowsAccessTree(tree, scope, treeSource);
             else if (tree.Entries.Any(entry => entry.VisitOnly))
                 throw new ArgumentException("This tree scope requires a reviewed change for each captured descendant.", nameof(tree));
             if (treeSource is not null) ValidateTreeSource(tree, treeSource, targets, scope);
             var entries = tree.Entries.Where(entry => !entry.VisitOnly && (treeSource is null || entry.ParentIndex >= 0))
                 .OrderByDescending(entry => entry.Depth).ToArray();
-            if (entries.Length != targets.Length || entries.Where((entry, index) => !MatchesTreeEntry(entry, targets[index], scope, treeSource, windowsFileTree)).Any())
+            if (entries.Length != targets.Length || entries.Where((entry, index) => !MatchesTreeEntry(entry, targets[index], scope, treeSource, windowsAccessTree)).Any())
                 throw new ArgumentException("A tree operation must use its captured objects and changes in children-first order.", nameof(targets));
         }
         long footprint = 0;
@@ -119,21 +119,22 @@ internal sealed class ReviewedPermissionOperation : IDisposable
         TreeSource = treeSource;
     }
 
-    private static void ValidateWindowsFileTree(PermissionTreeManifest tree, PermissionScope scope, ReviewedPermissionTreeSource? source)
+    private static void ValidateWindowsAccessTree(PermissionTreeManifest tree, PermissionScope scope, ReviewedPermissionTreeSource? source)
     {
         if (scope != PermissionScope.ReviewedTree || source is not null || tree.RootCount != 1 || tree.Entries.Any(entry =>
                 entry.Binding is not { FileSystem: "NTFS", ReadOnly: false } || entry.Subject.LinkPolicy != PermissionLinkPolicy.NoFollow ||
                 entry.Draft.Scope != scope || !entry.VisitOnly &&
-                (entry.Binding is not { Identity.Kind: PermissionObjectKind.File, LinkCount: 1 } ||
+                (entry.Binding.Identity.Kind != PermissionObjectKind.Directory &&
+                    entry.Binding is not { Identity.Kind: PermissionObjectKind.File, LinkCount: 1 } ||
                     entry.Draft.Changes is not [AddWindowsAce { Entry.Flags: 0 }])))
-            throw new ArgumentException("A Windows file tree needs one captured directory root and independently bound NTFS files.", nameof(tree));
+            throw new ArgumentException("A Windows access tree needs one captured directory root and independently bound NTFS targets.", nameof(tree));
     }
 
     private static bool MatchesTreeEntry(PermissionTreeEntry entry, ReviewedPermissionTarget target, PermissionScope scope,
-        ReviewedPermissionTreeSource? source, bool windowsFileTree) =>
+        ReviewedPermissionTreeSource? source, bool windowsAccessTree) =>
         entry.Subject == target.Subject && entry.Binding == target.Binding && entry.Subject.LinkPolicy == PermissionLinkPolicy.NoFollow &&
         entry.Draft.Scope == scope && target.Components is [var component] &&
-        (windowsFileTree ? component.Change is AddWindowsAce { Entry.Flags: 0 } &&
+        (windowsAccessTree ? component.Change is AddWindowsAce { Entry.Flags: 0 } &&
             component.Before.Sections == WindowsDiscretionary && component.Expected.Sections == WindowsDiscretionary
         : source is not null && IsWindowsTreeSource(source) ? component.Change is ResetWindowsDacl &&
             entry.Binding.FileSystem == "NTFS" && (entry.Binding.Identity.Kind == PermissionObjectKind.Directory ||

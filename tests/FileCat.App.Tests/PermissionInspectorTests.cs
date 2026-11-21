@@ -1124,21 +1124,40 @@ public sealed class PermissionInspectorTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
-    [AvaloniaFact]
-    public async Task Windows_file_tree_editor_requires_path_review_and_limits_dispatch_to_captured_files()
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Windows_access_tree_editor_requires_path_review_and_limits_dispatch_to_captured_targets(bool folders)
     {
         if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_WINDOWS_SCOPE") != "1" ||
             ReviewedPermissionOperation.ProcessRefusal() is not null)
             Assert.Skip("Requires the ordinary Windows x64 NTFS scope fixture.");
 
+        string kind = folders ? "folder" : "file";
+        string capturedName = folders ? "capture" : "capture.txt";
+        string lateName = folders ? "late" : "late.txt";
+        void CreateTarget(string path)
+        {
+            if (folders) Directory.CreateDirectory(path);
+            else File.WriteAllText(path, "ACL witness");
+        }
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
         {
             var child = Directory.CreateDirectory(Path.Combine(folder, "selected"));
-            File.WriteAllText(Path.Combine(child.FullName, "capture.txt"), "captured");
-        }, permissionService: new WindowsPermissionService(qualifyFileTrees: true));
+            if (folders)
+            {
+                using var actor = WindowsIdentity.GetCurrent();
+                var acl = new DirectorySecurity();
+                acl.SetAccessRuleProtection(true, false);
+                acl.AddAccessRule(new FileSystemAccessRule(actor.User!, FileSystemRights.FullControl,
+                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+                child.SetAccessControl(acl);
+            }
+            CreateTarget(Path.Combine(child.FullName, capturedName));
+        }, permissionService: new WindowsPermissionService(qualifyFileTrees: !folders, qualifyFolderTrees: folders));
         string selected = Path.Combine(root, "files", "selected");
-        string captured = Path.Combine(selected, "capture.txt");
-        string late = Path.Combine(selected, "late.txt");
+        string captured = Path.Combine(selected, capturedName);
+        string late = Path.Combine(selected, lateName);
         byte[] folderAcl = new DirectoryInfo(selected).GetAccessControl(AccessControlSections.Access).GetSecurityDescriptorBinaryForm();
         try
         {
@@ -1146,20 +1165,20 @@ public sealed class PermissionInspectorTests
             var tab = vm.ActiveTab!;
             await Until(() => tab.Listing.State == ListingState.Complete && tab.Listing.FocusName("selected"), ct);
             vm.Execute(CommandIds.PermissionsOwnership);
-            await Until(() => FindButton(window, "Add access rule to descendant files…") is not null, ct);
-            Click(FindButton(window, "Add access rule to descendant files…")!);
+            await Until(() => FindButton(window, $"Add access rule to descendant {kind}s…") is not null, ct);
+            Click(FindButton(window, $"Add access rule to descendant {kind}s…")!);
             await Until(() => window.GetVisualDescendants().OfType<WindowsAccessEditor>().Any(), ct);
             var editor = window.GetVisualDescendants().OfType<WindowsAccessEditor>().Single();
-            Assert.False(FindButton(window, "Capture file review")!.IsEnabled);
+            Assert.False(FindButton(window, $"Capture {kind} review")!.IsEnabled);
             editor.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "New Windows entry SID").Text = "S-1-5-32-546";
             editor.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "Windows access mask").Text = "00000080";
-            await Until(() => FindButton(window, "Capture file review")?.IsEnabled == true, ct);
-            Click(FindButton(window, "Capture file review")!);
-            await Until(() => FindButton(window, "Apply to captured files")?.IsEnabled == true, ct);
+            await Until(() => FindButton(window, $"Capture {kind} review")?.IsEnabled == true, ct);
+            Click(FindButton(window, $"Capture {kind} review")!);
+            await Until(() => FindButton(window, $"Apply to captured {kind}s")?.IsEnabled == true, ct);
             Assert.Empty(services.Jobs.Jobs);
             Assert.True(TextPresent(window, "Later arrivals are outside this review."));
-            File.WriteAllText(late, "later arrival");
-            Click(FindButton(window, "Apply to captured files")!);
+            CreateTarget(late);
+            Click(FindButton(window, $"Apply to captured {kind}s")!);
             await Until(() => services.Jobs.Jobs.SingleOrDefault()?.PermissionResults.Count == 1, ct);
             var job = Assert.Single(services.Jobs.Jobs);
             Assert.Equal(PermissionScope.ReviewedTree, job.PermissionReviewScope);
@@ -1171,7 +1190,8 @@ public sealed class PermissionInspectorTests
         }
         finally { AccessibilityTests.Close(services, window, root); }
 
-        static bool HasCapturedRule(string path) => new FileInfo(path).GetAccessControl(AccessControlSections.Access)
+        bool HasCapturedRule(string path) => (folders ? (FileSystemSecurity)new DirectoryInfo(path).GetAccessControl(AccessControlSections.Access) :
+                new FileInfo(path).GetAccessControl(AccessControlSections.Access))
             .GetAccessRules(includeExplicit: true, includeInherited: false, typeof(SecurityIdentifier)).OfType<FileSystemAccessRule>()
             .Any(rule => rule.IdentityReference.Value == "S-1-5-32-546" && rule.FileSystemRights.HasFlag(FileSystemRights.ReadAttributes));
     }

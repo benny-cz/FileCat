@@ -6,12 +6,16 @@ namespace FileCat.Platform.Windows.Permissions;
 
 internal sealed unsafe partial class WindowsPermissionService
 {
-    private const int FileTreeMemberLimit = 4096;
+    internal sealed record AccessTreeRow(string Path, int RulePosition, bool AlreadyPresent);
+    internal sealed record AccessTreeReview(ReviewedPermissionOperation Operation, ImmutableArray<AccessTreeRow> Rows, int Directories);
 
-    internal sealed record FileTreeRow(string Path, int RulePosition, bool AlreadyPresent);
-    internal sealed record FileTreeReview(ReviewedPermissionOperation Operation, ImmutableArray<FileTreeRow> Rows, int Directories);
-
-    internal bool CanReviewFileTree(PermissionSnapshot snapshot) => _qualifyFileTrees &&
+    internal bool CanReviewAccessTree(PermissionSnapshot snapshot, PermissionObjectKind targetKind) =>
+        (targetKind switch
+        {
+            PermissionObjectKind.File => _qualifyFileTrees,
+            PermissionObjectKind.Directory => _qualifyFolderTrees,
+            _ => false
+        }) &&
         ReviewedPermissionOperation.ProcessRefusal() is null && PermissionSnapshots.IsLocal(snapshot.Subject) &&
         snapshot.Subject.LinkPolicy == PermissionLinkPolicy.NoFollow && snapshot is
         {
@@ -19,18 +23,20 @@ internal sealed unsafe partial class WindowsPermissionService
             Binding: { FileSystem: "NTFS", ReadOnly: false, Identity.Kind: PermissionObjectKind.Directory }
         };
 
-    internal FileTreeReview PrepareFileTree(PermissionSnapshot selected, ItemRef folder, AddWindowsAce change, CancellationToken ct)
+    internal AccessTreeReview PrepareAccessTree(PermissionSnapshot selected, ItemRef folder, AddWindowsAce change,
+        PermissionObjectKind targetKind, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        if (!CanReviewFileTree(selected) || folder.Kind != EntryKind.Directory || folder.FileSystemPath != selected.Subject.RawLocator ||
+        if (!CanReviewAccessTree(selected, targetKind) || folder.Kind != EntryKind.Directory || folder.FileSystemPath != selected.Subject.RawLocator ||
             change.Entry.Flags != 0 || change.Entry.Kind is not (WindowsAceKind.Allow or WindowsAceKind.Deny))
-            throw new NotSupportedException("Review a non-inheriting allow or deny rule for files in one bound fixed NTFS folder.");
+            throw new NotSupportedException("Review a non-inheriting allow or deny rule in one bound fixed NTFS folder.");
+        bool folders = targetKind == PermissionObjectKind.Directory;
         var boundary = CapturePropagationBoundary(selected, ct);
-        int files = boundary.Members.Count(member => member.Identity.Kind == PermissionObjectKind.File);
-        if (files == 0)
-            throw new NotSupportedException("This folder contains no files to review.");
-        if (files > ReviewedPermissionOperation.TargetLimit || boundary.Members.Length > FileTreeMemberLimit)
-            throw new NotSupportedException($"Choose a smaller folder with at most {ReviewedPermissionOperation.TargetLimit} files and {FileTreeMemberLimit} total entries.");
+        int count = boundary.Members.Skip(1).Count(member => member.Identity.Kind == targetKind);
+        if (count == 0)
+            throw new NotSupportedException(folders ? "This folder contains no descendant folders to review." : "This folder contains no files to review.");
+        if (count > ReviewedPermissionOperation.TargetLimit || boundary.Members.Length > ReviewedTreeMemberLimit)
+            throw new NotSupportedException($"Choose a smaller folder with at most {ReviewedPermissionOperation.TargetLimit} targets and {ReviewedTreeMemberLimit} total entries.");
 
         const PermissionScope scope = PermissionScope.ReviewedTree;
         var root = boundary.Root;
@@ -42,37 +48,46 @@ internal sealed unsafe partial class WindowsPermissionService
         {
             [string.Empty] = (0, 0, boundary.Ancestors)
         };
-        var prepared = new List<(ReviewedPermissionTarget Target, FileTreeRow Row, int Depth)>(files);
+        var prepared = new List<(ReviewedPermissionTarget Target, AccessTreeRow Row, int Depth)>(count);
         bool transferred = false;
         try
         {
             foreach (var member in boundary.Members.Skip(1))
             {
                 ct.ThrowIfCancellationRequested();
+                bool file = member.Identity.Kind == PermissionObjectKind.File;
+                if (file && folders) continue;
                 string path = Path.Combine(boundary.Locator, member.RelativePath);
                 string parent = Path.GetDirectoryName(member.RelativePath) ?? string.Empty;
                 var ancestry = directories[parent];
                 var chain = ancestry.Ancestry.Add(member.Identity);
                 int depth = ancestry.Depth + 1;
-                bool file = member.Identity.Kind == PermissionObjectKind.File;
                 var item = ItemRef.ForFileSystemPath(path, file ? EntryKind.File : EntryKind.Directory);
                 var subject = new PermissionSubject(item.Parent, path, path, root.Identity.Authority, member.Identity.Kind,
                     PermissionLinkPolicy.NoFollow, ExpectedIdentity: member.Identity);
                 if (!file)
                 {
                     directories.Add(member.RelativePath, (entries.Count, depth, chain));
-                    entries.Add(new(ancestry.Index, depth, subject, root with { Identity = member.Identity, LinkCount = null }, default,
-                        new(scope, [])) { VisitOnly = true });
-                    continue;
+                    if (!folders)
+                    {
+                        entries.Add(new(ancestry.Index, depth, subject, root with { Identity = member.Identity, LinkCount = null }, default,
+                            new(scope, [])) { VisitOnly = true });
+                        continue;
+                    }
                 }
 
                 using var inspection = Inspect(subject, DiscretionarySections, ct);
                 var snapshot = inspection.Snapshot;
-                if (snapshot.Binding?.Identity != member.Identity || snapshot.Binding.LinkCount != 1)
-                    throw new PermissionBindingConflictException(snapshot.BindingProblem ?? "A captured file changed identity or acquired another name.");
-                if (EditRefusal(snapshot) is { } refusal) throw new NotSupportedException($"{path}: {refusal}");
+                if (snapshot.Binding?.Identity != member.Identity || file && snapshot.Binding.LinkCount != 1)
+                    throw new PermissionBindingConflictException(snapshot.BindingProblem ?? "A captured object changed identity or a file acquired another name.");
+                if (folders)
+                {
+                    if (!IsReviewableNtfsFolder(snapshot) || !TryGetUnprotectedDacl(snapshot, out _, out _))
+                        throw new NotSupportedException($"{path}: Captured folder changes require a qualified unprotected DACL.");
+                }
+                else if (EditRefusal(snapshot) is { } refusal) throw new NotSupportedException($"{path}: {refusal}");
 
-                var (target, expected) = PrepareChangeTarget(inspection, item, change, null, ct, treeAncestry: chain);
+                var (target, expected) = PrepareChangeTarget(inspection, item, change, null, ct, treeAncestry: chain, folderOnly: folders);
                 var component = target.Components[0];
                 var acl = (WindowsDacl)expected.Access.Value!.Value.Acl;
                 int position = 0;

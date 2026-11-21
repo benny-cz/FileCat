@@ -45,7 +45,8 @@ internal sealed class WindowsAccessEditor : StackPanel
     private bool _setting;
     private uint _initialMask;
 
-    internal WindowsAccessEditor(WindowsDacl? baseline, string authority, Func<string, Task>? copy, bool directory = false)
+    internal WindowsAccessEditor(WindowsDacl? baseline, string authority, Func<string, Task>? copy, bool directory = false,
+        bool allowInheritance = true)
     {
         _baseline = baseline;
         _authority = authority;
@@ -70,7 +71,7 @@ internal sealed class WindowsAccessEditor : StackPanel
         Children.Add(_special);
         _special.Children.Add(_kind);
         _special.Children.Add(_sid);
-        if (directory)
+        if (directory && allowInheritance)
         {
             _special.Children.Add(_inheritFiles);
             _special.Children.Add(_inheritFolders);

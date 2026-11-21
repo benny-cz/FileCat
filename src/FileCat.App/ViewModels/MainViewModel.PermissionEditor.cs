@@ -64,9 +64,9 @@ public sealed partial class MainViewModel
         bool WindowsPropagationAvailable(int index) => inspected[index].Source is { Kind: EntryKind.Directory } source &&
             source.FileSystemPath == inspected[index].Snapshot.Subject.RawLocator &&
             Services.Permissions is WindowsPermissionService windows && windows.CanReviewNativePropagation(inspected[index].Snapshot);
-        bool WindowsFileTreeAvailable(int index) => inspected[index].Source is { Kind: EntryKind.Directory } source &&
+        bool WindowsAccessTreeAvailable(int index, PermissionObjectKind kind) => inspected[index].Source is { Kind: EntryKind.Directory } source &&
             source.FileSystemPath == inspected[index].Snapshot.Subject.RawLocator &&
-            Services.Permissions is WindowsPermissionService windows && windows.CanReviewFileTree(inspected[index].Snapshot);
+            Services.Permissions is WindowsPermissionService windows && windows.CanReviewAccessTree(inspected[index].Snapshot, kind);
         bool WindowsFolderOnlyAvailable(int index) => inspected[index].Source is { Kind: EntryKind.Directory } source &&
             source.FileSystemPath == inspected[index].Snapshot.Subject.RawLocator &&
             Services.Permissions is WindowsPermissionService windows && windows.CanReviewFolderOnly(inspected[index].Snapshot);
@@ -111,9 +111,12 @@ public sealed partial class MainViewModel
         if (Enumerable.Range(0, inspected.Length).Any(WindowsPropagationAvailable))
             buttons.Insert(0, new("Review Windows inheritance…", "windows-propagation")
                 { IsAvailable = () => WindowsPropagationAvailable(view.SelectedSubject) });
-        if (Enumerable.Range(0, inspected.Length).Any(WindowsFileTreeAvailable))
+        if (Enumerable.Range(0, inspected.Length).Any(index => WindowsAccessTreeAvailable(index, PermissionObjectKind.File)))
             buttons.Insert(0, new("Add access rule to descendant files…", "windows-file-tree")
-                { IsAvailable = () => WindowsFileTreeAvailable(view.SelectedSubject) });
+                { IsAvailable = () => WindowsAccessTreeAvailable(view.SelectedSubject, PermissionObjectKind.File) });
+        if (Enumerable.Range(0, inspected.Length).Any(index => WindowsAccessTreeAvailable(index, PermissionObjectKind.Directory)))
+            buttons.Insert(0, new("Add access rule to descendant folders…", "windows-folder-tree")
+                { IsAvailable = () => WindowsAccessTreeAvailable(view.SelectedSubject, PermissionObjectKind.Directory) });
         if (Enumerable.Range(0, inspected.Length).Any(WindowsFolderOnlyAvailable))
             buttons.Insert(0, new("Edit selected folder access rules…", "windows-folder-only")
                 { IsAvailable = () => WindowsFolderOnlyAvailable(view.SelectedSubject) });
@@ -144,9 +147,13 @@ public sealed partial class MainViewModel
             await ShowWindowsAclEstimateAsync(dialogs, inspected[view.SelectedSubject], windows);
         else if (answer is "windows-propagation" && WindowsPropagationAvailable(view.SelectedSubject) && !Services.Io.IsStopped)
             await ShowWindowsPropagationEditorAsync(dialogs, inspected[view.SelectedSubject], copy, origin);
-        else if (answer is "windows-file-tree" && WindowsFileTreeAvailable(view.SelectedSubject) && !Services.Io.IsStopped &&
-            Services.Permissions is WindowsPermissionService windowsFileTree)
-            await ShowWindowsFileTreeAsync(dialogs, inspected[view.SelectedSubject], windowsFileTree, origin);
+        else if (answer is "windows-file-tree" or "windows-folder-tree" && !Services.Io.IsStopped &&
+            Services.Permissions is WindowsPermissionService windowsTree)
+        {
+            var kind = answer is "windows-file-tree" ? PermissionObjectKind.File : PermissionObjectKind.Directory;
+            if (WindowsAccessTreeAvailable(view.SelectedSubject, kind))
+                await ShowWindowsAccessTreeAsync(dialogs, inspected[view.SelectedSubject], windowsTree, kind, origin);
+        }
         else if (answer is "windows-folder-only" && WindowsFolderOnlyAvailable(view.SelectedSubject) && !Services.Io.IsStopped)
             await ShowBoundPermissionEditorAsync(dialogs, inspected[view.SelectedSubject], copy, "acl", origin, windowsFolderOnly: true);
         else if (answer is "windows-reset-tree" && WindowsResetAvailable(view.SelectedSubject) && !Services.Io.IsStopped &&

@@ -27,12 +27,12 @@ internal sealed unsafe partial class WindowsPermissionService
     }
 
     private static (PermissionSnapshot Expected, uint Section, ImmutableArray<byte> Bytes) ProjectFolderOnly(
-        PermissionSnapshot original, PermissionDelta change)
+        PermissionSnapshot original, PermissionDelta change, bool ensureRule = false)
     {
         if (change is not (AddWindowsAce or ChangeWindowsAce) ||
             !TryGetUnprotectedDacl(original, out _, out var control))
             throw new NotSupportedException("This folder-only route requires an unprotected DACL with automatic inheritance.");
-        var (expected, section, bytes) = Project(original, change, directory: true);
+        var (expected, section, bytes) = Project(original, change, directory: true, ensureRule: ensureRule);
         if (expected.Access.Value?.Acl is not WindowsDacl { Revision: 2 } projected || !HasSimpleFolderDacl(projected) ||
             WindowsPermissionAclPatch.HasRepeatedExplicitRules(projected))
             throw new NotSupportedException("The folder-only setter requires a simple DACL whose explicit rules can keep their reviewed order.");

@@ -20,8 +20,8 @@ internal sealed unsafe partial class WindowsPermissionService
         if (!CanReviewAclReset(selected) || source.Kind != EntryKind.Directory || source.FileSystemPath != selected.Subject.RawLocator)
             throw new NotSupportedException("Select an original fixed NTFS folder with a readable access ACL as the reset source.");
         var boundary = CapturePropagationBoundary(selected, ct);
-        if (boundary.Members.Length > FileTreeMemberLimit)
-            throw new NotSupportedException($"Choose a smaller folder with at most {FileTreeMemberLimit} total entries.");
+        if (boundary.Members.Length > ReviewedTreeMemberLimit)
+            throw new NotSupportedException($"Choose a smaller folder with at most {ReviewedTreeMemberLimit} total entries.");
 
         const PermissionScope scope = PermissionScope.ResetTree;
         var before = RequireRevision(selected);
