@@ -328,7 +328,10 @@ internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEviden
     {
         ct.ThrowIfCancellationRequested(); WindowsArchiveNative.SourceDirectory(file);
         uint attributes = NtFile.GetBasic(file).FileAttributes;
-        if ((attributes & (0x1000u | 0x580000u | (uint)FileAttributes.Encrypted)) != 0 || WindowsStorageTransforms.SyncRootProblem(file, ct) is not null)
+        // Every evidence directory is reached by the held no-follow walk from its volume root (Walk), which refuses
+        // reparse-backed, cloud-attributed and encrypted components before descending.
+        if ((attributes & (0x1000u | 0x580000u | (uint)FileAttributes.Encrypted)) != 0 ||
+            WindowsStorageTransforms.SyncRootProblemAfterHeldWalk(file, WindowsStorageTransforms.ActualVolumeBinding(file, ct).Identity, ct) is not null)
             throw new IOException("Storage evidence cannot use an encrypted, cloud-managed or unavailable directory.");
     }
     private static void RequireNamespace(SafeFileHandle file, string owner, CancellationToken ct)
@@ -350,7 +353,8 @@ internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEviden
     {
         ct.ThrowIfCancellationRequested(); WindowsArchiveNative.Regular(file, long.MaxValue, artifact: true, mayRename: false);
         WindowsArchiveNative.RequirePrivateSecurity(file, owner);
-        if ((NtFile.GetBasic(file).FileAttributes & (0x1000u | 0x580000u | 0x40000u)) != 0 || WindowsStorageTransforms.SyncRootProblem(file, ct) is not null)
+        if ((NtFile.GetBasic(file).FileAttributes & (0x1000u | 0x580000u | 0x40000u)) != 0 ||
+            WindowsStorageTransforms.SyncRootProblemAfterHeldWalk(file, binding, ct) is not null)
             throw new IOException("Managed or unavailable storage evidence is not read or changed.");
         if (WindowsStorageTransforms.ActualVolumeBinding(file, false, ct) != binding) throw new IOException("Storage evidence crossed its held volume binding.");
         WindowsArchiveNative.RequireOnlyDataStream(file, RandomAccess.GetLength(file));

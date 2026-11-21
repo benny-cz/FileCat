@@ -181,7 +181,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         SyncRootProblem(WindowsStorageCloudQuery.Query(file, ct), volumeBinding: null, registeredRootVolumes: null, ct);
 
     /// <summary>Membership for an object reached by the held no-follow walk or held traversal (see the overload below).</summary>
-    private static StorageProblem? SyncRootProblemAfterHeldWalk(SafeFileHandle file, string volumeBinding, CancellationToken ct) =>
+    internal static StorageProblem? SyncRootProblemAfterHeldWalk(SafeFileHandle file, string volumeBinding, CancellationToken ct) =>
         SyncRootProblem(WindowsStorageCloudQuery.Query(file, ct), volumeBinding, WindowsStorageSyncRoots.RegisteredRootVolumes, ct);
 
     /// <summary>

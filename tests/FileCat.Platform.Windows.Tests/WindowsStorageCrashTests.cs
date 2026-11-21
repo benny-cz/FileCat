@@ -41,6 +41,13 @@ public sealed class WindowsStorageCrashTests
                 int call = Interlocked.Increment(ref starting);
                 if (phase == "before-first-call" && call == 1) Die(phase);
                 if (phase == "before-second-call" && call == 2) Die(phase);
+                if (phase == "hold-before-first-call" && call == 1)
+                {
+                    // Another process inspects this live job's evidence while the admitted call waits.
+                    File.WriteAllText(Path.Join(root, "holding"), phase);
+                    var limit = DateTime.UtcNow.AddMinutes(2);
+                    while (!File.Exists(Path.Join(root, "release")) && DateTime.UtcNow < limit) Thread.Sleep(50);
+                }
             },
             compressionSetReturnedForQualification: _ =>
             {
@@ -52,9 +59,76 @@ public sealed class WindowsStorageCrashTests
         using var review = manager.PrepareStorageReview(sources, StorageAction.Compress, Stop);
         using var finished = new ManualResetEventSlim();
         manager.JobFinished += _ => finished.Set();
-        manager.SubmitStorage(review, review.Approve(StorageAction.Compress, StorageScope.SelectedItems), _ => { });
-        finished.Wait(TimeSpan.FromSeconds(60), Stop);
-        Assert.Fail("The job finished without reaching the crash phase " + phase + ".");
+        var job = manager.SubmitStorage(review, review.Approve(StorageAction.Compress, StorageScope.SelectedItems), _ => { });
+        bool done = finished.Wait(TimeSpan.FromMinutes(3), Stop);
+        if (phase != "hold-before-first-call") Assert.Fail("The job finished without reaching the crash phase " + phase + ".");
+        Assert.True(done, "The held job did not finish after release.");
+        Assert.Equal((JobState.Completed, 2L), (job.State, job.StorageResult!.Counts.Changed));
+    }
+
+    [Fact]
+    public void A_job_running_in_another_process_owns_its_evidence_until_it_finishes()
+    {
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
+        Assert.False(WindowsTokenAuthority.IsHighIntegrity, "Storage jobs must run in the normal user process.");
+        string exe = Path.ChangeExtension(typeof(WindowsStorageCrashTests).Assembly.Location, ".exe");
+        Assert.SkipUnless(File.Exists(exe), "The fixture needs the test assembly's own executable.");
+        string root = Directory.CreateTempSubdirectory("filecat-storage-owner-").FullName;
+        Process? child = null;
+        try
+        {
+            string data = Directory.CreateDirectory(Path.Join(root, "data")).FullName;
+            Directory.CreateDirectory(Path.Join(root, "journals"));
+            File.WriteAllBytes(Path.Join(data, "first.bin"), new byte[65536]); File.WriteAllBytes(Path.Join(data, "second.bin"), new byte[65536]);
+            child = StartChild(exe, root, "hold-before-first-call");
+            var limit = DateTime.UtcNow.AddMinutes(2);
+            while (!File.Exists(Path.Join(root, "holding")) && !child.HasExited && DateTime.UtcNow < limit) Thread.Sleep(50);
+            Assert.True(File.Exists(Path.Join(root, "holding")), "The child did not reach its held call.");
+
+            var manager = Manager(root, new WindowsStorageTransforms());
+            var row = Assert.Single(manager.ReadStorageHistoryPage(ct: Stop).Rows);
+            var candidate = manager.StorageHistoryCandidate(row.FileName);
+            Assert.False(manager.IsInterrupted(candidate, Stop));
+            var busy = Assert.ThrowsAny<IOException>(() => manager.ReadStorageReview(row.FileName, Stop));
+            Assert.Contains(busy.HResult & 0xffff, new[] { 32, 33 });
+            var prefix = manager.ReadStorageHistory(row.FileName, ct: Stop);
+            Assert.False(prefix.Ended);
+            Assert.True(prefix.EffectUncertain);
+            Assert.Equal((1L, 0), (prefix.LastCall!.Call, prefix.LastCall.SourceIndex));
+            Assert.Null(prefix.LastCall.Result);
+            var census = manager.AccountStorageHistory(Stop);
+            TestContext.Current.TestOutputHelper?.WriteLine($"Census during the foreign job: complete {census.Complete}");
+            Assert.False((File.GetAttributes(Path.Join(data, "first.bin")) & FileAttributes.Compressed) != 0);
+
+            File.WriteAllText(Path.Join(root, "release"), "release");
+            Assert.True(child.WaitForExit(TimeSpan.FromMinutes(3)), "The child did not finish after release.");
+            Assert.Equal(0, child.ExitCode);
+            var finished = manager.ReadStorageReview(row.FileName, Stop);
+            Assert.False(finished.ReviewPending);
+            Assert.True(finished.Current.History.Ended);
+            Assert.False(manager.IsInterrupted(candidate, Stop));
+            Assert.True((File.GetAttributes(Path.Join(data, "first.bin")) & FileAttributes.Compressed) != 0);
+            Assert.True((File.GetAttributes(Path.Join(data, "second.bin")) & FileAttributes.Compressed) != 0);
+        }
+        finally
+        {
+            if (child is not null)
+            {
+                if (!child.HasExited) { File.WriteAllText(Path.Join(root, "release"), "release"); child.WaitForExit(TimeSpan.FromMinutes(1)); }
+                if (!child.HasExited) child.Kill();
+                child.Dispose();
+            }
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static Process StartChild(string exe, string root, string phase)
+    {
+        var start = new ProcessStartInfo(exe) { UseShellExecute = false, RedirectStandardOutput = false, RedirectStandardError = false };
+        foreach (string argument in new[] { "-method", typeof(WindowsStorageCrashTests).FullName + "." + nameof(Crash_child_terminates_at_the_requested_native_call_phase), "-noLogo" })
+            start.ArgumentList.Add(argument);
+        start.Environment[ChildRoot] = root; start.Environment[ChildPhase] = phase;
+        return Process.Start(start)!;
     }
 
     [Theory]
