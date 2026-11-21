@@ -601,7 +601,8 @@ public sealed class FileDetailsWindowTests
                 await window.Reading!;
                 await window.SwitchDetailsTierForTestAsync();
                 Assert.Contains("Full record · metadata only", window.Text);
-                Assert.Contains("Not acquired: supplementary-data values and previews", window.Text);
+                Assert.Contains("Not acquired:", window.Text); // Linux names the general supplementary data it omits
+                Assert.Contains("supplementary-data values and previews", window.Text);
                 Assert.DoesNotContain(Sentinel, window.Text);
                 await window.RefreshDetailsForTestAsync(); // full again
                 await window.SwitchDetailsTierForTestAsync(); // cached summary
