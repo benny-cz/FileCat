@@ -10,4 +10,28 @@ public static class HiddenSearch
         : "Examines bounded names and lengths visible to this user, without reading values. Incomplete inventories are reported as unexamined. macOS uses the ordinary API view; compression backing is not inventoried.";
     public static bool Includes(HiddenKind kind) => OperatingSystem.IsWindows() ? kind == HiddenKind.Stream
         : OperatingSystem.IsMacOS() ? kind is HiddenKind.Attribute or HiddenKind.ResourceFork : kind == HiddenKind.Attribute;
+
+    public static bool IsPositiveInOrdinaryView(HiddenItem item) => Includes(item.Kind) &&
+        (item.Role == HiddenMetadataRole.Ordinary ||
+         // The ordinary Darwin API view hides compression backing. A visible fork is
+         // searchable even though its deletion role stays unqualified.
+         OperatingSystem.IsMacOS() && item.Kind == HiddenKind.ResourceFork && item.Role == HiddenMetadataRole.Unqualified) &&
+        !DownloadMarks.IsDownloadMark(item, OperatingSystem.IsWindows(), OperatingSystem.IsMacOS());
+
+    public static bool HasCompleteScope(HiddenInventory inventory)
+    {
+        bool stream = false, attribute = false, fork = false;
+        foreach (var category in inventory.Categories)
+        {
+            if (!Includes(category.Kind)) continue;
+            if (category.State != HiddenInventoryState.Complete) return false;
+            switch (category.Kind)
+            {
+                case HiddenKind.Stream: stream = true; break;
+                case HiddenKind.Attribute: attribute = true; break;
+                case HiddenKind.ResourceFork: fork = true; break;
+            }
+        }
+        return OperatingSystem.IsWindows() ? stream : OperatingSystem.IsMacOS() ? attribute && fork : attribute;
+    }
 }

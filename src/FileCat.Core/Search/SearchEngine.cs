@@ -626,10 +626,8 @@ public sealed class SearchSession
         {
             var inventory = Records.FileObservationRequests.RunOwned(_observations ??= new DeviceIoScheduler(), PathUtil.GetDeviceKey(path), IoPriority.Background,
                 token => hidden.ReadInventory(path, new(ShowCompressionBacking: false), token), ct).GetAwaiter().GetResult();
-            if (inventory.Items.Any(i => HiddenData.HiddenSearch.Includes(i.Kind) && i.Role is HiddenData.HiddenMetadataRole.Ordinary &&
-                !HiddenData.DownloadMarks.IsDownloadMark(i, OperatingSystem.IsWindows(), OperatingSystem.IsMacOS()))) return true;
-            var scope = inventory.Categories.Where(c => HiddenData.HiddenSearch.Includes(c.Kind)).ToArray();
-            if (scope.Length > 0 && scope.All(c => c.State == HiddenData.HiddenInventoryState.Complete)) return false;
+            if (inventory.Items.Any(HiddenData.HiddenSearch.IsPositiveInOrdinaryView)) return true;
+            if (HiddenData.HiddenSearch.HasCompleteScope(inventory)) return false;
             reason = inventory.Description;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)

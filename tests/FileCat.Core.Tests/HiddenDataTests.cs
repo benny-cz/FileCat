@@ -379,6 +379,10 @@ public sealed partial class HiddenDataTests
         Assert.Equal("1+", inventory.CountText);
         Assert.False(inventory.BoundToObject);
         Assert.False(inventory.ValueBearingQueryIssued);
+        var results = new FileCat.Core.Search.ResultSet("fork", "fork", "test");
+        new FileCat.Core.Search.SearchSession(new FileCat.Core.Search.SearchQuery { Roots = [root.Path], CarriesHiddenData = new UnixHiddenData() }, results)
+            .Run(TestContext.Current.CancellationToken);
+        Assert.Contains(results.Snapshot(), result => result.Item.Name == "resource-only.bin");
     }
 
     [Fact]
