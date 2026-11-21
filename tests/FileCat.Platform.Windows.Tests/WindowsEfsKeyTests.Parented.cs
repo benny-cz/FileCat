@@ -10,6 +10,19 @@ public sealed unsafe partial class WindowsEfsKeyTests
 {
     private const uint AcquireCompareWithWindow = 0x4 | 0x8 | 0x80; // COMPARE, NO_HEALING, WINDOW_HANDLE
 
+    [Fact]
+    public void Interactive_Cng_backup_keeps_parented_access_after_the_reviewed_key_is_matched()
+    {
+        var pending = new StorageEfsKeyEvidence("S-1-5-21-1-2-3-1000", new string('A', 40), true, true,
+            StorageEfsKeyState.InteractionRequired, StorageEfsKeyProvider.Cng, DateTime.UtcNow, null, null);
+        Assert.True(WindowsEfsKeys.NeedsParentedCngBackupAccess(pending));
+        Assert.True(WindowsEfsKeys.NeedsParentedCngBackupAccess(pending with { State = StorageEfsKeyState.MatchedAvailable }));
+        Assert.False(WindowsEfsKeys.NeedsParentedCngBackupAccess(pending with { Provider = StorageEfsKeyProvider.Capi }));
+        Assert.False(WindowsEfsKeys.NeedsParentedCngBackupAccess(pending with { CertificatePresent = false }));
+        Assert.False(WindowsEfsKeys.NeedsParentedCngBackupAccess(pending with { ProviderAssociationPresent = false }));
+        Assert.False(WindowsEfsKeys.NeedsParentedCngBackupAccess(pending with { State = StorageEfsKeyState.Unknown }));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

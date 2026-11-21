@@ -32,7 +32,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         var association = setup.Association ?? throw Refuse("efs-setup-association", "Windows did not establish the actual setup key association.");
         string? previous = null;
         string? selectedCertificate = null;
-        var accessedCapiKeys = new HashSet<string>(StringComparer.Ordinal);
+        var accessedProviderKeys = new HashSet<string>(StringComparer.Ordinal);
         while (true)
         {
             ct.ThrowIfCancellationRequested();
@@ -68,7 +68,9 @@ internal sealed unsafe partial class WindowsStorageTransforms
                     association = association with { CurrentUserKeys = association.CurrentUserKeys.Select(key =>
                         key.InvokerSid == invokerSid && key.CertificateSha1 == selectedCertificate ? compared : key).ToImmutableArray() };
                     setup = setup with { Association = association };
-                    if (provider == StorageEfsKeyProvider.Capi) accessedCapiKeys.Add(compared.CertificateSha1);
+                    // A successful parented comparison does not make a later silent acquisition
+                    // sufficient for a provider that needed interaction in this review.
+                    accessedProviderKeys.Add(compared.CertificateSha1);
                     previous = null;
                 }
                 else previous = compared.Problem?.Message ?? "Windows could not verify access to this EFS key.";
@@ -86,7 +88,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
 
             var backup = job.RunEfsRecoveryInteraction(() => _efsKeys.BackUpAssociatedCertificate(association,
                 selected.CertificateSha1, selected.OwnerWindow, explicitlyRequested: true, ct, invokeWizard,
-                accessedCapiKeys.Contains(selected.CertificateSha1) ? invokeProviderOwner : null));
+                accessedProviderKeys.Contains(selected.CertificateSha1) ? invokeProviderOwner : null));
             ct.ThrowIfCancellationRequested();
             if (backup.Completion is { } completed) return StorageEfsRecoveryApproval.RecordWindowsExport(consent, setup, completed);
             previous = backup.Problem?.Message ?? "Windows canceled the backup. You can retry or declare an existing recovery arrangement.";
