@@ -7,14 +7,14 @@ public static class FileObservationRequests
 {
     [ThreadStatic] private static string? _admittedDevice;
     public static bool HasAdmission => _admittedDevice is not null;
-    public static bool IsAdmittedFor(string device) => string.Equals(_admittedDevice, device, StringComparison.Ordinal);
+    public static bool IsAdmittedFor(string device) => string.Equals(_admittedDevice, device, StringComparison.OrdinalIgnoreCase);
 
     public static async Task<T> RunOwned<T>(DeviceIoScheduler io, string device, IoPriority priority,
         Func<CancellationToken, T> read, CancellationToken ct = default)
     {
         if (DeviceIoScheduler.IsDeviceWorker)
         {
-            if (_admittedDevice != device) throw new NotSupportedException("This producer has no observation admission for the original device.");
+            if (!IsAdmittedFor(device)) throw new NotSupportedException("This producer has no observation admission for the original device.");
             ct.ThrowIfCancellationRequested();
             // Already admitted synchronous producer; never queue or wait on its own device.
             var current = read(ct);

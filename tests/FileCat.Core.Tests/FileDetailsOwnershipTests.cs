@@ -115,6 +115,53 @@ public sealed class FileDetailsOwnershipTests
     }
 
     [Fact]
+    public async Task Device_case_variants_share_the_same_four_observation_permits()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        string device = "Volume-" + Guid.NewGuid().ToString("N");
+        using var first = await DetailsAdmission.AcquireAsync(device, ct);
+        using var second = await DetailsAdmission.AcquireAsync(device, ct);
+        using var third = await DetailsAdmission.AcquireAsync(device, ct);
+        using var fourth = await DetailsAdmission.AcquireAsync(device, ct);
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var variant = DetailsAdmission.AcquireAsync(device.ToLowerInvariant(), cancel.Token);
+        try
+        {
+            Assert.False(variant.IsCompleted);
+            first.Dispose();
+            using var fifth = await variant.WaitAsync(TimeSpan.FromSeconds(10), ct);
+        }
+        finally
+        {
+            cancel.Cancel();
+            if (variant.IsCompletedSuccessfully) (await variant).Dispose();
+        }
+    }
+
+    [Fact]
+    public async Task Nested_observation_accepts_the_admitted_devices_case_variant()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        string device = "Volume-" + Guid.NewGuid().ToString("N");
+        using var io = new DeviceIoScheduler(threadsPerDevice: 1, maxThreadsPerDevice: 1);
+        bool nested = await FileObservationRequests.RunOwned(io, device, IoPriority.Interactive, token =>
+        {
+            Assert.True(FileObservationRequests.IsAdmittedFor(device.ToLowerInvariant()));
+            return ReadNestedCaseVariant(io, device, token);
+        }, ct).WaitAsync(TimeSpan.FromSeconds(10), ct);
+        Assert.True(nested);
+    }
+
+    private static bool ReadNestedCaseVariant(DeviceIoScheduler io, string device, CancellationToken ct)
+    {
+        // An admitted worker must run the nested read inline, without queueing behind itself.
+        var nested = FileObservationRequests.RunOwned(io, device.ToLowerInvariant(), IoPriority.Interactive,
+            _ => FileObservationRequests.IsAdmittedFor(device), ct);
+        Assert.True(nested.IsCompleted);
+        return nested.GetAwaiter().GetResult();
+    }
+
+    [Fact]
     public async Task A_worker_start_failure_releases_admission_and_the_failed_read_never_reaches_a_later_worker()
     {
         var ct = TestContext.Current.CancellationToken;

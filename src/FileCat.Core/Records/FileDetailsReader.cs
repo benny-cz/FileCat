@@ -115,7 +115,8 @@ public sealed class FileDetailsReader(IFileRecords records, DeviceIoScheduler io
 internal static class DetailsAdmission
 {
     private static readonly object Gate = new();
-    private static readonly Dictionary<string, int> Devices = new(StringComparer.Ordinal);
+    // Match DeviceIoScheduler's device queue identity, including Windows drive/UNC case variants.
+    private static readonly Dictionary<string, int> Devices = new(StringComparer.OrdinalIgnoreCase);
     private static int _total;
     private static TaskCompletionSource _changed = NewSignal();
     private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
