@@ -164,9 +164,13 @@ jobs:
         run: ./eng/validation/assert-windows-ci-tests.ps1 -EvidenceDirectory "$env:RUNNER_TEMP/filecat-windows-test-projects"
 
   windows-app:
-    name: Windows x64 (App tests)
+    name: Windows x64 (App tests, ${{ matrix.shard }})
     needs: producer-policy
     runs-on: windows-2025-vs2026
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [focus, remainder]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -180,7 +184,7 @@ jobs:
         run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          name: build-provenance-${{ github.job }}-${{ matrix.shard }}-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/filecat-build-provenance/build.json
           if-no-files-found: error
       - run: dotnet build tests/FileCat.App.Tests -c Release -p:RestoreLockedMode=true
@@ -188,12 +192,14 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install --quiet pyftpdlib pyopenssl
-      - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.App.Tests -LogFileName app-results.trx -BlameHang
+      - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.App.Tests -LogFileName app-results.trx -Filter (./eng/validation/Get-AppCiShardFilter.ps1 -Shard '${{ matrix.shard }}') -BlameHang
+        shell: pwsh
+      - run: ./eng/validation/Assert-AppCiShardResult.ps1 -TrxPath tests/FileCat.App.Tests/TestResults/app-results.trx
         shell: pwsh
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: app-test-results-windows-x64
+          name: app-test-results-windows-x64-${{ matrix.shard }}
           path: |
             tests/FileCat.App.Tests/TestResults/*.trx
             tests/FileCat.App.Tests/TestResults/**/Sequence_*.xml
@@ -372,9 +378,13 @@ jobs:
           path: artifacts/screenshots/*.png
 
   windows-arm64-app:
-    name: Windows ARM64 (App tests)
+    name: Windows ARM64 (App tests, ${{ matrix.shard }})
     needs: producer-policy
     runs-on: windows-11-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [focus, remainder]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -388,16 +398,18 @@ jobs:
         run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          name: build-provenance-${{ github.job }}-${{ matrix.shard }}-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/filecat-build-provenance/build.json
           if-no-files-found: error
       - run: dotnet build tests/FileCat.App.Tests -c Release -p:RestoreLockedMode=true
-      - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.App.Tests -LogFileName app-results.trx -BlameHang
+      - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.App.Tests -LogFileName app-results.trx -Filter (./eng/validation/Get-AppCiShardFilter.ps1 -Shard '${{ matrix.shard }}') -BlameHang
+        shell: pwsh
+      - run: ./eng/validation/Assert-AppCiShardResult.ps1 -TrxPath tests/FileCat.App.Tests/TestResults/app-results.trx
         shell: pwsh
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: app-test-results-windows-arm64
+          name: app-test-results-windows-arm64-${{ matrix.shard }}
           path: |
             tests/FileCat.App.Tests/TestResults/*.trx
             tests/FileCat.App.Tests/TestResults/**/Sequence_*.xml
@@ -735,10 +747,14 @@ jobs:
             tests/FileCat.App.Tests/TestResults/**/*.dmp
 
   macos-app:
-    name: macos-26 (App tests)
+    name: macos-26 (App tests, ${{ matrix.shard }})
     needs: producer-policy
     runs-on: macos-26
-    # The App suite took 27–30 minutes in recent runs. Keep its per-test hang bounds.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [focus, remainder]
+    # Each shard retains the per-test hang bound.
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -752,15 +768,21 @@ jobs:
         run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          name: build-provenance-${{ github.job }}-${{ matrix.shard }}-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/filecat-build-provenance/build.json
           if-no-files-found: error
       - run: dotnet build tests/FileCat.App.Tests -c Release -p:RestoreLockedMode=true
-      - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
+      - shell: pwsh
+        run: |
+          $filter = ./eng/validation/Get-AppCiShardFilter.ps1 -Shard '${{ matrix.shard }}'
+          dotnet test tests/FileCat.App.Tests -c Release --no-build --filter $filter --logger 'trx;LogFileName=app-results.trx' --blame-hang-timeout 4m --blame-hang-dump-type mini
+          exit $LASTEXITCODE
+      - run: ./eng/validation/Assert-AppCiShardResult.ps1 -TrxPath tests/FileCat.App.Tests/TestResults/app-results.trx
+        shell: pwsh
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: app-test-results-macos-26
+          name: app-test-results-macos-26-${{ matrix.shard }}
           path: |
             tests/FileCat.App.Tests/TestResults/*.trx
             tests/FileCat.App.Tests/TestResults/**/Sequence_*.xml

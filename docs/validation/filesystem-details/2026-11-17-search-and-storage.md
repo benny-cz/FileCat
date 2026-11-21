@@ -10,6 +10,10 @@ Archive/provider-only scopes refuse native predicates before lookup. Mixed refin
 
 The focused Core selection passed **35 tests** on the host, Ubuntu and macOS. The final focused App selection passed **29 tests on each of Windows, Ubuntu and macOS**, zero failures/skips. The first Unix App runs found a fixture lacking product styles; the corrected styled fixture passed. Windows ran at medium integrity. The native Windows search fixture passed **one test**, qualifying actual sparse, offline and symbolic-link attribute set/clear predicates without content search. This is a focused result, not completion of every F-FIND or F6 gate.
 
+### Ordinary Darwin resource forks in Find (21 November 2026)
+
+The ordinary macOS inventory can return a resource fork with an Unqualified **deletion** role. Find now counts that visible fork as a positive in its explicitly ordinary API view; the deletion role and action guards do not change. A negative match requires complete attribute **and** resource-fork categories. A missing category stays unexamined, even when the returned category is complete. The focused Apple silicon, macOS 27.2.1/APFS [Core TRX](receipts/2026-11-21-mac-hidden-find.trx), SHA-256 `01481776EA3A622C966385404BB56C46CF97AA6F1271FCCE2FF1D8EFE8C1BCF2`, ran at `ca5169193` with test assembly SHA-256 `43C437AA797BAE40FB41D2C8EBCA1ED3A2B59053DBD972DD013D5DCE3295631A`: four passed, zero failed or skipped. It included a real standalone APFS resource fork and a missing-category fixture. No value query or compression-visible view was requested by the search fixture. This closes neither wider F-FIND nor F5 native coverage.
+
 ## Compression request and ownership foundation
 
 JobKind.StorageTransform is appended after Undo. AppServices composes IPlatform.StorageTransforms through JobManager and typed executor dispatch. The default adapter remains unsupported. C-only fakes require no EFS, ADS or key service.
