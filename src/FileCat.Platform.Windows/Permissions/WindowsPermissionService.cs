@@ -10,7 +10,7 @@ namespace FileCat.Platform.Windows.Permissions;
 internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbReads = false, bool qualifyRefsReads = false,
     bool qualifyAccessEstimates = false, bool qualifyNativePropagation = false, bool qualifyInheritanceChanges = false,
     bool qualifyFileTrees = false, bool qualifyFolderOnly = false, bool qualifyAclResets = false,
-    bool qualifyFolderTrees = false) : IPermissionService
+    bool qualifyFolderTrees = false, bool qualifyVolumeRootWrites = false) : IPermissionService
 {
     private const string Source = "Windows GetSecurityInfo";
     private const int ReviewedTreeMemberLimit = 4096;
@@ -20,6 +20,7 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
     private readonly bool _qualifyFileTrees = qualifyFileTrees;
     private readonly bool _qualifyFolderTrees = qualifyFolderTrees;
     private readonly bool _qualifyFolderOnly = qualifyFolderOnly;
+    private readonly bool _qualifyVolumeRootWrites = qualifyVolumeRootWrites;
     private readonly bool _qualifyAclResets = qualifyAclResets;
     private const uint ReadControl = 0x20000, OpenNoRecall = 0x400000;
     private const uint UnsafeAttributes = (uint)(FileAttributes.ReparsePoint | FileAttributes.Offline) | 0x00440000;

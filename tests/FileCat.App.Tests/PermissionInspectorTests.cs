@@ -1124,6 +1124,69 @@ public sealed class PermissionInspectorTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    [AvaloniaFact]
+    public async Task Windows_volume_root_editor_requires_explicit_approval_for_the_bound_drive()
+    {
+        string? drive = Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_ACL_WRITE_ROOT");
+        if (!OperatingSystem.IsWindows() || drive is null ||
+            Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_WINDOWS_SCOPE") != "1" ||
+            ReviewedPermissionOperation.ProcessRefusal() is not null)
+            Assert.Skip("Requires the ordinary Windows x64 volume-root fixture.");
+
+        var volume = new DriveInfo(drive);
+        Assert.Equal(drive, volume.RootDirectory.FullName);
+        Assert.Equal("FileCat ACL Root Probe", volume.VolumeLabel);
+        Assert.False(drive.StartsWith(Environment.GetEnvironmentVariable("SystemDrive")!, StringComparison.OrdinalIgnoreCase));
+        var directory = volume.RootDirectory;
+        byte[] before = directory.GetAccessControl(AccessControlSections.Access).GetSecurityDescriptorBinaryForm();
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(
+            permissionService: new WindowsPermissionService(qualifyVolumeRootWrites: true));
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var tab = vm.ActiveTab!;
+            var location = Location.FileSystem(drive);
+            tab.Navigate(location);
+            await Until(() => tab.Location == location && tab.Listing.State == ListingState.Complete, ct);
+            var flow = vm.InspectFolderPermissionsAsync(tab, location, tab.Listing.Generation);
+            await Until(() => FindButton(window, "Edit volume root access rules…") is not null, ct);
+            Assert.Null(FindButton(window, "Edit selected folder access rules…"));
+            Click(FindButton(window, "Edit volume root access rules…")!);
+            await Until(() => window.GetVisualDescendants().OfType<WindowsAccessEditor>().Any(), ct);
+            Assert.True(TextPresent(window, "Scope · Selected NTFS volume root"));
+            var editor = window.GetVisualDescendants().OfType<WindowsAccessEditor>().Single();
+            editor.GetVisualDescendants().OfType<CheckBox>().Single(box => Equals(box.Content, "Add an explicit entry")).IsChecked = true;
+            editor.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "New Windows entry SID").Text = "S-1-5-32-546";
+            editor.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "Windows access mask").Text = "00000080";
+            await Until(() => TextPresent(window, "Approve the reviewed volume root change before applying."), ct);
+            Assert.False(FindButton(window, "Apply")!.IsEnabled);
+            Assert.Empty(services.Jobs.Jobs);
+            window.GetVisualDescendants().OfType<CheckBox>().Single(box => Equals(box.Content, "Approve this volume root access change")).IsChecked = true;
+            await Until(() => FindButton(window, "Apply")?.IsEnabled == true, ct);
+            Click(FindButton(window, "Apply")!);
+            await Until(() => services.Jobs.Jobs.SingleOrDefault()?.PermissionResults.Count == 1, ct);
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(drive, Assert.Single(job.Request.Sources).FileSystemPath);
+            Assert.Equal(PermissionScope.Objects, job.PermissionReviewScope);
+            var result = Assert.Single(job.PermissionResults);
+            Assert.Equal(PermissionVerdict.Verified, result.Verdict);
+            Assert.Equal("Windows NtSetSecurityObject volume-root DACL", Assert.Single(result.Components).NativeCall);
+            Assert.Contains(directory.GetAccessControl(AccessControlSections.Access).GetAccessRules(true, false, typeof(SecurityIdentifier))
+                .OfType<FileSystemAccessRule>(), rule => rule.IdentityReference.Value == "S-1-5-32-546" &&
+                    rule.FileSystemRights.HasFlag(FileSystemRights.ReadAttributes));
+            await Until(() => FindButton(window, "Close")?.IsEnabled == true, ct);
+            Click(FindButton(window, "Close")!);
+            await flow.WaitAsync(ct);
+        }
+        finally
+        {
+            var restore = new DirectorySecurity();
+            restore.SetSecurityDescriptorBinaryForm(before, AccessControlSections.Access);
+            directory.SetAccessControl(restore);
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]

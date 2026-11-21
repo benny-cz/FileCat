@@ -114,6 +114,7 @@ internal sealed unsafe partial class WindowsPermissionService
         uint access = projection.Section == OwnerInformation ? WriteOwner : WriteDac;
         var component = new ReviewedPermissionComponent(change, before, expected,
             propagates ? "Windows SetSecurityInfo native propagation" : reset ? "Windows NtSetSecurityObject reset DACL" :
+            folderOnly && binding.Identity.Kind == PermissionObjectKind.VolumeRoot ? "Windows NtSetSecurityObject volume-root DACL" :
             folderOnly ? "Windows NtSetSecurityObject folder DACL" :
             projection.Section == OwnerInformation ? "Windows SetSecurityInfo owner" : "Windows SetSecurityInfo DACL");
         var mutation = BindDiscretionaryReview(inspection, before, token, ct, access, change, projection.Section, projection.Bytes,

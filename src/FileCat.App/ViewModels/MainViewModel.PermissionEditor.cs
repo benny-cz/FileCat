@@ -34,7 +34,8 @@ public sealed partial class MainViewModel
             _ => "Editing is unavailable for this object."
         } : "Editing is unavailable for this object.").ToArray();
         var view = new PermissionInspectorView(inspected.Select(item => (item.Name, item.Snapshot)).ToArray(), copy,
-            refusals.Select((refusal, index) => WindowsFolderOnlyAvailable(index) || WindowsResetAvailable(index) ? null : refusal).ToArray(),
+            refusals.Select((refusal, index) => WindowsFolderOnlyAvailable(index, volumeRoot: false) ||
+                WindowsFolderOnlyAvailable(index, volumeRoot: true) || WindowsResetAvailable(index) ? null : refusal).ToArray(),
             Services.PermissionPrincipalNames);
         var buttons = new List<DialogButton> { new("Close", "close", IsDefault: true, IsCancel: true) };
         bool AclAvailable(int index) => refusals[index] is null && (Services.Permissions is LinuxPermissionService linux && linux.CanEditAccessAcl(inspected[index].Snapshot) ||
@@ -67,9 +68,10 @@ public sealed partial class MainViewModel
         bool WindowsAccessTreeAvailable(int index, PermissionObjectKind kind) => inspected[index].Source is { Kind: EntryKind.Directory } source &&
             source.FileSystemPath == inspected[index].Snapshot.Subject.RawLocator &&
             Services.Permissions is WindowsPermissionService windows && windows.CanReviewAccessTree(inspected[index].Snapshot, kind);
-        bool WindowsFolderOnlyAvailable(int index) => inspected[index].Source is { Kind: EntryKind.Directory } source &&
+        bool WindowsFolderOnlyAvailable(int index, bool volumeRoot) => inspected[index].Source is { Kind: EntryKind.Directory } source &&
             source.FileSystemPath == inspected[index].Snapshot.Subject.RawLocator &&
-            Services.Permissions is WindowsPermissionService windows && windows.CanReviewFolderOnly(inspected[index].Snapshot);
+            Services.Permissions is WindowsPermissionService windows &&
+            (volumeRoot ? windows.CanReviewVolumeRoot(inspected[index].Snapshot) : windows.CanReviewFolderOnly(inspected[index].Snapshot));
         bool WindowsResetAvailable(int index) => inspected[index].Source is { Kind: EntryKind.Directory } source &&
             source.FileSystemPath == inspected[index].Snapshot.Subject.RawLocator &&
             Services.Permissions is WindowsPermissionService windows && windows.CanReviewAclReset(inspected[index].Snapshot);
@@ -117,9 +119,12 @@ public sealed partial class MainViewModel
         if (Enumerable.Range(0, inspected.Length).Any(index => WindowsAccessTreeAvailable(index, PermissionObjectKind.Directory)))
             buttons.Insert(0, new("Add access rule to descendant folders…", "windows-folder-tree")
                 { IsAvailable = () => WindowsAccessTreeAvailable(view.SelectedSubject, PermissionObjectKind.Directory) });
-        if (Enumerable.Range(0, inspected.Length).Any(WindowsFolderOnlyAvailable))
+        if (Enumerable.Range(0, inspected.Length).Any(index => WindowsFolderOnlyAvailable(index, volumeRoot: false)))
             buttons.Insert(0, new("Edit selected folder access rules…", "windows-folder-only")
-                { IsAvailable = () => WindowsFolderOnlyAvailable(view.SelectedSubject) });
+                { IsAvailable = () => WindowsFolderOnlyAvailable(view.SelectedSubject, volumeRoot: false) });
+        if (Enumerable.Range(0, inspected.Length).Any(index => WindowsFolderOnlyAvailable(index, volumeRoot: true)))
+            buttons.Insert(0, new("Edit volume root access rules…", "windows-volume-root")
+                { IsAvailable = () => WindowsFolderOnlyAvailable(view.SelectedSubject, volumeRoot: true) });
         if (Enumerable.Range(0, inspected.Length).Any(WindowsResetAvailable))
             buttons.Insert(0, new("Reset Windows descendant ACLs…", "windows-reset-tree")
                 { IsAvailable = () => WindowsResetAvailable(view.SelectedSubject) });
@@ -154,8 +159,11 @@ public sealed partial class MainViewModel
             if (WindowsAccessTreeAvailable(view.SelectedSubject, kind))
                 await ShowWindowsAccessTreeAsync(dialogs, inspected[view.SelectedSubject], windowsTree, kind, origin);
         }
-        else if (answer is "windows-folder-only" && WindowsFolderOnlyAvailable(view.SelectedSubject) && !Services.Io.IsStopped)
-            await ShowBoundPermissionEditorAsync(dialogs, inspected[view.SelectedSubject], copy, "acl", origin, windowsFolderOnly: true);
+        else if (answer is "windows-folder-only" or "windows-volume-root" && !Services.Io.IsStopped)
+        {
+            if (WindowsFolderOnlyAvailable(view.SelectedSubject, volumeRoot: answer is "windows-volume-root"))
+                await ShowBoundPermissionEditorAsync(dialogs, inspected[view.SelectedSubject], copy, "acl", origin, windowsFolderOnly: true);
+        }
         else if (answer is "windows-reset-tree" && WindowsResetAvailable(view.SelectedSubject) && !Services.Io.IsStopped &&
             Services.Permissions is WindowsPermissionService windowsReset)
             await ShowWindowsAclResetAsync(dialogs, inspected[view.SelectedSubject], windowsReset, origin);
@@ -346,6 +354,7 @@ public sealed partial class MainViewModel
         var snapshot = authorizedLinux?.Snapshot ?? item.Snapshot;
         var source = item.Source ?? throw new InvalidOperationException("The reviewed object lacks its original source.");
         bool windows = snapshot.Model == PermissionModel.WindowsDescriptor;
+        bool windowsVolumeRoot = windowsFolderOnly && snapshot.Binding?.Identity.Kind == PermissionObjectKind.VolumeRoot;
         bool authorizedWindows = windowsAuthorizationOwner != 0;
         bool darwin = snapshot.Model == PermissionModel.DarwinAcl;
         bool linux = Services.Permissions is LinuxPermissionService && sftpEdit is null;
@@ -528,6 +537,7 @@ public sealed partial class MainViewModel
         var accept = new CheckBox
         {
             Content = windowsPropagation is not null ? "Allow Windows to update inheriting descendants" :
+                windowsVolumeRoot ? "Approve this volume root access change" :
                 changeGroup || editDarwinAcl || sftpEdit is not null ? "Accept the reviewed set-ID effects" :
                 "Accept clearing the reviewed set-ID bits",
             IsVisible = false
@@ -541,6 +551,7 @@ public sealed partial class MainViewModel
         {
             Wrapped(Formatters.SafeName(snapshot.Subject.DisplayPath)),
             Wrapped(windowsPropagation is not null ? "Scope · Selected folder and Windows inheritance" :
+                windowsVolumeRoot ? "Scope · Selected NTFS volume root" :
                 windowsFolderOnly ? "Scope · Selected folder" :
                 defaults ? "Scope · Defaults for new children of the selected directory" : "Scope · Selected object"),
             new TextBlock { Text = "Owner choices come from FileCat's ordinary Windows token.", IsVisible = owner is not null },
@@ -555,7 +566,9 @@ public sealed partial class MainViewModel
         if (windowsFolderOnly)
         {
             layout.Children.Insert(2, Wrapped($"Volume · {Formatters.SafeName(snapshot.Binding!.MountRoot)}"));
-            layout.Children.Insert(3, Wrapped("The write targets the selected folder's DACL. Windows can inherit these rules when it creates new children."));
+            layout.Children.Insert(3, Wrapped(windowsVolumeRoot
+                ? "The write targets the volume root. It can change who can list the root and create entries, and which rules immediate new files and folders inherit."
+                : "The write targets the selected folder's DACL. Windows can inherit these rules when it creates new children."));
         }
         if (windowsPropagation is { } boundary)
         {
@@ -689,11 +702,12 @@ public sealed partial class MainViewModel
                 changeProtection && darwin ? DescribeProtectionDiff(snapshot, projected) : DescribePermissionDiff(snapshot, projected, defaults);
             preview.ItemsSource = rows;
             preview.IsVisible = rows.Length > 0;
-            accept.IsVisible = windowsPropagation is not null ? draft is not null :
+            accept.IsVisible = windowsPropagation is not null || windowsVolumeRoot ? draft is not null :
                 sftpPlan?.NeedsSetIdConsent ?? changePlan?.NeedsSetIdConsent ??
                 (projected?.Mode.Value is { } newMode && (originalMode & 0xc00 & ~newMode) != 0);
             if (accept.IsVisible && accept.IsChecked != true)
                 error ??= windowsPropagation is not null ? "Approve Windows inheritance before applying." :
+                    windowsVolumeRoot ? "Approve the reviewed volume root change before applying." :
                     changeGroup || editDarwinAcl || sftpEdit is not null ? "Accept the reviewed set-ID effects before applying." :
                     "Accept the reviewed set-ID clearance before applying.";
             problem.Text = error;
@@ -999,7 +1013,7 @@ public sealed partial class MainViewModel
                         PermissionModel.WindowsDescriptor when windowsPropagation is not null && Services.Permissions is WindowsPermissionService windowsService
                             => windowsService.PrepareNativePropagation(item.Inspection, source, draft, windowsPropagation, ct, windowsInheritance?.Parent),
                         PermissionModel.WindowsDescriptor when windowsFolderOnly && Services.Permissions is WindowsPermissionService folderService
-                            => folderService.PrepareFolderOnly(item.Inspection, source, draft, ct),
+                            => folderService.PrepareFolderOnly(item.Inspection, source, draft, ct, approveVolumeRoot: windowsVolumeRoot && acceptClear),
                         PermissionModel.WindowsDescriptor => WindowsPermissionService.Prepare(item.Inspection, source, draft, ct),
                         PermissionModel.DarwinAcl => DarwinPermissionService.Prepare(item.Inspection, source, draft, acceptClear, ct, darwinGroupAuthority),
                         _ => LinuxPermissionService.Prepare(item.Inspection, source, draft, acceptClear, ct, groupAuthority)

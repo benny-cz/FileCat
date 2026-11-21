@@ -90,7 +90,8 @@ public sealed class AppServices : IDisposable
                 qualifyFileTrees: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_ACL_FILE_TREE") == "1",
                 qualifyFolderOnly: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_ACL_FOLDER_ONLY") == "1",
                 qualifyAclResets: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_ACL_RESET") == "1",
-                qualifyFolderTrees: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_ACL_FOLDER_TREE") == "1")
+                qualifyFolderTrees: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_ACL_FOLDER_TREE") == "1",
+                qualifyVolumeRootWrites: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_ACL_VOLUME_ROOT") == "1")
             : OperatingSystem.IsLinux() ? new LinuxPermissionService(
                 qualifyMountProjections: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_LINUX_MOUNT_PERMISSIONS") == "1")
             : OperatingSystem.IsMacOS() ? new DarwinPermissionService() : new NoPermissionService());
