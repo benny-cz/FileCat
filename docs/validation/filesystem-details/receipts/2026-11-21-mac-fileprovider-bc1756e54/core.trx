@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="03b680a2-6b3d-4172-b52e-0d53e260f93e" name="@Mareks-MacBook-Pro 2026-11-21 07:15:50" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-21T07:15:50.5525540+01:00" queuing="2026-11-21T07:15:50.5525540+01:00" start="2026-11-21T07:15:47.0513230+01:00" finish="2026-11-21T07:15:50.5547730+01:00" />
+  <TestSettings name="default" id="620a11e6-42df-42a1-b694-7b22939a8e18">
+    <Deployment runDeploymentRoot="_Mareks-MacBook-Pro_2026-11-21_07_15_50" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="495e95e2-7784-4f03-b7fd-cf16693f29ab" testId="dff390a4-34ed-0740-e36c-413be9aa26b8" testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Live_Mac_File_Provider_metadata_keeps_prepared_files_dataless" computerName="Mareks-MacBook-Pro" duration="00:00:00.0630496" startTime="2026-11-21T07:15:50.4257370+01:00" endTime="2026-11-21T07:15:50.4930370+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="495e95e2-7784-4f03-b7fd-cf16693f29ab" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Live_Mac_File_Provider_metadata_keeps_prepared_files_dataless" storage="/private/tmp/filecat-main-bc1756e54-01a1e6d0/tests/filecat.core.tests/bin/release/net10.0/filecat.core.tests.dll" id="dff390a4-34ed-0740-e36c-413be9aa26b8">
+      <Execution id="495e95e2-7784-4f03-b7fd-cf16693f29ab" />
+      <TestMethod codeBase="/private/tmp/filecat-main-bc1756e54-01a1e6d0/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Live_Mac_File_Provider_metadata_keeps_prepared_files_dataless" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="dff390a4-34ed-0740-e36c-413be9aa26b8" executionId="495e95e2-7784-4f03-b7fd-cf16693f29ab" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="1" executed="1" passed="1" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.12)
+[xUnit.net 00:00:00.70]   Discovering: FileCat.Core.Tests
+[xUnit.net 00:00:02.93]   Discovered:  FileCat.Core.Tests
+[xUnit.net 00:00:03.08]   Starting:    FileCat.Core.Tests
+[xUnit.net 00:00:03.19]   Finished:    FileCat.Core.Tests (ID = '9e1c57c37fd6dc4c09a1af70b0edd67a2758ae571b1021cb9d56af16bad0f3da')
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>
