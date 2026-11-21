@@ -15,13 +15,26 @@ public sealed class FileDetailsReader(IFileRecords records, DeviceIoScheduler io
     private Request? _active, _pending;
     private bool _pumping, _closed;
 
-    private sealed class Request(FileDetailsTier tier, CancellationToken token) : IDisposable
+    private sealed class Request : IDisposable
     {
-        public FileDetailsTier Tier { get; } = tier;
-        public CancellationTokenSource Cancel { get; } = CancellationTokenSource.CreateLinkedTokenSource(token);
+        private readonly CancellationTokenRegistration _cancelResult;
+        public Request(FileDetailsTier tier, CancellationToken token)
+        {
+            Tier = tier;
+            Cancel = CancellationTokenSource.CreateLinkedTokenSource(token);
+            // The publication task retires immediately for caller cancellation. RunOwned still
+            // owns the in-flight native call and its permit until the delegate actually returns.
+            _cancelResult = Cancel.Token.Register(static state =>
+            {
+                var request = (Request)state!;
+                request.Result.TrySetCanceled(request.Cancel.Token);
+            }, this);
+        }
+        public FileDetailsTier Tier { get; }
+        public CancellationTokenSource Cancel { get; }
         public TaskCompletionSource<FileDetailsObservation> Result { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public void Retire() { Cancel.Cancel(); Result.TrySetCanceled(Cancel.Token); }
-        public void Dispose() => Cancel.Dispose();
+        public void Retire() => Cancel.Cancel();
+        public void Dispose() { _cancelResult.Dispose(); Cancel.Dispose(); }
     }
 
     public Task<FileDetailsObservation> ReadAsync(FileDetailsTier tier, CancellationToken ct)
