@@ -125,8 +125,9 @@ public sealed partial class WindowsFileRecordsTests
                 if (connected) CfDisconnectSyncRoot(connection);
                 if (registered) CfUnregisterSyncRoot(root);
                 NativeMemory.Free(table);
-                Directory.Delete(parent, recursive: true);
-                Directory.Delete(evidence, recursive: true);
+                // The job's journal can still be closing after JobFinished; retry briefly rather than fail on teardown.
+                FileCat.Tests.TestCleanup.DeleteTree(parent);
+                FileCat.Tests.TestCleanup.DeleteTree(evidence);
             }
         }
     }
