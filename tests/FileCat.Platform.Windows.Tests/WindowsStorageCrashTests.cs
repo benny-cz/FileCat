@@ -190,6 +190,14 @@ public sealed class WindowsStorageCrashTests
                     break;
             }
             Assert.Empty(manager.Jobs);
+            // The review's fresh read-only observation sees each object as the native calls left it, without changing it.
+            var current = manager.ObserveStorageObjects(history.Roots.Select(r => (r.Path, r.Observation.IsDirectory)).ToList(), Stop);
+            Assert.Equal(2, current.Count);
+            Assert.Equal((firstCompressed ? StorageObservationState.Enabled : StorageObservationState.Disabled,
+                secondCompressed ? StorageObservationState.Enabled : StorageObservationState.Disabled),
+                (current[0].Observation!.Compression, current[1].Observation!.Compression));
+            Assert.Equal(history.Roots[0].Observation.Identity, current[0].Observation!.Identity);
+            Assert.Empty(manager.Jobs);
             Assert.Equal((firstCompressed, secondCompressed), (Compressed(Path.Join(data, "first.bin")), Compressed(Path.Join(data, "second.bin"))));
             Assert.Equal(first, File.ReadAllBytes(Path.Join(data, "first.bin")));
             Assert.Equal(second, File.ReadAllBytes(Path.Join(data, "second.bin")));
