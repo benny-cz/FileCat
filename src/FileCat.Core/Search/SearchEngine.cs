@@ -512,10 +512,18 @@ public sealed class SearchSession
         CurrentFolder = archive.FullName;
         int listed = 0;
         var warnings = new HashSet<string>(StringComparer.Ordinal);
+        bool coverageUncertain = false;
         try
         {
             foreach (var member in archives.List(archive.FullName, issue =>
             {
+                // An archive-wide warning can describe damage after a usable prefix. Keep
+                // the prefix, but do not claim that every possible member was examined.
+                if (!coverageUncertain)
+                {
+                    coverageUncertain = true;
+                    Interlocked.Increment(ref _unexaminedScopes);
+                }
                 // Providers repeat archive-wide warnings in each member folder. Keep the search log useful and bounded.
                 if (warnings.Count < MaxLog && warnings.Add(issue))
                     AddLog(SearchLogKind.Warning, archive.FullName, issue, Location.FileSystem(archive.DirectoryName ?? root), archive.Name);
