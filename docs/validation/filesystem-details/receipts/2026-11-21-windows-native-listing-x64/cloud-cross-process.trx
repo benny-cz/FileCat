@@ -1,0 +1,57 @@
+<TestRun id="686bdf54-4e5e-43ca-8d18-5984cf82486c" name="Admin@DESKTOP-A60F1NE 2026-11-21T15:42:38.5091476+00:00" runUser="Admin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-21T15:42:38.5091476+00:00" queuing="2026-11-21T15:42:38.5091476+00:00" start="2026-11-21T15:42:38.5091476+00:00" finish="2026-11-21T16:42:55.0816513+01:00" />
+  <TestSettings name="default" id="6c4d5628-128d-4c3b-a1a4-ab366a4594ad" />
+  <Results>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Listing_a_sync_root_opens_none_of_its_placeholders_on_either_route" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a80b3dbb-2887-4f12-9591-a29384db953d" executionId="a80b3dbb-2887-4f12-9591-a29384db953d" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T15:42:38.5091476+00:00" endTime="2026-11-21T15:42:53.2131391+00:00">
+      <Output>
+        <TextMessages>
+          <Message>Child: process placeholder mode 1; native tags 0x00000000; attributes 0x00400020</Message>
+          <Message>Placeholder opens: listing 0; first control the provider observed: data access without a read</Message>
+        </TextMessages>
+        <StdOut>This Windows build reports only data-access opens to the provider. Listing caused none, but metadata-only opens are unobservable here.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Storage_changes_never_enter_a_registered_sync_root_or_ask_its_provider_for_data" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="02991946-f630-473c-a103-c077008a58cd" executionId="02991946-f630-473c-a103-c077008a58cd" computerName="DESKTOP-A60F1NE" duration="00:00:00.6234722" startTime="2026-11-21T15:42:53.2325380+00:00" endTime="2026-11-21T15:42:53.8571931+00:00">
+      <Output>
+        <TextMessages>
+          <Message>Parent job: CompletedWithIssues; changed 2, skipped 1; reasons reparse-entry×1</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Storage_changes_from_another_process_refuse_the_sync_root_and_its_placeholder" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="41d992fe-b059-44b8-973b-9ad044ed3b50" executionId="41d992fe-b059-44b8-973b-9ad044ed3b50" computerName="DESKTOP-A60F1NE" duration="00:00:01.2069125" startTime="2026-11-21T15:42:53.8579222+00:00" endTime="2026-11-21T15:42:55.0649337+00:00">
+      <Output>
+        <TextMessages>
+          <Message>Child: Compress refused the sync root as cloud-sync-root and the placeholder as cloud-entry</Message>
+          <Message>Child: RemoveCompression refused the sync root as cloud-sync-root and the placeholder as cloud-entry</Message>
+          <Message>Child: recursive job CompletedWithIssues; changed 2, skipped 1; reasons cursor-entry-changedx1</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Listing_a_sync_root_opens_none_of_its_placeholders_on_either_route" id="a80b3dbb-2887-4f12-9591-a29384db953d" storage="C:\fc-run\c14\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="a80b3dbb-2887-4f12-9591-a29384db953d" />
+      <TestMethod codeBase="C:\fc-run\c14\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Listing_a_sync_root_opens_none_of_its_placeholders_on_either_route" adapterTypeName="executor://686bdf54-4e5e-43ca-8d18-5984cf82486c/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Storage_changes_never_enter_a_registered_sync_root_or_ask_its_provider_for_data" id="02991946-f630-473c-a103-c077008a58cd" storage="C:\fc-run\c14\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="02991946-f630-473c-a103-c077008a58cd" />
+      <TestMethod codeBase="C:\fc-run\c14\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Storage_changes_never_enter_a_registered_sync_root_or_ask_its_provider_for_data" adapterTypeName="executor://686bdf54-4e5e-43ca-8d18-5984cf82486c/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Storage_changes_from_another_process_refuse_the_sync_root_and_its_placeholder" id="41d992fe-b059-44b8-973b-9ad044ed3b50" storage="C:\fc-run\c14\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="41d992fe-b059-44b8-973b-9ad044ed3b50" />
+      <TestMethod codeBase="C:\fc-run\c14\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Storage_changes_from_another_process_refuse_the_sync_root_and_its_placeholder" adapterTypeName="executor://686bdf54-4e5e-43ca-8d18-5984cf82486c/xunit.v3/3.2.2" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a80b3dbb-2887-4f12-9591-a29384db953d" executionId="a80b3dbb-2887-4f12-9591-a29384db953d" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="02991946-f630-473c-a103-c077008a58cd" executionId="02991946-f630-473c-a103-c077008a58cd" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="41d992fe-b059-44b8-973b-9ad044ed3b50" executionId="41d992fe-b059-44b8-973b-9ad044ed3b50" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="3" executed="2" passed="2" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="1" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+  </ResultSummary>
+</TestRun>

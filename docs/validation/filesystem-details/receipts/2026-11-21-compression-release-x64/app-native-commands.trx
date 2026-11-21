@@ -1,0 +1,117 @@
+<TestRun id="f2052676-75f7-4af5-9391-22389f3633e9" name="Admin@DESKTOP-A60F1NE 2026-11-21T15:33:09.2100026+00:00" runUser="Admin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-21T15:33:09.2100026+00:00" queuing="2026-11-21T15:33:09.2100026+00:00" start="2026-11-21T15:33:09.2100026+00:00" finish="2026-11-21T16:33:17.3758896+01:00" />
+  <TestSettings name="default" id="6c4d5628-128d-4c3b-a1a4-ab366a4594ad" />
+  <Results>
+    <UnitTestResult testName="FileCat.App.Tests.StorageCommandNativeTests.The_qualified_candidate_opens_Efs_protection_and_selected_file_backup_from_commands" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="272fcb73-f21b-4e85-b3d4-6f4cb2009bb9" executionId="272fcb73-f21b-4e85-b3d4-6f4cb2009bb9" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T15:33:09.2100026+00:00" endTime="2026-11-21T15:33:09.3352420+00:00">
+      <Output>
+        <StdOut>Explicit disposable Windows 11 client, medium integrity, NTFS command qualification.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.App.Tests.StorageCommandNativeTests.Recursive_storage_refresh_updates_parent_and_descendant_tabs_and_preserves_other_marks(action: Compress)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="df83f796-b6f4-48ef-bcd9-6f2d142ddb7f" executionId="df83f796-b6f4-48ef-bcd9-6f2d142ddb7f" computerName="DESKTOP-A60F1NE" duration="00:00:03.7502356" startTime="2026-11-21T15:33:09.3704501+00:00" endTime="2026-11-21T15:33:13.1247453+00:00" />
+    <UnitTestResult testName="FileCat.App.Tests.StorageCommandNativeTests.Recursive_storage_refresh_updates_parent_and_descendant_tabs_and_preserves_other_marks(action: DecryptEfs)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="9b0f39bd-a072-4f88-9412-1148b678f099" executionId="9b0f39bd-a072-4f88-9412-1148b678f099" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T15:33:13.1312439+00:00" endTime="2026-11-21T15:33:13.1318395+00:00">
+      <Output>
+        <StdOut>Explicit disposable Windows 11 client, medium integrity, NTFS command qualification.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.App.Tests.StorageCommandNativeTests.Real_storage_command_keeps_its_review_and_guards_completion_marks(action: Compress, change: \&quot;refresh\&quot;)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4035be49-2e99-4658-96f7-e39b37017eff" executionId="4035be49-2e99-4658-96f7-e39b37017eff" computerName="DESKTOP-A60F1NE" duration="00:00:00.8472861" startTime="2026-11-21T15:33:13.1355665+00:00" endTime="2026-11-21T15:33:13.9830589+00:00" />
+    <UnitTestResult testName="FileCat.App.Tests.StorageCommandNativeTests.Real_storage_command_keeps_its_review_and_guards_completion_marks(action: Compress, change: \&quot;marks\&quot;)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a1c5225d-7f5a-4bd5-9c70-9b352e10e09f" executionId="a1c5225d-7f5a-4bd5-9c70-9b352e10e09f" computerName="DESKTOP-A60F1NE" duration="00:00:00.8439697" startTime="2026-11-21T15:33:13.9860004+00:00" endTime="2026-11-21T15:33:14.8301657+00:00" />
+    <UnitTestResult testName="FileCat.App.Tests.StorageCommandNativeTests.Real_storage_command_keeps_its_review_and_guards_completion_marks(action: Compress, change: \&quot;navigation\&quot;)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="ff6e22bc-5332-4c88-9886-35f9a00d4565" executionId="ff6e22bc-5332-4c88-9886-35f9a00d4565" computerName="DESKTOP-A60F1NE" duration="00:00:01.0721584" startTime="2026-11-21T15:33:14.8334380+00:00" endTime="2026-11-21T15:33:15.9058423+00:00" />
+    <UnitTestResult testName="FileCat.App.Tests.StorageCommandNativeTests.Real_storage_command_keeps_its_review_and_guards_completion_marks(action: DecryptEfs, change: \&quot;refresh\&quot;)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="434efe21-9bfe-41d3-a73a-b64f196f2652" executionId="434efe21-9bfe-41d3-a73a-b64f196f2652" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T15:33:15.9095503+00:00" endTime="2026-11-21T15:33:15.9102038+00:00">
+      <Output>
+        <StdOut>Explicit disposable Windows 11 client, medium integrity, NTFS command qualification.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.App.Tests.StorageCommandNativeTests.Real_storage_command_keeps_its_review_and_guards_completion_marks(action: DecryptEfs, change: \&quot;marks\&quot;)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="70f9120b-7b4a-40a9-8d5c-9c9a4f87a297" executionId="70f9120b-7b4a-40a9-8d5c-9c9a4f87a297" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T15:33:15.9103206+00:00" endTime="2026-11-21T15:33:15.9105114+00:00">
+      <Output>
+        <StdOut>Explicit disposable Windows 11 client, medium integrity, NTFS command qualification.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.App.Tests.StorageCommandNativeTests.Real_storage_command_keeps_its_review_and_guards_completion_marks(action: DecryptEfs, change: \&quot;navigation\&quot;)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4ad19ed4-99f3-47d3-b535-72193febf1e3" executionId="4ad19ed4-99f3-47d3-b535-72193febf1e3" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T15:33:15.9106953+00:00" endTime="2026-11-21T15:33:15.9109812+00:00">
+      <Output>
+        <StdOut>Explicit disposable Windows 11 client, medium integrity, NTFS command qualification.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.App.Tests.StorageCommandNativeTests.Efs_review_transfers_the_displayed_consent_to_real_encryption_and_decryption_jobs" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="52c99ed6-740c-4758-b995-a2365843de8e" executionId="52c99ed6-740c-4758-b995-a2365843de8e" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T15:33:15.9126967+00:00" endTime="2026-11-21T15:33:15.9146975+00:00">
+      <Output>
+        <StdOut>Explicit disposable Windows 11 client, medium integrity, NTFS command qualification.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.App.Tests.StorageCommandNativeTests.A_scoped_storage_command_refreshes_only_the_existing_find_results_and_keeps_later_marks(action: Compress)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="34d8bbbb-3f43-4fc9-9cdf-53d1b966c028" executionId="34d8bbbb-3f43-4fc9-9cdf-53d1b966c028" computerName="DESKTOP-A60F1NE" duration="00:00:01.4404742" startTime="2026-11-21T15:33:15.9168952+00:00" endTime="2026-11-21T15:33:17.3576213+00:00" />
+    <UnitTestResult testName="FileCat.App.Tests.StorageCommandNativeTests.A_scoped_storage_command_refreshes_only_the_existing_find_results_and_keeps_later_marks(action: DecryptEfs)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="99145ead-d72a-4b15-ab81-1a49e19620f3" executionId="99145ead-d72a-4b15-ab81-1a49e19620f3" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-21T15:33:17.3612915+00:00" endTime="2026-11-21T15:33:17.3619420+00:00">
+      <Output>
+        <StdOut>Explicit disposable Windows 11 client, medium integrity, NTFS command qualification.</StdOut>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.App.Tests.StorageCommandNativeTests.The_qualified_candidate_opens_Efs_protection_and_selected_file_backup_from_commands" id="272fcb73-f21b-4e85-b3d4-6f4cb2009bb9" storage="C:\fc-run\c12\bin\FileCat.App.Tests.dll">
+      <Execution id="272fcb73-f21b-4e85-b3d4-6f4cb2009bb9" />
+      <TestMethod codeBase="C:\fc-run\c12\bin\FileCat.App.Tests.dll" className="FileCat.App.Tests.StorageCommandNativeTests" name="The_qualified_candidate_opens_Efs_protection_and_selected_file_backup_from_commands" adapterTypeName="executor://f2052676-75f7-4af5-9391-22389f3633e9/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.StorageCommandNativeTests.Recursive_storage_refresh_updates_parent_and_descendant_tabs_and_preserves_other_marks(action: Compress)" id="df83f796-b6f4-48ef-bcd9-6f2d142ddb7f" storage="C:\fc-run\c12\bin\FileCat.App.Tests.dll">
+      <Execution id="df83f796-b6f4-48ef-bcd9-6f2d142ddb7f" />
+      <TestMethod codeBase="C:\fc-run\c12\bin\FileCat.App.Tests.dll" className="FileCat.App.Tests.StorageCommandNativeTests" name="Recursive_storage_refresh_updates_parent_and_descendant_tabs_and_preserves_other_marks" adapterTypeName="executor://f2052676-75f7-4af5-9391-22389f3633e9/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.StorageCommandNativeTests.Recursive_storage_refresh_updates_parent_and_descendant_tabs_and_preserves_other_marks(action: DecryptEfs)" id="9b0f39bd-a072-4f88-9412-1148b678f099" storage="C:\fc-run\c12\bin\FileCat.App.Tests.dll">
+      <Execution id="9b0f39bd-a072-4f88-9412-1148b678f099" />
+      <TestMethod codeBase="C:\fc-run\c12\bin\FileCat.App.Tests.dll" className="FileCat.App.Tests.StorageCommandNativeTests" name="Recursive_storage_refresh_updates_parent_and_descendant_tabs_and_preserves_other_marks" adapterTypeName="executor://f2052676-75f7-4af5-9391-22389f3633e9/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.StorageCommandNativeTests.Real_storage_command_keeps_its_review_and_guards_completion_marks(action: Compress, change: \&quot;refresh\&quot;)" id="4035be49-2e99-4658-96f7-e39b37017eff" storage="C:\fc-run\c12\bin\FileCat.App.Tests.dll">
+      <Execution id="4035be49-2e99-4658-96f7-e39b37017eff" />
+      <TestMethod codeBase="C:\fc-run\c12\bin\FileCat.App.Tests.dll" className="FileCat.App.Tests.StorageCommandNativeTests" name="Real_storage_command_keeps_its_review_and_guards_completion_marks" adapterTypeName="executor://f2052676-75f7-4af5-9391-22389f3633e9/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.StorageCommandNativeTests.Real_storage_command_keeps_its_review_and_guards_completion_marks(action: Compress, change: \&quot;marks\&quot;)" id="a1c5225d-7f5a-4bd5-9c70-9b352e10e09f" storage="C:\fc-run\c12\bin\FileCat.App.Tests.dll">
+      <Execution id="a1c5225d-7f5a-4bd5-9c70-9b352e10e09f" />
+      <TestMethod codeBase="C:\fc-run\c12\bin\FileCat.App.Tests.dll" className="FileCat.App.Tests.StorageCommandNativeTests" name="Real_storage_command_keeps_its_review_and_guards_completion_marks" adapterTypeName="executor://f2052676-75f7-4af5-9391-22389f3633e9/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.StorageCommandNativeTests.Real_storage_command_keeps_its_review_and_guards_completion_marks(action: Compress, change: \&quot;navigation\&quot;)" id="ff6e22bc-5332-4c88-9886-35f9a00d4565" storage="C:\fc-run\c12\bin\FileCat.App.Tests.dll">
+      <Execution id="ff6e22bc-5332-4c88-9886-35f9a00d4565" />
+      <TestMethod codeBase="C:\fc-run\c12\bin\FileCat.App.Tests.dll" className="FileCat.App.Tests.StorageCommandNativeTests" name="Real_storage_command_keeps_its_review_and_guards_completion_marks" adapterTypeName="executor://f2052676-75f7-4af5-9391-22389f3633e9/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.StorageCommandNativeTests.Real_storage_command_keeps_its_review_and_guards_completion_marks(action: DecryptEfs, change: \&quot;refresh\&quot;)" id="434efe21-9bfe-41d3-a73a-b64f196f2652" storage="C:\fc-run\c12\bin\FileCat.App.Tests.dll">
+      <Execution id="434efe21-9bfe-41d3-a73a-b64f196f2652" />
+      <TestMethod codeBase="C:\fc-run\c12\bin\FileCat.App.Tests.dll" className="FileCat.App.Tests.StorageCommandNativeTests" name="Real_storage_command_keeps_its_review_and_guards_completion_marks" adapterTypeName="executor://f2052676-75f7-4af5-9391-22389f3633e9/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.StorageCommandNativeTests.Real_storage_command_keeps_its_review_and_guards_completion_marks(action: DecryptEfs, change: \&quot;marks\&quot;)" id="70f9120b-7b4a-40a9-8d5c-9c9a4f87a297" storage="C:\fc-run\c12\bin\FileCat.App.Tests.dll">
+      <Execution id="70f9120b-7b4a-40a9-8d5c-9c9a4f87a297" />
+      <TestMethod codeBase="C:\fc-run\c12\bin\FileCat.App.Tests.dll" className="FileCat.App.Tests.StorageCommandNativeTests" name="Real_storage_command_keeps_its_review_and_guards_completion_marks" adapterTypeName="executor://f2052676-75f7-4af5-9391-22389f3633e9/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.StorageCommandNativeTests.Real_storage_command_keeps_its_review_and_guards_completion_marks(action: DecryptEfs, change: \&quot;navigation\&quot;)" id="4ad19ed4-99f3-47d3-b535-72193febf1e3" storage="C:\fc-run\c12\bin\FileCat.App.Tests.dll">
+      <Execution id="4ad19ed4-99f3-47d3-b535-72193febf1e3" />
+      <TestMethod codeBase="C:\fc-run\c12\bin\FileCat.App.Tests.dll" className="FileCat.App.Tests.StorageCommandNativeTests" name="Real_storage_command_keeps_its_review_and_guards_completion_marks" adapterTypeName="executor://f2052676-75f7-4af5-9391-22389f3633e9/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.StorageCommandNativeTests.Efs_review_transfers_the_displayed_consent_to_real_encryption_and_decryption_jobs" id="52c99ed6-740c-4758-b995-a2365843de8e" storage="C:\fc-run\c12\bin\FileCat.App.Tests.dll">
+      <Execution id="52c99ed6-740c-4758-b995-a2365843de8e" />
+      <TestMethod codeBase="C:\fc-run\c12\bin\FileCat.App.Tests.dll" className="FileCat.App.Tests.StorageCommandNativeTests" name="Efs_review_transfers_the_displayed_consent_to_real_encryption_and_decryption_jobs" adapterTypeName="executor://f2052676-75f7-4af5-9391-22389f3633e9/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.StorageCommandNativeTests.A_scoped_storage_command_refreshes_only_the_existing_find_results_and_keeps_later_marks(action: Compress)" id="34d8bbbb-3f43-4fc9-9cdf-53d1b966c028" storage="C:\fc-run\c12\bin\FileCat.App.Tests.dll">
+      <Execution id="34d8bbbb-3f43-4fc9-9cdf-53d1b966c028" />
+      <TestMethod codeBase="C:\fc-run\c12\bin\FileCat.App.Tests.dll" className="FileCat.App.Tests.StorageCommandNativeTests" name="A_scoped_storage_command_refreshes_only_the_existing_find_results_and_keeps_later_marks" adapterTypeName="executor://f2052676-75f7-4af5-9391-22389f3633e9/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.StorageCommandNativeTests.A_scoped_storage_command_refreshes_only_the_existing_find_results_and_keeps_later_marks(action: DecryptEfs)" id="99145ead-d72a-4b15-ab81-1a49e19620f3" storage="C:\fc-run\c12\bin\FileCat.App.Tests.dll">
+      <Execution id="99145ead-d72a-4b15-ab81-1a49e19620f3" />
+      <TestMethod codeBase="C:\fc-run\c12\bin\FileCat.App.Tests.dll" className="FileCat.App.Tests.StorageCommandNativeTests" name="A_scoped_storage_command_refreshes_only_the_existing_find_results_and_keeps_later_marks" adapterTypeName="executor://f2052676-75f7-4af5-9391-22389f3633e9/xunit.v3/3.2.2" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="272fcb73-f21b-4e85-b3d4-6f4cb2009bb9" executionId="272fcb73-f21b-4e85-b3d4-6f4cb2009bb9" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="df83f796-b6f4-48ef-bcd9-6f2d142ddb7f" executionId="df83f796-b6f4-48ef-bcd9-6f2d142ddb7f" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="9b0f39bd-a072-4f88-9412-1148b678f099" executionId="9b0f39bd-a072-4f88-9412-1148b678f099" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4035be49-2e99-4658-96f7-e39b37017eff" executionId="4035be49-2e99-4658-96f7-e39b37017eff" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a1c5225d-7f5a-4bd5-9c70-9b352e10e09f" executionId="a1c5225d-7f5a-4bd5-9c70-9b352e10e09f" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="ff6e22bc-5332-4c88-9886-35f9a00d4565" executionId="ff6e22bc-5332-4c88-9886-35f9a00d4565" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="434efe21-9bfe-41d3-a73a-b64f196f2652" executionId="434efe21-9bfe-41d3-a73a-b64f196f2652" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="70f9120b-7b4a-40a9-8d5c-9c9a4f87a297" executionId="70f9120b-7b4a-40a9-8d5c-9c9a4f87a297" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4ad19ed4-99f3-47d3-b535-72193febf1e3" executionId="4ad19ed4-99f3-47d3-b535-72193febf1e3" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="52c99ed6-740c-4758-b995-a2365843de8e" executionId="52c99ed6-740c-4758-b995-a2365843de8e" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="34d8bbbb-3f43-4fc9-9cdf-53d1b966c028" executionId="34d8bbbb-3f43-4fc9-9cdf-53d1b966c028" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="99145ead-d72a-4b15-ab81-1a49e19620f3" executionId="99145ead-d72a-4b15-ab81-1a49e19620f3" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="12" executed="5" passed="5" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="7" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+  </ResultSummary>
+</TestRun>
