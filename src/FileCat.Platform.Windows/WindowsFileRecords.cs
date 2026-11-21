@@ -118,6 +118,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             if (remote is not null) _sections.Add(remote);
             if (_index is { } index) _sections.Add(IndexSection(index));
             if (_record is not null) _sections.Add(RecordSection(_record));
+            ct.ThrowIfCancellationRequested();
             return new InspectionReport($"File-system record · {(_remote ? "network file on " : "")}{fileSystem}", _sections, _warnings);
         }
 

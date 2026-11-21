@@ -115,10 +115,22 @@ public sealed unsafe partial class WindowsFileRecords
         return new string(span) + (length == MaxEfsText ? "…" : "");
     }
 
+    /// <summary>Keep a canceled, already-started metadata call alive until it returns, then omit the next call.</summary>
+    internal static void ForEachEfsQuery(CancellationToken ct, Action<bool> query)
+    {
+        foreach (bool users in (bool[])[true, false])
+        {
+            ct.ThrowIfCancellationRequested();
+            query(users);
+            ct.ThrowIfCancellationRequested();
+        }
+    }
+
     private sealed partial class Reader
     {
         private InspectionSection? EfsSection()
         {
+            ct.ThrowIfCancellationRequested();
             if ((_attributes & 0x4000) == 0) return null;
             const string Title = "Encryption (EFS)";
             var fields = new List<(string, string)>
@@ -131,7 +143,7 @@ public sealed unsafe partial class WindowsFileRecords
             if (_remote) return new InspectionSection(Title, fields) { Lines = Wrap("Who can decrypt it is not asked: on a network file that would ask the server's EFS service.") };
             var lines = new List<string>();
             var rows = new List<string[]>();
-            foreach (bool users in (bool[])[true, false])
+            ForEachEfsQuery(ct, users =>
             {
                 var problems = new List<string>();
                 string role = users ? "user" : "recovery agent";
@@ -144,7 +156,7 @@ public sealed unsafe partial class WindowsFileRecords
                 foreach (var e in entries)
                     rows.Add([role, e.Thumbprint.Length > 0 ? e.Thumbprint : "—", e.Display ?? "—", Who(e.Sid)]);
                 foreach (var problem in problems) lines.AddRange(Wrap((users ? "Its users: " : "Its recovery agents: ") + problem, "• "));
-            }
+            });
             lines.InsertRange(0, Wrap("Each certificate (named by its thumbprint) unlocks its own copy of the item's key: a user's lets that user open it, a recovery agent's lets whoever holds that agent's key recover it. Read through the EFS API; nothing is decrypted."));
             return new InspectionSection(Title, fields)
             {
