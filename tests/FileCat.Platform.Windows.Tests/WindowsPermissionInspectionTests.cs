@@ -233,6 +233,60 @@ public sealed class WindowsPermissionInspectionTests
     }
 
     [Fact]
+    public async Task Native_NTFS_owner_inspects_and_repairs_a_DACL_that_grants_the_owner_nothing()
+    {
+        RequireOrdinaryNtfs();
+        var directory = Directory.CreateTempSubdirectory("filecat-acl-lockout-");
+        string path = Path.Combine(directory.FullName, "locked.txt");
+        try
+        {
+            File.WriteAllText(path, "fixture");
+            using var account = WindowsIdentity.GetCurrent();
+            var system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+            var locked = new FileSecurity();
+            locked.SetAccessRuleProtection(true, false);
+            locked.AddAccessRule(new FileSystemAccessRule(system, FileSystemRights.FullControl, AccessControlType.Allow));
+            new FileInfo(path).SetAccessControl(locked);
+            Assert.Throws<UnauthorizedAccessException>(() => File.ReadAllText(path));
+
+            // The owner keeps READ_CONTROL and WRITE_DAC, and the parent's list right grants FILE_READ_ATTRIBUTES, but nothing
+            // grants SYNCHRONIZE. Binding, the descriptor read and the repair must not depend on it.
+            const string authorityId = "local";
+            var source = ItemRef.ForFileSystemPath(path, EntryKind.File);
+            var subject = new PermissionSubject(source.Parent, path, path, new(PermissionAuthorityKind.Local, authorityId, 0),
+                PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+            CancellationToken ct = TestContext.Current.CancellationToken;
+            using var inspection = new WindowsPermissionService().Inspect(subject, PermissionSections.Ordinary, ct);
+            Assert.Null(inspection.Snapshot.BindingProblem);
+            Assert.Equal(PermissionReadStatus.Present, inspection.Snapshot.Access.Status);
+            Assert.Equal(account.User!.Value, inspection.Snapshot.Owner.Value?.Id);
+            Assert.Null(WindowsPermissionService.EditRefusal(inspection.Snapshot));
+            var owner = new Principal(PrincipalKind.WindowsSid, account.User.Value, authorityId);
+            var grant = WindowsPermissionAclPatch.SimpleEntry(WindowsAceKind.Allow, owner, (uint)(FileSystemRights.Read | FileSystemRights.Synchronize));
+            var prepared = WindowsPermissionService.Prepare(inspection, source, new(PermissionScope.Objects, [new AddWindowsAce(grant)]), ct);
+            using var operation = prepared.Review;
+            var provider = new ProviderRegistry();
+            provider.Register(new LocalFileSystemProvider());
+            var jobs = new JobManager(new PortableFileOperations(), provider, directory.FullName, ArchiveJobBackends.Empty, new NoStorageTransforms(),
+                createPermissionJournal: (leaf, cancellation) => WindowsAnalysisPrivateDirectory.CreatePermissionJournal(directory.FullName, leaf, cancellation));
+            var finished = new TaskCompletionSource<Job>(TaskCreationOptions.RunContinuationsAsynchronously);
+            jobs.JobFinished += job => finished.TrySetResult(job);
+            var job = jobs.SubmitPermissions(operation);
+            Assert.Same(job, await finished.Task.WaitAsync(TimeSpan.FromSeconds(30), ct));
+            var result = Assert.Single(job.PermissionResults);
+            Assert.True(result.Verdict == PermissionVerdict.Verified, $"{result.Verdict}: {string.Join(", ", job.Issues.Select(issue => issue.Message))}");
+            Assert.Equal("fixture", File.ReadAllText(path));
+        }
+        finally
+        {
+            var open = new FileSecurity();
+            open.AddAccessRule(new FileSystemAccessRule(WindowsIdentity.GetCurrent().User!, FileSystemRights.FullControl, AccessControlType.Allow));
+            try { new FileInfo(path).SetAccessControl(open); } catch (Exception ex) when (ex is UnauthorizedAccessException or IOException) { }
+            directory.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public void An_audit_patch_refuses_a_system_ACL_whose_label_or_policy_entries_precede_audit_entries()
     {
         // Windows would move these entries behind the audit entries, so the written ACL could not be read back exactly.

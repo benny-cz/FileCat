@@ -191,12 +191,22 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
         ct.ThrowIfCancellationRequested();
         // FILE_DIRECTORY_FILE rejects NO_RECALL. Verify directory type from the opened object before using it as a parent.
         const uint OpenForBackupIntent = 0x4000;
-        int status = NtFile.TryOpen(parent, name, NtFile.Synchronize | NtFile.ReadAttributes | (security ? ReadControl : 0) | writeAccess | readAccess,
-            NtFile.ShareAll, NtFile.Open, OpenNoRecall | NtFile.OpenReparsePoint | (writeAccess != 0 && !allowDirectoryWrite ? NtFile.NonDirectoryFile : 0) |
-                (backupIntent ? OpenForBackupIntent : 0),
-            out var handle, caseSensitive: parent is not null);
+        uint access = NtFile.ReadAttributes | (security ? ReadControl : 0) | writeAccess | readAccess;
+        uint options = OpenNoRecall | NtFile.OpenReparsePoint | (writeAccess != 0 && !allowDirectoryWrite ? NtFile.NonDirectoryFile : 0);
+        int status = NtFile.TryOpen(parent, name, NtFile.Synchronize | access, NtFile.ShareAll, NtFile.Open,
+            options | (backupIntent ? OpenForBackupIntent : 0), out var handle, caseSensitive: parent is not null);
         if (status >= 0) return handle;
         handle.Dispose();
+        const int accessDenied = unchecked((int)0xC0000022);
+        if (status == accessDenied && !backupIntent && (readAccess & ~NtFile.ReadAttributes) == 0)
+        {
+            // NTFS grants FILE_READ_ATTRIBUTES through the parent's list-directory right and READ_CONTROL and WRITE_DAC to the
+            // owner even when the object's DACL grants this account nothing, but SYNCHRONIZE only through the DACL. Without it
+            // such an object can still be bound, inspected and repaired by its owner, or inspected with authorization.
+            status = NtFile.TryOpenWithoutSynchronize(parent, name, access, options, out handle, caseSensitive: parent is not null);
+            if (status >= 0) return handle;
+            handle.Dispose();
+        }
         int error = StatusToDosError(status);
         throw NativeFailure("Open the exact filesystem entry", error);
     }
