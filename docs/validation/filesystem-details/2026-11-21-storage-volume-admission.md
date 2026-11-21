@@ -104,7 +104,7 @@ Each file was compressed exactly as the native calls had left it, and its bytes 
 
 ### Protected tree, cloud breadth and reason matrix (T-CAP.C, N-ID.C)
 
-A fourth run used test DLL `22C364A0…` and platform DLL `3AC69810…` (source commit `c19680036`). It also set `FILECAT_TEST_CLOUD_FILES=1`. Results: [admission-matrix.trx](receipts/2026-11-21-storage-admission-x64/admission-matrix.trx), 21 total, 20 passed, 1 skip (hot-plug); [protected-and-cloud.trx](receipts/2026-11-21-storage-admission-x64/protected-and-cloud.trx), 3 of 3 passed.
+A fourth run used test DLL `22C364A0…` and platform DLL `3AC69810…` (source of commit `8304044a0`). It also set `FILECAT_TEST_CLOUD_FILES=1`. Results: [admission-matrix.trx](receipts/2026-11-21-storage-admission-x64/admission-matrix.trx), 21 total, 20 passed, 1 skip (hot-plug); [protected-and-cloud.trx](receipts/2026-11-21-storage-admission-x64/protected-and-cloud.trx), 3 of 3 passed.
 
 - **Protected tree:** a recursive Compress over a folder holding a fake active-Windows anchor (with `System32\inside.dll`) and folders named `Windows`, `Program Files` and `ProgramData` completed with issues. Seven objects changed. One was skipped (`windows-tree`, FileCatBoundary, not an error) and its subtree was not entered or changed. The name lookalikes were ordinary. With the anchor placed on the no-filter VHDX, a file inside it was refused there while the same `C:` file was admitted.
 - **Cloud Files:** a temporary sync root of the test's own provider (which serves no data) held a pinned 5,000-byte cloud-only placeholder, beside an ordinary sibling.
