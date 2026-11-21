@@ -113,6 +113,30 @@ A fourth run used test DLL `22C364A0…` and platform DLL `3AC69810…` (source 
   - The provider received no data request at any step, and the placeholder stayed pinned with zero bytes on disk. The existing placeholder-details fixture passed in the same run.
 - **Reason matrix:** a deterministic test drives every physical refusal branch and checks its kind and precedence. The branches are entry changed or deleting, volume root, Windows tree, System, reparse, the four cloud attributes (the queried EA bit is not one), link counts 0 and 2, sparse directory, read-only volume, unknown or oversized allocation unit (not applied to EFS), and missing compression or EFS volume support. The test also covers the unknown-format and compression-with-EFS state refusals.
 
+### Compression enable boundary (N-C2)
+
+The opt-in fixture `Reviewed_compression_at_the_enable_limit_compresses_a_dense_NTFS_stream` ran with test DLL `140D2101…` and platform DLL `36C5ED22…`; the source and fixture are in commit `1364188bf`.
+
+**Fixture volume:** an owned 76 GiB expandable VHDX holding a fixed 4 KiB NTFS volume labelled `FCATDENSE`. No Cloud Files filter instance was attached before or after the run.
+
+**File:** an uncompressed dense main stream of exactly 30,000,000,000 bytes, the largest admitted length, with a named stream.
+
+**Result:** the reviewed Compress job ran from 11:09:37 to 11:28:04 UTC and completed. The durable call was observed with main data not compressed before and LZNT1 after.
+
+**Preserved:**
+
+- the held identity `907A2D527A2D35FE:2800…0100…`
+- the full-stream SHA-256 `E6A54535…C54EAF`
+- the named stream's bytes and its original compression format
+
+Allocation fell to 11,249,999,872 bytes. The small preflight case passed in the same run. The first attempt failed before any change because the fixture kept its evidence directory on the filter-less volume; commit `1364188bf` fixed that.
+
+**Evidence** (2 of 2 passed):
+
+- [TRX](receipts/2026-11-21-storage-admission-x64/dense-enable-boundary.trx), SHA-256 `54aa9e23…7027ed`
+- [run log](receipts/2026-11-21-storage-admission-x64/dense-enable-boundary-run.log)
+- [seeding progress](receipts/2026-11-21-storage-admission-x64/dense-enable-boundary-progress.log)
+
 ## Limits
 
 - This qualifies Windows 11 x64 on an Insider build only. ARM64 needs its own results.

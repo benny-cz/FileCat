@@ -1,0 +1,100 @@
+<TestRun id="d7d67d24-c9f9-4b3a-a26d-25ab968a8326" name="Admin@DESKTOP-A60F1NE 2026-11-21T11:05:15.3157393+00:00" runUser="Admin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-21T11:05:15.3157393+00:00" queuing="2026-11-21T11:05:15.3157393+00:00" start="2026-11-21T11:05:15.3157393+00:00" finish="2026-11-21T12:41:53.0184682+01:00" />
+  <TestSettings name="default" id="6c4d5628-128d-4c3b-a1a4-ab366a4594ad" />
+  <Results>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsSparseTransformTests.Reviewed_compression_at_the_enable_limit_compresses_a_dense_NTFS_stream" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="84b13f0d-7c0d-4922-93c8-7bbbf445d65e" executionId="84b13f0d-7c0d-4922-93c8-7bbbf445d65e" computerName="DESKTOP-A60F1NE" duration="00:36:37.2890948" startTime="2026-11-21T11:05:15.3157393+00:00" endTime="2026-11-21T11:41:52.6274256+00:00">
+      <Output>
+        <TextMessages>
+          <Message>dense flushed: position=536870912 eof=536870912 allocation=599785472 available=80887050240</Message>
+          <Message>dense flushed: position=1073741824 eof=1073741824 allocation=1136656384 available=80350179328</Message>
+          <Message>dense flushed: position=1610612736 eof=1610612736 allocation=1673527296 available=79813308416</Message>
+          <Message>dense flushed: position=2147483648 eof=2147483648 allocation=2210398208 available=79276437504</Message>
+          <Message>dense flushed: position=2684354560 eof=2684354560 allocation=2747269120 available=78739566592</Message>
+          <Message>dense flushed: position=3221225472 eof=3221225472 allocation=3229548544 available=78257287168</Message>
+          <Message>dense flushed: position=3758096384 eof=3758096384 allocation=3806265344 available=77680570368</Message>
+          <Message>dense flushed: position=4294967296 eof=4294967296 allocation=4330553344 available=77156282368</Message>
+          <Message>dense flushed: position=4831838208 eof=4831838208 allocation=4854841344 available=76631994368</Message>
+          <Message>dense flushed: position=5368709120 eof=5368709120 allocation=5379129344 available=76107706368</Message>
+          <Message>dense flushed: position=5905580032 eof=5905580032 allocation=5938020352 available=75548815360</Message>
+          <Message>dense flushed: position=6442450944 eof=6442450944 allocation=6462308352 available=75024527360</Message>
+          <Message>dense flushed: position=6979321856 eof=6979321856 allocation=6986596352 available=74500239360</Message>
+          <Message>dense flushed: position=7516192768 eof=7516192768 allocation=7528710144 available=73958125568</Message>
+          <Message>dense flushed: position=8053063680 eof=8053063680 allocation=8054046720 available=73432788992</Message>
+          <Message>dense flushed: position=8589934592 eof=8589934592 allocation=8629714944 available=72857120768</Message>
+          <Message>dense flushed: position=9126805504 eof=9126805504 allocation=9154002944 available=72332832768</Message>
+          <Message>dense flushed: position=9663676416 eof=9663676416 allocation=9678290944 available=71808544768</Message>
+          <Message>dense flushed: position=10200547328 eof=10200547328 allocation=10202578944 available=71284256768</Message>
+          <Message>dense flushed: position=10737418240 eof=10737418240 allocation=10761469952 available=70725365760</Message>
+          <Message>dense flushed: position=11274289152 eof=11274289152 allocation=11285757952 available=70201077760</Message>
+          <Message>dense flushed: position=11811160064 eof=11811160064 allocation=11827871744 available=69658963968</Message>
+          <Message>dense flushed: position=12348030976 eof=12348030976 allocation=12352159744 available=69134675968</Message>
+          <Message>dense flushed: position=12884901888 eof=12884901888 allocation=12928876544 available=68557959168</Message>
+          <Message>dense flushed: position=13421772800 eof=13421772800 allocation=13453164544 available=68033671168</Message>
+          <Message>dense flushed: position=13958643712 eof=13958643712 allocation=13977452544 available=67509383168</Message>
+          <Message>dense flushed: position=14495514624 eof=14495514624 allocation=14501740544 available=66985095168</Message>
+          <Message>dense flushed: position=15032385536 eof=15032385536 allocation=15060631552 available=66426204160</Message>
+          <Message>dense flushed: position=15569256448 eof=15569256448 allocation=15584919552 available=65901916160</Message>
+          <Message>dense flushed: position=16106127360 eof=16106127360 allocation=16109207552 available=65377628160</Message>
+          <Message>dense flushed: position=16642998272 eof=16642998272 allocation=16651321344 available=64835514368</Message>
+          <Message>dense flushed: position=17179869184 eof=17179869184 allocation=17228038144 available=64258797568</Message>
+          <Message>dense flushed: position=17716740096 eof=17716740096 allocation=17752326144 available=63734509568</Message>
+          <Message>dense flushed: position=18253611008 eof=18253611008 allocation=18276614144 available=63210221568</Message>
+          <Message>dense flushed: position=18790481920 eof=18790481920 allocation=18800902144 available=62685933568</Message>
+          <Message>dense flushed: position=19327352832 eof=19327352832 allocation=19359793152 available=62127042560</Message>
+          <Message>dense flushed: position=19864223744 eof=19864223744 allocation=19884081152 available=61602754560</Message>
+          <Message>dense flushed: position=20401094656 eof=20401094656 allocation=20408369152 available=61078466560</Message>
+          <Message>dense flushed: position=20937965568 eof=20937965568 allocation=20950482944 available=60536352768</Message>
+          <Message>dense flushed: position=21474836480 eof=21474836480 allocation=21475819520 available=60011016192</Message>
+          <Message>dense flushed: position=22011707392 eof=22011707392 allocation=22051487744 available=59435347968</Message>
+          <Message>dense flushed: position=22548578304 eof=22548578304 allocation=22575775744 available=58911059968</Message>
+          <Message>dense flushed: position=23085449216 eof=23085449216 allocation=23100063744 available=58386771968</Message>
+          <Message>dense flushed: position=23622320128 eof=23622320128 allocation=23624351744 available=57862483968</Message>
+          <Message>dense flushed: position=24159191040 eof=24159191040 allocation=24183242752 available=57303592960</Message>
+          <Message>dense flushed: position=24696061952 eof=24696061952 allocation=24707530752 available=56779304960</Message>
+          <Message>dense flushed: position=25232932864 eof=25232932864 allocation=25249644544 available=56237191168</Message>
+          <Message>dense flushed: position=25769803776 eof=25769803776 allocation=25773932544 available=55712903168</Message>
+          <Message>dense flushed: position=26306674688 eof=26306674688 allocation=26350649344 available=55136186368</Message>
+          <Message>dense flushed: position=26843545600 eof=26843545600 allocation=26874937344 available=54611898368</Message>
+          <Message>dense flushed: position=27380416512 eof=27380416512 allocation=27399225344 available=54087610368</Message>
+          <Message>dense flushed: position=27917287424 eof=27917287424 allocation=27923513344 available=53563322368</Message>
+          <Message>dense flushed: position=28454158336 eof=28454158336 allocation=28482404352 available=53004431360</Message>
+          <Message>dense flushed: position=28991029248 eof=28991029248 allocation=29006692352 available=52480143360</Message>
+          <Message>dense flushed: position=29527900160 eof=29527900160 allocation=29530980352 available=51955855360</Message>
+          <Message>dense seed complete: position=30000000000 eof=30000000000 allocation=30020665344 available=51466170368</Message>
+          <Message>before eof=30000000000 id=907A2D527A2D35FE:28000000000001000000000000000000 sha256=E6A545352E4E9664E5D9A94E8CA4006AF45D7A6757689EF077308CC9ECC54EAF named compression=0</Message>
+          <Message>dense enable submitted: 2026-11-21T11:09:37.0737913+00:00</Message>
+          <Message>dense enable finished: 2026-11-21T11:28:04.3104841+00:00 state=Completed</Message>
+          <Message>after allocation=11249999872</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsSparseTransformTests.Dense_NTFS_volume_admits_and_removes_a_small_compressed_file" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="66d4af36-22c7-475b-8d77-2efa40c1f313" executionId="66d4af36-22c7-475b-8d77-2efa40c1f313" computerName="DESKTOP-A60F1NE" duration="00:00:00.3695612" startTime="2026-11-21T11:41:52.6374999+00:00" endTime="2026-11-21T11:41:53.0072311+00:00">
+      <Output>
+        <TextMessages>
+          <Message>dense seed complete: position=1048576 eof=1048576 allocation=393216 available=81480142848</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsSparseTransformTests.Reviewed_compression_at_the_enable_limit_compresses_a_dense_NTFS_stream" id="84b13f0d-7c0d-4922-93c8-7bbbf445d65e" storage="C:\fc-run\c5\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="84b13f0d-7c0d-4922-93c8-7bbbf445d65e" />
+      <TestMethod codeBase="C:\fc-run\c5\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsSparseTransformTests" name="Reviewed_compression_at_the_enable_limit_compresses_a_dense_NTFS_stream" adapterTypeName="executor://d7d67d24-c9f9-4b3a-a26d-25ab968a8326/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsSparseTransformTests.Dense_NTFS_volume_admits_and_removes_a_small_compressed_file" id="66d4af36-22c7-475b-8d77-2efa40c1f313" storage="C:\fc-run\c5\bin\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="66d4af36-22c7-475b-8d77-2efa40c1f313" />
+      <TestMethod codeBase="C:\fc-run\c5\bin\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsSparseTransformTests" name="Dense_NTFS_volume_admits_and_removes_a_small_compressed_file" adapterTypeName="executor://d7d67d24-c9f9-4b3a-a26d-25ab968a8326/xunit.v3/3.2.2" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="84b13f0d-7c0d-4922-93c8-7bbbf445d65e" executionId="84b13f0d-7c0d-4922-93c8-7bbbf445d65e" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="66d4af36-22c7-475b-8d77-2efa40c1f313" executionId="66d4af36-22c7-475b-8d77-2efa40c1f313" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="2" executed="2" passed="2" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+  </ResultSummary>
+</TestRun>
