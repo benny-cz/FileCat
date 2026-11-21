@@ -219,7 +219,7 @@ public sealed class OperationReportTests
             Assert.Equal("previous report", File.ReadAllText(output));
             Assert.Empty(Directory.EnumerateFiles(root, ".filecat-report-*.tmp"));
 
-            OperationReport.SaveAtomic(output, snapshot, CancellationToken.None);
+            Assert.Null(OperationReport.SaveAtomic(output, snapshot, CancellationToken.None));
             string report = File.ReadAllText(output);
             Assert.Contains("Issues: 10,005 total", report);
             Assert.Contains("Details: first 10,000 retained; 5 omitted", report);
@@ -228,6 +228,44 @@ public sealed class OperationReportTests
             Assert.Empty(Directory.EnumerateFiles(root, ".filecat-report-*.tmp"));
         }
         finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Save_publishes_a_new_operation_report_without_leaving_a_stage()
+    {
+        string root = Directory.CreateTempSubdirectory("fc-new-operation-report-").FullName;
+        try
+        {
+            string output = Path.Combine(root, "report.txt");
+            var job = new Job(new JobRequest { Kind = JobKind.Copy }, "Copy", "local", [], []);
+            var snapshot = OperationReport.Capture(job);
+            Assert.Null(OperationReport.SaveAtomic(output, snapshot, TestContext.Current.CancellationToken));
+            Assert.Contains("FileCat operation report", File.ReadAllText(output));
+            Assert.Equal([output], Directory.GetFiles(root));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public void Windows_operation_report_does_not_replace_an_Efs_destination()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows() && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires an opt-in Windows EFS fixture.");
+        string root = Directory.CreateTempSubdirectory("fc-efs-operation-report-").FullName;
+        try
+        {
+            string output = Path.Combine(root, "report.txt");
+            const string original = "Protected operation report";
+            File.WriteAllText(output, original);
+            File.Encrypt(output);
+            var job = new Job(new JobRequest { Kind = JobKind.Copy }, "Copy", "local", [], []);
+            Assert.ThrowsAny<IOException>(() => OperationReport.SaveAtomic(output, OperationReport.Capture(job),
+                TestContext.Current.CancellationToken));
+            Assert.True(File.GetAttributes(output).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(original, File.ReadAllText(output));
+            Assert.Equal([output], Directory.GetFiles(root));
+        }
+        finally { Directory.Delete(root, recursive: true); }
     }
 
     [AvaloniaFact]
