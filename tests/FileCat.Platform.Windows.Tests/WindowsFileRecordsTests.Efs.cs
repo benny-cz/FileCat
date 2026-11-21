@@ -117,10 +117,17 @@ public sealed partial class WindowsFileRecordsTests
             Assert.Contains("holds none", Assert.Single(problems), StringComparison.Ordinal);
             Assert.Empty(WindowsFileRecords.ReadEfsList(0, problems));
 
+            problems.Clear();
+            var missingHash = WindowsFileRecords.ReadEfsList(HashList(1, Entry(0, 0, Text("unnamed certificate"))), problems);
+            Assert.Empty(Assert.Single(missingHash).Thumbprint);
+            Assert.Contains("no certificate hash", Assert.Single(problems), StringComparison.Ordinal);
+
             // A text without its end within 1,024 characters is cut there.
             problems.Clear();
-            var cut = WindowsFileRecords.ReadEfsList(HashList(1, Entry(0, 0, Text(new string('x', 1100)))), problems);
+            var cut = WindowsFileRecords.ReadEfsList(HashList(1,
+                Entry(0, Blob(20, Bytes(hash)), Text(new string('x', 1100)))), problems);
             Assert.Equal(new string('x', 1024) + "…", Assert.Single(cut).Display);
+            Assert.Contains("display limit and may be cut", Assert.Single(problems), StringComparison.Ordinal);
         }
         finally
         {

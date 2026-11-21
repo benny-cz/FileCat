@@ -224,14 +224,15 @@ public sealed class ArchiveDiscoveryWarningTests : IDisposable
         Assert.Single(refreshedWarnings);
     }
 
-    private (ResultSet Result, SearchSession Session) Search(SearchCriteria criteria, List<(ItemRef Item, string Relative)>? within = null)
+    private (ResultSet Result, SearchSession Session) Search(SearchCriteria criteria, List<(ItemRef Item, string Relative)>? within = null,
+        bool expectedComplete = true)
     {
         Assert.True(criteria.TryBuildQuery(DateTime.UtcNow, [], within, out var query, out var error, new ProviderArchiveMembers(_providers)), error);
         var result = new ResultSet("archive-warning", "archive-warning", "owned archive scope control");
         var session = new SearchSession(query!, result);
         session.Run(TestContext.Current.CancellationToken);
         Assert.True(session.Finished);
-        Assert.True(result.IsComplete);
+        Assert.Equal(expectedComplete, result.IsComplete);
         return (result, session);
     }
 
@@ -239,8 +240,10 @@ public sealed class ArchiveDiscoveryWarningTests : IDisposable
     public void Damage_after_a_valid_TAR_member_is_visible_in_the_initial_search_log()
     {
         string file = Tar(gzip: false, damaged: true);
-        var (result, session) = Search(new SearchCriteria { LookIn = _dir.Path, Names = "*.txt", InsideArchives = true });
+        var (result, session) = Search(new SearchCriteria { LookIn = _dir.Path, Names = "*.txt", InsideArchives = true },
+            expectedComplete: false);
         Assert.Equal("first.txt", Assert.Single(result.Snapshot()).Item.Name);
+        Assert.False(session.StoppedEarly);
         var warning = Assert.Single(session.Log, e => e.Kind == SearchLogKind.Warning);
         Assert.Equal(PathUtil.WithDiskCase(file), warning.Path);
         Assert.Contains("damaged after", warning.Detail, StringComparison.Ordinal);
@@ -258,8 +261,10 @@ public sealed class ArchiveDiscoveryWarningTests : IDisposable
                 data.Write("owned member"u8);
             }
         _files.Add(file);
-        var (result, session) = Search(new SearchCriteria { LookIn = _dir.Path, Names = "*.txt", InsideArchives = true });
+        var (result, session) = Search(new SearchCriteria { LookIn = _dir.Path, Names = "*.txt", InsideArchives = true },
+            expectedComplete: false);
         Assert.Equal(3, result.Count);
+        Assert.False(session.StoppedEarly);
         Assert.Equal([0, 1], result.Snapshot().Where(r => r.Item.Name == "dup.txt").Select(r => r.Item.Ordinal).Order());
         var warning = Assert.Single(session.Log, e => e.Kind == SearchLogKind.Warning);
         Assert.Equal(PathUtil.WithDiskCase(file), warning.Path);
@@ -272,7 +277,8 @@ public sealed class ArchiveDiscoveryWarningTests : IDisposable
     public void TAR_and_gzip_TAR_results_keep_duplicate_identity_current_metadata_and_content_references(bool gzip)
     {
         Tar(gzip, damaged: false);
-        var (original, _) = Search(new SearchCriteria { LookIn = _dir.Path, Names = "*.txt", InsideArchives = true });
+        var (original, _) = Search(new SearchCriteria { LookIn = _dir.Path, Names = "*.txt", InsideArchives = true },
+            expectedComplete: false);
         var within = original.Snapshot();
         Assert.Equal(3, within.Count);
         var (narrowed, session) = Search(new SearchCriteria { Names = "*.txt", InsideArchives = false,

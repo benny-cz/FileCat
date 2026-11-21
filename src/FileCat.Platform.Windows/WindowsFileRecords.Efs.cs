@@ -72,7 +72,7 @@ public sealed unsafe partial class WindowsFileRecords
             count = MaxEfsEntries;
         }
         var array = (EfsHashEntry**)header->Entries;
-        int empty = 0, shortEntry = 0, badSid = 0, badHash = 0;
+        int empty = 0, shortEntry = 0, badSid = 0, badHash = 0, cutText = 0;
         for (int i = 0; i < count; i++)
         {
             var entry = array[i];
@@ -99,18 +99,23 @@ public sealed unsafe partial class WindowsFileRecords
                 if (blob->Length is > 0 and <= MaxEfsHash && blob->Data != 0) thumbprint = Convert.ToHexString(new ReadOnlySpan<byte>((void*)blob->Data, (int)blob->Length));
                 else badHash++;
             }
-            entries.Add(new EfsEntry(sid, thumbprint, EfsText(entry->Display)));
+            else badHash++;
+            string? display = EfsText(entry->Display, out bool truncated);
+            if (truncated) cutText++;
+            entries.Add(new EfsEntry(sid, thumbprint, display));
         }
         if (empty > 0) problems.Add($"{empty:N0} of its entries are empty.");
         if (shortEntry > 0) problems.Add($"{shortEntry:N0} of its entries are shorter than an EFS certificate record header.");
         if (badSid > 0) problems.Add($"{badSid:N0} of its entries name a SID that is not valid.");
         if (badHash > 0) problems.Add($"{badHash:N0} of its entries have no certificate hash, or one longer than {MaxEfsHash} bytes.");
+        if (cutText > 0) problems.Add($"{cutText:N0} of its certificate descriptions reached the {MaxEfsText:N0}-character display limit and may be cut.");
         return entries;
     }
 
     /// <summary>A NUL-terminated string the API returned, at most <see cref="MaxEfsText"/> characters, control characters shown as '?'.</summary>
-    private static string? EfsText(nint text)
+    private static string? EfsText(nint text, out bool truncated)
     {
+        truncated = false;
         if (text == 0) return null;
         var chars = (char*)text;
         int length = 0;
@@ -118,7 +123,8 @@ public sealed unsafe partial class WindowsFileRecords
         var span = new Span<char>(chars, length).ToArray();
         for (int i = 0; i < span.Length; i++)
             if (char.IsControl(span[i])) span[i] = '?';
-        return new string(span) + (length == MaxEfsText ? "…" : "");
+        truncated = length == MaxEfsText;
+        return new string(span) + (truncated ? "…" : "");
     }
 
     /// <summary>Keep a started query alive until return; skip presentation and the next query after cancellation.</summary>
