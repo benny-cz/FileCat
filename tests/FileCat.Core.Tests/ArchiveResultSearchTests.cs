@@ -42,14 +42,15 @@ public sealed class ArchiveResultSearchTests : IDisposable
         }
     }
 
-    private static (ResultSet Result, SearchSession Session) Run(SearchCriteria criteria, List<(ItemRef Item, string Relative)> within, IArchiveMembers? archives)
+    private static (ResultSet Result, SearchSession Session) Run(SearchCriteria criteria, List<(ItemRef Item, string Relative)> within,
+        IArchiveMembers? archives, bool expectedComplete = true)
     {
         Assert.True(criteria.TryBuildQuery(DateTime.UtcNow, [], within, out var query, out var error, archives), error);
         var result = new ResultSet("narrow", "narrow", "owned original results");
         var session = new SearchSession(query!, result);
         session.Run(TestContext.Current.CancellationToken);
         Assert.True(session.Finished);
-        Assert.True(result.IsComplete);
+        Assert.Equal(expectedComplete, result.IsComplete);
         return (result, session);
     }
 
@@ -103,7 +104,7 @@ public sealed class ArchiveResultSearchTests : IDisposable
     {
         var (_, members, within) = Fixture();
         var files = within.Where(r => !r.Item.IsContainer).ToList();
-        var (result, session) = Run(new SearchCriteria { Text = "x", InsideArchives = true }, files, members);
+        var (result, session) = Run(new SearchCriteria { Text = "x", InsideArchives = true }, files, members, expectedComplete: false);
         Assert.Empty(result.Snapshot());
         Assert.Equal(files.Count, session.Log.Count);
         Assert.All(session.Log, e =>
@@ -118,7 +119,7 @@ public sealed class ArchiveResultSearchTests : IDisposable
     public void Missing_member_lookup_is_reported_instead_of_silently_returning_an_empty_success()
     {
         var (_, _, within) = Fixture();
-        var (_, session) = Run(new SearchCriteria { Names = "*.txt" }, within, null);
+        var (_, session) = Run(new SearchCriteria { Names = "*.txt" }, within, null, expectedComplete: false);
         Assert.NotEmpty(session.Log);
         Assert.All(session.Log, e => Assert.Equal(SearchLogKind.Inaccessible, e.Kind));
     }
@@ -175,7 +176,7 @@ public sealed class ArchiveResultSearchTests : IDisposable
         var provider = new ControlledArchive([new("present.txt", EntryKind.File, 10)]) { Warning = "Only the first entry was listed." };
         List<(ItemRef Item, string Relative)> within = [
             (new(parent, "present.txt", EntryKind.File), "present"), (new(parent, "unknown.txt", EntryKind.File), "unknown")];
-        var (result, session) = Run(new SearchCriteria(), within, ControlledMembers(provider));
+        var (result, session) = Run(new SearchCriteria(), within, ControlledMembers(provider), expectedComplete: false);
         Assert.Equal("present.txt", Assert.Single(result.Snapshot()).Item.Name);
         Assert.DoesNotContain(session.Log, e => e.Kind == SearchLogKind.Gone);
         Assert.Contains(session.Log, e => e.Kind == SearchLogKind.Warning && e.Detail == provider.Warning && e.Parent == parent);
@@ -193,7 +194,7 @@ public sealed class ArchiveResultSearchTests : IDisposable
         List<(ItemRef Item, string Relative)> within = [
             (new(new Location(Schemes.Mtp, "unavailable-device"), "device.txt", EntryKind.File), "device"),
             (new(nested, "nested.txt", EntryKind.File), "nested")];
-        var (result, session) = Run(new SearchCriteria(), within, ControlledMembers(provider));
+        var (result, session) = Run(new SearchCriteria(), within, ControlledMembers(provider), expectedComplete: false);
         Assert.Empty(result.Snapshot());
         Assert.Equal(2, session.Log.Count);
         Assert.All(session.Log, e => Assert.Equal(SearchLogKind.Inaccessible, e.Kind));
@@ -228,7 +229,7 @@ public sealed class ArchiveResultSearchTests : IDisposable
         _archives.Single().Provider.Release(file);
         if (missing) File.Delete(file);
         else File.WriteAllText(file, "not an archive");
-        var (result, session) = Run(new SearchCriteria(), within, members);
+        var (result, session) = Run(new SearchCriteria(), within, members, expectedComplete: missing);
         Assert.Empty(result.Snapshot());
         Assert.NotEmpty(session.Log);
         Assert.All(session.Log, e =>

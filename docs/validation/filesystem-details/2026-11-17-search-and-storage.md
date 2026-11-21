@@ -63,3 +63,7 @@ On Windows 11 x64 build 26340 at medium integrity, the native NTFS fixture passe
 The 49 portable C grammar, selection, and ownership cases also passed on Apple silicon with no skips. The current test receipt is `/tmp/filecat-ci-main-2f786b07-r1/receipts/storage-contract-mac.trx`.
 
 Native Windows 11 Enterprise ARM64 build 26200 repeated the same stream-input refusals at medium integrity on 4 KiB NTFS. The base native suite executed all 14 cases with zero failures or skips. Its TRX SHA-256 was `62051E2ADE011F3F507793E26DB16AE204925D6EB5D631BF3F0C4D8635F79A15`. [ARM64 native storage receipts](https://github.com/benny-cz/FileCat/actions/runs/44582510202)
+
+## Inaccessible Find scopes, 21 November 2026
+
+An inaccessible folder, archive or selected provider member now leaves the Find result incomplete even when enumeration itself returned. The result already retained an issue; the completion bit and result banner now agree with that unavailable scope. A selected original known to be gone remains a completed, reported absence. The focused `ArchiveResultSearchTests` passed 11/11 on Windows x64 and the App build passed with zero warnings and errors. This is deterministic result-coverage evidence, not a native filesystem-denial fixture or complete F-FIND qualification.

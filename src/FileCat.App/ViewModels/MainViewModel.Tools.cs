@@ -121,7 +121,7 @@ public sealed partial class MainViewModel
         Services.Ui.Post(() =>
         {
             if (!isOpen() || tab.Location?.Session != set.Id) return;
-            tab.Banner = set.Provenance + (set.IsComplete ? " — complete" : " — stopped before completion") + (set.Issues.Count > 0 ? $"; {set.Issues.Count} location(s) could not be searched" : "");
+            tab.Banner = set.Provenance + (set.IsComplete ? " — complete" : " — incomplete") + (set.Issues.Count > 0 ? $"; {set.Issues.Count} location(s) could not be searched" : "");
             // A small search can finish before OpenResultSet subscribes to Changed. In that case its
             // first enumeration may have read an empty set and never receive another notification.
             tab.Refresh();

@@ -184,6 +184,7 @@ public sealed class SearchSession
     public long Matches;
     public long ExtraDataUnexamined;
     public long NativePredicateUnexamined;
+    private long _inaccessibleScopes;
     public volatile string? CurrentFolder;
     public volatile bool Finished;
     public volatile bool RegexTimedOut;
@@ -283,7 +284,7 @@ public sealed class SearchSession
                     Walk(root, root, 0, ct);
                 }
             }
-            _results.IsComplete = !_truncated && ExtraDataUnexamined == 0 && NativePredicateUnexamined == 0;
+            _results.IsComplete = !_truncated && ExtraDataUnexamined == 0 && NativePredicateUnexamined == 0 && _inaccessibleScopes == 0;
         }
         catch (OperationCanceledException)
         {
@@ -317,6 +318,7 @@ public sealed class SearchSession
 
     private void AddLog(SearchLogKind kind, string path, string? detail = null, Location? parent = null, string? name = null)
     {
+        if (kind == SearchLogKind.Inaccessible) Interlocked.Increment(ref _inaccessibleScopes);
         lock (_logLock)
         {
             if (_log.Count < MaxLog) _log.Add(new SearchLogEntry(kind, path, detail, parent, name));
