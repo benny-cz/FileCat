@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Immutable;
 using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
@@ -169,6 +170,95 @@ public sealed class StorageReviewOwnershipTests
         Assert.All(adapter.Pins, p => Assert.Equal(1, p.Disposals)); Assert.Empty(manager.Jobs); Assert.False(review.OwnsPins);
         Assert.Equal(1, removed);
         Assert.False(Directory.Exists(Path.Join(temp.Path, "journal")));
+    }
+
+    [Fact]
+    public void A_JobAdded_observer_that_cancels_retires_the_unstarted_owner_once_without_entering_a_worker()
+    {
+        using var temp = new TempDir(); var adapter = new Adapter(); var manager = Manager(temp, adapter); manager.MaxConcurrent = 1;
+        using var review = manager.PrepareStorageReview([Source("one"), Source("two")], StorageAction.Compress, TestContext.Current.CancellationToken);
+        int finished = 0, removed = 0; bool ownedDuringAdmission = false;
+        manager.JobAdded += job => { job.Cancel(); ownedDuringAdmission = job.State == JobState.Queued && adapter.Pins.All(pin => pin.IsAlive); };
+        manager.JobFinished += _ => { finished++; Assert.All(adapter.Pins, pin => Assert.Equal(1, pin.Disposals)); };
+        manager.JobRemoved += _ => removed++;
+        var job = manager.SubmitStorage(review, review.Approve(StorageAction.Compress, StorageScope.SelectedItems), _ => { });
+        Assert.True(ownedDuringAdmission); Assert.Equal(JobState.Canceled, job.State); Assert.Equal(1, finished); Assert.Equal(0, removed);
+        Assert.Null(job.StartedUtc); Assert.Equal(0, adapter.Traversals); Assert.All(adapter.Pins, pin => Assert.Equal(1, pin.Disposals));
+        Assert.False(review.OwnsPins); Assert.Contains(job, manager.Jobs);
+        Assert.Equal(2, job.StorageResult!.Counts.NotProcessed); Assert.True(job.StorageResult.Canceled); Assert.Equal(JobState.Canceled, job.StorageResult.FinalState());
+        for (int i = 0; i < 4; i++) manager.Schedule();
+        manager.Remove(job);
+        Assert.Equal(1, removed); Assert.Equal(1, finished); Assert.All(adapter.Pins, pin => Assert.Equal(1, pin.Disposals));
+        Assert.False(Directory.Exists(Path.Join(temp.Path, "journal")));
+    }
+
+    [Theory]
+    [InlineData(StorageAction.Compress, StorageScope.SelectedItems)]
+    [InlineData(StorageAction.RemoveCompression, StorageScope.ExistingDescendants)]
+    public void A_compression_job_completes_without_consulting_EFS_key_or_stream_services_its_adapter_also_offers(StorageAction action, StorageScope scope)
+    {
+        using var temp = new TempDir(); var ct = TestContext.Current.CancellationToken;
+        var adapter = new EfsTrapAdapter(action == StorageAction.Compress ? StorageObservationState.Disabled : StorageObservationState.Enabled);
+        var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), adapter, Path.Join(temp.Path, "journal")) { MaxConcurrent = 0 };
+        using var review = manager.PrepareStorageReview([new(Location.FileSystem(@"C:\Captured"), "folder", EntryKind.Directory), Source("file")], action, ct);
+        using var finished = new ManualResetEventSlim(); manager.JobFinished += _ => finished.Set();
+        var job = manager.SubmitStorage(review, review.Approve(action, scope), _ => { });
+        manager.MaxConcurrent = 1; manager.Schedule();
+        Assert.True(finished.Wait(TimeSpan.FromSeconds(30), ct));
+        Assert.Equal(0, adapter.EfsCalls); Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal(scope == StorageScope.ExistingDescendants ? 3 : 2, adapter.Calls); Assert.Equal(adapter.Calls, job.StorageResult!.Counts.Changed);
+        Assert.All(adapter.Pins, pin => Assert.Equal(1, pin.Disposals)); Assert.Null(job.Request.StorageTransform!.EfsConsent);
+    }
+
+    /// <summary>A working compression adapter that also offers every EFS, key and backup surface. Each one is a trap.</summary>
+    private sealed class EfsTrapAdapter(StorageObservationState initial)
+        : IStorageTransforms, IStorageEfsJobAdapter, IStorageEfsSetup, IStorageEfsKeys, IStorageEfsFileBackup
+    {
+        internal readonly List<Pin> Pins = [];
+        internal int EfsCalls, Calls;
+        private T Trap<T>() { Interlocked.Increment(ref EfsCalls); throw new InvalidOperationException("A compression job must never use an EFS, key or stream service."); }
+        public StorageProblem? Unavailable(StorageAction action) => StorageJournalPolicy.IsEfs(action) ? Trap<StorageProblem?>() : null;
+        public IStorageReviewLease InspectRoot(StorageTarget target, StorageAction? action, CancellationToken ct)
+        {
+            var pin = new Pin(target, new(initial, StorageObservationState.Disabled, new StorageObjectIdentity(8, target.Path) { VolumeBinding = "trap-volume" },
+                target.Source.Kind == EntryKind.Directory, null), false);
+            Pins.Add(pin);
+            return pin;
+        }
+        public IStorageTraversal OpenReviewedRoot(IStorageReviewLease root, StorageAction action, CancellationToken ct) => new Traversal(this, root);
+        public StorageProblem? ScopeUnavailable(StorageScope scope) => Trap<StorageProblem?>();
+        public IStorageTraversal OpenReviewedEfsRoot(IStorageReviewLease root, Job job, int sourceIndex, StorageEfsRecoverySession recovery, CancellationToken ct) => Trap<IStorageTraversal>();
+        public StorageEfsSetupResult InspectSetup(string invokerSid, StorageEfsConsent scopeConsent, bool explicitSetupAccepted, CancellationToken ct) => Trap<StorageEfsSetupResult>();
+        public StorageEfsKeyEvidence ProbeAssociatedCertificate(string invokerSid, string certificateSha1, CancellationToken ct) => Trap<StorageEfsKeyEvidence>();
+        public StorageEfsFileBackupReview InspectFiles(ImmutableArray<StorageTarget> targets, CancellationToken ct) => Trap<StorageEfsFileBackupReview>();
+        public StorageEfsFileBackupResult BackUpFileKey(StorageEfsFileBackupReview review, string certificateSha1, nint ownerWindow, CancellationToken ct) => Trap<StorageEfsFileBackupResult>();
+
+        private sealed class Held(EfsTrapAdapter owner, string path, StorageObservation observation) : IStorageObjectLease
+        {
+            private readonly StorageObjectIdentity _identity = observation.Identity;
+            private StorageObservation _state = observation;
+            public string Path => path;
+            public StorageObjectIdentity Identity => _identity;
+            public StorageObservation Observe(CancellationToken ct) => _state;
+            public StorageObservation PrepareMutation(StorageAction action, CancellationToken ct) => _state;
+            public StorageMutationResult ApplyAdmitted(StorageAction action)
+            {
+                Interlocked.Increment(ref owner.Calls); var before = _state;
+                _state = before with { Compression = StorageJournalPolicy.Desired(action) };
+                return new(before, _state, StorageEffect.Changed, null) { NativeCallAttempted = true };
+            }
+            public void Dispose() { }
+        }
+        private sealed class Traversal(EfsTrapAdapter owner, IStorageReviewLease pin) : IStorageTraversal
+        {
+            public IStorageObjectLease Root { get; } = new Held(owner, pin.Target.Path, pin.Observation);
+            public IReadOnlyList<StorageObjectIdentity> RootAncestors(CancellationToken ct) => [];
+            public IEnumerable<IStorageObjectLease> Children(IStorageObjectLease directory, CancellationToken ct) => pin.Observation.IsDirectory && ReferenceEquals(directory, Root)
+                ? [new Held(owner, pin.Target.Path + @"\child", pin.Observation with
+                    { Identity = new(8, pin.Target.Path + @"\child") { VolumeBinding = "trap-volume" }, IsDirectory = false })]
+                : [];
+            public void Dispose() { }
+        }
     }
 
     [Fact]
