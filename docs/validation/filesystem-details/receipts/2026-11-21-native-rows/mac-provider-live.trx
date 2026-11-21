@@ -1,0 +1,29 @@
+<TestRun id="46baa5d7-fe30-4292-b1c4-1370f6758cda" name="benny@unknown 2026-11-21T18:00:49.5258590+00:00" runUser="benny" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-21T18:00:49.5258590+00:00" queuing="2026-11-21T18:00:49.5258590+00:00" start="2026-11-21T18:00:49.5258590+00:00" finish="2026-11-21T19:00:49.5701870+01:00" />
+  <TestSettings name="default" id="6c4d5628-128d-4c3b-a1a4-ab366a4594ad" />
+  <Results>
+    <UnitTestResult testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Live_Mac_File_Provider_directory_metadata_keeps_the_prepared_folder_bound" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="15a69682-6c2b-467f-9542-c53140be713a" executionId="15a69682-6c2b-467f-9542-c53140be713a" computerName="unknown" duration="00:00:00.0256312" startTime="2026-11-21T18:00:49.5258590+00:00" endTime="2026-11-21T18:00:49.5554170+00:00" />
+    <UnitTestResult testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Live_Mac_File_Provider_metadata_keeps_prepared_files_dataless" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="409ae654-e6d3-4175-9140-57a5e554800e" executionId="409ae654-e6d3-4175-9140-57a5e554800e" computerName="unknown" duration="00:00:00.0075918" startTime="2026-11-21T18:00:49.5579470+00:00" endTime="2026-11-21T18:00:49.5655850+00:00" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Live_Mac_File_Provider_directory_metadata_keeps_the_prepared_folder_bound" id="15a69682-6c2b-467f-9542-c53140be713a" storage="/Users/benny/FileCatValidation/fc-s2-provider/core/FileCat.Core.Tests.dll">
+      <Execution id="15a69682-6c2b-467f-9542-c53140be713a" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/fc-s2-provider/core/FileCat.Core.Tests.dll" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Live_Mac_File_Provider_directory_metadata_keeps_the_prepared_folder_bound" adapterTypeName="executor://46baa5d7-fe30-4292-b1c4-1370f6758cda/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Live_Mac_File_Provider_metadata_keeps_prepared_files_dataless" id="409ae654-e6d3-4175-9140-57a5e554800e" storage="/Users/benny/FileCatValidation/fc-s2-provider/core/FileCat.Core.Tests.dll">
+      <Execution id="409ae654-e6d3-4175-9140-57a5e554800e" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/fc-s2-provider/core/FileCat.Core.Tests.dll" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Live_Mac_File_Provider_metadata_keeps_prepared_files_dataless" adapterTypeName="executor://46baa5d7-fe30-4292-b1c4-1370f6758cda/xunit.v3/3.2.2" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="15a69682-6c2b-467f-9542-c53140be713a" executionId="15a69682-6c2b-467f-9542-c53140be713a" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="409ae654-e6d3-4175-9140-57a5e554800e" executionId="409ae654-e6d3-4175-9140-57a5e554800e" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="2" executed="2" passed="2" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+  </ResultSummary>
+</TestRun>

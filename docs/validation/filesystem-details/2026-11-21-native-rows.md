@@ -43,3 +43,12 @@ This receipt maps the N-WIN, N-LINUX and N-MAC expectations in the ledger to nat
 | FileVault | `Mac_full_report_distinguishes_FileVault_and_encrypted_backing_on_the_selected_volume` and the APFS protection tests |
 
 **Evidence:** macOS 27.2.1 on Apple silicon. **Open:** Intel Macs, other macOS versions, and FileVault on more hardware. None was available.
+
+## Live File Provider rerun
+
+The prepared File Provider fixture domain on the Mac was still enabled. Its provider serves no data. Both live tests passed against it ([TRX](receipts/2026-11-21-native-rows/mac-provider-live.trx)):
+
+- `Live_Mac_File_Provider_metadata_keeps_prepared_files_dataless`: the file kept its `dataless` flag afterwards.
+- `Live_Mac_File_Provider_directory_metadata_keeps_the_prepared_folder_bound`: the folder kept its identity and the thread materialization policy.
+
+The fixture folder carries only the `uchg` flag, not `dataless`. Dataless-flagged folders and packages therefore remain open for F-PARSER.
