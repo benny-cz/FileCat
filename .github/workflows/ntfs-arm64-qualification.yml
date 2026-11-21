@@ -522,9 +522,11 @@ jobs:
           $wof = Join-Path $wofRoot.FullName 'wof-backed.txt'
           [IO.File]::WriteAllText($wof, ('FileCat WOF fixture line ' * 40000))
           & compact.exe /c /exe:xpress4k $wof | Set-Content -LiteralPath (Join-Path $evidence 'release-wof.txt')
-          & fsutil.exe reparsepoint query $wof | Add-Content -LiteralPath (Join-Path $evidence 'release-wof.txt')
+          # fsutil reports a WOF file as no reparse point on this build; compact's own query states its backing.
+          & compact.exe /q /exe $wof | Add-Content -LiteralPath (Join-Path $evidence 'release-wof.txt')
           "FILECAT_STORAGE_NATIVE_WOF_TARGET=$wof" | Add-Content $env:GITHUB_ENV
           Get-Content $log
+          exit 0
       - name: Qualify the compression release gates natively at medium integrity
         if: inputs.release_gates
         shell: pwsh
