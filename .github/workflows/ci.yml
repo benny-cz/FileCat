@@ -107,8 +107,8 @@ jobs:
       # FTP and FTPS tests run against pyftpdlib (MIT); they skip where it is missing.
       - run: python -m pip install --quiet pyftpdlib pyopenssl
       - run: python tests/FileCat.NativeAcceptance/test_win_ftp_owned_stage.py
-      # Run the four remaining inventories serially and keep every TRX even
-      # when an earlier project fails. The App suite has its own runner below.
+      # Run the three remaining inventories serially and keep every TRX even
+      # when an earlier project fails. App and Core have their own runners below.
       - name: Windows test projects, sequential with complete receipts
         shell: pwsh
         continue-on-error: true
@@ -198,6 +198,47 @@ jobs:
             tests/FileCat.App.Tests/TestResults/*.trx
             tests/FileCat.App.Tests/TestResults/**/Sequence_*.xml
             tests/FileCat.App.Tests/TestResults/**/*.dmp
+
+  windows-core:
+    name: Windows x64 (Core tests)
+    needs: producer-policy
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
+      - run: dotnet build tests/FileCat.Core.Tests -c Release -p:RestoreLockedMode=true
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --quiet pyftpdlib pyopenssl
+      - name: Run medium-integrity Core test collections
+        shell: pwsh
+        run: |
+          . ./eng/validation/Enter-MediumIntegrityTestProcess.ps1
+          $threads = [Math]::Min(16, [Environment]::ProcessorCount)
+          dotnet test tests/FileCat.Core.Tests -c Release --no-build --logger 'trx;LogFileName=core-results.trx' --blame-hang-timeout 4m --blame-hang-dump-type mini -- "xUnit.MaxParallelThreads=$threads"
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: core-test-results-windows-x64
+          path: |
+            tests/FileCat.Core.Tests/TestResults/*.trx
+            tests/FileCat.Core.Tests/TestResults/**/Sequence_*.xml
+            tests/FileCat.Core.Tests/TestResults/**/*.dmp
 
   # D-48: FileCat for Windows on ARM64, built and tested natively; its package starts and draws with the ARM64 Skia.
   windows-arm64:
@@ -773,7 +814,7 @@ jobs:
   package:
     name: Package (tags only)
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [producer-policy, windows, windows-app, windows-arm64, windows-arm64-app, windows-arm64-core, portable, portable-core, ubuntu-app, macos-app, macos-archive-core]
+    needs: [producer-policy, windows, windows-app, windows-core, windows-arm64, windows-arm64-app, windows-arm64-core, portable, portable-core, ubuntu-app, macos-app, macos-archive-core]
     runs-on: windows-2025-vs2026
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
@@ -842,7 +883,7 @@ jobs:
   package-linux:
     name: Package Linux (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [producer-policy, windows, windows-app, windows-arm64, windows-arm64-app, windows-arm64-core, portable, portable-core, ubuntu-app, macos-app, macos-archive-core]
+    needs: [producer-policy, windows, windows-app, windows-core, windows-arm64, windows-arm64-app, windows-arm64-core, portable, portable-core, ubuntu-app, macos-app, macos-archive-core]
     runs-on: ubuntu-24.04
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
@@ -912,7 +953,7 @@ jobs:
   package-macos:
     name: Package macOS (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [producer-policy, windows, windows-app, windows-arm64, windows-arm64-app, windows-arm64-core, portable, portable-core, ubuntu-app, macos-app, macos-archive-core]
+    needs: [producer-policy, windows, windows-app, windows-core, windows-arm64, windows-arm64-app, windows-arm64-core, portable, portable-core, ubuntu-app, macos-app, macos-archive-core]
     runs-on: macos-26
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
@@ -978,7 +1019,7 @@ jobs:
   draft-preview:
     name: Draft preview (consume this run's artifacts only)
     if: startsWith(github.ref, 'refs/tags/v1.0.0-preview.')
-    needs: [producer-policy, windows, windows-app, windows-arm64, windows-arm64-app, windows-arm64-core, portable, portable-core, ubuntu-app, package, package-linux, package-macos]
+    needs: [producer-policy, windows, windows-app, windows-core, windows-arm64, windows-arm64-app, windows-arm64-core, portable, portable-core, ubuntu-app, package, package-linux, package-macos]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     # DEC-09: the only job with release-write authority waits for the release owner's approval in the
