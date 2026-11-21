@@ -162,7 +162,7 @@ public sealed partial class WindowsDetailsNativeGapTests
             Assert.Equal(MetadataObservation.Current, fresh.Observation);
             Assert.Equal((IComparable)2u, fresh.Key);
 
-            // Get shares the expiry: past the next interval it shows the last value and schedules one read on its own.
+            // Get shares the expiry: past the next interval it shows the last value and schedules a read on its own.
             File.Delete(other);
             Interlocked.Add(ref now, 21_000);
             var shown = Describe(metadata.Get(links, file, unchanged, PathUtil.GetDeviceKey(file), slowLocation: false));

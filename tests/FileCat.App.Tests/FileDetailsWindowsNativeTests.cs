@@ -24,8 +24,8 @@ namespace FileCat.App.Tests;
 /// <summary>
 /// F-SCOPE on Windows: Open target location for native junctions and symbolic links, read by the real metadata reader.
 /// Each activation first re-reads the source; only a confirmed ordinary file or folder named by the stored substitute
-/// name is opened. Network targets are labelled before activation, and device, WSL, app-alias and unknown reparse
-/// entries are never offered or followed.
+/// name is opened. Network targets are labelled before activation; device and pipe targets offer only Copy; WSL,
+/// app-alias and unknown reparse entries offer neither Copy nor navigation.
 /// </summary>
 public sealed class FileDetailsWindowsNativeTests
 {
