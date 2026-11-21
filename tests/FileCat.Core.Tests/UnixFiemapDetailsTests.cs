@@ -44,6 +44,55 @@ public sealed class UnixFiemapDetailsTests
         Assert.InRange(calls, 2, UnixFileRecords.FiemapQueryLimit);
     }
 
+    [Fact]
+    public void Short_page_without_last_flag_continues_to_the_next_extent()
+    {
+        int calls = 0;
+        var result = UnixFileRecords.ReadFiemapPages(buffer =>
+        {
+            ulong cursor = BinaryPrimitives.ReadUInt64LittleEndian(buffer);
+            Assert.Equal(++calls == 1 ? 0ul : 4096ul, cursor);
+            Fill(buffer, 1, last: calls == 2);
+            return 0;
+        }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, calls);
+        Assert.Equal(FactState.Known, result.State);
+        Assert.Equal([0ul, 4096ul], result.Value!.Select(extent => extent.Logical));
+    }
+
+    [Fact]
+    public void Empty_continuation_without_last_flag_cannot_prove_a_complete_map()
+    {
+        int calls = 0;
+        var result = UnixFileRecords.ReadFiemapPages(buffer =>
+        {
+            Fill(buffer, ++calls == 1 ? 1 : 0);
+            return 0;
+        }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, calls);
+        Assert.Equal(FactState.Partial, result.State);
+        Assert.Single(result.Value!);
+        Assert.Contains("no progress", result.Reason);
+    }
+
+    [Fact]
+    public void Initially_empty_map_is_complete_without_a_terminal_extent()
+    {
+        int calls = 0;
+        var result = UnixFileRecords.ReadFiemapPages(buffer =>
+        {
+            calls++;
+            Fill(buffer, 0);
+            return 0;
+        }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, calls);
+        Assert.Equal(FactState.Known, result.State);
+        Assert.Empty(result.Value!);
+    }
+
     [Theory]
     [InlineData(0x2u)]
     [InlineData(0x6u)]

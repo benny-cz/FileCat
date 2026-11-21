@@ -89,6 +89,8 @@ public sealed unsafe partial class UnixFileRecords
             if (error != 0) return Result(LinuxMetadataFailure(error), $"The mapping query failed with errno {error}.");
             uint mapped = BinaryPrimitives.ReadUInt32LittleEndian(buffer.AsSpan(20));
             if (mapped > FiemapRecordsPerQuery) return Result(FactState.Failed, "The kernel returned an invalid extent count.");
+            if (mapped == 0) return extents.Count == 0 ? Result(FactState.Known) :
+                Result(FactState.Partial, "The mapping query made no progress without a terminal extent flag.");
             int pageStart = extents.Count;
             int remaining = FiemapRecordLimit - pageStart;
             bool last = false;
@@ -110,7 +112,9 @@ public sealed unsafe partial class UnixFileRecords
                 extents.Add(extent);
                 cursor = logical + length;
             }
-            if (mapped <= remaining && (last || mapped < FiemapRecordsPerQuery)) return Result(FactState.Known);
+            // Only FIEMAP_EXTENT_LAST proves a nonempty map reached its end. A short page can still
+            // have later extents, so continue from its validated logical cursor.
+            if (mapped <= remaining && last) return Result(FactState.Known);
             if (extents.Count == FiemapRecordLimit)
                 return Result(FactState.Partial, $"The mapping exceeds the {FiemapRecordLimit:N0}-record inspection limit.");
         }
