@@ -235,6 +235,7 @@ public sealed class ArchiveResultSearchTests : IDisposable
         var session = new SearchSession(query!, result);
         session.Run(cancellation.Token);
         Assert.True(session.Finished);
+        Assert.True(session.StoppedEarly);
         Assert.False(result.IsComplete);
         Assert.Empty(result.Snapshot());
         Assert.Empty(session.Log);

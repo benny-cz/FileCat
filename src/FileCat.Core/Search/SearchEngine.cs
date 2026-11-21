@@ -187,6 +187,7 @@ public sealed class SearchSession
     private long _unexaminedScopes;
     public volatile string? CurrentFolder;
     public volatile bool Finished;
+    public volatile bool StoppedEarly;
     public volatile bool RegexTimedOut;
 
     /// <summary>Folders and files that could not be read.</summary>
@@ -289,10 +290,12 @@ public sealed class SearchSession
         }
         catch (OperationCanceledException)
         {
+            StoppedEarly = true;
             _results.IsComplete = false;
         }
         finally
         {
+            StoppedEarly |= _truncated;
             Finished = true;
             lock (_logLock)
             {

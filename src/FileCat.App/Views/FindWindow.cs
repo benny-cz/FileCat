@@ -1099,7 +1099,8 @@ public sealed partial class FindWindow : Window, IViewActions
         var log = s.Log;
         bool complete = _refineScratch?.IsComplete ?? _set.IsComplete;
         var feedback = FindFeedback.Create(s.Finished, complete, _set.Count, s.FoldersVisited, s.FilesExamined,
-            s.Matches, s.CurrentFolder, log, s.RegexTimedOut, _searchScope, s.NativePredicateUnexamined + s.ExtraDataUnexamined);
+            s.Matches, s.CurrentFolder, log, s.RegexTimedOut, _searchScope, s.NativePredicateUnexamined + s.ExtraDataUnexamined,
+            stoppedEarly: s.StoppedEarly);
         // Announce the outcome once. The rapidly changing folder and counters stay out of the live region.
         AutomationProperties.SetLiveSetting(_status, s.Finished ? AutomationLiveSetting.Polite : AutomationLiveSetting.Off);
         AutomationProperties.SetLiveSetting(_qualifications, s.Finished ? AutomationLiveSetting.Polite : AutomationLiveSetting.Off);
