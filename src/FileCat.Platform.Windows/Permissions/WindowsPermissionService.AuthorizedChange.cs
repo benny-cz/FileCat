@@ -304,7 +304,7 @@ internal sealed unsafe partial class WindowsPermissionService
         var candidate = PermissionSnapshots.Create(subject, PermissionModel.WindowsDescriptor, binding,
             audit ? DiscretionarySections | PermissionSections.Audit : DiscretionarySections, now, Source);
         var snapshot = audit
-            ? ReadSecurityDescriptor(file, BackupSecurityInformation, cancellation, descriptor =>
+            ? ReadCompleteSecurityDescriptor(file, cancellation, descriptor =>
             {
                 var ordinary = Decode(candidate, DiscretionarySections, descriptor, now);
                 var sacl = WindowsPermissionDescriptor.Sacl(descriptor, subject.Authority.Id);

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using FileCat.Core.Jobs;
 using FileCat.Core.Permissions;
 using FileCat.Platform.Windows.Analysis;
@@ -174,10 +175,9 @@ internal sealed partial class WindowsPermissionService
                     using (parent)
                     {
                         RequireReviewedTarget(reviewed, chain, binding);
-                        // Backup information includes the complete SACL, including labels that a narrow audit query can omit.
-                        // The authorized audit reply carries only the SACL.
-                        byte[] descriptor = ReadSecurityDescriptor(file, audit ? BackupSecurityInformation : DiscretionaryFlags(discretionary),
-                            cancellation, bytes => audit ? WindowsPermissionDescriptor.AuditOnly(bytes, authority.Id) : bytes.ToArray());
+                        byte[] descriptor = audit
+                            ? ReadCompleteSecurityDescriptor(file, cancellation, bytes => WindowsPermissionDescriptor.AuditOnly(bytes, authority.Id))
+                            : ReadSecurityDescriptor(file, DiscretionaryFlags(discretionary), cancellation, bytes => bytes.ToArray());
                         using var current = Walk(root, names, authority, cancellation, out var currentParent, out var latest, out var currentBinding,
                             backupIntent: true);
                         using (currentParent)
@@ -202,6 +202,41 @@ internal sealed partial class WindowsPermissionService
             catch (IOException) { return new(PermissionReadStatus.Failed); }
         }
     }
+
+    private static unsafe T ReadCompleteSecurityDescriptor<T>(SafeFileHandle file, CancellationToken cancellation, ReadSecurityBytes<T> decode)
+    {
+        // The native backup query includes every SACL entry and works on the metadata handle
+        // with FILE_READ_ATTRIBUTES. GetSecurityInfo can reject that same handle for a backup query.
+        const int bufferTooSmall = unchecked((int)0xc0000023), bufferOverflow = unchecked((int)0x80000005);
+        byte[] buffer = new byte[4096];
+        int status = Query(buffer, out uint length);
+        if (status is bufferTooSmall or bufferOverflow)
+        {
+            if (length <= buffer.Length || length > PermissionSnapshots.MaxSectionBytes)
+                throw new ReadFailure(PermissionReadStatus.Incomplete, "The complete security descriptor is outside the byte limit.");
+            buffer = new byte[(int)length];
+            status = Query(buffer, out length);
+        }
+        cancellation.ThrowIfCancellationRequested();
+        if (status < 0) throw NativeFailure("Read the complete held security descriptor", StatusToDosError(status));
+        if (length < 20 || length > buffer.Length)
+            throw new ReadFailure(PermissionReadStatus.Failed, "Windows returned an invalid complete security descriptor length.");
+        fixed (byte* bytes = buffer)
+            if (!IsValidSecurityDescriptor((nint)bytes))
+                throw new ReadFailure(PermissionReadStatus.Failed, "Windows returned an invalid complete security descriptor.");
+        return decode(buffer.AsSpan(0, (int)length));
+
+        int Query(byte[] destination, out uint resultLength)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            fixed (byte* bytes = destination)
+                return NtQuerySecurityObject(file, BackupSecurityInformation, bytes, (uint)destination.Length, out resultLength);
+        }
+    }
+
+    [LibraryImport("ntdll.dll")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static unsafe partial int NtQuerySecurityObject(SafeFileHandle file, uint information, byte* descriptor, uint bytes, out uint resultLength);
 
     private static void RequireReviewedTarget(ElevatedFileSecurityScope reviewed, FileStamp[] chain, PermissionBinding current)
     {
