@@ -31,6 +31,20 @@ public sealed class FindCriteriaTests : IDisposable
     private List<string> Find(SearchQuery query) => Run(query).Found;
 
     [Fact]
+    public void An_unreadable_child_does_not_abort_searching_its_siblings()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix dangling-link fixture.");
+        Write("present.txt", "found");
+        string link = Path.Combine(_dir.Path, "missing-link");
+        File.CreateSymbolicLink(link, Path.Combine(_dir.Path, "absent-target"));
+        var query = new SearchQuery { Roots = [_dir.Path], Names = Mask.Parse("*"), IncludeDirectories = false };
+        var (found, session) = Run(query, expectedComplete: false);
+        Assert.Equal(["present.txt"], found);
+        Assert.Contains(session.Log, e => e.Kind == SearchLogKind.Inaccessible && e.Path == link);
+        Assert.False(session.StoppedEarly);
+    }
+
+    [Fact]
     public void A_mask_without_wildcards_or_a_dot_finds_names_containing_it()
     {
         Assert.True(Mask.TryParse("report", plainMeansContains: true, out var contains, out _));

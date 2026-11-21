@@ -474,23 +474,32 @@ public sealed class SearchSession
                     skipCurrent = true;
                     break;
                 }
-                bool isDir = info is DirectoryInfo;
-                bool isLink = (info.Attributes & FileAttributes.ReparsePoint) != 0;
-                bool hidden = (info.Attributes & FileAttributes.Hidden) != 0;
-                if (hidden && !_query.IncludeHidden) continue;
-                if (isDir && !isLink && _query.Recursive && frame.Depth < _query.MaxDepth)
+                try
                 {
-                    if (IsIgnored(root, info.FullName)) AddLog(SearchLogKind.Ignored, info.FullName);
-                    else if (frame.Depth < MaxTraversalDepth) subdirs.Add(info.FullName);
-                    else
+                    bool isDir = info is DirectoryInfo;
+                    bool isLink = (info.Attributes & FileAttributes.ReparsePoint) != 0;
+                    bool hidden = (info.Attributes & FileAttributes.Hidden) != 0;
+                    if (hidden && !_query.IncludeHidden) continue;
+                    if (isDir && !isLink && _query.Recursive && frame.Depth < _query.MaxDepth)
                     {
-                        _truncated = true;
-                        AddLog(SearchLogKind.Warning, info.FullName, $"Search stopped at the {MaxTraversalDepth:N0}-folder depth limit.");
+                        if (IsIgnored(root, info.FullName)) AddLog(SearchLogKind.Ignored, info.FullName);
+                        else if (frame.Depth < MaxTraversalDepth) subdirs.Add(info.FullName);
+                        else
+                        {
+                            _truncated = true;
+                            AddLog(SearchLogKind.Warning, info.FullName, $"Search stopped at the {MaxTraversalDepth:N0}-folder depth limit.");
+                        }
                     }
+                    if (IsMatch(info, isDir, ct)) Add(root, info, isDir);
+                    if (!isDir && _query.Archives is { } archives && !_query.HasContent && archives.IsArchive(info.Name))
+                        SearchArchive(root, (FileInfo)info, archives, ct);
                 }
-                if (IsMatch(info, isDir, ct)) Add(root, info, isDir);
-                if (!isDir && _query.Archives is { } archives && !_query.HasContent && archives.IsArchive(info.Name))
-                    SearchArchive(root, (FileInfo)info, archives, ct);
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // A child can disappear or become unreadable after its parent was listed.
+                    // Keep searching siblings and record the unexamined child.
+                    AddLog(SearchLogKind.Inaccessible, info.FullName, ex.Message);
+                }
             }
             if (skipCurrent) continue;
             pending.Push((frame.Dir, frame.Depth, true));
