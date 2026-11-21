@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="b965c7d0-3263-4fbb-b700-85cf4610481a" name="runneradmin@runnervmjtlf1 2026-11-21 14:47:37" runUser="runnervmjtlf1\runneradmin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-21T14:47:37.9562864-08:00" queuing="2026-11-21T14:47:37.9562866-08:00" start="2026-11-21T14:47:33.3787126-08:00" finish="2026-11-21T14:47:37.9609210-08:00" />
+  <TestSettings name="default" id="f5da8602-b49b-476d-b990-59b9acec29c8">
+    <Deployment runDeploymentRoot="runneradmin_runnervmjtlf1_2026-11-21_14_47_37" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="c583418d-bd5d-4624-8190-4c0b16b7e6c4" testId="1b225b18-5d0c-bf6a-966a-48febe0b7ac8" testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Detaching_after_native_Efs_decryption_retains_an_uncertain_effect_without_key_evidence" computerName="runnervmjtlf1" duration="00:00:01.9991788" startTime="2026-11-21T14:47:35.8255718-08:00" endTime="2026-11-21T14:47:37.8333324-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c583418d-bd5d-4624-8190-4c0b16b7e6c4" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Detaching_after_native_Efs_decryption_retains_an_uncertain_effect_without_key_evidence" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="1b225b18-5d0c-bf6a-966a-48febe0b7ac8">
+      <Execution id="c583418d-bd5d-4624-8190-4c0b16b7e6c4" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Detaching_after_native_Efs_decryption_retains_an_uncertain_effect_without_key_evidence" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="1b225b18-5d0c-bf6a-966a-48febe0b7ac8" executionId="c583418d-bd5d-4624-8190-4c0b16b7e6c4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="1" executed="1" passed="1" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.15)&#xD;
+[xUnit.net 00:00:00.25]   Discovering: FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:01.71]   Discovered:  FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:01.93]   Starting:    FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:04.02]   Finished:    FileCat.Platform.Windows.Tests (ID = 'a01939c32015dcf8cf76016c79755b847ab552dac5bad90e3e6dd7668fd98cae')&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>
