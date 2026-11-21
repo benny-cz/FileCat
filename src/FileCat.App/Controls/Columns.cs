@@ -335,6 +335,50 @@ public sealed class ColumnProfileSet
     }
 
     /// <summary>
+    /// The columns an administrator session shows from copied profiles: the built-in columns and fields that read
+    /// file-system metadata only. Columns that read file contents (version resources, image headers, the origin stream,
+    /// verification) are not run with administrator rights as files are listed, and neither is any column not listed here.
+    /// </summary>
+    public static readonly IReadOnlySet<string> ElevatedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "name", "ext", "size", "modified", "created", "attr",
+        "meta:linkTarget", "meta:permissions", "meta:owner", "meta:group", "meta:hidden",
+        "meta:" + Core.Metadata.FileDetailsFields.Allocated, "meta:" + Core.Metadata.FileDetailsFields.HardLinks,
+        "meta:" + Core.Metadata.FileDetailsFields.ReparseType,
+    };
+
+    /// <summary>
+    /// Copied profiles as an administrator session shows them: only <see cref="ElevatedKeys"/> columns, plus the titles of
+    /// the columns it leaves in the user's own session.
+    /// </summary>
+    public static (List<ColumnProfile> Profiles, string[] Withheld) ForElevatedSession(IReadOnlyList<ColumnProfile> profiles)
+    {
+        var withheld = new SortedSet<string>(StringComparer.CurrentCultureIgnoreCase);
+        var kept = profiles.Select(profile => new ColumnProfile
+        {
+            Name = profile.Name,
+            Columns = [.. profile.Columns.Where(column =>
+            {
+                if (ElevatedKeys.Contains(column.Field)) return true;
+                if (column.Visible) withheld.Add(Choices.FirstOrDefault(c => string.Equals(c.Key, column.Field, StringComparison.OrdinalIgnoreCase))?.Title ?? column.Field);
+                return false;
+            })],
+        }).ToList();
+        return (kept, [.. withheld]);
+    }
+
+    /// <summary>
+    /// Replaces all profiles with saved or transferred ones, validated as saved settings are: unknown fields are dropped
+    /// and every profile keeps a Name column. False, with nothing changed, when none of them is usable.
+    /// </summary>
+    public bool ReplaceFromSettings(IReadOnlyList<ColumnProfile> saved)
+    {
+        if (Parse(saved) is not { } parsed) return false;
+        Replace(parsed);
+        return true;
+    }
+
+    /// <summary>
     /// Whether two column lists are the same as profiles keep them: the same columns in the same order, at the same widths
     /// (a filling column's is its share of the space the fixed columns leave).
     /// </summary>

@@ -200,7 +200,8 @@ public sealed class AppServices : IDisposable
         Columns.Changed += () =>
         {
             Settings.ColumnProfiles = Columns.ToSettings();
-            SaveSettings();
+            // Profiles transferred into an administrator session are shown there; they stay the user's own settings.
+            if (!_applyingTransferredColumns) SaveSettings();
         };
         RegisterSavedFilters();
     }
@@ -521,6 +522,22 @@ public sealed class AppServices : IDisposable
     }
 
     private readonly WindowsSettingsFile? _windowsSettings;
+    private bool _applyingTransferredColumns;
+
+    /// <summary>
+    /// Shows column profiles copied from the user's session, validated as saved settings are, without saving them: an
+    /// administrator session cannot write the user's settings. Only columns that read file-system metadata are shown
+    /// (<see cref="Controls.ColumnProfileSet.ElevatedKeys"/>); the titles of the others are returned. Applied is false, with
+    /// nothing changed, when no profile is usable.
+    /// </summary>
+    internal (bool Applied, string[] Withheld) ApplyTransferredColumns(IReadOnlyList<ColumnProfile> profiles)
+    {
+        var (shown, withheld) = Controls.ColumnProfileSet.ForElevatedSession(profiles);
+        _applyingTransferredColumns = true;
+        try { return (Columns.ReplaceFromSettings(shown), withheld); }
+        finally { _applyingTransferredColumns = false; }
+    }
+
     internal AdministratorTransferPreferences? AdministratorTransfers { get; }
     internal string? AdministratorTransferWarning { get; }
     internal WorkspaceTransfer? RememberedAdministratorWorkspace { get; }
