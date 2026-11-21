@@ -557,6 +557,51 @@ public sealed partial class WindowsStorageExecutorTests
         }
     }
 
+    [Fact]
+    public void Stop_after_a_folder_default_changes_records_that_call_and_leaves_its_contents_unprocessed()
+    {
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs; RequireNormal(arm64);
+        string temp = Directory.CreateTempSubdirectory("filecat-storage-stop-before-descent-").FullName;
+        using var returned = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        int calls = 0;
+        try
+        {
+            string folder = Directory.CreateDirectory(Path.Join(temp, "folder")).FullName;
+            var children = new[] { "first", "second" }.Select(n => Path.Join(folder, n)).ToArray();
+            foreach (string child in children) File.WriteAllText(child, "unprocessed " + child.Length);
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64, compressionSetReturnedForQualification: _ =>
+            {
+                if (Interlocked.Increment(ref calls) != 1) return;
+                returned.Set();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(30)), "The test did not release the held folder call.");
+            });
+            var manager = Manager(temp, adapter, arm64);
+            using var review = manager.PrepareStorageReview([ItemRef.ForFileSystemPath(folder, EntryKind.Directory)], StorageAction.Compress, Stop);
+            using var finished = new ManualResetEventSlim();
+            manager.JobFinished += _ => finished.Set();
+            var job = manager.SubmitStorage(review, review.Approve(StorageAction.Compress, StorageScope.ExistingDescendants), _ => { });
+            Assert.True(returned.Wait(TimeSpan.FromSeconds(30), Stop), "The folder's SET did not return.");
+            job.Cancel(); // Stop after the folder's own call returned, before its enumeration
+            release.Set();
+            Assert.True(finished.Wait(TimeSpan.FromSeconds(60), Stop));
+            var result = job.StorageResult!;
+            Output?.WriteLine($"Stop before descent: {job.State}; changed {result.Counts.Changed}, not processed {result.Counts.NotProcessed}, " +
+                $"discovery {result.Discovery}, canceled {result.Canceled}, review pending {result.ReviewPending}");
+            Assert.Equal(1, calls);
+            Assert.Equal(1L, result.Counts.Changed);
+            Assert.True(result.Canceled);
+            Assert.False(result.ReviewPending);
+            Assert.NotEqual(StorageCompleteness.Complete, result.Discovery);
+            Assert.True(Compressed(folder));
+            Assert.All(children, child => { Assert.False(Compressed(child)); Assert.Equal("unprocessed " + child.Length, File.ReadAllText(child)); });
+            var status = manager.ReadStorageReview(StorageJournalPolicy.FileName(job.CreatedUtc, job.Id), Stop);
+            Assert.False(status.ReviewPending);
+            Assert.Equal(1L, status.Current.History.LastCall!.Call);
+        }
+        finally { release.Set(); Directory.Delete(temp, true); }
+    }
+
     private static Job Submit(JobManager manager, ReviewedStorageRoots review, StorageAction action, StorageScope scope)
     {
         using var finished = new ManualResetEventSlim();

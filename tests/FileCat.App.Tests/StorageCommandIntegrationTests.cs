@@ -961,6 +961,73 @@ public sealed class StorageCommandIntegrationTests
     }
 
     [AvaloniaFact]
+    public async Task Exit_during_an_admitted_storage_call_waits_for_that_call_and_starts_no_other()
+    {
+        var adapter = new Adapter();
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        adapter.Apply = before =>
+        {
+            entered.Set();
+            Assert.True(release.Wait(TimeSpan.FromSeconds(30)), "The test did not release the admitted call.");
+            return Adapter.Changed(before);
+        };
+        var (services, vm, window, root, state) = OpenForJobs(adapter);
+        using var admitted = new AdmittedJobs(services.Jobs, pause: false);
+        Task? running = null;
+        try
+        {
+            var tab = vm.ActiveTab!;
+            await ShowResults(services, tab, (@"C:\first", "one.txt"), (@"C:\second", "two.txt"));
+            tab.Listing.MarkNames(["one.txt", "two.txt"], true);
+            running = vm.ExecuteAsync(CommandIds.StorageAttributes);
+            await ApproveCompression(window);
+            await running;
+            var job = Assert.Single(admitted.Jobs);
+            await Until(() => entered.IsSet);
+            var exit = vm.ConfirmExitWithActiveWorkAsync(reviewAnalyses: false);
+            await Until(() => window.GetVisualDescendants().OfType<Button>().Any(b => b.Content as string == "Stop them and exit"));
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.Contains(job.Title, StringComparison.Ordinal) == true);
+            Primary(window, "Stop them and exit").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Until(() => job.Token.IsCancellationRequested);
+            Assert.False(exit.IsCompleted); // the admitted call still owns the job and its journal
+            release.Set();
+            await Until(() => exit.IsCompleted);
+            Assert.True(await exit, "Exit proceeds once the admitted call returned and the job retired.");
+            Assert.True(job.State == JobState.Canceled, Describe(job));
+            Assert.Equal(1, adapter.Calls);
+            var result = Assert.IsType<StorageResultSnapshot>(job.StorageResult);
+            Assert.Equal((1L, 1L), (result.Counts.Changed, result.Counts.NotProcessed));
+            Assert.False(result.ReviewPending);
+            Assert.False(services.Jobs.HasActiveWork);
+        }
+        finally { release.Set(); CloseForJobs(services, window, root, state); }
+    }
+
+    [AvaloniaFact]
+    public async Task Interrupted_operation_actions_refuse_storage_history_without_touching_its_journal()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(storageTransforms: new Adapter());
+        try
+        {
+            string leaf = StorageJournalPolicy.FileName(DateTime.UtcNow, Guid.NewGuid());
+            string directory = Directory.CreateDirectory(services.Paths.JournalDirectory).FullName, path = Path.Join(directory, leaf);
+            byte[] bytes = "storage history the generic recovery actions must not touch"u8.ToArray();
+            File.WriteAllBytes(path, bytes);
+            var candidate = services.Jobs.StorageHistoryCandidate(leaf);
+            Assert.True(candidate.IsStorageTransform);
+            Assert.False(await vm.CleanupInterruptedAsync(candidate));
+            Assert.False(await vm.MarkInterruptedReviewedAsync(candidate));
+            Assert.Contains(vm.RecentNotifications, n => n.Message == "Use Review storage changes. Storage history cannot authorize partial-file cleanup.");
+            Assert.Contains(vm.RecentNotifications, n => n.Message == "Use Review storage changes to inspect and acknowledge the exact retained history.");
+            Assert.Equal(bytes, File.ReadAllBytes(path));
+            Assert.Equal([leaf], Directory.GetFileSystemEntries(directory).Select(Path.GetFileName).Where(name => name!.Contains(leaf[..20], StringComparison.Ordinal)));
+            Assert.False(vm.Dialogs.IsOpen);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task The_default_composition_offers_compression_without_EFS_only_where_private_evidence_is_qualified()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
