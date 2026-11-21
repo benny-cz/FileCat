@@ -124,8 +124,12 @@ public sealed class FileListNamePresentationTests
         await fixture.Load();
         int row = Enumerable.Range(0, fixture.Tab.Listing.VisibleCount)
             .Single(i => fixture.Tab.Listing.GetVisible(i).Name == "x.iso\u200B");
+        // Settle layout first: on a slow runner the row bounds could still be the pre-layout ones, so the move missed the row.
+        fixture.Window.UpdateLayout();
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
         var point = fixture.List.TranslatePoint(new Point(60, fixture.List.GetRowBounds(row).Center.Y), fixture.Window)!.Value;
         fixture.Window.MouseMove(point);
+        await FileListFixture.Wait(() => ToolTip.GetTip(fixture.List) is not null);
         Assert.Equal("Full name: x.iso\\u200B\nname contains 1 hidden character: zero-width space U+200B",
             ToolTip.GetTip(fixture.List));
         int storeIndex = fixture.Tab.Listing.GetStoreIndex(row);
