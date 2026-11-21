@@ -298,9 +298,25 @@ public sealed partial class MetadataService : IDisposable
                 Finished();
             }
         }
-        Task work = field.ObservationLane
-            ? Records.FileObservationRequests.RunOwned(_io, deviceKey, IoPriority.Background, ct => { Read(ct); return true; })
-            : _io.Run(deviceKey, IoPriority.Background, Read);
+        Task work;
+        try
+        {
+            work = field.ObservationLane
+                ? Records.FileObservationRequests.RunOwned(_io, deviceKey, IoPriority.Background, ct => { Read(ct); return true; })
+                : _io.Run(deviceKey, IoPriority.Background, Read);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // A worker-start/enqueue failure occurs before Read can retire its demand.
+            // Keep the visible row informative and allow a later explicit refresh to retry.
+            try
+            {
+                var failure = new MetadataValue(MetadataState.Failed, Detail: Sentence(ex.Message));
+                if (Store(production, failure, field.RefreshAfter is not null, CancellationToken.None, out _, out bool changed) && changed) Notify();
+            }
+            finally { Finished(); }
+            return;
+        }
         // Shutdown cancels queued work without entering its callback; release its demand record in that case too.
         _ = work.ContinueWith(_ => Finished(), CancellationToken.None,
             TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
