@@ -168,6 +168,34 @@ public sealed class EfsRemoteUploadTests
         Assert.Contains(job.Issues, issue => issue.Message.Contains("no matching approval", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task A_clear_upload_holds_its_source_against_native_efs_conversion_through_publication()
+    {
+        RequireEfsFixture();
+        using var fixture = new Fixture();
+        byte[] payload = [31, 41, 59, 26];
+        string source = fixture.CreateEncryptedFile(payload);
+        File.Decrypt(source);
+        Assert.False(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+        Exception? conversionFailure = null;
+        int attempted = 0;
+        fixture.Server.AfterRename = () =>
+        {
+            attempted++;
+            try { File.Encrypt(source); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { conversionFailure = error; }
+        };
+        var job = await fixture.Run(source, JobKind.Copy, _ => throw new InvalidOperationException("Unexpected upload decision."));
+        Assert.Equal(1, attempted);
+        Assert.NotNull(conversionFailure);
+        Assert.False(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal(payload, fixture.Server.Lookup("/upload/secret.bin", true)!.Data);
+        File.Encrypt(source);
+        Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+        Assert.Equal(payload, File.ReadAllBytes(source));
+    }
+
     [Theory]
     [InlineData(true, true)]
     [InlineData(false, true)]

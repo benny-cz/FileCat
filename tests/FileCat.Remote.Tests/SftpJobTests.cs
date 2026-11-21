@@ -92,6 +92,32 @@ public sealed class SftpJobTests : IDisposable
 
     private IEnumerable<string> Names(string folder) => _server.Lookup(folder, true)!.Children.Keys;
 
+    [Fact]
+    public async Task Windows_publication_keeps_a_read_handle_that_excludes_exclusive_source_open()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "This is the Windows source-sharing boundary.");
+        string source = LocalFile("held-publish.txt", "source content");
+        _server.Dir("/up");
+        bool exclusiveRefused = false;
+        _server.AfterRename = () =>
+        {
+            try
+            {
+                using var exclusive = new FileStream(source, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException) { exclusiveRefused = true; }
+        };
+        var job = await RunAsync(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = Remote("/up"),
+        });
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.True(exclusiveRefused);
+        Assert.Equal("source content", _server.Read("/up/held-publish.txt"));
+    }
+
     [Theory]
     [InlineData(VerifyMode.Native)]
     [InlineData(VerifyMode.ReadBack)]

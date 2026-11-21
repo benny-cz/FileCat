@@ -956,16 +956,18 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 if (unchanged is not null && !unchanged())
                     throw new IOException("The source changed during verification, so the copy was not published.");
                 retained?.File.Review(retained.Reviewed,Job.Token);
-                // Reopen and check the actual local file immediately before publication. This
-                // catches an EFS or identity change since the upload; the later server rename
-                // still has a concurrency interval that needs separate native qualification.
-                if (OperatingSystem.IsWindows() && localSourcePath is not null)
+                // Reopen and check the actual local file immediately before publication. Keep
+                // its read handle until the remote name is published. Sharing writes and deletion
+                // preserves ordinary competing-source handling; an exclusive EFS conversion
+                // should conflict with this open, subject to separate native qualification.
+                using (var publicationSource = OperatingSystem.IsWindows() && localSourcePath is not null
+                    ? new FileStream(localSourcePath, FileMode.Open, FileAccess.Read,
+                        FileShare.ReadWrite | FileShare.Delete) : null)
                 {
-                    using var publicationSource = new FileStream(localSourcePath, FileMode.Open, FileAccess.Read,
-                        FileShare.Read | FileShare.Delete);
-                    RequireLocalSourceProtection(publicationSource, attemptLocalIdentity, attemptEfsIdentity);
+                    if (publicationSource is not null)
+                        RequireLocalSourceProtection(publicationSource, attemptLocalIdentity, attemptEfsIdentity);
+                    Publish(destFolder, name, temp!, replace, approvedTarget, approvedSha256, publication,retained);
                 }
-                Publish(destFolder, name, temp!, replace, approvedTarget, approvedSha256, publication,retained);
                 temp = null;
             });
         }
