@@ -37,8 +37,11 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
     /// <summary>How much of the change journal is read for one item's history (its newest part when larger).</summary>
     internal static long JournalReadLimit { get; set; } = 2L << 30;
 
-    public InspectionReport Read(string path, CancellationToken ct) =>
-        new Reader(Path.GetFullPath(path), !AssumeNotPrivileged && Environment.IsPrivilegedProcess, ct) { ViewIndexLimit = ViewIndexReadLimit }.Run();
+    public InspectionReport Read(string path, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        return new Reader(Path.GetFullPath(path), !AssumeNotPrivileged && Environment.IsPrivilegedProcess, ct) { ViewIndexLimit = ViewIndexReadLimit }.Run();
+    }
 
     private sealed partial class Reader(string path, bool privileged, CancellationToken ct)
     {
@@ -118,6 +121,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             if (remote is not null) _sections.Add(remote);
             if (_index is { } index) _sections.Add(IndexSection(index));
             if (_record is not null) _sections.Add(RecordSection(_record));
+            ct.ThrowIfCancellationRequested();
             return new InspectionReport($"File-system record · {(_remote ? "network file on " : "")}{fileSystem}", _sections, _warnings);
         }
 

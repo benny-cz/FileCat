@@ -37,6 +37,15 @@ public sealed partial class WindowsFileRecordsTests
         System.Text.RegularExpressions.Regex.IsMatch(TimestampChecksText(report), BackdatedCreationPattern);
 
     [Fact]
+    public void A_precanceled_record_read_never_opens_the_item()
+    {
+        using var canceled = new CancellationTokenSource();
+        canceled.Cancel();
+        string missing = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Assert.ThrowsAny<OperationCanceledException>(() => new WindowsFileRecords().Read(missing, canceled.Token));
+    }
+
+    [Fact]
     public void Summary_preserves_the_native_missing_target_status()
     {
         Assert.SkipUnless(OperatingSystem.IsWindows(), "Requires Windows native metadata.");
