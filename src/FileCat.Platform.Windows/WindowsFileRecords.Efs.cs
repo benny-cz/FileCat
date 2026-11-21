@@ -163,8 +163,10 @@ public sealed unsafe partial class WindowsFileRecords
                 // A folder's $EFS names whom it was encrypted for; files made in it get keys of their own.
                 fields.Add((users ? _isFolder ? "Encrypted for" : "Can decrypt it" : "Recovery agents", failed is not null
                     ? "not read: " + failed
+                    : problems.Count > 0 && entries.Count == 0 ? "not completely read"
                     : entries.Count == 0 ? "none"
-                    : $"{entries.Count:N0} {(users ? entries.Count == 1 ? "user" : "users" : entries.Count == 1 ? "agent" : "agents")}"));
+                    : $"{entries.Count:N0} {(users ? entries.Count == 1 ? "user" : "users" : entries.Count == 1 ? "agent" : "agents")}" +
+                      (problems.Count > 0 ? " shown (partial)" : "")));
                 foreach (var e in entries)
                     rows.Add([role, e.Thumbprint.Length > 0 ? e.Thumbprint : "—", e.Display ?? "—", Who(e.Sid)]);
                 foreach (var problem in problems) lines.AddRange(Wrap((users ? "Its users: " : "Its recovery agents: ") + problem, "• "));
