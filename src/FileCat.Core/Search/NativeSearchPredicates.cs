@@ -56,6 +56,11 @@ public static class NativeSearchPredicates
 
     public static bool Validate(FileAttributes set, FileAttributes clear, IReadOnlyList<(ItemRef Item, string Relative)>? within, bool extraData, out string? error)
     {
+        if ((set & clear) != 0)
+        {
+            error = "An attribute cannot be both required and excluded. Open Advanced criteria and choose one state.";
+            return false;
+        }
         var issues = Issues(set | clear, OperatingSystem.IsWindows(), HasNativeScope(within));
         if (!issues.IsEmpty)
         {
