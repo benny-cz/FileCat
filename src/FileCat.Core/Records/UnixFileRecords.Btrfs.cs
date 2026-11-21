@@ -23,7 +23,7 @@ public sealed unsafe partial class UnixFileRecords
 
     private static ObservedFact<ulong> ReadBtrfsSubvolume(SafeFileHandle file, CancellationToken ct)
     {
-        const ulong lookup = 0xd0009412; // BTRFS_IOC_INO_LOOKUP on Linux x64.
+        const ulong lookup = 0xd0009412; // BTRFS_IOC_INO_LOOKUP: the generic encoding, the same on x64 and ARM64.
         Span<byte> request = stackalloc byte[4096];
         request.Clear();
         // With treeid=0 and objectid=BTRFS_FIRST_FREE_OBJECTID, the ioctl returns
