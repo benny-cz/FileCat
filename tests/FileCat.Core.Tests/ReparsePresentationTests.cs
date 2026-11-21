@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Text;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Listing;
+using FileCat.Core.Records;
 using FileCat.Core.Resources;
 
 namespace FileCat.Core.Tests;
@@ -78,6 +79,34 @@ public sealed class ReparsePresentationTests
         Assert.Null(ReparsePayloadReader.ParseData(ReparseLinks.AppExecutionAliasTag, alias).Link);
         alias[0] = 4;
         Assert.Equal(ReparsePayloadState.Unsupported, ReparsePayloadReader.ParseData(ReparseLinks.AppExecutionAliasTag, alias).State);
+    }
+
+    [Fact]
+    public void Full_reparse_buffer_uses_declared_payload_boundary_for_typed_report_text()
+    {
+        byte[] substitute = Encoding.Unicode.GetBytes(@"\??\C:\target");
+        byte[] display = Encoding.Unicode.GetBytes(@"C:\target");
+        byte[] buffer = new byte[8 + 12 + substitute.Length + display.Length + 4];
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer, ReparseLinks.SymbolicLinkTag);
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(4), (ushort)(buffer.Length - 8 - 4));
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(6), 7); // Reserved is ignored by the protocol.
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(8 + 2), (ushort)substitute.Length);
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(8 + 4), (ushort)substitute.Length);
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(8 + 6), (ushort)display.Length);
+        substitute.CopyTo(buffer, 8 + 12);
+        display.CopyTo(buffer, 8 + 12 + substitute.Length);
+
+        var parsed = ReparsePayloadReader.Parse(buffer);
+        Assert.Equal(ReparsePayloadState.Known, parsed.State);
+        Assert.Equal(new StoredLinkTarget(@"\??\C:\target", @"C:\target", false), parsed.Link);
+        Assert.Equal("C:\\target", RecordText.ReparseTarget(parsed));
+        Assert.Equal(buffer.Length - 8 - 4, parsed.RawData.Length);
+
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(4), (ushort)(buffer.Length - 8 - 6));
+        Assert.Equal(ReparsePayloadState.Malformed, ReparsePayloadReader.Parse(buffer).State);
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(4), (ushort)(buffer.Length - 8 + 1));
+        Assert.Equal(ReparsePayloadState.Malformed, ReparsePayloadReader.Parse(buffer).State);
+        Assert.Equal(ReparsePayloadState.Malformed, ReparsePayloadReader.Parse(buffer.AsSpan(0, 7)).State);
     }
 
     [Fact]

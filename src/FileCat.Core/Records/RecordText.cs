@@ -156,7 +156,11 @@ public static class RecordText
     /// <summary>What a reparse point's data says, for the tags whose layout is known; null for the others.</summary>
     public static string? ReparseTarget(uint tag, ReadOnlySpan<byte> data)
     {
-        var payload = FileSystem.ReparsePayloadReader.ParseData(tag, data);
+        return ReparseTarget(FileSystem.ReparsePayloadReader.ParseData(tag, data));
+    }
+
+    public static string? ReparseTarget(FileSystem.ReparsePayload payload)
+    {
         if (payload.State != FileSystem.ReparsePayloadState.Known) return null;
         if (payload.Link is { } link)
             return (link.Relative ? "relative: " : "") + (link.PrintName.Length > 0 ? link.PrintName : link.SubstituteName);
