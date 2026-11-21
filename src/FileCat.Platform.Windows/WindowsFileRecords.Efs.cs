@@ -115,13 +115,15 @@ public sealed unsafe partial class WindowsFileRecords
         return new string(span) + (length == MaxEfsText ? "…" : "");
     }
 
-    /// <summary>Keep a canceled, already-started metadata call alive until it returns, then omit the next call.</summary>
-    internal static void ForEachEfsQuery(CancellationToken ct, Action<bool> query)
+    /// <summary>Keep a started query alive until return; skip presentation and the next query after cancellation.</summary>
+    internal static void ForEachEfsQuery<T>(CancellationToken ct, Func<bool, T> query, Action<bool, T> append)
     {
         foreach (bool users in (bool[])[true, false])
         {
             ct.ThrowIfCancellationRequested();
-            query(users);
+            T result = query(users);
+            ct.ThrowIfCancellationRequested();
+            append(users, result);
             ct.ThrowIfCancellationRequested();
         }
     }
@@ -146,8 +148,12 @@ public sealed unsafe partial class WindowsFileRecords
             ForEachEfsQuery(ct, users =>
             {
                 var problems = new List<string>();
-                string role = users ? "user" : "recovery agent";
                 var (entries, failed) = QueryEfs(users, problems);
+                return (Entries: entries, Failed: failed, Problems: problems);
+            }, (users, result) =>
+            {
+                string role = users ? "user" : "recovery agent";
+                var (entries, failed, problems) = result;
                 // A folder's $EFS names whom it was encrypted for; files made in it get keys of their own.
                 fields.Add((users ? _isFolder ? "Encrypted for" : "Can decrypt it" : "Recovery agents", failed is not null
                     ? "not read: " + failed
@@ -169,11 +175,18 @@ public sealed unsafe partial class WindowsFileRecords
         private (List<EfsEntry> Entries, string? Failed) QueryEfs(bool users, List<string> problems)
         {
             nint list = 0;
-            uint error;
-            string name = WindowsFileOperations.Long(path);
-            try { error = users ? QueryUsersOnEncryptedFile(name, out list) : QueryRecoveryAgentsOnEncryptedFile(name, out list); }
-            catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { return ([], "the EFS API is not available on this Windows"); }
-            try { return error != 0 ? ([], new Win32Exception((int)error).Message) : (ReadEfsList(list, problems), null); }
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                string name = WindowsFileOperations.Long(path);
+                uint error;
+                try { error = users ? QueryUsersOnEncryptedFile(name, out list) : QueryRecoveryAgentsOnEncryptedFile(name, out list); }
+                catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { return ([], "the EFS API is not available on this Windows"); }
+                ct.ThrowIfCancellationRequested();
+                var result = error != 0 ? (new List<EfsEntry>(), new Win32Exception((int)error).Message) : (ReadEfsList(list, problems), (string?)null);
+                ct.ThrowIfCancellationRequested();
+                return result;
+            }
             finally
             {
                 if (list != 0) FreeEncryptionCertificateHashList(list);

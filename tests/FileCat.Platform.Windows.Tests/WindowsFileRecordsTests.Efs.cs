@@ -14,12 +14,14 @@ public sealed partial class WindowsFileRecordsTests
         using var entered = new ManualResetEventSlim();
         using var release = new ManualResetEventSlim();
         var calls = new List<bool>();
+        var published = new List<bool>();
         var read = Task.Run(() => WindowsFileRecords.ForEachEfsQuery(canceled.Token, users =>
         {
             calls.Add(users);
             entered.Set();
             Assert.True(release.Wait(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken), "The held EFS query was not released.");
-        }), TestContext.Current.CancellationToken);
+            return users;
+        }, (users, _) => published.Add(users)), TestContext.Current.CancellationToken);
         try
         {
             Assert.True(entered.Wait(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken), "The first EFS query did not start.");
@@ -29,6 +31,7 @@ public sealed partial class WindowsFileRecordsTests
         finally { release.Set(); }
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => read);
         Assert.Equal([true], calls);
+        Assert.Empty(published);
     }
 
     /// <summary>Tests that change this computer's state beyond a temporary folder run only where asked, or on a disposable CI runner.</summary>
