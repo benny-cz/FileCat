@@ -4,6 +4,8 @@ using System.Net.Sockets;
 using System.Text;
 using FileCat.Core.State;
 using FileCat.Remote.Sftp;
+using Renci.SshNet;
+using Renci.SshNet.Sftp;
 
 namespace FileCat.Remote.Tests;
 
@@ -28,6 +30,83 @@ public sealed class OpenSshIntegrationTests : IDisposable
             AnswerPrompts = (_, _) => null,
         };
         return (new SshNetConnector().Connect(_sshd.Profile, context, TestContext.Current.CancellationToken), _sshd.Files);
+    }
+
+    [Fact]
+    public async Task Exact_security_lstat_keeps_a_symbolic_link_and_repairs_mode_zero_without_opening_the_file()
+    {
+        if (!OperatingSystem.IsLinux() || Environment.IsPrivilegedProcess) Assert.Skip("Requires an ordinary Linux OpenSSH fixture.");
+        if (_sshd is null) Assert.Skip("Requires the owned loopback OpenSSH server.");
+        string path = Path.Combine(_sshd.Files, "mode zero");
+        File.WriteAllText(path, "witness");
+        string link = Path.Combine(_sshd.Files, "symbolic link");
+        File.CreateSymbolicLink(link, path);
+        File.SetUnixFileMode(path, UnixFileMode.None);
+        var ct = TestContext.Current.CancellationToken;
+        var connected = Connect();
+        using var channel = Assert.IsType<SshNetChannel>(connected.Channel);
+        var linkAttributes = channel.ReadExactSecurity(link, ct);
+        Assert.Equal(RemoteSecurityObservation.ExactLStat, linkAttributes.Observation);
+        Assert.Equal(0xa000u, linkAttributes.Permissions & 0xf000u);
+        var listed = channel.List(_sshd.Files, ct);
+        Assert.Equal(RemoteSecurityObservation.DirectoryEntry, Assert.Single(listed, entry => entry.Name == "symbolic link").SecurityAttributes?.Observation);
+        var file = channel.ReadExactSecurity(path, ct);
+        Assert.Equal(0x8000u, file.Permissions);
+        Assert.NotNull(file.UserId);
+        Assert.NotNull(file.GroupId);
+        Assert.Throws<ArgumentException>(() => channel.ReadExactSecurity(_sshd.Files + "/../files/mode zero", ct));
+
+        var profile = _sshd.Profile;
+        using var auth = new PrivateKeyFile(Assert.IsType<string>(profile.KeyFile));
+        using var client = new SftpClient(profile.Host, profile.Port, profile.User, auth);
+        client.HostKeyReceived += (_, key) => key.CanTrust = key.HostKey.AsSpan().SequenceEqual(_sshd.HostKey);
+        await client.ConnectAsync(ct);
+        Assert.Equal("1", client.SecurityExtensions()["lsetstat@openssh.com"]);
+        await client.SetSecurityNoFollowAsync(path, SftpSecurityChange.Mode(file.Permissions!.Value, 0x180), ct);
+        var after = channel.ReadExactSecurity(path, ct);
+        Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(path));
+        Assert.Equal(file with { Permissions = 0x8180 }, after);
+        Assert.Equal("witness", File.ReadAllText(path));
+        Assert.Equal(linkAttributes, channel.ReadExactSecurity(link, ct));
+        Assert.Equal(0xa000u, channel.ReadExactSecurity(link, ct).Permissions & 0xf000u);
+    }
+
+    [Fact]
+    public void Sftp_server_names_corroborate_the_observed_UID_and_GID()
+    {
+        if (_sshd is null) Assert.Skip("Requires the owned loopback OpenSSH server.");
+        var connected = Connect();
+        using var channel = Assert.IsType<SshNetChannel>(connected.Channel);
+        if (channel.SecurityExtensions().GetValueOrDefault("users-groups-by-id@openssh.com") != "1")
+            Assert.Skip("Requires OpenSSH with version 1 of users-groups-by-id.");
+        var ct = TestContext.Current.CancellationToken;
+        var observed = channel.ReadExactSecurity(_sshd.Files, ct);
+        var names = Assert.IsType<SftpAccountNames>(channel.LookupSecurityNames(observed.UserId!.Value, observed.GroupId!.Value, ct));
+        Assert.Equal(Environment.UserName, names.User);
+        Assert.False(string.IsNullOrEmpty(names.Group));
+    }
+
+    [Fact]
+    public async Task Exact_security_read_still_works_without_the_no_follow_setter_extension()
+    {
+        if (!OperatingSystem.IsLinux() || Environment.IsPrivilegedProcess) Assert.Skip("Requires an ordinary Linux OpenSSH fixture.");
+        using var server = TestSshd.TryStart(disableLSetStat: true);
+        if (server is null) Assert.Skip("Requires the owned loopback OpenSSH server.");
+        string path = Path.Combine(server.Files, "file.txt");
+        File.WriteAllText(path, "witness");
+        var before = File.GetUnixFileMode(path);
+        var profile = server.Profile;
+        var ct = TestContext.Current.CancellationToken;
+        using var auth = new PrivateKeyFile(Assert.IsType<string>(profile.KeyFile));
+        using var client = new SftpClient(profile.Host, profile.Port, profile.User, auth);
+        client.HostKeyReceived += (_, key) => key.CanTrust = key.HostKey.AsSpan().SequenceEqual(server.HostKey);
+        await client.ConnectAsync(ct);
+        Assert.False(client.SecurityExtensions().ContainsKey("lsetstat@openssh.com"));
+        var observed = await client.ReadSecurityLStatAsync(path, ct);
+        Assert.Equal(0x8000u | (uint)before, observed.Permissions);
+        await Assert.ThrowsAsync<NotSupportedException>(() =>
+            client.SetSecurityNoFollowAsync(path, SftpSecurityChange.Mode(observed.Permissions!.Value, 0x180), ct));
+        Assert.Equal(before, File.GetUnixFileMode(path));
     }
 
     [Fact]

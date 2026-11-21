@@ -1,7 +1,9 @@
 using FileCat.Core.Diagnostics;
 using FileCat.Core.Jobs;
+using FileCat.Core.Permissions;
 using FileCat.Core.Resources;
 using FileCat.Core.State;
+using FileCat.Remote.Ftp;
 
 namespace FileCat.Remote.Sftp;
 
@@ -10,7 +12,7 @@ namespace FileCat.Remote.Sftp;
 /// FileCat its home folder, and its session is the connection profile's id. Nothing here assumes atomic replace,
 /// change watches, stable IDs, checksums, or server-side copy.
 /// </summary>
-public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
+public sealed partial class SftpProvider : ResourceProvider, IOriginMarkSource
 {
     public const string Home = "~";
     private const int MaxLinksResolved = 500;
@@ -48,6 +50,33 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
 
     public SftpLease Lease(Location location, CancellationToken ct) =>
         Connections.Lease(location.Session ?? throw new IOException("This SFTP location names no connection."), ct);
+
+    public PermissionSnapshot[] InspectFtpPermissions(Location location, IReadOnlyList<PermissionSubject> subjects, CancellationToken ct)
+    {
+        if (Profile(location) is not { IsFtp: true } profile || subjects.Any(subject =>
+            subject.OriginalLocation != location || subject.Authority.Kind != PermissionAuthorityKind.RemoteSession ||
+            subject.Authority.Id != profile.Id || subject.Kind is not (PermissionObjectKind.File or PermissionObjectKind.Directory)))
+            return Unavailable(PermissionReadStatus.Unsupported, "These items do not belong to a configured FTP connection.");
+        string protocol = profile.Protocol;
+        try
+        {
+            using var lease = Lease(location, ct);
+            if (lease.Channel is not FtpChannel channel) return Unavailable(PermissionReadStatus.Unsupported, "This connection has no FTP permission observations.");
+            try
+            {
+                var authority = new PermissionAuthority(PermissionAuthorityKind.RemoteSession, profile.Id, lease.Generation);
+                var snapshots = channel.InspectPermissions(Resolve(location, channel), subjects, protocol, authority, ct);
+                return lease.IsCurrent && Profile(location) == profile && profile.Protocol == protocol ? snapshots
+                    : Unavailable(PermissionReadStatus.Stale, "The FTP connection changed during inspection. Refresh the folder and try again.");
+            }
+            catch (RemoteDisconnectedException) { lease.Broken = true; throw; }
+        }
+        catch (UnauthorizedAccessException) { return Unavailable(PermissionReadStatus.Denied, "The server denied the permission listing."); }
+        catch (IOException error) { return Unavailable(PermissionReadStatus.Failed, error.Message); }
+
+        PermissionSnapshot[] Unavailable(PermissionReadStatus status, string reason) =>
+            subjects.Select(subject => FtpChannel.Unavailable(subject, status, reason)).ToArray();
+    }
 
     public override string GetDisplayPath(Location location)
     {

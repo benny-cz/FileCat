@@ -66,6 +66,11 @@ public sealed partial class MainViewModel
         }
         switch (id)
         {
+            case CommandIds.PermissionsOwnership:
+                if (PermissionProcessRefusal() is { } permissionsRefusal) return CommandAvailability.No(permissionsRefusal);
+                if (Scope?.StorageAvailability?.Invoke() is { Enabled: false })
+                    return CommandAvailability.No("Wait for the results to finish before inspecting permissions.");
+                return tab is not null && hasItem ? CommandAvailability.Yes : CommandAvailability.No("Focus or mark objects to inspect their permissions.");
             case CommandIds.StorageAttributes:
                 if (Scope?.StorageAvailability?.Invoke() is { Enabled: false } storageGate) return storageGate;
                 if (Services.Jobs.CompressionUnavailable is { } storageUnavailable) return CommandAvailability.No(storageUnavailable.Message);
@@ -581,6 +586,9 @@ public sealed partial class MainViewModel
             case CommandIds.Properties:
                 if (PropertiesPathForFocus() is { } pp) ShowPropertiesForPath(pp);
                 else Notify("Select a file, folder, or drive to show its properties.");
+                break;
+            case CommandIds.PermissionsOwnership:
+                if (tab is { Location: not null }) await InspectPermissionsAsync(CapturePermissionsSelection(tab));
                 break;
             case CommandIds.HiddenData:
                 OpenHiddenData();

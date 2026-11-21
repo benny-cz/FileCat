@@ -4,6 +4,7 @@ using Avalonia.Automation;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Controls;
@@ -14,6 +15,75 @@ namespace FileCat.App.Tests;
 
 public sealed class DialogFocusOwnershipTests
 {
+    [AvaloniaFact]
+    public async Task Persistent_action_uses_one_guard_for_enter_click_closer_and_window_close()
+    {
+        var (window, host, fallback, dialogs) = Open();
+        var viewer = new DialogCloser();
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var returned = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        int calls = 0, implicitDismissals = 0;
+        dialogs.OperationsRegion = fallback;
+        try
+        {
+            var option = new CheckBox { Content = "Permission option" };
+            var result = dialogs.ShowCustomAsync("Permission review", option,
+                [new("Apply", "apply", IsDefault: true) { InvokeAsync = async () => { calls++; await release.Task; returned.SetResult(); } },
+                 new("Close", "close", IsCancel: true)], initialFocus: option, closer: viewer,
+                behavior: new DialogBehavior { ConfirmOnOptionEnter = false, KeepOperationsUsableDuringAction = true,
+                    OnImplicitDismiss = () => implicitDismissals++ });
+            Dispatcher.UIThread.RunJobs();
+            option.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+            Assert.Equal(0, calls);
+            viewer.Close("apply");
+            var card = Assert.Single(host.GetVisualDescendants().OfType<DialogCard>());
+            var apply = Assert.Single(card.GetVisualDescendants().OfType<Button>(), button => button.Content as string == "Apply");
+            Assert.False(apply.IsEnabled);
+            Assert.True(dialogs.OperationsUsable);
+            Assert.Equal("Close and detach", AutomationProperties.GetName(card.CloseButton));
+            apply.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            viewer.Close("apply");
+            option.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+            Assert.Equal(1, calls);
+            Assert.False(result.IsCompleted);
+            dialogs.CancelAll();
+            Assert.Equal("close", await result);
+            Assert.False(returned.Task.IsCompleted);
+            Assert.Equal(0, implicitDismissals);
+            release.SetResult();
+            await returned.Task;
+            Assert.False(dialogs.IsOpen);
+        }
+        finally { release.TrySetResult(); dialogs.CancelAll(); Dispatcher.UIThread.RunJobs(); window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task Persistent_action_keeps_its_dialog_open_for_results_and_restores_header_state()
+    {
+        var (window, host, _, dialogs) = Open();
+        try
+        {
+            int calls = 0;
+            var close = new DialogButtonPresentation(new("Discard draft", HelpText: "Discard the current draft."));
+            var result = dialogs.ShowCustomAsync("Permission review", new TextBox(),
+                [new("Apply", "apply", IsDefault: true) { InvokeAsync = () => { calls++; return Task.CompletedTask; } },
+                 new("Close", "close", IsCancel: true)], behavior: new DialogBehavior { ClosePresentation = close });
+            Dispatcher.UIThread.RunJobs();
+            var card = Assert.Single(host.GetVisualDescendants().OfType<DialogCard>());
+            var apply = Assert.Single(card.GetVisualDescendants().OfType<Button>(), button => button.Content as string == "Apply");
+            apply.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(1, calls);
+            Assert.False(result.IsCompleted);
+            Assert.True(apply.IsEnabled);
+            Assert.Equal("Discard draft", AutomationProperties.GetName(card.CloseButton));
+            close.Update(new("Close review"));
+            Assert.Equal("Close review", AutomationProperties.GetName(card.CloseButton));
+            dialogs.CancelAll();
+            Assert.Equal("close", await result);
+        }
+        finally { dialogs.CancelAll(); Dispatcher.UIThread.RunJobs(); window.Close(); }
+    }
+
     private static string ReviewText(TextBlock block) => block.Inlines is { Count: > 0 } inlines
         ? string.Concat(inlines.OfType<Run>().Select(run => run.Text))
         : block.Text ?? string.Empty;

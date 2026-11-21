@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using FileCat.Core.Analysis;
+using FileCat.Core.Jobs;
 using static FileCat.Platform.Windows.Elevation.NtFile;
 
 namespace FileCat.Platform.Windows;
@@ -10,9 +11,13 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory
         => OpenMaintenanceCore(name, replacement: false);
     internal override AnalysisPrivateFile OpenReplacementFile(string name)
         => OpenMaintenanceCore(name, replacement: true);
-    private AnalysisPrivateFile OpenMaintenanceCore(string name, bool replacement)
+    internal override AnalysisPrivateFile OpenPermissionJournalMaintenance(string name)
+        => OpenMaintenanceCore(name, replacement: false, permissionsJournal: true);
+    private AnalysisPrivateFile OpenMaintenanceCore(string name, bool replacement, bool permissionsJournal = false)
     {
-        if (replacement) AnalysisPrivateNames.ReplacementData(name); else AnalysisPrivateNames.Maintenance(name);
+        if (permissionsJournal) PermissionJournalNames.Require(name);
+        else if (replacement) AnalysisPrivateNames.ReplacementData(name);
+        else AnalysisPrivateNames.Maintenance(name);
         Verify();
         var owned = OpenOwned(Root, name, GenericRead | GenericWrite | Delete | ReadControl | Synchronize,
             replacement ? ShareRead | ShareDelete : ShareRead, Open, NonDirectoryFile | OpenReparsePoint);

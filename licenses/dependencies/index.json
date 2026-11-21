@@ -2441,32 +2441,6 @@
       "Coverage": "nuget-files-retained"
     },
     {
-      "ID": "SSH.NET",
-      "Version": "2026.0.0",
-      "NuGetContentHash": "Yu9dirPq8l3oaat0+OQ7K0nUf5MmYltpia5UGqsApTG4zTPvBC1cxbNnC3NERij26dUST0A3Ef1QdHSn5ArbWQ==",
-      "PackageArchiveSHA256": "b2515de616821198f5cf5530f5ea198912730bbe3504ef4c6aee00a661fecac2",
-      "NuGetLicenseDeclaration": {
-        "Text": "MIT",
-        "Attributes": {
-          "type": "expression"
-        }
-      },
-      "NuGetRepositoryDeclaration": {
-        "Text": null,
-        "Attributes": {
-          "type": "git",
-          "url": "https://github.com/sshnet/SSH.NET",
-          "commit": "7b2fd3dbf2c86a80a7b06cea020aa5f821c9902e"
-        }
-      },
-      "RetainedNoticePaths": [
-        "upstream/sshnet/SSH.NET/7b2fd3dbf2c86a80a7b06cea020aa5f821c9902e/LICENSE",
-        "upstream/sshnet/SSH.NET/7b2fd3dbf2c86a80a7b06cea020aa5f821c9902e/THIRD-PARTY-NOTICES.TXT"
-      ],
-      "FullTextRetained": true,
-      "Coverage": "declared-source-texts-retained"
-    },
-    {
       "ID": "System.CodeDom",
       "Version": "10.0.0",
       "NuGetContentHash": "QWERdKi/tQAx+MbrPxTGcpchqMANnVXNiv2r2tILBBB38E74buD+fABSUhozZ1G9kjbadFB0m+HPFMkhJPeFvA==",

@@ -60,6 +60,17 @@ internal static unsafe partial class NtFile
         out SafeFileHandle handle, uint fileAttributes = 0, ReadOnlySpan<byte> securityDescriptor = default, bool caseSensitive = false)
     {
         if (name.Length == 0 || name.Length > 32766) throw new ArgumentException("Invalid name.", nameof(name));
+        return TryOpenCore(root, name, access, share, disposition, options, out handle, fileAttributes, securityDescriptor, caseSensitive);
+    }
+
+    // A zero-length relative name opens the held object itself. The directory flag keeps this a directory-only access request.
+    internal static int TryReopenDirectoryForListing(SafeFileHandle directory, out SafeFileHandle handle) =>
+        TryOpenCore(directory, string.Empty, ListDirectory | ReadAttributes | Synchronize, ShareAll, Open, DirectoryFile | OpenReparsePoint,
+            out handle, 0, default, caseSensitive: true);
+
+    private static int TryOpenCore(SafeHandle? root, string name, uint access, uint share, uint disposition, uint options,
+        out SafeFileHandle handle, uint fileAttributes, ReadOnlySpan<byte> securityDescriptor, bool caseSensitive)
+    {
         bool added = false;
         try
         {

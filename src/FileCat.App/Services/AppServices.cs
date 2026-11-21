@@ -2,10 +2,12 @@ using FileCat.Core.Commands;
 using FileCat.Core.Diagnostics;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Listing;
+using FileCat.Core.Permissions;
 using FileCat.Core.Platform;
 using FileCat.Core.Resources;
 using FileCat.Core.State;
 using FileCat.Core.Threading;
+using FileCat.Recovery.Unix;
 
 namespace FileCat.App.Services;
 
@@ -18,7 +20,8 @@ public sealed class AppServices : IDisposable
     private AppServices(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null, Core.Archives.ArchiveJobBackends? archiveBackends = null,
         Func<AppPaths,IFileSystemOperations,Core.Edit.EditSessionStore>? editSessionFactory = null, IOwnership? ownershipOverride = null,
         int metadataCacheSize = 50_000, Func<long>? metadataClock = null, IStorageTransforms? storageTransforms = null,
-        FileCat.Platform.Windows.AdministratorTransferRegistry? administratorRegistry = null, bool qualifyNativeArm64Storage = false)
+        FileCat.Platform.Windows.AdministratorTransferRegistry? administratorRegistry = null, bool qualifyNativeArm64Storage = false,
+        IPermissionService? permissionService = null, LinuxPermissionBroker? linuxPermissionBroker = null)
     {
         Paths = paths;
         AppLog.Initialize(paths.LogDirectory);
@@ -78,6 +81,14 @@ public sealed class AppServices : IDisposable
         foreach (var c in Keymap.Conflicts) AppLog.Warn("Key binding: " + c);
         Icons = new IconProvider();
         Platform = PlatformFactory.Create();
+        Permissions = permissionService ?? (OperatingSystem.IsWindows() ? new FileCat.Platform.Windows.Permissions.WindowsPermissionService(
+                qualifySmbReads: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_SMB_PERMISSIONS") == "1",
+                qualifyRefsReads: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_REFS_PERMISSIONS") == "1",
+                qualifyAccessEstimates: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_ACL_ESTIMATE") == "1")
+            : OperatingSystem.IsLinux() ? new LinuxPermissionService(
+                qualifyMountProjections: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_LINUX_MOUNT_PERMISSIONS") == "1")
+            : OperatingSystem.IsMacOS() ? new DarwinPermissionService() : new NoPermissionService());
+        LinuxBroker = linuxPermissionBroker ?? LinuxPermissionBroker.ForInstalledFileCat();
         Shell = Platform.Shell;
         CloudSyncRoots = Shell.CloudSyncRoots;
         Providers = new ProviderRegistry();
@@ -146,7 +157,10 @@ public sealed class AppServices : IDisposable
             qualifyNativeArm64Storage ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateArm64QualificationJournal :
                 FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateJournal : null,
             qualifyNativeArm64Storage ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.Arm64QualificationBackend :
-                FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.Backend : null);
+                FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.Backend : null,
+            createPermissionJournal: (leaf, ct) => OperatingSystem.IsWindows()
+                ? FileCat.Platform.Windows.WindowsAnalysisPrivateDirectory.CreatePermissionJournal(paths.JournalDirectory, leaf, ct)
+                : Core.Analysis.UnixAnalysisPrivateDirectory.CreatePermissionJournal(paths.JournalDirectory, leaf, ct));
         Archives.MutationAvailability = plan => Jobs.CanReviewArchive(plan) ? Jobs.ArchiveAvailability(plan)
             : Core.Archives.ArchiveJobAvailability.Unqualified;
         // A ZIP route composed here moves ZIP changes to the worker profile, available or refused with its reason; without
@@ -182,6 +196,8 @@ public sealed class AppServices : IDisposable
             : editSessionFactory(paths,Platform.FileOperations);
         var ownership = ownershipOverride ?? Platform.Ownership;
         PrincipalNames = new PrincipalNames(ownership);
+        PermissionPrincipalNames = new PermissionPrincipalNames(ownership,
+            OperatingSystem.IsMacOS() ? principal => DarwinPrincipalNames.LookUp(principal, ownership) : null);
         Metadata = new Core.Metadata.MetadataService(Io, metadataClock ?? (() => Environment.TickCount64),
             maxCache: metadataCacheSize, ownership: ownership, names: PrincipalNames, fileRecords: Platform.FileRecords);
         // Checksums and signatures beside files (D-57): results kept in the cache folder; trusted minisign keys in the keys
@@ -214,6 +230,19 @@ public sealed class AppServices : IDisposable
 
     public Core.Metadata.MetadataService Metadata { get; }
     public PrincipalNames PrincipalNames { get; }
+    internal IReadOnlyList<Core.Jobs.InterruptedJob> ScanPermissionHistory(CancellationToken cancellation = default)
+    {
+        if (Core.Permissions.ReviewedPermissionOperation.ProcessRefusal() is not null) return [];
+        string parent = Paths.JournalDirectory;
+        string name = Core.Jobs.PermissionJournalNames.Directory;
+        string path = Path.Combine(parent, name);
+        if (!Directory.Exists(path)) return [];
+        using Core.Analysis.AnalysisPrivateDirectory directory = OperatingSystem.IsWindows()
+            ? new FileCat.Platform.Windows.WindowsAnalysisPrivateDirectory(parent, name)
+            : Core.Analysis.UnixAnalysisPrivateDirectory.OpenPermissionJournalDirectory(parent);
+        return Core.Jobs.PermissionJournalRecovery.Scan(directory, path, cancellation);
+    }
+    public PermissionPrincipalNames PermissionPrincipalNames { get; }
 
     public FileCat.Recovery.RecoveryProvider Recovery { get; }
 
@@ -300,6 +329,8 @@ public sealed class AppServices : IDisposable
     public Keymap Keymap { get; private set; }
     public IconProvider Icons { get; }
     public IPlatform Platform { get; }
+    public IPermissionService Permissions { get; }
+    internal LinuxPermissionBroker? LinuxBroker { get; }
     public IShellServices Shell { get; }
     internal IReadOnlyList<CloudSyncRoot> CloudSyncRoots { get; }
     public ProviderRegistry Providers { get; }
@@ -309,6 +340,12 @@ public sealed class AppServices : IDisposable
     /// <summary>Constructs an isolated composition root at explicit paths (including headless UI tests).</summary>
     /// <param name="sftpConnector">Tests connect to an in-memory server instead of SSH.NET.</param>
     public static AppServices CreateForPaths(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null) => new(paths, sftpConnector);
+
+    internal static AppServices CreateForPathsWithPermissions(AppPaths paths, IPermissionService permissionService) =>
+        new(paths, permissionService: permissionService);
+
+    internal static AppServices CreateForPathsWithLinuxPermissionBroker(AppPaths paths, string busSocket) =>
+        new(paths, linuxPermissionBroker: new(busSocket));
 
     internal static AppServices CreateForPathsWithAdministratorRegistry(AppPaths paths,
         FileCat.Platform.Windows.AdministratorTransferRegistry registry) => new(paths, administratorRegistry: registry);
@@ -638,6 +675,7 @@ public sealed class AppServices : IDisposable
         Sftp.Dispose();
         Metadata.Dispose();
         PrincipalNames.Dispose();
+        PermissionPrincipalNames.Dispose();
         Io.Dispose();
         Platform.Dispose();
     }

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using FileCat.Core.Permissions;
 using FileCat.Core.State;
 using FileCat.Remote.Ftp;
 using FileCat.Remote.Sftp;
@@ -151,6 +152,30 @@ internal sealed class TestFtpServer : IDisposable
             Handler.masquerade_address = os.environ["FILECAT_FTP_ADVERTISE"]
         if os.environ.get("FILECAT_FTP_NO_EPSV"):
             Handler.proto_cmds = {k: v for k, v in Handler.proto_cmds.items() if k != "EPSV"}
+        permission_listing = os.environ.get("FILECAT_FTP_PERMISSION_LISTING")
+        if permission_listing == "list":
+            BaseHandler = Handler
+            class Handler(BaseHandler):
+                proto_cmds = {k: v for k, v in BaseHandler.proto_cmds.items() if k not in ("MLST", "MLSD")}
+                def pre_process_command(self, line, command, argument):
+                    if command == "LIST" and argument.startswith("-a "):
+                        argument = argument[3:]
+                    return super().pre_process_command(line, command, argument)
+        if permission_listing == "mlsd":
+            BaseHandler = Handler
+            class Handler(BaseHandler):
+                def ftp_MLSD(self, path):
+                    if os.path.realpath(path) != os.path.realpath(root):
+                        return super().ftp_MLSD(path)
+                    data = (
+                        b"type=file;size=1;UNIX.mode=0000;UNIX.owner=42;UNIX.group=7;UNIX.ownername=server-user;"
+                        b"UNIX.groupname=server-group;Unique=A2;Perm=R; zero.txt\r\n"
+                        b"type=file;size=1;perm=; another unix.mode=0777;\r\n"
+                        b"type=file;size=1;unix.mode=0780; malformed.txt\r\n"
+                        b"type=file;size=1;unix.mode=0700; duplicate.txt\r\n"
+                        b"type=file;size=1;unix.mode=0755; duplicate.txt\r\n"
+                    )
+                    self.push_dtp_data(data, isproducer=False, cmd="MLSD")
         server = FTPServer(("127.0.0.1", int(os.environ.get("FILECAT_FTP_PORT", "0"))), Handler)
         print("READY", server.socket.getsockname()[1], flush=True)
         server.serve_forever()
@@ -178,7 +203,7 @@ internal sealed class TestFtpServer : IDisposable
     public static TestFtpServer? TryStart(string? certificatePem = null, string? advertise = null, bool implicitTls = false,
         string? mutateOnRename = null, string? failAfterBackupRename = null, string? failAfterStagePublish = null,
         string? failAfterBackupCleanup = null, int virtualListingCount = 0, bool virtualSelfLines = false, bool emptyFolders550 = false,
-        (int Lines, int Length)? virtualPadding = null)
+        (int Lines, int Length)? virtualPadding = null, string? permissionListing = null)
     {
         if (implicitTls && certificatePem is null) throw new ArgumentException("Implicit TLS requires a test certificate.", nameof(certificatePem));
         if (mutateOnRename is not null && mutateOnRename != "late.bin")
@@ -217,6 +242,11 @@ internal sealed class TestFtpServer : IDisposable
         if (emptyFolders550) start.Environment["FILECAT_FTP_EMPTY_550"] = "1";
         if (virtualPadding is { } padding)
             start.Environment["FILECAT_FTP_VIRTUAL_PADDED"] = FormattableString.Invariant($"{padding.Lines}:{padding.Length}");
+        if (permissionListing is not null)
+        {
+            start.Environment["FILECAT_FTP_PERMISSION_LISTING"] = permissionListing;
+            start.Environment["FILECAT_FTP_LOG"] = Path.Combine(dir, "ftp-permissions.log");
+        }
         var launched = Launch(start);
         if (launched is null) return null;
         return new TestFtpServer(launched.Value.Process, start, root, launched.Value.Port);
@@ -324,6 +354,77 @@ internal sealed class FtpInteraction : IRemoteInteraction
 public sealed class FtpIntegrationTests : IDisposable
 {
     private readonly string _state = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-ftp-state", Guid.NewGuid().ToString("N")[..8])).FullName;
+
+    [Theory]
+    [InlineData(RemoteProtocols.Ftp)]
+    [InlineData(RemoteProtocols.FtpExplicitTls)]
+    [InlineData(RemoteProtocols.FtpImplicitTls)]
+    public void Permission_inspection_reads_exact_MLSD_facts_without_creating_write_authority(string protocol)
+    {
+        string? pem = protocol == RemoteProtocols.Ftp ? null : TestFtpServer.SelfSigned("FileCat permissions").Pem;
+        using var server = TestFtpServer.TryStart(pem, implicitTls: protocol == RemoteProtocols.FtpImplicitTls, permissionListing: "mlsd");
+        if (server is null) Assert.Skip("Requires the owned pyftpdlib FTP or FTPS test server.");
+        foreach (string name in new[] { "zero.txt", "another unix.mode=0777;", "malformed.txt", "duplicate.txt" })
+            File.WriteAllText(Path.Combine(server.Root, name), "a");
+        var profile = server.Profile(protocol);
+        var interaction = new FtpInteraction { AllowPlain = true, CertificateAnswer = HostKeyDecision.AcceptOnce };
+        using var connections = Connections(profile, interaction);
+        var provider = new SftpProvider(connections, () => [profile], value => value);
+        var location = SftpProvider.At(profile, "/");
+        var authority = new PermissionAuthority(PermissionAuthorityKind.RemoteSession, profile.Id, 0);
+        var names = new[] { "zero.txt", "another unix.mode=0777;", "malformed.txt", "duplicate.txt", "missing.txt", "bad\r\nname" };
+        PermissionSubject[] subjects = names.Select(name => new PermissionSubject(location, name, name, authority,
+            PermissionObjectKind.File, PermissionLinkPolicy.NoFollow, ListedSize: 1)).ToArray();
+        var result = provider.InspectFtpPermissions(location, subjects, TestContext.Current.CancellationToken);
+        Assert.True(result[0].Mode.Value.HasValue, result[0].BindingProblem ?? result[0].Mode.Reason);
+        Assert.Equal((ushort)0, result[0].Mode.Value);
+        Assert.Equal("42", result[0].Owner.Value?.Id);
+        Assert.Equal("7", result[0].Group.Value?.Id);
+        Assert.Equal("server-user", result[0].Ftp?.OwnerName);
+        Assert.Equal("server-group", result[0].Ftp?.GroupName);
+        Assert.Equal("A2", result[0].Ftp?.Unique);
+        Assert.Equal("R", result[0].Ftp?.TransferRights);
+        Assert.Equal(protocol, result[0].Ftp?.Protocol);
+        Assert.Equal("MLSD", result[0].Ftp?.Source);
+        Assert.Equal("/zero.txt", result[0].Subject.DisplayPath);
+        Assert.Null(result[0].Binding);
+        Assert.DoesNotContain(result[0].Capabilities, c => c.Action == PermissionAction.Change && c.Availability == PermissionAvailability.Available);
+        Assert.Null(result[1].Mode.Value);
+        Assert.Equal("", result[1].Ftp?.TransferRights);
+        Assert.Equal(PermissionReadStatus.Incomplete, result[2].Mode.Status);
+        Assert.Equal(PermissionReadStatus.Stale, result[3].Mode.Status);
+        Assert.Equal(PermissionReadStatus.Gone, result[4].Mode.Status);
+        Assert.Equal(PermissionReadStatus.Unsupported, result[5].Mode.Status);
+        Assert.Equal("a", File.ReadAllText(Path.Combine(server.Root, "zero.txt")));
+        string commands = File.ReadAllText(Path.Combine(Path.GetDirectoryName(server.Root)!, "ftp-permissions.log"));
+        Assert.Contains("MLSD /", commands);
+        Assert.DoesNotContain("SITE CHMOD", commands, StringComparison.OrdinalIgnoreCase);
+        if (protocol == RemoteProtocols.Ftp) Assert.Equal(1, interaction.PlainQuestions);
+        else Assert.Single(interaction.CertificateQuestions);
+    }
+
+    [Fact]
+    public void Permission_inspection_reports_Unix_LIST_provenance_without_MLSD()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) Assert.Skip("Requires the owned Unix LIST fixture.");
+        using var server = TestFtpServer.TryStart(permissionListing: "list");
+        if (server is null) Assert.Skip("Requires the owned pyftpdlib FTP test server.");
+        string path = Path.Combine(server.Root, "file.txt");
+        File.WriteAllText(path, "a");
+        File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead);
+        var profile = server.Profile(RemoteProtocols.Ftp);
+        using var connections = Connections(profile, new FtpInteraction { AllowPlain = true });
+        var provider = new SftpProvider(connections, () => [profile], value => value);
+        var location = SftpProvider.At(profile, "/");
+        var subject = new PermissionSubject(location, "file.txt", "file.txt", new(PermissionAuthorityKind.RemoteSession, profile.Id, 0),
+            PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+        var observation = Assert.Single(provider.InspectFtpPermissions(location, [subject], TestContext.Current.CancellationToken));
+        Assert.True(observation.Mode.Value.HasValue, observation.BindingProblem ?? observation.Mode.Reason);
+        Assert.Equal("Unix LIST", observation.Mode.Source);
+        Assert.Equal((ushort)0x1a0, observation.Mode.Value);
+        Assert.Null(observation.Ftp?.TransferRights);
+        Assert.Null(observation.Owner.Value);
+    }
 
     [Fact]
     public void Missing_FTPS_transfer_reply_retires_the_control_connection_before_retry()

@@ -2,9 +2,11 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
+using FileCat.Core.Permissions;
 using FileCat.Core.Records;
 using FileCat.Core.Resources;
 using FileCat.Core.State;
+using FileCat.Platform.Windows.Permissions;
 using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows.Tests;
@@ -28,7 +30,8 @@ public sealed partial class WindowsFileRecordsTests
         Assert.SkipWhen(!OperatingSystem.IsWindows(), "Cloud Files are Windows'.");
         // Registering a sync root writes this user's sync-root registration (removed at the end): only where that is wanted.
         if (!Opted("FILECAT_TEST_CLOUD_FILES")) Assert.Skip("Set FILECAT_TEST_CLOUD_FILES=1 to register a temporary Cloud Files sync root in a test folder.");
-        string root = NewFolder();
+        string envelope = NewFolder();
+        string root = Directory.CreateDirectory(Path.Combine(envelope, "provider")).FullName;
         var identity = "filecat-identity-1"u8.ToArray();
         bool registered = false, connected = false;
         long connection = 0;
@@ -84,6 +87,34 @@ public sealed partial class WindowsFileRecordsTests
             CheckDetailsAndStorageAdmission(root, file);
             RequireNoFetch("File-system details and storage admission");
 
+            // Test the placeholder and a regular file whose parent is a registered sync root.
+            string local = Path.Combine(root, "local-permissions.txt");
+            File.WriteAllText(local, "fixture");
+            var permissions = new WindowsPermissionService();
+            var authority = new PermissionAuthority(PermissionAuthorityKind.Local, "cloud-fixture", 0);
+            foreach (string candidate in new[] { file, local })
+            {
+                var subject = new PermissionSubject(Location.FileSystem(root), candidate, candidate, authority,
+                    PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+                using var observation = permissions.Inspect(subject, PermissionSections.Ordinary, TestContext.Current.CancellationToken);
+                Assert.Null(observation.Snapshot.Binding);
+                Assert.Equal(PermissionReadStatus.Unsupported, observation.Snapshot.Access.Status);
+                Assert.NotNull(WindowsPermissionService.EditRefusal(observation.Snapshot));
+            }
+            RequireNoFetch("Permissions admission in the registered sync root");
+            var ordinaryParent = new PermissionSubject(Location.FileSystem(Path.GetDirectoryName(envelope)!), envelope, envelope,
+                authority, PermissionObjectKind.Directory, PermissionLinkPolicy.NoFollow);
+            var ct = TestContext.Current.CancellationToken;
+            using (var observation = permissions.Inspect(ordinaryParent, PermissionSections.None, ct))
+            {
+                Assert.True(observation.Snapshot.Binding is not null, observation.Snapshot.BindingProblem);
+                var refusal = Assert.Throws<NotSupportedException>(() =>
+                    WindowsPermissionService.CapturePropagationBoundary(observation.Snapshot, ct));
+                Assert.True(refusal.Message.Contains("reparse point", StringComparison.OrdinalIgnoreCase) ||
+                    refusal.Message.Contains("cloud sync root", StringComparison.OrdinalIgnoreCase), refusal.Message);
+            }
+            RequireNoFetch("Propagation boundary inspection above the registered sync root");
+
             bool[] modes = Environment.IsPrivilegedProcess ? [false, true] : [false];
             foreach (bool privileged in modes)
             {
@@ -130,7 +161,7 @@ public sealed partial class WindowsFileRecordsTests
                 if (connected) CfDisconnectSyncRoot(connection);
                 if (registered) CfUnregisterSyncRoot(root);
                 NativeMemory.Free(table);
-                Directory.Delete(root, recursive: true);
+                Directory.Delete(envelope, recursive: true);
             }
         }
     }

@@ -1,5 +1,6 @@
 using FileCat.Core.FileSystem;
 using FileCat.Core.Listing;
+using FileCat.Core.Permissions;
 using FileCat.Core.Resources;
 using FileCat.Core.Threading;
 
@@ -40,7 +41,7 @@ public sealed partial class MainViewModel
         }
     }
 
-    // Summaries retain constant metadata space even for a large captured selection.
+    // Only selections within the permission job budget retain per-object Unix facts.
     private sealed class AttributeMetadata
     {
         public int Count;
@@ -48,32 +49,54 @@ public sealed partial class MainViewModel
         public bool HasFolders;
         public FileAttributes AllAttributes = (FileAttributes)(-1), AnyAttributes;
         public UnixFileMode AllModes = (UnixFileMode)(-1), AnyModes;
+        public bool AllFinderHidden = true, AnyFinderHidden, UnknownFinderHidden;
+        public Dictionary<ItemRef, UnixStat>? UnixSubjects;
         public bool? State(FileAttributes bit) => (AllAttributes & bit) != 0 ? true : (AnyAttributes & bit) == 0 ? false : null;
         public bool? State(UnixFileMode bit) => (AllModes & bit) != 0 ? true : (AnyModes & bit) == 0 ? false : null;
-        public bool ModesChange(UnixFileMode set, UnixFileMode clear) => (AllModes & set) != set || (AnyModes & clear) != 0;
+        public bool? FinderHidden => UnknownFinderHidden ? null : AllFinderHidden ? true : AnyFinderHidden ? null : false;
     }
+
+    private sealed record AttributeInfo(FileSystemItemInfo Info, UnixStat? Unix, bool? FinderHidden);
 
     private async Task<AttributeMetadata> ReadAttributeMetadataAsync(IReadOnlyList<ItemRef> selection, PreparationScope scope)
     {
         var summary = new AttributeMetadata(); var files = Services.Platform.FileOperations;
+        if (selection.Count <= UnixAttributeBindingLimit)
+            summary.UnixSubjects = new(selection.Count);
         foreach (var item in selection)
         {
             scope.Check();
             if (item.FileSystemPath is not { } path) throw new NotSupportedException("Attributes can be changed for file-system items.");
             var provider = Services.Providers.For(item.Parent);
-            var data = await Services.Io.Run(provider.GetDeviceKey(item.Parent), IoPriority.Normal, _ =>
+            var data = await Services.Io.RunOwned(provider.GetDeviceKey(item.Parent), IoPriority.Normal, ct =>
             {
                 scope.Check();
-                var info = files.TryGetInfo(path) ?? throw new IOException("The marked items no longer exist or cannot be read.");
-                UnixFileMode mode = 0;
-                if (!OperatingSystem.IsWindows()) mode = UnixPermissions.Stat(path)?.Mode ?? throw new IOException("The marked items no longer exist or cannot be read.");
-                return (Info: info, Mode: mode);
-            }); // An active synchronous call keeps its owner until it returns.
+                if (OperatingSystem.IsMacOS())
+                    return MacMaterializationPolicy.Run(ct, Read, (_, reason) => throw new NotSupportedException(reason));
+                return Read();
+
+                AttributeInfo Read()
+                {
+                    var info = files.TryGetInfo(path) ?? throw new IOException("The marked items no longer exist or cannot be read.");
+                    UnixStat? unix = OperatingSystem.IsWindows() ? null :
+                        UnixFiles.Stat(path) ?? throw new IOException("The marked items no longer exist or cannot be read.");
+                    bool? finderHidden = OperatingSystem.IsMacOS() ? MacFinderHidden.Observe(path, ct) : null;
+                    return new(info, unix, finderHidden);
+                }
+            }, scope.Stop.Token);
             scope.Check();
             summary.Count++; summary.Single = summary.Count == 1 ? data.Info : null;
             summary.HasFolders |= item.IsContainer;
             summary.AllAttributes &= data.Info.Attributes; summary.AnyAttributes |= data.Info.Attributes;
-            summary.AllModes &= data.Mode; summary.AnyModes |= data.Mode;
+            if (data.Unix is { } stat)
+            {
+                summary.UnixSubjects?.TryAdd(item, stat);
+                summary.AllModes &= (UnixFileMode)stat.Mode;
+                summary.AnyModes |= (UnixFileMode)stat.Mode;
+            }
+            summary.AllFinderHidden &= data.FinderHidden == true;
+            summary.AnyFinderHidden |= data.FinderHidden == true;
+            summary.UnknownFinderHidden |= data.FinderHidden is null;
         }
         return summary;
     }

@@ -96,7 +96,7 @@ New-Item -ItemType Directory -Force -Path $artifacts | Out-Null
 if (-not $FromPayload) {
     Write-Host "Publishing self-contained $Runtime ($Version)"
     dotnet publish $project -c $Configuration -r $Runtime --self-contained true -p:PublishReadyToRun=true `
-        @versionArgs -p:DebugType=embedded -o $publish
+        @versionArgs -p:DebugType=embedded -p:StartupHookSupport=false -o $publish
     if ($LASTEXITCODE -ne 0) { throw "self-contained publish failed" }
 
     Write-Host "Publishing framework-dependent $Runtime"
@@ -149,6 +149,10 @@ if (-not $FromPayload) {
     foreach ($dir in @($publish, $fdd)) {
         Copy-Item (Join-Path $root "LICENSE") $dir -Force
         Copy-Item (Join-Path $root "THIRD-PARTY-NOTICES.md") $dir -Force
+        $sshNetNotices = Join-Path $dir "licenses/sshnet"
+        New-Item -ItemType Directory -Force -Path $sshNetNotices | Out-Null
+        Copy-Item -LiteralPath (Join-Path $root "licenses/sshnet/LICENSE") -Destination $sshNetNotices -Force
+        Copy-Item -LiteralPath (Join-Path $root "licenses/sshnet/LICENSE-bcrypt") -Destination $sshNetNotices -Force
         dotnet run --project (Join-Path $root "eng/DependencyNotices") -c Release -- `
             (Join-Path $root "licenses/dependencies") (Join-Path $root "src/FileCat.App/packages.lock.json") $dir (Join-Path $dir "licenses/dependencies")
         if ($LASTEXITCODE -ne 0) { throw "dependency notice validation failed" }
@@ -166,6 +170,12 @@ if (-not $FromPayload) {
         Copy-Item (Join-Path $root "licenses/sharpcompress/*") $sharpCompress -Recurse -Force
         Assert-PinnedNotices $sharpCompress 'licenses/sharpcompress'
     }
+}
+
+$runtimeConfig = Get-Content -LiteralPath (Join-Path $publish 'FileCat.runtimeconfig.json') -Raw | ConvertFrom-Json
+$startupHooks = $runtimeConfig.runtimeOptions.configProperties.'System.StartupHookProvider.IsSupported'
+if ($startupHooks -isnot [bool] -or $startupHooks) {
+    throw 'The self-contained client must disable .NET startup hooks.'
 }
 
 if ($PayloadOnly) {

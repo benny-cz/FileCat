@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace FileCat.Core.FileSystem;
 
-public enum PrincipalKind { WindowsSid, UnixUser, UnixGroup }
+public enum PrincipalKind { WindowsSid, UnixUser, UnixGroup, DarwinUuid }
 
 /// <summary>A canonical identity. Names and account service availability never alter equality.</summary>
 public readonly record struct Principal : IComparable<Principal>, IComparable
@@ -22,6 +22,8 @@ public readonly record struct Principal : IComparable<Principal>, IComparable
                 parts[i] = ulong.Parse(parts[i], NumberStyles.None, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
             Id = "S-" + string.Join('-', parts.AsSpan(1).ToArray());
         }
+        else if (kind == PrincipalKind.DarwinUuid)
+            Id = Guid.Parse(id).ToString("D");
         else
         {
             if (kind is not (PrincipalKind.UnixUser or PrincipalKind.UnixGroup)) throw new ArgumentOutOfRangeException(nameof(kind));
@@ -55,7 +57,7 @@ public readonly record struct Principal : IComparable<Principal>, IComparable
             }
             order = a.IsEmpty.CompareTo(b.IsEmpty) * -1;
         }
-        else order = CompareNumber(Id, other.Id);
+        else order = Kind == PrincipalKind.DarwinUuid ? string.CompareOrdinal(Id, other.Id) : CompareNumber(Id, other.Id);
         return order != 0 ? order : string.CompareOrdinal(Authority, other.Authority);
     }
 

@@ -40,6 +40,8 @@ public enum JobKind
     StorageTransform,
     /// <summary>Create new copies from an in-process disk-analysis approval.</summary>
     ReviewedAnalysisCopy,
+    /// <summary>Reviewed security and ownership changes on retained subject bindings.</summary>
+    Permissions,
 }
 
 public enum RegistryAction { SetValue, DeleteValue, CreateKey, RenameKey, DeleteKey, CopyValue, RenameValue, CopyKey }
@@ -422,11 +424,12 @@ public static class RecycleText
 }
 
 /// <summary>
-/// Attribute and time changes (plan §23.3: basic metadata editing in P3); on Linux and macOS also permission bits to set
-/// and clear (P9), applied as <see cref="FileSystem.UnixPermissions.Apply"/> describes.
+/// Attribute and time changes. The legacy mode fields remain readable so an old request carrying them can be refused.
 /// </summary>
 public sealed record AttributeChangeSet(FileAttributes Set, FileAttributes Clear, DateTime? ModifiedUtc, DateTime? CreatedUtc, bool Recursive,
     UnixFileMode ModeSet = 0, UnixFileMode ModeClear = 0)
 {
     public bool ChangesPermissions => (ModeSet | ModeClear) != 0;
+    [System.Text.Json.Serialization.JsonIgnore]
+    internal bool AffectsUnixPermissions => ChangesPermissions || ((Set | Clear) & FileAttributes.ReadOnly) != 0;
 }

@@ -223,7 +223,7 @@ internal sealed partial class FtpChannel : ISftpChannel
 
     public IReadOnlyList<IRemoteEntry> ListAll(string path, CancellationToken ct) => List(path, ct, job: true);
 
-    private IReadOnlyList<IRemoteEntry> List(string path, CancellationToken ct, bool job) => Run(() =>
+    private IReadOnlyList<IRemoteEntry> List(string path, CancellationToken ct, bool job, IReadOnlySet<string>? permissionNames = null) => Run(() =>
     {
         string safePath = Safe(path);
         bool machine = _client.HasFeature(FtpCapability.MLST);
@@ -233,6 +233,7 @@ internal sealed partial class FtpChannel : ISftpChannel
         // job can recurse. An item absent from LIST is opaque: treating it as a link prevents
         // descent through an unverified directory (including a hidden one).
         Dictionary<string, FtpListItem>? listByName = null;
+        HashSet<string>? ambiguous = permissionNames is null ? null : new(StringComparer.Ordinal);
         if (machine)
         {
             listByName = new Dictionary<string, FtpListItem>(StringComparer.Ordinal);
@@ -240,7 +241,8 @@ internal sealed partial class FtpChannel : ISftpChannel
             {
                 ct.ThrowIfCancellationRequested();
                 string listedName = ExactName(listed.Name, listed.Input, listed.Type == FtpObjectType.Link ? listed.LinkTarget : null);
-                if (listedName is not ("." or ".." or "")) listByName.TryAdd(listedName, listed);
+                if (listedName is not ("." or ".." or "") && !listByName.TryAdd(listedName, listed))
+                    ambiguous?.Add(listedName);
             }
         }
         var list = new List<IRemoteEntry>(items.Count);
@@ -250,10 +252,16 @@ internal sealed partial class FtpChannel : ISftpChannel
             string name = ExactName(item.Name, item.Input, item.Type == FtpObjectType.Link ? item.LinkTarget : null);
             if (name is "." or ".." or "") continue;
             bool isLink = item.Type == FtpObjectType.Link;
+            bool typeAgrees = true;
             if (listByName is not null)
+            {
                 isLink |= !listByName.TryGetValue(name, out var listed) || listed.Type == FtpObjectType.Link || listed.Input?.StartsWith('l') == true;
+                typeAgrees = listed?.Type == item.Type;
+            }
+            var facts = !isLink && typeAgrees && permissionNames?.Contains(name) == true && ambiguous?.Contains(name) != true
+                ? ReadPermissionFacts(item.Input, name, item.Type == FtpObjectType.Directory, machine) : null;
             list.Add(new FtpEntry(this, _client, name, RemotePath.Combine(path, name), item.Type == FtpObjectType.Directory && !isLink,
-                isLink, item.Type == FtpObjectType.Directory ? 0 : item.Size, Utc(item.Modified), TimePrecision(item.Input)));
+                isLink, item.Type == FtpObjectType.Directory ? 0 : item.Size, Utc(item.Modified), TimePrecision(item.Input), facts));
         }
         return (IReadOnlyList<IRemoteEntry>)list;
     });
@@ -298,6 +306,8 @@ internal sealed partial class FtpChannel : ISftpChannel
                         if (++other > MaxOtherListingLines) throw budget.Exceeded();
                         return;
                     }
+                    // ParseSingleLine does not consistently populate Input. Use the exact bounded wire line.
+                    item.Input = raw;
                     budget.Add(item.Name);
                     items.Add(item);
                 }
@@ -536,7 +546,8 @@ internal sealed partial class FtpChannel : ISftpChannel
     public void Dispose() => _client.Dispose();
 
     /// <summary>A listed entry: changes act on exactly this name (a link is deleted or renamed itself).</summary>
-    private sealed class FtpEntry(FtpChannel channel, FtpClient client, string name, string fullPath, bool isDirectory, bool isLink, long size, DateTime modifiedUtc, TimeSpan precision) : IRemoteEntry
+    private sealed class FtpEntry(FtpChannel channel, FtpClient client, string name, string fullPath, bool isDirectory, bool isLink, long size, DateTime modifiedUtc,
+        TimeSpan precision, FtpPermissionFacts? facts) : IRemoteEntry
     {
         public string Name => name;
         public string FullPath => fullPath;
@@ -545,6 +556,7 @@ internal sealed partial class FtpChannel : ISftpChannel
         public long Size => size;
         public DateTime ModifiedUtc => modifiedUtc;
         public TimeSpan ModifiedPrecision => precision;
+        internal FtpPermissionFacts? PermissionFacts { get; } = facts;
         public void Delete() => channel.Delete(fullPath, isDirectory && !isLink);
         public void MoveTo(string newPath) => channel.Move(fullPath, newPath);
         public override string ToString() => $"{fullPath} ({(client.IsConnected ? "connected" : "closed")})";

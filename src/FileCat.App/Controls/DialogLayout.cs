@@ -21,6 +21,7 @@ namespace FileCat.App.Controls;
 internal sealed class DialogCard : Border
 {
     internal event Action? CloseRequested;
+    internal Button CloseButton { get; }
 
     private readonly Border _bodyBorder;
     private readonly Control _body;
@@ -67,6 +68,7 @@ internal sealed class DialogCard : Border
             Width = 30, Height = 30,
             HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
         };
+        CloseButton = close;
         AutomationProperties.SetName(close, "Close dialog");
         AutomationProperties.SetHelpText(close, "Cancel this dialog without applying changes. Esc also closes it.");
         ToolTip.SetTip(close, "Close dialog (Esc)");

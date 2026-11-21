@@ -1193,6 +1193,27 @@ public sealed class ListingModel : IDisposable
         if (changed) MarksChanged();
     }
 
+    /// <summary>Completes a verified operation's unmark even if a refresh is restoring marks from the earlier listing.</summary>
+    internal void UnmarkCapturedResults(IReadOnlyList<ItemRef> sources, IReadOnlyList<int> positions)
+    {
+        bool removed = false;
+        foreach (int position in positions)
+        {
+            var item = sources[position];
+            if (Location is { IsFileSystem: true } location && item.Parent == location)
+                removed |= RemovePendingMark(item.Kind, item.Name);
+            else if (_pendingIdentityMarks is { } pending && pending.Items.Remove(item))
+            {
+                removed = true;
+                if (pending.Items.Count == 0) _pendingIdentityMarks = null;
+            }
+        }
+
+        long revision = MarkRevision;
+        MarkItems(sources, positions, false);
+        if (removed && revision == MarkRevision) MarksChanged();
+    }
+
     public void UnmarkHidden()
     {
         bool changed = false;

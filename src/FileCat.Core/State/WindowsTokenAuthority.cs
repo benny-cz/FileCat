@@ -6,6 +6,21 @@ namespace FileCat.Core.State;
 /// <summary>Refuse persistence through same-account writable paths when Windows gives this process a high token.</summary>
 public static class WindowsTokenAuthority
 {
+    public static unsafe bool HasDefaultElevationType
+    {
+        get
+        {
+            if (!OperatingSystem.IsWindows()) return false;
+            try
+            {
+                using var identity = WindowsIdentity.GetCurrent();
+                int type = 0;
+                return GetTokenInformation(identity.Token, 18 /* TokenElevationType */, (nint)(&type), sizeof(int), out _) && type == 1;
+            }
+            catch (SystemException) { return false; }
+        }
+    }
+
     public static bool IsHighIntegrity
     {
         get

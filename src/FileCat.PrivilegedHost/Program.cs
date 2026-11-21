@@ -47,7 +47,7 @@ internal static partial class Program
         Run(exchange, hash, brokerDirectory, new RunServices(() => DateTime.UtcNow,
             ElevationBroker.CheckRequester, ElevationBroker.TryClaimNonce, ConsentDialog.Ask,
             ConsentDialog.Refuse, FileCat.Platform.Windows.Recovery.DeviceReadHost.Run,
-            ElevationBroker.AdmitNtfsMetadata, ConsentDialog.AskMetadata));
+            ElevationBroker.AdmitNtfsMetadata, ConsentDialog.AskMetadata, ConsentDialog.AskFileSecurity));
 
     // Keep the one-plan orchestration testable without displaying consent or opening a source device.
     // The installed entry point always supplies the real native implementations above.
@@ -56,7 +56,8 @@ internal static partial class Program
         Func<string, string, IReadOnlyList<string>, string, bool> Ask, Action<string> Refuse,
         Func<string, string, string, int, string> ReadDevice,
         Func<ElevationPlan, string, INtfsMetadataAdmission>? PrepareMetadata = null,
-        AskMetadataConsent? AskMetadata = null);
+        AskMetadataConsent? AskMetadata = null,
+        Func<string, string, IReadOnlyList<string>, string, Func<bool>, bool>? AskFileSecurity = null);
 
     internal delegate bool AskMetadataConsent(string instruction, string content, IReadOnlyList<string> pages,
         string footer, Func<bool> isCurrent, Func<bool> stopRequested);
@@ -65,11 +66,13 @@ internal static partial class Program
     {
         ElevationPlan? plan = null;
         string? refusal = null;
+        string? digest = null;
         try
         {
             var bytes = exchange.ReadPlan();
             plan = ElevationPlanCodec.Parse(bytes);
-            if (!string.Equals(ElevationPlanCodec.Hash(bytes), hash, StringComparison.OrdinalIgnoreCase))
+            digest = ElevationPlanCodec.Hash(bytes);
+            if (!string.Equals(digest, hash, StringComparison.OrdinalIgnoreCase))
                 refusal = "The plan changed after FileCat created it.";
         }
         catch (Exception ex) when (IsExpected(ex)) { refusal = "The plan could not be read: " + ex.Message; }
@@ -77,6 +80,25 @@ internal static partial class Program
         {
             var problems = ElevationPlanCodec.Validate(plan, services.UtcNow());
             if (problems.Count > 0) refusal = string.Join(" ", problems);
+        }
+        if (plan is not null && ElevationPlanCodec.IsFileSecurityPlan(plan))
+        {
+            if (refusal is null && services.AskFileSecurity is { } approveFileSecurity)
+            {
+                try
+                {
+                    var outcome = ElevationBroker.ServeFileSecurity(plan, digest!, brokerDirectory, services.ClaimNonce,
+                        services.UtcNow, approveFileSecurity);
+                    return outcome switch
+                    {
+                        FileSecurityOutcome.Inspected or FileSecurityOutcome.ChangeReported => 0,
+                        FileSecurityOutcome.Declined => ElevationBroker.ConsentDeclinedExitCode,
+                        _ => 2,
+                    };
+                }
+                catch (Exception ex) when (IsExpected(ex) || ex is TimeoutException or OperationCanceledException) { }
+            }
+            return 2;
         }
         bool metadata = plan?.Steps is [{ Verb: ElevatedVerb.EnumerateNtfsMetadata }];
         using var admission = refusal is null && metadata ? PrepareMetadata(plan!) : null;

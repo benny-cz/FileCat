@@ -1,3 +1,6 @@
+using FileCat.Core.Permissions;
+using System.Text.Json.Serialization;
+
 namespace FileCat.Core.Jobs;
 
 /// <summary>What one step of an elevated plan does (ADR-14). The broker exposes nothing beyond these verbs.</summary>
@@ -24,6 +27,8 @@ public enum ElevatedVerb
     ReadDevice,
     /// <summary>Enumerate metadata on one approved whole local NTFS volume.</summary>
     EnumerateNtfsMetadata,
+    InspectFileSecurity,
+    ChangeFileSecurity,
 }
 
 /// <summary>A Registry change in wire form: explicit HKLM or HKU paths, the view, and exact bytes (base64).</summary>
@@ -39,8 +44,10 @@ public sealed record ElevatedRegistryChange(
 /// </summary>
 public sealed record ElevatedStep(ElevatedVerb Verb)
 {
-    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ElevatedNtfsMetadataScope? NtfsMetadata { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ElevatedFileSecurityScope? FileSecurity { get; init; }
     public ElevatedRegistryChange? Registry { get; init; }
     /// <summary>The item acted on, or the copy/move source.</summary>
     public string? Path { get; init; }
@@ -60,6 +67,22 @@ public sealed record ElevatedNtfsMetadataScope(
     long RequesterCreatedFileTime, uint RequesterSession, string RequesterLogonSid, string RequesterImageId,
     int ProtocolVersion, int MaximumRecords, string Fields);
 
+/// <summary>The root-to-leaf IDs and requester evidence are checked again by the installed helper.</summary>
+public sealed record ElevatedFileSecurityScope(
+    string VolumeSerial, IReadOnlyList<string> FileIds, PermissionObjectKind Kind, uint LinkCount,
+    long RequesterCreatedFileTime, uint RequesterSession, string RequesterLogonSid, string RequesterImageId,
+    PermissionSections Sections, PermissionScope Scope, ElevatedFileSecurityChange? Change = null);
+
+public enum ElevatedFileSecurityOperation { AssignOwner, AddRule, ReplaceRule, RemoveRule, ProtectAcl, InheritAcl }
+public enum ElevatedFileSecurityRuleType { Allow, Deny, Audit }
+
+/// <summary>A basic explicit ACE. The helper preserves other ACEs from its own descriptor read.</summary>
+public sealed record ElevatedFileSecurityRule(ElevatedFileSecurityRuleType Type, string Sid, uint Rights, byte Flags);
+
+/// <summary>A single reviewed owner or ACL operation with before and expected section revisions.</summary>
+public sealed record ElevatedFileSecurityChange(ElevatedFileSecurityOperation Operation, string Before, string Expected,
+    string? OwnerSid = null, int? Index = null, ElevatedFileSecurityRule? OldRule = null, ElevatedFileSecurityRule? NewRule = null);
+
 /// <summary>
 /// The immutable plan one administrator consent covers (AI-13): who asked, when, and exactly which steps run.
 /// The requester writes it once; the broker hashes, validates, displays, and executes that in-memory copy.
@@ -67,6 +90,7 @@ public sealed record ElevatedNtfsMetadataScope(
 public sealed record ElevationPlan
 {
     public const int CurrentVersion = 1;
+    public const int FileSecurityVersion = 2;
     public int Version { get; init; } = CurrentVersion;
     public string Nonce { get; init; } = "";
     public DateTime CreatedUtc { get; init; }

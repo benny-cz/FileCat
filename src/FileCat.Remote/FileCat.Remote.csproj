@@ -5,8 +5,9 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\FileCat.Core\FileCat.Core.csproj" />
-    <PackageReference Include="SSH.NET" />
+    <ProjectReference Include="..\ThirdParty\SshNet\FileCat.SshNet.csproj" />
     <PackageReference Include="FluentFTP" />
     <InternalsVisibleTo Include="FileCat.Remote.Tests" />
+    <InternalsVisibleTo Include="FileCat" />
   </ItemGroup>
 </Project>

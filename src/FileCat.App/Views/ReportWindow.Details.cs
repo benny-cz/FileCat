@@ -20,14 +20,22 @@ public sealed partial class ReportWindow
     private readonly Button _copyTarget = new() { Content = "Copy stored target", IsVisible = false };
     private readonly Button _navigateTarget = new() { Content = "Open target location", IsVisible = false };
     private Func<string, CancellationToken, Task<FileDetailsTargetCheck>>? _openTarget;
+    private readonly Button _permissions = new() { Content = "Permissions and ownership…" };
+    private Func<FileDetailsSnapshot?, string?>? _permissionsUnavailable;
+    private Func<FileDetailsSnapshot, Func<bool>, CancellationToken, Task>? _openPermissions;
+    private bool _openingPermissions;
 
     public ReportWindow(string subject, FileDetailsReader reader, Action? openExtraData = null,
-        Func<string, CancellationToken, Task<FileDetailsTargetCheck>>? openTarget = null)
+        Func<string, CancellationToken, Task<FileDetailsTargetCheck>>? openTarget = null,
+        Func<FileDetailsSnapshot?, string?>? permissionsUnavailable = null,
+        Func<FileDetailsSnapshot, Func<bool>, CancellationToken, Task>? openPermissions = null)
         : this("File-system details", subject, _ => throw new InvalidOperationException("Details require the owned metadata reader."))
     {
         _detailsReader = reader;
         _openExtraData = openExtraData;
         _openTarget = openTarget;
+        _permissionsUnavailable = permissionsUnavailable;
+        _openPermissions = openPermissions;
         Width = 840; Height = 640; MinWidth = 240; MinHeight = 280;
         // The inherited toolbar and spoken-line controls can exceed a short report's height
         // after wrapping or system text scaling. Keep a report viewport and let focus reveal
@@ -46,16 +54,18 @@ public sealed partial class ReportWindow
         _search.MinWidth = 100;
         _actions.Children.Add(_tier);
         if (openExtraData is not null) _actions.Children.Add(_extraData);
+        if (openPermissions is not null) _actions.Children.Add(_permissions);
         _actions.Children.Add(_copyTarget);
         _actions.Children.Add(_navigateTarget);
         _copyTarget.Click += async (_, _) => await CopyStoredTargetAsync();
         _navigateTarget.Click += async (_, _) => await NavigateTargetAsync();
         _tier.Click += async (_, _) => await SwitchDetailsTierAsync();
         _extraData.Click += (_, _) => _openExtraData?.Invoke();
+        _permissions.Click += async (_, _) => await OpenDetailsPermissionsAsync();
         AutomationProperties.SetHelpText(_extraData, "Opens the captured item's names, kinds and lengths in a new workspace tab. Values are read only through an explicit action; Windows extended attributes require separate admission.");
         AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
         SetDetailsActions();
-        Closed += (_, _) => { _openExtraData = null; _openTarget = null; };
+        Closed += (_, _) => { _openExtraData = null; _openTarget = null; _permissionsUnavailable = null; _openPermissions = null; };
     }
 
     private bool CanPublishDetails => _detailsReader is null || _detailsObservation is not null;
@@ -65,6 +75,12 @@ public sealed partial class ReportWindow
         bool ready = CanPublishDetails;
         _copyAll.IsEnabled = _copyVisible.IsEnabled = _copyDisplayed.IsEnabled = _save.IsEnabled = ready;
         _extraData.IsEnabled = _detailsObservation is not null;
+        string? permissionsReason = _openingPermissions ? "The permissions inspection is open."
+            : _permissionsUnavailable?.Invoke(_detailsObservation?.Summary);
+        _permissions.IsEnabled = permissionsReason is null && _openPermissions is not null;
+        ToolTip.SetTip(_permissions, permissionsReason);
+        ToolTip.SetShowOnDisabled(_permissions, true);
+        AutomationProperties.SetHelpText(_permissions, permissionsReason ?? "Inspect permissions for this report's original object.");
         _copyTarget.IsVisible = _detailsObservation?.Summary.Target.State == FactState.Known;
         bool network = false;
         bool qualified = _detailsObservation is { Summary.Identity.State: FactState.Known } observation &&
@@ -74,6 +90,32 @@ public sealed partial class ReportWindow
         _navigateTarget.Content = network ? "Open target location (network)" : "Open target location";
         _tier.Content = _detailsTier == FileDetailsTier.Full ? "Show summary"
             : _detailsObservation?.Full is not null ? "Show full record" : "Read full record";
+    }
+
+    private async Task OpenDetailsPermissionsAsync()
+    {
+        if (_openingPermissions || _closing.IsCancellationRequested || _detailsObservation is not { } captured ||
+            _openPermissions is not { } open || _permissionsUnavailable?.Invoke(captured.Summary) is not null) return;
+        _openingPermissions = true;
+        SetDetailsActions();
+        try
+        {
+            await open(captured.Summary, () => ReferenceEquals(_detailsObservation, captured), _closing.Token);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            if (!_closing.IsCancellationRequested && ReferenceEquals(_detailsObservation, captured))
+            {
+                _detailsNotice = "Permissions could not be opened: " + ex.Message;
+                UpdateDetailsStatus();
+            }
+        }
+        finally
+        {
+            _openingPermissions = false;
+            if (!_closing.IsCancellationRequested) SetDetailsActions();
+        }
     }
 
     private async Task SwitchDetailsTierAsync()

@@ -429,6 +429,7 @@ public sealed class SftpConnections : IDisposable
         public volatile bool Closed;
         // Accessed only under the pool lock; old leases retire even after a newer session has reopened the pool.
         public long Generation;
+        public long ModeWriteRefusalGeneration = -1;
     }
 }
 
@@ -444,6 +445,17 @@ public sealed class SftpLease : IDisposable
     }
 
     public ISftpChannel Channel => Volatile.Read(ref _state)?.Channel ?? throw new ObjectDisposedException(nameof(SftpLease));
+    internal long Generation => Volatile.Read(ref _state)?.Generation ?? throw new ObjectDisposedException(nameof(SftpLease));
+    internal bool IsCurrent => Volatile.Read(ref _state) is { } state && Volatile.Read(ref state.Pool.Generation) == state.Generation;
+    internal bool ModeWritesRefused => Volatile.Read(ref _state) is { } state &&
+        Volatile.Read(ref state.Pool.ModeWriteRefusalGeneration) == state.Generation;
+
+    internal void RefuseModeWrites()
+    {
+        if (Volatile.Read(ref _state) is not { } state) return;
+        lock (state.Pool)
+            if (state.Generation == state.Pool.Generation) Volatile.Write(ref state.Pool.ModeWriteRefusalGeneration, state.Generation);
+    }
 
     /// <summary>Marks the connection as unusable (a protocol or connection error), so it is closed rather than reused.</summary>
     public bool Broken { get; set; }

@@ -13,6 +13,7 @@ using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
+using FileCat.Core.Permissions;
 using FileCat.Core.Resources;
 using Location = FileCat.Core.Resources.Location;
 
@@ -20,6 +21,63 @@ namespace FileCat.App.Tests;
 
 public sealed class OperationReportTests
 {
+    [Fact]
+    public void Windows_propagation_reports_only_the_root_in_live_results_and_interrupted_history()
+    {
+        var identity = new PermissionIdentity(new FileIdentity(3, "root"), "mount", PermissionObjectKind.Directory,
+            new PermissionAuthority(PermissionAuthorityKind.Local, "local", 0));
+        var component = new PermissionComponentResult(PermissionSections.Access, PermissionVerdict.Verified, "SetSecurityInfo",
+            PermissionVerification.SameObject, "before", "after", "after", 5, null);
+        var root = new PermissionResult(0, identity, PermissionVerdict.Verified, [component]);
+        var live = new List<string>();
+        PermissionOperationReport.Write(JobState.Completed, PermissionScope.NativePropagation, 1, [root], live.Add);
+        Assert.Contains("Scope · Windows inheritance propagation", live);
+        Assert.Contains("Selected root · Verified changed. Descendant effects are unverified.", live);
+        Assert.Contains("Access · Verified changed · same root read back · native code 5", live);
+        Assert.DoesNotContain(live, line => line.StartsWith("Reviewed objects", StringComparison.Ordinal));
+        Assert.Equal("Selected root · Unattempted",
+            PermissionOperationReport.DescribePropagation(root with { Verdict = PermissionVerdict.Unattempted, Components = [] }));
+
+        var historical = new InterruptedJob("journal", nameof(JobKind.Permissions), "Permissions", DateTime.UtcNow,
+            ["folder"], null, [], [], 0, 1)
+        {
+            PermissionReview = new([new(1, 0, "root", PermissionSections.Access, null, "before", "after", null, null)],
+                new Dictionary<int, PermissionVerdict>(), false) { Scope = PermissionScope.NativePropagation }
+        };
+        string recovered = PermissionOperationReport.Interrupted(historical);
+        Assert.Contains("Selected root · Access · Call outcome unknown", recovered);
+        Assert.Contains("Descendant effects are unverified.", recovered);
+        Assert.DoesNotContain("Reviewed objects", recovered);
+        var history = historical.PermissionReview!;
+        string rejected = PermissionOperationReport.Interrupted(historical with
+        {
+            PermissionReview = history with { Calls = [history.Calls[0] with { Outcome = PermissionVerdict.Conflict }] }
+        });
+        Assert.Contains("Selected root · Access · Reviewed state changed", rejected);
+        Assert.DoesNotContain("Descendant effects are unverified.", rejected);
+    }
+
+    [Fact]
+    public void Captured_tree_reports_omissions_in_live_results_and_interrupted_history()
+    {
+        var tree = new PermissionTreeSummary(1, 2, 3, 4);
+        var live = new List<string>();
+        PermissionOperationReport.Write(JobState.Completed, PermissionScope.ReviewedTree, 5, [], live.Add, tree);
+        var report = new InterruptedJob("journal", nameof(JobKind.Permissions), "Permissions", DateTime.UtcNow,
+            ["folder"], null, [], [], 0, 5)
+        {
+            PermissionReview = new([], new Dictionary<int, PermissionVerdict>(), false) { Scope = PermissionScope.ReviewedTree, Tree = tree }
+        };
+        string interrupted = PermissionOperationReport.Interrupted(report);
+        foreach (string expected in new[] { "Scope · Captured tree · 1 root", "Reviewed objects · 5",
+                     "Unreadable or unverified entries and branches · 2", "Excluded links, special files and mount points · 3",
+                     "Additional captured hard-link names · 4" })
+        {
+            Assert.Contains(expected, live);
+            Assert.Contains(expected, interrupted);
+        }
+    }
+
     [AvaloniaFact]
     public async Task Finished_copy_shows_its_average_in_the_narrow_details_window_without_truncation()
     {

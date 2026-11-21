@@ -54,14 +54,76 @@ case "$RID" in
   linux-arm64) DEB_ARCH=arm64; APPIMAGE_ARCH=aarch64 ;;
   *) echo "Unsupported runtime: $RID" >&2; exit 2 ;;
 esac
+QUALIFY_PERMISSIONS="${FILECAT_LINUX_PERMISSIONS_QUALIFICATION:-0}"
+case "$QUALIFY_PERMISSIONS" in
+  0) ;;
+  1)
+    if [[ "$RID" != linux-x64 || "$(uname -m)" != x86_64 ||
+          ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-dev(\.[a-z0-9]+)+$ ||
+          -n "$CANDIDATE_REF" || "${GITHUB_ACTIONS:-}" == true ]]; then
+      echo "Linux permissions qualification requires a local x64 development build (for example 1.0.0-dev.permissions.1)." >&2
+      exit 2
+    fi
+    ;;
+  *) echo "FILECAT_LINUX_PERMISSIONS_QUALIFICATION must be 0 or 1." >&2; exit 2 ;;
+esac
+
+publish_linux_client() {
+  local destination="$1"
+  shift
+  dotnet publish "$ROOT/src/FileCat.App/FileCat.App.csproj" -c Release -r "$RID" --self-contained true \
+    -p:PublishReadyToRun=true "${VERSION_ARGS[@]}" -p:DebugType=embedded "$@" -o "$destination"
+  # Windows-only helpers (Shell host, administrator broker) do not ship on Linux.
+  rm -f "$destination"/FileCat.ShellHost* "$destination"/FileCat.PrivilegedHost*
+}
+
+stage_permissions_broker() {
+  local source="$ROOT/src/FileCat.Permissions.Linux"
+  local -a includes
+  read -r -a includes <<< "${CPPFLAGS:-}"
+  "${CC:-cc}" -std=c17 -O2 -g -Wall -Wextra -Werror -Wpedantic -Wformat=2 -Wconversion -Wshadow \
+    -D_FORTIFY_SOURCE=3 -fstack-protector-strong -fPIE "${includes[@]}" \
+    "$source"/*.c -Wl,-z,relro,-z,now -pie -pthread -l:libcrypto.so.3 -l:libsystemd.so.0 \
+    -o "$DEB/opt/filecat/FileCat.Permissions.Linux"
+  chmod 0755 "$DEB/opt/filecat/FileCat.Permissions.Linux"
+  install -Dm 0644 "$source/org.filecat.Permissions.conf" "$DEB/usr/share/dbus-1/system.d/org.filecat.Permissions.conf"
+  install -Dm 0644 "$source/org.filecat.Permissions.service" "$DEB/usr/share/dbus-1/system-services/org.filecat.Permissions.service"
+  install -Dm 0644 "$source/org.filecat.permissions.policy" "$DEB/usr/share/polkit-1/actions/org.filecat.permissions.policy"
+  install -Dm 0644 "$source/filecat-permissions.service" "$DEB/usr/lib/systemd/system/filecat-permissions.service"
+
+  cat > "$DEB/DEBIAN/preinst" <<'EOF'
+#!/bin/sh
+set -e
+case "$1" in
+  install|upgrade)
+    rm -f /var/lib/filecat-permissions/installed \
+      /etc/systemd/system/filecat-permissions.service.d/50-filecat-configured.conf
+    ;;
+esac
+EOF
+  cat > "$DEB/DEBIAN/prerm" <<'EOF'
+#!/bin/sh
+set -e
+case "$1" in
+  remove|upgrade|deconfigure)
+    rm -f /var/lib/filecat-permissions/installed \
+      /etc/systemd/system/filecat-permissions.service.d/50-filecat-configured.conf
+    if [ -d /run/systemd/system ]; then
+      systemctl --system daemon-reload
+      systemctl --system stop filecat-permissions.service
+    fi
+    ;;
+esac
+EOF
+  chmod 0755 "$DEB/DEBIAN/preinst" "$DEB/DEBIAN/prerm"
+}
 
 rm -rf "$PUB"
 mkdir -p "$OUT"
-dotnet publish "$ROOT/src/FileCat.App/FileCat.App.csproj" -c Release -r "$RID" --self-contained true \
-  -p:PublishReadyToRun=true "${VERSION_ARGS[@]}" -p:DebugType=embedded -o "$PUB"
-# Windows-only helpers (Shell host, administrator broker) do not ship on Linux.
-rm -f "$PUB"/FileCat.ShellHost* "$PUB"/FileCat.PrivilegedHost*
+publish_linux_client "$PUB"
 cp "$ROOT/LICENSE" "$ROOT/THIRD-PARTY-NOTICES.md" "$PUB/"
+install -d "$PUB/licenses/sshnet"
+install -m 0644 "$ROOT/licenses/sshnet/LICENSE" "$ROOT/licenses/sshnet/LICENSE-bcrypt" "$PUB/licenses/sshnet/"
 dotnet run --project "$ROOT/eng/DependencyNotices" -c Release -- \
   "$ROOT/licenses/dependencies" "$ROOT/src/FileCat.App/packages.lock.json" "$PUB" "$PUB/licenses/dependencies"
 # FileCat.Archives.Rar15.dll is LGPL-2.1-or-later (ported XADMaster code): its full license text ships with it.
@@ -123,6 +185,9 @@ DEB="$OUT/deb-$RID"
 rm -rf "$DEB"
 mkdir -p "$DEB/DEBIAN" "$DEB/opt/filecat" "$DEB/usr/bin" "$DEB/usr/share/applications"
 cp -a "$PUB/." "$DEB/opt/filecat/"
+if [[ "$RID" == linux-x64 ]]; then
+  publish_linux_client "$DEB/opt/filecat" -p:StartupHookSupport=false
+fi
 rm -f "$DEB/opt/filecat/install-desktop-entry.sh"
 ln -s /opt/filecat/FileCat "$DEB/usr/bin/filecat"
 desktop_entry filecat filecat > "$DEB/usr/share/applications/filecat.desktop"
@@ -133,6 +198,11 @@ done
 # profile as package data, and activate it only on systems which expose that
 # restriction; older Debian/Ubuntu parsers never see unsupported userns syntax.
 install -Dm 644 "$ROOT/eng/linux/filecat.apparmor" "$DEB/usr/share/filecat/apparmor/filecat"
+BROKER_DEPENDS=""
+if [[ "$QUALIFY_PERMISSIONS" == 1 ]]; then
+  stage_permissions_broker
+  BROKER_DEPENDS=", libc6 (>= 2.39), libssl3t64 | libssl3, libsystemd0 (>= 255), dbus, polkitd"
+fi
 cat > "$DEB/DEBIAN/postinst" <<'EOF'
 #!/bin/sh
 set -e
@@ -150,6 +220,37 @@ if [ -r "$restriction" ] && [ "$(cat "$restriction")" = 1 ]; then
     echo "FileCat: AppArmor tools are unavailable; WebKit page preview will fail closed." >&2
   fi
 fi
+case "$1" in
+  configure|abort-upgrade|abort-remove|abort-deconfigure)
+    state=/var/lib/filecat-permissions
+    overrides=/etc/systemd/system/filecat-permissions.service.d
+    enable="$overrides/50-filecat-configured.conf"
+    if [ -x /opt/filecat/FileCat.Permissions.Linux ] &&
+       [ -f /usr/lib/systemd/system/filecat-permissions.service ]; then
+      install -d -o root -g root -m 0755 "$state"
+      marker="$(mktemp "$state/.installed.XXXXXXXX")"
+      override=
+      trap 'status=$?; rm -f -- "$marker" "$override"; if [ "$status" -ne 0 ]; then rm -f -- "$state/installed" "$enable"; fi' EXIT
+      chmod 0644 "$marker"
+      (umask 022; mkdir -p "$overrides")
+      override="$(mktemp "$overrides/.configured.XXXXXXXX")"
+      printf '%s\n' '[Unit]' 'RefuseManualStart=no' > "$override"
+      chmod 0644 "$override"
+      mv -fT -- "$override" "$enable"
+      mv -fT -- "$marker" "$state/installed"
+      if [ -d /run/systemd/system ]; then
+        systemctl --system daemon-reload
+      fi
+    elif [ -d "$state" ] || [ -f "$enable" ]; then
+      rm -f "$state/installed" "$enable"
+      rmdir "$state" 2>/dev/null || true
+      rmdir "$overrides" 2>/dev/null || true
+      if [ -d /run/systemd/system ]; then
+        systemctl --system daemon-reload
+      fi
+    fi
+    ;;
+esac
 exit 0
 EOF
 cat > "$DEB/DEBIAN/postrm" <<'EOF'
@@ -162,6 +263,21 @@ if [ "$1" = remove ] || [ "$1" = purge ]; then
   fi
   rm -f "$active_profile"
 fi
+case "$1" in
+  remove|purge|abort-install)
+    state=/var/lib/filecat-permissions
+    overrides=/etc/systemd/system/filecat-permissions.service.d
+    enable="$overrides/50-filecat-configured.conf"
+    if [ -d "$state" ] || [ -d "$overrides" ]; then
+      rm -f "$state/installed" "$enable"
+      rmdir "$state" 2>/dev/null || true
+      rmdir "$overrides" 2>/dev/null || true
+      if [ -d /run/systemd/system ]; then
+        systemctl --system daemon-reload
+      fi
+    fi
+    ;;
+esac
 exit 0
 EOF
 chmod 755 "$DEB/DEBIAN/postinst" "$DEB/DEBIAN/postrm"
@@ -175,7 +291,7 @@ Architecture: $DEB_ARCH
 Installed-Size: $SIZE_KB
 Maintainer: FileCat contributors <filecat@users.noreply.github.com>
 Homepage: https://github.com/benny-cz/FileCat
-Depends: libc6, libgcc-s1, libstdc++6, libssl3 | libssl1.1, libicu78 | libicu76 | libicu74 | libicu72 | libicu71 | libicu70 | libicu67, libfontconfig1, libx11-6, libice6, libsm6
+Depends: libc6, libgcc-s1, libstdc++6, libssl3 | libssl1.1, libicu78 | libicu76 | libicu74 | libicu72 | libicu71 | libicu70 | libicu67, libfontconfig1, libx11-6, libice6, libsm6$BROKER_DEPENDS
 Recommends: xdg-utils, libsecret-1-0, apparmor, libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37
 Description: Keyboard-first two-panel file manager
  FileCat is a two-panel file manager in the tradition of Altap Salamander, Total
@@ -190,7 +306,7 @@ rm -f "$DEB_FILE"
 rm -f "$SBOM_DEB"
 dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
   "$DEB" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" deb "$SOURCE_IDENTITY" "$CREATED_UTC" "$SBOM_DEB"
-if writable_by_others "$DEB/opt/filecat"; then echo "The .deb payload is group- or other-writable." >&2; exit 2; fi
+if writable_by_others "$DEB"; then echo "The .deb payload is group- or other-writable." >&2; exit 2; fi
 dpkg-deb --root-owner-group --build "$DEB" "$DEB_FILE"
 
 # 3) AppImage: one file that runs on most distributions (appimagetool 1.9.1, pinned by checksum; build tool only).

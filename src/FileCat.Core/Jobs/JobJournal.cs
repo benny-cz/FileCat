@@ -45,7 +45,7 @@ public sealed partial class JobJournal : IDisposable
 
     public string Path { get; }
     /// <summary>A temporary rename could not be reconciled; do not append an end record that hides recovery.</summary>
-    public bool NeedsRecovery { get { lock (_lock) return Held || _archiveTransactions.RequiresReview || _storageJournal?.NeedsRecovery == true; } }
+    public bool NeedsRecovery { get { lock (_lock) return Held || _pendingPermissionStep != 0 || _archiveTransactions.RequiresReview || _storageJournal?.NeedsRecovery == true; } }
     /// <summary>Keep this journal open when an operation left a temporary item that must be reviewed after restart.</summary>
     public void RequireRecovery() { lock (_lock) _manualRecovery = true; }
     /// <summary>A preparation failed before publication: keep the journal for review unless its exact discard completes.</summary>
@@ -343,9 +343,12 @@ public sealed partial class JobJournal : IDisposable
 
     public static JobJournal Create(string directory, Job job) => Create(directory, job, null);
 
-    internal static JobJournal Create(string directory, Job job, Func<string, string, CancellationToken, StorageJournalFile>? createStorageJournal)
+    internal static JobJournal Create(string directory, Job job, Func<string, string, CancellationToken, StorageJournalFile>? createStorageJournal,
+        Func<string, CancellationToken, PermissionJournalFile>? createPermissionJournal = null)
     {
         if (job.Kind == JobKind.StorageTransform) return CreateStorage(directory, job, createStorageJournal);
+        if (job.Kind == JobKind.Permissions) return CreatePermissions(job, createPermissionJournal ??
+            throw new IOException("A protected permissions journal is unavailable."));
         Directory.CreateDirectory(directory);
         var path = System.IO.Path.Combine(directory, $"job-{job.CreatedUtc:yyyyMMddHHmmss}-{job.ShortId}.fcj");
         var fs = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read, 4096, FileOptions.None);
@@ -482,7 +485,9 @@ public sealed partial class JobJournal : IDisposable
         lock (_lock)
         {
             if (NeedsRecovery) throw new IOException("An unresolved archive or temporary-item transaction cannot receive an ordinary journal end record.");
-            Write(new JsonObject { ["t"] = "end", ["state"] = state.ToString(), ["summary"] = summary, ["time"] = DateTime.UtcNow.ToString("O") }, sync: true);
+            var end = new JsonObject { ["t"] = "end", ["state"] = state.ToString(), ["summary"] = summary, ["time"] = DateTime.UtcNow.ToString("O") };
+            if (_verifyPermissionFile is not null) WritePermission(end);
+            else Write(end, sync: true);
             _finished = true;
             // A job that ended needs no rerun: its manifest goes with it.
             if (!_archiveRecoveryOnly)
@@ -526,11 +531,16 @@ public sealed partial class JobJournal : IDisposable
             if (_disposed) return;
             _disposed = true;
             try { _stream.Flush(flushToDisk: true); }
-            catch (IOException) { _storageJournal?.Fault(); if (_storageJournal is not null) throw; }
+            catch (IOException) { _storageJournal?.Fault(); if (_storageJournal is not null || _verifyPermissionFile is not null) throw; }
             finally
             {
                 try { _stream.Dispose(); }
-                finally { _storageJournal?.Dispose(); Interlocked.Exchange(ref _storageWriterCharge, null)?.Dispose(); }
+                finally
+                {
+                    _storageJournal?.Dispose();
+                    Interlocked.Exchange(ref _storageWriterCharge, null)?.Dispose();
+                    Interlocked.Exchange(ref _permissionFileOwner, null)?.Dispose();
+                }
             }
         }
     }
@@ -720,8 +730,10 @@ public sealed record InterruptedJob(string JournalPath, string Kind, string Titl
     public string? TransferIntentProblem { get; init; }
 
     public bool IsReviewedAnalysisCopy => Kind == nameof(JobKind.ReviewedAnalysisCopy);
+    public bool IsPermissions => Kind == nameof(JobKind.Permissions);
+    public InterruptedPermissionReview? PermissionReview { get; init; }
     public IReadOnlyList<ReviewedAnalysisCopyReceipt> ReviewedCopyReceipts { get; init; } = [];
-    public bool CanContinueTransfer => !IsStorageTransform && !IsReviewedAnalysisCopy && SourcesKnown && TransferIntent is { } intent && intent.Matches(this);
+    public bool CanContinueTransfer => !IsStorageTransform && !IsReviewedAnalysisCopy && !IsPermissions && SourcesKnown && TransferIntent is { } intent && intent.Matches(this);
 }
 
 /// <summary>Historical evidence. A copy intent with no outcome does not establish publication.</summary>

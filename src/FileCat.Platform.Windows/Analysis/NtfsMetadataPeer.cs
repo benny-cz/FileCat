@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Security.Principal;
+using FileCat.Core.FileSystem;
+using FileCat.Platform.Windows.Permissions;
 using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows.Analysis;
@@ -82,7 +84,30 @@ internal sealed unsafe partial class NtfsMetadataPeer : IDisposable
         throw Unverified();
     }
 
+    internal WindowsPermissionToken.OwnerSet ReadOwnerChoices(string authority)
+    {
+        VerifyAlive();
+        using var token = OpenQueryToken();
+        if (ReadEvidence(token) != _captured) throw Unverified();
+        var owners = WindowsPermissionToken.ReadOwnerChoices(token, new(PrincipalKind.WindowsSid, UserSid.Value, authority));
+        VerifyAlive();
+        return owners;
+    }
+
+    private SafeAccessTokenHandle OpenQueryToken()
+    {
+        if (OpenProcessToken(_process, 0x8 /* TOKEN_QUERY */, out var token)) return token;
+        token?.Dispose();
+        throw Unverified();
+    }
+
     private ProcessEvidence ReadEvidence()
+    {
+        using var token = OpenQueryToken();
+        return ReadEvidence(token);
+    }
+
+    private ProcessEvidence ReadEvidence(SafeAccessTokenHandle token)
     {
         if (!GetProcessTimes(_process, out long created, out _, out _, out _) || created <= 0)
             throw Unverified();
@@ -90,23 +115,15 @@ internal sealed unsafe partial class NtfsMetadataPeer : IDisposable
         uint size = (uint)image.Length;
         fixed (char* chars = image)
             if (!QueryFullProcessImageName(_process, 0, chars, ref size) || size == 0 || size >= image.Length) throw Unverified();
-        if (!OpenProcessToken(_process, 0x8 /* TOKEN_QUERY */, out var token))
-        {
-            token?.Dispose();
+        using var identity = new WindowsIdentity(token.DangerousGetHandle());
+        if (identity.User is not { } user) throw Unverified();
+        var logon = ReadLogonSid(token);
+        uint session = TokenValue(token, 12 /* TokenSessionId */);
+        uint elevation = TokenValue(token, 20 /* TokenElevation */);
+        uint integrity = ReadIntegrity(token);
+        if (elevation > 1 || integrity < 8192 /* medium */ || (elevation == 1) != (integrity >= 12288 /* high */))
             throw Unverified();
-        }
-        using (token)
-        using (var identity = new WindowsIdentity(token.DangerousGetHandle()))
-        {
-            if (identity.User is not { } user) throw Unverified();
-            var logon = ReadLogonSid(token);
-            uint session = TokenValue(token, 12 /* TokenSessionId */);
-            uint elevation = TokenValue(token, 20 /* TokenElevation */);
-            uint integrity = ReadIntegrity(token);
-            if (elevation > 1 || integrity < 8192 /* medium */ || (elevation == 1) != (integrity >= 12288 /* high */))
-                throw Unverified();
-            return new(new string(image, 0, (int)size), created, session, user, logon, integrity, elevation == 1);
-        }
+        return new(new string(image, 0, (int)size), created, session, user, logon, integrity, elevation == 1);
     }
 
     internal static bool ValidLogonSid(SecurityIdentifier sid) =>

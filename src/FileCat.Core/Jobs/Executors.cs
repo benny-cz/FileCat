@@ -72,6 +72,9 @@ public static class JobExecutors
         bool fsSources = r.Sources.All(s => s.Parent.IsFileSystem);
         switch (r.Kind)
         {
+            case JobKind.Permissions:
+                return new PermissionExecutor(job, journal, job.PermissionOperation ??
+                    throw new InvalidOperationException("Permissions require live reviewed bindings."));
             case JobKind.ReviewedAnalysisCopy:
                 return new ReviewedAnalysisCopyExecutor(job, journal, job.ReviewedAnalysisCopy ??
                     throw new InvalidOperationException("Reviewed analysis copy requires a live approval."));
@@ -2538,8 +2541,7 @@ public static class UndoService
 }
 
 /// <summary>
-/// Sets attributes, times, and (Linux, macOS) permissions. Recursive changes never follow links, and reach each folder
-/// after everything inside it, so taking access away from a folder cannot stop the change halfway.
+/// Sets attributes and times. The recursive enumerator skips links and visits folders after their children.
 /// </summary>
 internal sealed class AttributesExecutor(Job job, IFileSystemOperations fs, JobJournal journal) : ExecutorBase(job, fs, journal)
 {
@@ -2548,6 +2550,8 @@ internal sealed class AttributesExecutor(Job job, IFileSystemOperations fs, JobJ
     public override void Execute()
     {
         var change = Job.Request.Attributes ?? throw new InvalidOperationException("No attribute change.");
+        if (!OperatingSystem.IsWindows() && change.AffectsUnixPermissions)
+            throw new NotSupportedException("Unix mode changes require a bound permissions review.");
         var sources = Job.Request.Sources;
         var options = new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint, IgnoreInaccessible = true };
         for (int i = 0; i < sources.Count; i++)
@@ -2565,41 +2569,51 @@ internal sealed class AttributesExecutor(Job job, IFileSystemOperations fs, JobJ
                     Job.Checkpoint();
                     PathUtil.RefuseAmbiguousUnixName(child);
                     if (isDirectory) folders.Add(child);
-                    else ok &= Apply(child, change, inside: true);
+                    else ok &= Apply(child, change);
                 }
                 // Deepest folders first: a folder changes only once nothing inside it is left to change.
                 for (int f = folders.Count - 1; f >= 0; f--)
                 {
                     Job.Checkpoint();
-                    ok &= Apply(folders[f], change, inside: true);
+                    ok &= Apply(folders[f], change);
                 }
             }
-            ok = Apply(path, change, inside: false) && ok;
+            ok = Apply(path, change) && ok;
             if (ok) Job.RootCompleted(i);
             else Job.RootFailed(i);
         }
     }
 
-    private bool Apply(string path, AttributeChangeSet change, bool inside)
+    private bool Apply(string path, AttributeChangeSet change)
     {
         Job.SetCurrent(path);
         Job.AddTotals(1, 0);
+        bool uncertain = false;
         bool ok = TryIo(path, "change attributes", () =>
         {
             var info = Fs.TryGetInfo(path) ?? throw new FileNotFoundException("The item no longer exists.", path);
+            bool times = change.ModifiedUtc is not null || change.CreatedUtc is not null;
+            if (!OperatingSystem.IsWindows())
+            {
+                if (times) Fs.SetTimes(path, change.CreatedUtc, change.ModifiedUtc);
+                if (OperatingSystem.IsMacOS() && ((change.Set | change.Clear) & FileAttributes.Hidden) != 0)
+                {
+                    try
+                    {
+                        if (!MacFinderHidden.Set(path, (change.Set & FileAttributes.Hidden) != 0, Job.Token))
+                            Issue(IssueSeverity.Info, path, "Finder Hidden was left unchanged for the link.", StepOutcome.Skipped);
+                    }
+                    catch (MacFinderHidden.UncertainException error)
+                    {
+                        uncertain = true;
+                        Issue(IssueSeverity.Error, path, error.Message, StepOutcome.Uncertain);
+                    }
+                }
+                return;
+            }
             var current = info.Attributes;
             var wanted = (current & ~change.Clear & Editable | change.Set & Editable) | current & ~Editable;
-            // On Linux and macOS read-only is the item's permissions, which a link does not have of its own: setting it is a
-            // chmod, which changes what the link points to, wherever that is (seen on macOS; release plan DPI P11).
-            if (!OperatingSystem.IsWindows() && info.IsLink && wanted != current)
-            {
-                Issue(IssueSeverity.Info, path, "Attributes were not changed for a link: on this system it has none of its own, and FileCat leaves what it points to unchanged.", StepOutcome.Skipped);
-                wanted = current;
-            }
-            bool times = change.ModifiedUtc is not null || change.CreatedUtc is not null;
-            // Windows: times first, as a read-only file refuses time changes on some file systems. On Linux and macOS the
-            // owner sets times whatever the permissions, and read-only there is derived from them.
-            bool readOnlyDance = times && OperatingSystem.IsWindows() && (current & FileAttributes.ReadOnly) != 0;
+            bool readOnlyDance = times && (current & FileAttributes.ReadOnly) != 0;
             if (times)
             {
                 if (readOnlyDance) Fs.SetAttributes(path, current & ~FileAttributes.ReadOnly);
@@ -2607,24 +2621,10 @@ internal sealed class AttributesExecutor(Job job, IFileSystemOperations fs, JobJ
             }
             if (wanted != current || readOnlyDance)
                 Fs.SetAttributes(path, wanted == 0 ? FileAttributes.Normal : wanted);
-            if (change.ChangesPermissions && !OperatingSystem.IsWindows()) ApplyMode(path, info, change, inside);
         });
+        ok &= !uncertain;
         if (ok) Job.ItemDone();
         else Job.ItemFailed();
         return ok;
-    }
-
-    [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
-    private void ApplyMode(string path, FileSystemItemInfo info, AttributeChangeSet change, bool inside)
-    {
-        if (info.IsLink)
-        {
-            // chmod would change whatever the link points to, which may be anywhere.
-            Issue(IssueSeverity.Info, path, "Permissions were not changed for a link: links have none of their own, and FileCat leaves what they point to unchanged.", StepOutcome.Skipped);
-            return;
-        }
-        var current = File.GetUnixFileMode(path);
-        var wanted = UnixPermissions.Apply(current, change.ModeSet, change.ModeClear, info.IsDirectory, inside);
-        if (wanted != current) File.SetUnixFileMode(path, wanted);
     }
 }

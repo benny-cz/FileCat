@@ -1307,6 +1307,7 @@ public partial class PanelView : UserControl
         }
         string? invokedAnalysisRoot = null;
         IReadOnlyList<string>? markedAnalysisRoots = null;
+        var permissionSelection = Panel?.ActiveTab is { Location: not null } permissionsTab ? MainViewModel.CapturePermissionsSelection(permissionsTab) : null;
         if (!Environment.IsPrivilegedProcess && Panel?.ActiveTab is { } source)
         {
             if (invokedStoreIndex is { } invoked)
@@ -1388,7 +1389,7 @@ public partial class PanelView : UserControl
             }
         }
         if (request != _menuRequest) return;
-        var menu = ContextMenuFactory.Build(vm, invokedAnalysisRoot, markedAnalysisRoots);
+        var menu = ContextMenuFactory.Build(vm, invokedAnalysisRoot, markedAnalysisRoots, permissionSelection);
         AppendInspectionItem(menu);
         if (atFocus && List.FocusedRowBounds() is { } row)
         {

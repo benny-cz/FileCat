@@ -6,7 +6,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows.Analysis;
 
-/// <summary>One local pipe for an authenticated metadata request. Client access omits the instance-creation bit.</summary>
+/// <summary>Local broker pipes. Client access omits the instance-creation bit.</summary>
 internal static partial class NtfsMetadataPipe
 {
     private const uint ClientRights = 0x00100003; // SYNCHRONIZE | FILE_READ_DATA | FILE_WRITE_DATA
@@ -14,13 +14,23 @@ internal static partial class NtfsMetadataPipe
     private const ulong ConnectionMilliseconds = 120_000;
     private const string PipePrefix = @"\\.\pipe\";
 
-    internal static string LocalName(string nonce)
+    internal static string LocalName(string nonce) => LocalName(nonce, "FileCat-ntfs-metadata-");
+
+    internal static string FileSecurityName(string nonce) => LocalName(nonce, "FileCat-file-security-");
+
+    private static string LocalName(string nonce, string prefix)
     {
-        if (!NtfsMetadataProtocol.ValidNonce(nonce)) throw new ArgumentException("Invalid NTFS metadata session identifier.", nameof(nonce));
-        return PipePrefix + "FileCat-ntfs-metadata-" + nonce;
+        if (!NtfsMetadataProtocol.ValidNonce(nonce)) throw new ArgumentException("Invalid local broker session identifier.", nameof(nonce));
+        return PipePrefix + prefix + nonce;
     }
 
-    internal static NamedPipeServerStream CreateServer(string nonce, SecurityIdentifier logonSid)
+    internal static NamedPipeServerStream CreateServer(string nonce, SecurityIdentifier logonSid) =>
+        CreateServerForName(LocalName(nonce), logonSid);
+
+    internal static NamedPipeServerStream CreateFileSecurityServer(string nonce, SecurityIdentifier logonSid) =>
+        CreateServerForName(FileSecurityName(nonce), logonSid);
+
+    private static NamedPipeServerStream CreateServerForName(string name, SecurityIdentifier logonSid)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (!NtfsMetadataPeer.ValidLogonSid(logonSid))
@@ -30,14 +40,14 @@ internal static partial class NtfsMetadataPipe
         string acl = $"D:P(D;;0x000C0004;;;{logonSid.Value})(A;;0x00100000;;;OW)(A;;GA;;;SY)(A;;GA;;;BA)" +
             $"(A;;0x{ClientRights:X8};;;{logonSid.Value})";
         if (!ConvertStringSecurityDescriptorToSecurityDescriptor(acl, 1, out nint descriptor, out _))
-            throw NativeFailure("Create metadata pipe security");
+            throw NativeFailure("Create local broker pipe security");
         try
         {
             var security = new SecurityAttributes { Size = Marshal.SizeOf<SecurityAttributes>(), Descriptor = descriptor };
-            var handle = CreateNamedPipe(LocalName(nonce), 3 | FirstInstance | Overlapped, RejectRemote, 1, 64 * 1024, 64 * 1024, 0, ref security);
+            var handle = CreateNamedPipe(name, 3 | FirstInstance | Overlapped, RejectRemote, 1, 64 * 1024, 64 * 1024, 0, ref security);
             if (handle.IsInvalid)
             {
-                var error = NativeFailure("Create the first local metadata pipe");
+                var error = NativeFailure("Create the first local broker pipe");
                 handle.Dispose();
                 throw error;
             }
@@ -50,6 +60,13 @@ internal static partial class NtfsMetadataPipe
     internal static async Task<NtfsMetadataChannel> AcceptAsync(NamedPipeServerStream server, string nonce,
         NtfsMetadataPeer requester, CancellationToken cancellation)
     {
+        await AcceptConnectionAsync(server, requester, cancellation).ConfigureAwait(false);
+        try { return new NtfsMetadataChannel(server, nonce, helper: true); }
+        catch { server.Dispose(); throw; }
+    }
+
+    internal static async Task AcceptConnectionAsync(NamedPipeServerStream server, NtfsMetadataPeer requester, CancellationToken cancellation)
+    {
         using var wait = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         using var timer = StartConnectionWatchdog(wait);
         try
@@ -57,14 +74,23 @@ internal static partial class NtfsMetadataPipe
             await server.WaitForConnectionAsync(wait.Token).ConfigureAwait(false);
             wait.Token.ThrowIfCancellationRequested();
             VerifyPeer(server.SafePipeHandle, requester, serverEnd: true);
-            return new NtfsMetadataChannel(server, nonce, helper: true);
         }
         catch { server.Dispose(); throw; }
     }
 
     internal static async Task<NtfsMetadataChannel> ConnectAsync(string nonce, NtfsMetadataPeer helper, CancellationToken cancellation)
     {
-        string pipe = @"\??\pipe\" + LocalName(nonce)[PipePrefix.Length..];
+        var stream = await ConnectToNameAsync(LocalName(nonce), helper, cancellation).ConfigureAwait(false);
+        try { return new NtfsMetadataChannel(stream, nonce, helper: false); }
+        catch { stream.Dispose(); throw; }
+    }
+
+    internal static Task<NamedPipeClientStream> ConnectFileSecurityAsync(string nonce, NtfsMetadataPeer helper, CancellationToken cancellation) =>
+        ConnectToNameAsync(FileSecurityName(nonce), helper, cancellation);
+
+    private static async Task<NamedPipeClientStream> ConnectToNameAsync(string name, NtfsMetadataPeer helper, CancellationToken cancellation)
+    {
+        string pipe = @"\??\pipe\" + name[PipePrefix.Length..];
         using var wait = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         using var timer = StartConnectionWatchdog(wait);
         try
@@ -80,21 +106,20 @@ internal static partial class NtfsMetadataPipe
                     {
                         wait.Token.ThrowIfCancellationRequested();
                         if (GrantedAccess(handle) != ClientRights)
-                            throw new IOException("The local metadata pipe did not grant precisely the requested client rights.");
+                            throw new IOException("The local broker pipe did not grant precisely the requested client rights.");
                         VerifyPeer(handle, helper, serverEnd: false);
-                        var stream = new NamedPipeClientStream(PipeDirection.InOut, isAsync: true, isConnected: true, handle);
-                        return new NtfsMetadataChannel(stream, nonce, helper: false);
+                        return new NamedPipeClientStream(PipeDirection.InOut, isAsync: true, isConnected: true, handle);
                     }
                     catch { handle.Dispose(); throw; }
                 }
                 int error = (int)RtlNtStatusToDosError(status);
                 handle.Dispose();
-                if (error is not (2 or 231)) throw new IOException("The local NTFS metadata pipe could not be opened.", new Win32Exception(error));
+                if (error is not (2 or 231)) throw new IOException("The local broker pipe could not be opened.", new Win32Exception(error));
                 await Task.Delay(50, wait.Token).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException error) when (!cancellation.IsCancellationRequested && wait.IsCancellationRequested)
-        { throw new TimeoutException("The Fast NTFS helper did not connect before its deadline.", error); }
+        { throw new TimeoutException("The local helper did not connect before its deadline.", error); }
     }
 
     internal static unsafe uint GrantedAccess(SafeHandle handle)
@@ -103,7 +128,7 @@ internal static partial class NtfsMetadataPipe
         uint* info = stackalloc uint[publicBasicInfoWords];
         if (NtQueryObject(handle, objectBasicInformation, info, publicBasicInfoWords * sizeof(uint), out uint bytes) < 0 ||
             bytes != publicBasicInfoWords * sizeof(uint))
-            throw new IOException("The local metadata pipe granted rights could not be checked.");
+            throw new IOException("The local broker pipe granted rights could not be checked.");
         return info[1];
     }
 
@@ -128,11 +153,11 @@ internal static partial class NtfsMetadataPipe
         }
     }
 
-    private static void VerifyPeer(SafePipeHandle pipe, NtfsMetadataPeer expected, bool serverEnd)
+    internal static void VerifyPeer(SafePipeHandle pipe, NtfsMetadataPeer expected, bool serverEnd)
     {
         bool process = serverEnd ? GetNamedPipeClientProcessId(pipe, out uint pid) : GetNamedPipeServerProcessId(pipe, out pid);
         bool session = serverEnd ? GetNamedPipeClientSessionId(pipe, out uint id) : GetNamedPipeServerSessionId(pipe, out id);
-        if (!process || !session) throw new IOException("The local metadata pipe peer could not be identified.");
+        if (!process || !session) throw new IOException("The local broker pipe peer could not be identified.");
         expected.VerifyPipePeer(pid, id);
     }
 

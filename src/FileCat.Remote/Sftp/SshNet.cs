@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Security.Cryptography;
 using FileCat.Core.State;
 using Renci.SshNet;
 using Renci.SshNet.Common;
@@ -91,7 +92,9 @@ public sealed class SshNetConnector(string? agentAddress = null, TimeSpan? conne
                 }
             };
             client.ConnectAsync(ct).GetAwaiter().GetResult();
-            var channel = new SshNetChannel(client, key) { SocketBuffer = WidenSocketBuffers(client) };
+            var approvedKey = reviewed.Approved ?? throw new SshConnectionException("The server host key was not approved.");
+            var channel = new SshNetChannel(client, key, Convert.ToHexString(SHA256.HashData(approvedKey)))
+                { SocketBuffer = WidenSocketBuffers(client) };
             client = null;
             key = null;
             return channel;
@@ -215,7 +218,7 @@ public sealed class SshNetConnector(string? agentAddress = null, TimeSpan? conne
     }
 }
 
-internal sealed class SshNetChannel(SftpClient client, IDisposable? key) : ISftpChannel
+internal sealed partial class SshNetChannel(SftpClient client, IDisposable? key, string hostKeyDigest) : ISftpChannel
 {
     /// <summary>The connection's socket receive buffer as the system reports it after widening (-1: not reached).</summary>
     internal int SocketBuffer { get; init; } = -1;
@@ -267,7 +270,8 @@ internal sealed class SshNetChannel(SftpClient client, IDisposable? key) : ISftp
         try
         {
             var a = client.GetAttributes(path);
-            return new RemoteStat(a.IsDirectory, a.IsSymbolicLink, a.Size, a.LastWriteTimeUtc);
+            return new RemoteStat(a.IsDirectory, a.IsSymbolicLink, a.Size, a.LastWriteTimeUtc)
+                { SecurityAttributes = ProjectSecurity(a.WireAttributes, RemoteSecurityObservation.FollowedStat) };
         }
         catch (SftpPathNotFoundException)
         {
@@ -384,6 +388,8 @@ internal sealed class SshNetChannel(SftpClient client, IDisposable? key) : ISftp
         public bool IsLink => file.IsSymbolicLink;
         public long Size => file.Length;
         public DateTime ModifiedUtc => file.LastWriteTimeUtc;
+        public RemoteSecurityAttributes? SecurityAttributes =>
+            ProjectSecurity(file.Attributes.WireAttributes, RemoteSecurityObservation.DirectoryEntry);
 
         // SftpFile acts on its own listed path (remove, rmdir, rename) without realpath.
         public void Delete() => Wrap(file.Delete);

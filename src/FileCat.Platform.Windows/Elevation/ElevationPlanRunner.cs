@@ -13,6 +13,8 @@ public static class ElevationPlanRunner
     public static IReadOnlyList<ElevatedStepResult> Run(ElevationPlan plan, Func<bool> stopRequested,
         Action<IReadOnlyList<ElevatedStepResult>> progress)
     {
+        if (ElevationPlanCodec.IsFileSecurityPlan(plan))
+            throw new InvalidDataException("File security requests cannot run in the legacy elevation runner.");
         var results = new List<ElevatedStepResult>();
         void Checkpoint()
         {

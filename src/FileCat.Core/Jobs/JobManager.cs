@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using FileCat.Core.Diagnostics;
 using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Permissions;
 using FileCat.Core.Resources;
 
 namespace FileCat.Core.Jobs;
@@ -31,6 +32,7 @@ public sealed partial class JobManager
     private readonly string _journalDirectory;
     private readonly Func<string, string, CancellationToken, StorageJournalFile>? _createStorageJournal;
     private readonly StorageEvidenceBackend? _storageEvidenceBackend;
+    private readonly Func<string, CancellationToken, PermissionJournalFile>? _createPermissionJournal;
     private int _order;
     private int _suppressScheduling;
 
@@ -45,7 +47,7 @@ public sealed partial class JobManager
 
     internal JobManager(IFileSystemOperations fs, ProviderRegistry providers, string journalDirectory, ArchiveJobBackends archiveBackends,
         IStorageTransforms storageTransforms, Func<string, string, CancellationToken, StorageJournalFile>? createStorageJournal = null,
-        StorageEvidenceBackend? storageEvidenceBackend = null)
+        StorageEvidenceBackend? storageEvidenceBackend = null, Func<string, CancellationToken, PermissionJournalFile>? createPermissionJournal = null)
     {
         _fs = fs;
         _providers = providers;
@@ -55,6 +57,7 @@ public sealed partial class JobManager
         CompressionUnavailable = _storageTransforms.Unavailable(StorageAction.Compress);
         _createStorageJournal = createStorageJournal;
         _storageEvidenceBackend = storageEvidenceBackend;
+        _createPermissionJournal = createPermissionJournal;
     }
 
     public int MaxConcurrent { get; set; } = 4;
@@ -194,7 +197,8 @@ public sealed partial class JobManager
     }
 
     private Job Submit(JobRequest request, UndoReservation? reservation, Action<Job>? register = null, ArchiveJobOperation? archiveOperation = null,
-        StorageReviewOwner? storageOwner = null, ReviewedAnalysisCopyOperation? reviewedAnalysisCopy = null)
+        StorageReviewOwner? storageOwner = null, ReviewedAnalysisCopyOperation? reviewedAnalysisCopy = null,
+        ReviewedPermissionOperation? permissions = null)
     {
         Job? job = null;
         List<IDisposable>? readLeases = null;
@@ -203,10 +207,14 @@ public sealed partial class JobManager
             ValidateStorageRequest(request, storageOwner);
             if ((request.Kind == JobKind.ReviewedAnalysisCopy) != (reviewedAnalysisCopy is not null))
                 throw new ArgumentException("A reviewed analysis copy requires its live approval.", nameof(request));
+            if ((request.Kind == JobKind.Permissions) != (permissions is not null))
+                throw new ArgumentException("A permissions job requires its live reviewed bindings.", nameof(request));
+            if (request.Kind == JobKind.Attributes && !OperatingSystem.IsWindows() && request.Attributes is { AffectsUnixPermissions: true })
+                throw new NotSupportedException("Unix mode changes require a bound permissions review.");
             if (reservation is null && (request.Kind == JobKind.Undo || request.UndoPlan is not null))
                 throw new ArgumentException("An inverse must be admitted through an approved Undo reservation.", nameof(request));
             var (title, device, reads, writes) = Describe(request);
-            job = new Job(request, title, device, reads, writes) { ReviewedAnalysisCopy = reviewedAnalysisCopy };
+            job = new Job(request, title, device, reads, writes) { ReviewedAnalysisCopy = reviewedAnalysisCopy, PermissionOperation = permissions };
             readLeases = CaptureReadLeases(request);
             IReadOnlyList<Job> retired = [];
             lock (_lock)
@@ -246,6 +254,7 @@ public sealed partial class JobManager
                     _archiveOperations.Remove(job);
                     _storageOwners.Remove(job);
                     job.TakeReviewedAnalysisCopy();
+                    job.TakePermissionOperation();
                     job.Changed -= OnJobChanged;
                 }
             }
@@ -494,6 +503,7 @@ public sealed partial class JobManager
     public static bool Overlaps(Job a, Job b)
     {
         if (a.Kind == JobKind.StorageTransform || b.Kind == JobKind.StorageTransform) return true;
+        if (a.Kind == JobKind.Permissions && b.Kind == JobKind.Permissions && a.PermissionDevices.Overlaps(b.PermissionDevices)) return true;
         foreach (var w in a.WriteSet)
         {
             foreach (var x in b.WriteSet) if (ScopesOverlap(w, x)) return true;
@@ -566,6 +576,7 @@ public sealed partial class JobManager
             ReleaseReadLeases(job);
             ReleaseStorageOwner(job);
             if (!ReleaseReviewedAnalysisCopy(job)) final = JobState.Failed;
+            if (!ReleasePermissionOperation(job)) final = JobState.Failed;
             if (job.Request.StorageTransform is { } storage)
                 job.SetStorageResult(new(storage.Action, storage.Scope, storage.ReviewRevision, new(NotProcessed: storage.Roots.Select(r => r.PinIndex).Distinct().Count()))
                 {
@@ -594,7 +605,7 @@ public sealed partial class JobManager
                 storageEvidence = StorageEvidenceBudget.Shared.Reserve(_journalDirectory, job.Id, job.Token, _storageEvidenceBackend);
                 storageNative = StorageReviewResources.EnterNative(job.Token, job);
             }
-            journal = JobJournal.Create(_journalDirectory, job, _createStorageJournal);
+            journal = JobJournal.Create(_journalDirectory, job, _createStorageJournal, _createPermissionJournal);
             ArchiveJobOperation? archiveOperation;
             StorageReviewOwner? storageOwner;
             lock (_lock)
@@ -626,6 +637,11 @@ public sealed partial class JobManager
             journal?.RequireRecovery();
             final = JobState.Failed;
         }
+        if (!ReleasePermissionOperation(job))
+        {
+            journal?.RequireRecovery();
+            final = JobState.Failed;
+        }
         if (job.StorageResult is null && job.IsCancellationRequested && final != JobState.Failed) final = JobState.Canceled;
         if (job.Kind == JobKind.Undo && job.UndoReport is null && job.Request.UndoPlan is { } undoPlan)
             job.SetUndoReport(UndoReport.NotStarted(undoPlan, "The inverse could not start. " + (JobIssue.Summarize(job.Issues) ?? final.Describe()), journal?.Path));
@@ -642,9 +658,12 @@ public sealed partial class JobManager
                 journal?.FinishStorage(storageFinal);
                 if (journal is not null) job.SetStorageResult(storageFinal with { DurablePrefix = journal.StoragePrefix });
             }
-            else if (journal is { NeedsRecovery: true }) journal.Note(job.Kind == JobKind.ReviewedAnalysisCopy
-                ? "Reviewed copy has an unconfirmed outcome or release. Inspect its receipt before a fresh review."
-                : "Temporary items remain unresolved; the journal is retained for recovery.");
+            else if (journal is { NeedsRecovery: true })
+            {
+                if (job.Kind != JobKind.Permissions) journal.Note(job.Kind == JobKind.ReviewedAnalysisCopy
+                    ? "Reviewed copy has an unconfirmed outcome or release. Inspect its receipt before a fresh review."
+                    : "Temporary items remain unresolved; the journal is retained for recovery.");
+            }
             else journal?.Finish(final, job.Summary);
         }
         catch (Exception ex)
@@ -743,6 +762,10 @@ public sealed partial class JobManager
                 title = $"Copy reviewed entries ({r.Sources.Count:N0}) to {Analysis.AnalysisNames.Display(Dest())}";
                 AddSourceScopes(reads);
                 AddDestinationScopes();
+                break;
+            case JobKind.Permissions:
+                title = $"Review permission changes on {What()}";
+                AddSourceScopes(writes);
                 break;
             case JobKind.Copy:
             case JobKind.Extract:

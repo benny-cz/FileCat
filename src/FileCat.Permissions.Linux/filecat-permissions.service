@@ -1,0 +1,18 @@
+[Unit]
+Description=FileCat file permissions mechanism
+# The configured package explicitly allows activation. A skipped start leaves
+# D-Bus waiting for a name owner until its activation timeout.
+RefuseManualStart=yes
+ConditionPathExists=/var/lib/filecat-permissions/installed
+
+[Service]
+Type=dbus
+BusName=org.filecat.Permissions
+ExecStart=/opt/filecat/FileCat.Permissions.Linux
+User=root
+UMask=0077
+LimitCORE=0
+TimeoutStopSec=10s
+NoNewPrivileges=yes
+RestrictAddressFamilies=AF_UNIX
+UnsetEnvironment=LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT

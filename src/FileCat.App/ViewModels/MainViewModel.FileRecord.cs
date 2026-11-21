@@ -1,4 +1,9 @@
+using System.Buffers.Binary;
+using System.Globalization;
+using Avalonia.Input.Platform;
 using FileCat.App.Views;
+using FileCat.Core.FileSystem;
+using FileCat.Core.Permissions;
 using FileCat.Core.Records;
 using FileCat.Core.Resources;
 using FileCat.Core.Threading;
@@ -32,7 +37,38 @@ public sealed partial class MainViewModel
         {
             OpenHiddenDataForPath(path, newWorkspaceTab: true);
             destination = _view;
-        } : null, OpenTargetAsync);
+        } : null, OpenTargetAsync, PermissionsUnavailable, OpenPermissionsAsync);
+        string? PermissionsUnavailable(FileDetailsSnapshot? snapshot)
+        {
+            if (PermissionProcessRefusal() is { } refusal) return refusal;
+            if (Services.Permissions is NoPermissionService) return "A permissions reader is unavailable on this platform.";
+            if (_view?.TopLevel is not Avalonia.Controls.Window { IsVisible: true } || Services.Io.IsStopped)
+                return "The owning workspace is unavailable.";
+            return snapshot is not null && PermissionRecordIdentity(snapshot) is not null ? null
+                : "A known ordinary file or directory identity is required. Refresh these details first.";
+        }
+        async Task OpenPermissionsAsync(FileDetailsSnapshot captured, Func<bool> current, CancellationToken ct)
+        {
+            if (PermissionsUnavailable(captured) is { } unavailable) throw new NotSupportedException(unavailable);
+            if (_view.TopLevel is not Avalonia.Controls.Window main || _dialogs.IsOpen)
+                throw new NotSupportedException("Close the active workspace dialog before opening permissions.");
+            var identity = PermissionRecordIdentity(captured) ?? throw new NotSupportedException("The original object identity is unavailable.");
+            var kind = captured.Kind == FileObjectKind.Directory ? PermissionObjectKind.Directory : PermissionObjectKind.File;
+            var original = new PermissionSubject(subject, path, path, LocalPermissionAuthority, kind, PermissionLinkPolicy.NoFollow,
+                ExpectedObject: identity);
+            using var inspection = await Services.Io.RunOwned(device, IoPriority.Interactive,
+                token => Services.Permissions.Inspect(original, PermissionReadSections, token), ct);
+            ct.ThrowIfCancellationRequested();
+            if (!current() || !main.IsVisible || _view.TopLevel != main || _dialogs.IsOpen)
+                throw new NotSupportedException("The original details or the owning workspace changed during inspection.");
+            if (inspection.Snapshot.Binding is null)
+                throw new NotSupportedException(inspection.Snapshot.BindingProblem ?? "The original object could not be verified.");
+            destination = _view;
+            var clipboard = _view.Clipboard;
+            main.Activate();
+            var source = ItemRef.ForFileSystemPath(path, kind == PermissionObjectKind.Directory ? EntryKind.Directory : EntryKind.File);
+            await ShowPermissionInspectorAsync(_dialogs, [new(path, source, inspection)], clipboard is null ? null : clipboard.SetTextAsync);
+        }
         async Task<FileDetailsTargetCheck> OpenTargetAsync(string targetPath, CancellationToken ct)
         {
             if (_view?.TopLevel is not Avalonia.Controls.Window { IsVisible: true } main || Services.Io.IsStopped)
@@ -89,5 +125,24 @@ public sealed partial class MainViewModel
         };
         window.Show();
         return true;
+    }
+
+    private static FileIdentity? PermissionRecordIdentity(FileDetailsSnapshot snapshot)
+    {
+        if (snapshot.Kind is not (FileObjectKind.File or FileObjectKind.Directory) || snapshot.Identity.State != FactState.Known ||
+            snapshot.Identity.Value is not { } id) return null;
+        if (OperatingSystem.IsWindows() && snapshot.Identity.Source == "FileIdInfo" &&
+            ulong.TryParse(id.Device, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out ulong serial) &&
+            UInt128.TryParse(id.Object, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out UInt128 fileId))
+        {
+            Span<byte> bytes = stackalloc byte[16];
+            BinaryPrimitives.WriteUInt128LittleEndian(bytes, fileId);
+            return new(serial, Convert.ToHexString(bytes));
+        }
+        if (!OperatingSystem.IsLinux()) return null;
+        string[] device = id.Device.Split(':');
+        if (device.Length != 2 || !uint.TryParse(device[0], out uint major) || !uint.TryParse(device[1], out uint minor) ||
+            !ulong.TryParse(id.Object, out ulong inode)) return null;
+        return new(((ulong)major << 32) | minor, $"{inode:X16}0000000000000000");
     }
 }

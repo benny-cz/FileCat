@@ -5,9 +5,9 @@ load, host-key rotation in production) remain external.
 
 ## Decision
 
-**SSH.NET behind a narrow channel.** SFTP uses SSH.NET 2026.0.0 (MIT) with its dependencies BouncyCastle.Cryptography
-and Microsoft.Extensions.Logging.Abstractions (both MIT). It lives in `FileCat.Remote`; Core stays free of third-party
-packages. FileCat talks to one interface, `ISftpChannel`: listings, stat, reads, exclusive creates, renames of its own
+**SSH.NET behind a narrow channel.** SFTP builds SSH.NET 2026.0.0 from source at commit `7b2fd3db` (MIT with an ISC
+notice for its BCrypt code). It retains BouncyCastle.Cryptography and Microsoft.Extensions.Logging.Abstractions
+(both MIT). The adapter lives in `FileCat.Remote`. FileCat talks to one interface, `ISftpChannel`: listings, stat, reads, exclusive creates, renames of its own
 files, atomic replace, and times. The same interface has an in-memory server for tests.
 
 **Changes go through listing entries.** SSH.NET's path-based `DeleteFile`, `RenameFile`, `Get`, and `GetAttributes` first
@@ -50,10 +50,19 @@ overwritten without an explicit, danger-styled choice, and a missing file is rec
 **SSH terminal.** Open terminal on a server panel starts the OpenSSH client with the host after `--`. A crafted name
 therefore cannot become an ssh option. The session lands in the panel's folder, which is quoted for the server's shell.
 
+**Permissions and ownership.** The source build sends LSTAT for the exact absolute SFTP path. It retains reply flags
+and unsigned IDs and uses `users-groups-by-id@openssh.com` version 1 for server account labels where available.
+The inspector offers a file or folder mode and group review for the tested Ubuntu OpenSSH server profile. It
+retains the authenticated lease, compares the original fields and checks the full ancestry before preparing
+changes. The typed `lsetstat@openssh.com` adapter sends one mode or UID/GID component per durable intent. A lost
+reply can lead to a new connection for server-path read-back. Further changes require a fresh review. Windows
+OpenSSH and unqualified builds expose observations. [Source changes](../../src/ThirdParty/SshNet/THIRD-PARTY-CHANGES.md)
+[Admission rules, residual path races, and qualification evidence](../design/FILECAT_PERMISSIONS_ACL_IMPLEMENTATION_PLAN.md#5-platform-operations)
+
 ## Why
 
-- SSH.NET is the maintained, permissively licensed managed implementation. Its internals (`ISftpSession`) are not public,
-  which is why the listing-entry route exists instead of raw requests.
+- SSH.NET provides the managed transport. Transfers reuse its listing-entry operations, and the permissions adapter
+  uses the source build's typed access to the internal SFTP session.
 - Treating the symlink-following canonicalization as a data-loss hazard, rather than an edge case, follows the plan's
   rule never to follow links implicitly (§8.1).
 - Temporary names plus rename keep a half-written file from ever appearing under the real name. Where the server cannot

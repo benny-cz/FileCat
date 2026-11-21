@@ -15,7 +15,7 @@ namespace FileCat.Platform.Windows.Elevation;
 /// The plan's wire format: strict JSON, a SHA-256 the requester passes to the broker, and validation of everything
 /// the broker will act on. The plan file sits in a user-writable folder, so its content is untrusted input.
 /// </summary>
-public static class ElevationPlanCodec
+public static partial class ElevationPlanCodec
 {
     public const int MaxPlanBytes = 32 * 1024 * 1024;
     public const int MaxSteps = 10_000;
@@ -39,7 +39,12 @@ public static class ElevationPlanCodec
         try
         {
             var plan = JsonSerializer.Deserialize<ElevationPlan>(json, Options) ?? throw new InvalidDataException("The plan is empty.");
-            if (plan.Steps?.Any(step => step?.Verb == ElevatedVerb.EnumerateNtfsMetadata) == true &&
+            bool fileSecurity = IsFileSecurityPlan(plan);
+            if (fileSecurity && json.Length > MaxFileSecurityPlanBytes)
+                throw new InvalidDataException("The file security request exceeds its byte limit.");
+            if (fileSecurity && !json.SequenceEqual(Serialize(plan)))
+                throw new InvalidDataException("The file security request must use its fixed plan format.");
+            if (!fileSecurity && plan.Steps?.Any(step => step?.Verb == ElevatedVerb.EnumerateNtfsMetadata) == true &&
                 !json.SequenceEqual(Serialize(plan)))
                 throw new InvalidDataException("The NTFS metadata plan must use the fixed plan format.");
             return plan;
@@ -80,6 +85,7 @@ public static class ElevationPlanCodec
     /// <summary>Every problem that makes the plan unacceptable; empty when the broker may display it.</summary>
     public static IReadOnlyList<string> Validate(ElevationPlan plan, DateTime nowUtc)
     {
+        if (IsFileSecurityPlan(plan)) return ValidateFileSecurityPlan(plan, nowUtc);
         var problems = new List<string>();
         if (plan.Version != ElevationPlan.CurrentVersion) problems.Add($"Unsupported plan version {plan.Version}.");
         if (plan.Steps is not { Count: > 0 and <= MaxSteps } || plan.Steps.Any(step => step is null))
@@ -157,7 +163,7 @@ public static class ElevationPlanCodec
     {
         if (step is not { Verb: ElevatedVerb.EnumerateNtfsMetadata, NtfsMetadata: { } scope } ||
             step.Path is not null || step.Name is not null || step.Destination is not null || step.Registry is not null ||
-            step.ReplaceExisting || step.SetAttributes != 0 || step.ClearAttributes != 0)
+            step.FileSecurity is not null || step.ReplaceExisting || step.SetAttributes != 0 || step.ClearAttributes != 0)
             return "A metadata request takes only its fixed whole-volume scope.";
         if (NtfsMetadataVolume.CanonicalGuid(scope.Volume) is not { } canonical || canonical != scope.Volume)
             return "The request must name a canonical whole local volume.";
