@@ -31,6 +31,28 @@ public sealed class WindowsEfsSetupTests
         return directory;
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Failed_or_canceled_setup_records_a_retained_artifact_even_without_a_recovery_dialog(bool canceled)
+    {
+        var job = new Job(new JobRequest { Kind = JobKind.StorageTransform }, "EFS setup", "local", [], []);
+        const string retained = @"C:\owned\FileCat.EfsSetup\setup-retained.tmp";
+        var setup = new StorageEfsSetupResult(null, true, canceled,
+            new(StorageReasonKind.Unknown, canceled ? "efs-setup-canceled" : "efs-setup-streams", "Setup stopped.", true),
+            new(StorageReasonKind.Unknown, "efs-setup-cleanup", "The setup artifact could not be removed.", true),
+            retained, new StorageObjectIdentity(7, "held-object"));
+        WindowsStorageTransforms.RecordSetupCleanupIssue(job, setup);
+        var issue = Assert.Single(job.ReadIssues(0, 1));
+        Assert.Equal(retained, issue.Path);
+        Assert.Equal("efs-setup-cleanup", issue.Cause);
+        Assert.Equal(StepOutcome.PartiallyApplied, issue.Outcome);
+        Assert.Equal(IssueSeverity.Error, issue.Severity);
+        Assert.Contains("could not be removed", issue.Message);
+        Assert.Contains("held-object", issue.Certainty);
+        Assert.Equal(1, job.IssueTotals.Error);
+    }
+
     [Fact]
     public void Setup_requires_explicit_consent_before_resolving_a_workspace_or_claiming_native_capacity()
     {

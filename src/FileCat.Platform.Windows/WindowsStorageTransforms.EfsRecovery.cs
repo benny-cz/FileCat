@@ -25,6 +25,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         if (setupDecision.Action != DecisionAction.Proceed || setupDecision.ApplyToAll) return null;
 
         var setup = InspectEfsSetup(invokerSid, consent, explicitSetupAccepted: true, ct, allowProviderInteraction: invokeProviderOwner is not null);
+        RecordSetupCleanupIssue(job, setup);
         ct.ThrowIfCancellationRequested();
         if (setup.Canceled) return null;
         if (setup.Problem is { } failed) throw new StorageInspectionException(failed);
@@ -90,5 +91,26 @@ internal sealed unsafe partial class WindowsStorageTransforms
             if (backup.Completion is { } completed) return StorageEfsRecoveryApproval.RecordWindowsExport(consent, setup, completed);
             previous = backup.Problem?.Message ?? "Windows canceled the backup. You can retry or declare an existing recovery arrangement.";
         }
+    }
+
+    internal static void RecordSetupCleanupIssue(Job job, StorageEfsSetupResult setup)
+    {
+        ArgumentNullException.ThrowIfNull(job);
+        ArgumentNullException.ThrowIfNull(setup);
+        if (setup.CleanupProblem is not { } cleanup) return;
+        // Setup may also have failed or been canceled. A separate issue keeps the exact retained
+        // artifact visible even when no recovery-choice dialog can be shown afterward.
+        job.AddIssue(new JobIssue(IssueSeverity.Error,
+            setup.RetainedSetupPath ?? setup.AttemptedSetupPath ?? "EFS setup artifact",
+            cleanup.Message, StepOutcome.PartiallyApplied)
+        {
+            Cause = cleanup.Code,
+            RequestedAction = "EFS key setup",
+            CommittedEffect = "Owned setup artifact retained for review",
+            SourceDisposition = "No selected item changed by this setup attempt",
+            Certainty = setup.RetainedSetupIdentity is { } identity
+                ? "Captured setup identity: " + identity + ". Verify it before cleanup."
+                : "The setup identity could not be retained. Verify the artifact before cleanup.",
+        });
     }
 }
