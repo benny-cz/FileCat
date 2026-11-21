@@ -67,5 +67,13 @@ public sealed class WindowsPlatform : PortablePlatform
         registry.Register(new RecycleBinProvider());
     }
 
-    protected override LocalFileSystemProvider CreateFileSystemProvider() => new WindowsFileSystemProvider();
+    /// <summary>
+    /// The native tag-bearing listing (F4) is qualified on x64 (N-ENUM, F-ENUM); an Arm64 process keeps the managed route
+    /// until its remaining SMB case-distinct fixture passes. Both publish the same names, attributes and batches.
+    /// </summary>
+    protected override LocalFileSystemProvider CreateFileSystemProvider() => new WindowsFileSystemProvider
+    {
+        UseNativeEnumeration = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.X64 &&
+            System.Runtime.InteropServices.RuntimeInformation.OSArchitecture == System.Runtime.InteropServices.Architecture.X64,
+    };
 }
