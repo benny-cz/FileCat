@@ -27,6 +27,12 @@ internal static class WindowsPermissionAuditPatch
         if (observed.Revision is not (null or 2 or 4))
             throw new NotSupportedException("This system ACL revision is unavailable for editing.");
         var entries = observed.Entries;
+        // A SACL write keeps the object's label, resource-attribute, scoped-policy and trust-label entries under their own
+        // security information classes. Windows stores them after the audit entries whatever their position in the written
+        // ACL, so only a baseline that already has them last can be written and read back byte for byte.
+        int firstPolicy = PolicyStart(entries);
+        if (entries.Take(firstPolicy).Any(IsPolicyEntry))
+            throw new NotSupportedException("Label or policy entries precede audit entries in this system ACL, so Windows may reorder it.");
         var replacement = change.Replacement is { } proposed ? ValidReplacement(proposed, authority) : null;
         if (change.Occurrence is int index)
         {
@@ -41,8 +47,8 @@ internal static class WindowsPermissionAuditPatch
         {
             if (change.Expected is not null || replacement is null)
                 throw new InvalidDataException("Adding an audit entry requires one explicit new rule.");
-            int insertion = entries.Length;
-            for (int position = 0; position < entries.Length; position++)
+            int insertion = firstPolicy;
+            for (int position = 0; position < firstPolicy; position++)
             {
                 var entry = entries[position];
                 // Preserve all native order, including non-audit ACEs and callback or object audit ACEs.
@@ -56,6 +62,16 @@ internal static class WindowsPermissionAuditPatch
         var bytes = WindowsPermissionAclPatch.Serialize(header, 8 + observed.Entries.Sum(entry => entry.Bytes.Length),
             entries.Select(entry => entry.Bytes).ToImmutableArray());
         return WindowsPermissionDescriptor.ProjectSacl(observed.Control, bytes, authority);
+    }
+
+    // SYSTEM_MANDATORY_LABEL, SYSTEM_RESOURCE_ATTRIBUTE, SYSTEM_SCOPED_POLICY_ID and SYSTEM_PROCESS_TRUST_LABEL entries.
+    private static bool IsPolicyEntry(WindowsAuditAce entry) => entry.Type is 0x11 or 0x12 or 0x13 or 0x14;
+
+    private static int PolicyStart(ImmutableArray<WindowsAuditAce> entries)
+    {
+        int start = entries.Length;
+        while (start > 0 && IsPolicyEntry(entries[start - 1])) start--;
+        return start;
     }
 
     private static WindowsAuditAce ValidReplacement(WindowsAuditAce proposed, string authority)

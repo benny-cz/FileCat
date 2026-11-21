@@ -1091,7 +1091,8 @@ public sealed partial class MainViewModel
             [$"Remove audit entry {index + 1} · {WindowsAuditEditor.Describe(removed.Expected)}"],
         ChangeWindowsAuditAce { Occurrence: int index } edited =>
             [$"Audit entry {index + 1} · {WindowsAuditEditor.Describe(edited.Expected)} → {WindowsAuditEditor.Describe(edited.Replacement)}"],
-        ChangeWindowsAuditAce added => [$"Add audit entry · {WindowsAuditEditor.Describe(added.Replacement)}"],
+        ChangeWindowsAuditAce added => [$"Add audit entry · {WindowsAuditEditor.Describe(added.Replacement)}",
+            "The new entry is placed after the explicit audit entries, before inherited, label and policy entries."],
         _ => []
     };
 

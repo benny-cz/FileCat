@@ -189,43 +189,63 @@ public sealed class WindowsPermissionInspectionTests
     }
 
     [Fact]
-    public void An_audit_patch_keeps_opaque_and_inherited_entries_and_changes_only_the_reviewed_duplicate()
+    public void An_audit_patch_keeps_policy_and_inherited_entries_and_changes_only_the_reviewed_duplicate()
     {
         byte[] label = Simple(0x11, 0, 1), resource = Simple(0x12, 0, 0), policy = Simple(0x13, 0, 0);
         byte[] rule = Simple(2, 0x40, 1), inherited = Simple(2, 0x90, 2);
-        byte[] native = AuditDescriptor(true, [label, rule, resource, rule, policy, inherited]);
+        // A SACL write keeps label, resource-attribute and scoped-policy entries after the audit entries (native
+        // Windows 11 26200 read-back of an added audit rule on a labelled NTFS file).
+        byte[] native = AuditDescriptor(true, [rule, rule, inherited, label, resource, policy]);
         byte[] trailer = [9, 8, 7, 6];
         native = [.. native, .. trailer];
         BinaryPrimitives.WriteUInt16LittleEndian(native.AsSpan(22), (ushort)(native.Length - 20));
         var baseline = WindowsPermissionDescriptor.Sacl(native, "local");
-        var duplicate = baseline.Entries[3];
+        var duplicate = baseline.Entries[1];
         var replacement = WindowsPermissionAuditPatch.FileEntry(duplicate.Principal!.Value, 3, 0xc0);
 
-        var edited = WindowsPermissionAuditPatch.ProjectFile(baseline, new(3, duplicate, replacement), "local");
+        var edited = WindowsPermissionAuditPatch.ProjectFile(baseline, new(1, duplicate, replacement), "local");
         Assert.Equal(baseline.Control, edited.Control);
-        Assert.Equal(new byte[] { 0x11, 2, 0x12, 2, 0x13, 2 }, edited.Entries.Select(entry => entry.Type));
+        Assert.Equal(new byte[] { 2, 2, 2, 0x11, 0x12, 0x13 }, edited.Entries.Select(entry => entry.Type));
         for (int index = 0; index < baseline.Entries.Length; index++)
         {
-            var expected = index == 3 ? replacement : baseline.Entries[index];
+            var expected = index == 1 ? replacement : baseline.Entries[index];
             Assert.Equal(expected.Bytes.ToArray(), edited.Entries[index].Bytes.ToArray());
         }
         Assert.Equal(trailer, edited.Bytes.AsSpan()[^4..].ToArray());
 
+        // A new explicit entry goes after the explicit entries, before inherited and policy entries.
         var added = WindowsPermissionAuditPatch.ProjectFile(edited, new(null, null, replacement), "local");
-        Assert.Equal(replacement.Bytes.ToArray(), added.Entries[5].Bytes.ToArray());
-        Assert.Equal(inherited, added.Entries[6].Bytes.ToArray());
-        var removed = WindowsPermissionAuditPatch.ProjectFile(added, new(3, added.Entries[3], null), "local");
-        Assert.Equal(rule, removed.Entries[1].Bytes.ToArray());
-        Assert.Equal(policy, removed.Entries[3].Bytes.ToArray());
+        Assert.Equal(new byte[] { 2, 2, 2, 2, 0x11, 0x12, 0x13 }, added.Entries.Select(entry => entry.Type));
+        Assert.Equal(replacement.Bytes.ToArray(), added.Entries[2].Bytes.ToArray());
+        Assert.Equal(inherited, added.Entries[3].Bytes.ToArray());
+        Assert.Equal(label, added.Entries[4].Bytes.ToArray());
+        var removed = WindowsPermissionAuditPatch.ProjectFile(added, new(2, added.Entries[2], null), "local");
+        Assert.Equal(edited.Bytes.ToArray(), removed.Bytes.ToArray());
 
         Assert.Throws<PermissionBindingConflictException>(() =>
-            WindowsPermissionAuditPatch.ProjectFile(edited, new(3, duplicate, null), "local"));
+            WindowsPermissionAuditPatch.ProjectFile(edited, new(1, duplicate, null), "local"));
         Assert.Throws<NotSupportedException>(() =>
-            WindowsPermissionAuditPatch.ProjectFile(edited, new(5, edited.Entries[5], null), "local"));
+            WindowsPermissionAuditPatch.ProjectFile(edited, new(2, edited.Entries[2], null), "local"));
         Assert.Throws<NotSupportedException>(() =>
-            WindowsPermissionAuditPatch.ProjectFile(edited, new(0, edited.Entries[0], replacement), "local"));
+            WindowsPermissionAuditPatch.ProjectFile(edited, new(3, edited.Entries[3], replacement), "local"));
         Assert.Throws<InvalidDataException>(() =>
-            WindowsPermissionAuditPatch.ProjectFile(edited, new(3, edited.Entries[3], replacement with { Flags = 0x80 }), "local"));
+            WindowsPermissionAuditPatch.ProjectFile(edited, new(1, edited.Entries[1], replacement with { Flags = 0x80 }), "local"));
+    }
+
+    [Fact]
+    public void An_audit_patch_refuses_a_system_ACL_whose_label_or_policy_entries_precede_audit_entries()
+    {
+        // Windows would move these entries behind the audit entries, so the written ACL could not be read back exactly.
+        foreach (byte policyType in new byte[] { 0x11, 0x12, 0x13, 0x14 })
+        {
+            byte[] rule = Simple(2, 0x40, 1);
+            var baseline = WindowsPermissionDescriptor.Sacl(AuditDescriptor(true, [Simple(policyType, 0, 1), rule]), "local");
+            var replacement = WindowsPermissionAuditPatch.FileEntry(baseline.Entries[1].Principal!.Value, 3, 0xc0);
+            Assert.Throws<NotSupportedException>(() =>
+                WindowsPermissionAuditPatch.ProjectFile(baseline, new(null, null, replacement), "local"));
+            Assert.Throws<NotSupportedException>(() =>
+                WindowsPermissionAuditPatch.ProjectFile(baseline, new(1, baseline.Entries[1], null), "local"));
+        }
     }
 
     [Theory]
