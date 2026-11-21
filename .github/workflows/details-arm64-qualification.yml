@@ -2,7 +2,8 @@ name: Details ARM64 qualification
 
 # File-system details and native listing fixtures that need ARM64 hardware. The hosted ARM64 runners are the only ARM64
 # machines available:
-# - linux-arm64 package: Unix details on ubuntu-24.04-arm, including an ext4 inline_data volume;
+# - linux-arm64 package: Unix details on ubuntu-24.04-arm, including an ext4 inline_data volume and the prepared
+#   ext4 restriction, case-folding and ext2/ext3/ext4 flag fixtures, Btrfs properties and Btrfs and XFS extents;
 # - Windows on Arm: owned FAT32, exFAT and ReFS (Dev Drive) volumes and a temporary Cloud Files sync root on
 #   windows-11-arm, at medium integrity.
 on:
@@ -40,6 +41,11 @@ jobs:
           echo probe > /mnt/fc-inline/probe
           lsattr /mnt/fc-inline/probe
           rm /mnt/fc-inline/probe
+      - name: Prepare the ext-family, Btrfs and XFS fixtures
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq btrfs-progs xfsprogs > /dev/null
+          bash eng/validation/prepare-linux-details-fixtures.sh "$RUNNER_TEMP/fc-details"
       - name: Run the Unix details classes
         env:
           FILECAT_TEST_EXT4_INLINE_ROOT: /mnt/fc-inline
@@ -47,9 +53,11 @@ jobs:
           dotnet test tests/FileCat.Core.Tests -c Release --no-build
           --filter "FullyQualifiedName~UnixFileDetailsNativeTests|FullyQualifiedName~UnixFileDetailsColumnsNativeTests|FullyQualifiedName~FileDetailsTests|FullyQualifiedName~FileDetailsOwnershipTests|FullyQualifiedName~UnixHiddenInventoryNativeTests|FullyQualifiedName~HiddenInventoryTests|FullyQualifiedName~HiddenDataTests|FullyQualifiedName~HiddenSearchTests|FullyQualifiedName~SearchTraversalPredicateTests|FullyQualifiedName~ReparsePresentationTests"
           --logger "trx;LogFileName=linux-arm64-details.trx"
-      - name: Remove the inline_data volume
+      - name: Remove the inline_data volume and the fixtures
         if: always()
-        run: sudo umount /mnt/fc-inline || true
+        run: |
+          sudo umount /mnt/fc-inline || true
+          bash eng/validation/prepare-linux-details-fixtures.sh "$RUNNER_TEMP/fc-details" --remove || true
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
