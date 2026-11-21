@@ -45,6 +45,32 @@ public sealed partial class UnixFileDetailsNativeTests
     }
 
     [Fact]
+    public void Live_Mac_File_Provider_directory_metadata_keeps_the_prepared_folder_bound()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "Requires a prepared macOS File Provider domain.");
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_MAC_PROVIDER_ROOT");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Set FILECAT_TEST_MAC_PROVIDER_ROOT to an owned, enabled File Provider root with dataless-folder.");
+
+        string path = Path.Join(root, "dataless-folder");
+        var reader = new UnixFileRecords();
+        var ct = TestContext.Current.CancellationToken;
+        int priorPolicy = MacMaterializationPolicy.Get();
+        var before = reader.ReadSummary(path, ct);
+        Assert.Equal(FileObjectKind.Directory, before.Kind);
+        Assert.Equal(FactState.Known, before.Identity.State);
+        Assert.Equal(priorPolicy, MacMaterializationPolicy.Get());
+
+        var full = reader.ReadFull(path, FileDetailsPolicy.MetadataOnly, ct);
+        Assert.Equal(FileObjectKind.Directory, full.Summary.Kind);
+        Assert.Equal(before.Identity.Value, full.Summary.Identity.Value);
+        Assert.Equal(priorPolicy, MacMaterializationPolicy.Get());
+
+        var after = reader.ReadSummary(path, ct);
+        Assert.Equal(before.Identity.Value, after.Identity.Value);
+        Assert.Equal(priorPolicy, MacMaterializationPolicy.Get());
+    }
+
+    [Fact]
     public async Task Mac_details_suppresses_materialization_and_restores_the_device_worker_even_on_refusal()
     {
         Assert.SkipUnless(OperatingSystem.IsMacOS(), "Uses the native Darwin thread policy.");
