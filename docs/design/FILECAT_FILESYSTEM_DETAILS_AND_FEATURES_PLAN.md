@@ -2,6 +2,15 @@
 
 **Implementation in progress, 17 November 2026:** see the [dated implementation receipt](../validation/filesystem-details/2026-11-17-foundation.md) for actual working-tree changes, passes and remaining gates. The planning-review statements below retain their historical scope.
 
+**Ledger status, 21 November 2026 (end of day):** F-OPS, F-OBS, F-LIFE, F-STORE, F-META, F-SCOPE and F-EXTRA are Passed on the tested platforms. F-EXPORT is Passed for the metadata-only route. F-ENUM, F-FIND and F-UI are Passed for Windows x64. N-WIN, N-LINUX and N-MAC are Passed for Windows x64, Ubuntu x64 and Apple silicon. Each row cites its coverage receipt: [find and columns](../validation/filesystem-details/2026-11-21-find-and-columns.md), [parser and operations](../validation/filesystem-details/2026-11-21-parser-and-operations.md), [export sentinels](../validation/filesystem-details/2026-11-21-export-sentinels.md), [observation, lifecycle and UI](../validation/filesystem-details/2026-11-21-observation-lifecycle-ui.md), [scope and extra data](../validation/filesystem-details/2026-11-21-scope-and-extra-data.md) and [native rows](../validation/filesystem-details/2026-11-21-native-rows.md). What remains needs hardware or a product decision:
+
+- **Cloud Files (F-TYPE, N-PROVIDER):** FileCat sees other providers' placeholders disguised as ordinary files. Showing them needs a decision to expose placeholders to its metadata reads, and qualification of the operations that would then see the tags.
+- **Dataless macOS folders and packages (F-PARSER):** this needs a provider fixture that leaves a folder or package flagged dataless.
+- **Windows on Arm:** prepared FAT32, exFAT and ReFS volumes, and the SMB case-distinct fixture (N-WIN, N-ENUM).
+- **Linux on ARM64:** the linux-arm64 package (N-LINUX).
+- **Other Macs:** Intel Macs, other macOS versions and FileVault on more hardware (N-MAC).
+- **Screen readers on Linux and macOS:** Orca and VoiceOver breadth (N-UX).
+
 **F4 on Windows x64, 21 November 2026:** the Windows release build lists local folders through the native tag-bearing enumeration when the process and Windows are x64; Windows on Arm keeps the managed route until N-ENUM's ARM64 SMB case closes. See the [native listing checkpoint](../validation/filesystem-details/2026-11-21-windows-native-listing-x64.md). It also records that Windows disguises other providers' Cloud Files placeholders as ordinary files for FileCat, which is never their provider: the in-process Cloud Files fixtures qualified the provider's view only. NTFS compression still refuses such placeholders from a separate process.
 
 **Implementation in progress, 18 November 2026.** Shared filesystem details, supplementary-data inventory, storage fields and bounded extent collectors are implemented in the scopes recorded in §10. The native Windows enumeration candidate has separate warm and cold measurements. The NTFS plan tracks independent compression and EFS release gates.
