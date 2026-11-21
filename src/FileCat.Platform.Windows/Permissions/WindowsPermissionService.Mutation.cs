@@ -71,7 +71,8 @@ internal sealed unsafe partial class WindowsPermissionService
         ct.ThrowIfCancellationRequested();
         var original = inspection.Snapshot;
         if (EditRefusal(original) is { } refusal) throw new NotSupportedException(refusal);
-        if (original.Subject.RawLocator != source.FileSystemPath || draft.Scope != PermissionScope.Objects || draft.Changes.Length != 1)
+        if (original.Subject.RawLocator != source.FileSystemPath || draft.Scope != PermissionScope.Objects ||
+            draft.Changes is not [AddWindowsAce or ChangeWindowsAce or AssignPermissionPrincipal { IsOwner: true }])
             throw new NotSupportedException("Review one owner or DACL change for the original Windows file.");
         return PrepareChange(inspection, source, draft, null, ct);
     }
@@ -91,12 +92,12 @@ internal sealed unsafe partial class WindowsPermissionService
     {
         var original = inspection.Snapshot;
         bool propagates = boundary is not null;
-        bool volumeRoot = original.Binding!.Identity.Kind == PermissionObjectKind.VolumeRoot;
         var binding = original.Binding!;
         var before = RequireRevision(original);
-        bool capturedFile = !treeAncestry.IsDefault;
-        var projection = folderOnly ? ProjectFolderOnly(original, change) :
-            Project(original, change, directory: propagates, inheritanceParent, ensureRule: capturedFile);
+        bool reset = change is ResetWindowsDacl;
+        var projection = change is ResetWindowsDacl replacement ? ProjectTreeReset(original, replacement) :
+            folderOnly ? ProjectFolderOnly(original, change) :
+            Project(original, change, directory: propagates, inheritanceParent, ensureRule: !treeAncestry.IsDefault);
         var expected = RequireRevision(projection.Expected);
         if (propagates && before == expected)
             throw new NotSupportedException("This native inheritance route needs a change to the selected folder's access rules.");
@@ -110,6 +111,26 @@ internal sealed unsafe partial class WindowsPermissionService
         }
         else token = WindowsPermissionToken.CurrentStamp();
 
+        uint access = projection.Section == OwnerInformation ? WriteOwner : WriteDac;
+        var component = new ReviewedPermissionComponent(change, before, expected,
+            propagates ? "Windows SetSecurityInfo native propagation" : reset ? "Windows NtSetSecurityObject reset DACL" :
+            folderOnly ? "Windows NtSetSecurityObject folder DACL" :
+            projection.Section == OwnerInformation ? "Windows SetSecurityInfo owner" : "Windows SetSecurityInfo DACL");
+        var mutation = BindDiscretionaryReview(inspection, before, token, ct, access, change, projection.Section, projection.Bytes,
+            boundary, inheritanceParent, treeAncestry, descriptorWrite: folderOnly || reset);
+        return (new(source, original.Subject, binding, [component], expected, mutation), projection.Expected);
+    }
+
+    private static WindowsDiscretionaryMutation BindDiscretionaryReview(PermissionInspection inspection, PermissionRevision before,
+        WindowsPermissionToken.Stamp token, CancellationToken ct, uint writeAccess = 0, PermissionDelta? change = null, uint section = 0,
+        ImmutableArray<byte> bytes = default, PropagationBoundary? boundary = null, InheritanceParent? inheritanceParent = null,
+        ImmutableArray<PermissionIdentity> treeAncestry = default, bool descriptorWrite = false)
+    {
+        var original = inspection.Snapshot;
+        var binding = original.Binding!;
+        var kind = binding.Identity.Kind;
+        bool volumeRoot = kind == PermissionObjectKind.VolumeRoot;
+        bool captured = !treeAncestry.IsDefault;
         using var pin = inspection.TransferLease<WindowsInspectionPin>() ??
             throw new InvalidOperationException("This Windows permission binding has already been released.");
         WindowsDiscretionaryMutation? mutation = null;
@@ -119,27 +140,23 @@ internal sealed unsafe partial class WindowsPermissionService
             using (parent)
             {
                 if ((!volumeRoot && parent is null) || now != binding || !SameChain(pin.Chain, chain) ||
-                    capturedFile && (binding.LinkCount != 1 || !chain.Select(stamp => stamp.Identity).SequenceEqual(treeAncestry)))
+                    captured && (kind == PermissionObjectKind.File && binding.LinkCount != 1 ||
+                        !chain.Select(stamp => stamp.Identity).SequenceEqual(treeAncestry)))
                     throw new PermissionBindingConflictException("The original object, mount or folder changed.");
                 var retained = Screen(pin.File, binding.Identity.MountInstance, volumeRoot, original.Subject.Authority, ct);
                 if (retained != chain[^1])
                     throw new PermissionBindingConflictException("The original path no longer identifies the held object.");
-                uint access = projection.Section == OwnerInformation ? WriteOwner : WriteDac;
                 string leaf = volumeRoot ? @"\??\" + pin.Root : pin.Names[^1];
-                var admitted = Open(parent, leaf, security: true, ct, access, allowDirectoryWrite: propagates || folderOnly);
+                var admitted = Open(parent, leaf, security: true, ct, writeAccess, allowDirectoryWrite: kind != PermissionObjectKind.File);
                 mutation = new WindowsDiscretionaryMutation(original, pin.Root, pin.Names, pin.Chain, admitted, token, change,
-                    projection.Section, projection.Bytes, boundary, inheritanceParent, capturedFile, folderOnly);
+                    section, bytes, boundary, inheritanceParent, captured, descriptorWrite);
                 var actual = mutation.CheckCurrent(DiscretionarySections, ct);
                 if (actual.Binding != binding || RequireRevision(actual) != before)
                     throw new PermissionBindingConflictException("Windows security changed after inspection.");
             }
-            var component = new ReviewedPermissionComponent(change, before, expected,
-                propagates ? "Windows SetSecurityInfo native propagation" :
-                folderOnly ? "Windows NtSetSecurityObject folder DACL" :
-                projection.Section == OwnerInformation ? "Windows SetSecurityInfo owner" : "Windows SetSecurityInfo DACL");
-            var target = new ReviewedPermissionTarget(source, original.Subject, binding, [component], expected, mutation);
+            var bound = mutation;
             mutation = null;
-            return (target, projection.Expected);
+            return bound;
         }
         catch (ReadFailure error) { throw ReadError(error); }
         catch (Win32Exception error) { throw new IOException("The reviewed Windows object could not be verified.", error); }
@@ -184,8 +201,8 @@ internal sealed unsafe partial class WindowsPermissionService
     };
 
     private sealed class WindowsDiscretionaryMutation(PermissionSnapshot original, string root, string[] names, FileStamp[] inspectedChain,
-        SafeFileHandle admitted, WindowsPermissionToken.Stamp token, PermissionDelta reviewedChange, uint section, ImmutableArray<byte> bytes,
-        PropagationBoundary? boundary, InheritanceParent? inheritanceParent, bool capturedFile, bool folderOnly) : IBoundPermissionMutation
+        SafeFileHandle admitted, WindowsPermissionToken.Stamp token, PermissionDelta? reviewedChange, uint section, ImmutableArray<byte> bytes,
+        PropagationBoundary? boundary, InheritanceParent? inheritanceParent, bool captured, bool descriptorWrite) : IBoundPermissionMutation
     {
         private FileStamp? _checked;
 
@@ -205,10 +222,10 @@ internal sealed unsafe partial class WindowsPermissionService
 
         public PermissionMutationReturn Apply(PermissionDelta change, CancellationToken cancellation)
         {
-            bool recheckName = capturedFile || folderOnly;
+            bool recheckName = captured || descriptorWrite;
             var checkedStamp = _checked;
             _checked = null;
-            if (!ReferenceEquals(reviewedChange, change) || checkedStamp is null)
+            if (reviewedChange is null || !ReferenceEquals(reviewedChange, change) || checkedStamp is null)
                 throw new InvalidOperationException("Windows permission writes require the rechecked reviewed component.");
             try
             {
@@ -233,7 +250,7 @@ internal sealed unsafe partial class WindowsPermissionService
             uint errorCode;
             fixed (byte* payload = bytes.AsSpan())
             {
-                if (folderOnly)
+                if (descriptorWrite)
                 {
                     int status = NtSetSecurityObject(admitted, section, payload);
                     errorCode = status < 0 ? (uint)StatusToDosError(status) : 0;

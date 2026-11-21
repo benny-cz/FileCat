@@ -1015,6 +1015,58 @@ public sealed class PermissionInspectorTests
     }
 
     [AvaloniaFact]
+    public async Task Windows_acl_reset_reviews_explicit_rule_losses_and_requires_approval()
+    {
+        if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_WINDOWS_SCOPE") != "1" ||
+            ReviewedPermissionOperation.ProcessRefusal() is not null)
+            Assert.Skip("Requires the ordinary Windows x64 NTFS scope fixture.");
+
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
+        {
+            var source = Directory.CreateDirectory(Path.Combine(folder, "selected"));
+            using var actor = WindowsIdentity.GetCurrent();
+            var access = new DirectorySecurity();
+            access.SetAccessRuleProtection(true, false);
+            access.AddAccessRule(new FileSystemAccessRule(actor.User!, FileSystemRights.FullControl,
+                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+            source.SetAccessControl(access);
+            var file = new FileInfo(Path.Combine(source.FullName, "captured.txt"));
+            File.WriteAllText(file.FullName, "captured child");
+            var dacl = file.GetAccessControl(AccessControlSections.Access);
+            dacl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier("S-1-5-32-546"), FileSystemRights.ReadAttributes,
+                AccessControlType.Allow));
+            file.SetAccessControl(dacl);
+        }, permissionService: new WindowsPermissionService(qualifyAclResets: true));
+        string selected = Path.Combine(root, "files", "selected");
+        string captured = Path.Combine(selected, "captured.txt");
+        var sourceBefore = new DirectoryInfo(selected).GetAccessControl(AccessControlSections.Access).GetSecurityDescriptorBinaryForm();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var tab = vm.ActiveTab!;
+            await Until(() => tab.Listing.State == ListingState.Complete && tab.Listing.FocusName("selected"), ct);
+            vm.Execute(CommandIds.PermissionsOwnership);
+            await Until(() => FindButton(window, "Reset Windows descendant ACLs…") is not null, ct);
+            Click(FindButton(window, "Reset Windows descendant ACLs…")!);
+            await Until(() => TextPresent(window, "Remove explicit") && TextPresent(window, "Replacement inherited"), ct);
+            Assert.Empty(services.Jobs.Jobs);
+            Assert.False(FindButton(window, "Reset captured ACLs")!.IsEnabled);
+            window.GetVisualDescendants().OfType<CheckBox>().Single(box =>
+                Equals(box.Content, "Approve the reviewed rule removals and inherited replacements")).IsChecked = true;
+            await Until(() => FindButton(window, "Reset captured ACLs")?.IsEnabled == true, ct);
+            Click(FindButton(window, "Reset captured ACLs")!);
+            await Until(() => services.Jobs.Jobs.SingleOrDefault()?.PermissionResults.Count == 1, ct);
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(PermissionScope.ResetTree, job.PermissionReviewScope);
+            Assert.Equal(PermissionVerdict.Verified, Assert.Single(job.PermissionResults).Verdict);
+            Assert.Equal(captured, Assert.Single(job.Request.Sources).FileSystemPath);
+            Assert.Equal(sourceBefore, new DirectoryInfo(selected).GetAccessControl(AccessControlSections.Access).GetSecurityDescriptorBinaryForm());
+            Assert.Empty(new FileInfo(captured).GetAccessControl(AccessControlSections.Access).GetAccessRules(true, false, typeof(SecurityIdentifier)));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Windows_folder_only_editor_applies_one_reviewed_rule_for_the_selected_folder()
     {
         if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_WINDOWS_SCOPE") != "1" ||

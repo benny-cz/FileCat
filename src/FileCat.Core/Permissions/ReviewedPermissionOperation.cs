@@ -102,6 +102,9 @@ internal sealed class ReviewedPermissionOperation : IDisposable
             footprint += sizeof(char) * (long)locator.Length;
             foreach (var component in target.Components)
             {
+                if (component.Change is ResetWindowsDacl &&
+                    (scope != PermissionScope.ResetTree || treeSource is null || !IsWindowsTreeSource(treeSource)))
+                    throw new ArgumentException("A Windows reset requires its captured tree and retained ACL source.", nameof(targets));
                 if (!Valid(component.Before) || !Valid(component.Expected) || component.NativeCall is not { Length: > 0 and <= 120 } ||
                     (component.Before.Sections & component.Change.Section) == 0 || (component.Expected.Sections & component.Change.Section) == 0 ||
                     (target.Final.Sections & component.Expected.Sections) != component.Expected.Sections)
@@ -132,22 +135,31 @@ internal sealed class ReviewedPermissionOperation : IDisposable
         entry.Draft.Scope == scope && target.Components is [var component] &&
         (windowsFileTree ? component.Change is AddWindowsAce { Entry.Flags: 0 } &&
             component.Before.Sections == WindowsDiscretionary && component.Expected.Sections == WindowsDiscretionary
+        : source is not null && IsWindowsTreeSource(source) ? component.Change is ResetWindowsDacl &&
+            entry.Binding.FileSystem == "NTFS" && (entry.Binding.Identity.Kind == PermissionObjectKind.Directory ||
+                entry.Binding is { Identity.Kind: PermissionObjectKind.File, LinkCount: 1 }) &&
+            component.Before.Sections == WindowsDiscretionary && component.Expected.Sections == WindowsDiscretionary
         : source is null ? component.Change is ChangePermissionMode : source.Binding.DarwinRoute != DarwinBindingRoute.None
             ? entry.Binding.DarwinRoute != DarwinBindingRoute.None && component.Change is ApplyDarwinAcl &&
                 component.Before.Sections == DarwinPermissionService.AccessChangeSections && component.Expected.Sections == component.Before.Sections
             : component.Change is ChangePosixAcl { IsDefault: false, Entries.IsDefaultOrEmpty: false }) && component.Before == entry.Before &&
         component.Expected == target.Final && entry.Draft.Changes.SequenceEqual([component.Change]);
 
+    private static bool IsWindowsTreeSource(ReviewedPermissionTreeSource source) =>
+        source.Binding.FileSystem == "NTFS" && source.Revision.Sections == WindowsDiscretionary;
+
     private static void ValidateTreeSource(PermissionTreeManifest tree, ReviewedPermissionTreeSource source,
         ImmutableArray<ReviewedPermissionTarget> targets, PermissionScope scope)
     {
         var root = tree.Entries[0];
         bool darwin = source.Binding.DarwinRoute != DarwinBindingRoute.None;
+        bool windows = IsWindowsTreeSource(source);
         if (tree.RootCount != 1 || root.ParentIndex != -1 || root.Draft.Scope != scope || !root.Draft.Changes.IsEmpty ||
             root.Subject != source.Subject || root.Binding != source.Binding || root.Before != source.Revision ||
             source.Subject.LinkPolicy != PermissionLinkPolicy.NoFollow || source.Binding.Identity.Kind != PermissionObjectKind.Directory ||
             (!darwin && scope != PermissionScope.ResetTree) || source.Binding.ReadOnly != false ||
-            source.Revision.Sections != (darwin ? DarwinPermissionService.AccessChangeSections : PermissionSections.Defaults) || !Valid(source.Revision) ||
+            source.Revision.Sections != (windows ? WindowsDiscretionary : darwin ? DarwinPermissionService.AccessChangeSections : PermissionSections.Defaults) ||
+            !Valid(source.Revision) ||
             targets.Any(target => ReferenceEquals(target.Mutation, source.Mutation)))
             throw new ArgumentException("An inherited ACL review requires the retained source and distinct descendant bindings.", nameof(source));
     }
@@ -170,6 +182,9 @@ internal sealed class ReviewedPermissionOperation : IDisposable
         ChangePosixAcl => throw new ArgumentException("The ACL exceeds the reviewed row budget.", nameof(change)),
         ChangeWindowsAce ace => 256L + ace.Expected.Bytes.Length + (ace.Replacement?.Bytes.Length ?? 0),
         AddWindowsAce ace => 256L + ace.Entry.Bytes.Length,
+        ResetWindowsDacl reset when !reset.InheritedAcl.IsDefault && reset.InheritedAcl.Length is >= 8 and <= ushort.MaxValue =>
+            256L + reset.InheritedAcl.Length,
+        ResetWindowsDacl => throw new ArgumentException("The inherited Windows ACL exceeds the reviewed byte budget.", nameof(change)),
         ChangeWindowsAuditAce ace => 256L + (ace.Expected?.Bytes.Length ?? 0) + (ace.Replacement?.Bytes.Length ?? 0),
         _ => 256
     };

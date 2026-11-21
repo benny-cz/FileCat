@@ -34,7 +34,8 @@ public sealed partial class MainViewModel
             _ => "Editing is unavailable for this object."
         } : "Editing is unavailable for this object.").ToArray();
         var view = new PermissionInspectorView(inspected.Select(item => (item.Name, item.Snapshot)).ToArray(), copy,
-            refusals.Select((refusal, index) => WindowsFolderOnlyAvailable(index) ? null : refusal).ToArray(), Services.PermissionPrincipalNames);
+            refusals.Select((refusal, index) => WindowsFolderOnlyAvailable(index) || WindowsResetAvailable(index) ? null : refusal).ToArray(),
+            Services.PermissionPrincipalNames);
         var buttons = new List<DialogButton> { new("Close", "close", IsDefault: true, IsCancel: true) };
         bool AclAvailable(int index) => refusals[index] is null && (Services.Permissions is LinuxPermissionService linux && linux.CanEditAccessAcl(inspected[index].Snapshot) ||
             Services.Permissions is DarwinPermissionService && DarwinPermissionService.CanEditAcl(inspected[index].Snapshot) ||
@@ -69,6 +70,9 @@ public sealed partial class MainViewModel
         bool WindowsFolderOnlyAvailable(int index) => inspected[index].Source is { Kind: EntryKind.Directory } source &&
             source.FileSystemPath == inspected[index].Snapshot.Subject.RawLocator &&
             Services.Permissions is WindowsPermissionService windows && windows.CanReviewFolderOnly(inspected[index].Snapshot);
+        bool WindowsResetAvailable(int index) => inspected[index].Source is { Kind: EntryKind.Directory } source &&
+            source.FileSystemPath == inspected[index].Snapshot.Subject.RawLocator &&
+            Services.Permissions is WindowsPermissionService windows && windows.CanReviewAclReset(inspected[index].Snapshot);
         bool ProtectionAvailable(int index) => refusals[index] is null && Services.Permissions switch
         {
             DarwinPermissionService => DarwinPermissionService.CanEditProtection(inspected[index].Snapshot),
@@ -113,6 +117,9 @@ public sealed partial class MainViewModel
         if (Enumerable.Range(0, inspected.Length).Any(WindowsFolderOnlyAvailable))
             buttons.Insert(0, new("Edit selected folder access rules…", "windows-folder-only")
                 { IsAvailable = () => WindowsFolderOnlyAvailable(view.SelectedSubject) });
+        if (Enumerable.Range(0, inspected.Length).Any(WindowsResetAvailable))
+            buttons.Insert(0, new("Reset Windows descendant ACLs…", "windows-reset-tree")
+                { IsAvailable = () => WindowsResetAvailable(view.SelectedSubject) });
         if (Enumerable.Range(0, inspected.Length).Any(SftpReviewAvailable))
             buttons.Insert(0, new("Review SFTP permissions…", "sftp") { IsAvailable = () => SftpReviewAvailable(view.SelectedSubject) });
         if (inspected.Any(CanInspectWithLinuxAuthorization))
@@ -142,6 +149,9 @@ public sealed partial class MainViewModel
             await ShowWindowsFileTreeAsync(dialogs, inspected[view.SelectedSubject], windowsFileTree, origin);
         else if (answer is "windows-folder-only" && WindowsFolderOnlyAvailable(view.SelectedSubject) && !Services.Io.IsStopped)
             await ShowBoundPermissionEditorAsync(dialogs, inspected[view.SelectedSubject], copy, "acl", origin, windowsFolderOnly: true);
+        else if (answer is "windows-reset-tree" && WindowsResetAvailable(view.SelectedSubject) && !Services.Io.IsStopped &&
+            Services.Permissions is WindowsPermissionService windowsReset)
+            await ShowWindowsAclResetAsync(dialogs, inspected[view.SelectedSubject], windowsReset, origin);
         else if ((answer is "mode-tree" && ModeTreeAvailable(view.SelectedSubject) || answer is "reset-tree" && ResetTreeAvailable(view.SelectedSubject) ||
             answer is "inherit-tree" && DarwinAclTreeAvailable(view.SelectedSubject)) &&
             !Services.Io.IsStopped)

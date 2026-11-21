@@ -126,6 +126,7 @@ public sealed record ChangeWindowsAce(int Occurrence, WindowsAce Expected, Windo
 public sealed record AddWindowsAce(WindowsAce Entry) : PermissionDelta(PermissionSections.Access);
 internal enum WindowsInheritanceAction { ProtectCopy, ProtectRemove, Enable }
 internal sealed record ChangeWindowsInheritance(WindowsInheritanceAction Action) : PermissionDelta(PermissionSections.Access);
+internal sealed record ResetWindowsDacl(ImmutableArray<byte> InheritedAcl) : PermissionDelta(PermissionSections.Access);
 internal sealed record ChangeWindowsAuditAce(int? Occurrence, WindowsAuditAce? Expected, WindowsAuditAce? Replacement)
     : PermissionDelta(PermissionSections.Audit);
 public abstract record DarwinAclDelta() : PermissionDelta(PermissionSections.Access);

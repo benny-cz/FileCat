@@ -73,8 +73,8 @@ internal sealed unsafe partial class WindowsPermissionService
             throw new NotSupportedException(enable ? "Windows inheritance is already enabled." : "The DACL is already protected.");
         string authority = original.Subject.Authority.Id;
         var explicitBytes = WindowsPermissionAclPatch.ConvertInheritance(baseline, authority, change.Action);
-        var bytes = enable ? MergeParentInheritance(original, explicitBytes, parent ??
-            throw new NotSupportedException("A verified parent DACL is required to enable inheritance.")) : explicitBytes;
+        var bytes = enable ? MergeParentInheritance(original, explicitBytes, (parent ??
+            throw new NotSupportedException("A verified parent DACL is required to enable inheritance.")).Acl, directory: true) : explicitBytes;
         ushort retained = (ushort)(control.Flags & ~(DaclProtected | DaclAutoInheritRequest | DaclDefaulted));
         var expectedControl = control with
         {
@@ -91,28 +91,30 @@ internal sealed unsafe partial class WindowsPermissionService
         }, DaclInformation | (enable ? UnprotectDaclInformation : ProtectDaclInformation), bytes);
     }
 
-    private static ImmutableArray<byte> MergeParentInheritance(PermissionSnapshot original, ImmutableArray<byte> explicitBytes, InheritanceParent parent)
+    private static ImmutableArray<byte> MergeParentInheritance(PermissionSnapshot original, ImmutableArray<byte> explicitBytes,
+        WindowsDacl parent, bool directory)
     {
-        if (parent.Acl.Entries.Any(entry => entry.Kind == WindowsAceKind.Opaque && (entry.Flags & InheritToChildren) != 0))
+        if (parent.Entries.Any(entry => entry.Kind == WindowsAceKind.Opaque && (entry.Flags & InheritToChildren) != 0))
             throw new NotSupportedException("An inheritable parent rule uses a format FileCat cannot project.");
         if (original.Owner.Value is not { } owner || original.Group.Value is not { } group)
-            throw new NotSupportedException("The folder's owner and primary group are required to project inheritance.");
+            throw new NotSupportedException("The object's owner and primary group are required to project inheritance.");
 
         var creator = new RawSecurityDescriptor(ControlFlags.DiscretionaryAclPresent, new SecurityIdentifier(owner.Id),
-            new SecurityIdentifier(group.Id), null, new RawAcl(explicitBytes.ToArray(), 0));
+            new SecurityIdentifier(group.Id), null, explicitBytes.IsEmpty ? new RawAcl(2, 0) : new RawAcl(explicitBytes.ToArray(), 0));
         byte[] creatorBytes = new byte[creator.BinaryLength];
         creator.GetBinaryForm(creatorBytes, 0);
         string authority = original.Subject.Authority.Id;
-        var explicitAcl = WindowsPermissionDescriptor.ProjectDacl(original.Inheritance.Value!.Value, explicitBytes, authority);
+        var explicitRules = explicitBytes.IsEmpty ? ImmutableArray<WindowsAce>.Empty :
+            WindowsPermissionDescriptor.ProjectDacl(original.Inheritance.Value!.Value, explicitBytes, authority).Entries;
         var mapping = new FileGenericMapping { Read = 0x00120089, Write = 0x00120116, Execute = 0x001200a0, All = 0x001f01ff };
         nint descriptor = 0;
         try
         {
             // This call only combines descriptors in memory. Authorization stays on the separately opened filesystem handle.
             const uint deriveDaclWithoutToken = 0x01 | 0x08 | 0x10;
-            fixed (byte* source = parent.Acl.SecurityDescriptor.AsSpan())
+            fixed (byte* source = parent.SecurityDescriptor.AsSpan())
             fixed (byte* child = creatorBytes)
-                if (!CreatePrivateObjectSecurityEx(source, child, out descriptor, 0, true, deriveDaclWithoutToken, 0, &mapping))
+                if (!CreatePrivateObjectSecurityEx(source, child, out descriptor, 0, directory, deriveDaclWithoutToken, 0, &mapping))
                     throw new IOException("Windows could not project the inherited rules.", new Win32Exception(Marshal.GetLastPInvokeError()));
             if (descriptor == 0 || !IsValidSecurityDescriptor(descriptor))
                 throw new IOException("Windows returned an invalid inheritance projection.");
@@ -121,9 +123,9 @@ internal sealed unsafe partial class WindowsPermissionService
                 throw new IOException("The inheritance projection exceeds the descriptor limit.");
             var raw = new ReadOnlySpan<byte>((void*)descriptor, (int)length);
             var merged = WindowsPermissionDescriptor.Dacl(raw, authority);
-            if (merged.Form != WindowsDaclForm.Entries || merged.Entries.Length < explicitAcl.Entries.Length ||
-                explicitAcl.Entries.Where((entry, index) => !entry.Bytes.AsSpan().SequenceEqual(merged.Entries[index].Bytes.AsSpan())).Any() ||
-                merged.Entries.Skip(explicitAcl.Entries.Length).Any(entry => (entry.Flags & InheritedAce) == 0))
+            if (merged.Form != WindowsDaclForm.Entries || merged.Entries.Length < explicitRules.Length ||
+                explicitRules.Where((entry, index) => !entry.Bytes.AsSpan().SequenceEqual(merged.Entries[index].Bytes.AsSpan())).Any() ||
+                merged.Entries.Skip(explicitRules.Length).Any(entry => (entry.Flags & InheritedAce) == 0))
                 throw new NotSupportedException("The Windows merge could not preserve every explicit rule in order.");
 
             int offset = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(raw[16..]));
