@@ -7,9 +7,17 @@ name: Details ARM64 qualification
 # - Windows on Arm: owned FAT32, exFAT and ReFS (Dev Drive) volumes and a temporary Cloud Files sync root on
 #   windows-11-arm, at medium integrity;
 # - Windows on Arm SMB client: a case-distinct share from a throwaway loopback SMB server on an alternative port,
-#   because the Windows SMB server refuses to list names that differ only in case.
+#   because the Windows SMB server refuses to list names that differ only in case;
+# - linux-arm64 screen reader: the File-system details journey through Orca on an isolated Xvfb display with XTEST
+#   keys (X11 lets the harness give FileCat focus; the hosted Windows desktop does not).
 on:
   workflow_dispatch:
+    inputs:
+      scope:
+        description: Which jobs to run
+        type: choice
+        default: all
+        options: [all, linux, linux-orca, windows, windows-smb]
 
 permissions:
   contents: read
@@ -21,6 +29,7 @@ env:
 jobs:
   linux-arm64:
     name: Linux ARM64 (Unix details)
+    if: inputs.scope == 'all' || inputs.scope == 'linux'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     steps:
@@ -68,6 +77,7 @@ jobs:
 
   windows-arm64-volumes:
     name: Windows ARM64 (prepared volumes)
+    if: inputs.scope == 'all' || inputs.scope == 'windows'
     runs-on: windows-11-arm
     timeout-minutes: 60
     steps:
@@ -155,6 +165,7 @@ jobs:
 
   windows-arm64-smb:
     name: Windows ARM64 (case-distinct SMB listing)
+    if: inputs.scope == 'all' || inputs.scope == 'windows-smb'
     runs-on: windows-11-arm
     timeout-minutes: 45
     steps:
@@ -188,3 +199,51 @@ jobs:
             ${{ runner.temp }}/fc-smb-case/*.json
             ${{ runner.temp }}/fc-smb-case/*.txt
             ${{ runner.temp }}/fc-smb-case/smbserver.*
+
+  linux-arm64-orca:
+    name: Linux ARM64 (Orca details journey)
+    if: inputs.scope == 'all' || inputs.scope == 'linux-orca'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Install the isolated screen-reader session
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq orca speech-dispatcher espeak-ng xvfb xauth xdotool xclip dbus-x11 at-spi2-core > /dev/null
+          orca --version
+      # The harness accepts only a checkout and reports below ~/FileCatValidation.
+      - name: Build FileCat in an owned checkout
+        run: |
+          mkdir -p ~/FileCatValidation/checkout
+          cp -a "$GITHUB_WORKSPACE/." ~/FileCatValidation/checkout/
+          cd ~/FileCatValidation/checkout
+          dotnet build src/FileCat.App -c Release -p:RestoreLockedMode=true -nodeReuse:false
+      - name: Run the details journey with Orca on an isolated display
+        run: |
+          cd ~/FileCatValidation/checkout
+          status=0
+          run() {
+            name=$1; shift
+            FILECAT_ORCA_ISOLATED_DISPLAY=1 timeout 600 dbus-run-session -- xvfb-run -a -s "-screen 0 1280x1024x24"               /usr/bin/python3 tests/FileCat.NativeAcceptance/linux-orca-filesystem-details.py               ~/FileCatValidation/checkout ~/FileCatValidation/orca-$name.json "$@" || status=1
+            python3 -c "import json, sys; r = json.load(open(sys.argv[1])); print(sys.argv[1], 'passed' if r.get('passed') else 'FAILED', r.get('error', ''))" ~/FileCatValidation/orca-$name.json || status=1
+          }
+          run details
+          run sized --report-size 520 420
+          run properties --properties
+          run find --find-results --supplementary
+          exit $status
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: details-linux-arm64-orca
+          path: |
+            ~/FileCatValidation/orca-*.json
+            ~/FileCatValidation/details-orca-*/orca-debug.log
+            ~/FileCatValidation/details-orca-*/*.err
+            ~/FileCatValidation/details-orca-*/app.log
