@@ -14,6 +14,8 @@ A finished operation whose items failed with *access denied* offers **Retry as a
 
 **Explicit Windows administrator window.** Tools → Open FileCat as administrator makes the existing administrator launch available through Windows UAC. It opens a separate instance using the existing Windows high-integrity state rules. The change-journal command offers the same launch for the selected NTFS or ReFS volume and verifies the mount against its captured volume identifier. Linux and macOS use their scoped device authorizations for recovery (ADR-08).
 
+**Reviewed file security.** The permissions inspector uses an opt-in version 2 request for a bound local NTFS object in installed FileCat. Authorized Apply handles one ordinary file. Inspection and Apply each have their own approval. The ordinary FileCat process and the native helper authenticate each other over a local named pipe. The helper shows the exact object and requested operation, then uses the rights needed for the selected descriptor section. The permissions plan records the passing transport and package checks and the remaining UAC, authorization and signing gates. [Permissions and ACL implementation plan](../design/FILECAT_PERMISSIONS_ACL_IMPLEMENTATION_PLAN.md)
+
 ## Why
 
 - **Consent equals scope (AI-13).** One approval covers one displayed, immutable plan. There is no standing elevation, unlike Total Commander's `tcmadmin.exe` with `AdminTimeout` or FAR's session-wide elevation.

@@ -901,6 +901,61 @@ public sealed class PermissionInspectorTests
     }
 
     [AvaloniaFact]
+    public async Task Windows_folder_editor_requires_and_reports_native_inheritance_scope()
+    {
+        if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_WINDOWS_SCOPE") != "1" ||
+            ReviewedPermissionOperation.ProcessRefusal() is not null)
+            Assert.Skip("Requires the ordinary Windows x64 NTFS scope fixture.");
+
+        const string descendant = "inherited.txt";
+        string? path = null;
+        var account = new SecurityIdentifier("S-1-5-32-546");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
+        {
+            var selected = Directory.CreateDirectory(Path.Combine(folder, "selected"));
+            using var actor = WindowsIdentity.GetCurrent();
+            var acl = new DirectorySecurity();
+            acl.SetAccessRuleProtection(true, false);
+            acl.AddAccessRule(new FileSystemAccessRule(actor.User!, FileSystemRights.FullControl,
+                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+            selected.SetAccessControl(acl);
+            path = Path.Combine(selected.FullName, descendant);
+            File.WriteAllText(path, "inheritance witness");
+        }, permissionService: new WindowsPermissionService(qualifyNativePropagation: true));
+        try
+        {
+            CancellationToken ct = TestContext.Current.CancellationToken;
+            var listing = vm.ActiveTab!.Listing;
+            await Until(() => listing.State == ListingState.Complete && listing.FocusName("selected"), ct);
+            vm.Execute(CommandIds.PermissionsOwnership);
+            await Until(() => FindButton(window, "Review Windows inheritance…") is not null, ct);
+            Assert.Null(FindButton(window, "Edit access ACL…"));
+            Click(FindButton(window, "Review Windows inheritance…")!);
+            await Until(() => window.GetVisualDescendants().OfType<WindowsAccessEditor>().Any(), ct);
+            var editor = Assert.Single(window.GetVisualDescendants().OfType<WindowsAccessEditor>());
+            editor.GetVisualDescendants().OfType<CheckBox>().Single(box => Equals(box.Content, "Add an explicit entry")).IsChecked = true;
+            editor.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "New Windows entry SID").Text = account.Value;
+            editor.GetVisualDescendants().OfType<CheckBox>().Single(box => Equals(box.Content, "Read attributes")).IsChecked = true;
+            editor.GetVisualDescendants().OfType<CheckBox>().Single(box => Equals(box.Content, "Inherit into files")).IsChecked = true;
+            await Until(() => TextPresent(window, "Approve Windows inheritance before applying"), ct);
+            Assert.False(FindButton(window, "Apply")!.IsEnabled);
+            Assert.Empty(services.Jobs.Jobs);
+            window.GetVisualDescendants().OfType<CheckBox>().Single(box =>
+                Equals(box.Content, "Allow Windows to update inheriting descendants")).IsChecked = true;
+            await Until(() => FindButton(window, "Apply")?.IsEnabled == true, ct);
+            Click(FindButton(window, "Apply")!);
+
+            await Until(() => TextPresent(window, "Descendant effects are unverified."), ct);
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(PermissionScope.NativePropagation, job.PermissionReviewScope);
+            Assert.Equal(PermissionVerdict.Verified, Assert.Single(job.PermissionResults).Verdict);
+            Assert.Contains(new FileInfo(path!).GetAccessControl().GetAccessRules(false, true, typeof(SecurityIdentifier)).OfType<FileSystemAccessRule>(),
+                rule => rule.IsInherited && rule.IdentityReference == account && rule.FileSystemRights.HasFlag(FileSystemRights.ReadAttributes));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Windows_editor_applies_a_preset_and_an_advanced_right_to_one_explicit_entry()
     {
         if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_NTFS") != "1" ||

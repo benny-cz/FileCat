@@ -30,6 +30,8 @@ internal sealed class WindowsAccessEditor : StackPanel
         new FuncDataTemplate<string>((value, _) => new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap }) };
     private readonly CheckBox _add = new() { Content = "Add an explicit entry" };
     private readonly CheckBox _remove = new() { Content = "Remove selected entry" };
+    private readonly CheckBox _inheritFiles = new() { Content = "Inherit into files" };
+    private readonly CheckBox _inheritFolders = new() { Content = "Inherit into subfolders" };
     private readonly TextBox _sid = new() { PlaceholderText = "S-1-…", MinWidth = 175 };
     private readonly ComboBox _kind = new() { ItemsSource = new[] { "Allow", "Deny" }, SelectedIndex = 0 };
     private readonly ComboBox _preset = new() { ItemsSource = new[] { "Read", "Read and execute", "Modify", "Full control" }, SelectedIndex = 0 };
@@ -43,7 +45,7 @@ internal sealed class WindowsAccessEditor : StackPanel
     private bool _setting;
     private uint _initialMask;
 
-    internal WindowsAccessEditor(WindowsDacl baseline, string authority, Func<string, Task>? copy)
+    internal WindowsAccessEditor(WindowsDacl baseline, string authority, Func<string, Task>? copy, bool directory = false)
     {
         _baseline = baseline;
         _authority = authority;
@@ -52,7 +54,7 @@ internal sealed class WindowsAccessEditor : StackPanel
         _entries.ItemsSource = baseline.Entries.Select((entry, index) => $"{index + 1}. {Describe(entry)}").ToArray();
         AutomationProperties.SetName(_sid, "New Windows entry SID");
         AutomationProperties.SetName(_kind, "New Windows entry type");
-        AutomationProperties.SetName(_preset, "File rights preset");
+        AutomationProperties.SetName(_preset, directory ? "Folder rights preset" : "File rights preset");
         AutomationProperties.SetName(_mask, "Windows access mask");
         AutomationProperties.SetLiveSetting(_notice, AutomationLiveSetting.Polite);
         Children.Add(_entries);
@@ -68,12 +70,29 @@ internal sealed class WindowsAccessEditor : StackPanel
         Children.Add(_special);
         _special.Children.Add(_kind);
         _special.Children.Add(_sid);
+        if (directory)
+        {
+            _special.Children.Add(_inheritFiles);
+            _special.Children.Add(_inheritFolders);
+            _inheritFiles.IsCheckedChanged += (_, _) => Refresh();
+            _inheritFolders.IsCheckedChanged += (_, _) => Refresh();
+        }
         Children.Add(Row(_preset, _replace, _usePreset));
         Children.Add(Row(new TextBlock { Text = "Advanced mask", VerticalAlignment = VerticalAlignment.Center }, _mask));
         var advanced = new WrapPanel { Orientation = Orientation.Horizontal };
-        foreach (var right in Rights)
+        var rights = directory ? Rights.Append((Right: FileSystemRights.DeleteSubdirectoriesAndFiles, Name: "Delete children")) : Rights;
+        foreach (var right in rights)
         {
-            var box = new CheckBox { Content = right.Name };
+            string name = directory ? right.Right switch
+            {
+                FileSystemRights.ReadData => "List folder",
+                FileSystemRights.WriteData => "Add files",
+                FileSystemRights.AppendData => "Add subfolders",
+                FileSystemRights.ExecuteFile => "Traverse folder",
+                FileSystemRights.Delete => "Delete this folder",
+                _ => right.Name
+            } : right.Name;
+            var box = new CheckBox { Content = name };
             uint bit = (uint)right.Right;
             _advanced.Add((bit, box));
             advanced.Children.Add(box);
@@ -128,7 +147,9 @@ internal sealed class WindowsAccessEditor : StackPanel
             if (Adding)
             {
                 var principal = new Principal(PrincipalKind.WindowsSid, _sid.Text ?? string.Empty, _authority);
-                var entry = WindowsPermissionAclPatch.SimpleEntry(_kind.SelectedIndex == 1 ? WindowsAceKind.Deny : WindowsAceKind.Allow, principal, mask);
+                byte flags = (byte)((_inheritFiles.IsChecked == true ? 1 : 0) | (_inheritFolders.IsChecked == true ? 2 : 0));
+                var entry = WindowsPermissionAclPatch.SimpleEntry(_kind.SelectedIndex == 1 ? WindowsAceKind.Deny : WindowsAceKind.Allow,
+                    principal, mask, flags);
                 return (new AddWindowsAce(entry), null);
             }
             var selected = Selected!;
@@ -144,6 +165,8 @@ internal sealed class WindowsAccessEditor : StackPanel
         _setting = true;
         _remove.IsChecked = false;
         _sid.Text = string.Empty;
+        _inheritFiles.IsChecked = false;
+        _inheritFolders.IsChecked = false;
         _initialMask = Adding ? 0 : WindowsFileAccessRights.MapGeneric(Selected?.Mask ?? 0);
         _mask.Text = FormatMask(_initialMask);
         _setting = false;

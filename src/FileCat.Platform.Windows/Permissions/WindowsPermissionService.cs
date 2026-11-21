@@ -8,10 +8,11 @@ using Microsoft.Win32.SafeHandles;
 namespace FileCat.Platform.Windows.Permissions;
 
 internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbReads = false, bool qualifyRefsReads = false,
-    bool qualifyAccessEstimates = false) : IPermissionService
+    bool qualifyAccessEstimates = false, bool qualifyNativePropagation = false) : IPermissionService
 {
     private const string Source = "Windows GetSecurityInfo";
     private readonly bool _qualifyAccessEstimates = qualifyAccessEstimates;
+    private readonly bool _qualifyNativePropagation = qualifyNativePropagation;
     private const uint ReadControl = 0x20000, OpenNoRecall = 0x400000;
     private const uint UnsafeAttributes = (uint)(FileAttributes.ReparsePoint | FileAttributes.Offline) | 0x00440000;
     internal const PermissionSections DiscretionarySections = PermissionSections.Owner | PermissionSections.Group |
@@ -176,13 +177,13 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
     }
 
     private static SafeFileHandle Open(SafeFileHandle? parent, string name, bool security, CancellationToken ct, uint writeAccess = 0,
-        uint readAccess = 0, bool backupIntent = false)
+        uint readAccess = 0, bool backupIntent = false, bool allowDirectoryWrite = false)
     {
         ct.ThrowIfCancellationRequested();
         // FILE_DIRECTORY_FILE rejects NO_RECALL. Verify directory type from the opened object before using it as a parent.
         const uint OpenForBackupIntent = 0x4000;
         int status = NtFile.TryOpen(parent, name, NtFile.Synchronize | NtFile.ReadAttributes | (security ? ReadControl : 0) | writeAccess | readAccess,
-            NtFile.ShareAll, NtFile.Open, OpenNoRecall | NtFile.OpenReparsePoint | (writeAccess != 0 ? NtFile.NonDirectoryFile : 0) |
+            NtFile.ShareAll, NtFile.Open, OpenNoRecall | NtFile.OpenReparsePoint | (writeAccess != 0 && !allowDirectoryWrite ? NtFile.NonDirectoryFile : 0) |
                 (backupIntent ? OpenForBackupIntent : 0),
             out var handle, caseSensitive: parent is not null);
         if (status >= 0) return handle;

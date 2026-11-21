@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -57,7 +56,7 @@ public sealed partial class WindowsPermissionScopeTests(ITestOutputHelper output
             using var selectedHandle = Open(selected.FullName, ReadControl | WriteDac);
             var projected = AddInheritableWitness(selectedBefore);
 
-            var result = await PropagateThroughJob(selected, selectedHandle, projected);
+            var result = await PropagateThroughJob(selected);
             Assert.Equal(PermissionVerdict.Verified, result.Verdict);
             Assert.Equal(PermissionVerification.SameObject, Assert.Single(result.Components).Verification);
             uint error = (uint)(Assert.Single(result.Components).NativeError ?? 0);
@@ -206,67 +205,24 @@ public sealed partial class WindowsPermissionScopeTests(ITestOutputHelper output
     private static PermissionDraft WitnessDraft() => new(PermissionScope.Objects,
         [new AddWindowsAce(WindowsPermissionAclPatch.SimpleEntry(WindowsAceKind.Allow, WitnessAccount, WitnessRight))]);
 
-    private static async Task<PermissionResult> PropagateThroughJob(DirectoryInfo directory, SafeFileHandle held, byte[] projected,
-        Action? afterReview = null)
+    private static async Task<PermissionResult> PropagateThroughJob(DirectoryInfo directory, Action? afterReview = null)
     {
         const PermissionSections sections = WindowsPermissionService.DiscretionarySections;
         var ct = TestContext.Current.CancellationToken;
         var source = ItemRef.ForFileSystemPath(directory.FullName, EntryKind.Directory);
         var subject = new PermissionSubject(source.Parent, directory.FullName, directory.FullName, Authority,
             PermissionObjectKind.Directory, PermissionLinkPolicy.NoFollow);
-        using var inspection = new WindowsPermissionService().Inspect(subject, sections, ct);
+        var service = new WindowsPermissionService(qualifyNativePropagation: true);
+        using var inspection = service.Inspect(subject, sections, ct);
         var original = inspection.Snapshot;
-        var binding = Assert.IsType<PermissionBinding>(original.Binding);
-        var baseline = Assert.IsType<PermissionRevision>(PermissionRevision.Read(original, sections));
-        var expectedDacl = WindowsPermissionDescriptor.ProjectDacl(original.Inheritance.Value!.Value, ImmutableArray.Create(projected), Authority.Id);
-        var expected = original with { Access = original.Access with { Value = new PermissionAclValue(expectedDacl) } };
-        var expectedRevision = Assert.IsType<PermissionRevision>(PermissionRevision.Read(expected, sections));
-        var addition = new AddWindowsAce(WindowsPermissionAclPatch.SimpleEntry(WindowsAceKind.Allow, WitnessAccount, WitnessRight, flags: 3));
-        var component = new ReviewedPermissionComponent(addition, baseline, expectedRevision, "Windows SetSecurityInfo native propagation");
+        Assert.True(service.CanReviewNativePropagation(original), original.BindingProblem ?? original.Access.Reason);
+        Assert.False(new WindowsPermissionService().CanReviewNativePropagation(original));
         var boundary = WindowsPermissionService.CapturePropagationBoundary(original, ct);
-        var mutation = new HeldPropagationProbe(held, original, projected, boundary);
-        using var operation = new ReviewedPermissionOperation(PermissionScope.NativePropagation,
-            [new(source, subject, binding, [component], expectedRevision, mutation)]);
+        var change = new AddWindowsAce(WindowsPermissionAclPatch.SimpleEntry(WindowsAceKind.Allow, WitnessAccount, WitnessRight, flags: 3));
+        using var operation = service.PrepareNativePropagation(inspection, source,
+            new PermissionDraft(PermissionScope.NativePropagation, [change]), boundary, ct).Review;
         afterReview?.Invoke();
-        var result = await RunJob(operation, ct);
-        Assert.Equal(afterReview is null ? 1 : 0, mutation.Calls);
-        return result;
-    }
-
-    // The fixture owns the pinned directory and its descendants. Production admission still requires a scope check.
-    private sealed class HeldPropagationProbe(SafeFileHandle held, PermissionSnapshot original, byte[] projected,
-        WindowsPermissionService.PropagationBoundary boundary) : IBoundPermissionMutation
-    {
-        internal int Calls { get; private set; }
-
-        public PermissionSnapshot CheckCurrent(PermissionSections sections, CancellationToken cancellation)
-        {
-            cancellation.ThrowIfCancellationRequested();
-            WindowsPermissionService.RequireUnchangedPropagationBoundary(original, boundary, cancellation);
-            return Snapshot();
-        }
-
-        public PermissionMutationReturn Apply(PermissionDelta change)
-        {
-            Calls++;
-            uint error = SetDacl(held, projected);
-            return new(error == 0 ? null : (int)error);
-        }
-
-        public PermissionReadBack Observe(PermissionSections sections) => new(Snapshot(), PermissionVerification.SameObject);
-        public void Dispose() { } // The test retains this handle for the independent witnesses.
-
-        private PermissionSnapshot Snapshot()
-        {
-            byte[] observed = ReadDescriptor(held);
-            return original with
-            {
-                Owner = original.Owner with { Value = WindowsPermissionDescriptor.PrincipalAt(observed, 4, Authority.Id) },
-                Group = original.Group with { Value = WindowsPermissionDescriptor.PrincipalAt(observed, 8, Authority.Id) },
-                Access = original.Access with { Value = new PermissionAclValue(WindowsPermissionDescriptor.Dacl(observed, Authority.Id)) },
-                Inheritance = original.Inheritance with { Value = WindowsPermissionDescriptor.Control(observed) }
-            };
-        }
+        return await RunJob(operation, ct);
     }
 
     private static async Task<PermissionResult> RunJob(ReviewedPermissionOperation review, CancellationToken ct)

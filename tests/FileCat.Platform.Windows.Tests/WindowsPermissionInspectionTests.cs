@@ -88,6 +88,20 @@ public sealed class WindowsPermissionInspectionTests
     }
 
     [Fact]
+    public void Directory_inheritance_flags_require_the_folder_projection_and_preserve_entry_order()
+    {
+        byte[] explicitRule = Simple(0, 0, 1), inheritedRule = Simple(0, 0x10, 2);
+        var original = WindowsPermissionDescriptor.Dacl(Descriptor(true, [explicitRule, inheritedRule]), "local");
+        byte[] newRule = Simple(0, 3, 4);
+        var addition = WindowsPermissionDescriptor.Dacl(Descriptor(true, [newRule]), "local").Entries[0];
+        Assert.Throws<NotSupportedException>(() => WindowsPermissionAclPatch.InsertCanonical(original, addition, "local"));
+        Assert.Equal(Descriptor(true, [explicitRule, newRule, inheritedRule])[20..],
+            WindowsPermissionAclPatch.InsertCanonical(original, addition, "local", directory: true).ToArray());
+        var inheritOnly = WindowsPermissionDescriptor.Dacl(Descriptor(true, [Simple(0, 0x0b, 4)]), "local").Entries[0];
+        Assert.Throws<NotSupportedException>(() => WindowsPermissionAclPatch.InsertCanonical(original, inheritOnly, "local", directory: true));
+    }
+
+    [Fact]
     public void A_projected_DACL_uses_only_discretionary_descriptor_control()
     {
         byte[] descriptor = Descriptor(true, [Simple(0, 0, 1)]);

@@ -86,7 +86,7 @@ public sealed partial class WindowsPermissionScopeTests
             byte[] before = ReadDescriptor(child);
             using var held = Open(selected.FullName, ReadControl | WriteDac);
             byte[] rootBefore = ReadDescriptor(held);
-            var result = await PropagateThroughJob(selected, held, AddInheritableWitness(rootBefore),
+            var result = await PropagateThroughJob(selected,
                 () => CreateFile(nested, "late-arrival.txt"));
             Assert.Equal(PermissionVerdict.Conflict, result.Verdict);
             Assert.Null(Assert.Single(result.Components).NativeCall);

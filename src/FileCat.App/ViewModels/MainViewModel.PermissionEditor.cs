@@ -59,6 +59,9 @@ public sealed partial class MainViewModel
             inspected[index].Snapshot is { Sftp.ChangeRefusal: null, ServerState: not null };
         bool WindowsEstimateAvailable(int index) => inspected[index].Source is not null &&
             Services.Permissions is WindowsPermissionService windows && windows.CanEstimateAccess(inspected[index].Snapshot);
+        bool WindowsPropagationAvailable(int index) => inspected[index].Source is { Kind: EntryKind.Directory } source &&
+            source.FileSystemPath == inspected[index].Snapshot.Subject.RawLocator &&
+            Services.Permissions is WindowsPermissionService windows && windows.CanReviewNativePropagation(inspected[index].Snapshot);
         bool ProtectionAvailable(int index) => refusals[index] is null && Services.Permissions switch
         {
             DarwinPermissionService => DarwinPermissionService.CanEditProtection(inspected[index].Snapshot),
@@ -94,6 +97,9 @@ public sealed partial class MainViewModel
             buttons.Insert(0, new("Estimate POSIX ACL access…", "estimate-access") { IsAvailable = () => estimates[view.SelectedSubject] is not null });
         if (Enumerable.Range(0, inspected.Length).Any(WindowsEstimateAvailable))
             buttons.Insert(0, new("Estimate Windows ACL access…", "windows-estimate") { IsAvailable = () => WindowsEstimateAvailable(view.SelectedSubject) });
+        if (Enumerable.Range(0, inspected.Length).Any(WindowsPropagationAvailable))
+            buttons.Insert(0, new("Review Windows inheritance…", "windows-propagation")
+                { IsAvailable = () => WindowsPropagationAvailable(view.SelectedSubject) });
         if (Enumerable.Range(0, inspected.Length).Any(SftpReviewAvailable))
             buttons.Insert(0, new("Review SFTP permissions…", "sftp") { IsAvailable = () => SftpReviewAvailable(view.SelectedSubject) });
         if (inspected.Any(CanInspectWithLinuxAuthorization))
@@ -116,6 +122,8 @@ public sealed partial class MainViewModel
         else if (answer is "windows-estimate" && WindowsEstimateAvailable(view.SelectedSubject) && !Services.Io.IsStopped &&
             Services.Permissions is WindowsPermissionService windows)
             await ShowWindowsAclEstimateAsync(dialogs, inspected[view.SelectedSubject], windows);
+        else if (answer is "windows-propagation" && WindowsPropagationAvailable(view.SelectedSubject) && !Services.Io.IsStopped)
+            await ShowWindowsPropagationEditorAsync(dialogs, inspected[view.SelectedSubject], copy, origin);
         else if ((answer is "mode-tree" && ModeTreeAvailable(view.SelectedSubject) || answer is "reset-tree" && ResetTreeAvailable(view.SelectedSubject) ||
             answer is "inherit-tree" && DarwinAclTreeAvailable(view.SelectedSubject)) &&
             !Services.Io.IsStopped)
@@ -139,6 +147,25 @@ public sealed partial class MainViewModel
             (command != "protection" || ProtectionAvailable(view.SelectedSubject)) &&
             (command != "group" || GroupAvailable(view.SelectedSubject)) && !Services.Io.IsStopped)
             await ShowBoundPermissionEditorAsync(dialogs, inspected[view.SelectedSubject], copy, command, origin);
+    }
+
+    private async Task ShowWindowsPropagationEditorAsync(IDialogService dialogs, InspectedPermission item, Func<string, Task>? copy,
+        PermissionSelection? origin)
+    {
+        try
+        {
+            var device = Services.Providers.For(item.Source!.Parent).GetDeviceKey(item.Source.Parent);
+            var boundary = await Services.Io.RunOwned(device, IoPriority.Interactive,
+                ct => WindowsPermissionService.CapturePropagationBoundary(item.Snapshot, ct));
+            if (!Services.Io.IsStopped)
+                await ShowBoundPermissionEditorAsync(dialogs, item, copy, "acl", origin, windowsPropagation: boundary);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            if (!Services.Io.IsStopped)
+                await dialogs.AlertAsync("Windows inheritance unavailable", Formatters.SafeName(error.Message));
+        }
     }
 
     private async Task ShowWindowsAclEstimateAsync(IDialogService dialogs, InspectedPermission item, WindowsPermissionService windows)
@@ -258,7 +285,7 @@ public sealed partial class MainViewModel
 
     private async Task ShowBoundPermissionEditorAsync(IDialogService dialogs, InspectedPermission item, Func<string, Task>? copy,
         string command, PermissionSelection? origin, SftpPermissionEdit? sftpEdit = null, LinuxAuthorizedPermissionEdit? authorizedLinux = null,
-        nint windowsAuthorizationOwner = 0)
+        nint windowsAuthorizationOwner = 0, WindowsPermissionService.PropagationBoundary? windowsPropagation = null)
     {
         var snapshot = authorizedLinux?.Snapshot ?? item.Snapshot;
         var source = item.Source ?? throw new InvalidOperationException("The reviewed object lacks its original source.");
@@ -285,7 +312,7 @@ public sealed partial class MainViewModel
             ? new UnixPermissionModeEditor(bit => (originalMode & (ushort)bit) != 0,
             snapshot.Access.Value?.Acl is PosixAcl original && original.Entries.Any(row => row.Tag == PosixAclTag.Mask)) : null;
         var windowsAcl = windows && command == "acl" && snapshot.Access.Value?.Acl is WindowsDacl dacl
-            ? new WindowsAccessEditor(dacl, snapshot.Subject.Authority.Id, copy) : null;
+            ? new WindowsAccessEditor(dacl, snapshot.Subject.Authority.Id, copy, directory: windowsPropagation is not null) : null;
         var windowsAudit = authorizedWindows && command == "audit" && snapshot.Audit.Value?.Acl is WindowsSacl sacl
             ? new WindowsAuditEditor(sacl, snapshot.Subject.Authority.Id) : null;
         ComboBox? owner = null;
@@ -430,8 +457,13 @@ public sealed partial class MainViewModel
         var preview = new ListBox { MaxHeight = 180, IsVisible = false, ItemTemplate =
             new FuncDataTemplate<string>((text, _) => new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap }) };
         AutomationProperties.SetName(preview, "Reviewed changes");
-        var accept = new CheckBox { Content = changeGroup || editDarwinAcl || sftpEdit is not null
-            ? "Accept the reviewed set-ID effects" : "Accept clearing the reviewed set-ID bits", IsVisible = false };
+        var accept = new CheckBox
+        {
+            Content = windowsPropagation is not null ? "Allow Windows to update inheriting descendants" :
+                changeGroup || editDarwinAcl || sftpEdit is not null ? "Accept the reviewed set-ID effects" :
+                "Accept clearing the reviewed set-ID bits",
+            IsVisible = false
+        };
         var stop = new Button { Content = "Stop operation", IsVisible = false };
         var current = new Button { Content = "Review current state…", IsVisible = false };
         var footer = new DialogButtonPresentation(new("Cancel"));
@@ -440,7 +472,8 @@ public sealed partial class MainViewModel
         var layout = new StackPanel { Spacing = 8, Children =
         {
             Wrapped(Formatters.SafeName(snapshot.Subject.DisplayPath)),
-            Wrapped(defaults ? "Scope · Defaults for new children of the selected directory" : "Scope · Selected object"),
+            Wrapped(windowsPropagation is not null ? "Scope · Selected folder and Windows inheritance" :
+                defaults ? "Scope · Defaults for new children of the selected directory" : "Scope · Selected object"),
             new TextBlock { Text = "Owner choices come from FileCat's ordinary Windows token.", IsVisible = owner is not null },
             fields, preview, accept, problem, result, stop, current
         } };
@@ -450,6 +483,13 @@ public sealed partial class MainViewModel
             layout.Children.Insert(2, Wrapped("Applying this reviewed change requires a separate administrator approval."));
         if (windowsAudit is not null)
             layout.Children.Insert(3, Wrapped("Windows audit policy determines whether successful or failed access creates an event."));
+        if (windowsPropagation is { } boundary)
+        {
+            layout.Children.Insert(2, Wrapped($"Volume · {Formatters.SafeName(boundary.Root.MountRoot)}"));
+            layout.Children.Insert(3, Wrapped($"Inspected {Formatters.Plural(boundary.Members.Length, "path", "paths")} including the selected folder."));
+            layout.Children.Insert(4, Wrapped("Windows may update eligible existing descendants and inheritance for future children. " +
+                "FileCat verifies the selected folder. Descendant effects remain unverified."));
+        }
         if (sftpEdit is not null)
         {
             layout.Children.Insert(2, Wrapped("Connection · " + Formatters.SafeName(snapshot.Sftp!.Connection ?? source.Parent.Session ?? "")));
@@ -516,7 +556,7 @@ public sealed partial class MainViewModel
 
         try
         {
-            await dialogs.ShowCustomAsync(command switch
+            await dialogs.ShowCustomAsync(windowsPropagation is not null ? "Review Windows inheritance" : command switch
                 { "acl" => "Edit access ACL", "audit" => "Edit audit rules", "defaults" => "Edit default ACL", "owner" => "Change owner", "group" => "Change group and mode",
                     "sftp" => "Review SFTP permissions", "protection" => "Edit file protection", _ => "Edit mode" }, layout,
                 [new("Cancel", "close", IsCancel: true) { Presentation = footer, Validate = CanClose },
@@ -567,10 +607,12 @@ public sealed partial class MainViewModel
                 changeProtection && darwin ? DescribeProtectionDiff(snapshot, projected) : DescribePermissionDiff(snapshot, projected, defaults);
             preview.ItemsSource = rows;
             preview.IsVisible = rows.Length > 0;
-            accept.IsVisible = sftpPlan?.NeedsSetIdConsent ?? changePlan?.NeedsSetIdConsent ??
+            accept.IsVisible = windowsPropagation is not null ? draft is not null :
+                sftpPlan?.NeedsSetIdConsent ?? changePlan?.NeedsSetIdConsent ??
                 (projected?.Mode.Value is { } newMode && (originalMode & 0xc00 & ~newMode) != 0);
             if (accept.IsVisible && accept.IsChecked != true)
-                error ??= changeGroup || editDarwinAcl || sftpEdit is not null ? "Accept the reviewed set-ID effects before applying." :
+                error ??= windowsPropagation is not null ? "Approve Windows inheritance before applying." :
+                    changeGroup || editDarwinAcl || sftpEdit is not null ? "Accept the reviewed set-ID effects before applying." :
                     "Accept the reviewed set-ID clearance before applying.";
             problem.Text = error;
             problem.IsVisible = error is not null;
@@ -734,6 +776,7 @@ public sealed partial class MainViewModel
                 var expected = snapshot.Model switch
                 {
                     PermissionModel.WindowsDescriptor when authorizedWindows => WindowsPermissionService.PreviewAuthorizedChange(snapshot, change),
+                    PermissionModel.WindowsDescriptor when windowsPropagation is not null => WindowsPermissionService.PreviewPropagation(snapshot, change),
                     PermissionModel.WindowsDescriptor => WindowsPermissionService.PreviewChange(snapshot, change),
                     PermissionModel.DarwinAcl when change is ChangePermissionMode changeMode => DarwinPermissionService.PreviewMode(snapshot, changeMode),
                     _ => LinuxPermissionService.PreviewAccessChange(snapshot, change)
@@ -751,7 +794,8 @@ public sealed partial class MainViewModel
                 if (!changesAccess) return null;
                 if (linux) LinuxPermissionService.RequireUnprotected(snapshot);
                 projected = expected;
-                return new(defaults ? PermissionScope.DefaultsForNewChildren : PermissionScope.Objects, [change]);
+                return new(windowsPropagation is not null ? PermissionScope.NativePropagation :
+                    defaults ? PermissionScope.DefaultsForNewChildren : PermissionScope.Objects, [change]);
             }
             catch (Exception failure) when (failure is IOException or UnauthorizedAccessException or NotSupportedException or InvalidDataException or OverflowException or ArgumentException)
             {
@@ -858,6 +902,8 @@ public sealed partial class MainViewModel
                     if (sftpEdit is not null) return sftpEdit.Prepare(draft, sftpPlan!, acceptClear, ct);
                     var prepared = snapshot.Model switch
                     {
+                        PermissionModel.WindowsDescriptor when windowsPropagation is not null && Services.Permissions is WindowsPermissionService windowsService
+                            => windowsService.PrepareNativePropagation(item.Inspection, source, draft, windowsPropagation, ct),
                         PermissionModel.WindowsDescriptor => WindowsPermissionService.Prepare(item.Inspection, source, draft, ct),
                         PermissionModel.DarwinAcl => DarwinPermissionService.Prepare(item.Inspection, source, draft, acceptClear, ct, darwinGroupAuthority),
                         _ => LinuxPermissionService.Prepare(item.Inspection, source, draft, acceptClear, ct, groupAuthority)
