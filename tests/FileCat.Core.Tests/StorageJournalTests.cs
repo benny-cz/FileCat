@@ -185,6 +185,98 @@ public sealed class StorageJournalTests
     }
 
     [Fact]
+    public void Byte_limit_keeps_fixed_root_and_closure_capacity_and_reserves_a_whole_call_before_each_intent()
+    {
+        var header = Header();
+        long fixedBytes = StorageTransformJournalWriter.Encode("storage-begin", 1, header.JobId, header).Length +
+            StorageJournalPolicy.RootSummaryBytes + StorageJournalPolicy.ClosureBytes;
+        using (var tooSmall = new MemoryStream())
+        {
+            Assert.Throws<IOException>(() => new StorageTransformJournalWriter(tooSmall, () => { }, header, byteLimit: fixedBytes - 1));
+            Assert.Equal(0, tooSmall.Length);
+        }
+        long limit = fixedBytes + StorageJournalPolicy.CallBytes; // exactly one whole call reservation beyond the fixed capacity
+        using var data = new MemoryStream(); using var writer = new StorageTransformJournalWriter(data, () => { }, header, byteLimit: limit);
+        var call = writer.FlushIntent(0, @"C:\source\file", Before); Assert.True(call.TryAdmit()); writer.FlushResult(call, Changed());
+        long written = data.Length;
+        Assert.Throws<StorageJournalLimitException>(() => writer.FlushIntent(0, @"C:\source\file", Before));
+        Assert.Equal(written, data.Length); Assert.Null(writer.Collector.Pending); Assert.False(writer.IsFaulted);
+        // The refused call never borrowed the fixed root-summary or closure capacity.
+        writer.RootSummary(new(0, StorageJournalCounts.From(new(Changed: 1)), StorageCompleteness.Complete, true));
+        writer.Finish(Summary(header, new(Changed: 1)));
+        Assert.False(writer.NeedsRecovery); Assert.InRange(data.Length, written + 1, limit);
+        var read = Read(data); Assert.True(read.Collector.Ended); Assert.False(read.Collector.ReviewPending);
+    }
+
+    [Fact]
+    public void Static_interruption_check_applies_the_collector_to_stray_failed_and_canceled_end_records()
+    {
+        using var temp = new TempDir();
+        string Journal(Action<StorageTransformJournalWriter, StorageJournalHeader> record, Func<StorageJournalHeader, byte[]>? tail = null,
+            int failFlush = 0, string? leaf = null)
+        {
+            var header = Header(); int flushes = 0;
+            string path = Path.Join(temp.Path, leaf ?? StorageJournalPolicy.FileName(header.CreatedUtc, header.JobId));
+            using (var file = new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read))
+            using (var writer = new StorageTransformJournalWriter(file, () =>
+            {
+                if (++flushes == failFlush) throw new IOException("Result flush fixture.");
+                file.Flush(flushToDisk: true);
+            }, header)) record(writer, header);
+            if (tail is not null)
+                using (var file = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read)) file.Write(tail(header));
+            return path;
+        }
+        static bool Interrupted(string path, string kind = nameof(JobKind.StorageTransform)) =>
+            JournalRecovery.IsInterrupted(new InterruptedJob(path, kind, "Untrusted history row", DateTime.UnixEpoch, [], null, [], [], 0, 0));
+        static byte[] End(string state) => Line("{\"t\":\"end\",\"state\":\"" + state + "\"}");
+        static void Pending(StorageTransformJournalWriter writer, StorageJournalHeader _) => writer.FlushIntent(0, @"C:\source\file", Before);
+
+        foreach (string state in new[] { "Failed", "Canceled", "Completed" })
+        {
+            string stray = Journal(Pending, _ => End(state)); byte[] original = File.ReadAllBytes(stray);
+            Assert.True(Interrupted(stray)); Assert.True(Interrupted(stray, "Copy")); // an untrusted row kind cannot route around the collector
+            Assert.Equal(original, File.ReadAllBytes(stray));
+        }
+        // A typed terminal claim cannot close an unresolved intent or a recorded uncertain effect either.
+        Assert.True(Interrupted(Journal(Pending, h => StorageTransformJournalWriter.Encode("storage-end", 3, h.JobId, new StorageJournalTerminal(JobState.Failed)))));
+        Assert.True(Interrupted(Journal((writer, h) =>
+        {
+            var call = writer.FlushIntent(0, @"C:\source\file", Before); Assert.True(call.TryAdmit());
+            writer.FlushResult(call, new(Before, null, StorageEffect.Uncertain, new(StorageReasonKind.Unknown, "unknown", "Postcondition unreadable.", true)) { NativeCallAttempted = true });
+            writer.Finish(Summary(h, new(Uncertain: 1), uncertain: true) with { Canceled = true }); // durable summary, deliberately no end
+        }, h => StorageTransformJournalWriter.Encode("storage-end", 5, h.JobId, new StorageJournalTerminal(JobState.Canceled)))));
+        // A failed result flush followed by a refused Finish(Failed) stays pending even when every byte later becomes readable.
+        Assert.True(Interrupted(Journal((writer, h) =>
+        {
+            var call = writer.FlushIntent(0, @"C:\source\file", Before); Assert.True(call.TryAdmit());
+            Assert.Throws<IOException>(() => writer.FlushResult(call, Changed()));
+            Assert.Throws<IOException>(() => writer.Finish(Summary(h, new(Changed: 1)) with { PersistenceFault = true, ReviewPending = true }));
+        }, _ => End("Failed"), failFlush: 3)));
+        // Storage records under a legacy name are still storage evidence, never closed by the legacy end-marker reader.
+        Assert.True(Interrupted(Journal(Pending, _ => End("Completed"), leaf: $"job-19700101000000-{Guid.NewGuid():N}"[..27] + ".fcj"), "Copy"));
+
+        // Controls: clean collector-validated Failed and Canceled terminal sequences are not interrupted...
+        var failed = new StorageMutationResult(Before, Before, StorageEffect.Failed, new(StorageReasonKind.PermissionOrPolicy, "denied", "Refused; unchanged.", true)) { NativeCallAttempted = true };
+        string cleanFailed = Journal((writer, h) =>
+        {
+            var call = writer.FlushIntent(0, @"C:\source\file", Before); Assert.True(call.TryAdmit()); writer.FlushResult(call, failed);
+            writer.RootSummary(new(0, StorageJournalCounts.From(new(Failed: 1)), StorageCompleteness.Incomplete, false));
+            writer.Finish(Summary(h, new(Failed: 1)) with { Roots = [new(0, Before.Identity, StorageCompleteness.Incomplete, false)], Discovery = StorageCompleteness.Incomplete });
+            Assert.True(writer.Collector.Ended);
+        });
+        string cleanCanceled = Journal((writer, h) =>
+        {
+            writer.Finish(Summary(h, new(NotProcessed: 1)) with { Canceled = true, Roots = [new(0, Before.Identity, StorageCompleteness.Incomplete, false)], Discovery = StorageCompleteness.Incomplete });
+            Assert.True(writer.Collector.Ended);
+        });
+        Assert.False(Interrupted(cleanFailed)); Assert.False(Interrupted(cleanCanceled)); Assert.False(Interrupted(cleanFailed, "Copy"));
+        // ...but a stray generic end after a clean terminal sequence is damage that requires review again.
+        using (var file = new FileStream(cleanFailed, FileMode.Append, FileAccess.Write, FileShare.Read)) file.Write(End("Failed"));
+        Assert.True(Interrupted(cleanFailed));
+    }
+
+    [Fact]
     public void Generic_recovery_cannot_close_or_reconstruct_storage_evidence_even_with_a_stray_end()
     {
         using var temp = new TempDir(); string path = Path.Join(temp.Path, StorageJournalPolicy.FileName(DateTime.UnixEpoch, Guid.NewGuid()));
