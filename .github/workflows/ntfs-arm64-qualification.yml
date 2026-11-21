@@ -465,7 +465,8 @@ jobs:
           $log = Join-Path $evidence 'release-fixtures.txt'
           # An owned VHDX volume: formatted NTFS with the given allocation unit, at a drive letter or a folder mount point.
           function New-FixtureVolume([string]$Name, [int]$SizeMB, [int]$Unit, [string]$Label, [string]$MountFolder) {
-            $vhd = Join-Path $env:RUNNER_TEMP "filecat-release-$Name.vhdx"
+            # Clusters below 4 KiB need 512-byte physical sectors, which a .vhd provides and a .vhdx does not.
+            $vhd = Join-Path $env:RUNNER_TEMP ("filecat-release-$Name." + $(if ($Unit -lt 4096) { 'vhd' } else { 'vhdx' }))
             $script = Join-Path $env:RUNNER_TEMP "filecat-release-$Name-dp.txt"
             "create vdisk file=`"$vhd`" maximum=$SizeMB type=expandable" | Set-Content -LiteralPath $script -Encoding ascii
             & diskpart.exe /s $script | Out-Null
