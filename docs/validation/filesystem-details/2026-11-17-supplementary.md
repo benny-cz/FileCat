@@ -83,3 +83,9 @@ EFS remains required by the user's instruction. The documented FSCTL table is no
 ## Combined Windows inventory bound, 21 November 2026
 
 When an explicit EA read follows the stream inventory, FileCat now retains the EA prefix that fits the shared 1,024-entry/1 MiB metadata limit. It reports the EA category as Partial when further returned EAs do not fit, while preserving a prior native Failed/Denied/Changed state and reason. The value-bearing-query flag remains set when the EA API was called. Three focused parser/merge tests passed on Windows x64; the new case checks retained rows, partial state and an existing native failure reason. This is deterministic merge evidence, not a native large-inventory fixture.
+
+## Zero-length default stream name, 21 November 2026
+
+The [Windows `FILE_STREAM_INFORMATION` contract](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_stream_information) permits a single unnamed default stream record with a zero-length name. The parser previously rejected that record as malformed. It now accepts the record only when it is the sole stream record and still rejects a negative size or an empty-name record followed by a named stream. The changed `WindowsHiddenData.Inventory.cs` SHA-256 is `6360C80B14C45091047EE9D05AC9CDC13B736305549EE1FE09617958A1164037` on base main `bf91b2702`.
+
+On the Windows x64 workstation (Windows 10.0.26320, .NET SDK 10.0.101, runtime 10.0.15), the Windows test project built without warnings or errors. The deterministic `HiddenInventoryParserTests` class passed 4/4 tests using synthetic native buffers. No VM, native filesystem, or provider fixture was run for this parser change; existing native qualifications above apply only to their stated builds.

@@ -23,6 +23,22 @@ public sealed class HiddenInventoryParserTests
         Assert.Equal(HiddenInventoryState.Failed, WindowsHiddenData.ParseStreamInventory(broken).State);
     }
     [Fact]
+    public void Empty_default_stream_name_is_complete_only_as_a_single_record()
+    {
+        var emptyDefault = WindowsHiddenData.ParseStreamInventory(StreamRecord(""));
+        Assert.Equal(HiddenInventoryState.Complete, emptyDefault.State);
+        Assert.Empty(emptyDefault.Items);
+        Assert.Equal(HiddenInventoryState.Failed, WindowsHiddenData.ParseStreamInventory(StreamRecord("", -1)).State);
+
+        byte[] unnamed = StreamRecord("");
+        byte[] named = StreamRecord(":side:$DATA", 7);
+        byte[] chain = new byte[unnamed.Length + named.Length];
+        unnamed.CopyTo(chain, 0);
+        BinaryPrimitives.WriteUInt32LittleEndian(chain, (uint)unnamed.Length);
+        named.CopyTo(chain, unnamed.Length);
+        Assert.Equal(HiddenInventoryState.Failed, WindowsHiddenData.ParseStreamInventory(chain).State);
+    }
+    [Fact]
     public void Ea_parser_preserves_raw_flags_and_native_bytes_and_refuses_bad_bounds_and_progress()
     {
         byte[] record = new byte[12]; record[4] = 0x81; record[5] = 1; record[6] = 2; record[8] = 0xff;
