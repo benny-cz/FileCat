@@ -42,13 +42,12 @@ public sealed unsafe partial class WindowsFileRecords
             uint count = BinaryPrimitives.ReadUInt32LittleEndian(output);
             if (count != (returned - headerBytes) / recordBytes)
                 return Result(FactState.Failed, "The extent count does not match the returned byte count.");
+            long previous = BinaryPrimitives.ReadInt64LittleEndian(output.AsSpan(8));
+            if (previous != cursor)
+                return Result(FactState.Failed, "The returned mapping did not start at the previous record boundary.");
             if (count == 0)
                 return error == 0 && cursor == 0 ? Result(FactState.Known)
                     : Result(FactState.Failed, "The mapping query returned no records to continue from.");
-
-            long previous = BinaryPrimitives.ReadInt64LittleEndian(output.AsSpan(8));
-            if (previous != cursor)
-                return Result(FactState.Changed, "The returned mapping did not start at the previous record boundary.");
             int pageStart = records.Count;
             int remaining = RetrievalRecordLimit - pageStart;
             for (int i = 0; i < count && i < remaining; i++)
