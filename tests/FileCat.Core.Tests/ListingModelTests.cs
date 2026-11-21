@@ -397,7 +397,11 @@ public sealed class ListingModelTests : IDisposable
             await _ui.WaitUntilAsync(() => !model.IsRefreshing && model.State == ListingState.Complete);
             await _ui.InvokeAsync(() =>
             {
-                Assert.Empty(model.GetSelection());
+                // GetSelection falls back to focus when no row is marked. The surviving same-name
+                // reference may be focused; it must never become a transferred mark.
+                var selection = model.GetSelection();
+                Assert.InRange(selection.Count, 0, 1);
+                if (selection.Count == 1) Assert.Equal(first, selection[0]);
                 Assert.Equal(0, model.MarkedCount);
                 Assert.Equal(marks, model.MarkRevision);
             });
