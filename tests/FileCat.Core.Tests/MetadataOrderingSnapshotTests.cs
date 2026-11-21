@@ -166,8 +166,29 @@ public sealed class MetadataOrderingSnapshotTests
         using var snapshot = new MetadataOrderSnapshot(budget);
         Assert.False(snapshot.TryAdd(0, new(MetadataState.Available, new byte[1000]), 1));
         Assert.False(snapshot.TryAdd(1, default, new MutableKey()));
-        Assert.Equal(0, budget.ReservedBytes);
+        Assert.Equal(MetadataCapacity.UnsupportedPayload, snapshot.Coverage.Capacity);
+        Assert.True(snapshot.TryAdd(2, new(MetadataState.Available, "safe"), "safe"));
+        snapshot.Seal();
+        Assert.False(snapshot.TryValue(0, out _));
+        Assert.False(snapshot.TryValue(1, out _));
+        Assert.True(snapshot.TryValue(2, out var retained));
+        Assert.Equal("safe", retained.Value);
+        Assert.True(budget.ReservedBytes > 0);
         Assert.Null(snapshot.Key(0));
+    }
+
+    [Fact]
+    public void Capture_keeps_later_safe_keys_after_an_unsupported_comparer()
+    {
+        using var store = new EntryStore();
+        store.Append([new("mutable", EntryKind.File), new("safe", EntryKind.File)]);
+        using var snapshot = MetadataOrderSnapshot.Capture(store, store.Count, "custom",
+            (_, index, _) => index == 0 ? new MutableKey() : 7,
+            new IndexMemoryBudget(), TestContext.Current.CancellationToken);
+        Assert.Equal(1, snapshot.Coverage.Count);
+        Assert.Equal(MetadataCapacity.UnsupportedPayload, snapshot.Coverage.Capacity);
+        Assert.Null(snapshot.Key(0));
+        Assert.Equal(7, snapshot.Key(1));
     }
     private sealed class MutableKey : IComparable { public int CompareTo(object? other) => 1; }
 }
