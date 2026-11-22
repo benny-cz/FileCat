@@ -43,13 +43,13 @@ public sealed class ReparsePresentationTests
             // The column's label and the published name come from two tables: they must know the same tags.
             Assert.True((ReparsePresentation.Describe(tag).Kind != ReparseKind.Unknown) == (name is not null), $"0x{tag:X8} {name}");
             string explained = ReparsePresentation.Explain(tag);
+            // The meaning, the tag's number and name (a value tooltip shows that line as code), then what its bits say.
             string[] lines = explained.Split('\n');
-            Assert.Equal(2, lines.Length);
-            Assert.StartsWith($"Tag 0x{tag:X8}", lines[1]);
-            if (name is not null) Assert.Contains(" · " + name, lines[1]);
-            Assert.Contains((tag & 0x80000000) != 0 ? "a Microsoft tag" : "a third-party tag", lines[1]);
-            Assert.Equal((tag & 0x20000000) != 0, lines[1].Contains("name surrogate", StringComparison.Ordinal));
-            Assert.Equal((tag & 0x10000000) != 0, lines[1].Contains("can have contents", StringComparison.Ordinal));
+            Assert.Equal(3, lines.Length);
+            Assert.Equal(name is null ? $"Tag 0x{tag:X8}" : $"Tag 0x{tag:X8} · {name}", lines[1]);
+            Assert.StartsWith((tag & 0x80000000) != 0 ? "A Microsoft tag" : "A third-party tag", lines[2]);
+            Assert.Equal((tag & 0x20000000) != 0, lines[2].Contains("name surrogate", StringComparison.Ordinal));
+            Assert.Equal((tag & 0x10000000) != 0, lines[2].Contains("can have contents", StringComparison.Ordinal));
             Assert.Equal(name is null, lines[0].Contains("does not know", StringComparison.Ordinal));
             // The File-system details record names every tag the column recognizes.
             Assert.Equal(name is null, RecordText.ReparseTag(tag).Contains("not a tag FileCat knows", StringComparison.Ordinal));

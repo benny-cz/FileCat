@@ -41,14 +41,16 @@ public sealed class ColumnHeaderHelpTests
         await f.Load();
 
         Assert.Equal("Name\nClick to sort by it; click again to reverse.", HeaderTip(f, 0));
+        // Attr's letters are a legend: each letter beside its meaning.
         string attributes = HeaderTip(f, 1)!;
-        Assert.StartsWith("Attr\nR read-only · H hidden", attributes);
-        Assert.Equal(OperatingSystem.IsWindows(), attributes.Contains("P another reparse point (Reparse type says which)", StringComparison.Ordinal));
+        Assert.StartsWith("Attr\nR — read-only\nH — hidden\n", attributes);
+        Assert.Equal(OperatingSystem.IsWindows(), attributes.Contains("\nP — another reparse point; Reparse type says which\n", StringComparison.Ordinal));
         Assert.Contains("Observed names for a regular file", HeaderTip(f, 2));
 
         string reparse = HeaderTip(f, 3)!;
-        Assert.StartsWith("Reparse type\n", reparse);
-        Assert.Contains("Most items are not reparse points and show none.", reparse);
+        Assert.StartsWith("Reparse type\nWhat Windows does when the item is opened", reparse);
+        Assert.Contains("\nSymbolic link — points to another file or folder", reparse);
+        Assert.Contains("\nnone — not a reparse point; files WOF compresses show none too, as WOF hides its tag\n", reparse);
         Assert.Contains("Point at a value for what it means, its tag number and its Windows name.", reparse);
         string gesture = (f.Services.Keymap.GetGestureText(CommandIds.FileRecord) ?? "").Split(',')[0].Trim();
         Assert.NotEqual("", gesture);
@@ -95,8 +97,13 @@ public sealed class ColumnHeaderHelpTests
                 TestContext.Current.TestOutputHelper?.WriteLine($"{name}: tooltip {toolTip.Background} with {toolTip.Foreground} text");
                 Assert.Equal(ColorOf("FcTipBackgroundColor"), Assert.IsAssignableFrom<ISolidColorBrush>(toolTip.Background).Color);
                 Assert.Equal(ColorOf("FcText"), Assert.IsAssignableFrom<ISolidColorBrush>(toolTip.Foreground).Color);
-                var hints = content.GetLogicalDescendants().OfType<TextBlock>().Where(t => t.Classes.Contains("tipHint")).ToList();
-                Assert.Equal(2, hints.Count); // where to look further, and how to sort
+                // The legend's terms stand out in the theme's key color; the hints recede into its muted color.
+                var blocks = content.GetLogicalDescendants().OfType<TextBlock>().ToList();
+                var terms = blocks.Where(t => t.Classes.Contains("tipTerm")).ToList();
+                Assert.Equal(6, terms.Count);
+                Assert.All(terms, term => Assert.Equal(ColorOf("FcTipKey"), Assert.IsAssignableFrom<ISolidColorBrush>(term.Foreground).Color));
+                var hints = blocks.Where(t => t.Classes.Contains("tipHint")).ToList();
+                Assert.Equal(3, hints.Count); // what a value's tooltip shows, where to look further, and how to sort
                 Assert.All(hints, hint => Assert.Equal(ColorOf("FcTextMuted"), Assert.IsAssignableFrom<ISolidColorBrush>(hint.Foreground).Color));
                 ToolTip.SetIsOpen(f.List, false);
                 Dispatcher.UIThread.RunJobs();
@@ -165,12 +172,21 @@ public sealed class ColumnHeaderHelpTests
             Assert.Equal(("none", true, true), (none.Text, none.Quiet, none.NeedsExplanation));
             Assert.StartsWith("No reparse point observed", none.Detail);
             Assert.Contains("\nWOF compression (compact.exe /EXE, CompactOS) hides its tag", none.Detail);
-            Assert.Contains("\nObserved reparse type of this entry.", none.Detail);
+            Assert.Contains("\nScope: Entry · Source: fixture · Observed ", none.Detail);
             var link = Cell("a.txt");
             Assert.Equal(("Symbolic link", false), (link.Text, link.Quiet));
-            Assert.Equal(3, link.Detail.Split('\n').Length);
-            Assert.StartsWith("Tag 0xA000000C · IO_REPARSE_TAG_SYMLINK", link.Detail.Split('\n')[1]);
+            string[] lines = link.Detail.Split('\n');
+            Assert.Equal(4, lines.Length); // meaning, tag, what the tag's bits say, where it was read
+            Assert.Equal("Tag 0xA000000C · IO_REPARSE_TAG_SYMLINK", lines[1]);
+            Assert.Equal("A Microsoft tag · name surrogate: it stands for another item", lines[2]);
+            Assert.StartsWith("Scope: Entry · Source: fixture · Observed ", lines[3]);
             Assert.DoesNotContain(EscapedLineFeed, none.Detail + link.Detail);
+
+            // Its tooltip lays the lines out by what they say: the value prominent, the tag as code, the source quiet.
+            var tip = new ValueTip("Reparse type", link.Text, lines);
+            var parts = tip.Children.OfType<TextBlock>().ToList();
+            Assert.Equal(["tipLabel", "tipValue", "", "tipCode", "", "tipSource"], parts.Select(p => string.Join(" ", p.Classes)));
+            Assert.Equal("Reparse type: Symbolic link\n" + link.Detail, tip.Text);
 
             // A quiet value takes the muted color of a value still being read; the marked and cursor colors stay.
             var list = Assert.Single(window.GetVisualDescendants().OfType<FileListControl>(), view => view.Tab == tab);

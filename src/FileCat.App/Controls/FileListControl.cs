@@ -66,7 +66,7 @@ public sealed partial class FileListControl : Control
     // Only cells in the most recently drawn viewport. Pointer hover never starts provider or metadata work.
     private readonly Dictionary<(int Row, int Column), RenderedCell> _renderedCells = new();
     private sealed record RenderedCell(int StoreIndex, string Name, EntryKind Kind, string Text, bool Clipped,
-        string? Detail = null, bool NeedsExplanation = false, bool SuppressTooltip = false);
+        string? Detail = null, bool NeedsExplanation = false, bool SuppressTooltip = false, bool DetailLines = false);
     private readonly Dictionary<int, MetadataRowContext> _metadataContexts = [];
     private MetadataRowContext? _focusedMetadataContext;
     private EntryStore? _inspectionStore;
@@ -1380,7 +1380,7 @@ public sealed partial class FileListControl : Control
                 using var mft = MakeText(mtext, MetadataBrush(cell, textBrush, marked, focused && active), typeface, avail);
                 double mx = c.RightAlign ? colX + colW - Padding - mft.Width : textX;
                 mft.Draw(dc, new Point(mx, y + (_rowHeight - mft.Height) / 2));
-                _renderedCells[(row, i)] = new RenderedCell(storeIndex, e.Name, e.Kind, mtext, mft.IsTruncated, cell.Detail, cell.NeedsExplanation, pending);
+                _renderedCells[(row, i)] = new RenderedCell(storeIndex, e.Name, e.Kind, mtext, mft.IsTruncated, cell.Detail, cell.NeedsExplanation, pending, cell.DetailLines);
                 continue;
             }
             long key = ((long)storeIndex << 16) | ((long)i << 8) | (uint)style;
@@ -1866,9 +1866,11 @@ public sealed partial class FileListControl : Control
             return;
         }
         string? tip = null;
-        RichTip? headerTip = null;
+        Control? richTip = null;
         if (pos is { } header && header.Y >= 0 && header.Y < _headerHeight && ColumnAt(header) is var headerColumn and >= 0)
-            tip = (headerTip = HeaderTip(_columns[headerColumn]))?.Text;
+        {
+            if (HeaderTip(_columns[headerColumn]) is { } headerTip) (richTip, tip) = (headerTip, headerTip.Text);
+        }
         else if (pos is { } p && _listing is { } listing && RowAt(p) is var row and >= 0 && ColumnAt(p) is var col and >= 0)
         {
             bool overIcon = col == 0 && p.X + _horizontalOffset >= _columnX[0] + MarkGutter &&
@@ -1882,14 +1884,24 @@ public sealed partial class FileListControl : Control
             if (tip is null && _renderedCells.TryGetValue((row, col), out var cell) &&
                 cell.StoreIndex == listing.GetStoreIndex(row) && cell.Name == entry.Name && cell.Kind == entry.Kind &&
                 !cell.SuppressTooltip && cell.Text.Length > 0 && (cell.Clipped || cell.NeedsExplanation))
-                tip = CellTip(entry, _columns[col], cell.Text) + (string.IsNullOrEmpty(cell.Detail) ? "" : "\n" + cell.Detail);
+            {
+                // A field's own explanation lines are laid out by what they say; any other detail stays plain text.
+                if (cell.DetailLines)
+                {
+                    var valueTip = new ValueTip(Formatters.SafeName(_columns[col].DisplayHeader), cell.Text,
+                        (cell.Detail ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries));
+                    richTip = valueTip;
+                    tip = valueTip.Text;
+                }
+                else tip = CellTip(entry, _columns[col], cell.Text) + (string.IsNullOrEmpty(cell.Detail) ? "" : "\n" + cell.Detail);
+            }
             if (tip is null && _columns[col].Field is ColumnField.Name or ColumnField.Extension)
                 tip = IdentityTip(entry);
         }
         if (tip is { Length: > 8192 }) tip = tip[..8192] + "…\nCtrl+Shift+I shows the complete focused row.";
         if (tip == _tip) return;
         _tip = tip;
-        ToolTip.SetTip(this, (object?)headerTip ?? tip);
+        ToolTip.SetTip(this, (object?)richTip ?? tip);
     }
 
     /// <summary>
@@ -1900,10 +1912,10 @@ public sealed partial class FileListControl : Control
     internal RichTip? HeaderTip(ColumnSpec column)
     {
         string? gesture = Tab?.Services.Keymap.GetGestureText(Core.Commands.CommandIds.FileRecord) is { Length: > 0 } g ? g.Split(',')[0].Trim() : null;
-        string[] help = ColumnDescriptions.HeaderHelp(column, OperatingSystem.IsWindows(), gesture)?.Split('\n') ?? [];
-        if (help.Length == 0 && column.SortField is null) return null;
+        var help = ColumnDescriptions.HeaderHelpFor(column, OperatingSystem.IsWindows(), gesture);
+        if (help is null && column.SortField is null) return null;
         string? sort = column.SortField is null ? null : "Click to sort by it; click again to reverse.";
-        return new RichTip(Formatters.SafeName(column.DisplayHeader), detail: help.FirstOrDefault(), hints: [.. help.Skip(1), sort]);
+        return new RichTip(Formatters.SafeName(column.DisplayHeader), detail: help?.Lead, hints: [.. help?.Hints ?? [], sort], legend: help?.Legend);
     }
 
     private static string CellTip(in EntryData entry, ColumnSpec column, string text)

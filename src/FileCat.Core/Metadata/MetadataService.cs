@@ -689,13 +689,16 @@ public static class BuiltInFields
         {
             var inventory = HiddenDataSource is { IsSupported: true } source ? source.ReadInventory(p, new(), ct)
                 : HiddenData.HiddenInventory.Unavailable(p, HiddenData.HiddenInventoryState.Unsupported, "A bounded inventory adapter is unavailable.");
-            return new FileDetailsFields.Cell(inventory.CountText, inventory.Description + $" · Observed {inventory.ObservedAt:O}", inventory.ExactCount, !inventory.IsComplete);
+            // A category a line, then when it was read: the tooltip lays these lines out (DetailLines).
+            return new FileDetailsFields.Cell(inventory.CountText, string.Join('\n', [.. inventory.DescriptionLines,
+                "Observed " + inventory.ObservedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)]),
+                inventory.ExactCount, !inventory.IsComplete);
         },
         v => (v as FileDetailsFields.Cell)?.Text ?? "Not inspected",
         RightAlign: true, SortKey: v => (v as FileDetailsFields.Cell)?.Key, Folders: true,
         RefreshAfter: TimeSpan.FromSeconds(20),
         Detail: v => (v as FileDetailsFields.Cell)?.Explanation ?? "Not inspected",
-        NeedsExplanation: _ => true, ObservationLane: true);
+        NeedsExplanation: _ => true, ObservationLane: true, DetailLines: true);
 
     /// <summary>
     /// Whether the file matches the checksums and signatures beside it (D-57): empty when nothing covers it, "not checked"

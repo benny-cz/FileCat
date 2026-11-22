@@ -219,31 +219,38 @@ public static class ColumnProfiles
 public sealed record ColumnChoice(string Key, string Title, bool RightAlign, double DefaultWidth,
     double FillShare = ColumnProfiles.DefaultFillShare, string? Description = null);
 
+/// <summary>A column header's tooltip beyond its title: a lead sentence, a legend of terms, and hints.</summary>
+public sealed record HeaderHelp(string? Lead, IReadOnlyList<(string Term, string Meaning)> Legend, IReadOnlyList<string> Hints);
+
 /// <summary>One field description shared by the add box and the Analyze chooser.</summary>
 public static class ColumnDescriptions
 {
     public static string For(string fieldId) => Known(fieldId) ?? "A column's value for every item";
 
     /// <summary>
-    /// A column header's help, or null for a column whose title says it all: the field description, Attr's letters, and
-    /// for Reparse type what a reparse point is and where to look further. <paramref name="detailsGesture"/> is the
-    /// current shortcut of File-system details, which shows an item's reparse data.
+    /// What a column header's tooltip says beyond its title, or null for a column whose title says it all: a lead, a legend
+    /// of the values to expect (Attr's letters, the commonest reparse types), and hints on where to look further.
+    /// <paramref name="detailsGesture"/> is the current shortcut of File-system details, which shows an item's reparse data.
     /// </summary>
-    public static string? HeaderHelp(ColumnSpec column, bool windows, string? detailsGesture) => column.Field switch
+    public static HeaderHelp? HeaderHelpFor(ColumnSpec column, bool windows, string? detailsGesture) => column.Field switch
     {
-        ColumnField.Metadata when column.MetadataId == Core.Metadata.FileDetailsFields.ReparseType =>
-            "Whether opening an item goes through a link or a filter, and which: symbolic links and junctions point elsewhere; " +
-            "cloud files and deduplicated files get their data from a filter; app execution aliases start packaged apps. " +
-            "Most items are not reparse points and show none. Files that WOF compresses (compact.exe /EXE) show none too, " +
-            "because WOF hides its tag.\n" +
-            "Point at a value for what it means, its tag number and its Windows name. File → File-system details…" +
-            (detailsGesture is { Length: > 0 } ? $" ({detailsGesture})" : "") + " shows an item's reparse data and WOF backing.",
-        ColumnField.Metadata when column.MetadataId is { } id => Known(id),
-        ColumnField.Attributes => windows
-            ? "R read-only · H hidden · S system · A archive (marked for backup) · C compressed (NTFS) · E encrypted (EFS) · " +
-              "L link: a symbolic link, junction or WSL link · P another reparse point (Reparse type says which) · " +
-              "O offline: its data is not on this computer"
-            : "R read-only · H hidden · L symbolic link · O offline: its data is not on this computer",
+        ColumnField.Metadata when column.MetadataId == Core.Metadata.FileDetailsFields.ReparseType => new(
+            "What Windows does when the item is opened: follow a link, or let a filter supply the data.",
+            [("Symbolic link", "points to another file or folder, on any drive or computer"),
+             ("Junction or volume mount", "opens another folder, or a drive, in its place"),
+             ("Cloud-managed item", "a sync app such as OneDrive supplies the data"),
+             ("Data Deduplication", "the data is kept in the volume's chunk store"),
+             ("App execution alias", "runs an app installed from a package"),
+             ("none", "not a reparse point; files WOF compresses show none too, as WOF hides its tag")],
+            ["Point at a value for what it means, its tag number and its Windows name.",
+             "File → File-system details…" + (detailsGesture is { Length: > 0 } ? $" ({detailsGesture})" : "") +
+             " shows an item's reparse data and WOF backing."]),
+        ColumnField.Metadata when column.MetadataId is { } id && Known(id) is { } description => new(description, [], []),
+        ColumnField.Attributes => new(null, windows
+            ? [("R", "read-only"), ("H", "hidden"), ("S", "system"), ("A", "archive: marked for backup"), ("C", "compressed by NTFS"),
+               ("E", "encrypted by EFS"), ("L", "link: a symbolic link, junction or WSL link"),
+               ("P", "another reparse point; Reparse type says which"), ("O", "offline: its data is not on this computer")]
+            : [("R", "read-only"), ("H", "hidden"), ("L", "symbolic link"), ("O", "offline: its data is not on this computer")], []),
         _ => null,
     };
 

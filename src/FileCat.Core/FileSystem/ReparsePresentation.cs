@@ -105,20 +105,18 @@ public static class ReparsePresentation
     };
 
     /// <summary>
-    /// What a tag means in plain words, then its number, its published name and the flag bits of the number: what the
-    /// Reparse type column explains for a value. A tag FileCat does not know is still described by its bits.
+    /// What a tag means in plain words, a line each: the meaning, the tag's number and published name ("Tag 0x… · IO_…"),
+    /// then what the number's flag bits say. What the Reparse type column explains for a value; a tag FileCat does not
+    /// know is still described by its bits.
     /// </summary>
     public static string Explain(uint tag)
     {
-        var facts = new List<string>(5) { $"Tag 0x{tag:X8}" };
-        if (TagName(tag) is { } name) facts.Add(name);
-        if (tag != 0)
-        {
-            facts.Add((tag & 0x80000000) != 0 ? "a Microsoft tag" : "a third-party tag");
-            if ((tag & 0x20000000) != 0) facts.Add("name surrogate: it stands for another item");
-            if ((tag & 0x10000000) != 0) facts.Add("a folder with this tag can have contents");
-        }
-        return Meaning(tag) + "\n" + string.Join(" · ", facts);
+        string code = TagName(tag) is { } name ? $"Tag 0x{tag:X8} · {name}" : $"Tag 0x{tag:X8}";
+        if (tag == 0) return Meaning(tag) + "\n" + code;
+        var bits = new List<string>(3) { (tag & 0x80000000) != 0 ? "A Microsoft tag" : "A third-party tag" };
+        if ((tag & 0x20000000) != 0) bits.Add("name surrogate: it stands for another item");
+        if ((tag & 0x10000000) != 0) bits.Add("a folder with this tag can have contents");
+        return Meaning(tag) + "\n" + code + "\n" + string.Join(" · ", bits);
     }
 
     private static string Meaning(uint tag) => tag switch
