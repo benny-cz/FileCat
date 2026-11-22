@@ -484,6 +484,47 @@ public sealed class PermissionInspectionTests
         Assert.Equal(0, Access(secret, 4));
     }
 
+    // G-ACCESS incomplete removal answer. ext4, XFS and Btrfs all report which inode protection flags they support, so a
+    // filesystem that cannot is simulated at the system call: a seccomp supervisor hides the immutable and append-only bits
+    // from statx's attributes mask for the entry or its folder. The removal answer is then incomplete, never allowed, while
+    // the kernel still answers the direct rights. The folder's own immutable bit needs no evidence: the kernel's write and
+    // search check on the folder already refuses an immutable folder.
+    [Fact]
+    public void Native_ext4_removal_answer_is_incomplete_without_inode_protection_evidence()
+    {
+        RequireExt4AccessCheck();
+        string control = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_STATX_CONTROL") ?? string.Empty;
+        if (control.Length == 0) Assert.Skip("Requires the statx supervisor harness.");
+        using var temporary = new TempDir();
+        string folder = Directory.CreateDirectory(Path.Combine(temporary.Path, "folder")).FullName;
+        string file = Path.Combine(folder, "file");
+        File.WriteAllText(file, "fixture");
+        const uint immutable = 0x10, appendOnly = 0x20; // STATX_ATTR_IMMUTABLE, STATX_ATTR_APPEND
+        try
+        {
+            Hide(file, 0);
+            Assert.Equal((PermissionReadStatus.Present, (int?)null), CheckDelete(file));
+            foreach (var (target, hidden) in new[] { (file, immutable | appendOnly), (file, immutable), (file, appendOnly), (folder, appendOnly) })
+            {
+                Hide(target, hidden);
+                var report = CheckAccess(file);
+                Assert.Equal((PermissionReadStatus.Incomplete, (int?)null), Right(report, "Delete this entry from its parent"));
+                Assert.Equal((PermissionReadStatus.Present, (int?)null), Right(report, "Read content"));
+                Assert.Equal((PermissionReadStatus.Present, (int?)null), Right(report, "Write content"));
+            }
+            Hide(folder, immutable);
+            Assert.Equal((PermissionReadStatus.Present, (int?)null), CheckDelete(file));
+            Assert.True(File.Exists(file));
+        }
+        finally { Hide(string.Empty, 0); }
+
+        void Hide(string target, uint attributes)
+        {
+            File.WriteAllText(control + ".next", string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{target}\n0\n0\n{attributes:x}\n"));
+            File.Move(control + ".next", control, overwrite: true);
+        }
+    }
+
     private static LinuxAccessReport CheckAccess(string path)
     {
         var kind = Directory.Exists(path) ? PermissionObjectKind.Directory : PermissionObjectKind.File;
