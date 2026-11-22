@@ -57,7 +57,9 @@ internal sealed unsafe partial class WindowsPermissionService
     {
         acl = null!;
         control = default;
-        if (snapshot.Inheritance.Value is not { IsAutoInherited: true } known ||
+        // A volume root has no parent to inherit from. Formatting leaves its DACL without SE_DACL_AUTO_INHERITED, and the
+        // object-only write below keeps whichever state it has.
+        if (snapshot.Inheritance.Value is not { } known || !known.IsAutoInherited && !volumeRoot ||
             (known.Flags & (DaclAutoInheritRequest | DaclDefaulted)) != 0 ||
             snapshot.Access.Value?.Acl is not WindowsDacl { Form: WindowsDaclForm.Entries, Revision: 2 } baseline ||
             !HasSimpleFolderDacl(baseline, volumeRoot)) return false;
@@ -69,7 +71,9 @@ internal sealed unsafe partial class WindowsPermissionService
     private static ImmutableArray<byte> ObjectDaclDescriptor(WindowsAclControl control, ImmutableArray<byte> bytes, string authority)
     {
         // NTFS otherwise clears the stored SE_DACL_AUTO_INHERITED bit. This input bit is not part of the expected result.
-        return WindowsPermissionDescriptor.ProjectDacl(control with { Flags = (ushort)(control.Flags | DaclAutoInheritRequest) },
+        // A root without that bit keeps it clear: requesting auto-inheritance there would set it.
+        return WindowsPermissionDescriptor.ProjectDacl(control.IsAutoInherited
+                ? control with { Flags = (ushort)(control.Flags | DaclAutoInheritRequest) } : control,
             bytes, authority).SecurityDescriptor;
     }
 

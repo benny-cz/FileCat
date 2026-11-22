@@ -11,6 +11,24 @@ public sealed class DBusException(string name, string message) : IOException(mes
     internal DBusException(string name, string message, string sender) : this(name, message) => Sender = sender;
     public string Name { get; } = name;
     internal string Sender { get; } = "";
+
+    /// <summary>
+    /// A refusal from FileCat's Linux permissions service in words, with the system's own text kept for diagnosis.
+    /// The service answers with errno names (System.Error.EXDEV); their raw texts ("Invalid cross-device link") say
+    /// nothing about what to do.
+    /// </summary>
+    public string PermissionsRefusal => Name switch
+    {
+        "System.Error.EXDEV" => "The permissions service sees a different mount for this item than FileCat does, for example " +
+            $"because FileCat runs in another mount namespace or container, or the file system changed. Start FileCat from your desktop session and inspect the item again. ({Message})",
+        "System.Error.EOPNOTSUPP" => $"The permissions service does not change items on this kind of mount, such as an ID-mapped mount. ({Message})",
+        "System.Error.EACCES" or "System.Error.EPERM" =>
+            $"The permissions service did not accept this FileCat process or request. Use the installed FileCat from your desktop session. ({Message})",
+        "System.Error.ESTALE" => $"The item changed after FileCat reviewed it. Inspect it again. ({Message})",
+        "System.Error.EROFS" => $"The item is on a read-only mount. ({Message})",
+        "System.Error.EMLINK" => $"Another name refers to this file, so only a change that removes access can be approved. ({Message})",
+        _ => Message,
+    };
 }
 
 /// <summary>A value to marshal: a string, a boolean, or a dictionary of strings to variants (a{sv}).</summary>

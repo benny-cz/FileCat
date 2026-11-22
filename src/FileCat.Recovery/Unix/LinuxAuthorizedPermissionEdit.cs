@@ -212,7 +212,7 @@ internal sealed class LinuxAuthorizedPermissionEdit : IDisposable
             catch (DBusException refusal)
             {
                 _observed = review;
-                _detail = refusal.Message;
+                _detail = refusal.PermissionsRefusal;
                 return new(RejectedBeforeChange: true, BindingConflict: refusal.Name == "System.Error.ESTALE",
                     Detail: _detail, CanceledBeforeChange: refusal.Name == "System.Error.ECANCELED");
             }

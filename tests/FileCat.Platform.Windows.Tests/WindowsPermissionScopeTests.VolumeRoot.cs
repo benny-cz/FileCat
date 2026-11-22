@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using FileCat.Core.Permissions;
 using FileCat.Core.Resources;
@@ -8,9 +9,11 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed partial class WindowsPermissionScopeTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Selected_NTFS_volume_root_requires_approval_and_preserves_existing_children(bool protect)
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [InlineData(false, false)] // As format leaves a root: no SE_DACL_AUTO_INHERITED
+    [InlineData(true, false)]
+    public async Task Selected_NTFS_volume_root_requires_approval_and_preserves_existing_children(bool protect, bool autoInherited = true)
     {
         RequireFixture();
         string? path = Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_ACL_WRITE_ROOT");
@@ -26,6 +29,16 @@ public sealed partial class WindowsPermissionScopeTests
         var controlled = root.GetAccessControl(AccessControlSections.Access);
         controlled.SetAccessRuleProtection(protect, preserveInheritance: false);
         root.SetAccessControl(controlled);
+        if (!autoInherited)
+        {
+            // SetFileSecurityW stores the DACL without auto-inheritance, as format leaves a new volume's root.
+            var current = new RawSecurityDescriptor(ReadDescriptor(path), 0);
+            var legacy = new RawSecurityDescriptor(ControlFlags.DiscretionaryAclPresent |
+                (protect ? ControlFlags.DiscretionaryAclProtected : ControlFlags.None), null, null, null, current.DiscretionaryAcl);
+            byte[] bytes = new byte[legacy.BinaryLength];
+            legacy.GetBinaryForm(bytes, 0);
+            Assert.True(SetFileSecurity(path, 4 /* DACL_SECURITY_INFORMATION */, bytes), $"SetFileSecurityW failed: {Marshal.GetLastPInvokeError()}");
+        }
         DirectoryInfo? branch = null;
         DirectoryInfo? future = null;
         try
@@ -38,6 +51,7 @@ public sealed partial class WindowsPermissionScopeTests
             byte[] baseline = ReadDescriptor(path);
             var control = WindowsPermissionDescriptor.Control(baseline);
             Assert.Equal(protect, control.IsProtected);
+            Assert.Equal(autoInherited, control.IsAutoInherited);
             Assert.Contains(WindowsPermissionDescriptor.Dacl(baseline, Authority.Id).Entries, rule =>
                 rule is { Kind: WindowsAceKind.Allow, Flags: 0x0b, Mask: uint mask } &&
                 WindowsFileAccessRights.MapGeneric(mask) != mask);
@@ -83,4 +97,8 @@ public sealed partial class WindowsPermissionScopeTests
             branch?.Delete(recursive: true);
         }
     }
+
+    [LibraryImport("advapi32.dll", EntryPoint = "SetFileSecurityW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetFileSecurity(string path, uint information, byte[] descriptor);
 }

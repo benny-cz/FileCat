@@ -61,7 +61,8 @@ public sealed partial class MainViewModel
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException or System.Net.Sockets.SocketException)
         {
             if (!Services.Io.IsStopped && !cancellation.IsCancellationRequested)
-                await dialogs.AlertAsync("Authorized inspection unavailable", Formatters.SafeName(error.Message));
+                await dialogs.AlertAsync("Authorized inspection unavailable",
+                    Formatters.SafeName(error is DBusException refusal ? refusal.PermissionsRefusal : error.Message));
         }
     }
 
