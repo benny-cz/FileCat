@@ -182,6 +182,84 @@ public sealed class PermissionInspectorTests
         Assert.Equal(legacy && (flags & 0x1000) == 0, texts.Any(text => text.Contains("Explorer shows the entries", StringComparison.Ordinal)));
     }
 
+    private sealed class UnavailablePermissions : IPermissionService
+    {
+        internal readonly List<PermissionSubject> Subjects = [];
+
+        public PermissionInspection Inspect(PermissionSubject subject, PermissionSections sections, CancellationToken cancellationToken)
+        {
+            lock (Subjects) Subjects.Add(subject);
+            return PermissionSnapshots.Unavailable(subject, sections, PermissionReadStatus.Unsupported, "Fixture permissions reader.");
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task A_place_opens_in_a_new_tab_and_inspects_that_folder()
+    {
+        if (FileCat.App.ViewModels.MainViewModel.PermissionProcessRefusal() is not null)
+            Assert.Skip("Requires an ordinary FileCat process.");
+        var permissions = new UnavailablePermissions();
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(permissionService: permissions,
+            prepareFiles: folder => Directory.CreateDirectory(Path.Combine(folder, "place")));
+        try
+        {
+            CancellationToken ct = TestContext.Current.CancellationToken;
+            var panel = vm.Workspace.Panels[0];
+            var before = panel.ActiveTab!;
+            var originalLocation = before.Location;
+            string placePath = Path.Combine(root, "files", "place");
+            var place = new FileCat.App.ViewModels.Place("Fixture place", null, Location.FileSystem(placePath), () => null);
+            var view = window.GetVisualDescendants().OfType<PanelView>().First(v => ReferenceEquals(v.DataContext, panel));
+            var item = Assert.IsAssignableFrom<IEnumerable<Control>>(view.PlaceMenu(place).ItemsSource).OfType<MenuItem>()
+                .Single(menuItem => Equals(menuItem.Header, "Permissions and ownership…"));
+            Assert.True(item.IsEnabled);
+            Assert.Equal("Opens the place in a new tab and inspects that folder's permissions.", AutomationProperties.GetHelpText(item));
+
+            var inspection = vm.InspectPlacePermissionsAsync(panel, place);
+            await Until(() => TextPresent(window, "Fixture permissions reader."), ct);
+            // The original tab keeps its location; the new tab shows exactly the place, and the inspected object is it.
+            Assert.Equal(originalLocation, before.Location);
+            Assert.NotSame(before, panel.ActiveTab);
+            Assert.Equal(Location.FileSystem(placePath), panel.ActiveTab!.Location);
+            Assert.Equal(placePath, Assert.Single(permissions.Subjects).RawLocator);
+            Click(FindButton(window, "Close")!);
+            await inspection.WaitAsync(TimeSpan.FromSeconds(10), ct);
+
+            // A place outside the file system has no route here.
+            var server = new FileCat.App.ViewModels.Place("Server", null, null, () => null) { Connects = true };
+            Assert.DoesNotContain(Assert.IsAssignableFrom<IEnumerable<Control>>(view.PlaceMenu(server).ItemsSource).OfType<MenuItem>(),
+                menuItem => Equals(menuItem.Header, "Permissions and ownership…"));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task A_drive_row_names_the_route_that_can_inspect_its_mounted_root()
+    {
+        if (FileCat.App.ViewModels.MainViewModel.PermissionProcessRefusal() is not null)
+            Assert.Skip("Requires an ordinary FileCat process.");
+        var permissions = new UnavailablePermissions();
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(permissionService: permissions);
+        try
+        {
+            CancellationToken ct = TestContext.Current.CancellationToken;
+            var tab = vm.ActiveTab!;
+            tab.Navigate(new Location(FileCat.Core.Resources.Schemes.Computer, string.Empty));
+            await Until(() => tab.Listing.State == ListingState.Complete && Enumerable.Range(0, tab.Listing.VisibleCount)
+                .Any(index => tab.Listing.GetVisible(index).Tag is DriveTag { Ready: true }), ct);
+            var drive = Enumerable.Range(0, tab.Listing.VisibleCount).Select(tab.Listing.GetVisible)
+                .First(entry => entry.Tag is DriveTag { Ready: true });
+            tab.Listing.SetFocus(tab.Listing.GetVisibleIndex(tab.Listing.FindStoreIndex(drive.Name)));
+            vm.Execute(CommandIds.PermissionsOwnership);
+            // The drive listing captures no mount identity: the inspector names the bound route instead of reading.
+            await Until(() => TextPresent(window, "Open the mounted folder and use its background menu"), ct);
+            Assert.Empty(permissions.Subjects);
+            Assert.Empty(services.Jobs.Jobs);
+            Click(FindButton(window, "Close")!);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaFact]
     public void Editors_open_on_their_first_shown_field_instead_of_the_dialog_card()
     {

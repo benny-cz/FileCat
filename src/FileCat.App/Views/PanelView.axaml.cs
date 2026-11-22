@@ -395,6 +395,22 @@ public partial class PanelView : UserControl
             items.Add(new Separator());
             if (!Environment.IsPrivilegedProcess && place.Drive is { } analysisDrive && MainViewModel.DiskSpaceDriveRoot(analysisDrive) is { } root)
                 items.Add(ContextMenuFactory.Analyze(main, MainViewModel.AnalyzeDiskSpaceTitle, [root]));
+            if (place.OpensInPanel && place.Location is { IsFileSystem: true } && Panel is { } placePanel)
+            {
+                string? refusal = MainViewModel.PermissionProcessRefusal();
+                var permissions = new MenuItem { Header = "Permissions and ownership…", Icon = MenuIconFactory.Create(CommandIds.PermissionsOwnership),
+                    IsEnabled = refusal is null };
+                string help = refusal ?? "Opens the place in a new tab and inspects that folder's permissions.";
+                ToolTip.SetTip(permissions, help);
+                ToolTip.SetShowOnDisabled(permissions, true);
+                AutomationProperties.SetHelpText(permissions, help);
+                permissions.Click += async (_, _) =>
+                {
+                    Activated?.Invoke();
+                    await main.InspectPlacePermissionsAsync(placePanel, place);
+                };
+                items.Add(permissions);
+            }
             bool pinned = main.Services.Settings.PinnedPlaces?.Contains(PlaceBarPolicy.Key(place), StringComparer.Ordinal) == true;
             var pin = new MenuItem { Header = pinned ? "Unpin from Places bar" : "Pin to Places bar",
                 IsEnabled = !main.Services.SettingsReadOnly };

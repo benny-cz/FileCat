@@ -98,6 +98,45 @@ public sealed partial class MainViewModel
         return InspectPermissionsAsync(selection);
     }
 
+    /// <summary>
+    /// A place has no listing of its own to bind a review to. It opens in a new tab at exactly its location (a drive at
+    /// its root, not the folder another panel shows on that drive), and that folder's permissions open as from its
+    /// background menu, bound to the new tab.
+    /// </summary>
+    internal async Task InspectPlacePermissionsAsync(PanelViewModel panel, Place place)
+    {
+        if (PermissionProcessRefusal() is { } refusal) { Notify(refusal); return; }
+        if (!place.OpensInPanel || place.Location is not { IsFileSystem: true } location)
+        {
+            Notify("Only file-system places have permissions to inspect here.");
+            return;
+        }
+        var tab = panel.OpenTab(location);
+        Workspace.Activate(panel);
+        if (!await ListingSettledAsync(tab, TimeSpan.FromSeconds(30)))
+        {
+            Notify($"{place.Title} is still opening. Inspect its permissions from its background menu.");
+            return;
+        }
+        if (!panel.Tabs.Contains(tab) || tab.Location != location)
+        {
+            Notify("The place's tab changed before its permissions opened.");
+            return;
+        }
+        await InspectFolderPermissionsAsync(tab, location, tab.Listing.Generation);
+    }
+
+    private static async Task<bool> ListingSettledAsync(TabViewModel tab, TimeSpan timeout)
+    {
+        bool Settled() => tab.Listing.State != ListingState.Loading && !tab.Listing.IsRefreshing;
+        if (Settled()) return true;
+        var settled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Changed(object? sender, ListingChange change) { if (Settled()) settled.TrySetResult(); }
+        tab.Listing.Changed += Changed;
+        try { return await Task.WhenAny(settled.Task, Task.Delay(timeout)) == settled.Task || Settled(); }
+        finally { tab.Listing.Changed -= Changed; }
+    }
+
     internal async Task InspectPermissionsAsync(PermissionSelection selection)
     {
         if ((PermissionProcessRefusal() ?? selection.Refusal) is { } refusal) { Notify(refusal); return; }
