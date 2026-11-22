@@ -1241,6 +1241,84 @@ public sealed partial class PermissionJobTests
         Assert.Contains("user:23456:r--", RunAclTool("getfacl", "-ncp", child));
     }
 
+    // G-LINUX release coverage on XFS and Btrfs beside the setters above: a captured mode tree applied children first with
+    // a later arrival left alone, an ACL reset from a captured default, a reviewed group change and the removal check.
+    [Theory]
+    [InlineData("xfs")]
+    [InlineData("btrfs")]
+    public async Task Linux_filesystem_variant_runs_captured_trees_reset_group_and_removal(string fileSystem)
+    {
+        string volume = LinuxTestVolume(fileSystem);
+        using var ordinary = new TempDir(volume);
+        var ct = TestContext.Current.CancellationToken;
+        var service = new LinuxPermissionService(qualifyAccessChecks: true, qualifyGroupWrites: true, qualifyAdditionalFileSystems: true);
+
+        string tree = Path.Join(ordinary.Path, "tree"), folder = Path.Join(tree, "folder"), file = Path.Join(folder, "file");
+        Directory.CreateDirectory(tree);
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(file, "fixture");
+        File.SetUnixFileMode(tree, (UnixFileMode)0x1c0);
+        File.SetUnixFileMode(folder, (UnixFileMode)0x1c0);
+        File.SetUnixFileMode(file, (UnixFileMode)0x180);
+        var prepared = service.PrepareModeTree([TreeSubject(tree, EntryKind.Directory)], new(0x20, 0x20), false, false, ct);
+        using (var review = prepared.Operation)
+        {
+            Assert.Equal(new[] { file, folder, tree }, review.Targets.Select(target => target.Subject.RawLocator));
+            Assert.All(review.Targets, target => Assert.Equal(fileSystem, target.Binding?.FileSystem));
+            string late = Path.Join(folder, "late");
+            File.WriteAllText(late, "late");
+            File.SetUnixFileMode(late, (UnixFileMode)0x180);
+            using var treeJob = new Fixture(nativeJournal: true);
+            var job = treeJob.Manager.SubmitPermissions(review);
+            await treeJob.Finish(job);
+            Assert.All(job.PermissionResults, result => Assert.True(result.Verdict == PermissionVerdict.Verified, $"{result.Verdict}: {result.Detail}"));
+            Assert.Equal((UnixFileMode)0x1a0, File.GetUnixFileMode(file));
+            Assert.Equal((UnixFileMode)0x1e0, File.GetUnixFileMode(folder));
+            Assert.Equal((UnixFileMode)0x1e0, File.GetUnixFileMode(tree));
+            Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(late));
+        }
+
+        string source = Path.Join(ordinary.Path, "reset"), member = Path.Join(source, "member");
+        Directory.CreateDirectory(source);
+        File.WriteAllText(member, "fixture");
+        File.SetUnixFileMode(source, (UnixFileMode)0x1c0);
+        File.SetUnixFileMode(member, (UnixFileMode)0x180);
+        RunAclTool("setfacl", "-n", "-m", "d:u::rw-,d:u:12345:r--,d:g::---,d:m::r--,d:o::---", source);
+        var template = TreeSubject(source, EntryKind.Directory);
+        var reset = service.PrepareAclResetTree(template.Item, template.Subject, false, false, ct);
+        using (var operation = reset.Operation)
+        {
+            Assert.Equal(member, Assert.Single(operation.Targets).Subject.RawLocator);
+            using var resetJob = new Fixture(nativeJournal: true);
+            var job = resetJob.Manager.SubmitPermissions(operation);
+            await resetJob.Finish(job);
+            Assert.Equal(PermissionVerdict.Verified, Assert.Single(job.PermissionResults).Verdict);
+            Assert.Contains("user:12345:r--", RunAclTool("getfacl", "-ncp", member));
+        }
+
+        string grouped = Path.Join(ordinary.Path, "grouped");
+        File.WriteAllText(grouped, "fixture");
+        File.SetUnixFileMode(grouped, (UnixFileMode)0x1a0);
+        var groupedSubject = TreeSubject(grouped, EntryKind.File);
+        var authority = LinuxPermissionService.ReadGroupAuthority(ct);
+        using (var inspection = service.Inspect(groupedSubject.Subject, PermissionSections.Ordinary, ct))
+        {
+            Assert.True(service.CanEditGroup(inspection.Snapshot));
+            var group = PickAnotherGroup(authority, groupedSubject.Subject.Authority, inspection.Snapshot.Group.Value);
+            using var review = LinuxPermissionService.Prepare(inspection, groupedSubject.Item,
+                new(PermissionScope.Objects, [new AssignPermissionPrincipal(false, group)]), false, ct, authority).Review;
+            using var groupJob = new Fixture(nativeJournal: true);
+            var job = groupJob.Manager.SubmitPermissions(review);
+            await groupJob.Finish(job);
+            Assert.Equal(PermissionVerdict.Verified, Assert.Single(job.PermissionResults).Verdict);
+            Assert.Equal(group.Id, RunAclTool("stat", "-c", "%g", grouped).Trim());
+        }
+
+        var removal = service.CheckEffectiveAccess(TreeSubject(file, EntryKind.File).Subject, ct);
+        var delete = Assert.Single(removal.Checks, check => check.Right == "Delete this entry from its parent");
+        Assert.Equal((PermissionReadStatus.Present, (int?)null), (delete.Status, delete.NativeError));
+    }
+
     [Fact]
     public void Linux_btrfs_tree_excludes_an_implicit_subvolume_boundary()
     {
