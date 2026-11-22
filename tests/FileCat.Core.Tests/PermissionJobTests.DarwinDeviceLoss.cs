@@ -62,6 +62,74 @@ public sealed partial class PermissionJobTests
         }
     }
 
+    // G-RESULT device loss between the call and the flush: the image holding the reviewed document is force-detached after
+    // the native call changed the mode and before the file system is asked to write its pending changes (F_FULLFSYNC). The
+    // flush, or the read-back after it, fails on the detached device, so the job does not report the change as verified.
+    // The reattached image shows whether the change reached the device.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Darwin_volume_force_detached_between_the_call_and_the_flush_is_not_verified(bool descriptor)
+    {
+        RequireDarwinWriter();
+        using var fixture = new Fixture(nativeJournal: true);
+        string image = Path.Join(fixture.Root, "flush-loss.dmg"), mount = Path.Join(fixture.Root, "flush-loss-volume");
+        RunHdiutil("create", "-size", "64m", "-fs", "APFS", "-volname", "FileCatFlushLoss", image);
+        string device = AttachImage(image, mount);
+        bool attached = true;
+        int flushes = 0;
+        try
+        {
+            var item = new ItemRef(Location.FileSystem(mount), "document", EntryKind.File);
+            string path = item.FileSystemPath!;
+            File.WriteAllText(path, "fixture");
+            File.SetUnixFileMode(path, (UnixFileMode)0x1a0);
+            var subject = new PermissionSubject(item.Parent, path, path, new(PermissionAuthorityKind.Local, "fixture", 0),
+                PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+            CancellationToken ct = TestContext.Current.CancellationToken;
+            using var inspection = new DarwinPermissionService(qualifyParentWrites: !descriptor, qualifyDescriptorWrites: descriptor)
+                .Inspect(subject, DarwinSections, ct);
+            Assert.Equal(descriptor ? DarwinBindingRoute.Descriptor : DarwinBindingRoute.ParentRelative, inspection.Snapshot.Binding?.DarwinRoute);
+            using var review = DarwinPermissionService.Prepare(inspection, item,
+                new(PermissionScope.Objects, [new ChangePermissionMode(0x180, 0xfff)]), false, ct).Review;
+            RunAclTool("/bin/sync");
+            DarwinPermissionService.FlushFaultForTests = locator =>
+            {
+                if (locator != path || Interlocked.Increment(ref flushes) != 1) return 0;
+                RunHdiutil("detach", "-force", device);
+                attached = false;
+                return 0; // the real F_FULLFSYNC now runs against the detached device
+            };
+            var job = fixture.Manager.SubmitPermissions(review);
+            await fixture.Finish(job);
+            DarwinPermissionService.FlushFaultForTests = null;
+            Assert.Equal(1, flushes);
+            Assert.False(attached);
+            var result = Assert.Single(job.PermissionResults);
+            var component = Assert.Single(result.Components);
+            TestContext.Current.TestOutputHelper?.WriteLine(
+                $"{(descriptor ? "descriptor" : "parent-relative")}: {result.Verdict}/{component.Verdict} {component.Verification} via {component.NativeCall}: {component.Detail}");
+            Assert.NotNull(component.NativeCall);
+            Assert.NotEqual(PermissionVerdict.Verified, result.Verdict);
+            Assert.Equal(PermissionVerification.Unavailable, component.Verification);
+            Assert.False(string.IsNullOrWhiteSpace(component.Detail));
+            var records = JobJournal.ReadAll(fixture.JournalPath!);
+            Assert.Single(records, record => record.Type == "permission-intent");
+            Assert.Equal(result.Verdict.ToString(), Assert.Single(records, record => record.Type == "permission-outcome").Get("verdict"));
+
+            device = AttachImage(image, mount);
+            attached = true;
+            var stored = File.GetUnixFileMode(path);
+            TestContext.Current.TestOutputHelper?.WriteLine($"reattached mode {System.Convert.ToString((int)stored, 8)}");
+            Assert.Contains(stored, new[] { (UnixFileMode)0x1a0, (UnixFileMode)0x180 });
+        }
+        finally
+        {
+            DarwinPermissionService.FlushFaultForTests = null;
+            if (attached) RunHdiutil("detach", device);
+        }
+    }
+
     private static string AttachImage(string image, string mount)
     {
         Directory.CreateDirectory(mount);
