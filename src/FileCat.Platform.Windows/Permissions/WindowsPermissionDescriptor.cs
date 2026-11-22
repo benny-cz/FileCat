@@ -172,6 +172,30 @@ internal static class WindowsPermissionDescriptor
         return SaclDescriptor(audit.Control, audit.Bytes);
     }
 
+    // The descriptor an authorized SACL edit hands to NtSetSecurityObject, which stores it with no inheritance processing.
+    // SetSecurityInfo instead re-derives inherited audit entries from the current parent, so on a file whose inherited
+    // entries no longer match its parent (a file moved within the volume) it changed entries the review never showed.
+    // NTFS clears SE_SACL_AUTO_INHERITED unless the descriptor also sets SE_SACL_AUTO_INHERIT_REQ; a SACL stored without
+    // that bit keeps that form. Label, resource-attribute, scoped-policy and trust-label entries are left out: the
+    // SACL_SECURITY_INFORMATION write keeps the stored ones under their own classes, after the audit entries.
+    internal static ImmutableArray<byte> SaclWriteDescriptor(WindowsSacl projected)
+    {
+        const ushort autoInheritRequest = 0x0200, autoInherited = 0x0800, isProtected = 0x2000;
+        var control = projected.Control;
+        ushort flags = (ushort)(SelfRelative | SaclPresent | (control.Flags & (autoInherited | isProtected)) |
+            (control.IsAutoInherited ? autoInheritRequest : 0));
+        var kept = projected.Entries.Where(entry => entry.Type is not (0x11 or 0x12 or 0x13 or 0x14))
+            .Select(entry => entry.Bytes).ToImmutableArray();
+        var acl = WindowsPermissionAclPatch.Serialize(projected.Bytes.AsSpan(),
+            8 + projected.Entries.Sum(entry => entry.Bytes.Length), kept);
+        var descriptor = new byte[20 + acl.Length];
+        descriptor[0] = control.DescriptorRevision;
+        BinaryPrimitives.WriteUInt16LittleEndian(descriptor.AsSpan(2), flags);
+        descriptor[12] = 20;
+        acl.AsSpan().CopyTo(descriptor.AsSpan(20));
+        return ImmutableArray.Create(descriptor);
+    }
+
     private static byte[] SaclDescriptor(WindowsSaclControl control, ImmutableArray<byte> acl)
     {
         var descriptor = new byte[20 + acl.Length];

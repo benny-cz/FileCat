@@ -92,7 +92,7 @@ internal sealed unsafe partial class WindowsPermissionService
         return (original with
         {
             Audit = original.Audit with { Status = PermissionReadStatus.Present, Value = new PermissionAclValue(projected) }
-        }, SaclInformation, projected.Bytes);
+        }, SaclInformation, WindowsPermissionDescriptor.SaclWriteDescriptor(projected));
     }
 
     private static PermissionRevision RequireAuthorizedRevision(PermissionSnapshot snapshot, PermissionSections changeSection) =>
@@ -335,7 +335,8 @@ internal sealed unsafe partial class WindowsPermissionService
         var projection = ProjectAuthorizedChange(original, delta);
         if (RequireAuthorizedRevision(projection.Expected, reviewed.Sections).Digest != change.Expected)
             throw new PermissionBindingConflictException("The projected descriptor differs from the reviewed result.");
-        return (original, projection.Section, projection.Bytes, WritesAuthorizedDescriptor(original, delta));
+        // Audit changes are always written as a SACL-only descriptor (see WindowsPermissionDescriptor.SaclWriteDescriptor).
+        return (original, projection.Section, projection.Bytes, WritesAuthorizedDescriptor(original, delta) || delta is ChangeWindowsAuditAce);
     }
 
     private static PermissionSnapshot ReadAuthorizedChangeSnapshot(PermissionSubject subject, PermissionBinding binding,

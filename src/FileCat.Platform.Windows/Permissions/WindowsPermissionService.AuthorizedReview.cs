@@ -48,14 +48,10 @@ internal sealed partial class WindowsPermissionService
         {
             var mutation = new AuthorizedFileMutation(snapshot, pin, delta, sections, change, ownerToken, portable, exchangeRoot, owner);
             mutation.CheckCurrent(before.Sections, cancellation);
-            string sectionName = sections switch
-            {
-                PermissionSections.Owner => "owner",
-                PermissionSections.Audit => "SACL",
-                _ => "DACL"
-            };
+            string sectionName = sections == PermissionSections.Owner ? "owner" : "DACL";
             var component = new ReviewedPermissionComponent(delta, before, expected,
                 volumeRoot ? "Windows administrator NtSetSecurityObject volume-root DACL" :
+                sections == PermissionSections.Audit ? "Windows administrator NtSetSecurityObject SACL" :
                 WritesAuthorizedDescriptor(snapshot, delta) ? "Windows administrator NtSetSecurityObject legacy DACL" :
                 $"Windows administrator SetSecurityInfo {sectionName}");
             return new(PermissionScope.Objects, [new(source, snapshot.Subject, binding, [component], expected, mutation)]);

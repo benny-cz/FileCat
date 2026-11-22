@@ -249,6 +249,30 @@ public sealed class WindowsPermissionInspectionTests
             WindowsPermissionAuditPatch.ProjectFile(edited, new(1, edited.Entries[1], replacement with { Flags = 0x80 }), "local"));
     }
 
+    [Theory]
+    [InlineData(0xe804, 0xaa10)] // Protected and auto-inherited: both kept, with the auto-inherit request NTFS needs.
+    [InlineData(0xc804, 0x8a10)] // Auto-inherited and unprotected.
+    [InlineData(0xc004, 0x8010)] // Stored without SE_SACL_AUTO_INHERITED: the write keeps that form.
+    public void An_audit_write_descriptor_keeps_inherited_bytes_and_leaves_policy_entries_to_their_classes(int stored, int written)
+    {
+        // Native Windows 11 26200: NtSetSecurityObject stored this descriptor without re-deriving the inherited entry from
+        // a parent whose inheritable audits had changed, kept control 0x9C14 and kept the label and resource attribute.
+        byte[] rule = Simple(2, 0x40, 1), inherited = Simple(2, 0x90, 2), label = Simple(0x11, 0, 1), resource = Simple(0x12, 0, 0);
+        byte[] native = AuditDescriptor(true, [rule, inherited, label, resource]);
+        BinaryPrimitives.WriteUInt16LittleEndian(native.AsSpan(2), (ushort)(stored | 0x10));
+        var baseline = WindowsPermissionDescriptor.Sacl(native, "local");
+        var entry = WindowsPermissionAuditPatch.FileEntry(new(PrincipalKind.WindowsSid, "S-1-1-0", "local"), 1, 0xc0);
+        var projected = WindowsPermissionAuditPatch.ProjectFile(baseline, new(null, null, entry), "local");
+
+        byte[] descriptor = WindowsPermissionDescriptor.SaclWriteDescriptor(projected).ToArray();
+        Assert.Equal((ushort)written, BinaryPrimitives.ReadUInt16LittleEndian(descriptor.AsSpan(2)));
+        Assert.Equal([0u, 0u, 20u, 0u], Enumerable.Range(0, 4).Select(field => BinaryPrimitives.ReadUInt32LittleEndian(descriptor.AsSpan(4 + 4 * field))));
+        var readBack = WindowsPermissionDescriptor.Sacl(descriptor, "local");
+        Assert.Equal(projected.Revision, readBack.Revision);
+        Assert.Equal([Convert.ToHexString(rule), Convert.ToHexString(entry.Bytes.AsSpan()), Convert.ToHexString(inherited)],
+            readBack.Entries.Select(item => Convert.ToHexString(item.Bytes.AsSpan())));
+    }
+
     [Fact]
     public async Task Native_NTFS_owner_inspects_and_repairs_a_DACL_that_grants_the_owner_nothing()
     {
