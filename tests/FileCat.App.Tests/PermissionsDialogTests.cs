@@ -289,6 +289,7 @@ public sealed class PermissionsDialogTests
             string file = Path.Combine(root, "files", "a.txt");
             uint initialFlags = ReadMacFlags(file);
             var modifiedBefore = File.GetLastWriteTimeUtc(file);
+            var createdBefore = File.GetCreationTimeUtc(file);
             var listing = vm.ActiveTab!.Listing;
             await WaitFor(() => listing.State == Core.Listing.ListingState.Complete && listing.VisibleCount == 3, ct);
             listing.MarkNames(["a.txt"], true);
@@ -297,6 +298,7 @@ public sealed class PermissionsDialogTests
             TimeField(window, "Permissions as octal").Text = "600";
             window.GetVisualDescendants().OfType<CheckBox>().Single(box => box.Content as string == "Hidden in Finder").IsChecked = true;
             TimeField(window, "Modified").Text = new DateTime(2025, 2, 3, 4, 5, 6, DateTimeKind.Utc).ToString("O");
+            TimeField(window, "Created").Text = new DateTime(2024, 2, 4, 4, 5, 6, DateTimeKind.Utc).ToString("O");
             var apply = window.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "Apply");
             for (int i = 0; i < 250 && !apply.IsEnabled; i++) await Task.Delay(20, ct);
             Assert.True(apply.IsEnabled, string.Join(" | ", window.GetVisualDescendants().OfType<TextBlock>()
@@ -319,6 +321,7 @@ public sealed class PermissionsDialogTests
                 component => Assert.Equal(PermissionVerdict.Unattempted, component.Verdict));
             Assert.Equal((UnixFileMode)0x100, File.GetUnixFileMode(file));
             Assert.Equal(modifiedBefore, File.GetLastWriteTimeUtc(file));
+            Assert.Equal(createdBefore, File.GetCreationTimeUtc(file));
             Assert.Equal(initialFlags, ReadMacFlags(file));
             await Task.Delay(500, ct); // unmarking follows the job's end; give a wrong decision time to show
             Assert.Equal(1, listing.MarkedCount);
