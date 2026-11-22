@@ -18,7 +18,7 @@ internal sealed class UnixPermissionModeEditor : StackPanel
 
     private readonly Func<UnixFileMode, bool?> _initial;
     private UnixPermissionModeDraft _draft;
-    private readonly TextBox _octal = new() { Width = 80, PlaceholderText = "mixed" };
+    private readonly TextBox _octal = new() { Width = 80 };
     private readonly TextBlock _summary = new() { VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _error = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
     private readonly List<(CheckBox Box, UnixFileMode Bit)> _boxes = [];
@@ -29,6 +29,9 @@ internal sealed class UnixPermissionModeEditor : StackPanel
         _initial = initial;
         _draft = new(initial);
         Spacing = 4;
+        // Only a selection whose objects differ has no octal value; a screen reader also reads the placeholder.
+        if (Enum.GetValues<UnixFileMode>().Any(bit => bit is not UnixFileMode.None && initial(bit) is null))
+            _octal.PlaceholderText = "mixed";
         string[] headings = ["Read", "Write", "Execute"];
         var grid = new Grid
         {

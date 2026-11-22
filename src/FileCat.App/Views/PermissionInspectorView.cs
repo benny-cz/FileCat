@@ -352,8 +352,9 @@ internal sealed class PermissionInspectorView : StackPanel
         if (_copy is null) return;
         var button = new Button { Content = copyText };
         // The value itself is plain text a keyboard never reaches: the copy button carries it, so a screen reader
-        // tabbing through the inspector hears which item, owner or group the button copies.
-        AutomationProperties.SetHelpText(button, prefix + Formatters.SafeName(value));
+        // tabbing through the inspector hears which item, owner or group the button copies. The button's name already
+        // says which: Orca drops a description it finds similar to the name, as "Primary group: 1000" was.
+        AutomationProperties.SetHelpText(button, Formatters.SafeName(value));
         button.Click += async (_, _) => await _copy(value);
         _subject.Children.Add(button);
     }

@@ -138,6 +138,17 @@ public sealed class PermissionInspectorTests
         var view = new PermissionInspectorView([("report.txt", inspection.Snapshot)], copy: _ => Task.CompletedTask);
         var copyPath = view.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Copy exact path"));
         Assert.Equal("/fixture/report.txt", Avalonia.Automation.AutomationProperties.GetHelpText(copyPath));
+        // The value alone: the name says what it is, and Orca drops a description that repeats the name.
+        var owned = PermissionSnapshots.Create(subject, PermissionModel.PosixAcl, null, PermissionSections.Owner | PermissionSections.Group,
+            DateTimeOffset.UtcNow, "test") with
+        {
+            Owner = new(PermissionReadStatus.Present, "test", DateTimeOffset.UtcNow, new Principal(PrincipalKind.UnixUser, "1000", "local")),
+            Group = new(PermissionReadStatus.Present, "test", DateTimeOffset.UtcNow, new Principal(PrincipalKind.UnixGroup, "1000", "local"))
+        };
+        var principals = new PermissionInspectorView([("report.txt", owned)], copy: _ => Task.CompletedTask);
+        foreach (string name in new[] { "Copy exact owner ID", "Copy exact primary group ID" })
+            Assert.Equal("1000", Avalonia.Automation.AutomationProperties.GetHelpText(
+                principals.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, name))));
     }
 
     [AvaloniaTheory]
@@ -170,8 +181,14 @@ public sealed class PermissionInspectorTests
             new Expander { Header = "More", Content = new TextBox(), IsExpanded = false }, new ListBox { ItemsSource = Array.Empty<string>() },
             new Button { Content = "Disabled", IsEnabled = false }, choice, new Button { Content = "Later" } } };
         Assert.Same(choice, FileCat.App.ViewModels.MainViewModel.FirstField(content));
-        var mode = Assert.IsType<CheckBox>(FileCat.App.ViewModels.MainViewModel.FirstField(new UnixPermissionModeEditor(_ => false, false)));
+        var editor = new UnixPermissionModeEditor(_ => false, false);
+        var mode = Assert.IsType<CheckBox>(FileCat.App.ViewModels.MainViewModel.FirstField(editor));
         Assert.Equal("Owner read", Avalonia.Automation.AutomationProperties.GetName(mode));
+        // A definite mode has no "mixed" placeholder for a screen reader to read beside its value; a mixed selection does.
+        TextBox Octal(UnixPermissionModeEditor view) => view.GetVisualDescendants().OfType<TextBox>()
+            .Single(box => Avalonia.Automation.AutomationProperties.GetName(box) == "Permissions as octal");
+        Assert.Null(Octal(editor).PlaceholderText);
+        Assert.Equal("mixed", Octal(new UnixPermissionModeEditor(bit => bit == UnixFileMode.OtherRead ? null : false, false)).PlaceholderText);
         Assert.Null(FileCat.App.ViewModels.MainViewModel.FirstField(new StackPanel { Children = { new TextBlock { Text = "Nothing to edit" } } }));
     }
 
