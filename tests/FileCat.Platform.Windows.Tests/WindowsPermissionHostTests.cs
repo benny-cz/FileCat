@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using FileCat.Core.Permissions;
+using FileCat.Core.Resources;
 using FileCat.Platform.Windows.Permissions;
 
 namespace FileCat.Platform.Windows.Tests;
@@ -29,5 +31,27 @@ public sealed class WindowsPermissionHostTests
             RuntimeInformation.ProcessArchitecture != Architecture.X64)
             Assert.Skip("Requires a native Windows x64 process.");
         Assert.Null(WindowsPermissionHost.Refusal("reader"));
+    }
+
+    [Fact]
+    public void Native_Arm64_reads_and_writes_nothing_until_its_smoke_switch_is_set()
+    {
+        if (!OperatingSystem.IsWindows() || RuntimeInformation.OSArchitecture != Architecture.Arm64 ||
+            RuntimeInformation.ProcessArchitecture != Architecture.Arm64 || Environment.GetEnvironmentVariable(WindowsPermissionHost.Arm64Switch) == "1")
+            Assert.Skip("Requires a native Windows on Arm process without the Arm64 permissions switch.");
+        var directory = Directory.CreateTempSubdirectory("filecat-acl-arm64-");
+        try
+        {
+            string path = Path.Combine(directory.FullName, "witness.txt");
+            File.WriteAllText(path, "witness");
+            var subject = new PermissionSubject(Location.FileSystem(directory.FullName), path, path, new(PermissionAuthorityKind.Local, "local", 0),
+                PermissionObjectKind.File, PermissionLinkPolicy.NoFollow, ListedSize: new FileInfo(path).Length);
+            using var inspection = new WindowsPermissionService().Inspect(subject, PermissionSections.Ordinary, TestContext.Current.CancellationToken);
+            Assert.Equal(PermissionReadStatus.Unsupported, inspection.Snapshot.Access.Status);
+            Assert.Equal("This reader is not yet qualified on Windows on Arm.", inspection.Snapshot.Access.Reason);
+            var refusal = Assert.Throws<PlatformNotSupportedException>(() => WindowsPermissionToken.OrdinaryIdentity());
+            Assert.Equal("This permission writer is not yet qualified on Windows on Arm.", refusal.Message);
+        }
+        finally { directory.Delete(recursive: true); }
     }
 }
