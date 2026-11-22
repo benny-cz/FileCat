@@ -10,7 +10,8 @@ public sealed partial class PermissionJobTests
     // G-MAC (ordinary, D1) provider-related writer refusals under the fetch sentinel: in the disposable File Provider
     // domain (FILECAT_TEST_MAC_PROVIDER_ROOT), each Darwin writer route meets the dataless items with downloads disabled: a
     // file at the domain root, a file inside an enumerated folder and a folder never enumerated. Each route inspects
-    // without materializing, offers no mode change and refuses to prepare one. A mode-tree review over the domain root
+    // without materializing, offers no change (the placeholder reason) and refuses to prepare one; the parent-relative
+    // route offered a mode change on such a placeholder before this check. A mode-tree review over the domain root
     // leaves every dataless member out without opening it, and is released without being applied. Every item keeps its
     // identity and dataless state, and the caller's materialization policy is restored. The harness reads the provider's
     // log for fetch and enumeration requests over the run.
@@ -42,6 +43,9 @@ public sealed partial class PermissionJobTests
                 TestContext.Current.SendDiagnosticMessage($"{Path.GetFileName(path)} (parent {parent}, descriptor {descriptor}): " +
                     $"mode {inspection.Snapshot.Mode.Status}, flags {inspection.Snapshot.Flags.Value?.Bits:x}; refusal: {refusal}");
                 Assert.NotNull(refusal);
+                if (inspection.Snapshot.Binding is not null) Assert.Contains("cloud placeholder that is not downloaded", refusal);
+                Assert.DoesNotContain(inspection.Snapshot.Capabilities, capability =>
+                    capability is { Action: PermissionAction.Change, Availability: PermissionAvailability.Available });
                 var problem = Record.Exception(() => DarwinPermissionService.Prepare(inspection, item,
                     new(PermissionScope.Objects, [new ChangePermissionMode(0x1c0, 0x1c0)]), false, ct).Review.Dispose());
                 Assert.NotNull(problem);

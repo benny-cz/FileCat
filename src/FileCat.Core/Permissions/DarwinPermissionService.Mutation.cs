@@ -107,6 +107,9 @@ internal sealed unsafe partial class DarwinPermissionService
             return "This route requires a volume that honors ownership and is mounted by this user or root.";
         if (entry.Owner != user) return "This route requires the current user to own the original object.";
         if ((entry.Flags & SystemProtection) != 0) return "System file protection is read only in ordinary FileCat.";
+        // A cloud placeholder: its provider owns the item until it is downloaded, as for trees and access checks.
+        if ((entry.Flags & MacMaterializationPolicy.DatalessFlag) != 0)
+            return "This item is a cloud placeholder that is not downloaded. Download it before changing its permissions.";
         return PermissionRevision.Read(snapshot, WriteSecuritySections) is null
             ? "This route requires the original mode, owner, group, flags and extended security." : null;
     }
