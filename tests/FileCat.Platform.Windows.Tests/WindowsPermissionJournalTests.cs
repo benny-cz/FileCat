@@ -267,6 +267,78 @@ public sealed partial class WindowsPermissionJournalTests
         Assert.Empty(PermissionJournalRecovery.Scan(directory, folder, ct));
     }
 
+    // G-RESULT device loss between the call and the flush: the NTFS volume holding the reviewed object is hot-removed after
+    // the native call changed its DACL and before the file system is asked to write its pending changes. The host harness
+    // flushes the volume cache once the call's intent is durable, so the document and its original DACL are on the device,
+    // and removes the disk without another flush while the test waits in the flush hook. The flush on the held folder, or
+    // the read-back after it, fails, so the job does not report the change as verified (.tmp/acl-validation/gresult-windows-flush).
+    [Fact]
+    public async Task A_volume_removed_between_the_call_and_the_flush_is_not_verified()
+    {
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_FLUSHLOSS_ROOT");
+        string? control = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_FLUSHLOSS_CONTROL");
+        if (!OperatingSystem.IsWindows() || root is null || control is null || ReviewedPermissionOperation.ProcessRefusal() is not null ||
+            AnalysisAdmission.Refusal() is not null)
+            Assert.Skip("Requires the hot-removable NTFS volume harness.");
+        var ct = TestContext.Current.CancellationToken;
+        string path = CreateDocument(root, CurrentSid());
+        File.WriteAllText(Path.Combine(control, "before.sddl"), StoredDacl(path));
+        using var change = Change.Prepare(path, ct);
+        int flushes = 0;
+        var jobs = Jobs(control, (leaf, cancellation) =>
+        {
+            var journal = WindowsAnalysisPrivateDirectory.CreatePermissionJournal(control, leaf, cancellation);
+            int checks = 0;
+            return journal with
+            {
+                Verify = () =>
+                {
+                    journal.Verify();
+                    if (++checks != 4) return; // the call's intent is durable: the harness persists the volume's state
+                    Signal("intent", "the volume cache flush", () => File.Exists(Path.Combine(control, "cache-flushed")));
+                }
+            };
+        });
+        WindowsPermissionService.FlushFaultForTests = folder =>
+        {
+            if (!string.Equals(folder, root, StringComparison.OrdinalIgnoreCase) || Interlocked.Increment(ref flushes) != 1) return 0;
+            Signal("ready", "the volume removal", () => !Directory.Exists(root));
+            return 0; // the real FlushFileBuffers now runs on the held folder of the removed volume
+        };
+        try
+        {
+            var finished = new TaskCompletionSource<Job>(TaskCreationOptions.RunContinuationsAsynchronously);
+            jobs.JobFinished += job => finished.TrySetResult(job);
+            var submitted = jobs.SubmitPermissions(change.Review);
+            Assert.Same(submitted, await finished.Task.WaitAsync(TimeSpan.FromMinutes(5), ct));
+            var result = Assert.Single(submitted.PermissionResults);
+            var component = Assert.Single(result.Components);
+            File.WriteAllText(Path.Combine(control, "result.txt"), $"{result.Verdict}|{component.Verdict}|{component.Verification}|" +
+                $"{component.NativeCall}|{component.NativeError}|flushes={flushes}|{component.Detail}");
+            Assert.False(Directory.Exists(root));
+            Assert.InRange(flushes, 1, 3);
+            Assert.NotNull(component.NativeCall);
+            Assert.NotEqual(PermissionVerdict.Verified, result.Verdict);
+            Assert.Equal(PermissionVerification.Unavailable, component.Verification);
+            string folder = Path.Combine(control, PermissionJournalNames.Directory);
+            var records = JobJournal.ReadAll(Assert.Single(Directory.GetFiles(folder)));
+            Assert.Single(records, record => record.Type == "permission-intent");
+            Assert.Equal(result.Verdict.ToString(), Assert.Single(records, record => record.Type == "permission-outcome").Get("verdict"));
+        }
+        finally { WindowsPermissionService.FlushFaultForTests = null; }
+
+        void Signal(string name, string awaited, Func<bool> done)
+        {
+            File.WriteAllText(Path.Combine(control!, name), name);
+            var deadline = DateTime.UtcNow.AddMinutes(3);
+            while (!done())
+            {
+                if (DateTime.UtcNow > deadline) throw new TimeoutException($"The harness did not complete {awaited}.");
+                Thread.Sleep(100);
+            }
+        }
+    }
+
     // The child half of the kill test: the real Windows writer and journal, stopped after the given journal check.
     // Each record is verified before and after its flush: begin (checks 1-2), the call intent (3-4, before dispatch)
     // and its outcome (5-6). Check 5 comes after the native call and read-back have returned.
