@@ -26,12 +26,27 @@ public static partial class ReparseLinks
     {
         if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0) return false;
         if (!OperatingSystem.IsWindows()) return true;
-        string full = Path.GetFullPath(path);
+        if (!TryReadAttributeTag(Path.GetFullPath(path), out var info)) return true;
+        return (info.FileAttributes & (uint)FileAttributes.ReparsePoint) != 0 && IsLinkTag(info.ReparseTag);
+    }
+
+    /// <summary>
+    /// The reparse tag of an existing item on Windows, read from the reparse point itself through a handle that may read
+    /// attributes only: neither the item's contents nor what it leads to are opened. Zero when the item is no reparse
+    /// point or its tag cannot be read (a pending delete refuses the open), and on Linux and macOS. A presentation hint
+    /// for results that come from no tag-bearing listing; never operation authority.
+    /// </summary>
+    internal static uint ReadTag(string fullPath) =>
+        OperatingSystem.IsWindows() && TryReadAttributeTag(fullPath, out var info) &&
+        (info.FileAttributes & (uint)FileAttributes.ReparsePoint) != 0 ? info.ReparseTag : 0;
+
+    private static bool TryReadAttributeTag(string full, out AttributeTag info)
+    {
+        info = default;
         string native = full.Length >= 248 && !full.StartsWith(@"\\", StringComparison.Ordinal) ? @"\\?\" + full : full;
         using var handle = CreateFile(native, ReadAttributes, FileShare.ReadWrite | FileShare.Delete, 0, OpenExisting,
             BackupSemantics | OpenReparsePoint, 0);
-        if (handle.IsInvalid || !GetFileInformationByHandleEx(handle, AttributeTagInfo, out AttributeTag info, 8)) return true;
-        return (info.FileAttributes & (uint)FileAttributes.ReparsePoint) != 0 && IsLinkTag(info.ReparseTag);
+        return !handle.IsInvalid && GetFileInformationByHandleEx(handle, AttributeTagInfo, out info, 8);
     }
 
     /// <summary>

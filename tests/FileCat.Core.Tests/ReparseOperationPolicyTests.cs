@@ -17,7 +17,8 @@ namespace FileCat.Core.Tests;
 /// Every decision below is a function of <see cref="EntryFlags.Link"/> alone.
 /// Not covered by this corpus: MainViewModel size requests (App), SftpJobs (Remote), NativeEditSnapshot admission
 /// (needs a native edit-session store and directory leases), native copy/delete (held native tags), and Search's
-/// traversal for tags other than a real directory symbolic link (it reads raw attributes from the OS, never the tag).
+/// traversal for tags other than a real directory symbolic link (it decides on raw attributes from the OS; the tag it
+/// reads for a found reparse point only labels the result).
 /// </summary>
 public sealed class ReparseOperationPolicyTests
 {
