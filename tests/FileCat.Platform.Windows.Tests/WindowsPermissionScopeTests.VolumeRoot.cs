@@ -46,8 +46,10 @@ public sealed partial class WindowsPermissionScopeTests
             branch = Directory.CreateDirectory(Path.Combine(path, $"filecat-root-scope-{Guid.NewGuid():N}"));
             string nested = CreateFile(branch, "open.txt");
             using var hold = File.Open(nested, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            byte[] branchBefore = ReadDescriptor(branch.FullName);
-            byte[] fileBefore = ReadDescriptor(nested);
+            // Children are compared as stored. GetSecurityInfo infers inherited entries of a descriptor that is not
+            // auto-inherited from its parent's current DACL, so that view changes with the root even when the child does not.
+            byte[] branchBefore = ReadStoredDescriptor(branch.FullName);
+            byte[] fileBefore = ReadStoredDescriptor(nested);
             byte[] baseline = ReadDescriptor(path);
             var control = WindowsPermissionDescriptor.Control(baseline);
             Assert.Equal(protect, control.IsProtected);
@@ -80,8 +82,10 @@ public sealed partial class WindowsPermissionScopeTests
             Assert.Equal(control, WindowsPermissionDescriptor.Control(after));
             Assert.Equal(WindowsPermissionDescriptor.PrincipalAt(baseline, 4, Authority.Id), WindowsPermissionDescriptor.PrincipalAt(after, 4, Authority.Id));
             Assert.Equal(WindowsPermissionDescriptor.PrincipalAt(baseline, 8, Authority.Id), WindowsPermissionDescriptor.PrincipalAt(after, 8, Authority.Id));
-            Assert.Equal(branchBefore, ReadDescriptor(branch.FullName));
-            Assert.Equal(fileBefore, ReadDescriptor(nested));
+            byte[] branchAfter = ReadStoredDescriptor(branch.FullName), fileAfter = ReadStoredDescriptor(nested);
+            Assert.True(branchBefore.AsSpan().SequenceEqual(branchAfter),
+                $"The existing folder changed: {Sddl(branchBefore)} -> {Sddl(branchAfter)}; root {Sddl(baseline)} -> {Sddl(after)}");
+            Assert.True(fileBefore.AsSpan().SequenceEqual(fileAfter), $"The existing file changed: {Sddl(fileBefore)} -> {Sddl(fileAfter)}");
             future = Directory.CreateDirectory(Path.Combine(path, $"filecat-root-future-{Guid.NewGuid():N}"));
             Assert.Contains(WindowsPermissionDescriptor.Dacl(ReadDescriptor(future.FullName), Authority.Id).Entries,
                 rule => rule is { Kind: WindowsAceKind.Deny, Principal: var principal, Mask: WitnessRight } && principal == WitnessAccount &&
@@ -98,7 +102,26 @@ public sealed partial class WindowsPermissionScopeTests
         }
     }
 
+    private static byte[] ReadStoredDescriptor(string path)
+    {
+        const uint information = 7; // OWNER | GROUP | DACL
+        _ = GetFileSecurity(path, information, null, 0, out uint length);
+        byte[] descriptor = new byte[length];
+        Assert.True(GetFileSecurity(path, information, descriptor, length, out _), $"GetFileSecurityW failed: {Marshal.GetLastPInvokeError()}");
+        return descriptor;
+    }
+
+    private static string Sddl(byte[] descriptor)
+    {
+        var raw = new RawSecurityDescriptor(descriptor, 0);
+        return $"0x{(int)raw.ControlFlags:X4} {raw.GetSddlForm(AccessControlSections.Access)}";
+    }
+
     [LibraryImport("advapi32.dll", EntryPoint = "SetFileSecurityW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetFileSecurity(string path, uint information, byte[] descriptor);
+
+    [LibraryImport("advapi32.dll", EntryPoint = "GetFileSecurityW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetFileSecurity(string path, uint information, byte[]? descriptor, uint length, out uint needed);
 }
