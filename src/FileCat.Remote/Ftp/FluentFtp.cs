@@ -15,7 +15,8 @@ namespace FileCat.Remote.Ftp;
 /// FTP and FTPS over FluentFTP (MIT, P8), behind the same channel as SFTP, so listings, transfers, uploads through
 /// temporary names, and edit sessions behave alike. Differences stay explicit:
 /// <list type="bullet">
-/// <item>FTPS requires a certificate the OS validates, or one the user pinned; a changed certificate is never accepted silently.</item>
+/// <item>FTPS requires a certificate the OS validates, or one the user pinned; a changed certificate is never accepted silently.
+/// Within a session every data connection, and any control reconnect, must present the certificate the session was accepted with.</item>
 /// <item>Unencrypted FTP is only ever an explicit choice (ADR-17 addendum).</item>
 /// <item>Transfers are binary, so content is never converted.</item>
 /// <item>Names with line breaks are refused, since FTP commands end at a line break.</item>
@@ -61,8 +62,18 @@ public sealed class FluentFtpConnector : ISftpConnector
         bool rejected = false;
         client.ValidateCertificate += (_, e) =>
         {
-            e.Accept = context.ApproveCertificate(Describe(profile, e.Certificate, e.PolicyErrors));
+            var certificate = Describe(profile, e.Certificate, e.PolicyErrors);
+            if (client.SessionCertificate is { } session)
+            {
+                // A control connection FluentFTP opens again within this session must present the certificate the
+                // session was accepted with; another one is refused without asking.
+                e.Accept = certificate.Sha256 == session;
+                rejected |= !e.Accept;
+                return;
+            }
+            e.Accept = context.ApproveCertificate(certificate);
             rejected |= !e.Accept;
+            if (e.Accept) client.SessionCertificate = certificate.Sha256;
         };
         try
         {
@@ -139,10 +150,37 @@ public sealed class CertificateRejectedException(string message, Exception? inne
 /// <summary>Expose FluentFTP's protected data stream so listing bytes can be capped before its array parser.</summary>
 internal sealed class BoundedFtpClient(string host, string user, string password, int port) : FtpClient(host, user, password, port)
 {
+    // FluentFTP 55 keeps each data connection's TLS stream in this private field and has no public accessor for it.
+    private static readonly System.Reflection.FieldInfo? DataTls = typeof(FtpSocketStream).GetField("m_sslStream",
+        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+    /// <summary>The SHA-256 of the certificate this session's control connection was accepted with (FTPS only).</summary>
+    internal string? SessionCertificate { get; set; }
+
     internal FtpDataStream OpenListingData(string command)
     {
         SetDataType(Config.ListingDataType);
-        return OpenDataStream(command, 0);
+        return CheckData(OpenDataStream(command, 0));
+    }
+
+    /// <summary>
+    /// FluentFTP 55 accepts every certificate a data connection presents (FtpDataStream's constructor), trusting the
+    /// control connection's earlier acceptance, so a data connection taken over on the way to the server would go
+    /// unnoticed. On FTPS each data connection must be encrypted and present the session's certificate. Anything else is
+    /// closed before a byte is read or written over it.
+    /// </summary>
+    internal T CheckData<T>(T data) where T : Stream
+    {
+        if (Config.EncryptionMode == FtpEncryptionMode.None) return data;
+        string? presented = data is FtpSocketStream { IsEncrypted: true } socket &&
+            DataTls?.GetValue(socket) is SslStream { RemoteCertificate: { } certificate }
+            ? Convert.ToHexString(SHA256.HashData(certificate.GetRawCertData())) : null;
+        if (presented is not null && presented == SessionCertificate) return data;
+        try { data.Dispose(); }
+        catch (Exception ex) when (ex is IOException or FtpException or SocketException or TimeoutException) { }
+        throw new CertificateRejectedException(presented is null
+            ? "The server's FTPS data connection was not encrypted with a certificate FileCat could check, so FileCat closed it before any data crossed it."
+            : "The server presented a different certificate on an FTPS data connection than the one this session was accepted with, so FileCat closed that connection before any data crossed it.");
     }
 }
 
@@ -454,7 +492,7 @@ internal sealed partial class FtpChannel : ISftpChannel
         Safe(path);
         // FTP has no exclusive create: FileCat writes only names it checked (and its own random temporary names).
         if (Exists(path)) throw new IOException("An item with this name already exists on the server.");
-        var stream = Run(() => _client.OpenWrite(path, FtpDataType.Binary, false));
+        var stream = Run(() => _client.CheckData(_client.OpenWrite(path, FtpDataType.Binary, false)));
         return new FtpWriteStream(this, _client, stream);
     }
 
@@ -470,7 +508,7 @@ internal sealed partial class FtpChannel : ISftpChannel
         if (stat.Size != offset) throw new NotSupportedException("FTP continues a file only at its end.");
         var stream = Run(() =>
         {
-            try { return _client.OpenAppend(path, FtpDataType.Binary, false); }
+            try { return _client.CheckData(_client.OpenAppend(path, FtpDataType.Binary, false)); }
             catch (FtpCommandException ex) when (ex.CompletionCode is not "421")
             {
                 throw new NotSupportedException($"the server does not continue uploads ({ex.CompletionCode} {ReplyText(ex)})", ex);
@@ -567,7 +605,7 @@ internal sealed partial class FtpChannel : ISftpChannel
 /// A seekable read over FTP: data flows from one RETR at a time; a seek elsewhere ends it and resumes at the new offset
 /// with REST, so viewers can jump through large files.
 /// </summary>
-internal sealed class FtpReadStream(FtpChannel channel, FtpClient client, string path, long length) : Stream
+internal sealed class FtpReadStream(FtpChannel channel, BoundedFtpClient client, string path, long length) : Stream
 {
     private Stream? _data;
     private long _dataPosition;
@@ -613,7 +651,7 @@ internal sealed class FtpReadStream(FtpChannel channel, FtpClient client, string
         {
             CloseData();
             long at = _position;
-            _data = channel.Run(() => client.OpenRead(path, FtpDataType.Binary, at, false));
+            _data = channel.Run(() => client.CheckData(client.OpenRead(path, FtpDataType.Binary, at, false)));
             _dataPosition = _position;
         }
         int n;
