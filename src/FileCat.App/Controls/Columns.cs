@@ -222,7 +222,32 @@ public sealed record ColumnChoice(string Key, string Title, bool RightAlign, dou
 /// <summary>One field description shared by the add box and the Analyze chooser.</summary>
 public static class ColumnDescriptions
 {
-    public static string For(string fieldId) => fieldId switch
+    public static string For(string fieldId) => Known(fieldId) ?? "A column's value for every item";
+
+    /// <summary>
+    /// A column header's help, or null for a column whose title says it all: the field description, Attr's letters, and
+    /// for Reparse type what a reparse point is and where to look further. <paramref name="detailsGesture"/> is the
+    /// current shortcut of File-system details, which shows an item's reparse data.
+    /// </summary>
+    public static string? HeaderHelp(ColumnSpec column, bool windows, string? detailsGesture) => column.Field switch
+    {
+        ColumnField.Metadata when column.MetadataId == Core.Metadata.FileDetailsFields.ReparseType =>
+            "Whether opening an item goes through a link or a filter, and which: symbolic links and junctions point elsewhere; " +
+            "cloud files and deduplicated files get their data from a filter; app execution aliases start packaged apps. " +
+            "Most items are not reparse points and show none. Files that WOF compresses (compact.exe /EXE) show none too, " +
+            "because WOF hides its tag.\n" +
+            "Point at a value for what it means, its tag number and its Windows name. File → File-system details…" +
+            (detailsGesture is { Length: > 0 } ? $" ({detailsGesture})" : "") + " shows an item's reparse data and WOF backing.",
+        ColumnField.Metadata when column.MetadataId is { } id => Known(id),
+        ColumnField.Attributes => windows
+            ? "R read-only · H hidden · S system · A archive (marked for backup) · C compressed (NTFS) · E encrypted (EFS) · " +
+              "L link: a symbolic link, junction or WSL link · P another reparse point (Reparse type says which) · " +
+              "O offline: its data is not on this computer"
+            : "R read-only · H hidden · L symbolic link · O offline: its data is not on this computer",
+        _ => null,
+    };
+
+    private static string? Known(string fieldId) => fieldId switch
     {
         "version" => "Program and library versions (.exe, .dll, and similar)",
         "dimensions" => "Picture sizes in pixels",
@@ -233,12 +258,14 @@ public static class ColumnDescriptions
             ? "The account each item belongs to (a user, group, or service; not who created or last changed it)"
             : "The user account each item belongs to (not who created or last changed it)",
         "group" => "The group each item belongs to",
-        "hidden" => "Bounded supplementary inventory by category and API view; partial counts are lower bounds, and Windows EAs require explicit admission",
+        "hidden" => (OperatingSystem.IsWindows() ? "Alternate data streams and extended attributes"
+            : OperatingSystem.IsMacOS() ? "Extended attributes and resource forks" : "Extended attributes (xattrs)") +
+            " beside each item's contents; 2+ means at least two",
         Core.Metadata.FileDetailsFields.Allocated => "Reported allocation of the file or directory object; not recursive contents, exclusive ownership or deletion savings",
         Core.Metadata.FileDetailsFields.HardLinks => "Observed names for a regular file; does not measure shared extents",
-        Core.Metadata.FileDetailsFields.ReparseType => "Observed Windows reparse type; a mount-point tag alone does not distinguish junctions from volume mounts",
+        Core.Metadata.FileDetailsFields.ReparseType => "Links, junctions and filter-managed items (cloud files, WOF compression, deduplication) by their Windows reparse type; none for ordinary items",
         "verified" => "Whether files match the checksums and signatures beside them (large ones wait for File → Verify)",
-        _ => "A column's value for every item",
+        _ => null,
     };
 }
 

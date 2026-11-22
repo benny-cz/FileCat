@@ -18,6 +18,7 @@ public sealed class FileDetailsFieldsTests
         public FileObjectKind Kind = FileObjectKind.File;
         public long Allocation = 4096;
         public uint Tag = ReparseLinks.SymbolicLinkTag;
+        public bool Reparse = true;
         public InspectionReport Read(string path, CancellationToken ct) => throw new InvalidOperationException("Legacy full reader must not run.");
         public FileDetailsReport ReadFull(string path, FileDetailsPolicy policy, CancellationToken ct) => throw new InvalidOperationException("Column requested the full reader.");
         public FileDetailsSnapshot ReadSummary(string path, CancellationToken ct)
@@ -30,7 +31,8 @@ public sealed class FileDetailsFieldsTests
                 Kind = Kind,
                 Allocated = ObservedFact<long>.Known(Allocation, Kind == FileObjectKind.Directory ? FactScope.Entry : FactScope.AllForks, "fixture"),
                 LinkCount = ObservedFact<uint>.Known(7, FactScope.Entry, "fixture"),
-                ReparseTag = ObservedFact<uint>.Known(Tag, FactScope.Entry, "fixture"),
+                ReparseTag = Reparse ? ObservedFact<uint>.Known(Tag, FactScope.Entry, "fixture")
+                    : ObservedFact<uint>.Unavailable(FactState.NotApplicable, FactScope.Entry, "fixture", "No observed reparse tag."),
             };
         }
     }
@@ -100,6 +102,49 @@ public sealed class FileDetailsFieldsTests
         Assert.Equal(MetadataState.Available, links.State);
         Assert.Equal(7u, metadata.Field(FileDetailsFields.HardLinks)!.CaptureKey(links));
         Assert.Equal("Cloud-managed item", type.CaptureKey(metadata.Compute(type.Id, path, entry, TestContext.Current.CancellationToken)));
+    }
+
+    [Fact]
+    public void Reparse_type_shows_a_quiet_none_for_ordinary_items_and_explains_each_tag()
+    {
+        using var io = new DeviceIoScheduler(); var records = new Records { Reparse = false };
+        using var metadata = new MetadataService(io, () => 0);
+        foreach (var field in FileDetailsFields.Create(records, windows: true)) metadata.Register(field);
+        var entry = new EntryData("column-subject", EntryKind.File);
+        string path = Path.Combine(Path.GetTempPath(), entry.Name);
+        var type = metadata.Field(FileDetailsFields.ReparseType)!;
+
+        // An ordinary item has a real, quiet value rather than a blank cell beside the next column's numbers.
+        var none = metadata.Compute(type.Id, path, entry, TestContext.Current.CancellationToken);
+        Assert.Equal(MetadataState.Available, none.State);
+        Assert.Equal("none", type.Format(none.Value));
+        Assert.True(type.Quiet!(none.Value));
+        Assert.True(type.DetailLines); // its explanation's lines are FileCat's own
+        Assert.Contains("No reparse point observed", type.Detail!(none.Value));
+        Assert.Contains("WOF compression (compact.exe /EXE, CompactOS) hides its tag", type.Detail!(none.Value));
+        Assert.Contains("Source: fixture", type.Detail!(none.Value));
+        // It is definite, so it sorts before every type instead of with the unknown values (which sort last both ways).
+        var noneKey = Assert.IsType<string>(type.CaptureKey(none));
+        foreach (string label in new[] { "App execution alias", "Junction or volume mount", "Symbolic link", "WOF-backed file" })
+            Assert.True(string.Compare(noneKey, label, StringComparison.CurrentCulture) < 0, label);
+
+        // A reparse point says what it is, then its tag number and published name.
+        records.Reparse = true; metadata.ForgetField(type.Id);
+        var link = metadata.Compute(type.Id, path, entry, TestContext.Current.CancellationToken);
+        Assert.Equal("Symbolic link", type.Format(link.Value));
+        Assert.False(type.Quiet!(link.Value));
+        string explained = type.Detail!(link.Value);
+        Assert.Contains("follows the path stored in it", explained);
+        Assert.Contains("Tag 0xA000000C", explained);
+        Assert.Contains("IO_REPARSE_TAG_SYMLINK", explained);
+        Assert.Contains("Source: fixture", explained);
+
+        // No other column's value is quiet.
+        foreach (string id in new[] { FileDetailsFields.Allocated, FileDetailsFields.HardLinks })
+        {
+            var field = metadata.Field(id)!;
+            Assert.False(field.Quiet!(metadata.Compute(id, path, entry, TestContext.Current.CancellationToken).Value), id);
+        }
     }
 
     [Fact]

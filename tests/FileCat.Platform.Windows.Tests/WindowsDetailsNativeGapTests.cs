@@ -96,7 +96,11 @@ public sealed partial class WindowsDetailsNativeGapTests
             Assert.Equal((IComparable)1u, seen[("plain", links)].Key);
             Assert.Equal((IComparable)2u, seen[("linked", links)].Key);
             Assert.Equal((IComparable)2u, seen[("other name", links)].Key);
-            Assert.Equal(MetadataState.Absent, seen[("plain", reparse)].State);
+            // An ordinary file is observed to have no reparse point: a definite "none", not a blank cell.
+            Assert.Equal(MetadataState.Available, seen[("plain", reparse)].State);
+            Assert.Equal("none", seen[("plain", reparse)].Text);
+            Assert.Equal((IComparable)"", seen[("plain", reparse)].Key);
+            Assert.Contains("No reparse point observed", seen[("plain", reparse)].Detail);
 
             // A sparse file reports only what is allocated: here one compression unit around the single written byte.
             long sparseAllocated = Assert.IsType<long>(seen[("sparse", allocated)].Key);
@@ -109,19 +113,40 @@ public sealed partial class WindowsDetailsNativeGapTests
             Assert.Equal(MetadataState.Available, seen[("folder", allocated)].State);
             Assert.Contains("contents are not counted", seen[("folder", allocated)].Detail);
             Assert.Equal(MetadataState.Absent, seen[("folder", links)].State);
-            Assert.Equal(MetadataState.Absent, seen[("folder", reparse)].State);
+            Assert.Equal("none", seen[("folder", reparse)].Text);
             Assert.Equal(MetadataState.Available, seen[("junction", allocated)].State);
             Assert.Equal(MetadataState.Absent, seen[("junction", links)].State);
             Assert.Equal("Junction or volume mount", seen[("junction", reparse)].Text);
             Assert.Equal((IComparable)"Junction or volume mount", seen[("junction", reparse)].Key);
             Assert.Contains("does not distinguish a junction from a volume mount", seen[("junction", reparse)].Detail);
+            Assert.Contains("Tag 0xA0000003 · IO_REPARSE_TAG_MOUNT_POINT", seen[("junction", reparse)].Detail);
 
             // A file symbolic link is described as itself; its link count is refused rather than shown as a regular file's.
             Assert.Equal("Symbolic link", seen[("file link", reparse)].Text);
             Assert.Equal((IComparable)"Symbolic link", seen[("file link", reparse)].Key);
+            Assert.Contains("Tag 0xA000000C · IO_REPARSE_TAG_SYMLINK", seen[("file link", reparse)].Detail);
             Assert.Equal(MetadataState.Unsupported, seen[("file link", links)].State);
             Assert.Contains("qualified regular-file observation", seen[("file link", links)].Detail);
             Assert.Equal(MetadataState.Available, seen[("file link", allocated)].State);
+
+            // WOF compression hides its tag from the ordinary query: the column reads none, and its explanation says so.
+            // Where WOF leaves the tag visible, the column names it.
+            string wof = Path.Join(root, "wof.txt");
+            File.WriteAllText(wof, new string('w', 256 * 1024));
+            var start = new System.Diagnostics.ProcessStartInfo(Path.Join(Environment.SystemDirectory, "compact.exe"))
+                { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true };
+            foreach (string arg in new[] { "/C", "/EXE:XPRESS4K", "/Q", wof }) start.ArgumentList.Add(arg);
+            using (var compact = System.Diagnostics.Process.Start(start)!)
+            {
+                string output = compact.StandardOutput.ReadToEnd();
+                Assert.True(compact.WaitForExit(30_000) && compact.ExitCode == 0, output);
+            }
+            Assert.True(Read(metadata, allocated, wof, EntryKind.File).Key is long wofAllocation && wofAllocation < 256 * 1024,
+                "compact.exe /EXE did not reduce the file's allocation.");
+            var wofType = Read(metadata, reparse, wof, EntryKind.File);
+            TestContext.Current.TestOutputHelper?.WriteLine($"WOF-compressed file: {wofType.Text}");
+            if (wofType.Text == "none") Assert.Contains("WOF compression (compact.exe /EXE, CompactOS) hides its tag", wofType.Detail);
+            else Assert.Equal("WOF-backed file", wofType.Text);
         }
         finally
         {

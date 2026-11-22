@@ -396,6 +396,47 @@ public sealed partial class WindowsHiddenDataTests
     }
 
     /// <summary>
+    /// The Extra data column's inventory reads no EA name or value, yet FileEaInformation's size lets an object without
+    /// EAs count exactly: zero for a plain file or folder, its streams for a downloaded file. An object with EAs counts as
+    /// at least one more than its streams.
+    /// </summary>
+    [Fact]
+    public void Without_EA_admission_an_object_with_no_EAs_still_counts_exactly()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Windows NTFS fixture.");
+        string dir = NewFolder();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var native = new WindowsHiddenData();
+            string plain = Path.Combine(dir, "plain.txt"), downloaded = Path.Combine(dir, "downloaded.txt"), carrier = Path.Combine(dir, "ea.txt");
+            File.WriteAllText(plain, "plain");
+            File.WriteAllText(downloaded, "main");
+            File.WriteAllText(downloaded + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n");
+            File.WriteAllText(carrier, "main");
+            WriteEa(carrier, "FILECAT.COLUMN", "ea value"u8.ToArray());
+
+            foreach (string path in new[] { plain, dir })
+            {
+                var none = native.ReadInventory(path, new(), ct);
+                Assert.Equal(("0", (int?)0, false), (none.CountText, none.ExactCount, none.ValueBearingQueryIssued));
+                Assert.Equal(HiddenInventoryState.Complete, none.Categories.Single(c => c.Kind == HiddenKind.NtfsAttribute).State);
+            }
+            var stream = native.ReadInventory(downloaded, new(), ct);
+            Assert.Equal(("1", (int?)1), (stream.CountText, stream.ExactCount));
+
+            var withEa = native.ReadInventory(carrier, new(), ct);
+            Assert.False(withEa.ValueBearingQueryIssued);
+            Assert.Empty(withEa.Items);
+            var eas = withEa.Categories.Single(c => c.Kind == HiddenKind.NtfsAttribute);
+            Assert.Equal((HiddenInventoryState.NotInspected, 1), (eas.State, eas.Count));
+            Assert.Contains("FileEaInformation reports", eas.Reason);
+            Assert.Equal(("1+", (int?)null), (withEa.CountText, withEa.ExactCount));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    /// <summary>
     /// F-EXTRA: stream inventory, Find, F3 view, value report, F5 output and F8 delete issue no EA query. A deny on
     /// FILE_READ_EA makes that native: the EA-admitted request is the control and must be refused as typed denial.
     /// </summary>

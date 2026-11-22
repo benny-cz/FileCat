@@ -30,6 +30,40 @@ public sealed class ReparsePresentationTests
     }
 
     [Fact]
+    public void Every_recognized_tag_has_its_published_name_and_each_tag_is_explained_with_its_number_and_bits()
+    {
+        var tags = new List<uint>();
+        foreach (uint high in new uint[] { 0x8, 0x9, 0xA, 0xC })
+            for (uint low = 1; low <= 0x40; low++) tags.Add(high << 28 | low);
+        for (uint cloud = 0; cloud <= 0xF; cloud++) tags.Add(0x9000001Au | cloud << 12);
+        tags.AddRange([0x90001018u, 0xA0001027u, 0x00007A11u, 0x12345678u]);
+        foreach (uint tag in tags.Distinct())
+        {
+            string? name = ReparsePresentation.TagName(tag);
+            // The column's label and the published name come from two tables: they must know the same tags.
+            Assert.True((ReparsePresentation.Describe(tag).Kind != ReparseKind.Unknown) == (name is not null), $"0x{tag:X8} {name}");
+            string explained = ReparsePresentation.Explain(tag);
+            string[] lines = explained.Split('\n');
+            Assert.Equal(2, lines.Length);
+            Assert.StartsWith($"Tag 0x{tag:X8}", lines[1]);
+            if (name is not null) Assert.Contains(" · " + name, lines[1]);
+            Assert.Contains((tag & 0x80000000) != 0 ? "a Microsoft tag" : "a third-party tag", lines[1]);
+            Assert.Equal((tag & 0x20000000) != 0, lines[1].Contains("name surrogate", StringComparison.Ordinal));
+            Assert.Equal((tag & 0x10000000) != 0, lines[1].Contains("can have contents", StringComparison.Ordinal));
+            Assert.Equal(name is null, lines[0].Contains("does not know", StringComparison.Ordinal));
+            // The File-system details record names every tag the column recognizes.
+            Assert.Equal(name is null, RecordText.ReparseTag(tag).Contains("not a tag FileCat knows", StringComparison.Ordinal));
+        }
+        Assert.Equal("IO_REPARSE_TAG_CLOUD", ReparsePresentation.TagName(0x9000001A));
+        Assert.Equal("IO_REPARSE_TAG_CLOUD_7", ReparsePresentation.TagName(0x9000701A));
+        Assert.Equal("IO_REPARSE_TAG_CLOUD_F", ReparsePresentation.TagName(0x9000F01A));
+        Assert.Contains("set by a third-party driver or app", ReparsePresentation.Explain(0x00007A11));
+        Assert.Contains("does not distinguish a junction from a volume mount", ReparsePresentation.Explain(ReparseLinks.MountPointTag));
+        Assert.Contains("(IO_REPARSE_TAG_SYMLINK)", RecordText.ReparseTag(ReparseLinks.SymbolicLinkTag));
+        Assert.Equal("A reparse point whose tag could not be read.\nTag 0x00000000", ReparsePresentation.Explain(0));
+    }
+
+    [Fact]
     public void Stored_names_and_relative_flag_remain_separate_and_malformed_data_is_refused()
     {
         byte[] sub = Encoding.Unicode.GetBytes("..\\target"), print = Encoding.Unicode.GetBytes("display");

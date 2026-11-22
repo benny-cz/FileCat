@@ -1288,6 +1288,13 @@ public sealed partial class FileListControl : Control
         : IconProvider.Classify(e) == IconKind.Executable ? _exec
         : _text;
 
+    /// <summary>
+    /// A metadata cell's color: a value still being read, or a quiet one (Reparse type's "none"), recedes into the muted
+    /// color; a quiet value keeps the marked and active-cursor colors, which carry its row's state.
+    /// </summary>
+    internal IBrush MetadataBrush(in MetadataCellPresentation cell, IBrush rowBrush, bool marked, bool cursor) =>
+        cell.State == Core.Metadata.MetadataState.Pending || cell.Quiet && !marked && !cursor ? _muted : rowBrush;
+
     private void RenderRow(DrawingContext dc, ListingModel listing, int row, double y, double width, bool focused, bool active, bool inCloudRoot)
     {
         var e = listing.GetVisible(row);
@@ -1370,7 +1377,7 @@ public sealed partial class FileListControl : Control
                 bool pending = cell.State == Core.Metadata.MetadataState.Pending;
                 var mtext = Formatters.SafeName(cell.Text);
                 if (mtext.Length == 0) continue;
-                using var mft = MakeText(mtext, pending ? _muted : textBrush, typeface, avail);
+                using var mft = MakeText(mtext, MetadataBrush(cell, textBrush, marked, focused && active), typeface, avail);
                 double mx = c.RightAlign ? colX + colW - Padding - mft.Width : textX;
                 mft.Draw(dc, new Point(mx, y + (_rowHeight - mft.Height) / 2));
                 _renderedCells[(row, i)] = new RenderedCell(storeIndex, e.Name, e.Kind, mtext, mft.IsTruncated, cell.Detail, cell.NeedsExplanation, pending);
@@ -1859,7 +1866,10 @@ public sealed partial class FileListControl : Control
             return;
         }
         string? tip = null;
-        if (pos is { } p && _listing is { } listing && RowAt(p) is var row and >= 0 && ColumnAt(p) is var col and >= 0)
+        RichTip? headerTip = null;
+        if (pos is { } header && header.Y >= 0 && header.Y < _headerHeight && ColumnAt(header) is var headerColumn and >= 0)
+            tip = (headerTip = HeaderTip(_columns[headerColumn]))?.Text;
+        else if (pos is { } p && _listing is { } listing && RowAt(p) is var row and >= 0 && ColumnAt(p) is var col and >= 0)
         {
             bool overIcon = col == 0 && p.X + _horizontalOffset >= _columnX[0] + MarkGutter &&
                 p.X + _horizontalOffset < _columnX[0] + MarkGutter + IconSize + 2;
@@ -1879,7 +1889,21 @@ public sealed partial class FileListControl : Control
         if (tip is { Length: > 8192 }) tip = tip[..8192] + "…\nCtrl+Shift+I shows the complete focused row.";
         if (tip == _tip) return;
         _tip = tip;
-        ToolTip.SetTip(this, tip);
+        ToolTip.SetTip(this, (object?)headerTip ?? tip);
+    }
+
+    /// <summary>
+    /// A header's tooltip, laid out as the toolbar's are in the theme's tooltip styles: the column's title, what the column
+    /// shows where the title cannot say it (<see cref="ColumnDescriptions.HeaderHelp"/>), then hints in the muted color:
+    /// where to look further, and how clicking it sorts. A header with nothing to add has none.
+    /// </summary>
+    internal RichTip? HeaderTip(ColumnSpec column)
+    {
+        string? gesture = Tab?.Services.Keymap.GetGestureText(Core.Commands.CommandIds.FileRecord) is { Length: > 0 } g ? g.Split(',')[0].Trim() : null;
+        string[] help = ColumnDescriptions.HeaderHelp(column, OperatingSystem.IsWindows(), gesture)?.Split('\n') ?? [];
+        if (help.Length == 0 && column.SortField is null) return null;
+        string? sort = column.SortField is null ? null : "Click to sort by it; click again to reverse.";
+        return new RichTip(Formatters.SafeName(column.DisplayHeader), detail: help.FirstOrDefault(), hints: [.. help.Skip(1), sort]);
     }
 
     private static string CellTip(in EntryData entry, ColumnSpec column, string text)

@@ -163,6 +163,30 @@ public sealed class HiddenInventoryTests
         Assert.Null(inventory.ExactCount);
     }
 
+    /// <summary>
+    /// The Extra data column's text: exact where every category is, a lower bound where a category knows of more than it
+    /// lists, and otherwise what kept the count unknown, never a bare "Not inspected" for an access or read problem.
+    /// </summary>
+    [Theory]
+    [InlineData(HiddenInventoryState.Complete, 0, 0, "0")]
+    [InlineData(HiddenInventoryState.Complete, 0, 2, "2")]
+    [InlineData(HiddenInventoryState.NotInspected, 0, 0, "Not inspected")]
+    [InlineData(HiddenInventoryState.NotInspected, 0, 2, "2+")]
+    [InlineData(HiddenInventoryState.NotInspected, 1, 0, "1+")]
+    [InlineData(HiddenInventoryState.NotInspected, 1, 2, "3+")]
+    [InlineData(HiddenInventoryState.Denied, 0, 0, "no access")]
+    [InlineData(HiddenInventoryState.Failed, 0, 0, "error")]
+    [InlineData(HiddenInventoryState.Changed, 0, 0, "changed")]
+    [InlineData(HiddenInventoryState.Unsupported, 0, 0, "—")]
+    public void A_count_is_exact_a_lower_bound_or_says_what_kept_it_unknown(HiddenInventoryState eas, int eaCount, int streams, string text)
+    {
+        ImmutableArray<HiddenItem> items = [.. Enumerable.Range(0, streams).Select(i => new HiddenItem("stream" + i, HiddenKind.Stream, 1))];
+        var inventory = new HiddenInventory("fixture", DateTimeOffset.UtcNow, items,
+            [new(HiddenKind.Stream, HiddenInventoryState.Complete, streams, "fixture"), new(HiddenKind.NtfsAttribute, eas, eaCount, "fixture")], "fixture");
+        Assert.Equal(text, inventory.CountText);
+        Assert.Equal(eas == HiddenInventoryState.Complete ? streams : null, inventory.ExactCount);
+    }
+
     [Fact]
     public void Mac_attribute_length_that_requires_materialization_refuses_the_whole_inventory()
     {

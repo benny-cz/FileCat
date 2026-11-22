@@ -37,10 +37,27 @@ public sealed unsafe partial class WindowsHiddenData
             (items, eas) = MergeInventoryParts(streams, eas);
             categories.Add(new(HiddenKind.NtfsAttribute, eas.State, eas.Items.Length, "held object; native EA buffer includes values", eas.Problem));
         }
-        else categories.Add(new(HiddenKind.NtfsAttribute, HiddenInventoryState.NotInspected, 0, "EA query returns names and values", "Use Read extended attributes to admit that query."));
+        else categories.Add(EaSizeCategory(file));
         ct.ThrowIfCancellationRequested();
         return new(path, DateTimeOffset.UtcNow, items, categories.ToImmutable(), "FileStreamInfo / NtQueryEaFile on one no-follow metadata handle")
         { Identity = identity, BoundToObject = true, ValueBearingQueryIssued = acquired };
+    }
+
+    /// <summary>
+    /// Without admission no EA name or value is read. FileEaInformation reports only the total size of the object's EA
+    /// set, so an object without EAs is complete with none, and one with EAs counts as at least one.
+    /// </summary>
+    private static HiddenCategoryInventory EaSizeCategory(SafeFileHandle file)
+    {
+        const string Admission = "Use Read extended attributes to admit the EA query, which returns names and values.";
+        uint size = 0;
+        int status = NtQueryInformationFile(file, out var io, &size, sizeof(uint), 7 /* FileEaInformation */);
+        if (status < 0 || io.Information != sizeof(uint))
+            return new(HiddenKind.NtfsAttribute, HiddenInventoryState.NotInspected, 0, "EA query returns names and values", Admission);
+        return size == 0
+            ? new(HiddenKind.NtfsAttribute, HiddenInventoryState.Complete, 0, "held object; FileEaInformation reports none")
+            : new(HiddenKind.NtfsAttribute, HiddenInventoryState.NotInspected, 1, "held object; FileEaInformation size only",
+                $"FileEaInformation reports {size:N0} bytes of them. {Admission}");
     }
 
     internal sealed record InventoryPart(ImmutableArray<HiddenItem> Items, HiddenInventoryState State, string? Problem = null, bool Acquired = false);
@@ -82,6 +99,8 @@ public sealed unsafe partial class WindowsHiddenData
             int error = success ? 0 : Marshal.GetLastPInvokeError();
             ct.ThrowIfCancellationRequested();
             if (success) return ParseStreamInventory(buffer);
+            // A folder without named streams has no stream record at all: the query ends at once (ERROR_HANDLE_EOF).
+            if (error == 38) return new([], HiddenInventoryState.Complete);
             if (error is 122 or 234 && attempt < 2) continue;
             return new([], error is 122 or 234 ? HiddenInventoryState.Partial : error == 5 ? HiddenInventoryState.Denied : error is 1 or 50 or 87 ? HiddenInventoryState.Unsupported : HiddenInventoryState.Failed,
                 error is 122 or 234 ? "Stream metadata exceeded the bounded resize allowance." : new System.ComponentModel.Win32Exception(error).Message);

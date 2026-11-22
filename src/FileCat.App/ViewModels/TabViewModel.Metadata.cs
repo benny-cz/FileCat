@@ -12,7 +12,7 @@ internal sealed record MetadataRowContext(EntryStore Store, int StoreIndex, stri
     string? Path, string DeviceKey, bool SlowLocation);
 
 internal readonly record struct MetadataCellPresentation(MetadataState State, string Text, string Detail,
-    bool Applicable = true, bool NeedsExplanation = false, string? InspectionOverride = null)
+    bool Applicable = true, bool NeedsExplanation = false, string? InspectionOverride = null, bool Quiet = false)
 {
     public static MetadataCellPresentation Inapplicable => new(MetadataState.Absent, "", "", Applicable: false);
     public const string NotRead = "(not read yet: bring the row into view and scroll the column into view, or use View → Analyze folder)";
@@ -106,12 +106,14 @@ public sealed partial class TabViewModel
         };
         var detail = new List<string>(2);
         if (value.State == MetadataState.Available && field.Detail?.Invoke(value.Value) is { Length: > 0 } fieldDetail)
-            detail.Add(Formatters.SafeName(fieldDetail));
+            detail.Add(field.DetailLines ? string.Join('\n', fieldDetail.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => Formatters.SafeName(line)))
+                : Formatters.SafeName(fieldDetail));
         if (value.Detail is { Length: > 0 } reason) detail.Add(Formatters.SafeName(reason));
         else if (value.State == MetadataState.Pending) detail.Add("Being read.");
         bool explain = value.State is MetadataState.Denied or MetadataState.Unsupported or MetadataState.Failed ||
             value.State == MetadataState.Available && (value.Observation == MetadataObservation.LastKnown ||
                 !string.IsNullOrEmpty(value.Detail) || field.NeedsExplanation?.Invoke(value.Value) == true);
-        return new(value.State, text, string.Join('\n', detail), NeedsExplanation: explain);
+        return new(value.State, text, string.Join('\n', detail), NeedsExplanation: explain,
+            Quiet: value.State == MetadataState.Available && field.Quiet?.Invoke(value.Value) == true);
     }
 }

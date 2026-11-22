@@ -48,7 +48,10 @@ public readonly record struct MetadataValue(MetadataState State, object? Value =
 /// <summary>
 /// A metadata column's descriptor: stable id, cost class, applicability, producer, formatter, and sort key. Fields read for
 /// files only unless <paramref name="Folders"/>; a value that can change without a new modification time (permissions)
-/// is read again after <paramref name="RefreshAfter"/>, while the old one stays on screen.
+/// is read again after <paramref name="RefreshAfter"/>, while the old one stays on screen. A value
+/// <paramref name="Quiet"/> marks is real but unremarkable (Reparse type's "none"): the list draws it muted. With
+/// <paramref name="DetailLines"/> the field's own detail is FileCat's text whose line feeds separate lines, so each line
+/// is escaped on its own; any other detail is escaped whole, line feeds included.
 /// </summary>
 public sealed record MetadataField(
     string Id,
@@ -65,7 +68,9 @@ public sealed record MetadataField(
     Func<object?, bool>? NeedsExplanation = null,
     bool ObservationLane = false,
     bool MetadataOnlyOnOffline = false,
-    Func<EntryData, bool>? AppliesToEntry = null)
+    Func<EntryData, bool>? AppliesToEntry = null,
+    Func<object?, bool>? Quiet = null,
+    bool DetailLines = false)
 {
     public IComparable? CaptureKey(MetadataValue value) => value.State == MetadataState.Available &&
         (!ObservationLane || value.Observation == MetadataObservation.Current)
