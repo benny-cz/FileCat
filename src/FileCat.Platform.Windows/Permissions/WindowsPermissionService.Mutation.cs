@@ -151,7 +151,9 @@ internal sealed unsafe partial class WindowsPermissionService
         WindowsDiscretionaryMutation? mutation = null;
         try
         {
-            using var current = Walk(pin.Root, pin.Names, original.Subject.Authority, ct, out var parent, out var chain, out var now);
+            // A held binding on removable media exists only when its ordinary writer is qualified (see Inspect).
+            using var current = Walk(pin.Root, pin.Names, original.Subject.Authority, ct, out var parent, out var chain, out var now,
+                allowRemovable: binding.RemovableMedia);
             using (parent)
             {
                 if ((!volumeRoot && parent is null) || now != binding || !SameChain(pin.Chain, chain) ||
@@ -279,7 +281,7 @@ internal sealed unsafe partial class WindowsPermissionService
 
         public PermissionReadBack Observe(PermissionSections sections)
         {
-            string? unflushed = FlushRefusal(root, names, original.Subject.Authority, CancellationToken.None);
+            string? unflushed = FlushRefusal(root, names, original.Subject.Authority, CancellationToken.None, original.Binding!.RemovableMedia);
             var snapshot = ObserveHeld(sections, CancellationToken.None, out var held);
             var name = CheckNamespace(held, CancellationToken.None);
             if (unflushed is not null) return new(snapshot, PermissionVerification.Unavailable, name == false, unflushed);
@@ -320,7 +322,7 @@ internal sealed unsafe partial class WindowsPermissionService
             try
             {
                 using var observed = Walk(root, names, original.Subject.Authority, ct,
-                    out var parent, out var chain, out var binding);
+                    out var parent, out var chain, out var binding, allowRemovable: original.Binding!.RemovableMedia);
                 using (parent)
                     return SameChain(inspectedChain, chain) && binding == original.Binding &&
                         chain[^1] == held;
@@ -339,13 +341,14 @@ internal sealed unsafe partial class WindowsPermissionService
     // A test may fail the flush for objects in chosen folders with a Win32 error.
     internal static Func<string, int>? FlushFaultForTests;
 
-    private static string? FlushRefusal(string root, string[] names, PermissionAuthority authority, CancellationToken ct)
+    private static string? FlushRefusal(string root, string[] names, PermissionAuthority authority, CancellationToken ct, bool removable = false)
     {
         string folderPath = names.Length <= 1 ? root : root + string.Join(Path.DirectorySeparatorChar, names[..^1]);
         SafeFileHandle folder;
         try
         {
-            folder = Walk(root, names.Length == 0 ? names : names[..^1], authority, ct, out var parent, out _, out _, leafReadAccess: 0x2 /* FILE_ADD_FILE */);
+            folder = Walk(root, names.Length == 0 ? names : names[..^1], authority, ct, out var parent, out _, out _, leafReadAccess: 0x2 /* FILE_ADD_FILE */,
+                allowRemovable: removable);
             parent?.Dispose();
         }
         catch (Exception error) when (error is ReadFailure or Win32Exception or IOException or UnauthorizedAccessException) { return null; }
