@@ -116,6 +116,42 @@ public sealed partial class PermissionJobTests
         Assert.Equal(0, DarwinRealAccess(secret, 4));
     }
 
+    // G-FLAG system flags on macOS: an owned file under system immutable or system append-only protection (set by root) is
+    // read only to ordinary FileCat on both writer routes. Inspection names the protection, neither a mode change nor a
+    // flag clear is prepared, and the flags stay as they were.
+    [Theory]
+    [InlineData("schg", 0x20000u)]
+    [InlineData("sappnd", 0x40000u)]
+    public void Darwin_system_protection_is_read_only_to_ordinary_reviews(string flag, uint bit)
+    {
+        string directory = Environment.GetEnvironmentVariable("FILECAT_TEST_DARWIN_SYSTEM_FLAGS") ?? string.Empty;
+        if (!OperatingSystem.IsMacOS() || directory.Length == 0 || Environment.IsPrivilegedProcess)
+            Assert.Skip("Requires owned macOS files that root marked with system flags.");
+        string path = Path.Join(directory, flag);
+        var item = ItemRef.ForFileSystemPath(path, EntryKind.File);
+        var subject = new PermissionSubject(item.Parent, path, path, new(PermissionAuthorityKind.Local, "fixture", 0),
+            PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+        var ct = TestContext.Current.CancellationToken;
+        string before = RunAclTool("stat", "-f", "%Sf %Lp", path);
+        Assert.Contains(flag, before);
+        foreach (bool descriptor in new[] { false, true })
+        {
+            var service = new DarwinPermissionService(qualifyParentWrites: !descriptor, qualifyDescriptorWrites: descriptor,
+                qualifyProtectionWrites: true);
+            using (var inspection = service.Inspect(subject, DarwinSections, ct))
+            {
+                Assert.Equal(bit, (uint)inspection.Snapshot.Flags.Value!.Value.Bits & bit);
+                Assert.Contains("System file protection is read only", DarwinPermissionService.ModeRefusal(inspection.Snapshot));
+                Assert.ThrowsAny<Exception>(() => DarwinPermissionService.Prepare(inspection, item,
+                    new(PermissionScope.Objects, [new ChangePermissionMode(0x180, 0xfff)]), false, ct));
+            }
+            using (var inspection = service.Inspect(subject, DarwinSections, ct))
+                Assert.ThrowsAny<Exception>(() => DarwinPermissionService.Prepare(inspection, item,
+                    new(PermissionScope.Objects, [new ChangePermissionFlags(0, bit)]), false, ct));
+        }
+        Assert.Equal(before, RunAclTool("stat", "-f", "%Sf %Lp", path));
+    }
+
     private static DarwinAccessReport CheckDarwinAccess(string path)
     {
         var item = ItemRef.ForFileSystemPath(path, EntryKind.File);
