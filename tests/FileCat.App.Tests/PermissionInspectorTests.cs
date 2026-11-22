@@ -1048,7 +1048,8 @@ public sealed class PermissionInspectorTests
             Click(FindButton(window, "Estimate Windows ACL access…")!);
             await Until(() => TextPresent(window, "Discretionary grant mask"), ct);
             Assert.True(TextPresent(window, "Windows process token"));
-            Assert.True(TextPresent(window, "mandatory integrity"));
+            Assert.True(TextPresent(window, "Mandatory integrity · object Medium (no write-up) · this process Medium"));
+            Assert.True(TextPresent(window, "central access policy"));
             Assert.Empty(services.Jobs.Jobs);
         }
         finally { AccessibilityTests.Close(services, window, root); }

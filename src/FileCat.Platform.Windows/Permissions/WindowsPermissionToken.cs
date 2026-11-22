@@ -92,6 +92,25 @@ internal static unsafe partial class WindowsPermissionToken
         return new(statistics.TokenId, statistics.AuthenticationId, statistics.ModifiedId);
     }
 
+    /// <summary>The token's integrity level as its integrity RID (0x2000 is Medium) and its mandatory policy flags.</summary>
+    internal static (uint Level, uint Policy) ReadIntegrity(SafeAccessTokenHandle token)
+    {
+        const int TokenIntegrityLevel = 25, TokenMandatoryPolicy = 27;
+        byte* label = stackalloc byte[64];
+        if (!GetTokenInformation(token, TokenIntegrityLevel, label, 64, out uint used) || used < 16)
+            throw new IOException("FileCat's Windows token integrity level could not be read.", new Win32Exception(Marshal.GetLastPInvokeError()));
+        // TOKEN_MANDATORY_LABEL holds a pointer to a SID S-1-16-<RID> in the same buffer.
+        byte* sid = *(byte**)label;
+        if (sid < label || sid + 12 > label + used || sid[0] != 1 || sid[1] != 1 || sid + 8 + 4 * sid[1] > label + used ||
+            sid[2] != 0 || sid[3] != 0 || sid[4] != 0 || sid[5] != 0 || sid[6] != 0 || sid[7] != 16)
+            throw new IOException("FileCat's Windows token has an unexpected integrity label.");
+        uint level = *(uint*)(sid + 8);
+        uint policy;
+        if (!GetTokenInformation(token, TokenMandatoryPolicy, &policy, sizeof(uint), out used) || used != sizeof(uint))
+            throw new IOException("FileCat's Windows token mandatory policy could not be read.", new Win32Exception(Marshal.GetLastPInvokeError()));
+        return (level, policy);
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     private struct TokenStatistics
     {

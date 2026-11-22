@@ -247,7 +247,9 @@ public sealed partial class MainViewModel
             string restrictions = report.Restricted ? "restricted SIDs present" : "no restricted SIDs";
             content.Children.Add(Wrapped($"Windows process token · {report.EnabledGroups} enabled groups · {restrictions}"));
             if (report.GrantedMask is { } mask)
-                content.Children.Add(Wrapped($"Discretionary grant mask · 0x{mask:X8}"));
+                content.Children.Add(Wrapped($"Discretionary grant mask after the mandatory label · 0x{mask:X8}"));
+            content.Children.Add(Wrapped($"Mandatory integrity · object {IntegrityName(report.ObjectIntegrity)}{LabelPolicy(report.ObjectPolicy)} · " +
+                $"this process {IntegrityName(report.ProcessIntegrity)}"));
             if (report.Reason is { } reason) content.Children.Add(Wrapped(reason));
             if (report.NativeError is { } code) content.Children.Add(Wrapped($"Windows Authz status · {code}"));
             foreach (var check in report.Checks)
@@ -255,12 +257,27 @@ public sealed partial class MainViewModel
                 string status = check.Status switch
                 {
                     PermissionReadStatus.Present => "Granted by the discretionary ACL calculation",
+                    PermissionReadStatus.Denied when report.MandatoryRefusals.Contains(check.Right) => "Refused by the object's mandatory label",
                     PermissionReadStatus.Denied => "No discretionary grant",
                     _ => "Unknown"
                 };
                 content.Children.Add(Wrapped($"{check.Right} · {status}"));
             }
-            content.Children.Add(Wrapped("Actual access can also depend on mandatory integrity, privileges, central policy, file sharing and the parent directory."));
+            content.Children.Add(Wrapped("Actual access can also depend on privileges, central access policy, file sharing and the parent directory."));
+
+            static string IntegrityName(uint level) => level switch
+            {
+                0 => "Untrusted", 0x1000 => "Low", 0x2000 => "Medium", 0x2100 => "Medium Plus", 0x3000 => "High",
+                0x4000 => "System", 0x5000 => "Protected process", _ => $"0x{level:X}"
+            };
+            static string LabelPolicy(uint policy)
+            {
+                var parts = new List<string>(3);
+                if ((policy & 1) != 0) parts.Add("no write-up");
+                if ((policy & 2) != 0) parts.Add("no read-up");
+                if ((policy & 4) != 0) parts.Add("no execute-up");
+                return parts.Count == 0 ? "" : " (" + string.Join(", ", parts) + ")";
+            }
         }
         catch (OperationCanceledException) { return; }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)

@@ -121,6 +121,81 @@ public sealed partial class WindowsAccessEstimateTokenTests
         finally { directory.Delete(recursive: true); }
     }
 
+    // G-ACCESS mandatory integrity: a file labelled High with no-write-up and no-execute-up whose DACL grants this medium
+    // process full control. AuthZ ignores the label, so the estimate applies it: what the label refuses is denied and
+    // named, and each right agrees with what the process can open.
+    [Fact]
+    public void The_mandatory_label_refuses_write_and_execute_up_in_the_estimate_and_the_open()
+    {
+        string path = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_MIC_WITNESS") ?? string.Empty;
+        if (!OperatingSystem.IsWindows() || path.Length == 0 || ReviewedPermissionOperation.ProcessRefusal() is not null)
+            Assert.Skip("Requires the seeded High-labelled Windows witness and an ordinary medium process.");
+        var subject = new PermissionSubject(Location.FileSystem(Path.GetDirectoryName(path)!), path, path,
+            new(PermissionAuthorityKind.Local, "local", 0), PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+        var report = new WindowsPermissionService(qualifyAccessEstimates: true).EstimateAccess(subject, TestContext.Current.CancellationToken);
+        Assert.Equal(0x3000u, report.ObjectIntegrity);
+        Assert.Equal(WindowsAclEstimate.NoWriteUp | WindowsAclEstimate.NoExecuteUp, report.ObjectPolicy);
+        Assert.Equal(0x2000u, report.ProcessIntegrity);
+        Assert.Equal(["Write content", "Append content", "Execute this file", "Change access rules"], report.MandatoryRefusals);
+        using var identity = CurrentIdentity();
+        foreach (var (right, access) in new (string, uint)[]
+        {
+            ("Read content", ReadData | Synchronize), ("Write content", WriteData | Synchronize), ("Append content", 0x4 | Synchronize),
+            ("Execute this file", 0x20 | Synchronize), ("Read permissions", ReadControl), ("Change access rules", WriteDac)
+        })
+        {
+            var expected = OpenError(identity.AccessToken, path, access) == 0 ? PermissionReadStatus.Present : PermissionReadStatus.Denied;
+            Assert.True(Assert.Single(report.Checks, check => check.Right == right).Status == expected, $"{right}: the open says {expected}.");
+        }
+        Assert.Equal(PermissionReadStatus.Present, Assert.Single(report.Checks, check => check.Right == "Read content").Status);
+        Assert.Equal(PermissionReadStatus.Denied, Assert.Single(report.Checks, check => check.Right == "Write content").Status);
+    }
+
+    // The label parser and the withheld rights, on crafted descriptors.
+    [Fact]
+    public void Mandatory_labels_parse_and_withhold_the_measured_rights()
+    {
+        Assert.Equal((0x2000u, 1u), WindowsPermissionService.ParseMandatoryLabel(Descriptor(null)));
+        Assert.Equal((0x3000u, 3u), WindowsPermissionService.ParseMandatoryLabel(Descriptor(Label(0, 3, 0x3000))));
+        Assert.Equal((0x2000u, 1u), WindowsPermissionService.ParseMandatoryLabel(Descriptor(Label(0x08, 7, 0x4000))));
+        byte[] foreign = Label(0, 1, 0x3000);
+        foreign[15] = 5; // authority 5 instead of 16
+        Assert.Throws<InvalidDataException>(() => WindowsPermissionService.ParseMandatoryLabel(Descriptor(foreign)));
+        var medium = (0x2000u, 1u);
+        Assert.Equal(0u, WindowsPermissionService.MandatoryDenied((0x3000, 7), (0x3000, 3)));
+        Assert.Equal(0xD0156u, WindowsPermissionService.MandatoryDenied((0x3000, 1), medium));
+        Assert.Equal(0xD0156u | 0x20009u | 0x20u, WindowsPermissionService.MandatoryDenied((0x3000, 7), medium));
+        Assert.Equal(0x20009u, WindowsPermissionService.MandatoryDenied((0x3000, 3), (0x2000u, 0u)));
+
+        static byte[] Label(byte flags, uint policy, uint level)
+        {
+            var entry = new byte[20];
+            entry[0] = 0x11; entry[1] = flags; entry[2] = 20;
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(entry.AsSpan(4), policy);
+            entry[8] = 1; entry[9] = 1; entry[15] = 16;
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(entry.AsSpan(16), level);
+            return entry;
+        }
+
+        static byte[] Descriptor(byte[]? label)
+        {
+            var bytes = new byte[20 + (label is null ? 0 : 8 + label.Length)];
+            bytes[0] = 1;
+            ushort control = 0x8000; // self-relative
+            if (label is not null)
+            {
+                control |= 0x10; // SACL present
+                System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(12), 20);
+                bytes[20] = 2;
+                System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(22), (ushort)(8 + label.Length));
+                bytes[24] = 1;
+                label.CopyTo(bytes, 28);
+            }
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(2), control);
+            return bytes;
+        }
+    }
+
     private static DirectoryInfo RequireFixture(string prefix)
     {
         if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_NTFS") != "1" ||
