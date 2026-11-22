@@ -200,7 +200,11 @@ internal sealed class SftpPermissionPathReview : IDisposable
         var startAttributes = start ?? (startDirectory == path ? leaf : Read(startDirectory));
         if ((startAttributes.Flags & 0x6u) != 0x6u || (startAttributes.Permissions & ~0xfffu) != 0x4000 || startAttributes.UserId != owner)
             throw new RefusedOperationException("The SFTP leaf owner differs from the account's start-directory owner.");
-        if (lookup(owner, group, cancellation)?.User != user)
+        SftpAccountNames? names;
+        // A server that offers the account lookup but refuses the request (sftp-server -P) corroborates nothing either.
+        try { names = lookup(owner, group, cancellation); }
+        catch (Exception error) when (error is UnauthorizedAccessException or Renci.SshNet.Common.SftpException) { names = null; }
+        if (names?.User != user)
             throw new RefusedOperationException("The server could not corroborate the leaf owner as the signed-in account.");
         return new(path, startDirectory, startAttributes, ancestors.ToImmutable(), leaf);
 
