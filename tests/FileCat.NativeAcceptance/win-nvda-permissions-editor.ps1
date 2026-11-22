@@ -1,8 +1,9 @@
 param([Parameter(Mandatory)][string]$AppPath, [Parameter(Mandatory)][string]$NvdaPath,
     [Parameter(Mandatory)][string]$ReportPath)
-# U1 G-UX: NVDA readout of File -> Inspect -> Permissions and ownership and the ordered Windows access editor, on an idle
-# disposable VMware guest with a private reader profile. Keyboard only: the palette opens the inspector, Tab reaches its
-# actions, the editor's add-entry fields are filled, an invalid mask is announced, and Escape discards the draft.
+# U1 G-UX: NVDA readout of File -> Inspect -> Permissions and ownership, the ordered Windows access editor and the owner
+# editor, on an idle disposable VMware guest with a private reader profile. Keyboard only: the palette opens the
+# inspector, Tab reaches its actions, the editor's add-entry fields are filled, an invalid mask is announced, Escape
+# discards the draft, and the owner editor opens on its owner choice.
 # Nothing is applied; the witness file's descriptor must be unchanged.
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
@@ -179,6 +180,29 @@ try {
     Start-Sleep -Milliseconds 800
     $script:result.Checks += [ordered]@{ Step = 'after discard'; Spoken = (@(Speech) -join ' ') }
     $script:result.DiscardOffered = $true
+
+    # The owner editor has no Apply until a different owner is chosen: it must open on the owner choice, and Escape on
+    # a clean draft closes it without a discard prompt.
+    $script:result.Stage = 'owner editor'
+    Foreground
+    Chord @(0x11, 0x10, 0x50)        # Ctrl+Shift+P
+    Await { Named 'Search commands' $CT::Edit } 'command search' | Out-Null
+    Type-Text 'permissions and ownership'
+    Start-Sleep -Milliseconds 800
+    Key 0x0D
+    $owner = Await { Named ('Change owner' + [char]0x2026) $CT::Button } 'the Change owner action' 30
+    Start-Sleep -Milliseconds 800; [void](Speech)
+    $owner.SetFocus(); Start-Sleep -Milliseconds 500
+    Hear 'owner action focused' @('Change owner', 'button') 8
+    Key 0x0D
+    Await { Named 'Assignable owner SID' } 'the owner editor' 30 | Out-Null
+    Hear 'owner editor opens' @('Change owner dialog', 'Assignable owner SID', 'combo box') 12
+    Key 0x1B
+    Await { $null -eq (Named 'Assignable owner SID') } 'the owner editor to close on Escape' 15 | Out-Null
+    Start-Sleep -Milliseconds 800
+    $closing = (@(Speech) -join ' ')
+    $script:result.Checks += [ordered]@{ Step = 'owner editor closed'; Spoken = $closing }
+    if ($closing.Contains('Discard changes?')) { throw 'Escape on an unchanged owner draft asked to discard changes.' }
     $after = (Get-Acl -LiteralPath $witness).Sddl
     if ($after -ne $before) { throw "The witness descriptor changed: $before -> $after" }
     $script:result.WitnessSddl = $after
