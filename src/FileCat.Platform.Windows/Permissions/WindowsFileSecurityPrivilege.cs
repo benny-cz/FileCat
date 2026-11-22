@@ -7,6 +7,46 @@ namespace FileCat.Platform.Windows.Permissions;
 
 internal static partial class WindowsFileSecurityPrivilege
 {
+    /// <summary>ERROR_PRIVILEGE_NOT_HELD: the acting token lacks a privilege the reviewed route requires.</summary>
+    internal const int PrivilegeNotHeld = 1314;
+
+    /// <summary>True for the errors Windows returns when a required privilege is absent from the token.</summary>
+    internal static bool IsMissingPrivilege(long error) => error is PrivilegeNotHeld or 1300 /* ERROR_NOT_ALL_ASSIGNED */;
+
+    /// <summary>The named privileges absent from this process's primary token, enabled or not.</summary>
+    internal static IReadOnlyList<string> MissingFromProcess(params string[] names)
+    {
+        if (!OpenProcessToken(-1, 0x0008 /* TOKEN_QUERY */, out var token))
+        {
+            token?.Dispose();
+            throw new Win32Exception(Marshal.GetLastPInvokeError());
+        }
+        using (token) return Missing(token, names);
+    }
+
+    internal static unsafe IReadOnlyList<string> Missing(SafeAccessTokenHandle token, params string[] names)
+    {
+        _ = GetTokenInformation(token, 3 /* TokenPrivileges */, null, 0, out uint length);
+        if (length is < 4 or > 64 * 1024) throw new Win32Exception(Marshal.GetLastPInvokeError());
+        byte[] buffer = new byte[length];
+        fixed (byte* data = buffer)
+            if (!GetTokenInformation(token, 3, data, length, out length))
+                throw new Win32Exception(Marshal.GetLastPInvokeError());
+        uint count = BitConverter.ToUInt32(buffer, 0);
+        if (count > (length - 4) / 12) throw new InvalidDataException("Windows returned an invalid token privilege list.");
+        var held = new HashSet<(uint, int)>();
+        for (int i = 0; i < count; i++)
+            held.Add((BitConverter.ToUInt32(buffer, 4 + i * 12), BitConverter.ToInt32(buffer, 8 + i * 12)));
+        var missing = new List<string>();
+        foreach (string name in names)
+        {
+            if (!LookupPrivilegeValue(null, name, out var identifier))
+                throw new Win32Exception(Marshal.GetLastPInvokeError());
+            if (!held.Contains((identifier.LowPart, identifier.HighPart))) missing.Add(name);
+        }
+        return missing;
+    }
+
     internal static T Read<T>(bool audit, Func<T> action) =>
         Run(audit ? ["SeBackupPrivilege", "SeSecurityPrivilege"] : ["SeBackupPrivilege"], action);
 
@@ -67,6 +107,12 @@ internal static partial class WindowsFileSecurityPrivilege
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool OpenProcessToken(nint process, uint rights, out SafeAccessTokenHandle token);
+
+    [LibraryImport("advapi32.dll", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static unsafe partial bool GetTokenInformation(SafeAccessTokenHandle token, int information, byte* buffer, uint length,
+        out uint returned);
 
     [LibraryImport("advapi32.dll", SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]

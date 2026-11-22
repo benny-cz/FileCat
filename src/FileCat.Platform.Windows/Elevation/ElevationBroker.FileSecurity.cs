@@ -122,6 +122,10 @@ public static partial class ElevationBroker
             bool mayHaveDispatched = false;
             try
             {
+                // An administrator whose token lacks backup, restore or audit privilege is refused before the target is
+                // held or consent is asked, with a reply that names the missing privilege rather than a generic failure.
+                if (WindowsPermissionService.RefuseWithoutPrivileges(step, WindowsFileSecurityPrivilege.MissingFromProcess) is { } refused)
+                    return Current() && Verify() ? refused : null;
                 using var target = HoldTarget(step, cancellation);
                 if (!Current()) return null;
                 string who = $"Requester {ElevationPlanCodec.DisplayName(requester.UserSid.Value)} ({requester.UserSid.Value}).";
@@ -131,12 +135,17 @@ public static partial class ElevationBroker
                     var review = Task.Run(() => WindowsPermissionService.DescribeAuthorizedChange(step, requester, helper, cancellation),
                         CancellationToken.None).WaitAsync(cancellation).GetAwaiter().GetResult();
                     if (!Current() || !Verify()) return null;
+                    bool noRestore = WindowsFileSecurityPrivilege.MissingFromProcess("SeRestorePrivilege").Count != 0;
+                    if (review.Owner is { CanUseWriteOwner: false } && noRestore)
+                        return new(FileSecurityOutcome.ChangeReported,
+                            Apply: new(FileSecurityChangeStatus.FailedBeforeChange, WindowsFileSecurityPrivilege.PrivilegeNotHeld));
                     bool volumeRoot = scope.Kind == PermissionObjectKind.VolumeRoot;
                     string scopeText = volumeRoot
                         ? "This write targets the selected volume root. Existing child ACLs stay in place. New children can inherit these rules."
                         : $"Hard-link count {scope.LinkCount}. Other names for this file are unknown.";
                     string impact = review.Owner switch
                     {
+                        { CanUseWriteOwner: true } when noRestore => "The helper uses the administrator's right to write the owner. If Windows denies that access, the change fails: this administrator's token lacks restore privilege.",
                         { CanUseWriteOwner: true } => "The helper uses the administrator's right to write the owner. If Windows denies that access, approval allows restore privilege for this same owner assignment.",
                         not null => "The helper uses restore privilege to assign the reviewed owner from the requesting Windows token.",
                         _ when scope.Sections == PermissionSections.Audit => "The helper uses the system security privilege for this change. Windows audit policy determines whether events are recorded.",

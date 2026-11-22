@@ -149,7 +149,9 @@ internal sealed partial class WindowsPermissionService
                 {
                     FileSecurityChangeStatus.Conflict => new(BindingConflict: true),
                     FileSecurityChangeStatus.FailedBeforeChange when result.ObservedRevision is null =>
-                        new(nativeError, FailedWithoutDispatch: true, Detail: "The helper refused the change before dispatch."),
+                        new(nativeError, FailedWithoutDispatch: true, Detail: WindowsFileSecurityPrivilege.IsMissingPrivilege(result.NativeError)
+                            ? "The approving administrator's Windows token lacks the backup, restore or system security privilege this change requires. Nothing was changed."
+                            : "The helper refused the change before dispatch."),
                     FileSecurityChangeStatus.FailedBeforeChange =>
                         new(nativeError, RejectedBeforeChange: true, Detail: "Windows refused the write and the helper verified the original security."),
                     FileSecurityChangeStatus.Verified => new(),

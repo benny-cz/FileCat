@@ -93,7 +93,9 @@ internal sealed partial class WindowsPermissionService
     {
         DateTimeOffset now = DateTimeOffset.UtcNow;
         var snapshot = PermissionSnapshots.Create(original.Subject, PermissionModel.WindowsDescriptor, original.Binding, sections, now,
-            Source, read.Discretionary.Status, "The helper could not read the requested Windows security section.", Error(read.Discretionary));
+            Source, read.Discretionary.Status, WindowsFileSecurityPrivilege.IsMissingPrivilege(read.Discretionary.NativeError)
+                ? "The approving administrator's Windows token lacks the backup privilege needed to read this section."
+                : "The helper could not read the requested Windows security section.", Error(read.Discretionary));
         if (read.Discretionary.Descriptor is { } access)
             snapshot = Decode(snapshot, sections & DiscretionarySections, access, now);
         if ((sections & PermissionSections.Audit) != 0)
@@ -114,7 +116,9 @@ internal sealed partial class WindowsPermissionService
             }
             else
                 snapshot = snapshot with { Audit = new(read.Audit.Status, Source, now,
-                    Reason: "The helper could not read the requested Windows audit ACL.", NativeError: Error(read.Audit)) };
+                    Reason: WindowsFileSecurityPrivilege.IsMissingPrivilege(read.Audit.NativeError)
+                        ? "The approving administrator's Windows token lacks the backup or system security privilege needed to read audit rules."
+                        : "The helper could not read the requested Windows audit ACL.", NativeError: Error(read.Audit)) };
         }
         return PermissionSnapshots.WithCapabilities(snapshot, sections);
 

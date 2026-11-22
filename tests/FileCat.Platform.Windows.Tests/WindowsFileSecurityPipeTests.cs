@@ -226,6 +226,74 @@ public sealed class WindowsFileSecurityPipeTests
         Assert.True(await reply);
     }
 
+    [Theory]
+    // Inspection: a missing backup privilege denies every requested section before consent.
+    [InlineData(false, (int)(PermissionSections.Access | PermissionSections.Audit), "SeBackupPrivilege", true)]
+    [InlineData(false, (int)PermissionSections.Access, "SeBackupPrivilege", true)]
+    // Without only the audit privilege the DACL stays readable, so consent proceeds and only the SACL read fails.
+    [InlineData(false, (int)(PermissionSections.Access | PermissionSections.Audit), "SeSecurityPrivilege", false)]
+    [InlineData(false, (int)PermissionSections.Audit, "SeSecurityPrivilege", true)]
+    // Changes: a DACL or SACL write needs restore privilege; an owner assignment may still use WRITE_OWNER.
+    [InlineData(true, (int)PermissionSections.Access, "SeRestorePrivilege", true)]
+    [InlineData(true, (int)PermissionSections.Audit, "SeSecurityPrivilege", true)]
+    [InlineData(true, (int)PermissionSections.Owner, "SeRestorePrivilege", false)]
+    [InlineData(true, (int)PermissionSections.Owner, "SeBackupPrivilege", true)]
+    [InlineData(true, (int)PermissionSections.Access, "SeTakeOwnershipPrivilege", false)]
+    public async Task A_missing_privilege_is_refused_before_consent_with_a_reply_the_requester_accepts(bool change, int sectionBits,
+        string absent, bool refused)
+    {
+        var sections = (PermissionSections)sectionBits;
+        var reviewed = change ? sections == PermissionSections.Owner ? Change
+            : new ElevatedFileSecurityChange(ElevatedFileSecurityOperation.AddRule, Digest, Other,
+                NewRule: new(sections == PermissionSections.Audit ? ElevatedFileSecurityRuleType.Audit : ElevatedFileSecurityRuleType.Allow,
+                    "S-1-5-32-545", 0x00120089, sections == PermissionSections.Audit ? (byte)0x80 : (byte)0)) : null;
+        var step = new ElevatedStep(change ? ElevatedVerb.ChangeFileSecurity : ElevatedVerb.InspectFileSecurity)
+        {
+            Path = @"\\?\Volume{00000000-0000-0000-0000-000000000001}\file.txt",
+            FileSecurity = new(new string('1', 16), [new string('2', 32), new string('3', 32)], PermissionObjectKind.File, 1, 1, 1,
+                "S-1-5-5-0-1", new string('4', 48), sections, PermissionScope.Objects, reviewed),
+        };
+        var reply = Platform.Windows.Permissions.WindowsPermissionService.RefuseWithoutPrivileges(step,
+            names => names.Where(name => name == absent).ToArray());
+        if (!refused)
+        {
+            Assert.Null(reply);
+            return;
+        }
+        Assert.NotNull(reply);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var pair = await ConnectAsync(timeout.Token);
+        var protocol = change ? new FileSecurityPipeProtocol(Nonce, Digest, change: reviewed) : new FileSecurityPipeProtocol(Nonce, Digest, sections);
+        var serve = Task.Run(() => protocol.Serve(pair.Server, (_, _) => reply, timeout.Token));
+        var received = await protocol.RequestAsync(pair.Client, timeout.Token);
+        Assert.True(await serve);
+        if (change)
+        {
+            Assert.Equal(new FileSecurityApply(FileSecurityChangeStatus.FailedBeforeChange, 1314), received.Apply);
+            return;
+        }
+        Assert.Equal(FileSecurityOutcome.Inspected, received.Outcome);
+        foreach (var (read, requested) in new[] {
+            (received.Inspection!.Discretionary, (sections & ~PermissionSections.Audit) != 0),
+            (received.Inspection.Audit, (sections & PermissionSections.Audit) != 0) })
+            Assert.Equal(requested ? new FileSecurityDescriptorRead(PermissionReadStatus.Denied, NativeError: 1314)
+                : new FileSecurityDescriptorRead(PermissionReadStatus.Unloaded), read);
+    }
+
+    [Fact]
+    public void The_token_privilege_query_separates_absent_from_held_privileges()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Queries a Windows process token.");
+        // Every process holds the bypass-traverse privilege. Only LSA and LocalSystem hold the create-token privilege.
+        Assert.SkipWhen(System.Security.Principal.WindowsIdentity.GetCurrent().IsSystem, "LocalSystem holds every privilege queried here.");
+        var missing = Platform.Windows.Permissions.WindowsFileSecurityPrivilege.MissingFromProcess(
+            "SeChangeNotifyPrivilege", "SeCreateTokenPrivilege");
+        Assert.Equal(new[] { "SeCreateTokenPrivilege" }, missing);
+        Assert.True(Platform.Windows.Permissions.WindowsFileSecurityPrivilege.IsMissingPrivilege(1314));
+        Assert.True(Platform.Windows.Permissions.WindowsFileSecurityPrivilege.IsMissingPrivilege(1300));
+        Assert.False(Platform.Windows.Permissions.WindowsFileSecurityPrivilege.IsMissingPrivilege(5));
+    }
+
     private static Task<bool> ServeUnavailableAsync(FileSecurityPipeProtocol protocol, Stream pipe, Func<bool> claim,
         CancellationToken cancellation) => Task.Run(() => protocol.Serve(pipe, (_, _) => claim()
             ? new FileSecurityReply(FileSecurityOutcome.Unavailable) : null, cancellation), cancellation);

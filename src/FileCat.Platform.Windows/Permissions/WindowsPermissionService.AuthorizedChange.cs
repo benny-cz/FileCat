@@ -28,6 +28,37 @@ internal sealed unsafe partial class WindowsPermissionService
                 scope.Sections is PermissionSections.Access or PermissionSections.Audit && IsRuleEdit(scope.Change));
     }
 
+    /// <summary>
+    /// The helper's reply when the acting administrator's token lacks a privilege the reviewed route needs: every
+    /// requested section denied, or a change refused before consent, so nobody approves an operation that cannot run.
+    /// Null lets the request proceed. An owner assignment needs restore privilege only after a denied WRITE_OWNER open.
+    /// </summary>
+    internal static FileSecurityReply? RefuseWithoutPrivileges(ElevatedStep step, Func<string[], IReadOnlyList<string>> missing)
+    {
+        var scope = step.FileSecurity!;
+        if (step.Verb == ElevatedVerb.InspectFileSecurity)
+        {
+            bool discretionary = (scope.Sections & DiscretionarySections) != 0;
+            bool audit = (scope.Sections & PermissionSections.Audit) != 0;
+            bool noBackup = missing(["SeBackupPrivilege"]).Count != 0;
+            bool noAudit = audit && (noBackup || missing(["SeSecurityPrivilege"]).Count != 0);
+            if (discretionary && !noBackup || audit && !noAudit) return null;
+            return new(FileSecurityOutcome.Inspected, new(Denied(discretionary), Denied(audit)));
+        }
+        string[] required = scope.Sections switch
+        {
+            PermissionSections.Owner => ["SeBackupPrivilege"],
+            PermissionSections.Audit => ["SeBackupPrivilege", "SeRestorePrivilege", "SeSecurityPrivilege"],
+            _ => ["SeBackupPrivilege", "SeRestorePrivilege"],
+        };
+        return missing(required).Count == 0 ? null : new(FileSecurityOutcome.ChangeReported,
+            Apply: new(FileSecurityChangeStatus.FailedBeforeChange, WindowsFileSecurityPrivilege.PrivilegeNotHeld));
+
+        static FileSecurityDescriptorRead Denied(bool requested) => requested
+            ? new(PermissionReadStatus.Denied, NativeError: WindowsFileSecurityPrivilege.PrivilegeNotHeld)
+            : new(PermissionReadStatus.Unloaded);
+    }
+
     private static bool IsRuleEdit(ElevatedFileSecurityChange? change) => change is
         {
             Operation: ElevatedFileSecurityOperation.AddRule or ElevatedFileSecurityOperation.ReplaceRule or
