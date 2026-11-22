@@ -547,6 +547,10 @@ public sealed class WindowsPermissionInspectionTests
         Assert.Null(snapshot.Binding);
         Assert.Contains("inspection-only", WindowsPermissionService.EditRefusal(snapshot));
         Assert.False(WindowsPermissionService.CanBindAuthorizedInspection(snapshot));
+        // G-ACCESS share limit: share permissions and server policy are not visible to the client, so no estimate is offered.
+        var estimating = new WindowsPermissionService(qualifySmbReads: true, qualifyAccessEstimates: true);
+        Assert.False(estimating.CanEstimateAccess(snapshot));
+        Assert.Throws<NotSupportedException>(() => estimating.EstimateAccess(subject, ct));
 
         using var stale = service.Inspect(subject with { ListedSize = file.Length + 1 }, sections, ct);
         Assert.Equal(PermissionReadStatus.Stale, stale.Snapshot.Access.Status);

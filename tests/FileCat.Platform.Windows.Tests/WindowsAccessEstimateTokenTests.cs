@@ -126,7 +126,15 @@ public sealed partial class WindowsAccessEstimateTokenTests
         if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_NTFS") != "1" ||
             ReviewedPermissionOperation.ProcessRefusal() is not null)
             Assert.Skip("Requires the ordinary Windows x64 fixed NTFS fixture.");
-        return Directory.CreateTempSubdirectory(prefix);
+        var directory = Directory.CreateTempSubdirectory(prefix);
+        // The folder alone lets this user remove the witnesses, whose own DACLs grant no DELETE.
+        using var user = WindowsIdentity.GetCurrent();
+        var security = new DirectorySecurity();
+        security.SetAccessRuleProtection(true, false);
+        security.AddAccessRule(new FileSystemAccessRule(user.User!, FileSystemRights.FullControl,
+            InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+        directory.SetAccessControl(security);
+        return directory;
     }
 
     private static WindowsIdentity CurrentIdentity() => WindowsIdentity.GetCurrent(
