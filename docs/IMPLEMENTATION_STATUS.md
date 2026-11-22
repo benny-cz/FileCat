@@ -54,8 +54,11 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 **File → Inspect → Permissions and ownership** opens the reviewed permissions workflow. The legacy Unix
 administrator mode action has been retired. Mode changes require a verified binding, and the inspector
 shows which actions are available for the selected filesystem and installation. The SFTP editor supports
-reviewed mode and group jobs on the tested Ubuntu OpenSSH 9.6p1 build. The plan records native receipts
-and release gates. [Permissions and ACL implementation plan](design/FILECAT_PERMISSIONS_ACL_IMPLEMENTATION_PLAN.md)
+reviewed mode and group jobs on the tested Ubuntu OpenSSH 9.6p1 build. Administrator-approved inspection
+and changes are implemented for installed builds and stay opt-in: on Windows x64 through UAC and FileCat's
+helper for one file or a volume root, on Ubuntu 24.04 and 26.04 through polkit's GNOME dialog. The Windows
+route waits for release signing and an ARM64 device; macOS administrator editing stays blocked by DEC-03.
+The plan records native receipts and release gates. [Permissions and ACL implementation plan](design/FILECAT_PERMISSIONS_ACL_IMPLEMENTATION_PLAN.md)
 
 ## Resume here (next slices, in order)
 
