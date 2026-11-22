@@ -41,8 +41,8 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
     public PermissionInspection Inspect(PermissionSubject subject, PermissionSections sections, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (!OperatingSystem.IsWindows() || RuntimeInformation.ProcessArchitecture != Architecture.X64)
-            return PermissionSnapshots.Unavailable(subject, sections, PermissionReadStatus.Unsupported, "This reader requires Windows x64.");
+        if (WindowsPermissionHost.Refusal("reader") is { } hostRefusal)
+            return PermissionSnapshots.Unavailable(subject, sections, PermissionReadStatus.Unsupported, hostRefusal);
         if (qualifySmbReads && PermissionSnapshots.IsFileSystemSubject(subject) &&
             subject.Authority.Kind is PermissionAuthorityKind.Local or PermissionAuthorityKind.MountedServer)
         {

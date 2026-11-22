@@ -20,7 +20,7 @@ internal sealed unsafe partial class WindowsPermissionService
     {
         ct.ThrowIfCancellationRequested();
         var subject = selected.Subject;
-        if (!OperatingSystem.IsWindows() || RuntimeInformation.ProcessArchitecture != Architecture.X64 ||
+        if (WindowsPermissionHost.Refusal("propagation") is not null ||
             selected.Model != PermissionModel.WindowsDescriptor ||
             selected.Binding is not { FileSystem: "NTFS", ReadOnly: false } binding ||
             binding.Identity.Kind is not (PermissionObjectKind.Directory or PermissionObjectKind.VolumeRoot) ||

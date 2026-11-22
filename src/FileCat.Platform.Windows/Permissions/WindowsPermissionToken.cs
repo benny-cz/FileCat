@@ -74,8 +74,7 @@ internal static unsafe partial class WindowsPermissionToken
 
     internal static WindowsIdentity OrdinaryIdentity()
     {
-        if (!OperatingSystem.IsWindows() || RuntimeInformation.ProcessArchitecture != Architecture.X64)
-            throw new PlatformNotSupportedException("This permission writer requires Windows x64.");
+        if (WindowsPermissionHost.Refusal("permission writer") is { } hostRefusal) throw new PlatformNotSupportedException(hostRefusal);
         if (ReviewedPermissionOperation.ProcessRefusal() is { } refusal) throw new UnauthorizedAccessException(refusal);
         using var impersonating = WindowsIdentity.GetCurrent(ifImpersonating: true);
         if (impersonating is not null) throw new UnauthorizedAccessException("This route requires FileCat's ordinary process token.");
