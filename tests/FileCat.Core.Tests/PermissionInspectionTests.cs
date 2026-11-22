@@ -321,6 +321,16 @@ public sealed class PermissionInspectionTests
         draft.ChangeBit(UnixFileMode.UserWrite, true);
         Assert.True(draft.TryGetChange(draft.Octal, out var corrected));
         Assert.Equal((ushort)UnixFileMode.UserWrite, corrected.Bits);
+        // G-UX: invalid visible octal blocks the reviewed mode draft; four digits carry the special bits.
+        foreach (string invalid in new[] { "9", "8888", "17777", "07a5", "-755" })
+        {
+            draft.EditOctal(invalid);
+            Assert.False(draft.TryGetChange(invalid, out _), invalid);
+        }
+        draft.EditOctal("2755");
+        Assert.True(draft.TryGetChange("2755", out var special));
+        Assert.Equal((ushort)0x5ed, special.Bits);
+        Assert.Equal((ushort)0xfff, special.TouchedBits);
     }
 
     [Fact]
