@@ -1,7 +1,8 @@
-﻿# N-UI.C on Windows x64: the released FileCat build (C-only composition) with keyboard and NVDA at 640 x 420 DIP.
-# Covers folder-scope radios, fixed help text, the absence of EFS controls and commands, the reset scope on each
-# opening, the partial-result summary without percentages or ETA, and focus return. Run in the interactive session
-# of the disposable VMware guest at medium integrity; the fixture lives under %LOCALAPPDATA%\FileCatValidation.
+﻿# N-UI.C on Windows x64 and Windows on Arm: the released FileCat build (C-only composition) with keyboard and NVDA at
+# 640 x 420 DIP. Covers folder-scope radios, fixed help text, the absence of EFS controls and commands, the reset scope
+# on each opening, the partial-result summary without percentages or ETA, and focus return. Run in the interactive
+# session of the disposable VMware guest, or of the Windows on Arm guest that UTM runs on the test Mac, at medium
+# integrity; the fixture lives under %LOCALAPPDATA%\FileCatValidation.
 param(
     [Parameter(Mandatory)][string]$TestRoot,
     [Parameter(Mandatory)][string]$NvdaPath
@@ -83,7 +84,10 @@ public static class StorageReviewInput {
 $testRoot = [IO.Path]::GetFullPath($TestRoot)
 $nvdaPath = [IO.Path]::GetFullPath($NvdaPath)
 $session = (Get-Process -Id $PID).SessionId
-if ((Get-CimInstance Win32_ComputerSystem).Manufacturer -notmatch 'VMware') { throw 'Use the disposable VMware validation guest.' }
+$guest = (Get-CimInstance Win32_ComputerSystem).Manufacturer
+# Ask the OS: an emulated x64 launcher passes its own PROCESSOR_ARCHITECTURE down to native Arm64 children.
+$armGuest = $guest -match 'QEMU|UTM' -and [Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64'
+if ($guest -notmatch 'VMware' -and !$armGuest) { throw 'Use the disposable VMware validation guest or the Windows on Arm guest under UTM.' }
 $validationRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'FileCatValidation')) + '\'
 if (!$session -or
     !$testRoot.StartsWith($validationRoot, [StringComparison]::OrdinalIgnoreCase) -or
@@ -266,13 +270,16 @@ try {
         $app.Refresh()
         if ($app.HasExited) { throw "The release instance exited with $($app.ExitCode)." }
         if ($app.MainWindowHandle -ne [IntPtr]::Zero) { $ui::FromHandle($app.MainWindowHandle) }
-    } 'the release window' 60
+    } 'the release window' 90 # a cold start on the Windows on Arm VM took over 30 s
     $list = Await {
+        # A window taken early in a slow cold start can stay an empty shell to UI Automation; take it again each time.
+        $app.Refresh()
+        if ($app.MainWindowHandle -ne [IntPtr]::Zero) { $script:main = $ui::FromHandle($app.MainWindowHandle) }
         $main.FindAll($scope::Descendants, $all) | Where-Object {
             $_.Current.ClassName -eq 'FileList' -and
                 @($_.FindAll($scope::Children, $all) | Where-Object { $_.Current.Name -eq 'folder-release' }).Count -eq 1
         } | Select-Object -First 1
-    } 'the populated source list'
+    } 'the populated source list' 60
     $handle = [IntPtr]$main.Current.NativeWindowHandle
     [void][StorageReviewInput]::SetForegroundWindow($handle)
     if (![StorageReviewInput]::ResizeClient($handle, 640, 420)) { throw 'Could not resize the owned window.' }
@@ -290,7 +297,7 @@ try {
         $reader.Refresh()
         if ($reader.HasExited) { throw "NVDA exited with $($reader.ExitCode) during startup." }
         Select-String -LiteralPath $speechPath -SimpleMatch 'NVDA initialized' -Quiet -ErrorAction SilentlyContinue
-    } 'NVDA startup' 60 | Out-Null
+    } 'NVDA startup' 120 | Out-Null # NVDA's x64 build runs emulated on Windows on Arm
     if ([StorageReviewInput]::GetForegroundWindow() -ne $handle) { [void][StorageReviewInput]::SetForegroundWindow($handle) }
     if ([StorageReviewInput]::GetForegroundWindow() -ne $handle) {
         if (![StorageReviewInput]::ClickUncoveredTitle($handle)) { throw 'A foreground window covers the owned FileCat fixture.' }
@@ -298,7 +305,8 @@ try {
     }
     $list.SetFocus()
     Key @(0x2D, 0x09)
-    Hear 'active FileCat window' 'FileCat.{0,180}window|Panel 1, source'
+    # Emulated NVDA on Windows on Arm sometimes speaks the window's title alone, without its role.
+    Hear 'active FileCat window' "'FileCat [^']{0,200}'|FileCat.{0,180}window|Panel 1, source"
     Key @(0x24) $true
     for ($i = 0; $i -lt 4 -and $ui::FocusedElement.Current.Name -ne 'folder-release'; $i++) { Key @(0x28) $true }
     Hear 'focused folder' 'folder-release'

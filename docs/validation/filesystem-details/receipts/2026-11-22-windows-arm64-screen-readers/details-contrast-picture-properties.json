@@ -1,0 +1,110 @@
+{
+ "Passed": true,
+ "Stage": "complete",
+ "Session": 2,
+ "OS": "10.0.26300.0",
+ "AppDllSHA256": "4BBF357159AB71399086749BA59969E77F3FA8C4D5385D3CEDAB1E4313AED71F",
+ "NvdaVersion": "2026.3.1",
+ "NarrowHighContrast": true,
+ "ShortNarrow": false,
+ "PictureView": true,
+ "FindResults": false,
+ "VerifyNativeProperties": true,
+ "Fixture": "fixture-0f967469",
+ "Steps": [
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'Loading NVDA. Please wait...']",
+    "[LangChangeCommand ('en_US'), 'FileCat — left-long-path-long-path-long-path-long-path-long-path-long-path- — admin (administrator, not elevated)', 'window', CancellableSpeech (still valid)]",
+    "[LangChangeCommand ('en_US'), 'Panel 1, source, C:\\\\Users\\\\admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\fixture-0f967469\\\\left-long-path-long-path-long-path-long-path-long-path-long-path-', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]"
+   ],
+   "Action": "the active FileCat window"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'alpha-details.txt', 'not selected', 'file, 33 bytes, modified 11/22/2026 6:35:38 PM, not marked, 2 of 3', CancellableSpeech (still valid)]"
+   ],
+   "Action": "the focused file"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'alpha-details.txt · File-system details — FileCat', 'window', CancellableSpeech (still valid)]",
+    "[LangChangeCommand ('en_US'), 'File-system details', 'document', 'File-system details\\r\\n\\r\\nItem\\r\\n  Path         C:\\\\Users\\\\admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\fixture-0f967469\\\\left-long-path-long-path-long-path-long-path-long-path-long-path-\\\\alpha-details.txt\\r\\n  Kind         File\\r\\n  Observed     2026-11-22T17:36:27.3864549+00:00\\r\\n  Scope        Focused item only; marked items are not included.\\r\\n  File system  NTFS\\r\\n\\r\\nStorage\\r\\n  Logical size       33 bytes\\r\\n  Allocated          40 bytes · MainData · FileStandardInfo (held main stream)\\r\\n  NTFS compression   Off\\r\\n  EFS                Off\\r\\n  Sparse indication  Off\\r\\n\\r\\n  Allocated space is not a deletion-saving estimate or proof of exclusive ownership.\\r\\n\\r\\nSharing\\r\\n  Names for this file  1\\r\\n  Extent sharing       Not inspected\\r\\n\\r\\nAccess\\r\\n  Recorded mode          NotInspected: No qualified observation was requested.\\r\\n', 'No selection; Copy visible source text copies the visible lines; utf-8; wrapped.', CancellableSpeech (still valid)]",
+    "[LangChangeCommand ('en_US'), 'Line 1 of 1. Reading file-system metadata…']",
+    "[LangChangeCommand ('en_US'), 'Summary · observation 6:36:27 PM · F5 reads this tier again']"
+   ],
+   "Action": "the details window"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'Read full record', 'button', CancellableSpeech (still valid)]"
+   ],
+   "Action": "Read full record"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'Line 1 of 57. File-system details']",
+    "[LangChangeCommand ('en_US'), 'Full · observation 6:36:32 PM · F5 reads this tier again']"
+   ],
+   "Action": "the full observation"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'Copy all', 'button', 'Copy the complete original report text. Ctrl+C copies selected source text or the visible lines; Ctrl+Shift+C uses displayed text.', CancellableSpeech (still valid)]"
+   ],
+   "Action": "Copy all"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'Show summary', 'button', CancellableSpeech (still valid)]"
+   ],
+   "Action": "Show summary"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'Line 1 of 41. File-system details']",
+    "[LangChangeCommand ('en_US'), 'Summary · observation 6:36:32 PM · F5 reads this tier again']"
+   ],
+   "Action": "the summary observation"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'Show full record', 'button', CancellableSpeech (still valid)]"
+   ],
+   "Action": "Show full record"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'Line 1 of 57. File-system details']",
+    "[LangChangeCommand ('en_US'), 'Full · observation 6:36:32 PM · F5 reads this tier again']"
+   ],
+   "Action": "the cached full observation"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'FileCat — left-long-path-long-path-long-path-long-path-long-path-long-path- — admin (administrator, not elevated)', 'window', CancellableSpeech (still valid)]",
+    "[LangChangeCommand ('en_US'), 'Panel 1, source, pictures grid, C:\\\\Users\\\\admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\fixture-0f967469\\\\left-long-path-long-path-long-path-long-path-long-path-long-path-', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Arrow keys move among picture tiles; thumbnails load for visible supported pictures only. Shift with movement marks or unmarks; Insert toggles the focused mark.', CancellableSpeech (still valid)]",
+    "[LangChangeCommand ('en_US'), 'alpha-details.txt', 'not selected', 'file, 33 bytes, modified 11/22/2026 6:35:38 PM, not marked, 2 of 3', CancellableSpeech (still valid)]"
+   ],
+   "Action": "focus returning to the same file"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'alpha-details Properties', 'dialog', CancellableSpeech (still valid)]"
+   ],
+   "Action": "native Properties for the same file"
+  }
+ ],
+ "Error": null,
+ "Dpi": 96,
+ "WindowSizeDip": [
+  322,
+  553
+ ],
+ "ClipboardBytes": 2311,
+ "NativeProperties": {
+  "ClassName": "#32770",
+  "Title": "alpha-details Properties",
+  "TitleSpokenOnOpen": true
+ }
+}

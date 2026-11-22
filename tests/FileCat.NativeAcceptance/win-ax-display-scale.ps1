@@ -3,8 +3,9 @@ param(
     [Parameter(Mandatory)][string]$ReportPath
 )
 
-# Only for the isolated, logged-in VMware validation guest. Restore the
-# original scale after the native journey; never run this on a workstation.
+# Only for the isolated, logged-in VMware validation guest or the Windows on Arm
+# guest under UTM. Restore the original scale after the native journey; never
+# run this on a workstation.
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
@@ -19,7 +20,9 @@ public static class FileCatDisplayScale {
 $validation = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'FileCatValidation'))
 $report = [IO.Path]::GetFullPath($ReportPath)
 $computer = Get-CimInstance Win32_ComputerSystem
-if ($computer.Manufacturer -notlike '*VMware*' -or
+# Ask the OS: an emulated x64 launcher passes its own PROCESSOR_ARCHITECTURE down to native Arm64 children.
+$armGuest = $computer.Manufacturer -match 'QEMU|UTM' -and [Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64'
+if (($computer.Manufacturer -notlike '*VMware*' -and !$armGuest) -or
     [IO.Path]::GetDirectoryName($report) -ine $validation -or
     !(Test-Path -LiteralPath $validation -PathType Container) -or
     (Get-Process -Id $PID).SessionId -eq 0) {

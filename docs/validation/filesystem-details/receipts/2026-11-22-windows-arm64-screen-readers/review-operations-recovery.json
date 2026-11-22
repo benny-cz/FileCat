@@ -1,0 +1,6954 @@
+{
+ "Passed": true,
+ "Stage": "complete",
+ "Error": null,
+ "Session": 2,
+ "Controls": {
+  "stopping alpha-review.txt": [
+   {
+    "Name": "WindowChrome",
+    "Type": "ControlType.Group",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "File",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Mark",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Navigate",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Commands",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Tools",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Search commands",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Back",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Back history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Forward",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Forward history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Go to parent",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Reread",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "New folder",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Find files…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Find",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Operations",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Jobs",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More toolbar commands",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "left-review-long-path-for-storage-inspection, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "All tabs",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "33.9 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "0 folders, 1 file · 16 KB",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "alpha-review.txt · 16,384 bytes",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panel 1, source, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "alpha-review.txt",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Vertical panel boundary, first side's share of panels 1 and 2",
+    "Type": "ControlType.Slider",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "right, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "right",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "33.9 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panel 1 copies and moves here (F5, F6). With two panels the other panel is always the target.",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "TARGET",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "0 folders, 1 file · 22.5 KB",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panel 2, target, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Go to parent location",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "beta-operations-review.txt",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"alpha-review.txt\" · selected items only",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Stopping — waiting for the current call to finish  ·  Waiting for storage observations.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Stop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Details (Ctrl+J)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Synchronization plans",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Operations",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Open report",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Operations history",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"alpha-review.txt\" · selected items only, Stopping — waiting for the current call to finish",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"alpha-review.txt\" · selected items only",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Stopping — waiting for the current call to finish  ·  Waiting for storage observations.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Selected operation details",
+    "Type": "ControlType.Pane",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Fit height",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Stop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Stopping — waiting for the current call to finish    ",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Running for 55 s",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Storage observations are not yet available.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Issue details…",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy report",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Save report…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Selected operation issues",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection>",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Command line",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Keyboard reference",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Rename in place",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Rename",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "3",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "4",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "5",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "6",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "7",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "MkDir",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "8",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "User commands…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "9",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "User",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Menu bar",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "10",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Menu",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Maximize or restore panel",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "11",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Maximize",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Focus panel…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "12",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   }
+  ],
+  "pending alpha-review.txt": [
+   {
+    "Name": "F10: Menu bar",
+    "Type": "ControlType.ToolTip",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "F10: Menu bar",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "WindowChrome",
+    "Type": "ControlType.Group",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "File",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Mark",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Navigate",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Commands",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Tools",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Search commands",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Back",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Back history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Forward",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Forward history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Go to parent",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Reread",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "New folder",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Find files…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Find",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Operations",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Jobs",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More toolbar commands",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "left-review-long-path-for-storage-inspection, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "All tabs",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "33.9 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "0 folders, 1 file · 16 KB",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "alpha-review.txt · 16,384 bytes",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panel 1, source, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "alpha-review.txt",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Vertical panel boundary, first side's share of panels 1 and 2",
+    "Type": "ControlType.Slider",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "right, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "right",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "33.9 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panel 1 copies and moves here (F5, F6). With two panels the other panel is always the target.",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "TARGET",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "0 folders, 1 file · 22.5 KB",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panel 2, target, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Go to parent location",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "beta-operations-review.txt",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "The window is too small for every panel · F11 shows the active one whole",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"alpha-review.txt\" · selected items only",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Failed  ·  0 changed, 0 already satisfied, 0 skipped, 0 failed, 1 uncertain, 0 not processed. The requested scope was not fully completed. Result not confirmed: the effect of a native call remains uncertain. Stopped; completed changes remain.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "1 operation needs review",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Details (Ctrl+J)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Storage history accounting/verification still in progress.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Observed history at 7:25:23 PM: 1 journals, 1 pending histories; 3.2 KB evidence + 2.0 MB reserved for review.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Refresh storage history",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Synchronization plans",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Interrupted operations needing review",
+    "Type": "ControlType.Group",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Needs review (1)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Needs review (1)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Choose an interrupted operation",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"alpha-review.txt\" · selected items only · needs review",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "Compress \"alpha-review.txt\" · selected items only · needs review",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Result not confirmed. Review the recorded storage changes and uncertainty before acknowledging this history. Historical paths are evidence; this action does not replay changes or delete user files.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Review storage changes for Compress \"alpha-review.txt\" · selected items only",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Hide interrupted recovery notice for Compress \"alpha-review.txt\" · selected items only",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Operations",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Open report",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Operations history",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"alpha-review.txt\" · selected items only, Failed",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"alpha-review.txt\" · selected items only",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Failed  ·  0 changed, 0 already satisfied, 0 skipped, 0 failed, 1 uncertain, 0 not processed. The requested scope was not fully completed. Result not confirmed: the effect of a native call remains uncertain. Stopped; completed changes remain.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Selected operation details",
+    "Type": "ControlType.Pane",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Clear finished history…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Fit height",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Review storage changes",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Remove history row…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Failed    ",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Took 56 s",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "1 checked",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "0 changed, 0 already satisfied, 0 skipped, 0 failed, 1 uncertain, 0 not processed. The requested scope was not fully completed. Result not confirmed: the effect of a native call remains uncertain. Stopped; completed changes remain.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Issue details…",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy report",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Save report…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Selected operation issues",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection>",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Command line",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Keyboard reference",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Rename in place",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Rename",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "3",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "4",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "5",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "6",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "7",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "MkDir",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "8",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "User commands…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "9",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "User",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Menu bar",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "10",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Menu",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Maximize or restore panel",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "11",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Maximize",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Focus panel…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "12",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"alpha-review.txt\" · selected items only: 0 changed, 0 already satisfied, 0 skipped, 0 failed, 1 uncertain, 0 not processed. The requested scope was not fully completed. Result not confirmed: the effect of a native call remains uncertain. Stopped; completed changes remain. Review storage changes in Operations (Ctrl+J).",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy notification",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recent notifications",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Dismiss notification",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   }
+  ],
+  "stopping beta-operations-review.txt": [
+   {
+    "Name": "WindowChrome",
+    "Type": "ControlType.Group",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "File",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Mark",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Navigate",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Commands",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Tools",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Search commands",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Back",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Back history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Forward",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Forward history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Go to parent",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Reread",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "New folder",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Find files…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Find",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Operations",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Jobs",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More toolbar commands",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "right, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "right",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "33.9 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "0 folders, 1 file · 22.5 KB",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "beta-operations-review.txt · 23,040 bytes",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panel 1, source, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "beta-operations-review.txt",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Vertical panel boundary, first side's share of panels 1 and 2",
+    "Type": "ControlType.Slider",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "left-review-long-path-for-storage-inspection, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "All tabs",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "33.9 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panel 1 copies and moves here (F5, F6). With two panels the other panel is always the target.",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "TARGET",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "0 folders, 1 file · 16 KB",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panel 2, target, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Go to parent location",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "alpha-review.txt",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"beta-operations-review.txt\" · selected items only",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Stopping — waiting for the current call to finish  ·  Waiting for storage observations.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Stop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Details (Ctrl+J)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Storage review closed. No acknowledgment is implied.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "1 storage history rows retained (maximum 64). Opening a row verifies its exact evidence; the accounting result is shown separately.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Observed history at 7:26:08 PM: 1 journals, 0 pending histories; 12.4 KB evidence + 0 bytes reserved for review.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More storage history",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Refresh storage history",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Synchronization plans",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Reviewed recovery reports",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Reviewed recovery reports",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Storage changes — Compress · 11/22/2026 7:25 PM · Reviewed; effect remains uncertain",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "Storage changes — Compress · 11/22/2026 7:25 PM · Reviewed; effect remains uncertain",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Open retained storage history for Storage changes — Compress",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Operations",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Open report",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Operations history",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"beta-operations-review.txt\" · selected items only, Stopping — waiting for the current call to finish",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"beta-operations-review.txt\" · selected items only",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Stopping — waiting for the current call to finish  ·  Waiting for storage observations.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Selected operation details",
+    "Type": "ControlType.Pane",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Fit height",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Stop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Stopping — waiting for the current call to finish    ",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Running for 13 s",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Storage observations are not yet available.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Issue details…",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy report",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Save report…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Selected operation issues",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right>",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Command line",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Keyboard reference",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Rename in place",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Rename",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "3",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "4",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "5",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "6",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "7",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "MkDir",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "8",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "User commands…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "9",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "User",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Menu bar",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "10",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Menu",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Maximize or restore panel",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "11",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Maximize",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Focus panel…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "12",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   }
+  ],
+  "pending beta-operations-review.txt": [
+   {
+    "Name": "F10: Menu bar",
+    "Type": "ControlType.ToolTip",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "F10: Menu bar",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "WindowChrome",
+    "Type": "ControlType.Group",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "File",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Mark",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Navigate",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Commands",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Tools",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Search commands",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Back",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Back history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Forward",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Forward history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Go to parent",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Reread",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "New folder",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Find files…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Find",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Operations",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Jobs",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More toolbar commands",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "right, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "right",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "33.9 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "0 folders, 1 file · 22.5 KB",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "beta-operations-review.txt · 23,040 bytes",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panel 1, source, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "beta-operations-review.txt",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Vertical panel boundary, first side's share of panels 1 and 2",
+    "Type": "ControlType.Slider",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "left-review-long-path-for-storage-inspection, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "All tabs",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "33.9 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panel 1 copies and moves here (F5, F6). With two panels the other panel is always the target.",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "TARGET",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "0 folders, 1 file · 16 KB",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panel 2, target, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Go to parent location",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "alpha-review.txt",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "The window is too small for every panel · F11 shows the active one whole",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"beta-operations-review.txt\" · selected items only",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Failed  ·  0 changed, 0 already satisfied, 0 skipped, 0 failed, 1 uncertain, 0 not processed. The requested scope was not fully completed. Result not confirmed: the effect of a native call remains uncertain. Stopped; completed changes remain.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "1 operation needs review",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Details (Ctrl+J)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Storage review closed. No acknowledgment is implied.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "1 storage history rows retained (maximum 64). Opening a row verifies its exact evidence; the accounting result is shown separately.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Observed history at 7:26:57 PM: 2 journals, 1 pending histories; 15.5 KB evidence + 2.0 MB reserved for review.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More storage history",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Refresh storage history",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Synchronization plans",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Interrupted operations needing review",
+    "Type": "ControlType.Group",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Needs review (1)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Needs review (1)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Choose an interrupted operation",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"beta-operations-review.txt\" · selected items only · needs review",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "Compress \"beta-operations-review.txt\" · selected items only · needs review",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Result not confirmed. Review the recorded storage changes and uncertainty before acknowledging this history. Historical paths are evidence; this action does not replay changes or delete user files.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Review storage changes for Compress \"beta-operations-review.txt\" · selected items only",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Hide interrupted recovery notice for Compress \"beta-operations-review.txt\" · selected items only",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Reviewed recovery reports",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Reviewed recovery reports",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Storage changes — Compress · 11/22/2026 7:25 PM · Reviewed; effect remains uncertain",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "Storage changes — Compress · 11/22/2026 7:25 PM · Reviewed; effect remains uncertain",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Open retained storage history for Storage changes — Compress",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Operations",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Open report",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Operations history",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"beta-operations-review.txt\" · selected items only, Failed",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"beta-operations-review.txt\" · selected items only",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Failed  ·  0 changed, 0 already satisfied, 0 skipped, 0 failed, 1 uncertain, 0 not processed. The requested scope was not fully completed. Result not confirmed: the effect of a native call remains uncertain. Stopped; completed changes remain.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Selected operation details",
+    "Type": "ControlType.Pane",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Clear finished history…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Fit height",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Review storage changes",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Remove history row…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Failed    ",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Took 14 s",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "1 checked",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "0 changed, 0 already satisfied, 0 skipped, 0 failed, 1 uncertain, 0 not processed. The requested scope was not fully completed. Result not confirmed: the effect of a native call remains uncertain. Stopped; completed changes remain.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Issue details…",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy report",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Save report…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Selected operation issues",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right>",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Command line",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Keyboard reference",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Rename in place",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Rename",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "3",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "4",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "5",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "6",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "7",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "MkDir",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "8",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "User commands…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "9",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "User",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Menu bar",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "10",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Menu",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Maximize or restore panel",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "11",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Maximize",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Focus panel…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "12",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"beta-operations-review.txt\" · selected items only: 0 changed, 0 already satisfied, 0 skipped, 0 failed, 1 uncertain, 0 not processed. The requested scope was not fully completed. Result not confirmed: the effect of a native call remains uncertain. Stopped; completed changes remain. Review storage changes in Operations (Ctrl+J).",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy notification",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recent notifications",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Dismiss notification",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   }
+  ],
+  "running blocker": [
+   {
+    "Name": "WindowChrome",
+    "Type": "ControlType.Group",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "File",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Mark",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Navigate",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Commands",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Tools",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Search commands",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Back",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Back history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Forward",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Forward history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Go to parent",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Reread",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "New folder",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Find files…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Find",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Operations",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Jobs",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More toolbar commands",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "left-review-long-path-for-storage-inspection, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "All tabs",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "33.9 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "0 folders, 1 file · 16 KB",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "alpha-review.txt · 16,384 bytes",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panel 1, source, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "alpha-review.txt",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Vertical panel boundary, first side's share of panels 1 and 2",
+    "Type": "ControlType.Slider",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "right, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "right",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "33.9 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panel 1 copies and moves here (F5, F6). With two panels the other panel is always the target.",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "TARGET",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "0 folders, 1 file · 22.5 KB",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panel 2, target, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\right",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Go to parent location",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "beta-operations-review.txt",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": true
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"alpha-review.txt\" · selected items only",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress  ·  Waiting for storage observations.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Progress of the operation",
+    "Type": "ControlType.ProgressBar",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Pause",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Stop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Details (Ctrl+J)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Synchronization plans",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Operations",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Open report",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Operations history",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"alpha-review.txt\" · selected items only, Running",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress \"alpha-review.txt\" · selected items only",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Running  ·  Waiting for storage observations.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Selected operation details",
+    "Type": "ControlType.Pane",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Fit height",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Pause",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Stop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Compress    ",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Running for 47 s",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Storage observations are not yet available.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Issue details…",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy report",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Save report…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Selected operation issues",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Page down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\review-operations-recovery-r2\\session-66d41f2c\\left-review-long-path-for-storage-inspection>",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Command line",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Keyboard reference",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Rename in place",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Rename",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "3",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "4",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "5",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "6",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "7",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "MkDir",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "8",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "User commands…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "9",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "User",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Menu bar",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "10",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Menu",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Maximize or restore panel",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "11",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Maximize",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Focus panel…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "12",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false
+   }
+  ]
+ },
+ "Speech": {
+  "Stop control for beta-operations-review.txt": [
+   "[LangChangeCommand ('en_US'), 'Operations history', 'list', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Compress \"beta-operations-review.txt\" · selected items only, Running', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'thumb control', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Pause', 'button', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Stop', 'button', 'Stops before the next call. An admitted call finishes; completed changes remain.', CancellableSpeech (still valid)]"
+  ],
+  "blocked preparation escape": [
+   "[LangChangeCommand ('en_US'), 'File', 'expanded', CharacterModeCommand(True), 'F', CharacterModeCommand(False), CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Inspect', 'expanded', CharacterModeCommand(True), 'I', CharacterModeCommand(False), CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'FileCat — left-review-long-path-for-storage-inspection — admin (administrator, not elevated)', 'window', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'NTFS compression… dialog', 'grouping', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Remove compression', 'radio button', 'not checked', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Cancel preparation and show the blocking operation', 'button', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Cancel preparation and show the blocking operation', 'button', 'focused']"
+  ],
+  "Stop control for alpha-review.txt": [
+   "[LangChangeCommand ('en_US'), 'thumb control', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Pause', 'button', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Stop', 'button', 'Stops before the next call. An admitted call finishes; completed changes remain.', CancellableSpeech (still valid)]"
+  ],
+  "pending review for beta-operations-review.txt": [
+   "[LangChangeCommand ('en_US'), 'Interrupted operations needing review', 'grouping', 'expanded', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Review storage changes for Compress \"beta-operations-review.txt\" · selected items only', 'button', 'Inspect, copy or save all retained known paths and review limits without changing files', CancellableSpeech (still valid)]"
+  ],
+  "pending review for alpha-review.txt": [
+   "[LangChangeCommand ('en_US'), 'Interrupted operations needing review', 'grouping', 'expanded', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Review storage changes for Compress \"alpha-review.txt\" · selected items only', 'button', 'Inspect, copy or save all retained known paths and review limits without changing files', CancellableSpeech (still valid)]"
+  ],
+  "retained storage history row": [
+   "[LangChangeCommand ('en_US'), 'Hide interrupted recovery notice for Compress \"beta-operations-review.txt\" · selected items only', 'button', 'Hide this notice until FileCat restarts; keep the recovery journal and all files unchanged', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Reviewed recovery reports', 'list', 'Choose a report with the arrow keys and press Enter to open it.', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Storage changes — Compress · 11/22/2026 7:25 PM · Reviewed; effect remains uncertain', 'not selected', CancellableSpeech (still valid)]"
+  ],
+  "focused file": [
+   "[LangChangeCommand ('en_US'), 'Go to parent location', 'list item', 'focused', 'parent navigation, 1 of 2']",
+   "[LangChangeCommand ('en_US'), 'alpha-review.txt', 'not selected', 'file, 16 KB, modified 11/22/2026 7:23:05 PM, not marked, 2 of 2', CancellableSpeech (still valid)]"
+  ],
+  "active FileCat window": [
+   "[LangChangeCommand ('en_US'), 'Loading NVDA. Please wait...']",
+   "[LangChangeCommand ('en_US'), 'FileCat — left-review-long-path-for-storage-inspection — admin (administrator, not elevated)', 'window', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Panel 1, source, C:\\\\Users\\\\admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\review-operations-recovery-r2\\\\session-66d41f2c\\\\left-review-long-path-for-storage-inspection', 'list', '2 visible rows, 1 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Go to parent location', 'parent navigation, 1 of 2', CancellableSpeech (still valid)]"
+  ]
+ },
+ "Fixture": "session-66d41f2c",
+ "HighContrastPictures": false,
+ "VerifyDuplicateRoots": false,
+ "VerifyOperationsRecovery": true,
+ "FileCatDllSHA256": "DC7A93BC011FC096BD12B140F7FCD977476A3F14E0F8BBE560428C3133E771FB",
+ "WindowsDllSHA256": "D38C44EB406DEC44D2CA21BDF3B0651B70515D20A620E0060B3A472D2EC6D0C6",
+ "NvdaVersion": "2026.3.1",
+ "ClientDip": [
+  640,
+  420
+ ],
+ "Dpi": 96,
+ "Foreground": {
+  "AppProcess": 4428,
+  "ActiveConsoleSession": 2,
+  "InputDesktopError": 0,
+  "BeforeNvda": 4428,
+  "AfterNvda": 4428,
+  "ActivationRequested": null
+ }
+}

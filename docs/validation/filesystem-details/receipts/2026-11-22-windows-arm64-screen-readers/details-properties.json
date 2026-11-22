@@ -1,0 +1,106 @@
+{
+ "Passed": true,
+ "Stage": "complete",
+ "Session": 2,
+ "OS": "10.0.26300.0",
+ "AppDllSHA256": "4BBF357159AB71399086749BA59969E77F3FA8C4D5385D3CEDAB1E4313AED71F",
+ "NvdaVersion": "2026.3.1",
+ "NarrowHighContrast": false,
+ "ShortNarrow": false,
+ "PictureView": false,
+ "FindResults": false,
+ "VerifyNativeProperties": true,
+ "Fixture": "fixture-93f636b5",
+ "Steps": [
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'Loading NVDA. Please wait...']",
+    "[LangChangeCommand ('en_US'), 'FileCat — left-long-path-long-path-long-path-long-path-long-path-long-path- — admin (administrator, not elevated)', 'window', CancellableSpeech (still valid)]"
+   ],
+   "Action": "the active FileCat window"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'alpha-details.txt', 'not selected', 'file, 33 bytes, modified 11/22/2026 6:40:34 PM, not marked, 2 of 3', CancellableSpeech (still valid)]"
+   ],
+   "Action": "the focused file"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'alpha-details.txt · File-system details — FileCat', CancellableSpeech (still valid)]"
+   ],
+   "Action": "the details window"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'Read full record', 'button', CancellableSpeech (still valid)]"
+   ],
+   "Action": "Read full record"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'Line 1 of 57. File-system details']",
+    "[LangChangeCommand ('en_US'), 'Full · observation 6:41:19 PM · F5 reads this tier again']"
+   ],
+   "Action": "the full observation"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'Copy all', 'button', 'Copy the complete original report text. Ctrl+C copies selected source text or the visible lines; Ctrl+Shift+C uses displayed text.', CancellableSpeech (still valid)]"
+   ],
+   "Action": "Copy all"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'Show summary', 'button', CancellableSpeech (still valid)]"
+   ],
+   "Action": "Show summary"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'Line 1 of 41. File-system details']",
+    "[LangChangeCommand ('en_US'), 'Summary · observation 6:41:19 PM · F5 reads this tier again']"
+   ],
+   "Action": "the summary observation"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'Show full record', 'button', CancellableSpeech (still valid)]"
+   ],
+   "Action": "Show full record"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'Line 1 of 57. File-system details']",
+    "[LangChangeCommand ('en_US'), 'Full · observation 6:41:19 PM · F5 reads this tier again']"
+   ],
+   "Action": "the cached full observation"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'FileCat — left-long-path-long-path-long-path-long-path-long-path-long-path- — admin (administrator, not elevated)', 'window', CancellableSpeech (still valid)]",
+    "[LangChangeCommand ('en_US'), 'Panel 1, source, C:\\\\Users\\\\admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\fixture-93f636b5\\\\left-long-path-long-path-long-path-long-path-long-path-long-path-', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]",
+    "[LangChangeCommand ('en_US'), 'alpha-details.txt', 'not selected', 'file, 33 bytes, modified 11/22/2026 6:40:34 PM, not marked, 2 of 3', CancellableSpeech (still valid)]"
+   ],
+   "Action": "focus returning to the same file"
+  },
+  {
+   "Speech": [
+    "[LangChangeCommand ('en_US'), 'alpha-details Properties', 'dialog', CancellableSpeech (still valid)]"
+   ],
+   "Action": "native Properties for the same file"
+  }
+ ],
+ "Error": null,
+ "Dpi": 96,
+ "WindowSizeDip": [
+  506,
+  413
+ ],
+ "ClipboardBytes": 2311,
+ "NativeProperties": {
+  "ClassName": "#32770",
+  "Title": "alpha-details Properties",
+  "TitleSpokenOnOpen": true
+ }
+}
