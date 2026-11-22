@@ -1539,6 +1539,74 @@ public sealed class PermissionInspectorTests
     }
 
     [AvaloniaFact]
+    public async Task Windows_editor_names_close_as_detach_while_its_change_runs_and_closing_keeps_the_job()
+    {
+        if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_NTFS") != "1" ||
+            ReviewedPermissionOperation.ProcessRefusal() is not null)
+            Assert.Skip("Requires the ordinary Windows x64 NTFS test volume.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            var security = new FileSecurity();
+            security.SetAccessRuleProtection(true, false);
+            security.AddAccessRule(new FileSystemAccessRule(identity.User!, FileSystemRights.FullControl, AccessControlType.Allow));
+            new FileInfo(Path.Combine(folder, "a.txt")).SetAccessControl(security);
+        });
+        Job? job = null;
+        try
+        {
+            CancellationToken ct = TestContext.Current.CancellationToken;
+            var listing = vm.ActiveTab!.Listing;
+            await Until(() => listing.State == ListingState.Complete && listing.FocusName("a.txt"), ct);
+            vm.Execute(CommandIds.PermissionsOwnership);
+            await Until(() => FindButton(window, "Edit access ACL…") is not null, ct);
+            Click(FindButton(window, "Edit access ACL…")!);
+            await Until(() => window.GetVisualDescendants().OfType<WindowsAccessEditor>().Any(), ct);
+            var editor = Assert.Single(window.GetVisualDescendants().OfType<WindowsAccessEditor>());
+            var card = editor.GetVisualAncestors().OfType<FileCat.App.Controls.DialogCard>().First();
+            Assert.Equal("Close permissions editor", AutomationProperties.GetName(card.CloseButton));
+            editor.GetVisualDescendants().OfType<CheckBox>().Single(box => box.Content as string == "Add an explicit entry").IsChecked = true;
+            editor.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "New Windows entry SID").Text = "S-1-5-32-546";
+            Click(FindButton(window, "Use preset")!);
+            static void Pause(Job added)
+            {
+                if (added.Kind == JobKind.Permissions) added.Pause();
+            }
+            services.Jobs.JobAdded += Pause;
+            await Until(() => FindButton(window, "Apply")?.IsEnabled == true, ct);
+            Click(FindButton(window, "Apply")!);
+            await Until(() => services.Jobs.Jobs.Count != 0, ct);
+            services.Jobs.JobAdded -= Pause;
+            job = Assert.Single(services.Jobs.Jobs);
+
+            // While the reviewed change runs, closing detaches the view rather than discarding or stopping the change.
+            await Until(() => AutomationProperties.GetName(card.CloseButton) == "Close and detach", ct);
+            Assert.Equal("Close this dialog and follow the action in Operations.", AutomationProperties.GetHelpText(card.CloseButton));
+            Assert.True(TextPresent(window, "Applying changes. Follow progress in Operations."));
+            var stop = Assert.Single(card.GetVisualDescendants().OfType<Button>(), button => Equals(button.Content, "Stop operation"));
+            Assert.True(stop.IsEffectivelyVisible && stop.IsEnabled);
+            Assert.False(FindButton(window, "Apply")!.IsEnabled);
+            Click(card.CloseButton);
+            await Until(() => !window.GetVisualDescendants().OfType<WindowsAccessEditor>().Any(), ct);
+            Assert.False(TextPresent(window, "Discard changes?"));
+            Assert.Same(job, Assert.Single(services.Jobs.Jobs));
+            Assert.False(job.IsCancellationRequested);
+
+            job.Resume();
+            await Until(() => job.State == JobState.Completed, ct);
+            Assert.Equal(PermissionVerdict.Verified, Assert.Single(job.PermissionResults).Verdict);
+            var native = new FileInfo(Path.Combine(root, "files", "a.txt")).GetAccessControl(AccessControlSections.Access);
+            Assert.Contains(native.GetAccessRules(true, true, typeof(SecurityIdentifier)).OfType<FileSystemAccessRule>(), entry =>
+                entry.IdentityReference.Value == "S-1-5-32-546" && entry.AccessControlType == AccessControlType.Allow);
+        }
+        finally
+        {
+            if (job?.State is JobState.Paused or JobState.Pausing) job.Resume();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Windows_editor_keys_apply_once_from_a_field_and_never_from_a_rule_option()
     {
         if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_NTFS") != "1" ||

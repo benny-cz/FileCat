@@ -70,6 +70,23 @@ public sealed class WindowsPermissionInspectionTests
     }
 
     [Fact]
+    public void Adding_a_rule_refuses_an_ACL_beyond_the_native_size_limit()
+    {
+        // An ACL's size field is 16 bits: 3,276 twenty-byte entries fill 65,528 bytes, and one more cannot be stored.
+        byte[] allow = Simple(0, 0, 1);
+        var rule = WindowsPermissionDescriptor.Dacl(Descriptor(true, [Simple(0, 0, 2)]), "local").Entries[0];
+        var fits = WindowsPermissionDescriptor.Dacl(Descriptor(true, Enumerable.Repeat(allow, 3275).ToArray()), "local");
+        var patched = WindowsPermissionAclPatch.InsertCanonical(fits, rule, "local");
+        Assert.Equal(65528, patched.Length);
+        Assert.Equal(65528, BinaryPrimitives.ReadUInt16LittleEndian(patched.AsSpan()[2..]));
+        Assert.Equal(3276, BinaryPrimitives.ReadUInt16LittleEndian(patched.AsSpan()[4..]));
+        var full = WindowsPermissionDescriptor.Dacl(Descriptor(true, Enumerable.Repeat(allow, 3276).ToArray()), "local");
+        Assert.Equal(3276, full.Entries.Length);
+        var refusal = Assert.Throws<OverflowException>(() => WindowsPermissionAclPatch.InsertCanonical(full, rule, "local"));
+        Assert.Contains("native size or entry limit", refusal.Message);
+    }
+
+    [Fact]
     public void Adding_a_rule_uses_the_canonical_boundary_and_refuses_an_unknown_order()
     {
         byte[] deny = Simple(1, 0, 1), allow = Simple(0, 0, 1), inherited = Simple(0, 16, 1);

@@ -565,6 +565,59 @@ public sealed partial class PermissionJobTests
         Assert.True(File.Exists(fixture.JournalPath));
     }
 
+    // Mixed selection: one reviewed mode delta changes only its touched bit on each object and keeps every other bit. An
+    // object that already matches is reported so without an intent or a native call.
+    [Fact]
+    public async Task Ext4_mixed_selection_changes_only_the_touched_bit_of_each_object()
+    {
+        RequireExt4Writer();
+        await AssertMixedSelection(new LinuxPermissionService(), PermissionSections.Ordinary,
+            (inspection, item, draft, ct) => LinuxPermissionService.PrepareTarget(inspection, item, draft, false, ct).Target);
+    }
+
+    [Fact]
+    public async Task Darwin_mixed_selection_changes_only_the_touched_bit_of_each_object()
+    {
+        RequireDarwinWriter();
+        await AssertMixedSelection(new DarwinPermissionService(qualifyParentWrites: true), DarwinSections,
+            (inspection, item, draft, ct) => DarwinPermissionService.PrepareTarget(inspection, item, draft, false, ct).Target);
+    }
+
+    private static async Task AssertMixedSelection(IPermissionService service, PermissionSections sections,
+        Func<PermissionInspection, ItemRef, PermissionDraft, CancellationToken, ReviewedPermissionTarget> prepare)
+    {
+        using var fixture = new Fixture(nativeJournal: true);
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        var draft = new PermissionDraft(PermissionScope.Objects, [new ChangePermissionMode(0x40, 0x40)]); // owner execute on
+        (string Name, int Before, int After)[] objects = [("group-read", 0x1a0, 0x1e0), ("other-read", 0x184, 0x1c4), ("already", 0x1e4, 0x1e4)];
+        var inspections = new List<PermissionInspection>();
+        var targets = ImmutableArray.CreateBuilder<ReviewedPermissionTarget>();
+        try
+        {
+            foreach (var (name, before, _) in objects)
+            {
+                var item = new ItemRef(Location.FileSystem(fixture.Root), name, EntryKind.File);
+                string path = item.FileSystemPath!;
+                File.WriteAllText(path, "fixture");
+                File.SetUnixFileMode(path, (UnixFileMode)before);
+                var subject = new PermissionSubject(item.Parent, path, path, new(PermissionAuthorityKind.Local, "fixture", 0),
+                    PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+                var inspection = service.Inspect(subject, sections, ct);
+                inspections.Add(inspection);
+                targets.Add(prepare(inspection, item, draft, ct));
+            }
+            using var review = new ReviewedPermissionOperation(PermissionScope.Objects, targets.ToImmutable());
+            var job = fixture.Manager.SubmitPermissions(review);
+            await fixture.Finish(job);
+            Assert.Equal([PermissionVerdict.Verified, PermissionVerdict.Verified, PermissionVerdict.AlreadyMatching],
+                job.PermissionResults.OrderBy(result => result.SourceIndex).Select(result => result.Verdict));
+            foreach (var (name, _, after) in objects)
+                Assert.Equal((UnixFileMode)after, File.GetUnixFileMode(Path.Join(fixture.Root, name)));
+            Assert.Equal(2, JobJournal.ReadAll(fixture.JournalPath!).Count(record => record.Type == "permission-intent"));
+        }
+        finally { foreach (var inspection in inspections) inspection.Dispose(); }
+    }
+
     // Replaces the access ACL with the owner, the given number of named users, the owning group, the mask and others.
     private static bool TrySetNamedUsers(string path, int count)
     {
@@ -1223,6 +1276,25 @@ public sealed partial class PermissionJobTests
         string output = process.StandardOutput.ReadToEnd(), error = process.StandardError.ReadToEnd();
         Assert.True(process.WaitForExit(10_000) && process.ExitCode == 0, error);
         return output;
+    }
+
+    [Fact]
+    public async Task A_component_that_already_matches_writes_no_intent_and_makes_no_native_call()
+    {
+        using var fixture = new Fixture();
+        var mutation = fixture.Mutation("file", 0x1a0);
+        using var review = fixture.Review(mutation, 0x1a0, 0x1a0);
+        var job = fixture.Manager.SubmitPermissions(review);
+        await fixture.Finish(job);
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal(0, mutation.Calls);
+        Assert.Equal(1, mutation.Releases);
+        var result = Assert.Single(job.PermissionResults);
+        Assert.Equal(PermissionVerdict.AlreadyMatching, result.Verdict);
+        var component = Assert.Single(result.Components);
+        Assert.Equal(PermissionVerdict.AlreadyMatching, component.Verdict);
+        Assert.Null(component.NativeCall);
+        Assert.DoesNotContain(JobJournal.ReadAll(fixture.JournalPath!), record => record.Type is "permission-intent" or "permission-outcome");
     }
 
     [Fact]
