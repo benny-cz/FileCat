@@ -48,8 +48,9 @@ public sealed partial class SftpPermissionAdmissionTests
 
             var firstSubject = Subject("first");
             var inspected = Assert.Single(provider.InspectSftpPermissions(firstSubject.OriginalLocation, [firstSubject], Cancellation));
+            TestContext.Current.TestOutputHelper?.WriteLine(
+                $"{expected}: mode {inspected.Mode.Status} '{inspected.Mode.Reason}', editor refusal '{inspected.Sftp?.ChangeRefusal}'");
             Assert.Equal((ushort)0x180, inspected.Mode.Value);
-            TestContext.Current.TestOutputHelper?.WriteLine($"{expected}: editor refusal '{inspected.Sftp?.ChangeRefusal}'");
             if (expected == "owner")
             {
                 var refusal = Assert.Throws<RefusedOperationException>(() => provider.PrepareSftpPermissionPathReview(firstSubject, Cancellation));
