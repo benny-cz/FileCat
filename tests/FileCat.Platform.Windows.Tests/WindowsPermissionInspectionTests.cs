@@ -649,6 +649,36 @@ public sealed class WindowsPermissionInspectionTests
     }
 
     [Fact]
+    public void Native_NTFS_volume_without_the_cloud_filter_is_outside_every_sync_root()
+    {
+        // A fixed NTFS volume the Cloud Files filter is not attached to (it attaches on demand, for example to the OneDrive
+        // volume), where the sync-root query answers ERROR_INVALID_FUNCTION.
+        string? folder = Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_NO_CLOUD_FILTER_DIR");
+        if (!OperatingSystem.IsWindows() || folder is null || ReviewedPermissionOperation.ProcessRefusal() is not null)
+            Assert.Skip("Requires a writable folder on an ordinary NTFS volume without the Cloud Files filter.");
+        var ct = TestContext.Current.CancellationToken;
+        var directory = Directory.CreateDirectory(Path.Combine(folder, "filecat-no-cloud-filter-" + Guid.NewGuid().ToString("N")));
+        try
+        {
+            string path = Path.Combine(directory.FullName, "witness.txt");
+            File.WriteAllText(path, "no cloud filter witness");
+            using (var probe = File.OpenHandle(path, FileMode.Open, FileAccess.Read))
+                if (WindowsStorageCloudQuery.Query(probe, ct) != unchecked((int)0x80070001))
+                    Assert.Skip("The Cloud Files filter answers on this volume.");
+            foreach (var (target, kind) in new[] { (path, PermissionObjectKind.File), (directory.FullName, PermissionObjectKind.Directory) })
+            {
+                var subject = new PermissionSubject(Location.FileSystem(directory.FullName), target, target,
+                    new(PermissionAuthorityKind.Local, "local", 0), kind, PermissionLinkPolicy.NoFollow);
+                using var inspected = new WindowsPermissionService().Inspect(subject, PermissionSections.Ordinary, ct);
+                Assert.True(inspected.Snapshot.Access.Status == PermissionReadStatus.Present, inspected.Snapshot.Access.Reason);
+                Assert.Null(inspected.Snapshot.BindingProblem);
+                Assert.Equal(kind, Assert.IsType<PermissionBinding>(inspected.Snapshot.Binding).Identity.Kind);
+            }
+        }
+        finally { directory.Delete(recursive: true); }
+    }
+
+    [Fact]
     public void Windows_NTFS_inspects_the_exact_disposable_volume_root()
     {
         string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_NTFS_VOLUME_ROOT");
