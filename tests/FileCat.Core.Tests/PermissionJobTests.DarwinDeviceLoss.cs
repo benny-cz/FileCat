@@ -83,7 +83,7 @@ public sealed partial class PermissionJobTests
             var item = new ItemRef(Location.FileSystem(mount), "document", EntryKind.File);
             string path = item.FileSystemPath!;
             File.WriteAllText(path, "fixture");
-            File.SetUnixFileMode(path, (UnixFileMode)0x1a0);
+            File.SetUnixFileMode(path, (UnixFileMode)0x1e0); // executable, so the descriptor route can open it for metadata
             var subject = new PermissionSubject(item.Parent, path, path, new(PermissionAuthorityKind.Local, "fixture", 0),
                 PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
             CancellationToken ct = TestContext.Current.CancellationToken;
@@ -91,7 +91,7 @@ public sealed partial class PermissionJobTests
                 .Inspect(subject, DarwinSections, ct);
             Assert.Equal(descriptor ? DarwinBindingRoute.Descriptor : DarwinBindingRoute.ParentRelative, inspection.Snapshot.Binding?.DarwinRoute);
             using var review = DarwinPermissionService.Prepare(inspection, item,
-                new(PermissionScope.Objects, [new ChangePermissionMode(0x180, 0xfff)]), false, ct).Review;
+                new(PermissionScope.Objects, [new ChangePermissionMode(0x1c0, 0xfff)]), false, ct).Review;
             RunAclTool("/bin/sync");
             DarwinPermissionService.FlushFaultForTests = locator =>
             {
@@ -121,7 +121,7 @@ public sealed partial class PermissionJobTests
             attached = true;
             var stored = File.GetUnixFileMode(path);
             TestContext.Current.TestOutputHelper?.WriteLine($"reattached mode {System.Convert.ToString((int)stored, 8)}");
-            Assert.Contains(stored, new[] { (UnixFileMode)0x1a0, (UnixFileMode)0x180 });
+            Assert.Contains(stored, new[] { (UnixFileMode)0x1e0, (UnixFileMode)0x1c0 });
         }
         finally
         {
