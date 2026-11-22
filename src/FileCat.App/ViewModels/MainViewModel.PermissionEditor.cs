@@ -30,7 +30,7 @@ public sealed partial class MainViewModel
         {
             LinuxPermissionService => LinuxPermissionService.ModeReviewRefusal(item.Snapshot),
             DarwinPermissionService => DarwinPermissionService.ModeRefusal(item.Snapshot),
-            WindowsPermissionService => WindowsPermissionService.EditRefusal(item.Snapshot),
+            WindowsPermissionService windows => WindowsPermissionService.EditRefusal(item.Snapshot, windows.QualifiesRemovableWrites),
             _ => "Editing is unavailable for this object."
         } : "Editing is unavailable for this object.").ToArray();
         var view = new PermissionInspectorView(inspected.Select(item => (item.Name, item.Snapshot)).ToArray(), copy,
@@ -1032,7 +1032,8 @@ public sealed partial class MainViewModel
                             => windowsService.PrepareNativePropagation(item.Inspection, source, draft, windowsPropagation, ct, windowsInheritance?.Parent),
                         PermissionModel.WindowsDescriptor when windowsFolderOnly && Services.Permissions is WindowsPermissionService folderService
                             => folderService.PrepareFolderOnly(item.Inspection, source, draft, ct, approveVolumeRoot: windowsVolumeRoot && acceptClear),
-                        PermissionModel.WindowsDescriptor => WindowsPermissionService.Prepare(item.Inspection, source, draft, ct),
+                        PermissionModel.WindowsDescriptor => WindowsPermissionService.Prepare(item.Inspection, source, draft, ct,
+                            removableWrites: Services.Permissions is WindowsPermissionService { QualifiesRemovableWrites: true }),
                         PermissionModel.DarwinAcl => DarwinPermissionService.Prepare(item.Inspection, source, draft, acceptClear, ct, darwinGroupAuthority),
                         _ => LinuxPermissionService.Prepare(item.Inspection, source, draft, acceptClear, ct, groupAuthority)
                     };

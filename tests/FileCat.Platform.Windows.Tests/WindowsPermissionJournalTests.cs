@@ -224,9 +224,10 @@ public sealed partial class WindowsPermissionJournalTests
             AnalysisAdmission.Refusal() is not null)
             Assert.Skip("Requires the hot-removable NTFS volume harness.");
         var ct = TestContext.Current.CancellationToken;
+        var (removable, wait) = RemovalHarness(root);
         string path = CreateDocument(root, CurrentSid());
         File.WriteAllText(Path.Combine(control, "before.sddl"), StoredDacl(path));
-        using var change = Change.Prepare(path, ct);
+        using var change = Change.Prepare(path, ct, removable);
         var jobs = Jobs(control, (leaf, cancellation) =>
         {
             var journal = WindowsAnalysisPrivateDirectory.CreatePermissionJournal(control, leaf, cancellation);
@@ -238,7 +239,7 @@ public sealed partial class WindowsPermissionJournalTests
                     journal.Verify();
                     if (++checks != 4) return; // after the intent flush, before the recheck and dispatch
                     File.WriteAllText(Path.Combine(control, "ready"), "intent");
-                    var deadline = DateTime.UtcNow.AddMinutes(3);
+                    var deadline = DateTime.UtcNow + wait;
                     while (Directory.Exists(root))
                     {
                         if (DateTime.UtcNow > deadline) throw new TimeoutException("The harness did not remove the volume.");
@@ -250,7 +251,7 @@ public sealed partial class WindowsPermissionJournalTests
         var finished = new TaskCompletionSource<Job>(TaskCreationOptions.RunContinuationsAsynchronously);
         jobs.JobFinished += job => finished.TrySetResult(job);
         var submitted = jobs.SubmitPermissions(change.Review);
-        Assert.Same(submitted, await finished.Task.WaitAsync(TimeSpan.FromMinutes(5), ct));
+        Assert.Same(submitted, await finished.Task.WaitAsync(wait + TimeSpan.FromMinutes(2), ct));
         Assert.False(Directory.Exists(root));
         var result = Assert.Single(submitted.PermissionResults);
         var component = Assert.Single(result.Components);
@@ -281,9 +282,10 @@ public sealed partial class WindowsPermissionJournalTests
             AnalysisAdmission.Refusal() is not null)
             Assert.Skip("Requires the hot-removable NTFS volume harness.");
         var ct = TestContext.Current.CancellationToken;
+        var (removable, wait) = RemovalHarness(root);
         string path = CreateDocument(root, CurrentSid());
         File.WriteAllText(Path.Combine(control, "before.sddl"), StoredDacl(path));
-        using var change = Change.Prepare(path, ct);
+        using var change = Change.Prepare(path, ct, removable);
         int flushes = 0;
         var jobs = Jobs(control, (leaf, cancellation) =>
         {
@@ -310,7 +312,7 @@ public sealed partial class WindowsPermissionJournalTests
             var finished = new TaskCompletionSource<Job>(TaskCreationOptions.RunContinuationsAsynchronously);
             jobs.JobFinished += job => finished.TrySetResult(job);
             var submitted = jobs.SubmitPermissions(change.Review);
-            Assert.Same(submitted, await finished.Task.WaitAsync(TimeSpan.FromMinutes(5), ct));
+            Assert.Same(submitted, await finished.Task.WaitAsync(2 * wait + TimeSpan.FromMinutes(2), ct));
             var result = Assert.Single(submitted.PermissionResults);
             var component = Assert.Single(result.Components);
             File.WriteAllText(Path.Combine(control, "result.txt"), $"{result.Verdict}|{component.Verdict}|{component.Verification}|" +
@@ -330,7 +332,7 @@ public sealed partial class WindowsPermissionJournalTests
         void Signal(string name, string awaited, Func<bool> done)
         {
             File.WriteAllText(Path.Combine(control!, name), name);
-            var deadline = DateTime.UtcNow.AddMinutes(3);
+            var deadline = DateTime.UtcNow + wait;
             while (!done())
             {
                 if (DateTime.UtcNow > deadline) throw new TimeoutException($"The harness did not complete {awaited}.");
@@ -375,23 +377,39 @@ public sealed partial class WindowsPermissionJournalTests
 
         private Change(PermissionInspection inspection, ReviewedPermissionOperation review) { _inspection = inspection; Review = review; }
 
-        internal static Change Prepare(string path, CancellationToken ct)
+        internal static Change Prepare(string path, CancellationToken ct, bool removable = false)
         {
             var source = ItemRef.ForFileSystemPath(path, EntryKind.File);
             var subject = new PermissionSubject(source.Parent, path, path, new(PermissionAuthorityKind.Local, AuthorityId, 0),
                 PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
-            var inspection = new WindowsPermissionService().Inspect(subject, PermissionSections.Ordinary, ct);
+            var inspection = new WindowsPermissionService(qualifyRemovableReads: removable, qualifyRemovableWrites: removable)
+                .Inspect(subject, PermissionSections.Ordinary, ct);
             try
             {
                 var grant = WindowsPermissionAclPatch.SimpleEntry(WindowsAceKind.Allow, new(PrincipalKind.WindowsSid, Interactive, AuthorityId),
                     (uint)(FileSystemRights.Read | FileSystemRights.Synchronize));
-                var prepared = WindowsPermissionService.Prepare(inspection, source, new(PermissionScope.Objects, [new AddWindowsAce(grant)]), ct);
+                var prepared = WindowsPermissionService.Prepare(inspection, source, new(PermissionScope.Objects, [new AddWindowsAce(grant)]), ct,
+                    removableWrites: removable);
                 return new(inspection, prepared.Review);
             }
             catch { inspection.Dispose(); throw; }
         }
 
         public void Dispose() { try { Review.Dispose(); } finally { _inspection.Dispose(); } }
+    }
+
+    // FILECAT_TEST_PERMISSIONS_REMOVAL_REMOVABLE=1: the volume is removable media (a USB stick a person pulls), written
+    // through the qualified removable writer; FILECAT_TEST_PERMISSIONS_REMOVAL_MINUTES gives the person time to act.
+    private static (bool Removable, TimeSpan Wait) RemovalHarness(string root)
+    {
+        bool removable = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_REMOVAL_REMOVABLE") == "1";
+        double minutes = double.TryParse(Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_REMOVAL_MINUTES"),
+            System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double value) &&
+            value is > 0 and <= 60 ? value : 3;
+        var drive = new DriveInfo(Path.GetPathRoot(root)!);
+        Assert.Equal(removable ? DriveType.Removable : DriveType.Fixed, drive.DriveType);
+        Assert.Equal("NTFS", drive.DriveFormat);
+        return (removable, TimeSpan.FromMinutes(minutes));
     }
 
     private static JobManager Jobs(string root, Func<string, CancellationToken, PermissionJournalFile> journal)

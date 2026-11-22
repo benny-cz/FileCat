@@ -13,13 +13,14 @@ internal sealed unsafe partial class WindowsPermissionService
     private const uint WriteDac = 0x40000, WriteOwner = 0x80000;
     private const uint OwnerInformation = 1, DaclInformation = 4;
 
-    internal static string? EditRefusal(PermissionSnapshot snapshot)
+    internal static string? EditRefusal(PermissionSnapshot snapshot, bool removableWrites = false)
     {
         if (ReviewedPermissionOperation.ProcessRefusal() is { } refusal) return refusal;
         if (snapshot.BindingProblem is { } problem) return problem;
         if (snapshot.Mount is { IsServerProjection: true } mount) return mount.ChangeRefusal;
         if (snapshot.Binding is { FileSystem: "ReFS" }) return "ReFS permissions are inspection-only in FileCat.";
-        if (snapshot.Binding is { RemovableMedia: true }) return "Permissions on removable NTFS volumes are inspection-only in FileCat.";
+        if (snapshot.Binding is { RemovableMedia: true } && !removableWrites)
+            return "Permissions on removable NTFS volumes are inspection-only in FileCat.";
         if (snapshot.Binding is not { FileSystem: "NTFS", ReadOnly: false, LinkCount: > 0, Identity.Kind: PermissionObjectKind.File } ||
             snapshot.Model != PermissionModel.WindowsDescriptor || snapshot.Subject.LinkPolicy != PermissionLinkPolicy.NoFollow)
             return "This permissions writer requires an ordinary file on a writable local NTFS volume.";
@@ -73,12 +74,14 @@ internal sealed unsafe partial class WindowsPermissionService
         return PrepareChange(inspection, source, draft, boundary, ct, parent);
     }
 
+    // removableWrites: the caller's service qualifies ordinary file writes on removable NTFS (QualifiesRemovableWrites), whose
+    // inspection then carries a held binding.
     internal static (ReviewedPermissionOperation Review, PermissionSnapshot Expected) Prepare(PermissionInspection inspection, ItemRef source,
-        PermissionDraft draft, CancellationToken ct)
+        PermissionDraft draft, CancellationToken ct, bool removableWrites = false)
     {
         ct.ThrowIfCancellationRequested();
         var original = inspection.Snapshot;
-        if (EditRefusal(original) is { } refusal) throw new NotSupportedException(refusal);
+        if (EditRefusal(original, removableWrites) is { } refusal) throw new NotSupportedException(refusal);
         if (original.Subject.RawLocator != source.FileSystemPath || draft.Scope != PermissionScope.Objects ||
             draft.Changes is not [AddWindowsAce or ChangeWindowsAce or AssignPermissionPrincipal { IsOwner: true }])
             throw new NotSupportedException("Review one owner or DACL change for the original Windows file.");

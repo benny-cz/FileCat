@@ -10,7 +10,8 @@ namespace FileCat.Platform.Windows.Permissions;
 internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbReads = false, bool qualifyRefsReads = false,
     bool qualifyAccessEstimates = false, bool qualifyNativePropagation = false, bool qualifyInheritanceChanges = false,
     bool qualifyFileTrees = false, bool qualifyFolderOnly = false, bool qualifyAclResets = false,
-    bool qualifyFolderTrees = false, bool qualifyVolumeRootWrites = false, bool qualifyRemovableReads = false) : IPermissionService
+    bool qualifyFolderTrees = false, bool qualifyVolumeRootWrites = false, bool qualifyRemovableReads = false,
+    bool qualifyRemovableWrites = false) : IPermissionService
 {
     private const string Source = "Windows NtQuerySecurityObject";
     private const int ReviewedTreeMemberLimit = 4096;
@@ -22,6 +23,10 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
     private readonly bool _qualifyFolderOnly = qualifyFolderOnly;
     private readonly bool _qualifyVolumeRootWrites = qualifyVolumeRootWrites;
     private readonly bool _qualifyAclResets = qualifyAclResets;
+    // Ordinary object writes on removable NTFS (W1 file baseline). Folders, trees, roots and the administrator route on
+    // removable media stay inspection-only.
+    private readonly bool _qualifyRemovableWrites = qualifyRemovableReads && qualifyRemovableWrites;
+    internal bool QualifiesRemovableWrites => _qualifyRemovableWrites;
     private const uint ReadControl = 0x20000, OpenNoRecall = 0x400000;
     private const uint UnsafeAttributes = (uint)(FileAttributes.ReparsePoint | FileAttributes.Offline) | 0x00440000;
     internal const PermissionSections DiscretionarySections = PermissionSections.Owner | PermissionSections.Group |
@@ -77,8 +82,10 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
             }
             cancellationToken.ThrowIfCancellationRequested();
             snapshot = PermissionSnapshots.WithCapabilities(snapshot, sections);
-            // ReFS and removable NTFS are inspection-only: no held write binding leaves the reader.
-            if (binding.FileSystem == "ReFS" || binding.RemovableMedia)
+            // ReFS and removable NTFS are inspection-only: no held write binding leaves the reader, except a file on removable
+            // NTFS when its ordinary writer is qualified.
+            if (binding.FileSystem == "ReFS" ||
+                binding.RemovableMedia && !(_qualifyRemovableWrites && binding.Identity.Kind == PermissionObjectKind.File))
                 return new PermissionInspection(snapshot);
             var result = new PermissionInspection(snapshot, new WindowsInspectionPin(file, root, names, chain));
             file = null;

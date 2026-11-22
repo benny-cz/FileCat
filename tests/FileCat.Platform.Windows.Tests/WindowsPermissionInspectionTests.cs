@@ -822,6 +822,78 @@ public sealed class WindowsPermissionInspectionTests
         finally { FileCat.Tests.TestCleanup.DeleteTree(folder.FullName); }
     }
 
+    // W1 on removable NTFS: with the ordinary removable writer qualified, a reviewed DACL change to a file on the medium
+    // applies through the held binding and verifies, with its journal on the system volume. The writer switch needs the
+    // qualified reader, the default service still refuses, and folders on the volume stay inspection-only.
+    [Fact]
+    public async Task Windows_removable_NTFS_writer_verifies_a_reviewed_file_change_only_when_qualified()
+    {
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_REMOVABLE_ROOT");
+        if (!OperatingSystem.IsWindows() || root is null || ReviewedPermissionOperation.ProcessRefusal() is not null ||
+            FileCat.Core.Analysis.AnalysisAdmission.Refusal() is not null)
+            Assert.Skip("Requires a task-owned folder on a removable Windows NTFS volume and an ordinary process.");
+        var drive = new DriveInfo(Path.GetPathRoot(root)!);
+        Assert.Equal(DriveType.Removable, drive.DriveType);
+        Assert.Equal("NTFS", drive.DriveFormat);
+        var folder = Directory.CreateDirectory(Path.Combine(root, "write-" + Guid.NewGuid().ToString("N")[..8]));
+        var journals = Directory.CreateTempSubdirectory("filecat-removable-journal-");
+        try
+        {
+            string path = Path.Combine(folder.FullName, "witness.txt");
+            File.WriteAllText(path, "witness");
+            var source = ItemRef.ForFileSystemPath(path, EntryKind.File);
+            var subject = new PermissionSubject(source.Parent, path, path, new(PermissionAuthorityKind.Local, "local", 0),
+                PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+            var ct = TestContext.Current.CancellationToken;
+            var grant = WindowsPermissionAclPatch.SimpleEntry(WindowsAceKind.Allow, new(PrincipalKind.WindowsSid, "S-1-5-4", "local"),
+                (uint)(FileSystemRights.Read | FileSystemRights.Synchronize));
+            PermissionDraft draft = new(PermissionScope.Objects, [new AddWindowsAce(grant)]);
+
+            Assert.False(new WindowsPermissionService(qualifyRemovableWrites: true).QualifiesRemovableWrites);
+            var service = new WindowsPermissionService(qualifyRemovableReads: true, qualifyRemovableWrites: true);
+            Assert.True(service.QualifiesRemovableWrites);
+            var folderSubject = new PermissionSubject(Location.FileSystem(root), folder.FullName, folder.FullName,
+                new(PermissionAuthorityKind.Local, "local", 0), PermissionObjectKind.Directory, PermissionLinkPolicy.NoFollow);
+            using (var folderInspection = service.Inspect(folderSubject, PermissionSections.Ordinary, ct))
+            {
+                Assert.Equal(PermissionReadStatus.Present, folderInspection.Snapshot.Access.Status);
+                Assert.NotNull(WindowsPermissionService.EditRefusal(folderInspection.Snapshot, removableWrites: true));
+            }
+
+            using var inspection = service.Inspect(subject, PermissionSections.Ordinary, ct);
+            Assert.True(inspection.Snapshot.Binding!.RemovableMedia);
+            Assert.Contains("inspection-only", WindowsPermissionService.EditRefusal(inspection.Snapshot));
+            Assert.Null(WindowsPermissionService.EditRefusal(inspection.Snapshot, removableWrites: true));
+            Assert.False(WindowsPermissionService.CanBindAuthorizedInspection(inspection.Snapshot));
+            Assert.Throws<NotSupportedException>(() => WindowsPermissionService.Prepare(inspection, source, draft, ct));
+            var prepared = WindowsPermissionService.Prepare(inspection, source, draft, ct, removableWrites: true);
+            using var operation = prepared.Review;
+            var provider = new ProviderRegistry();
+            provider.Register(new LocalFileSystemProvider());
+            var jobs = new JobManager(new PortableFileOperations(), provider, journals.FullName, ArchiveJobBackends.Empty, new NoStorageTransforms(),
+                createPermissionJournal: (leaf, cancellation) => WindowsAnalysisPrivateDirectory.CreatePermissionJournal(journals.FullName, leaf, cancellation));
+            var finished = new TaskCompletionSource<Job>(TaskCreationOptions.RunContinuationsAsynchronously);
+            jobs.JobFinished += job => finished.TrySetResult(job);
+            var job = jobs.SubmitPermissions(operation);
+            Assert.Same(job, await finished.Task.WaitAsync(TimeSpan.FromSeconds(60), ct));
+            var result = Assert.Single(job.PermissionResults);
+            Assert.True(result.Verdict == PermissionVerdict.Verified, $"{result.Verdict}: {string.Join(", ", job.Issues.Select(issue => issue.Message))}");
+            Assert.Equal("witness", File.ReadAllText(path));
+
+            _ = ReadStoredDescriptor(path, 4, null, 0, out uint length);
+            byte[] stored = new byte[length];
+            Assert.True(ReadStoredDescriptor(path, 4, stored, length, out _), $"GetFileSecurityW failed: {Marshal.GetLastWin32Error()}");
+            string dacl = new RawSecurityDescriptor(stored, 0).GetSddlForm(AccessControlSections.Access);
+            Assert.Contains("(A;;FR;;;IU)", dacl);
+            File.WriteAllText(Path.Combine(journals.FullName, "stored-dacl.txt"), dacl);
+        }
+        finally
+        {
+            FileCat.Tests.TestCleanup.DeleteTree(folder.FullName);
+            FileCat.Tests.TestCleanup.DeleteTree(journals.FullName);
+        }
+    }
+
     private static void AssertNativeDiscretionaryDescriptor(string path, PermissionSnapshot snapshot)
     {
         int error = ReadNativeNamedDescriptor(path, 1 /* SE_FILE_OBJECT */, 7 /* Owner, group and DACL */,
