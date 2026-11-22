@@ -6,6 +6,9 @@ internal sealed record FtpPermissionFacts(string Source, ushort? Mode = null, bo
     string? TransferRights = null, string? Unique = null, uint? Owner = null, uint? Group = null,
     string? OwnerName = null, string? GroupName = null)
 {
+    /// <summary>A Unix LIST mode followed by '+': the server keeps access rules beyond the mode that FTP does not describe.</summary>
+    internal bool ListedAccessRules { get; init; }
+
     internal static FtpPermissionFacts? FromMlsd(string? line, string name, bool directory)
     {
         if (line is null) return null;

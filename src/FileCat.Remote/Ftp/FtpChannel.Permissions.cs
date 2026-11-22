@@ -56,6 +56,9 @@ internal sealed partial class FtpChannel
                 Ftp = new(protocol, facts.Source, now, facts.TransferRights, facts.Unique, facts.OwnerName, facts.GroupName)
             };
             if (facts.Mode is ushort mode) snapshot = snapshot with { Mode = new(PermissionReadStatus.Present, facts.Source, now, mode) };
+            if (facts.ListedAccessRules)
+                snapshot = snapshot with { Access = new(PermissionReadStatus.Incomplete, facts.Source, now,
+                    Reason: "The server listing marks access rules beyond the mode that FTP does not describe.") };
             else if (facts.InvalidMode) snapshot = snapshot with { Mode = new(PermissionReadStatus.Incomplete, facts.Source, now, Reason: "The server supplied an invalid or repeated mode fact.") };
             if (facts.Owner is uint uid) snapshot = snapshot with { Owner = PrincipalObservation(PrincipalKind.UnixUser, uid, facts.Source) };
             if (facts.Group is uint gid) snapshot = snapshot with { Group = PrincipalObservation(PrincipalKind.UnixGroup, gid, facts.Source) };
@@ -73,15 +76,15 @@ internal sealed partial class FtpChannel
         return unavailable.Snapshot;
     }
 
-    private static bool CanInspectName(string name) => RemotePath.ProblemWithName(name) is null && !name.Contains('\uFFFD') &&
+    internal static bool CanInspectName(string name) => RemotePath.ProblemWithName(name) is null && !name.Contains('\uFFFD') &&
         name.IndexOfAny(['\r', '\n', '\\']) < 0 && !char.IsWhiteSpace(name[0]) && !char.IsWhiteSpace(name[^1]);
 
-    private static FtpPermissionFacts? ReadPermissionFacts(string? raw, string name, bool directory, bool machine)
+    internal static FtpPermissionFacts? ReadPermissionFacts(string? raw, string name, bool directory, bool machine)
     {
         if (machine) return FtpPermissionFacts.FromMlsd(raw, name, directory);
         if (string.IsNullOrEmpty(raw) || raw[0] != (directory ? 'd' : '-') || UnixListingPrefix().Match(raw) is not { Success: true } prefix ||
             !raw.AsSpan(prefix.Length).SequenceEqual(name.AsSpan()))
             return null;
-        return FtpPermissionFacts.ListedMode(raw.AsSpan(1, 9)) is ushort mode ? new("Unix LIST", mode) : null;
+        return FtpPermissionFacts.ListedMode(raw.AsSpan(1, 9)) is ushort mode ? new("Unix LIST", mode) { ListedAccessRules = raw[10] == '+' } : null;
     }
 }
