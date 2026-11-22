@@ -274,13 +274,14 @@ public sealed partial class SftpPermissionAdmissionTests
 
     private sealed class Fixture : IDisposable
     {
-        internal Fixture(bool disableLSetStat = false, bool dropGroupReply = false)
+        internal Fixture(bool disableLSetStat = false, bool dropGroupReply = false, bool swapOnLSetStat = false)
         {
             var root = Environment.GetEnvironmentVariable("FILECAT_TEST_SFTP_ADMISSION_ROOT");
             if (!OperatingSystem.IsLinux() || Environment.IsPrivilegedProcess ||
                 root is null || !root.StartsWith("/run/user/", StringComparison.Ordinal) || !Directory.Exists(root))
                 Assert.Skip("Requires the private ordinary-user OpenSSH admission fixture under /run/user.");
-            var server = TestSshd.TryStart(disableLSetStat: disableLSetStat, privateReviewRoot: root, dropGroupReply: dropGroupReply);
+            var server = TestSshd.TryStart(disableLSetStat: disableLSetStat, privateReviewRoot: root, dropGroupReply: dropGroupReply,
+                swapOnLSetStat: swapOnLSetStat);
             if (server is null) Assert.Skip("Requires the owned OpenSSH server.");
             Server = server;
             Profile = server.Profile;

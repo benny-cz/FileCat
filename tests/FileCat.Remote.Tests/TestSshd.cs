@@ -40,7 +40,7 @@ internal sealed class TestSshd : IDisposable
     /// <param name="sftpDescriptors">The SFTP server process may hold this many descriptors (the system's sftp-server is
     /// then used, not sshd's own): every folder it has open holds one. Null where no sftp-server is found.</param>
     public static TestSshd? TryStart(int? sftpDescriptors = null, bool disableLSetStat = false, string? privateReviewRoot = null,
-        bool dropGroupReply = false)
+        bool dropGroupReply = false, bool swapOnLSetStat = false)
     {
         if (OperatingSystem.IsWindows()) return null;
         string? sshd = Environment.GetEnvironmentVariable("FILECAT_SSHD") is { Length: > 0 } configured ? configured
@@ -48,7 +48,7 @@ internal sealed class TestSshd : IDisposable
         if (sshd is null) return null;
         string sftp = "internal-sftp";
         const string python = "/usr/bin/python3", ubuntuSftp = "/usr/lib/openssh/sftp-server";
-        if (dropGroupReply && (privateReviewRoot is null || !File.Exists(python) || !File.Exists(ubuntuSftp))) return null;
+        if ((dropGroupReply || swapOnLSetStat) && (privateReviewRoot is null || !File.Exists(python) || !File.Exists(ubuntuSftp))) return null;
         if (sftpDescriptors is { } descriptors)
         {
             if (new[] { "/usr/lib/openssh/sftp-server", "/usr/libexec/openssh/sftp-server", "/usr/libexec/sftp-server" }
@@ -70,6 +70,14 @@ internal sealed class TestSshd : IDisposable
             string trace = Path.Combine(dir, "group-reply.trace");
             File.WriteAllText(fixture, DropGroupReplyFixture);
             // Creating the trace after review would change the observed ancestor directory.
+            File.WriteAllText(trace, "");
+            sftp = $"{python} {fixture} {ubuntuSftp} {dir}/files {trace}";
+        }
+        if (swapOnLSetStat)
+        {
+            string fixture = Path.Combine(dir, "swap-on-lsetstat.py");
+            string trace = Path.Combine(dir, "swap.trace");
+            File.WriteAllText(fixture, SwapOnLSetStatFixture);
             File.WriteAllText(trace, "");
             sftp = $"{python} {fixture} {ubuntuSftp} {dir}/files {trace}";
         }
@@ -155,6 +163,58 @@ internal sealed class TestSshd : IDisposable
                             print(fields, *values, status, file=output)
                         if fields == 2:
                             break
+                sys.stdout.buffer.write(reply)
+                sys.stdout.buffer.flush()
+        """;
+
+    // During the first lsetstat on a path named "swap-target", move that file aside and put a different file in its place
+    // before the server sees the request, as another process of the same account could during the call.
+    private const string SwapOnLSetStatFixture = """
+        import os
+        import struct
+        import subprocess
+        import sys
+
+        def take_frame(stream):
+            header = stream.read(4)
+            if not header:
+                return None
+            size, = struct.unpack(">I", header)
+            if not 1 <= size <= 256 * 1024:
+                raise ValueError("Unexpected SFTP fixture frame size")
+            body = stream.read(size)
+            if len(body) != size:
+                raise EOFError("Incomplete SFTP fixture frame")
+            return header + body
+
+        def read_string(packet, offset):
+            size, = struct.unpack_from(">I", packet, offset)
+            start = offset + 4
+            return packet[start:start + size], start + size
+
+        server, directory, trace = sys.argv[1:]
+        swapped = False
+        with subprocess.Popen([server, "-d", directory], stdin=subprocess.PIPE, stdout=subprocess.PIPE) as sftp:
+            while request := take_frame(sys.stdin.buffer):
+                if request[4] == 200 and not swapped:
+                    extension, offset = read_string(request, 9)
+                    if extension == b"lsetstat@openssh.com":
+                        path, _ = read_string(request, offset)
+                        if path.endswith(b"/swap-target"):
+                            name = path.decode()
+                            mode = os.lstat(name).st_mode & 0o7777
+                            os.rename(name, name + ".original")
+                            with open(name, "w", encoding="ascii") as replacement:
+                                replacement.write("a replacement of another size")
+                            os.chmod(name, mode)
+                            swapped = True
+                            with open(trace, "a", encoding="ascii") as output:
+                                print("swapped", name, file=output)
+                sftp.stdin.write(request)
+                sftp.stdin.flush()
+                reply = take_frame(sftp.stdout)
+                if not reply:
+                    break
                 sys.stdout.buffer.write(reply)
                 sys.stdout.buffer.flush()
         """;
