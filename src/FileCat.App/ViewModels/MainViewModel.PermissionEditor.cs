@@ -657,7 +657,7 @@ public sealed partial class MainViewModel
                 [new("Cancel", "close", IsCancel: true) { Presentation = footer, Validate = CanClose },
                  new(authorizedLinux is not null || authorizedWindows ? "Apply with authorization" : "Apply", "apply", IsDefault: true)
                      { IsAvailable = () => canApply, InvokeAsync = () => applying = ApplyAsync() }],
-                resizable: true, closer: closer, behavior: new DialogBehavior
+                initialFocus: FirstField(fields), resizable: true, closer: closer, behavior: new DialogBehavior
                 {
                     DismissOnBackdrop = false, KeepOperationsUsableDuringAction = true, ConfirmOnOptionEnter = false, ConfirmOnListItemEnter = false,
                     ClosePresentation = close, PreferredSize = new Avalonia.Size(760, 665),

@@ -331,6 +331,9 @@ internal sealed class PermissionInspectorView : StackPanel
         _subject.Children.Add(Label(prefix + Formatters.SafeName(value)));
         if (_copy is null) return;
         var button = new Button { Content = copyText };
+        // The value itself is plain text a keyboard never reaches: the copy button carries it, so a screen reader
+        // tabbing through the inspector hears which item, owner or group the button copies.
+        AutomationProperties.SetHelpText(button, prefix + Formatters.SafeName(value));
         button.Click += async (_, _) => await _copy(value);
         _subject.Children.Add(button);
     }

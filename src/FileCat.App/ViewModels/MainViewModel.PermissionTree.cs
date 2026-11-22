@@ -114,7 +114,8 @@ public sealed partial class MainViewModel
         var behavior = new DialogBehavior { DismissOnBackdrop = false, ConfirmOnListItemEnter = false, PreferredSize = new Avalonia.Size(760, 640) };
         var choice = await dialogs.ShowCustomAsync("Change mode in a folder tree", draft,
             [new("Cancel", "cancel", IsCancel: true), new("Capture review", "review", IsDefault: true)
-                { IsAvailable = () => editor.TryGetChange(out var candidate) && candidate.TouchedBits != 0 }], resizable: true, behavior: behavior);
+                { IsAvailable = () => editor.TryGetChange(out var candidate) && candidate.TouchedBits != 0 }],
+            initialFocus: FirstField(draft), resizable: true, behavior: behavior);
         if (choice is not "review" || !editor.TryGetChange(out var change) || change.TouchedBits == 0 || Services.Io.IsStopped) return;
 
         var subject = snapshot.Subject with { ExpectedIdentity = snapshot.Binding!.Identity };

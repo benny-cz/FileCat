@@ -128,6 +128,33 @@ public sealed class PermissionInspectorTests
     }
 
     [AvaloniaFact]
+    public void Copy_buttons_tell_a_screen_reader_which_value_they_copy()
+    {
+        // A keyboard reaches the copy buttons, not the plain text beside them: each carries its value as help text.
+        var subject = new PermissionSubject(Location.FileSystem("/fixture"), "/fixture/report.txt", "/fixture/report.txt",
+            new(PermissionAuthorityKind.Local, "local", 0), PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+        using var inspection = PermissionSnapshots.Unavailable(subject, PermissionSections.Ordinary, PermissionReadStatus.Failed,
+            "Permission metadata is unavailable.");
+        var view = new PermissionInspectorView([("report.txt", inspection.Snapshot)], copy: _ => Task.CompletedTask);
+        var copyPath = view.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Copy exact path"));
+        Assert.Equal("/fixture/report.txt", Avalonia.Automation.AutomationProperties.GetHelpText(copyPath));
+    }
+
+    [AvaloniaFact]
+    public void Editors_open_on_their_first_shown_field_instead_of_the_dialog_card()
+    {
+        // Hidden, collapsed and empty controls are skipped, so the dialog never starts on something a keyboard cannot use.
+        var choice = new ComboBox { ItemsSource = new[] { "Allow", "Deny" } };
+        var content = new StackPanel { Children = { new TextBlock { Text = "Scope" }, new Button { Content = "Hidden", IsVisible = false },
+            new Expander { Header = "More", Content = new TextBox(), IsExpanded = false }, new ListBox { ItemsSource = Array.Empty<string>() },
+            new Button { Content = "Disabled", IsEnabled = false }, choice, new Button { Content = "Later" } } };
+        Assert.Same(choice, FileCat.App.ViewModels.MainViewModel.FirstField(content));
+        var mode = Assert.IsType<CheckBox>(FileCat.App.ViewModels.MainViewModel.FirstField(new UnixPermissionModeEditor(_ => false, false)));
+        Assert.Equal("Owner read", Avalonia.Automation.AutomationProperties.GetName(mode));
+        Assert.Null(FileCat.App.ViewModels.MainViewModel.FirstField(new StackPanel { Children = { new TextBlock { Text = "Nothing to edit" } } }));
+    }
+
+    [AvaloniaFact]
     public void The_audit_editor_requires_an_event_and_returns_a_single_explicit_change()
     {
         var sid = new Principal(PrincipalKind.WindowsSid, "S-1-1-0", "local");
@@ -1286,6 +1313,12 @@ public sealed class PermissionInspectorTests
             Click(FindButton(window, "Edit access ACL…")!);
             await Until(() => window.GetVisualDescendants().OfType<WindowsAccessEditor>().Any(), ct);
             var editor = Assert.Single(window.GetVisualDescendants().OfType<WindowsAccessEditor>());
+            // Apply is unavailable until a change exists, so the editor opens on its ordered entries, which a screen reader
+            // names with the dialog.
+            var entries = editor.GetVisualDescendants().OfType<ListBox>().Single(list =>
+                AutomationProperties.GetName(list) == "Ordered Windows access entries");
+            await Until(() => window.FocusManager?.GetFocusedElement() is Avalonia.Visual focused &&
+                (ReferenceEquals(focused, entries) || entries.IsVisualAncestorOf(focused)), ct);
             editor.GetVisualDescendants().OfType<CheckBox>().Single(box => box.Content as string == "Add an explicit entry").IsChecked = true;
             var sid = editor.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "New Windows entry SID");
             sid.Text = "S-1-5-32-546";

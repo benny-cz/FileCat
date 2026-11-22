@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input.Platform;
+using Avalonia.LogicalTree;
 using Avalonia.Media;
 using FileCat.App.Services;
 using FileCat.App.Views;
@@ -208,7 +209,7 @@ public sealed partial class MainViewModel
             await dialogs.ShowCustomAsync("Permissions and times", body,
                 [new("Cancel", "close", IsCancel: true) { Presentation = footer, Validate = MayClose }, new("Apply", "apply", IsDefault: true)
                     { IsAvailable = () => canApply, InvokeAsync = () => applying = ApplyAsync() }],
-                resizable: true, closer: closer, behavior: new DialogBehavior
+                initialFocus: FirstField(body), resizable: true, closer: closer, behavior: new DialogBehavior
                 {
                     DismissOnBackdrop = false, KeepOperationsUsableDuringAction = true, ConfirmOnOptionEnter = false, ConfirmOnListItemEnter = false,
                     ClosePresentation = close, PreferredSize = new Avalonia.Size(640, 640),
@@ -599,6 +600,12 @@ public sealed partial class MainViewModel
     }
 
     private static TextBlock Wrapped(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap };
+
+    // An editor whose Apply is still unavailable opens on its first shown field, not on the dialog card: a screen reader
+    // then names that field along with the dialog, and the keyboard can change it at once.
+    internal static Control? FirstField(Control content) => content.GetSelfAndLogicalDescendants().OfType<Control>().FirstOrDefault(
+        control => control is ListBox { ItemCount: > 0 } or ComboBox or TextBox or Button && control.IsEnabled &&
+            control.GetSelfAndLogicalAncestors().All(node => node is not (Control { IsVisible: false } or Expander { IsExpanded: false })));
 
     private static TextBlock PermissionNotice()
     {
