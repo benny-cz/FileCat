@@ -98,6 +98,23 @@ public sealed class FormattersTests
     }
 
     /// <summary>
+    /// A drive's Size cell shows the free space that sorting by size orders drives by, or none where that is unknown: a
+    /// full drive's 0 free shows; a drive answered without its capacity shows nothing.
+    /// </summary>
+    [Theory]
+    [InlineData(true, 10L << 30, 100L << 30)]
+    [InlineData(true, 0L, 100L << 30)]
+    [InlineData(true, -1L, -1L)]
+    [InlineData(false, -1L, -1L)]
+    public void A_drive_shows_the_free_space_it_sorts_by(bool ready, long free, long total)
+    {
+        var tag = new Core.FileSystem.DriveTag(@"X:\", null, "Fixed", "NTFS", free, total, ready);
+        var drive = new Core.Resources.EntryData("X:", Core.Resources.EntryKind.Drive, ready ? total : -1) { Tag = tag };
+        string expected = tag.ShownFreeBytes >= 0 ? Formatters.Size(tag.ShownFreeBytes) + " free" : ready ? string.Empty : "not ready";
+        Assert.Equal(expected, Formatters.SizeCell(drive));
+    }
+
+    /// <summary>
     /// §18.3 and V23 B14: a name cannot turn itself around (a right-to-left override would show "photo" RLO "gpj.exe" as
     /// "photoexe.jpg") or break its one line (the Unicode line and paragraph separators, which may hide a name's end).
     /// </summary>

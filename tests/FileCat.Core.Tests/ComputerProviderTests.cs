@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Listing;
+using FileCat.Core.Resources;
 
 namespace FileCat.Core.Tests;
 
@@ -22,6 +24,40 @@ public sealed class ComputerProviderTests : IDisposable
 
     /// <summary>Mount points stand in as real folders: on Linux and macOS only folders are listed.</summary>
     private string Folder(string name) => Directory.CreateDirectory(Path.Combine(_root, name)).FullName;
+
+    private sealed class Sink : IEnumerationSink
+    {
+        public readonly List<EntryData> Entries = [];
+
+        public void AddBatch(ReadOnlySpan<EntryData> entries) => Entries.AddRange(entries.ToArray());
+
+        public void ReportIssue(string message) { }
+    }
+
+    /// <summary>
+    /// This PC's Size column shows each drive's free space, and sorting by size follows it, though a drive's row keeps its
+    /// capacity as its size. A full drive's 0 free is known; an empty disc drive shows none and comes last.
+    /// </summary>
+    [Fact]
+    public async Task Sorting_by_size_follows_the_free_space_each_drive_shows()
+    {
+        const long GB = 1L << 30;
+        string large = Folder("large"), disc = Folder("disc"), small = Folder("small"), full = Folder("full");
+        var provider = new Drives(
+            (large, () => new DriveTag(large, "LARGE", "Fixed", "NTFS", 10 * GB, 2000 * GB, true)),
+            (disc, () => new DriveTag(disc, null, "CDRom", null, -1, -1, false)),
+            (small, () => new DriveTag(small, "SMALL", "Fixed", "NTFS", 80 * GB, 100 * GB, true)),
+            (full, () => new DriveTag(full, "FULL", "Fixed", "NTFS", 0, 500 * GB, true)));
+        var sink = new Sink();
+        await provider.EnumerateAsync(new Location(Schemes.Computer, string.Empty), sink, TestContext.Current.CancellationToken);
+        Assert.Equal([2000 * GB, -1, 100 * GB, 500 * GB], sink.Entries.Select(e => e.Size));
+
+        using var store = new EntryStore();
+        store.Append(sink.Entries.ToArray());
+        var order = Enumerable.Range(0, store.Count).ToArray();
+        StableSort.Sort(order, EntrySorter.CreateComparison(store, new SortSpec(SortField.Size, Descending: true)));
+        Assert.Equal([small, large, full, disc], order.Select(i => Assert.IsType<DriveTag>(store[i].Tag).RootPath));
+    }
 
     [Fact]
     public async Task A_hung_or_failing_drive_is_listed_as_such_without_holding_up_the_rest()

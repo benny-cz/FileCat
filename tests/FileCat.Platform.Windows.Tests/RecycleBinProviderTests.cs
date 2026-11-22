@@ -107,6 +107,26 @@ public sealed class RecycleBinProviderTests : IDisposable
         Assert.Equal(RecycleBinProvider.Root, typed);
     }
 
+    /// <summary>
+    /// A deleted folder's size is its record's, counted by Windows when it was deleted: known, so the Size column shows it
+    /// as it is ("18", not the "18…" of a folder still being counted) and a marked total counts it. The row's item listed
+    /// alone says the same; a folder inside a deleted one has no recorded size and stays unknown.
+    /// </summary>
+    [Fact]
+    public async Task A_deleted_folders_recorded_size_is_known()
+    {
+        if (!OperatingSystem.IsWindows()) { Assert.Skip("Windows' Recycle Bin."); return; }
+        const EntryFlags SizeFlags = EntryFlags.SizeComputed | EntryFlags.SizeLowerBound;
+        var rows = (await List(RecycleBinProvider.Root)).Entries;
+        var photos = rows.Single(e => e.Name == "Photos");
+        Assert.Equal((18L, EntryFlags.SizeComputed), (photos.Size, photos.Flags & SizeFlags));
+        Assert.All(rows.Where(e => e.Kind == EntryKind.File), e => Assert.Equal(EntryFlags.None, e.Flags & SizeFlags));
+        var item = Assert.Single((await List(_bin.GetItemRef(RecycleBinProvider.Root, photos).Parent)).Entries);
+        Assert.Equal(("Photos", 18L, EntryFlags.SizeComputed), (item.Name, item.Size, item.Flags & SizeFlags));
+        var year = (await List(_bin.GetChildLocation(RecycleBinProvider.Root, photos)!)).Entries.Single(e => e.Name == "2024");
+        Assert.Equal((-1L, EntryFlags.None), (year.Size, year.Flags & SizeFlags));
+    }
+
     [Fact]
     public async Task An_oversized_linked_record_is_not_loaded_or_shown_as_a_deleted_item()
     {
