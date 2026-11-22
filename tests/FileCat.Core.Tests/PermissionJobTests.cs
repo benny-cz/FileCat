@@ -1551,6 +1551,36 @@ public sealed partial class PermissionJobTests
         Assert.Equal(defaultAcl.Bytes.ToArray(), Assert.IsType<PosixAcl>(readback.Snapshot.Defaults.Value?.Acl).Bytes.ToArray());
     }
 
+    // G-LINUX set-group-ID clearance on a non-member's write: this owner is not in the file's group, so the kernel clears the
+    // set-group-ID bit on any mode change. The review refuses an explicit request to keep it, predicts the cleared bit and
+    // requires consent for it, and the job verifies the cleared mode the kernel leaves.
+    [Fact]
+    public async Task Ext4_mode_change_predicts_set_group_id_clearance_for_a_non_member_owner()
+    {
+        RequireExt4Writer();
+        string path = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_SGID_FILE") ?? string.Empty;
+        if (path.Length == 0) Assert.Skip("Requires a file owned by this user in a group it does not belong to.");
+        var item = new ItemRef(Location.FileSystem(Path.GetDirectoryName(path)!), Path.GetFileName(path), EntryKind.File);
+        var subject = new PermissionSubject(item.Parent, path, path, new(PermissionAuthorityKind.Local, "fixture", 0),
+            PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+        var ct = TestContext.Current.CancellationToken;
+        using var fixture = new Fixture(nativeJournal: true);
+        using var inspection = new LinuxPermissionService().Inspect(subject, PermissionSections.Ordinary, ct);
+        Assert.Equal((ushort)0x5e0, inspection.Snapshot.Mode.Value);
+        Assert.Equal("0", inspection.Snapshot.Group.Value?.Id);
+        var keep = new PermissionDraft(PermissionScope.Objects, [new ChangePermissionMode(0x5e4, 0xfff)]);
+        Assert.Contains("set-group-ID", Assert.Throws<UnauthorizedAccessException>(() => LinuxPermissionService.Prepare(inspection, item, keep, true, ct)).Message);
+        var otherRead = new PermissionDraft(PermissionScope.Objects, [new ChangePermissionMode(0x4, 0x4)]);
+        Assert.Throws<InvalidOperationException>(() => LinuxPermissionService.Prepare(inspection, item, otherRead, false, ct));
+        var (review, expected) = LinuxPermissionService.Prepare(inspection, item, otherRead, true, ct);
+        using var reviewed = review;
+        Assert.Equal((ushort)0x1e4, expected.Mode.Value);
+        var job = fixture.Manager.SubmitPermissions(review);
+        await fixture.Finish(job);
+        Assert.Equal(PermissionVerdict.Verified, Assert.Single(job.PermissionResults).Verdict);
+        Assert.Equal((UnixFileMode)0x1e4, File.GetUnixFileMode(path));
+    }
+
     [Fact]
     public async Task Ext4_group_job_requires_set_id_consent_and_verifies_capability_clearance()
     {
