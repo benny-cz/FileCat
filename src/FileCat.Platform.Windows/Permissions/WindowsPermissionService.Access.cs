@@ -62,7 +62,7 @@ internal sealed unsafe partial class WindowsPermissionService
                 (mask & (uint)access) == (uint)access ? PermissionReadStatus.Present : PermissionReadStatus.Denied, error);
     }
 
-    private static (uint? Granted, int? Error) EvaluateDiscretionaryMask(SafeAccessTokenHandle token, WindowsDacl dacl, CancellationToken ct)
+    internal static (uint? Granted, int? Error) EvaluateDiscretionaryMask(SafeAccessTokenHandle token, WindowsDacl dacl, CancellationToken ct)
     {
         var descriptor = new RawSecurityDescriptor(dacl.SecurityDescriptor.ToArray(), 0);
         if (descriptor.DiscretionaryAcl is { } acl)
