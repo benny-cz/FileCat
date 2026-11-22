@@ -25,6 +25,12 @@
   <Style Selector="TextBlock.muted">
     <Setter Property="Foreground" Value="{DynamicResource FcTextMuted}" />
   </Style>
+  <!-- Fluent draws a TextBox placeholder at half opacity: about 2:1 in every palette (the permission editors' "S-1-…"
+       hint). Its brush already reads as a hint at full opacity. The template sets that opacity, which outranks a plain
+       style; a pseudo-class selector applies at trigger priority, which outranks it. -->
+  <Style Selector="TextBox:not(:disabled) /template/ TextBlock#PART_Placeholder">
+    <Setter Property="Opacity" Value="1" />
+  </Style>
   <Style Selector="TextBlock.small">
     <Setter Property="FontSize" Value="{DynamicResource FcSmallFontSize}" />
   </Style>
