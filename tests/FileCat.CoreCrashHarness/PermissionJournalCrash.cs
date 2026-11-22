@@ -7,7 +7,12 @@ using FileCat.Core.Resources;
 
 internal static class PermissionJournalCrash
 {
-    internal static async Task<int> Run(string root, string boundary)
+    /// <summary>
+    /// Runs one bound mode change through the protected journal and stops at a journal boundary until the parent kills
+    /// this process. The route is "linux" (the pinned Linux writer) or "darwin-parent"/"darwin-descriptor" (the macOS
+    /// parent-relative and retained-descriptor writers).
+    /// </summary>
+    internal static async Task<int> Run(string root, string boundary, string route = "linux")
     {
         int stopAt = boundary switch
         {
@@ -17,7 +22,8 @@ internal static class PermissionJournalCrash
             "outcome" => 6,
             _ => 0
         };
-        if (!OperatingSystem.IsLinux() || Environment.IsPrivilegedProcess || stopAt == 0 ||
+        bool darwin = route is "darwin-parent" or "darwin-descriptor";
+        if (!(darwin ? OperatingSystem.IsMacOS() : route == "linux" && OperatingSystem.IsLinux()) || Environment.IsPrivilegedProcess || stopAt == 0 ||
             !Path.IsPathFullyQualified(root) || !Directory.Exists(root) || Directory.EnumerateFileSystemEntries(root).Any())
             return 2;
 
@@ -32,10 +38,17 @@ internal static class PermissionJournalCrash
         var item = ItemRef.ForFileSystemPath(path, EntryKind.File);
         var subject = new PermissionSubject(item.Parent, path, path, new(PermissionAuthorityKind.Local, "fixture", 0),
             PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
-        var service = new LinuxPermissionService(qualifyAdditionalFileSystems: true);
-        using var inspection = service.Inspect(subject, PermissionSections.Ordinary, CancellationToken.None);
-        using var review = LinuxPermissionService.Prepare(inspection, item, new(PermissionScope.Objects,
-            [new ChangePermissionMode(0x180, 0xfff)]), false, CancellationToken.None).Review;
+        IPermissionService service = darwin
+            ? new DarwinPermissionService(qualifyParentWrites: route == "darwin-parent", qualifyDescriptorWrites: route == "darwin-descriptor")
+            : new LinuxPermissionService(qualifyAdditionalFileSystems: true);
+        var sections = darwin ? PermissionSections.Ordinary | PermissionSections.Times | PermissionSections.Flags : PermissionSections.Ordinary;
+        using var inspection = service.Inspect(subject, sections, CancellationToken.None);
+        if (darwin && inspection.Snapshot.Binding?.DarwinRoute != (route == "darwin-parent" ? DarwinBindingRoute.ParentRelative : DarwinBindingRoute.Descriptor))
+            return 4;
+        PermissionDraft draft = new(PermissionScope.Objects, [new ChangePermissionMode(0x180, 0xfff)]);
+        using var review = (darwin
+            ? DarwinPermissionService.Prepare(inspection, item, draft, false, CancellationToken.None)
+            : LinuxPermissionService.Prepare(inspection, item, draft, false, CancellationToken.None)).Review;
         var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), root, ArchiveJobBackends.Empty,
             new NoStorageTransforms(), createPermissionJournal: OpenJournal);
         var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

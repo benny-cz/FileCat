@@ -1307,6 +1307,28 @@ public sealed partial class PermissionJobTests
     public async Task Btrfs_journal_recovers_records_after_abrupt_process_exit(string boundary, bool changed, bool intent, bool outcome)
     {
         using var fixture = new TempDir(LinuxTestVolume("btrfs"));
+        await AssertJournalCrash(fixture, boundary, changed, intent, outcome, route: null);
+    }
+
+    // The macOS parent-relative and retained-descriptor writers, killed at the same journal boundaries.
+    [Theory]
+    [InlineData("begin", false, false, false, "darwin-parent")]
+    [InlineData("intent", false, true, false, "darwin-parent")]
+    [InlineData("native-return", true, true, false, "darwin-parent")]
+    [InlineData("outcome", true, true, true, "darwin-parent")]
+    [InlineData("begin", false, false, false, "darwin-descriptor")]
+    [InlineData("intent", false, true, false, "darwin-descriptor")]
+    [InlineData("native-return", true, true, false, "darwin-descriptor")]
+    [InlineData("outcome", true, true, true, "darwin-descriptor")]
+    public async Task Darwin_journal_recovers_records_after_abrupt_process_exit(string boundary, bool changed, bool intent, bool outcome, string route)
+    {
+        RequireDarwinWriter();
+        using var fixture = new TempDir();
+        await AssertJournalCrash(fixture, boundary, changed, intent, outcome, route);
+    }
+
+    private static async Task AssertJournalCrash(TempDir fixture, string boundary, bool changed, bool intent, bool outcome, string? route)
+    {
         string harness = Path.Combine(AppContext.BaseDirectory, "FileCat.CoreCrashHarness.dll");
         Assert.True(File.Exists(harness));
         var start = new ProcessStartInfo("dotnet")
@@ -1315,6 +1337,7 @@ public sealed partial class PermissionJobTests
         };
         foreach (string argument in new[] { harness, "--permissions-journal-crash", fixture.Path, boundary })
             start.ArgumentList.Add(argument);
+        if (route is not null) start.ArgumentList.Add(route);
         using var child = Process.Start(start)!;
         var ct = TestContext.Current.CancellationToken;
         var errors = child.StandardError.ReadToEndAsync(ct);

@@ -11,6 +11,8 @@ using FileCat.Core.Archives;
 
 if (args is ["--permissions-journal-crash", var journalParent, var journalBoundary])
     return await PermissionJournalCrash.Run(journalParent, journalBoundary);
+if (args is ["--permissions-journal-crash", var routedParent, var routedBoundary, var journalRoute])
+    return await PermissionJournalCrash.Run(routedParent, routedBoundary, journalRoute);
 
 if (args is ["--analysis-memory-counter-control"])
     return AnalysisPhysicalMemoryNative.Control();
