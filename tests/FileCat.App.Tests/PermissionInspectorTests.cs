@@ -632,6 +632,51 @@ public sealed class PermissionInspectorTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    /// <summary>
+    /// VoiceOver heard FileCat's "Something went wrong" notice as soon as a mode change was drafted for a macOS document
+    /// with an extended ACL: the editor described the draft with POSIX ACL rows, which a Darwin ACL cannot provide, and
+    /// then closed without asking to discard the draft. A Darwin mode edit is described by its mode alone.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task Mac_mode_editor_reviews_a_draft_for_a_document_with_an_extended_ACL()
+    {
+        if (!OperatingSystem.IsMacOS() || Environment.IsPrivilegedProcess || Environment.GetEnvironmentVariable("FILECAT_TEST_DARWIN_ACL_ROOT") is not { } volume ||
+            !Path.GetTempPath().StartsWith(Path.TrimEndingDirectorySeparator(volume) + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            Assert.Skip("Requires the ordinary macOS disposable permissions volume.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
+        {
+            string document = Path.Combine(folder, "a.txt");
+            File.SetUnixFileMode(document, (UnixFileMode)0x1a0);
+            RunAclTool("/bin/chmod", "+a", "everyone deny write", document);
+        }, permissionService: new DarwinPermissionService(qualifyParentWrites: true));
+        try
+        {
+            CancellationToken ct = TestContext.Current.CancellationToken;
+            string path = Path.Combine(root, "files", "a.txt");
+            string acl = RunAclTool("/bin/ls", "-le", path);
+            Assert.Contains("everyone deny write", acl);
+            var listing = vm.ActiveTab!.Listing;
+            await Until(() => listing.State == ListingState.Complete && listing.FocusName("a.txt"), ct);
+            vm.Execute(CommandIds.PermissionsOwnership);
+            await Until(() => FindButton(window, "Edit mode…") is not null, ct);
+            Click(FindButton(window, "Edit mode…")!);
+            await Until(() => window.GetVisualDescendants().OfType<UnixPermissionModeEditor>().Any(), ct);
+            var octal = window.GetVisualDescendants().OfType<TextBox>().Single(field => AutomationProperties.GetName(field) == "Permissions as octal");
+            octal.Text = "240";
+            await Until(() => TextPresent(window, "Mode 640 → 240") && FindButton(window, "Apply")?.IsEnabled == true, ct);
+
+            // The changed draft asks before it is discarded, and nothing is submitted.
+            Click(FindButton(window, "Cancel")!);
+            await Until(() => TextPresent(window, "Discard changes?"), ct);
+            Click(FindButton(window, "Discard")!);
+            await Until(() => !window.GetVisualDescendants().OfType<UnixPermissionModeEditor>().Any(), ct);
+            Assert.Empty(services.Jobs.Jobs);
+            Assert.Equal((UnixFileMode)0x1a0, File.GetUnixFileMode(path));
+            Assert.Equal(acl, RunAclTool("/bin/ls", "-le", path));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaFact]
     public async Task Mac_panel_checks_current_process_access_without_submitting_a_job()
     {

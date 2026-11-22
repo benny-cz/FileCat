@@ -725,7 +725,10 @@ public sealed partial class MainViewModel
                 projected is null ? Array.Empty<string>() : changePlan is not null ? DescribePermissionPlan(snapshot, changePlan) :
                 authorizedLinux is not null ? DescribeAuthorizedLinuxChange(snapshot, projected, draft!.Changes[0]) :
                 windows ? DescribeWindowsPermissionDiff(snapshot, projected, draft!.Changes[0]) :
-                changeProtection && darwin ? DescribeProtectionDiff(snapshot, projected) : DescribePermissionDiff(snapshot, projected, defaults);
+                changeProtection && darwin ? DescribeProtectionDiff(snapshot, projected) :
+                // A Darwin mode edit changes only the BSD mode; the POSIX ACL rows cannot describe a Darwin ACL.
+                darwin ? DescribePermissionDiff(snapshot.Mode.Value!.Value, projected.Mode.Value!.Value, [], []) :
+                DescribePermissionDiff(snapshot, projected, defaults);
             preview.ItemsSource = rows;
             preview.IsVisible = rows.Length > 0;
             accept.IsVisible = windowsPropagation is not null || windowsVolumeRoot ? draft is not null :
