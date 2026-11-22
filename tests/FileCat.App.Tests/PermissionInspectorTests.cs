@@ -1470,6 +1470,74 @@ public sealed class PermissionInspectorTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Windows_editor_unmarks_its_verified_origin_only_while_the_marks_are_unchanged(bool changeMarks)
+    {
+        if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_NTFS") != "1" ||
+            ReviewedPermissionOperation.ProcessRefusal() is not null)
+            Assert.Skip("Requires the ordinary Windows x64 NTFS test volume.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            var security = new FileSecurity();
+            security.SetAccessRuleProtection(true, false);
+            security.AddAccessRule(new FileSystemAccessRule(identity.User!, FileSystemRights.FullControl, AccessControlType.Allow));
+            new FileInfo(Path.Combine(folder, "a.txt")).SetAccessControl(security);
+        });
+        try
+        {
+            CancellationToken ct = TestContext.Current.CancellationToken;
+            var listing = vm.ActiveTab!.Listing;
+            await Until(() => listing.State == ListingState.Complete && listing.VisibleCount == 3, ct);
+            string before = new FileInfo(Path.Combine(root, "files", "b.txt")).GetAccessControl(AccessControlSections.Access)
+                .GetSecurityDescriptorSddlForm(AccessControlSections.Access);
+            listing.MarkNames(["a.txt"], true);
+            Assert.True(listing.FocusName("b.txt")); // the marked item, not the focused one, is reviewed
+            vm.Execute(CommandIds.PermissionsOwnership);
+            await Until(() => FindButton(window, "Edit access ACL…") is not null, ct);
+            Click(FindButton(window, "Edit access ACL…")!);
+            await Until(() => window.GetVisualDescendants().OfType<WindowsAccessEditor>().Any(), ct);
+            var editor = Assert.Single(window.GetVisualDescendants().OfType<WindowsAccessEditor>());
+            editor.GetVisualDescendants().OfType<CheckBox>().Single(box => box.Content as string == "Add an explicit entry").IsChecked = true;
+            editor.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "New Windows entry SID").Text = "S-1-5-32-546";
+            Click(FindButton(window, "Use preset")!);
+            void PauseIfRequested(Job added)
+            {
+                if (changeMarks && added.Kind == JobKind.Permissions) added.Pause();
+            }
+            services.Jobs.JobAdded += PauseIfRequested;
+            await Until(() => FindButton(window, "Apply")?.IsEnabled == true, ct);
+            Click(FindButton(window, "Apply")!);
+            await Until(() => services.Jobs.Jobs.Count != 0, ct);
+            services.Jobs.JobAdded -= PauseIfRequested;
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(JobKind.Permissions, job.Kind);
+            if (changeMarks)
+            {
+                listing.MarkNames(["b.txt"], true); // the panel's marks are no longer the reviewed ones
+                Assert.Equal(2, listing.MarkedCount);
+                job.Resume();
+            }
+            await Until(() => TextPresent(window, "Verified changed"), ct);
+            Assert.Equal(PermissionVerdict.Verified, Assert.Single(job.PermissionResults).Verdict);
+            var native = new FileInfo(Path.Combine(root, "files", "a.txt")).GetAccessControl(AccessControlSections.Access);
+            Assert.Contains(native.GetAccessRules(true, true, typeof(SecurityIdentifier)).OfType<FileSystemAccessRule>(), entry =>
+                entry.IdentityReference.Value == "S-1-5-32-546" && entry.AccessControlType == AccessControlType.Allow);
+            Assert.Equal(before, new FileInfo(Path.Combine(root, "files", "b.txt")).GetAccessControl(AccessControlSections.Access)
+                .GetSecurityDescriptorSddlForm(AccessControlSections.Access));
+            if (changeMarks)
+            {
+                // Unmarking decides when the job finishes; give a wrong decision time to show, then require both marks.
+                await Task.Delay(500, ct);
+                Assert.Equal(2, listing.MarkedCount);
+            }
+            else await Until(() => listing.MarkedCount == 0, ct);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaFact]
     public async Task Windows_editor_keys_apply_once_from_a_field_and_never_from_a_rule_option()
     {
