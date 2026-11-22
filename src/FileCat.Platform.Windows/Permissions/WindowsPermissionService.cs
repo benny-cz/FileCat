@@ -12,7 +12,7 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
     bool qualifyFileTrees = false, bool qualifyFolderOnly = false, bool qualifyAclResets = false,
     bool qualifyFolderTrees = false, bool qualifyVolumeRootWrites = false) : IPermissionService
 {
-    private const string Source = "Windows GetSecurityInfo";
+    private const string Source = "Windows NtQuerySecurityObject";
     private const int ReviewedTreeMemberLimit = 4096;
     private readonly bool _qualifyAccessEstimates = qualifyAccessEstimates;
     private readonly bool _qualifyNativePropagation = qualifyNativePropagation;
@@ -275,22 +275,42 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
 
     private delegate T ReadSecurityBytes<T>(ReadOnlySpan<byte> bytes);
 
-    private static T ReadSecurityDescriptor<T>(SafeFileHandle security, uint flags, CancellationToken ct, ReadSecurityBytes<T> decode)
+    // The descriptor as NTFS stores it. GetSecurityInfo returns another reading of a DACL stored without
+    // SE_DACL_AUTO_INHERITED, as format, older tools and folders below such a DACL leave it: it marks the entries matching
+    // the parent's current inheritable rules as inherited and lists them last, and reports the DACL as protected once
+    // the parent no longer matches. Reviews and verification use the stored form, so a parent change never reads as a
+    // changed child, and FileCat's writes keep that form (see PrepareChangeTarget).
+    private static T ReadSecurityDescriptor<T>(SafeFileHandle security, uint flags, CancellationToken ct, ReadSecurityBytes<T> decode) =>
+        QuerySecurityDescriptor(security, flags, "Read the held object's security descriptor", ct, decode);
+
+    private static T QuerySecurityDescriptor<T>(SafeFileHandle file, uint information, string action, CancellationToken cancellation,
+        ReadSecurityBytes<T> decode)
     {
-        ct.ThrowIfCancellationRequested();
-        int error = GetSecurityInfo(security, 1 /* SE_FILE_OBJECT */, flags, 0, 0, 0, 0, out nint descriptor);
-        try
+        const int bufferTooSmall = unchecked((int)0xc0000023), bufferOverflow = unchecked((int)0x80000005);
+        byte[] buffer = new byte[4096];
+        int status = Query(buffer, out uint length);
+        if (status is bufferTooSmall or bufferOverflow)
         {
-            ct.ThrowIfCancellationRequested();
-            if (error != 0) throw NativeFailure("Read the held object's security descriptor", error);
-            if (descriptor == 0 || !IsValidSecurityDescriptor(descriptor))
-                throw new ReadFailure(PermissionReadStatus.Failed, "Windows returned an invalid security descriptor.");
-            uint length = GetSecurityDescriptorLength(descriptor);
-            if (length is < 20 or > PermissionSnapshots.MaxSectionBytes)
+            if (length <= buffer.Length || length > PermissionSnapshots.MaxSectionBytes)
                 throw new ReadFailure(PermissionReadStatus.Incomplete, "The security descriptor is outside the byte limit.");
-            return decode(new ReadOnlySpan<byte>((void*)descriptor, (int)length));
+            buffer = new byte[(int)length];
+            status = Query(buffer, out length);
         }
-        finally { if (descriptor != 0) _ = LocalFree(descriptor); }
+        cancellation.ThrowIfCancellationRequested();
+        if (status < 0) throw NativeFailure(action, StatusToDosError(status));
+        if (length < 20 || length > buffer.Length)
+            throw new ReadFailure(PermissionReadStatus.Failed, "Windows returned an invalid security descriptor length.");
+        fixed (byte* bytes = buffer)
+            if (!IsValidSecurityDescriptor((nint)bytes))
+                throw new ReadFailure(PermissionReadStatus.Failed, "Windows returned an invalid security descriptor.");
+        return decode(buffer.AsSpan(0, (int)length));
+
+        int Query(byte[] destination, out uint resultLength)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            fixed (byte* bytes = destination)
+                return NtQuerySecurityObject(file, information, bytes, (uint)destination.Length, out resultLength);
+        }
     }
 
     private sealed record WindowsInspectionPin(SafeFileHandle File, string Root, string[] Names, FileStamp[] Chain) : IDisposable
@@ -360,11 +380,7 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
     [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetVolumeInformation(SafeFileHandle file, char* label, uint labelLength,
         out uint serial, out uint maximumComponent, out uint flags, char* fileSystem, uint fileSystemLength);
     [LibraryImport("advapi32.dll")]
-    private static partial int GetSecurityInfo(SafeFileHandle file, int type, uint flags, nint owner, nint group, nint dacl, nint sacl, out nint descriptor);
-    [LibraryImport("advapi32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)] private static partial bool IsValidSecurityDescriptor(nint descriptor);
     [LibraryImport("advapi32.dll")]
     private static partial uint GetSecurityDescriptorLength(nint descriptor);
-    [LibraryImport("kernel32.dll")]
-    private static partial nint LocalFree(nint pointer);
 }

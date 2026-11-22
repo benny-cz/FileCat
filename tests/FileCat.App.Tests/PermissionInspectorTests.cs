@@ -140,6 +140,27 @@ public sealed class PermissionInspectorTests
         Assert.Equal("/fixture/report.txt", Avalonia.Automation.AutomationProperties.GetHelpText(copyPath));
     }
 
+    [AvaloniaTheory]
+    [InlineData((ushort)0x8404, false)]
+    [InlineData((ushort)0x8004, true)]
+    [InlineData((ushort)0x9004, true)]
+    public void Windows_inspector_marks_a_DACL_stored_without_automatic_inheritance(ushort flags, bool legacy)
+    {
+        var subject = new PermissionSubject(Location.FileSystem(@"C:\fixture"), @"C:\fixture\legacy.txt", @"C:\fixture\legacy.txt",
+            new(PermissionAuthorityKind.Local, "local", 0), PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+        var now = DateTimeOffset.UtcNow;
+        var snapshot = PermissionSnapshots.Create(subject, PermissionModel.WindowsDescriptor, null, PermissionSections.Inheritance, now, "test") with
+        {
+            Inheritance = new(PermissionReadStatus.Present, "test", now, new WindowsAclControl(flags, 1))
+        };
+        var view = new PermissionInspectorView([("legacy.txt", snapshot)], copy: null);
+        var texts = view.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text ?? "").ToArray();
+        string state = (flags & 0x1000) != 0 ? "Inheritance: protected" : "Inheritance: enabled";
+        Assert.Contains(legacy ? state + ", legacy form" : state, texts);
+        Assert.Equal(legacy, texts.Any(text => text.StartsWith("Stored without", StringComparison.Ordinal)));
+        Assert.Equal(legacy && (flags & 0x1000) == 0, texts.Any(text => text.Contains("Explorer shows the entries", StringComparison.Ordinal)));
+    }
+
     [AvaloniaFact]
     public void Editors_open_on_their_first_shown_field_instead_of_the_dialog_card()
     {

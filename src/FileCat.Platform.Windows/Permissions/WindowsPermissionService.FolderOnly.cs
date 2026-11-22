@@ -10,7 +10,7 @@ internal sealed unsafe partial class WindowsPermissionService
 {
     internal bool CanReviewFolderOnly(PermissionSnapshot snapshot) => _qualifyFolderOnly &&
         IsReviewableNtfsFolder(snapshot) && snapshot.Binding!.Identity.Kind == PermissionObjectKind.Directory &&
-        TryGetUnprotectedDacl(snapshot, out _, out _);
+        TryGetFolderOnlyDacl(snapshot, out _, out _);
 
     internal bool CanReviewVolumeRoot(PermissionSnapshot snapshot) => _qualifyVolumeRootWrites &&
         IsReviewableNtfsFolder(snapshot) && snapshot.Binding!.Identity.Kind == PermissionObjectKind.VolumeRoot &&
@@ -35,9 +35,9 @@ internal sealed unsafe partial class WindowsPermissionService
         PermissionSnapshot original, PermissionDelta change, bool ensureRule = false)
     {
         bool root = original.Binding?.Identity.Kind == PermissionObjectKind.VolumeRoot;
-        bool available = root ? TryGetVolumeRootDacl(original, out var control) : TryGetUnprotectedDacl(original, out _, out control);
+        bool available = root ? TryGetVolumeRootDacl(original, out var control) : TryGetFolderOnlyDacl(original, out _, out control);
         if (change is not (AddWindowsAce or ChangeWindowsAce) || !available)
-            throw new NotSupportedException("This directory requires a qualified DACL with automatic inheritance.");
+            throw new NotSupportedException("This directory requires a simple unprotected DACL.");
         var (expected, section, bytes) = Project(original, change, directory: true, ensureRule: ensureRule);
         if (expected.Access.Value?.Acl is not WindowsDacl { Revision: 2 } projected || !HasSimpleFolderDacl(projected, volumeRoot: root) ||
             WindowsPermissionAclPatch.HasRepeatedExplicitRules(projected))
@@ -52,14 +52,20 @@ internal sealed unsafe partial class WindowsPermissionService
     private static bool TryGetUnprotectedDacl(PermissionSnapshot snapshot, out WindowsDacl acl, out WindowsAclControl control) =>
         TryGetSimpleAutoInheritedDacl(snapshot, out acl, out control) && !control.IsProtected;
 
+    // The folder-only write keeps the DACL's stored form: automatic, or legacy with no inheritance marks (see HasLegacyDacl).
+    // A DACL without SE_DACL_AUTO_INHERITED whose entries are marked inherited is neither, and stays read-only here.
+    private static bool TryGetFolderOnlyDacl(PermissionSnapshot snapshot, out WindowsDacl acl, out WindowsAclControl control) =>
+        TryGetSimpleAutoInheritedDacl(snapshot, out acl, out control, legacyForm: true) && !control.IsProtected &&
+        (control.IsAutoInherited || acl.Entries.All(entry => (entry.Flags & InheritedAce) == 0));
+
     private static bool TryGetSimpleAutoInheritedDacl(PermissionSnapshot snapshot, out WindowsDacl acl, out WindowsAclControl control,
-        bool volumeRoot = false)
+        bool volumeRoot = false, bool legacyForm = false)
     {
         acl = null!;
         control = default;
         // A volume root has no parent to inherit from. Formatting leaves its DACL without SE_DACL_AUTO_INHERITED, and the
         // object-only write below keeps whichever state it has.
-        if (snapshot.Inheritance.Value is not { } known || !known.IsAutoInherited && !volumeRoot ||
+        if (snapshot.Inheritance.Value is not { } known || !known.IsAutoInherited && !volumeRoot && !legacyForm ||
             (known.Flags & (DaclAutoInheritRequest | DaclDefaulted)) != 0 ||
             snapshot.Access.Value?.Acl is not WindowsDacl { Form: WindowsDaclForm.Entries, Revision: 2 } baseline ||
             !HasSimpleFolderDacl(baseline, volumeRoot)) return false;

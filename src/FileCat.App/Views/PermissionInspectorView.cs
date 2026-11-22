@@ -161,7 +161,11 @@ internal sealed class PermissionInspectorView : StackPanel
         if (snapshot.Binding?.Identity.Kind is PermissionObjectKind.Directory or PermissionObjectKind.VolumeRoot && snapshot.Model == PermissionModel.PosixAcl)
             AddAcl("Defaults for new children", snapshot.Defaults, snapshot.Subject.Authority);
         if (snapshot.Inheritance.Value is { } control)
-            _subject.Children.Add(Label(control.IsProtected ? "Inheritance: protected" : "Inheritance: enabled"));
+        {
+            bool legacy = snapshot.Model == PermissionModel.WindowsDescriptor && !control.IsAutoInherited;
+            _subject.Children.Add(Label((control.IsProtected ? "Inheritance: protected" : "Inheritance: enabled") + (legacy ? ", legacy form" : "")));
+            if (legacy) _subject.Children.Add(Label(LegacyDaclNote(control, snapshot.Binding?.Identity.Kind ?? snapshot.Subject.Kind)));
+        }
         if (snapshot.Model == PermissionModel.WindowsDescriptor && snapshot.Audit.Status != PermissionReadStatus.Unloaded)
             AddAcl("Auditing", snapshot.Audit, snapshot.Subject.Authority, directory);
         if (snapshot.Mount is { } observedMount)
@@ -171,6 +175,22 @@ internal sealed class PermissionInspectorView : StackPanel
         else if (_editRefusals[SelectedSubject] is { } refusal)
             _subject.Children.Add(Label(refusal));
     }
+
+    // A DACL stored without SE_DACL_AUTO_INHERITED. FileCat reads and writes the stored form; Explorer and other Windows tools
+    // read and rewrite it differently (see WindowsPermissionService.ReadSecurityDescriptor and HasLegacyDacl).
+    internal static string LegacyDaclNote(WindowsAclControl control, PermissionObjectKind kind) => kind switch
+    {
+        PermissionObjectKind.VolumeRoot => "Stored without the automatic-inheritance mark, as format leaves a volume root. Windows tools add the mark " +
+            "when they change this DACL. FileCat keeps the stored form and offers no native propagation here.",
+        _ when control.IsProtected => "Stored without the automatic-inheritance mark. Windows tools add the mark when they change this DACL. " +
+            (kind == PermissionObjectKind.Directory ? "FileCat keeps the stored form and offers no native propagation or inheritance change here."
+                : "FileCat keeps the stored form."),
+        _ => "Stored without inheritance marks, as format and older tools leave it. Explorer shows the entries that match the parent's " +
+            "inheritable rules as inherited, and Windows tools convert the DACL when they change it. " +
+            (kind == PermissionObjectKind.Directory
+                ? "FileCat shows and keeps the stored entries and offers no native propagation or inheritance change here."
+                : "FileCat shows and keeps the stored entries.")
+    };
 
     private void AddPrincipal(string label, PermissionObservation<Principal> principal)
     {

@@ -55,7 +55,9 @@ internal sealed partial class WindowsPermissionService
                 _ => "DACL"
             };
             var component = new ReviewedPermissionComponent(delta, before, expected,
-                volumeRoot ? "Windows administrator NtSetSecurityObject volume-root DACL" : $"Windows administrator SetSecurityInfo {sectionName}");
+                volumeRoot ? "Windows administrator NtSetSecurityObject volume-root DACL" :
+                WritesAuthorizedDescriptor(snapshot, delta) ? "Windows administrator NtSetSecurityObject legacy DACL" :
+                $"Windows administrator SetSecurityInfo {sectionName}");
             return new(PermissionScope.Objects, [new(source, snapshot.Subject, binding, [component], expected, mutation)]);
         }
         catch

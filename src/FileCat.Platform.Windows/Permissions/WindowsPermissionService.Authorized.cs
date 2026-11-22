@@ -207,36 +207,10 @@ internal sealed partial class WindowsPermissionService
         }
     }
 
-    private static unsafe T ReadCompleteSecurityDescriptor<T>(SafeFileHandle file, CancellationToken cancellation, ReadSecurityBytes<T> decode)
-    {
-        // The native backup query includes every SACL entry and works on the metadata handle
-        // with FILE_READ_ATTRIBUTES. GetSecurityInfo can reject that same handle for a backup query.
-        const int bufferTooSmall = unchecked((int)0xc0000023), bufferOverflow = unchecked((int)0x80000005);
-        byte[] buffer = new byte[4096];
-        int status = Query(buffer, out uint length);
-        if (status is bufferTooSmall or bufferOverflow)
-        {
-            if (length <= buffer.Length || length > PermissionSnapshots.MaxSectionBytes)
-                throw new ReadFailure(PermissionReadStatus.Incomplete, "The complete security descriptor is outside the byte limit.");
-            buffer = new byte[(int)length];
-            status = Query(buffer, out length);
-        }
-        cancellation.ThrowIfCancellationRequested();
-        if (status < 0) throw NativeFailure("Read the complete held security descriptor", StatusToDosError(status));
-        if (length < 20 || length > buffer.Length)
-            throw new ReadFailure(PermissionReadStatus.Failed, "Windows returned an invalid complete security descriptor length.");
-        fixed (byte* bytes = buffer)
-            if (!IsValidSecurityDescriptor((nint)bytes))
-                throw new ReadFailure(PermissionReadStatus.Failed, "Windows returned an invalid complete security descriptor.");
-        return decode(buffer.AsSpan(0, (int)length));
-
-        int Query(byte[] destination, out uint resultLength)
-        {
-            cancellation.ThrowIfCancellationRequested();
-            fixed (byte* bytes = destination)
-                return NtQuerySecurityObject(file, BackupSecurityInformation, bytes, (uint)destination.Length, out resultLength);
-        }
-    }
+    // The native backup query includes every SACL entry and works on the metadata handle
+    // with FILE_READ_ATTRIBUTES. GetSecurityInfo can reject that same handle for a backup query.
+    private static T ReadCompleteSecurityDescriptor<T>(SafeFileHandle file, CancellationToken cancellation, ReadSecurityBytes<T> decode) =>
+        QuerySecurityDescriptor(file, BackupSecurityInformation, "Read the complete held security descriptor", cancellation, decode);
 
     [LibraryImport("ntdll.dll")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]

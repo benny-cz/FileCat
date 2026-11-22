@@ -71,10 +71,20 @@ internal sealed unsafe partial class WindowsPermissionService
     internal static PermissionSnapshot PreviewAuthorizedChange(PermissionSnapshot original, PermissionDelta delta) =>
         ProjectAuthorizedChange(original, delta).Expected;
 
+    // A volume root, and a file DACL stored without SE_DACL_AUTO_INHERITED (see HasLegacyDacl), are written as a descriptor.
+    private static bool WritesAuthorizedDescriptor(PermissionSnapshot original, PermissionDelta delta) =>
+        original.Binding?.Identity.Kind == PermissionObjectKind.VolumeRoot ||
+        delta is AddWindowsAce or ChangeWindowsAce && HasLegacyDacl(original);
+
     private static (PermissionSnapshot Expected, uint Section, ImmutableArray<byte> Bytes) ProjectAuthorizedChange(
         PermissionSnapshot original, PermissionDelta delta)
     {
         if (original.Binding?.Identity.Kind == PermissionObjectKind.VolumeRoot) return ProjectFolderOnly(original, delta);
+        if (WritesAuthorizedDescriptor(original, delta))
+        {
+            var (expected, section, acl) = Project(original, delta);
+            return (expected, section, ObjectDaclDescriptor(original.Inheritance.Value!.Value, acl, original.Subject.Authority.Id));
+        }
         if (delta is not ChangeWindowsAuditAce audit) return Project(original, delta);
         if (original.Audit.Value?.Acl is not WindowsSacl baseline)
             throw new NotSupportedException("The complete system ACL is required to edit an audit entry.");
@@ -123,7 +133,7 @@ internal sealed unsafe partial class WindowsPermissionService
                 leafReadAccess: ReadControl | (audit ? AccessSystemSecurity : 0), backupIntent: true);
             using (parent)
             {
-                var (snapshot, _, _) = CheckAuthorizedChange(reviewed, requester.UserSid.Value, owner?.Principal,
+                var (snapshot, _, _, _) = CheckAuthorizedChange(reviewed, requester.UserSid.Value, owner?.Principal,
                     subject, file, binding, chain, cancellation);
                 var change = reviewed.Change!;
                 return change.Operation == ElevatedFileSecurityOperation.AssignOwner
@@ -175,8 +185,8 @@ internal sealed unsafe partial class WindowsPermissionService
                 using (file)
                 using (parent)
                 {
-                    var (_, section, bytes) = CheckAuthorizedChange(reviewed, requester.UserSid.Value, ownerAssignment?.Principal,
-                        subject, file, binding, chain, cancellation);
+                    var (_, section, bytes, descriptorWrite) = CheckAuthorizedChange(reviewed, requester.UserSid.Value,
+                        ownerAssignment?.Principal, subject, file, binding, chain, cancellation);
                     using var latest = Walk(root, names, subject.Authority, cancellation, out var latestParent, out var current, out var currentBinding,
                         backupIntent: true);
                     using (latestParent)
@@ -192,7 +202,7 @@ internal sealed unsafe partial class WindowsPermissionService
                         fixed (byte* payload = bytes.AsSpan())
                         {
                             dispatched = true;
-                            if (volumeRoot)
+                            if (descriptorWrite)
                             {
                                 int status = NtSetSecurityObject(file, section, payload);
                                 errorCode = status < 0 ? (uint)StatusToDosError(status) : 0;
@@ -256,7 +266,7 @@ internal sealed unsafe partial class WindowsPermissionService
         return (root, names, new(Location.FileSystem(path), path, path, authority, step.FileSecurity!.Kind, PermissionLinkPolicy.NoFollow));
     }
 
-    private static (PermissionSnapshot Before, uint Section, ImmutableArray<byte> Bytes) CheckAuthorizedChange(
+    private static (PermissionSnapshot Before, uint Section, ImmutableArray<byte> Bytes, bool DescriptorWrite) CheckAuthorizedChange(
         ElevatedFileSecurityScope reviewed, string requesterSid, Principal? assignedOwner, PermissionSubject subject, SafeFileHandle file,
         PermissionBinding binding, FileStamp[] chain, CancellationToken cancellation)
     {
@@ -325,7 +335,7 @@ internal sealed unsafe partial class WindowsPermissionService
         var projection = ProjectAuthorizedChange(original, delta);
         if (RequireAuthorizedRevision(projection.Expected, reviewed.Sections).Digest != change.Expected)
             throw new PermissionBindingConflictException("The projected descriptor differs from the reviewed result.");
-        return (original, projection.Section, projection.Bytes);
+        return (original, projection.Section, projection.Bytes, WritesAuthorizedDescriptor(original, delta));
     }
 
     private static PermissionSnapshot ReadAuthorizedChangeSnapshot(PermissionSubject subject, PermissionBinding binding,

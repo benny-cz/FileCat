@@ -82,7 +82,7 @@ internal sealed unsafe partial class WindowsPermissionService
                     throw new PermissionBindingConflictException(snapshot.BindingProblem ?? "A captured object changed identity or a file acquired another name.");
                 if (folders)
                 {
-                    if (!IsReviewableNtfsFolder(snapshot) || !TryGetUnprotectedDacl(snapshot, out _, out _))
+                    if (!IsReviewableNtfsFolder(snapshot) || !TryGetFolderOnlyDacl(snapshot, out _, out _))
                         throw new NotSupportedException($"{path}: Captured folder changes require a qualified unprotected DACL.");
                 }
                 else if (EditRefusal(snapshot) is { } refusal) throw new NotSupportedException($"{path}: {refusal}");

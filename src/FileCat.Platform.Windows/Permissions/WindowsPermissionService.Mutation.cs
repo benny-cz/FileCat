@@ -32,8 +32,15 @@ internal sealed unsafe partial class WindowsPermissionService
 
     internal static PermissionSnapshot PreviewChange(PermissionSnapshot original, PermissionDelta change) => Project(original, change).Expected;
 
+    // Native propagation runs through SetSecurityInfo, which first rewrites a DACL stored without SE_DACL_AUTO_INHERITED in
+    // automatic form (see HasLegacyDacl). Such a folder offers no propagation or inheritance change.
     internal bool CanReviewNativePropagation(PermissionSnapshot snapshot) =>
-        _qualifyNativePropagation && IsReviewableNtfsFolder(snapshot);
+        _qualifyNativePropagation && IsReviewableNtfsFolder(snapshot) && snapshot.Inheritance.Value is { IsAutoInherited: true };
+
+    // A DACL stored without SE_DACL_AUTO_INHERITED, as format, older tools and folders below such a DACL leave it. SetSecurityInfo
+    // would set that bit and, unless the DACL is protected, mark and move the entries matching the parent's inheritable rules:
+    // changes the review never showed. FileCat writes such a DACL as a descriptor, which stores the reviewed entries as they are.
+    private static bool HasLegacyDacl(PermissionSnapshot snapshot) => snapshot.Inheritance.Value is { IsAutoInherited: false };
 
     private static bool IsReviewableNtfsFolder(PermissionSnapshot snapshot) => ReviewedPermissionOperation.ProcessRefusal() is null &&
         snapshot is { BindingProblem: null, Mount: null, Model: PermissionModel.WindowsDescriptor,
@@ -112,13 +119,16 @@ internal sealed unsafe partial class WindowsPermissionService
         else token = WindowsPermissionToken.CurrentStamp();
 
         uint access = projection.Section == OwnerInformation ? WriteOwner : WriteDac;
+        bool legacy = !propagates && !folderOnly && !reset && projection.Section == DaclInformation && HasLegacyDacl(original);
+        var payload = legacy ? ObjectDaclDescriptor(original.Inheritance.Value!.Value, projection.Bytes, original.Subject.Authority.Id)
+            : projection.Bytes;
         var component = new ReviewedPermissionComponent(change, before, expected,
             propagates ? "Windows SetSecurityInfo native propagation" : reset ? "Windows NtSetSecurityObject reset DACL" :
             folderOnly && binding.Identity.Kind == PermissionObjectKind.VolumeRoot ? "Windows NtSetSecurityObject volume-root DACL" :
-            folderOnly ? "Windows NtSetSecurityObject folder DACL" :
+            folderOnly ? "Windows NtSetSecurityObject folder DACL" : legacy ? "Windows NtSetSecurityObject legacy DACL" :
             projection.Section == OwnerInformation ? "Windows SetSecurityInfo owner" : "Windows SetSecurityInfo DACL");
-        var mutation = BindDiscretionaryReview(inspection, before, token, ct, access, change, projection.Section, projection.Bytes,
-            boundary, inheritanceParent, treeAncestry, descriptorWrite: folderOnly || reset);
+        var mutation = BindDiscretionaryReview(inspection, before, token, ct, access, change, projection.Section, payload,
+            boundary, inheritanceParent, treeAncestry, descriptorWrite: folderOnly || reset || legacy);
         return (new(source, original.Subject, binding, [component], expected, mutation), projection.Expected);
     }
 
