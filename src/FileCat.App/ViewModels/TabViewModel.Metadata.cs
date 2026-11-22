@@ -90,7 +90,9 @@ public sealed partial class TabViewModel
         if (context is null) return new(MetadataState.NotRequested, "", "");
         capturedContext = context;
         if (context.Path is not { } path)
-            return new(MetadataState.Unsupported, "", "", InspectionOverride: "(not available for items in this location)");
+            // A dash that says why, not a blank a neighbouring column's values could be read into.
+            return new(MetadataState.Unsupported, "—", "Not available for items in this location: this column reads files on disk.",
+                NeedsExplanation: true, InspectionOverride: "(not available for items in this location)");
         var captured = context;
         var value = demand ? Services.Metadata.Get(fieldId, path, entry, context.DeviceKey, context.SlowLocation,
             () => ReferenceEquals(captured.Store, Listing.Store) && VisibleStoreIndices.Contains(storeIndex) &&
