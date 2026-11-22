@@ -182,6 +182,69 @@ public sealed partial class PermissionJobTests
         Assert.NotNull(DarwinPermissionService.ModeRefusal(inspection.Snapshot));
     }
 
+    // G-MAC FIFO lane: inspecting a FIFO through either writer route admits no change and leaves no reader open, so a
+    // non-blocking writer is still refused with ENXIO afterwards.
+    [Fact]
+    public void Darwin_inspection_of_a_fifo_admits_no_change_and_leaves_no_reader()
+    {
+        RequireDarwinWriter();
+        using var fixture = new Fixture();
+        string parent = Directory.CreateDirectory(Path.Join(fixture.Root, "fifo-lane"), (UnixFileMode)0x1c0).FullName;
+        string fifo = Path.Join(parent, "pipe");
+        Assert.True(MakeFifo(fifo, 0x180) == 0, $"mkfifo failed with errno {System.Runtime.InteropServices.Marshal.GetLastPInvokeError()}.");
+        var item = new ItemRef(Location.FileSystem(parent), "pipe", EntryKind.File);
+        var subject = new PermissionSubject(item.Parent, fifo, fifo, new(PermissionAuthorityKind.Local, "fixture", 0),
+            PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        foreach (bool descriptor in new[] { false, true })
+        {
+            var service = new DarwinPermissionService(qualifyParentWrites: !descriptor, qualifyDescriptorWrites: descriptor);
+            using var inspection = service.Inspect(subject, DarwinSections, ct);
+            Assert.NotNull(DarwinPermissionService.ModeRefusal(inspection.Snapshot));
+            Assert.ThrowsAny<Exception>(() => DarwinPermissionService.Prepare(inspection, item,
+                new(PermissionScope.Objects, [new ChangePermissionMode(0x1a0, 0xfff)]), false, ct));
+        }
+        int writer = OpenNonBlockingWriter(fifo, 0x1 | 0x4 /* O_WRONLY | O_NONBLOCK */);
+        int error = System.Runtime.InteropServices.Marshal.GetLastPInvokeError();
+        if (writer >= 0) CloseDescriptor(writer);
+        Assert.Equal((-1, 6), (writer, error)); // ENXIO: no reader
+        Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(fifo));
+    }
+
+    // G-MAC D2 ownership policy: on a volume mounted with ownership ignored, the access report shows that policy and both
+    // writer routes refuse to prepare a change; the document keeps its mode.
+    [Fact]
+    public void Darwin_writers_refuse_a_volume_that_ignores_ownership()
+    {
+        string root = Environment.GetEnvironmentVariable("FILECAT_TEST_DARWIN_NOOWNERS_ROOT") ?? string.Empty;
+        if (!OperatingSystem.IsMacOS() || root.Length == 0 || Environment.IsPrivilegedProcess)
+            Assert.Skip("Requires an ordinary macOS process and a volume mounted with ownership ignored.");
+        string path = Path.Join(root, "document");
+        File.WriteAllText(path, "fixture");
+        File.SetUnixFileMode(path, (UnixFileMode)0x180);
+        var item = ItemRef.ForFileSystemPath(path, EntryKind.File);
+        var subject = new PermissionSubject(item.Parent, path, path, new(PermissionAuthorityKind.Local, "fixture", 0),
+            PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        Assert.False(new DarwinPermissionService(qualifyAccessChecks: true).CheckEffectiveAccess(subject, ct).HonorsOwnership);
+        foreach (bool descriptor in new[] { false, true })
+        {
+            var service = new DarwinPermissionService(qualifyParentWrites: !descriptor, qualifyDescriptorWrites: descriptor);
+            using var inspection = service.Inspect(subject, DarwinSections, ct);
+            Assert.Contains("honors ownership", DarwinPermissionService.ModeRefusal(inspection.Snapshot));
+            Assert.ThrowsAny<Exception>(() => DarwinPermissionService.Prepare(inspection, item,
+                new(PermissionScope.Objects, [new ChangePermissionMode(0x1a0, 0xfff)]), false, ct));
+        }
+        Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(path));
+    }
+
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "mkfifo", SetLastError = true)]
+    private static extern int MakeFifo([System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPUTF8Str)] string path, uint mode);
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "open", SetLastError = true)]
+    private static extern int OpenNonBlockingWriter([System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPUTF8Str)] string path, int flags);
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "close")]
+    private static extern int CloseDescriptor(int descriptor);
+
     [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "renamex_np", SetLastError = true)]
     private static extern int RenameSwap([System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPUTF8Str)] string from,
         [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPUTF8Str)] string to, uint flags);
