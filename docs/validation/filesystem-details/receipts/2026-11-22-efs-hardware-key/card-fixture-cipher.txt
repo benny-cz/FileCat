@@ -1,0 +1,32 @@
+Card fixture encrypted with cipher /e while the card key was the current EFS key, then listed with cipher /c.
+
+
+ Encrypting files in C:\fc-run\yk\absent\
+
+card-encrypted.txt  [OK]
+
+1 file(s) [or directorie(s)] within 1 directorie(s) were encrypted.
+
+Converting files from plaintext to ciphertext may leave sections of old
+plaintext on the disk volume(s). It is recommended to use command
+CIPHER /W:directory to clean up the disk after all converting is done.
+cipher-e exit 0 
+
+ Listing C:\fc-run\yk\absent\
+ New files added to this directory will not be encrypted.
+
+E card-encrypted.txt
+  Compatibility Level:
+    Windows Vista/Server 2008
+
+  Users who can decrypt:
+    DESKTOP-A60F1NE\Admin [FileCat EFS hardware-key test]
+    Certificate thumbprint: 98F6 864B 08FE 1E43 66CB 76BA 93D5 1FF0 D3C2 21CB 
+
+  No recovery certificate found.
+
+  Key Information:
+    Algorithm: AES
+    Key Length: 256
+    Key Entropy: 256
+
