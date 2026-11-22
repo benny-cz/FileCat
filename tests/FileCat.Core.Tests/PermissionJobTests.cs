@@ -1298,6 +1298,28 @@ public sealed partial class PermissionJobTests
     }
 
     [Fact]
+    public async Task An_object_lost_after_its_intent_fails_before_change_with_a_reason_and_no_call()
+    {
+        using var fixture = new Fixture();
+        var mutation = fixture.Mutation("file", 0x1a0);
+        // The second check is the recheck after the intent flush; a removed volume fails it with an I/O error.
+        mutation.Checking = check => { if (check == 2) throw new IOException("The volume was removed."); };
+        using var review = fixture.Review(mutation, 0x1a0, 0x180);
+        var job = fixture.Manager.SubmitPermissions(review);
+        await fixture.Finish(job);
+        Assert.Equal(0, mutation.Calls);
+        var result = Assert.Single(job.PermissionResults);
+        Assert.Equal(PermissionVerdict.FailedBeforeChange, result.Verdict);
+        var component = Assert.Single(result.Components);
+        Assert.Null(component.NativeCall);
+        Assert.Null(component.NativeError);
+        Assert.Equal("The original object, authority or reviewed values could not be verified.", component.Detail);
+        var records = JobJournal.ReadAll(fixture.JournalPath!);
+        Assert.Single(records, record => record.Type == "permission-intent");
+        Assert.Equal(nameof(PermissionVerdict.FailedBeforeChange), Assert.Single(records, record => record.Type == "permission-outcome").Get("verdict"));
+    }
+
+    [Fact]
     public async Task Job_flushes_intent_before_the_write_verifies_and_releases_once()
     {
         using var fixture = new Fixture();

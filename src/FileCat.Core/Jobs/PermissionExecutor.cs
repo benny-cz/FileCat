@@ -101,7 +101,9 @@ internal sealed class PermissionExecutor(Job job, JobJournal journal, ReviewedPe
                 before = CheckBefore(target, component, out detail);
                 if (before != PermissionReadStatus.Present)
                 {
-                    result = Result(component, before == PermissionReadStatus.Stale ? PermissionVerdict.Conflict : PermissionVerdict.FailedBeforeChange, detail: detail);
+                    // A lost device or an unreadable object is as unverifiable here as before the intent.
+                    result = Result(component, before == PermissionReadStatus.Stale ? PermissionVerdict.Conflict : PermissionVerdict.FailedBeforeChange,
+                        detail: detail ?? "The original object, authority or reviewed values could not be verified.");
                     break;
                 }
                 if (job.AdmitPermissionCall())
