@@ -121,7 +121,9 @@ public sealed class PermissionRouteTests
                 results.Listing.FocusName("a.txt"), ct);
             find.Run(CommandIds.PermissionsOwnership);
             await Until(() => InspectorOpen(find), ct);
-            Assert.Equal([Path.Combine(root, "files", "a.txt")], permissions.Locators);
+            // Find reports the folder names as stored, and a temporary folder may be spelled C:\WINDOWS\Temp in TEMP.
+            Assert.Equal([Path.Combine(root, "files", "a.txt")], permissions.Locators,
+                OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
             if (closeFind)
             {
                 // Closing Find while its inspector is open takes the inspector with it and leaves nothing behind.
