@@ -88,4 +88,107 @@ public sealed partial class PermissionJobTests
         }
         finally { Directory.Delete(folder, recursive: true); }
     }
+
+    // G-MAC same-user substitution after dispatch on the checked-parent lane: whatever replaced the reviewed name, the
+    // read-back cannot attest the original object, so the result is uncertain and the substitute keeps its own mode. A
+    // swap undone before the read-back (single-thread ABA) still reports the folder activity it caused.
+    [Theory]
+    [InlineData("rename-swap")]
+    [InlineData("unlink-relink")]
+    [InlineData("hard-link")]
+    [InlineData("clonefile")]
+    [InlineData("swap-and-back")]
+    public void Darwin_parent_readback_reports_same_user_substitution_after_dispatch(string substitution)
+    {
+        RequireDarwinWriter();
+        using var fixture = new Fixture();
+        var (item, subject) = DarwinSubject(fixture);
+        string path = item.FileSystemPath!, other = path + ".other", moved = path + ".moved";
+        File.WriteAllText(other, "substitute");
+        File.SetUnixFileMode(other, (UnixFileMode)0x180);
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        using var inspection = new DarwinPermissionService(qualifyParentWrites: true).Inspect(subject, DarwinSections, ct);
+        using var review = DarwinPermissionService.Prepare(inspection, item,
+            new(PermissionScope.Objects, [new ChangePermissionMode(0x1a0, 0xfff)]), false, ct).Review;
+        var target = Assert.Single(review.Targets);
+        var component = Assert.Single(target.Components);
+        _ = target.Mutation.CheckCurrent(component.Before.Sections, ct);
+        var call = target.Mutation.Apply(component.Change, ct);
+        Assert.False(call.BindingConflict);
+        Assert.Null(call.NativeError);
+        string changed = moved;
+        switch (substitution)
+        {
+            case "rename-swap":
+                Swap(path, other);
+                changed = other;
+                break;
+            case "unlink-relink":
+                Native(Link(path, moved), "link");
+                File.Delete(path);
+                File.WriteAllText(path, "relinked");
+                File.SetUnixFileMode(path, (UnixFileMode)0x180);
+                break;
+            case "hard-link":
+                File.Move(path, moved);
+                Native(Link(other, path), "link");
+                break;
+            case "clonefile":
+                File.Move(path, moved);
+                Native(CloneFile(other, path, 0), "clonefile");
+                break;
+            default:
+                Swap(path, other);
+                Swap(path, other);
+                changed = path;
+                break;
+        }
+
+        var observed = target.Mutation.Observe(component.Expected.Sections);
+        Assert.Equal((UnixFileMode)0x1a0, File.GetUnixFileMode(changed));
+        if (substitution == "swap-and-back")
+        {
+            Assert.Equal(PermissionVerification.SameObject, observed.Verification);
+            Assert.True(observed.FolderChanged, observed.Detail);
+            return;
+        }
+        Assert.Equal(PermissionVerification.Unavailable, observed.Verification);
+        Assert.Contains("may have reached another object", observed.Detail);
+        Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(path));
+
+        static void Swap(string first, string second) => Native(RenameSwap(first, second, 2 /* RENAME_SWAP */), "renamex_np");
+        static void Native(int result, string call) =>
+            Assert.True(result == 0, $"{call} failed with errno {System.Runtime.InteropServices.Marshal.GetLastPInvokeError()}.");
+    }
+
+    // G-MAC another account's private folder: an entry inside a folder that another account owns with mode 0700 cannot be
+    // reached by the ordinary route, and inspection says it was denied instead of binding anything.
+    [Fact]
+    public void Darwin_inspection_inside_another_accounts_private_folder_is_denied_without_a_binding()
+    {
+        string folder = Environment.GetEnvironmentVariable("FILECAT_TEST_DARWIN_FOREIGN_FOLDER") ?? string.Empty;
+        if (!OperatingSystem.IsMacOS() || folder.Length == 0 || Environment.IsPrivilegedProcess)
+            Assert.Skip("Requires a folder that another account owns with mode 0700.");
+        string path = Path.Join(folder, "document");
+        var item = ItemRef.ForFileSystemPath(path, EntryKind.File);
+        var subject = new PermissionSubject(item.Parent, path, path, new(PermissionAuthorityKind.Local, "fixture", 0),
+            PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        var service = new DarwinPermissionService(qualifyParentWrites: true, qualifyDescriptorWrites: true);
+        using var inspection = service.Inspect(subject, DarwinSections, ct);
+        Assert.Null(inspection.Snapshot.Binding);
+        Assert.Equal(PermissionReadStatus.Denied, inspection.Snapshot.Mode.Status);
+        Assert.Equal(13, inspection.Snapshot.Mode.NativeError);
+        Assert.NotNull(DarwinPermissionService.ModeRefusal(inspection.Snapshot));
+    }
+
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "renamex_np", SetLastError = true)]
+    private static extern int RenameSwap([System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPUTF8Str)] string from,
+        [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPUTF8Str)] string to, uint flags);
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "link", SetLastError = true)]
+    private static extern int Link([System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPUTF8Str)] string existing,
+        [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPUTF8Str)] string created);
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "clonefile", SetLastError = true)]
+    private static extern int CloneFile([System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPUTF8Str)] string source,
+        [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPUTF8Str)] string destination, int flags);
 }
