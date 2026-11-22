@@ -513,7 +513,8 @@ public sealed partial class PermissionJobTests
     }
 
     // A real native refusal: ext4 keeps an access ACL in one attribute block, so one more named user than fits makes
-    // setxattr fail. The job reports the unchanged object with the kernel's error, and the complete history needs no review.
+    // setxattr fail. The refusal stops the compound change before its modification time, the job reports the unchanged
+    // object with the kernel's error, and the complete history needs no review.
     [Fact]
     public async Task Ext4_refuses_an_access_ACL_beyond_its_attribute_space_and_the_job_reports_the_unchanged_object()
     {
@@ -530,23 +531,28 @@ public sealed partial class PermissionJobTests
         Assert.InRange(accepted, 8, refused - 1);
         Assert.True(TrySetNamedUsers(path, accepted));
         string before = RunAclTool("getfacl", "-ncp", path);
+        var modifiedBefore = File.GetLastWriteTimeUtc(path);
         CancellationToken ct = TestContext.Current.CancellationToken;
-        using var inspection = new LinuxPermissionService().Inspect(subject, PermissionSections.Ordinary, ct);
+        using var inspection = new LinuxPermissionService().Inspect(subject, PermissionSections.Ordinary | PermissionSections.Times, ct);
         var rows = LinuxPermissionAcl.AccessRows(inspection.Snapshot).ToList();
         Assert.Equal(accepted, rows.Count(row => row.Tag == PosixAclTag.NamedUser));
         // The next named user sorts after the existing ones, just before the owning group.
         rows.Insert(rows.FindIndex(row => row.Tag == PosixAclTag.OwningGroup),
             new(PosixAclTag.NamedUser, 4, new Principal(PrincipalKind.UnixUser, (20000 + accepted).ToString(System.Globalization.CultureInfo.InvariantCulture), subject.Authority.Id)));
         using var review = LinuxPermissionService.Prepare(inspection, item, new(PermissionScope.Objects,
-            [new ChangePosixAcl(false, [.. rows])]), false, ct).Review;
+            [new ChangePermissionTimes(new DateTimeOffset(2024, 2, 3, 4, 5, 6, TimeSpan.Zero), null), new ChangePosixAcl(false, [.. rows])]),
+            false, ct).Review;
+        Assert.Equal([PermissionSections.Access, PermissionSections.Times],
+            Assert.Single(review.Targets).Components.Select(planned => planned.Change.Section));
         var job = fixture.Manager.SubmitPermissions(review);
         await fixture.Finish(job);
         var result = Assert.Single(job.PermissionResults);
-        var component = Assert.Single(result.Components);
+        var component = Assert.Single(result.Components); // the time component is not attempted after the refusal
         Assert.True(result.Verdict == PermissionVerdict.FailedBeforeChange, $"{result.Verdict}: {component.Detail}");
         Assert.Contains(component.NativeError, new int?[] { 7, 28, 34 }); // E2BIG, ENOSPC or ERANGE, by kernel and features
         Assert.Equal(PermissionVerification.SameObject, component.Verification);
         Assert.Equal(before, RunAclTool("getfacl", "-ncp", path));
+        Assert.Equal(modifiedBefore, File.GetLastWriteTimeUtc(path));
 
         var records = JobJournal.ReadAll(fixture.JournalPath!);
         Assert.Single(records, record => record.Type == "permission-intent");
