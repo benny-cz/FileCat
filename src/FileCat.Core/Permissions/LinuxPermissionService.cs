@@ -493,6 +493,8 @@ internal sealed unsafe partial class LinuxPermissionService(bool qualifyDefaultW
     private static partial int Statx(SafeFileHandle directory, string name, int flags, uint mask, byte* bytes);
     [LibraryImport("libc", EntryPoint = "fstatfs", SetLastError = true)]
     private static partial int FStatFs(SafeFileHandle handle, byte* buffer);
+    [LibraryImport("libc", EntryPoint = "syncfs", SetLastError = true)]
+    private static partial int SyncFs(SafeFileHandle handle);
     [LibraryImport("libc", EntryPoint = "readlinkat", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial nint ReadLinkAt(SafeFileHandle handle, string name, byte* buffer, nuint length);
     [LibraryImport("libc", EntryPoint = "getpid")]

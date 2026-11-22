@@ -565,6 +565,54 @@ public sealed partial class PermissionJobTests
         Assert.True(File.Exists(fixture.JournalPath));
     }
 
+    // A device that fails before the filesystem commits a change: ext4 accepts the chmod in memory and reads it back, but
+    // the change never reaches the disk. A root harness switches the volume's device-mapper table to an error target once
+    // the call's intent is durable; the job must not report the change as verified.
+    [Fact]
+    public async Task Ext4_change_the_device_cannot_commit_is_not_reported_verified()
+    {
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_LINUX_DEVICE_LOSS_ROOT");
+        string? control = Environment.GetEnvironmentVariable("FILECAT_TEST_LINUX_DEVICE_LOSS_CONTROL");
+        if (!OperatingSystem.IsLinux() || root is null || control is null || Environment.IsPrivilegedProcess)
+            Assert.Skip("Requires the device-mapper failure harness.");
+        using var fixture = new Fixture(nativeJournal: true);
+        var item = new ItemRef(Location.FileSystem(root), "document", EntryKind.File);
+        string path = item.FileSystemPath!;
+        File.WriteAllText(path, "fixture");
+        File.SetUnixFileMode(path, (UnixFileMode)0x1a0);
+        var subject = new PermissionSubject(item.Parent, path, path, new(PermissionAuthorityKind.Local, "fixture", 0),
+            PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        using var inspection = new LinuxPermissionService().Inspect(subject, PermissionSections.Ordinary, ct);
+        using var review = LinuxPermissionService.Prepare(inspection, item,
+            new(PermissionScope.Objects, [new ChangePermissionMode(0x180, 0xfff)]), false, ct).Review;
+        RunAclTool("sync");
+        int checks = 0;
+        fixture.Verify = () =>
+        {
+            if (++checks != 4) return; // after the intent flush, before the recheck and dispatch
+            File.WriteAllText(Path.Join(control, "ready"), "intent");
+            var deadline = DateTime.UtcNow.AddMinutes(2);
+            while (!File.Exists(Path.Join(control, "failed")))
+            {
+                if (DateTime.UtcNow > deadline) throw new TimeoutException("The harness did not fail the device.");
+                Thread.Sleep(100);
+            }
+        };
+        var job = fixture.Manager.SubmitPermissions(review);
+        await fixture.Finish(job);
+        var result = Assert.Single(job.PermissionResults);
+        var component = Assert.Single(result.Components);
+        File.WriteAllText(Path.Join(control, "result.txt"), $"{result.Verdict}|{component.Verdict}|{component.NativeCall}|{component.Detail}");
+        Assert.NotEqual(PermissionVerdict.Verified, result.Verdict);
+        if (component.NativeCall is null) Assert.Equal(PermissionVerdict.FailedBeforeChange, result.Verdict);
+        else
+        {
+            Assert.Equal(PermissionVerdict.Uncertain, result.Verdict);
+            Assert.Contains("pending changes to the device", component.Detail);
+        }
+    }
+
     // Mixed selection: one reviewed mode delta changes only its touched bit on each object and keeps every other bit. An
     // object that already matches is reported so without an intent or a native call.
     [Fact]

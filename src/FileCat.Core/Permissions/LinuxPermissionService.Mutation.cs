@@ -466,10 +466,36 @@ internal sealed unsafe partial class LinuxPermissionService
         {
             using var proc = OpenOwnProc(out string pid, CancellationToken.None);
             var mounts = ReadMounts(proc, pid, CancellationToken.None);
+            string? unflushed = FlushRefusal(mounts);
             var observed = ReadBound(sections, proc, pid, mounts, CancellationToken.None, out _);
+            if (unflushed is not null) return new(observed, PermissionVerification.Unavailable, Detail: unflushed);
             bool changed = !NamespaceMatches(mounts, CancellationToken.None);
             return new(observed, PermissionVerification.SameObject, changed, changed
                 ? "The original object was verified on its held descriptor. Its name or folder changed during the call." : null);
+        }
+
+        // The kernel answers a read-back from memory, so a device that fails before the filesystem commits a change can lose
+        // it after it read back as applied (ext4 on a failed device: chmod and statx succeed, syncfs fails with EIO, and the
+        // mode on disk is unchanged). Ask the object's own filesystem to write its pending changes first; an error leaves
+        // the result unverified. Without a readable root on the same mount, the read-back stays the kernel's view.
+        private string? FlushRefusal(Dictionary<ulong, Mount> mounts)
+        {
+            var held = ancestry[^1];
+            if (!mounts.TryGetValue(held.Mount, out var mount)) return null;
+            var (directory, noFollow) = FileSystem.LinuxOpenFlags.Current;
+            int fd = Open(mount.Path, directory | noFollow | FileSystem.LinuxOpenFlags.CloseOnExec);
+            if (fd < 0) return null;
+            using var root = new SafeFileHandle(fd, ownsHandle: true);
+            try
+            {
+                var stamp = ReadStamp(root);
+                if (stamp.Mount != held.Mount || stamp.Device != held.Device) return null;
+            }
+            catch (Exception error) when (error is IOException or ReadFailure) { return null; }
+            if (SyncFs(root) == 0) return null;
+            int failure = Marshal.GetLastPInvokeError();
+            return $"The filesystem could not write its pending changes to the device (error {failure}). " +
+                "The change may not persist; inspect the object again once its device is available.";
         }
 
         private PermissionSnapshot ReadBound(PermissionSections sections, SafeFileHandle proc, string pid, Dictionary<ulong, Mount> mounts,
