@@ -105,7 +105,18 @@ public sealed class AppServices : IDisposable
                 qualifyAclResets: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_LINUX_ACL_RESET") == "1",
                 qualifyAdditionalFileSystems: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_LINUX_XFS_BTRFS") == "1",
                 qualifyMountProjections: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_LINUX_MOUNT_PERMISSIONS") == "1")
-            : OperatingSystem.IsMacOS() ? new DarwinPermissionService() : new NoPermissionService());
+            : OperatingSystem.IsMacOS() ? new DarwinPermissionService(
+                // The D1 and D2 routes stay off in the product until G-MAC and G-PKG pass; as on Windows and Linux, these
+                // switches let qualification runs exercise them in the real App, for example under VoiceOver.
+                qualifyParentWrites: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_MAC_PARENT_WRITES") == "1",
+                qualifyDescriptorWrites: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_MAC_DESCRIPTOR_WRITES") == "1",
+                qualifyProtectionWrites: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_MAC_PROTECTION") == "1",
+                qualifyAclWrites: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_MAC_ACL") == "1",
+                qualifyGroupWrites: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_MAC_GROUP") == "1",
+                qualifyAccessChecks: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_MAC_ACCESS_CHECK") == "1",
+                qualifyModeTrees: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_MAC_MODE_TREE") == "1",
+                qualifyAclTrees: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_MAC_ACL_TREE") == "1")
+            : new NoPermissionService());
         LinuxBroker = linuxPermissionBroker ?? LinuxPermissionBroker.ForInstalledFileCat();
         Shell = Platform.Shell;
         CloudSyncRoots = Shell.CloudSyncRoots;
