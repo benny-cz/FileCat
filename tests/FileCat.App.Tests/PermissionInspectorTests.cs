@@ -183,6 +183,36 @@ public sealed class PermissionInspectorTests
         Assert.Equal(legacy && (flags & 0x1000) == 0, texts.Any(text => text.Contains("Explorer shows the entries", StringComparison.Ordinal)));
     }
 
+    // Beside a legacy DACL's stored entries, the inspector lists how Windows tools read it (WindowsInheritedReading), and
+    // says when they read it as protected. An automatic DACL has no such reading.
+    [AvaloniaTheory]
+    [InlineData((ushort)0x8404, 3)]
+    [InlineData((ushort)0x9404, 2)]
+    public void Windows_inspector_lists_how_Windows_tools_read_a_legacy_DACL(ushort readingFlags, int readingEntries)
+    {
+        var subject = new PermissionSubject(Location.FileSystem(@"C:\fixture"), @"C:\fixture\legacy.txt", @"C:\fixture\legacy.txt",
+            new(PermissionAuthorityKind.Local, "local", 0), PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+        var now = DateTimeOffset.UtcNow;
+        var reading = new WindowsInheritedReading(new PermissionIdentity(new(1, "1"), "volume", PermissionObjectKind.Directory, subject.Authority),
+            new PermissionRevision(PermissionSections.Access, new string('A', 64)), new WindowsAclControl(readingFlags, 1), ManyEntryDacl(readingEntries));
+        var snapshot = PermissionSnapshots.Create(subject, PermissionModel.WindowsDescriptor, null, PermissionSections.Inheritance | PermissionSections.Access,
+            now, "test") with
+        {
+            Inheritance = new(PermissionReadStatus.Present, "test", now, new WindowsAclControl(0x8004, 1)),
+            Access = new(PermissionReadStatus.Present, "test", now, new PermissionAclValue(ManyEntryDacl(2))),
+            WindowsReading = reading
+        };
+        var view = new PermissionInspectorView([("legacy.txt", snapshot)], copy: null);
+        string title = (readingFlags & 0x1000) != 0 ? "Windows tools read this DACL as protected" : "Windows tools read this DACL as";
+        var list = view.GetVisualDescendants().OfType<ListBox>().Single(box => Avalonia.Automation.AutomationProperties.GetName(box) == title);
+        Assert.Equal(readingEntries, list.ItemCount);
+
+        var automatic = snapshot with { Inheritance = new(PermissionReadStatus.Present, "test", now, new WindowsAclControl(0x8404, 1)) };
+        var plain = new PermissionInspectorView([("automatic.txt", automatic)], copy: null);
+        Assert.DoesNotContain(plain.GetVisualDescendants().OfType<ListBox>(),
+            box => Avalonia.Automation.AutomationProperties.GetName(box)?.StartsWith("Windows tools read", StringComparison.Ordinal) == true);
+    }
+
     private sealed class UnavailablePermissions : IPermissionService
     {
         internal readonly List<PermissionSubject> Subjects = [];
