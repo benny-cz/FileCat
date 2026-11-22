@@ -531,7 +531,7 @@ public sealed partial class MainViewModel
                 { new Label { Content = "Access rule or inheritance change", Target = inheritanceChoice }, inheritanceChoice, fields } };
         var problem = PermissionNotice();
         var result = PermissionNotice();
-        var preview = new ListBox { MaxHeight = 180, IsVisible = false, ItemTemplate =
+        var preview = new ListBox { MaxHeight = 180, IsVisible = false, ItemsPanel = PermissionInspectorView.AllRows(), ItemTemplate =
             new FuncDataTemplate<string>((text, _) => new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap }) };
         AutomationProperties.SetName(preview, "Reviewed changes");
         var accept = new CheckBox

@@ -16,7 +16,7 @@ internal sealed class WindowsAuditEditor : StackPanel
     private readonly string _authority;
     private readonly ListBox _entries = new()
     {
-        MinHeight = 80, MaxHeight = 200,
+        MinHeight = 80, MaxHeight = 200, ItemsPanel = PermissionInspectorView.AllRows(),
         ItemTemplate = new FuncDataTemplate<string>((value, _) => new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap })
     };
     private readonly CheckBox _add = new() { Content = "Add an explicit audit entry" };

@@ -14,7 +14,7 @@ internal sealed class PosixAccessEditor : StackPanel
 {
     private readonly PosixAccessDraft _draft;
     private readonly bool _isDefault;
-    private readonly ListBox _rows = new() { MinHeight = 85, MaxHeight = 230, ItemTemplate =
+    private readonly ListBox _rows = new() { MinHeight = 85, MaxHeight = 230, ItemsPanel = PermissionInspectorView.AllRows(), ItemTemplate =
         new FuncDataTemplate<string>((text, _) => new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap }) };
     private readonly ComboBox _kind = new() { ItemsSource = new[] { "User", "Group" }, SelectedIndex = 0 };
     private readonly TextBox _principal = new() { PlaceholderText = "Numeric user or group ID", MinWidth = 160 };

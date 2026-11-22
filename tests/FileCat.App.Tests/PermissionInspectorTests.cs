@@ -146,10 +146,20 @@ public sealed class PermissionInspectorTests
             Group = new(PermissionReadStatus.Present, "test", DateTimeOffset.UtcNow, new Principal(PrincipalKind.UnixGroup, "1000", "local"))
         };
         var principals = new PermissionInspectorView([("report.txt", owned)], copy: _ => Task.CompletedTask);
+        // Every ACL row exists for a screen reader to count, not only the rows in view.
+        var acl = PermissionSnapshots.Create(subject, PermissionModel.WindowsDescriptor, null, PermissionSections.Access, DateTimeOffset.UtcNow,
+            "test") with { Access = new(PermissionReadStatus.Present, "test", DateTimeOffset.UtcNow, new PermissionAclValue(ManyEntryDacl(40))) };
+        var aclView = new PermissionInspectorView([("report.txt", acl)], copy: null);
+        var rows = aclView.GetVisualDescendants().OfType<ListBox>().Single(list => Avalonia.Automation.AutomationProperties.GetName(list) == "Access now");
+        Assert.IsType<StackPanel>(rows.ItemsPanelRoot ?? rows.ItemsPanel.Build());
         foreach (string name in new[] { "Copy exact owner ID", "Copy exact primary group ID" })
             Assert.Equal("1000", Avalonia.Automation.AutomationProperties.GetHelpText(
                 principals.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, name))));
     }
+
+    private static WindowsDacl ManyEntryDacl(int count) => new(WindowsDaclForm.Entries, 2, [.. Enumerable.Range(0, count).Select(index =>
+        WindowsPermissionAclPatch.SimpleEntry(WindowsAceKind.Allow, new(PrincipalKind.WindowsSid, $"S-1-5-21-1-2-3-{1000 + index}", "local"), 0x120089))],
+        []);
 
     [AvaloniaTheory]
     [InlineData((ushort)0x8404, false)]

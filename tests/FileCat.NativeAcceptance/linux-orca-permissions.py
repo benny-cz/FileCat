@@ -177,6 +177,12 @@ def main():
             entry = next((" ".join(heard) for heard in cycle if any(name in phrase for phrase in heard)), "")
             if value not in entry.replace(name, ""):
                 report["tabCycleMissing"].append(f"{name}: {value}")
+        # The access list's spoken size is the ACL's entry count, not the rows a virtualizing panel happens to show.
+        entries = len([line for line in acl_before.splitlines() if line.strip()])
+        access = next((" ".join(heard) for heard in cycle if any("Access now" in phrase for phrase in heard)), "")
+        report["accessListEntries"] = entries
+        if f"List with {entries} items" not in access:
+            report["tabCycleMissing"].append(f"Access now: List with {entries} items")
         if report["tabCycleMissing"]:
             raise AssertionError(f"The Tab cycle never spoke {report['tabCycleMissing']}")
 

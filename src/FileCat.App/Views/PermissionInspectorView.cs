@@ -176,6 +176,10 @@ internal sealed class PermissionInspectorView : StackPanel
             _subject.Children.Add(Label(refusal));
     }
 
+    // Every row of these bounded ACL lists exists, so a screen reader hears the true count and each row's position. A
+    // virtualizing panel exposes only the rows in view: Orca said "List with 2 items" for a five-entry ACL.
+    internal static FuncTemplate<Panel?> AllRows() => new(() => new StackPanel());
+
     // A DACL stored without SE_DACL_AUTO_INHERITED. FileCat reads and writes the stored form; Explorer and other Windows tools
     // read and rewrite it differently (see WindowsPermissionService.ReadSecurityDescriptor and HasLegacyDacl).
     internal static string LegacyDaclNote(WindowsAclControl control, PermissionObjectKind kind) => kind switch
@@ -228,7 +232,7 @@ internal sealed class PermissionInspectorView : StackPanel
             if (AclPrincipal(model, 0) is { } principal) AddAccountActions(authority, () => principal, null);
             return;
         }
-        var list = new ListBox { ItemsSource = entries, MaxHeight = 260, MinHeight = 90,
+        var list = new ListBox { ItemsSource = entries, MaxHeight = 260, MinHeight = 90, ItemsPanel = AllRows(),
             ItemTemplate = new FuncDataTemplate<string>((entry, _) => Label(entry ?? string.Empty)) };
         AutomationProperties.SetName(list, title);
         _subject.Children.Add(list);
