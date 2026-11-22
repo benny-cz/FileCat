@@ -190,7 +190,17 @@ public sealed partial class WindowsPermissionJournalTests
             Assert.Equal(changed ? before + "(A;;FR;;;IU)" : before, StoredDacl(path));
             string folder = Path.Combine(fixture.FullName, PermissionJournalNames.Directory);
             using var directory = new WindowsAnalysisPrivateDirectory(fixture.FullName, PermissionJournalNames.Directory);
-            var interrupted = Assert.Single(PermissionJournalRecovery.Scan(directory, folder, ct, keepFinished: 0));
+            var scanned = PermissionJournalRecovery.Scan(directory, folder, ct, keepFinished: 0);
+            // Right after the kill another process can still hold the journal for a moment (seen in the Windows 11 26200
+            // guest as a sharing violation, and as a journal that opened a moment later). A held journal supplies no
+            // evidence and is skipped by design, so scan again briefly; this test is about the recorded prefix.
+            for (var deadline = DateTime.UtcNow.AddSeconds(5); scanned.Count == 0 && DateTime.UtcNow < deadline;)
+            {
+                await Task.Delay(100, ct);
+                scanned = PermissionJournalRecovery.Scan(directory, folder, ct, keepFinished: 0);
+            }
+            if (scanned.Count == 0) Assert.Fail($"The recovery scan returned no interrupted job: {DescribeJournals(directory, folder)}");
+            var interrupted = Assert.Single(scanned);
             Assert.Equal(nameof(JobKind.Permissions), interrupted.Kind);
             Assert.False(interrupted.CanContinueTransfer);
             Assert.Equal([path], interrupted.Sources);
@@ -396,6 +406,24 @@ public sealed partial class WindowsPermissionJournalTests
         }
 
         public void Dispose() { try { Review.Dispose(); } finally { _inspection.Dispose(); } }
+    }
+
+    // Why a scan left a journal out: the open or privacy check that refused it, or what reading it returned.
+    private static string DescribeJournals(WindowsAnalysisPrivateDirectory directory, string folder)
+    {
+        var parts = new List<string>();
+        foreach (string path in Directory.GetFiles(folder))
+        {
+            string name = Path.GetFileName(path);
+            try
+            {
+                using var file = directory.OpenPermissionJournal(name);
+                var receipt = PermissionJournalRecovery.Read(file.Stream, path);
+                parts.Add($"{name}: opened now, {(receipt is null ? "complete or unreadable" : "interrupted")}, {file.Stream.Length} bytes");
+            }
+            catch (Exception error) { parts.Add($"{name}: {error.GetType().Name}: {error.Message}"); }
+        }
+        return parts.Count == 0 ? "no journal file" : string.Join("; ", parts);
     }
 
     // FILECAT_TEST_PERMISSIONS_REMOVAL_REMOVABLE=1: the volume is removable media (a USB stick a person pulls), written
