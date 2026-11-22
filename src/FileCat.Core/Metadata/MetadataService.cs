@@ -579,7 +579,8 @@ public sealed partial class MetadataService : IDisposable
 /// <summary>First-party fields with bounded, managed parsing (no native parsers in-process; plan §6.2).</summary>
 public static class BuiltInFields
 {
-    private static readonly HashSet<string> VersionExt = new(StringComparer.OrdinalIgnoreCase) { "exe", "dll", "sys", "ocx", "cpl", "scr", "msi", "mui", "winmd" };
+    // No "msi": an installer package has no version resource (its ProductVersion lives in the package's database).
+    private static readonly HashSet<string> VersionExt = new(StringComparer.OrdinalIgnoreCase) { "exe", "dll", "sys", "ocx", "cpl", "scr", "mui", "winmd" };
     private static readonly HashSet<string> ImageExt = new(StringComparer.OrdinalIgnoreCase) { "png", "jpg", "jpeg", "gif", "bmp", "webp", "ico" };
 
     public static readonly MetadataField Version = new("version", "Version", MetadataCost.Cheap,
@@ -588,11 +589,22 @@ public static class BuiltInFields
         {
             if (!OperatingSystem.IsWindows()) return null;
             var vi = FileVersionInfo.GetVersionInfo(p);
-            var v = vi.FileVersion?.Split(' ')[0];
-            return string.IsNullOrWhiteSpace(v) ? null : v;
+            return FileVersionText(vi.FileMajorPart, vi.FileMinorPart, vi.FileBuildPart, vi.FilePrivatePart, vi.FileVersion);
         },
         v => v as string ?? string.Empty,
         SortKey: v => v is string s && System.Version.TryParse(s, out var parsed) ? parsed : null);
+
+    /// <summary>
+    /// The Version column's text, as Explorer's "File version" reads it: the fixed version numbers when any is set; else
+    /// the version string with comma separators as dots (the old Visual C++ template's "1, 0, 0, 1") and without a trailing
+    /// build tag (" (WinBuild.160101.0800)"); null when neither holds a version.
+    /// </summary>
+    internal static string? FileVersionText(int major, int minor, int build, int revision, string? text)
+    {
+        if ((major | minor | build | revision) != 0) return $"{major}.{minor}.{build}.{revision}";
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        return string.Join('.', text.Split(',', StringSplitOptions.TrimEntries)).Split([' ', '\t'], 2)[0];
+    }
 
     public static readonly MetadataField Dimensions = new("dimensions", "Dimensions", MetadataCost.Expensive,
         n => ImageExt.Contains(NameParts.GetExtension(n)),
@@ -718,12 +730,20 @@ public static class BuiltInFields
 /// <summary>Reads image dimensions from bounded headers (never decodes pixels).</summary>
 public static class ImageHeader
 {
+    /// <summary>Enough for every size <see cref="Parse"/> reads but a JPEG's (WebP's ends at byte 30); a JPEG is walked through the file.</summary>
+    private const int HeadBytes = 32;
+    /// <summary>A JPEG walk's bounds: its steps (segments, and runs of fill or stray bytes) and how far into the data a step may start.</summary>
+    private const int MaxJpegSteps = 512;
+    private const long MaxJpegOffset = 16L << 20;
+    /// <summary>The bytes a JPEG walk step looks at: a frame header's size ends at its 9th byte.</summary>
+    private const int JpegWindow = 64;
+
     public static (int Width, int Height)? TryRead(string path, CancellationToken ct)
     {
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.RandomAccess);
-        var head = new byte[64 * 1024];
-        int n = fs.Read(head, 0, head.Length);
-        return Parse(head.AsSpan(0, n), ct);
+        Span<byte> head = stackalloc byte[HeadBytes];
+        int n = fs.ReadAtLeast(head, head.Length, throwOnEndOfStream: false);
+        return n >= 2 && head[0] == 0xFF && head[1] == 0xD8 ? Jpeg([], fs, ct) : Parse(head[..n], ct);
     }
 
     public static (int Width, int Height)? Parse(ReadOnlySpan<byte> b, CancellationToken ct = default)
@@ -748,21 +768,55 @@ public static class ImageHeader
         }
         if (b.Length >= 8 && b[0] == 0 && b[1] == 0 && b[2] == 1 && b[3] == 0)
             return (b[6] == 0 ? 256 : b[6], b[7] == 0 ? 256 : b[7]); // ICO: first image
-        if (b.Length >= 4 && b[0] == 0xFF && b[1] == 0xD8)
+        if (b.Length >= 4 && b[0] == 0xFF && b[1] == 0xD8) return Jpeg(b, null, ct);
+        return null;
+    }
+
+    /// <summary>
+    /// The first JPEG frame header's size, found by walking segment headers from after SOI and skipping their payloads
+    /// (EXIF, XMP, ICC and MPF segments can put it megabytes in): through <paramref name="file"/> when given, else in
+    /// <paramref name="b"/>, the same bounded walk either way. Fill bytes, standalone markers and stray bytes between
+    /// segments (libjpeg skips those too) are stepped over; SOS or EOI first, or a malformed length, gives null.
+    /// </summary>
+    private static (int Width, int Height)? Jpeg(ReadOnlySpan<byte> b, Stream? file, CancellationToken ct)
+    {
+        Span<byte> window = stackalloc byte[JpegWindow];
+        long at = 2;
+        for (int step = 0; step < MaxJpegSteps && at <= MaxJpegOffset; step++)
         {
-            int i = 2;
-            while (i + 9 < b.Length)
+            ct.ThrowIfCancellationRequested();
+            scoped ReadOnlySpan<byte> h;
+            if (file is null) h = at < b.Length ? b.Slice((int)at, (int)Math.Min(JpegWindow, b.Length - at)) : [];
+            else
             {
-                ct.ThrowIfCancellationRequested();
-                if (b[i] != 0xFF) { i++; continue; }
-                byte marker = b[i + 1];
-                if (marker is 0xD8 or 0x01 || marker is >= 0xD0 and <= 0xD7) { i += 2; continue; }
-                int len = BinaryPrimitives.ReadUInt16BigEndian(b[(i + 2)..]);
-                if (marker is >= 0xC0 and <= 0xCF and not 0xC4 and not 0xC8 and not 0xCC)
-                    return (BinaryPrimitives.ReadUInt16BigEndian(b[(i + 7)..]), BinaryPrimitives.ReadUInt16BigEndian(b[(i + 5)..]));
-                i += 2 + len;
+                file.Position = at;
+                h = window[..file.ReadAtLeast(window, window.Length, throwOnEndOfStream: false)];
             }
-            return null;
+            if (h.Length < 2) return null;
+            if (h[0] != 0xFF)
+            {
+                int next = h.IndexOf((byte)0xFF);
+                at += next < 0 ? h.Length : next;
+                continue;
+            }
+            int fill = h[1..].IndexOfAnyExcept((byte)0xFF);
+            if (fill != 0)
+            {
+                at += fill < 0 ? h.Length - 1 : fill; // to the last fill byte, which then starts the marker
+                continue;
+            }
+            byte marker = h[1];
+            if (marker is 0xD8 or 0x01 or 0x00 || marker is >= 0xD0 and <= 0xD7) { at += 2; continue; } // no length; FF 00 is no marker
+            if (marker is 0xD9 or 0xDA || h.Length < 4) return null;
+            int length = BinaryPrimitives.ReadUInt16BigEndian(h[2..]);
+            if (length < 2) return null;
+            if (marker is >= 0xC0 and <= 0xCF and not 0xC4 and not 0xC8 and not 0xCC)
+            {
+                if (length < 8 || h.Length < 9) return null;
+                int height = BinaryPrimitives.ReadUInt16BigEndian(h[5..]), width = BinaryPrimitives.ReadUInt16BigEndian(h[7..]);
+                return width > 0 && height > 0 ? (width, height) : null; // a zero height is only given later, by a DNL marker
+            }
+            at += 2 + length;
         }
         return null;
     }
