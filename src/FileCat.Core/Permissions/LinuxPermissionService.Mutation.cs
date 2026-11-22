@@ -32,6 +32,7 @@ internal sealed unsafe partial class LinuxPermissionService
         if (snapshot.Mount is { } projected) return projected.ChangeRefusal;
         if (!IsWritableObject(snapshot))
             return "Changing mode requires a bound file or directory on a qualified writable Linux filesystem.";
+        if (snapshot.Owner.Value is null) return "FileCat could not read the original object's owner.";
         if (!IsEffectiveOwner(snapshot)) return "The original object is not owned by this FileCat user.";
         var sections = SecuritySections(snapshot.Binding!);
         try
@@ -214,6 +215,9 @@ internal sealed unsafe partial class LinuxPermissionService
     private static void ValidateKnownAcl(PermissionSnapshot snapshot)
     {
         if (snapshot.Binding?.PosixAclDisabled == true && snapshot.Model == PermissionModel.UnixMode) return;
+        // A denied, failed or unsupported read (a seccomp policy that refuses getxattr, say) is not an ACL with unknown rules.
+        if (snapshot.Access.Status is not (PermissionReadStatus.Present or PermissionReadStatus.Absent))
+            throw new NotSupportedException("This change depends on the access ACL, and FileCat could not read it.");
         if ((snapshot.Access.Status != PermissionReadStatus.Absent && snapshot.Access.Value?.Acl is not PosixAcl) ||
             snapshot.Defaults.Value?.Acl is OpaquePermissionAcl)
             throw new NotSupportedException("This change depends on a POSIX ACL with unsupported rules.");
@@ -366,7 +370,9 @@ internal sealed unsafe partial class LinuxPermissionService
                 var observed = ReadBound(sections, proc, pid, mounts, cancellation, out var stamp);
                 if (!NamespaceMatches(mounts, cancellation, stamp))
                     throw new PermissionBindingConflictException("The original namespace changed after inspection.");
-                if ((stamp.Valid & Uid) == 0 || GetEffectiveUid() == 0 || stamp.User != GetEffectiveUid())
+                if ((stamp.Valid & Uid) == 0)
+                    throw new UnauthorizedAccessException("statx did not return the original object's owner.");
+                if (GetEffectiveUid() == 0 || stamp.User != GetEffectiveUid())
                     throw new UnauthorizedAccessException("The original object is not owned by this FileCat user.");
                 if (_flagsHandle is not null && observed.Flags.Value is { KnownBits: uint.MaxValue } flags)
                     _checkedFlags = (uint)flags.Bits;
