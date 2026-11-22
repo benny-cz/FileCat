@@ -163,24 +163,22 @@ try {
     $mask.SetFocus(); Start-Sleep -Milliseconds 500
     Hear 'mask field' @('Windows access mask') 8
     Type-Text 'zz'
-    Start-Sleep -Milliseconds 1200
+    Hear 'invalid mask announced' @('Enter up to eight hexadecimal digits for the access mask.') 8
     $problem = @(All (Main) | Where-Object { $_.Current.ControlType -eq $CT::Text -and $_.Current.Name -match 'mask|SID|hexadecimal|invalid' } |
         ForEach-Object { $_.Current.Name })
     $script:result.ValidationTexts = $problem
     $script:result.ApplyEnabled = @(All (Main) | Where-Object { $_.Current.ControlType -eq $CT::Button -and $_.Current.Name -eq 'Apply' } |
         ForEach-Object { $_.Current.IsEnabled })
+    if ($script:result.ApplyEnabled -contains $true) { throw 'Apply was available with an invalid access mask.' }
 
     $script:result.Stage = 'discard'
     Key 0x1B
+    Hear 'escape with a dirty draft' @('Discard changes? dialog', 'Discard', 'button') 8
+    Key 0x0D                         # Enter on the focused Discard
+    Await { $null -eq (Named 'Ordered Windows access entries') } 'the editor to close after Discard' 15 | Out-Null
     Start-Sleep -Milliseconds 800
-    $discard = @(All (Main) | Where-Object { $_.Current.ControlType -eq $CT::Button -and $_.Current.Name -match '^Discard' })[0]
-    $script:result.DiscardOffered = $null -ne $discard
-    $heardDiscard = (@(Speech) -join ' ')
-    $script:result.Checks += [ordered]@{ Step = 'escape with a dirty draft'; Spoken = $heardDiscard }
-    if ($discard) {
-        ([System.Windows.Automation.InvokePattern]$discard.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
-        Start-Sleep -Milliseconds 800
-    }
+    $script:result.Checks += [ordered]@{ Step = 'after discard'; Spoken = (@(Speech) -join ' ') }
+    $script:result.DiscardOffered = $true
     $after = (Get-Acl -LiteralPath $witness).Sddl
     if ($after -ne $before) { throw "The witness descriptor changed: $before -> $after" }
     $script:result.WitnessSddl = $after
