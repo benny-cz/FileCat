@@ -94,6 +94,14 @@ public sealed class AppServices : IDisposable
                 qualifyVolumeRootWrites: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_ACL_VOLUME_ROOT") == "1",
                 qualifyRemovableReads: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_REMOVABLE_PERMISSIONS") == "1")
             : OperatingSystem.IsLinux() ? new LinuxPermissionService(
+                // Each L2 lane stays off until its write and interaction gates pass; these switches let qualification runs
+                // exercise them in the real App, as the Windows switches above do.
+                qualifyDefaultWrites: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_LINUX_DEFAULT_ACL") == "1",
+                qualifyAccessChecks: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_LINUX_ACCESS_CHECK") == "1",
+                qualifyGroupWrites: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_LINUX_GROUP") == "1",
+                qualifyModeTrees: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_LINUX_MODE_TREE") == "1",
+                qualifyAclResets: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_LINUX_ACL_RESET") == "1",
+                qualifyAdditionalFileSystems: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_LINUX_XFS_BTRFS") == "1",
                 qualifyMountProjections: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_LINUX_MOUNT_PERMISSIONS") == "1")
             : OperatingSystem.IsMacOS() ? new DarwinPermissionService() : new NoPermissionService());
         LinuxBroker = linuxPermissionBroker ?? LinuxPermissionBroker.ForInstalledFileCat();
