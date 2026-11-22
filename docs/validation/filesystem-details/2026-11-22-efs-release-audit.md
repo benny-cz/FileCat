@@ -2,6 +2,8 @@
 
 NTFS compression is now released on Windows 11 x64 and Windows on Arm. EFS is still not offered: every E gate in the [compression and EFS plan](../../design/FILECAT_NTFS_COMPRESSION_EFS_IMPLEMENTATION_PLAN.md) is Partial. This audit maps each gate's acceptance column to the evidence and lists what is left. WP9 ("enable only the passed action/target scope") is a release decision, so the scope proposal at the end needs the owner's choice.
 
+**Outcome:** the owner chose to pursue the release with the proposed scope. The [EFS release receipt](2026-11-22-efs-release.md) records the runs that closed the concrete gaps. A smart-card key on Windows on Arm could not run: the only Arm64 machine is the test Mac, and the YubiKey cannot be attached to a Windows guest there.
+
 ## Two kinds of gaps
 
 - **Concrete fixtures not yet run.** These close with a run on a machine already available, or with the owner present.

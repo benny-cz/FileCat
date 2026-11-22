@@ -1,0 +1,960 @@
+<TestRun id="420ee000-6687-4dcb-96de-4b0cf0576970" name="Admin@DESKTOP-A60F1NE 2026-11-22T20:52:02.4181512+00:00" runUser="Admin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-22T20:52:02.4181512+00:00" queuing="2026-11-22T20:52:02.4181512+00:00" start="2026-11-22T20:52:02.4181512+00:00" finish="2026-11-22T21:52:10.7512265+01:00" />
+  <TestSettings name="default" id="6c4d5628-128d-4c3b-a1a4-ab366a4594ad" />
+  <Results>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.A_real_key_change_after_setup_requires_review_after_the_current_file_is_encrypted" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="7e0a5eba-dafe-4b3b-893e-ed322762ce8f" executionId="7e0a5eba-dafe-4b3b-893e-ed322762ce8f" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:02.4186198+00:00" endTime="2026-11-22T20:52:02.4857554+00:00">
+      <Output>
+        <StdOut>Use only a separately prepared disposable account whose current EFS key can be changed.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.A_native_metadata_failure_is_reported_after_retiring_the_owned_empty_setup_file" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f5630fa8-ba7d-4562-8e2e-b7c664c6e389" executionId="f5630fa8-ba7d-4562-8e2e-b7c664c6e389" computerName="DESKTOP-A60F1NE" duration="00:00:00.2689253" startTime="2026-11-22T20:52:02.5028432+00:00" endTime="2026-11-22T20:52:02.7721645+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.The_resulting_user_file_association_is_inspected_through_its_original_live_Efs_binding" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f37e7850-5e75-4582-b2a2-219fededfd8d" executionId="f37e7850-5e75-4582-b2a2-219fededfd8d" computerName="DESKTOP-A60F1NE" duration="00:00:00.6595799" startTime="2026-11-22T20:52:02.7729408+00:00" endTime="2026-11-22T20:52:03.4327536+00:00">
+      <Output>
+        <TextMessages>
+          <Message>EFS_RECOVERY_KEY rotated=False expected=3AC383F3E5E0D50A04A10BF324112EEBE5234759 observed=3AC383F3E5E0D50A04A10BF324112EEBE5234759 result=Changed</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.Cancel_after_native_creation_retains_keys_and_cleans_only_the_created_zero_byte_object" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="cd683abf-a2a5-4e08-9851-c2398eb63d80" executionId="cd683abf-a2a5-4e08-9851-c2398eb63d80" computerName="DESKTOP-A60F1NE" duration="00:00:00.1103852" startTime="2026-11-22T20:52:03.4331720+00:00" endTime="2026-11-22T20:52:03.5436489+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.A_preexisting_application_namespace_with_other_writers_is_refused_before_key_provisioning" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="84f0071b-2983-424c-b297-b0c62c0021d9" executionId="84f0071b-2983-424c-b297-b0c62c0021d9" computerName="DESKTOP-A60F1NE" duration="00:00:00.3738442" startTime="2026-11-22T20:52:03.5439435+00:00" endTime="2026-11-22T20:52:03.9178850+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.Failed_or_canceled_setup_records_a_retained_artifact_even_without_a_recovery_dialog(canceled: False)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="019a02fa-6990-4177-a386-4f19b1462bfa" executionId="019a02fa-6990-4177-a386-4f19b1462bfa" computerName="DESKTOP-A60F1NE" duration="00:00:00.0099283" startTime="2026-11-22T20:52:03.9181748+00:00" endTime="2026-11-22T20:52:03.9281809+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.Failed_or_canceled_setup_records_a_retained_artifact_even_without_a_recovery_dialog(canceled: True)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="5a86f37a-1af1-44bd-88b4-bcede00aaee5" executionId="5a86f37a-1af1-44bd-88b4-bcede00aaee5" computerName="DESKTOP-A60F1NE" duration="00:00:00.0004348" startTime="2026-11-22T20:52:03.9282594+00:00" endTime="2026-11-22T20:52:03.9287660+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.First_use_in_a_deliberately_fresh_identity_creates_an_actual_key_only_after_explicit_setup" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="e2e85110-5006-477b-8ec8-bd754d4a9ee6" executionId="e2e85110-5006-477b-8ec8-bd754d4a9ee6" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:03.9289551+00:00" endTime="2026-11-22T20:52:03.9298960+00:00">
+      <Output>
+        <StdOut>Requires a separately prepared fresh disposable account with no existing EFS certificate.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.Setup_runs_on_a_drive_where_no_Cloud_Files_filter_answers_and_no_sync_root_is_registered" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="3f6aea67-a9fd-477f-9346-ec70ab6c4c07" executionId="3f6aea67-a9fd-477f-9346-ec70ab6c4c07" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:03.9300527+00:00" endTime="2026-11-22T20:52:03.9353307+00:00">
+      <Output>
+        <StdOut>The Cloud Files filter answers on this drive (0x80070186); the attached case is covered elsewhere.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.Setup_requires_explicit_consent_before_resolving_a_workspace_or_claiming_native_capacity" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="01cd7296-4fbf-48d1-a3dd-26c7773d1f3a" executionId="01cd7296-4fbf-48d1-a3dd-26c7773d1f3a" computerName="DESKTOP-A60F1NE" duration="00:00:00.0008474" startTime="2026-11-22T20:52:03.9354925+00:00" endTime="2026-11-22T20:52:03.9364128+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.Added_stream_data_is_not_accepted_as_setup_or_removed_as_an_empty_artifact" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="6b857452-dede-4ad8-81ca-c3538e0c996a" executionId="6b857452-dede-4ad8-81ca-c3538e0c996a" computerName="DESKTOP-A60F1NE" duration="00:00:00.1847563" startTime="2026-11-22T20:52:03.9366534+00:00" endTime="2026-11-22T20:52:04.1214984+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.An_explicit_zero_byte_encrypted_setup_file_has_actual_current_user_associations_and_is_cleaned_by_its_handle" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="60b6e98e-2505-4033-bff0-060e3c105327" executionId="60b6e98e-2505-4033-bff0-060e3c105327" computerName="DESKTOP-A60F1NE" duration="00:00:00.5265029" startTime="2026-11-22T20:52:04.1217901+00:00" endTime="2026-11-22T20:52:04.6484320+00:00">
+      <Output>
+        <TextMessages>
+          <Message>EFS_ZERO_SETUP users=1 matchedKeys=1 cleanup=True</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.A_private_directory_permission_change_stops_setup_and_still_retires_the_owned_empty_file" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="736f8494-5f6f-4611-a312-c6685908d097" executionId="736f8494-5f6f-4611-a312-c6685908d097" computerName="DESKTOP-A60F1NE" duration="00:00:00.0578237" startTime="2026-11-22T20:52:04.6487309+00:00" endTime="2026-11-22T20:52:04.7067650+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Bound_replacement_preserves_the_exact_destination_when_it_becomes_EFS_protected(afterRetirement: False)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="2e680775-5139-43c5-9a99-f31a33ab1ef8" executionId="2e680775-5139-43c5-9a99-f31a33ab1ef8" computerName="DESKTOP-A60F1NE" duration="00:00:00.1511025" startTime="2026-11-22T20:52:02.4181512+00:00" endTime="2026-11-22T20:52:02.5924023+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Bound_replacement_preserves_the_exact_destination_when_it_becomes_EFS_protected(afterRetirement: True)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="2f861567-d2e6-48ac-8dc2-e68d160843a7" executionId="2f861567-d2e6-48ac-8dc2-e68d160843a7" computerName="DESKTOP-A60F1NE" duration="00:00:00.0495254" startTime="2026-11-22T20:52:02.5926820+00:00" endTime="2026-11-22T20:52:02.6423654+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Copy, sourceOnUsb: False)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="e1aab76b-9c07-437b-9c34-768668ce3161" executionId="e1aab76b-9c07-437b-9c34-768668ce3161" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:02.6433235+00:00" endTime="2026-11-22T20:52:02.6467744+00:00">
+      <Output>
+        <StdOut>Requires a prepared removable NTFS destination owned by the native fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Move, sourceOnUsb: False)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="bc9f1929-6912-4490-bdfa-0682415aff64" executionId="bc9f1929-6912-4490-bdfa-0682415aff64" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:02.6468605+00:00" endTime="2026-11-22T20:52:02.6479009+00:00">
+      <Output>
+        <StdOut>Requires a prepared removable NTFS destination owned by the native fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Copy, sourceOnUsb: True)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="904f2617-d087-4586-8062-8e65ea2b3fda" executionId="904f2617-d087-4586-8062-8e65ea2b3fda" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:02.6480768+00:00" endTime="2026-11-22T20:52:02.6483470+00:00">
+      <Output>
+        <StdOut>Requires a prepared removable NTFS destination owned by the native fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Move, sourceOnUsb: True)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="71f9c829-0314-4144-8263-aafef4e29f36" executionId="71f9c829-0314-4144-8263-aafef4e29f36" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:02.6483931+00:00" endTime="2026-11-22T20:52:02.6489186+00:00">
+      <Output>
+        <StdOut>Requires a prepared removable NTFS destination owned by the native fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.An_existing_EFS_target_removes_replace_even_with_a_default_replace_policy(kind: Copy)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="99ebcfc2-babc-4ecb-9ed4-c70089e979bc" executionId="99ebcfc2-babc-4ecb-9ed4-c70089e979bc" computerName="DESKTOP-A60F1NE" duration="00:00:00.2616998" startTime="2026-11-22T20:52:02.6495442+00:00" endTime="2026-11-22T20:52:02.9150756+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.An_existing_EFS_target_removes_replace_even_with_a_default_replace_policy(kind: Move)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="14ae75c9-c724-436c-8a3b-90c16602b8d7" executionId="14ae75c9-c724-436c-8a3b-90c16602b8d7" computerName="DESKTOP-A60F1NE" duration="00:00:00.0670028" startTime="2026-11-22T20:52:02.9170629+00:00" endTime="2026-11-22T20:52:02.9841989+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Efs_jobs_encrypt_and_decrypt_with_the_reviewed_smart_card_key" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="241b168e-5f51-4086-9fc8-b1f0c5299306" executionId="241b168e-5f51-4086-9fc8-b1f0c5299306" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:02.4185503+00:00" endTime="2026-11-22T20:52:02.4981610+00:00">
+      <Output>
+        <StdOut>Requires the owner's smart-card EFS certificate with the card present.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Managed_recovery_agent_decrypts_the_original_under_an_independent_account" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="bad57a8d-24a7-4dfb-83c2-2e7fbf8301a0" executionId="bad57a8d-24a7-4dfb-83c2-2e7fbf8301a0" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:02.5026001+00:00" endTime="2026-11-22T20:52:02.5145429+00:00">
+      <Output>
+        <StdOut>Requires the isolated two-account managed EFS recovery fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Recursive_Efs_uses_held_ancestry_for_overlaps_and_starts_setup_below_an_encrypted_root" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="94bf9263-4703-4008-a2c9-06fd133199c0" executionId="94bf9263-4703-4008-a2c9-06fd133199c0" computerName="DESKTOP-A60F1NE" duration="00:00:02.8431834" startTime="2026-11-22T20:52:02.5171457+00:00" endTime="2026-11-22T20:52:05.3611743+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Backup_review_lists_only_selected_files_and_rechecks_their_exact_identities" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4cf60b64-a8e9-4703-9a79-1698fe97fe69" executionId="4cf60b64-a8e9-4703-9a79-1698fe97fe69" computerName="DESKTOP-A60F1NE" duration="00:00:00.7603213" startTime="2026-11-22T20:52:05.3618866+00:00" endTime="2026-11-22T20:52:06.1223552+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Selected_Efs_jobs_share_one_lazy_key_choice_and_record_native_effects_on_disk" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0e54cd01-d176-45ae-a096-564d0315af89" executionId="0e54cd01-d176-45ae-a096-564d0315af89" computerName="DESKTOP-A60F1NE" duration="00:00:02.0760753" startTime="2026-11-22T20:52:06.1226221+00:00" endTime="2026-11-22T20:52:08.1988251+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Without_the_smart_card_decryption_asks_before_Windows_waits_and_a_skip_leaves_the_file_encrypted" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="38a2fb85-8879-4a50-82ef-bde65ffba993" executionId="38a2fb85-8879-4a50-82ef-bde65ffba993" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:08.1993446+00:00" endTime="2026-11-22T20:52:08.2000434+00:00">
+      <Output>
+        <StdOut>Requires the owner's smart-card EFS certificate with the card absent.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Only_a_key_provider_that_may_answer_later_leads_to_the_key_wait_question" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="30bdaa98-5b9c-4267-b36d-c7c018ab6121" executionId="30bdaa98-5b9c-4267-b36d-c7c018ab6121" computerName="DESKTOP-A60F1NE" duration="00:00:00.0025733" startTime="2026-11-22T20:52:08.2002001+00:00" endTime="2026-11-22T20:52:08.2028399+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Detaching_after_native_Efs_encryption_retains_the_reviewed_key_and_uncertain_effect" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="bd908caf-698f-4f1f-9200-13d9e3b62e96" executionId="bd908caf-698f-4f1f-9200-13d9e3b62e96" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:08.2030551+00:00" endTime="2026-11-22T20:52:08.2063133+00:00">
+      <Output>
+        <StdOut>Requires the isolated NTFS virtual disk device-loss fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Canceling_lazy_recovery_stops_before_any_native_intent" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="5bdb2ad4-fa98-4d1f-95ab-a3bf5dc1a186" executionId="5bdb2ad4-fa98-4d1f-95ab-a3bf5dc1a186" computerName="DESKTOP-A60F1NE" duration="00:00:00.2042447" startTime="2026-11-22T20:52:08.2070673+00:00" endTime="2026-11-22T20:52:08.4114549+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.A_file_whose_only_key_names_a_smart_card_is_asked_about_before_Windows_waits_for_a_reader" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="169c6e05-02fb-45ac-aa62-4c6b9f2a1b89" executionId="169c6e05-02fb-45ac-aa62-4c6b9f2a1b89" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:08.4117544+00:00" endTime="2026-11-22T20:52:08.4132936+00:00">
+      <Output>
+        <StdOut>Requires a disposable EFS account on a Windows host with no smart card reader connected.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Default_recovery_workflow_requires_setup_and_an_explicit_recovery_choice_after_backup_failure" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f010e9ee-a98b-4a15-a183-187a9e65cee2" executionId="f010e9ee-a98b-4a15-a183-187a9e65cee2" computerName="DESKTOP-A60F1NE" duration="00:00:00.4116801" startTime="2026-11-22T20:52:08.4136691+00:00" endTime="2026-11-22T20:52:08.8257823+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Efs_round_trips_on_a_prepared_64_KiB_NTFS_volume_without_compression_support" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f45d9181-1eaa-4446-ac9c-fb8a96b5fcf4" executionId="f45d9181-1eaa-4446-ac9c-fb8a96b5fcf4" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:08.8266485+00:00" endTime="2026-11-22T20:52:08.8307101+00:00">
+      <Output>
+        <StdOut>Set FILECAT_STORAGE_NATIVE_EFS_FRESH_64K_TARGET to a file on the newly formatted 64 KiB NTFS volume.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Ineligible_items_do_not_request_recovery_or_record_a_native_intent(blockedByPolicy: True)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="13ca0704-2e61-4c63-bbdd-ee33a15a6735" executionId="13ca0704-2e61-4c63-bbdd-ee33a15a6735" computerName="DESKTOP-A60F1NE" duration="00:00:00.2814713" startTime="2026-11-22T20:52:08.8320934+00:00" endTime="2026-11-22T20:52:09.1147711+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Ineligible_items_do_not_request_recovery_or_record_a_native_intent(blockedByPolicy: False)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="e28bc182-05d7-4217-b6ea-cd4bfad86eff" executionId="e28bc182-05d7-4217-b6ea-cd4bfad86eff" computerName="DESKTOP-A60F1NE" duration="00:00:00.8660501" startTime="2026-11-22T20:52:09.1148470+00:00" endTime="2026-11-22T20:52:09.9810165+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Another_users_file_with_allowed_ntfs_access_cannot_be_decrypted_without_an_efs_key" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="232077ac-4479-476b-a9f5-95ea863b268e" executionId="232077ac-4479-476b-a9f5-95ea863b268e" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:09.9815847+00:00" endTime="2026-11-22T20:52:09.9828892+00:00">
+      <Output>
+        <StdOut>Requires the disposable two-user NTFS fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.An_exact_recipient_key_does_not_override_the_native_efs_access_check" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b0dfa810-4b96-4916-b4e3-5015bf293318" executionId="b0dfa810-4b96-4916-b4e3-5015bf293318" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:09.9834902+00:00" endTime="2026-11-22T20:52:09.9848016+00:00">
+      <Output>
+        <StdOut>Requires an isolated, prepared EFS recipient fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Managed_recovery_fixture_encrypts_with_a_reviewed_user_key" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="3eb0adb0-8386-4b9a-9a64-dc5c2ba3f7b3" executionId="3eb0adb0-8386-4b9a-9a64-dc5c2ba3f7b3" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:09.9851679+00:00" endTime="2026-11-22T20:52:09.9859217+00:00">
+      <Output>
+        <StdOut>Requires the isolated two-account managed EFS recovery fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Detaching_after_native_Efs_decryption_retains_an_uncertain_effect_without_key_evidence" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="454d616e-aa11-4421-8873-b32297364011" executionId="454d616e-aa11-4421-8873-b32297364011" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:09.9860670+00:00" endTime="2026-11-22T20:52:09.9863279+00:00">
+      <Output>
+        <StdOut>Requires the isolated NTFS virtual disk device-loss fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Efs_refuses_a_prepared_Wof_backed_file" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="17c09541-82f1-43ce-9cd8-05c0cc26d5e4" executionId="17c09541-82f1-43ce-9cd8-05c0cc26d5e4" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:09.9864439+00:00" endTime="2026-11-22T20:52:09.9869800+00:00">
+      <Output>
+        <StdOut>Set FILECAT_STORAGE_NATIVE_WOF_TARGET to an owned WOF-backed file.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Unreadable_sparse_stream_after_encryption_retains_observed_key_and_stops_the_job" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="5d22c1fd-ea11-43b1-83ce-fcc05acde281" executionId="5d22c1fd-ea11-43b1-83ce-fcc05acde281" computerName="DESKTOP-A60F1NE" duration="00:00:00.7405400" startTime="2026-11-22T20:52:09.9871079+00:00" endTime="2026-11-22T20:52:10.7281551+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Without_the_smart_card_new_encryption_stops_before_any_native_intent" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="eb163d77-a9f8-4ccb-b161-05132ddd9671" executionId="eb163d77-a9f8-4ccb-b161-05132ddd9671" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:10.7288350+00:00" endTime="2026-11-22T20:52:10.7322117+00:00">
+      <Output>
+        <StdOut>Requires the owner's smart-card EFS certificate with the card absent.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.A_restored_fixture_key_can_decrypt_the_same_file_under_an_independent_windows_account" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="35a6c3ce-b558-4473-9911-f8a02178a71c" executionId="35a6c3ce-b558-4473-9911-f8a02178a71c" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:10.7323847+00:00" endTime="2026-11-22T20:52:10.7340921+00:00">
+      <Output>
+        <StdOut>Requires the isolated backup and restore fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Files_encrypted_with_distinct_real_Efs_keys_keep_independent_backup_choices" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="6ba21811-221b-4b8b-a75b-f11771462456" executionId="6ba21811-221b-4b8b-a75b-f11771462456" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:10.7346000+00:00" endTime="2026-11-22T20:52:10.7369082+00:00">
+      <Output>
+        <StdOut>Requires a disposable account that allows changing its default EFS certificate.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.An_unexpected_real_key_stops_the_selected_job_and_retains_the_exact_call" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="ddf0c3bd-cf1d-4e26-b45a-3c6636b4fe9e" executionId="ddf0c3bd-cf1d-4e26-b45a-3c6636b4fe9e" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:10.7370466+00:00" endTime="2026-11-22T20:52:10.7386575+00:00">
+      <Output>
+        <StdOut>Use only a disposable account whose current EFS key may change.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Sparse_EFS_source_replacement_preserves_holes_or_refuses_an_EFS_target(kind: Copy, protectedTarget: False)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b3542cc1-1c6a-45bb-822d-fd88017dc204" executionId="b3542cc1-1c6a-45bb-822d-fd88017dc204" computerName="DESKTOP-A60F1NE" duration="00:00:00.7574765" startTime="2026-11-22T20:52:02.4189487+00:00" endTime="2026-11-22T20:52:03.1982228+00:00">
+      <Output>
+        <TextMessages>
+          <Message>replacement source main: eof=8388608 allocated=0 attributes=Archive, SparseFile, Encrypted ranges=65536+65536,8323072+65536 sha256=5CA2ADA87CE68300DFC11A0E9B4BCCDA66E4CC2A958AD2A5FA9314D60C6355C0</Message>
+          <Message>replacement source named: eof=4194304 allocated=0 attributes=Archive, SparseFile, Encrypted ranges=1048576+65536 sha256=E93E7A9BE4FA90AC982DD53FBBEB85CC7D9E8493357D113A71656B8C78CF77D3</Message>
+          <Message>replacement target main: eof=8388608 allocated=0 attributes=Archive, SparseFile, Encrypted ranges=65536+65536,8323072+65536 sha256=5CA2ADA87CE68300DFC11A0E9B4BCCDA66E4CC2A958AD2A5FA9314D60C6355C0</Message>
+          <Message>replacement target named: eof=4194304 allocated=0 attributes=Archive, SparseFile, Encrypted ranges=1048576+65536 sha256=E93E7A9BE4FA90AC982DD53FBBEB85CC7D9E8493357D113A71656B8C78CF77D3</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Sparse_EFS_source_replacement_preserves_holes_or_refuses_an_EFS_target(kind: Move, protectedTarget: False)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4d0eb9bd-c09e-4429-9cc7-2b41b7019921" executionId="4d0eb9bd-c09e-4429-9cc7-2b41b7019921" computerName="DESKTOP-A60F1NE" duration="00:00:00.2988122" startTime="2026-11-22T20:52:03.1983968+00:00" endTime="2026-11-22T20:52:03.4972923+00:00">
+      <Output>
+        <TextMessages>
+          <Message>replacement source main: eof=8388608 allocated=0 attributes=Archive, SparseFile, Encrypted ranges=65536+65536,8323072+65536 sha256=7F07BA48B54D24CA7460DC9487A616DD504D8EC9DEBCD1BBB9D6CAD1A3D0EF5F</Message>
+          <Message>replacement source named: eof=4194304 allocated=0 attributes=Archive, SparseFile, Encrypted ranges=1048576+65536 sha256=B8F9BA5C19A4BE94123FF5F6DF6E8884FA889D2B41B0B2A338F84F782D6BD3B1</Message>
+          <Message>replacement target main: eof=8388608 allocated=131072 attributes=Archive, SparseFile, Encrypted ranges=65536+65536,8323072+65536 sha256=7F07BA48B54D24CA7460DC9487A616DD504D8EC9DEBCD1BBB9D6CAD1A3D0EF5F</Message>
+          <Message>replacement target named: eof=4194304 allocated=65536 attributes=Archive, SparseFile, Encrypted ranges=1048576+65536 sha256=B8F9BA5C19A4BE94123FF5F6DF6E8884FA889D2B41B0B2A338F84F782D6BD3B1</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Sparse_EFS_source_replacement_preserves_holes_or_refuses_an_EFS_target(kind: Copy, protectedTarget: True)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="bf23992d-7ae2-486d-a47c-9ad77f215bf2" executionId="bf23992d-7ae2-486d-a47c-9ad77f215bf2" computerName="DESKTOP-A60F1NE" duration="00:00:00.2653166" startTime="2026-11-22T20:52:03.4974696+00:00" endTime="2026-11-22T20:52:03.7628671+00:00">
+      <Output>
+        <TextMessages>
+          <Message>replacement source main: eof=8388608 allocated=0 attributes=Archive, SparseFile, Encrypted ranges=65536+65536,8323072+65536 sha256=4ABFAA26F54DC32C49811CE29A9D0199F3D04B9C9F58BE6BE526F485ABE9C6D1</Message>
+          <Message>replacement source named: eof=4194304 allocated=0 attributes=Archive, SparseFile, Encrypted ranges=1048576+65536 sha256=274CC5923F7320708CA5B10773943586740DFE9F996015B665429FE83F18BF55</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Sparse_EFS_source_replacement_preserves_holes_or_refuses_an_EFS_target(kind: Move, protectedTarget: True)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b28c1572-9943-46ba-a502-6723849df370" executionId="b28c1572-9943-46ba-a502-6723849df370" computerName="DESKTOP-A60F1NE" duration="00:00:00.3175043" startTime="2026-11-22T20:52:03.7629319+00:00" endTime="2026-11-22T20:52:04.0805227+00:00">
+      <Output>
+        <TextMessages>
+          <Message>replacement source main: eof=8388608 allocated=0 attributes=Archive, SparseFile, Encrypted ranges=65536+65536,8323072+65536 sha256=04E171B602604DEC211A35D975D4F7AED15DD8649A3B24496798AD0607B200CF</Message>
+          <Message>replacement source named: eof=4194304 allocated=0 attributes=Archive, SparseFile, Encrypted ranges=1048576+65536 sha256=38956E91159E83BC8A378F0D6F524725339675817A0F2B2B8DE5A91C79A3375A</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_copy_preserves_efs_and_sparse_holes_in_main_and_named_streams" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="cdb439f7-fa8b-4364-ab92-1352b85dfe0d" executionId="cdb439f7-fa8b-4364-ab92-1352b85dfe0d" computerName="DESKTOP-A60F1NE" duration="00:00:00.3929719" startTime="2026-11-22T20:52:04.0810716+00:00" endTime="2026-11-22T20:52:04.4741688+00:00">
+      <Output>
+        <TextMessages>
+          <Message>source main: eof=8388608 allocated=0 attributes=Archive, SparseFile, Encrypted ranges=0+65536,4194304+65536 sha256=3A585516C71209ECEBA7D1BBD1B6D3EE7FB2D07A13A0C316B1F4D921EDDE2E60</Message>
+          <Message>source named: eof=4194304 allocated=0 attributes=Archive, SparseFile, Encrypted ranges=1048576+65536,4128768+65536 sha256=1DC506AF56B3D9C6B6230DECA24449A221709E302F72DAEB2CD6F7AD351F4A2E</Message>
+          <Message>copy main: eof=8388608 allocated=0 attributes=Archive, SparseFile, Encrypted ranges=0+65536,4194304+65536 sha256=3A585516C71209ECEBA7D1BBD1B6D3EE7FB2D07A13A0C316B1F4D921EDDE2E60</Message>
+          <Message>copy named: eof=4194304 allocated=0 attributes=Archive, SparseFile, Encrypted ranges=1048576+65536,4128768+65536 sha256=1DC506AF56B3D9C6B6230DECA24449A221709E302F72DAEB2CD6F7AD351F4A2E</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.A_staged_clear_copy_reviews_the_temporary_and_final_names" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="cdc67062-5d7e-438f-8c0a-0cd451f17693" executionId="cdc67062-5d7e-438f-8c0a-0cd451f17693" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.4750794+00:00" endTime="2026-11-22T20:52:04.4774741+00:00">
+      <Output>
+        <StdOut>Requires a prepared destination where CopyFile2 cannot preserve EFS.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Copy_then_delete_keeps_the_efs_source_when_the_output_is_decrypted_before_retirement" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="77a022d3-b288-4031-8847-c11881772c76" executionId="77a022d3-b288-4031-8847-c11881772c76" computerName="DESKTOP-A60F1NE" duration="00:00:00.1226440" startTime="2026-11-22T20:52:04.4784275+00:00" endTime="2026-11-22T20:52:04.6012300+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Replacing_the_output_folder_during_approval_produces_no_clear_payload" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="26a48735-55aa-4e4c-aea7-cab6be0d2c62" executionId="26a48735-55aa-4e4c-aea7-cab6be0d2c62" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.6015300+00:00" endTime="2026-11-22T20:52:04.6034913+00:00">
+      <Output>
+        <StdOut>Requires a prepared destination where CopyFile2 cannot preserve EFS.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Copy, sourceOnUsb: False, replaceExisting: False)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a08c2864-df85-4600-8191-fd7a045159ec" executionId="a08c2864-df85-4600-8191-fd7a045159ec" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.6043673+00:00" endTime="2026-11-22T20:52:04.6066084+00:00">
+      <Output>
+        <StdOut>Requires a prepared removable NTFS destination owned by the native fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Move, sourceOnUsb: False, replaceExisting: False)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="e898cc58-f307-4251-a86c-a46b44e9e36d" executionId="e898cc58-f307-4251-a86c-a46b44e9e36d" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.6067220+00:00" endTime="2026-11-22T20:52:04.6073567+00:00">
+      <Output>
+        <StdOut>Requires a prepared removable NTFS destination owned by the native fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Copy, sourceOnUsb: True, replaceExisting: False)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="c1639757-820e-48ab-9f10-81151f0f27a8" executionId="c1639757-820e-48ab-9f10-81151f0f27a8" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.6073994+00:00" endTime="2026-11-22T20:52:04.6075839+00:00">
+      <Output>
+        <StdOut>Requires a prepared removable NTFS destination owned by the native fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Move, sourceOnUsb: True, replaceExisting: False)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0a5b9240-3714-4c69-93d4-517716002256" executionId="0a5b9240-3714-4c69-93d4-517716002256" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.6076237+00:00" endTime="2026-11-22T20:52:04.6078172+00:00">
+      <Output>
+        <StdOut>Requires a prepared removable NTFS destination owned by the native fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Copy, sourceOnUsb: False, replaceExisting: True)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4643d4b1-3745-4dba-ad4f-bd13497d32ff" executionId="4643d4b1-3745-4dba-ad4f-bd13497d32ff" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.6078620+00:00" endTime="2026-11-22T20:52:04.6080206+00:00">
+      <Output>
+        <StdOut>Requires a prepared removable NTFS destination owned by the native fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Move, sourceOnUsb: False, replaceExisting: True)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a6a9fc7f-2bd0-43c3-b6c0-fe701f76c0d1" executionId="a6a9fc7f-2bd0-43c3-b6c0-fe701f76c0d1" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.6080612+00:00" endTime="2026-11-22T20:52:04.6083183+00:00">
+      <Output>
+        <StdOut>Requires a prepared removable NTFS destination owned by the native fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Copy, sourceOnUsb: True, replaceExisting: True)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="c7880601-d7d7-4a2e-a191-fa7dbbeb6d56" executionId="c7880601-d7d7-4a2e-a191-fa7dbbeb6d56" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.6083603+00:00" endTime="2026-11-22T20:52:04.6085807+00:00">
+      <Output>
+        <StdOut>Requires a prepared removable NTFS destination owned by the native fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Move, sourceOnUsb: True, replaceExisting: True)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="75d0ae62-8f36-467f-9353-173723a6c2d3" executionId="75d0ae62-8f36-467f-9353-173723a6c2d3" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.6086273+00:00" endTime="2026-11-22T20:52:04.6087929+00:00">
+      <Output>
+        <StdOut>Requires a prepared removable NTFS destination owned by the native fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_copy_and_same_volume_move_preserve_efs_and_named_streams_on_ntfs(kind: Copy)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a9c7471d-6bb7-4261-819b-6c44c35e3a72" executionId="a9c7471d-6bb7-4261-819b-6c44c35e3a72" computerName="DESKTOP-A60F1NE" duration="00:00:00.1196603" startTime="2026-11-22T20:52:04.6093013+00:00" endTime="2026-11-22T20:52:04.7290624+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_copy_and_same_volume_move_preserve_efs_and_named_streams_on_ntfs(kind: Move)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b2df1af6-db12-4c47-9d20-8a7965fb468d" executionId="b2df1af6-db12-4c47-9d20-8a7965fb468d" computerName="DESKTOP-A60F1NE" duration="00:00:00.0738106" startTime="2026-11-22T20:52:04.7291602+00:00" endTime="2026-11-22T20:52:04.8030764+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Copy_and_cross_volume_move_preserve_efs_on_a_capable_fat32_volume(kind: Copy)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a7c654c0-e10f-4795-a13a-0f930b877662" executionId="a7c654c0-e10f-4795-a13a-0f930b877662" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.8037247+00:00" endTime="2026-11-22T20:52:04.8054853+00:00">
+      <Output>
+        <StdOut>Requires the prepared FAT32 or exFAT export fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Copy_and_cross_volume_move_preserve_efs_on_a_capable_fat32_volume(kind: Move)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="e01ac572-f047-4ca9-8a9a-2bc7af51fa52" executionId="e01ac572-f047-4ca9-8a9a-2bc7af51fa52" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.8055422+00:00" endTime="2026-11-22T20:52:04.8061365+00:00">
+      <Output>
+        <StdOut>Requires the prepared FAT32 or exFAT export fixture.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.A_destination_that_cannot_encrypt_needs_a_fresh_choice_for_each_file(kind: Copy, empty: False)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="5b34ed5a-96b2-462c-b8a1-99b5dab1fa93" executionId="5b34ed5a-96b2-462c-b8a1-99b5dab1fa93" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.8067367+00:00" endTime="2026-11-22T20:52:04.8090776+00:00">
+      <Output>
+        <StdOut>Requires a prepared destination where CopyFile2 cannot preserve EFS.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.A_destination_that_cannot_encrypt_needs_a_fresh_choice_for_each_file(kind: Copy, empty: True)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="be76535d-3908-42ab-8fc7-785d3dd775a8" executionId="be76535d-3908-42ab-8fc7-785d3dd775a8" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.8091500+00:00" endTime="2026-11-22T20:52:04.8096824+00:00">
+      <Output>
+        <StdOut>Requires a prepared destination where CopyFile2 cannot preserve EFS.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.A_destination_that_cannot_encrypt_needs_a_fresh_choice_for_each_file(kind: Move, empty: False)" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="c1c4b4ed-730f-48b5-8f38-8aea3831efa9" executionId="c1c4b4ed-730f-48b5-8f38-8aea3831efa9" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.8097253+00:00" endTime="2026-11-22T20:52:04.8098944+00:00">
+      <Output>
+        <StdOut>Requires a prepared destination where CopyFile2 cannot preserve EFS.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.An_existing_writer_that_denies_read_refuses_the_efs_call_until_a_fresh_preparation" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="563a4186-8006-41d6-944a-7a38050cc635" executionId="563a4186-8006-41d6-944a-7a38050cc635" computerName="DESKTOP-A60F1NE" duration="00:00:00.2892943" startTime="2026-11-22T20:52:02.4188378+00:00" endTime="2026-11-22T20:52:02.7303419+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Approved_encryption_preserves_bytes_when_stream_compression_changes_after_final_inspection(lateStream: \&quot;main\&quot;)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4e48107d-9d19-4238-af36-7d4c241f27c6" executionId="4e48107d-9d19-4238-af36-7d4c241f27c6" computerName="DESKTOP-A60F1NE" duration="00:00:00.1457436" startTime="2026-11-22T20:52:02.7335611+00:00" endTime="2026-11-22T20:52:02.8795674+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Approved_encryption_preserves_bytes_when_stream_compression_changes_after_final_inspection(lateStream: \&quot;existing\&quot;)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="93806805-739f-467f-80a1-11b5f99d4085" executionId="93806805-739f-467f-80a1-11b5f99d4085" computerName="DESKTOP-A60F1NE" duration="00:00:00.6522888" startTime="2026-11-22T20:52:02.8796685+00:00" endTime="2026-11-22T20:52:03.5320686+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Approved_encryption_preserves_bytes_when_stream_compression_changes_after_final_inspection(lateStream: \&quot;new\&quot;)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="36cf91bf-acab-4f32-a27d-67c7fa9362a9" executionId="36cf91bf-acab-4f32-a27d-67c7fa9362a9" computerName="DESKTOP-A60F1NE" duration="00:00:00.3826107" startTime="2026-11-22T20:52:03.5321467+00:00" endTime="2026-11-22T20:52:03.9148596+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Extended_drive_and_volume_guid_spellings_keep_one_identity_or_refuse_an_unknown_long_path(longPath: False)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a0b2decc-b484-4a9c-9273-93782ca997e4" executionId="a0b2decc-b484-4a9c-9273-93782ca997e4" computerName="DESKTOP-A60F1NE" duration="00:00:00.1817186" startTime="2026-11-22T20:52:03.9161018+00:00" endTime="2026-11-22T20:52:04.0979200+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Extended_drive_and_volume_guid_spellings_keep_one_identity_or_refuse_an_unknown_long_path(longPath: True)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="2ec280e3-67b0-4f57-a255-5018654f7293" executionId="2ec280e3-67b0-4f57-a255-5018654f7293" computerName="DESKTOP-A60F1NE" duration="00:00:00.5003314" startTime="2026-11-22T20:52:04.0980067+00:00" endTime="2026-11-22T20:52:04.5984427+00:00">
+      <Output>
+        <TextMessages>
+          <Message>EFS_LONG_PATH status=FILE_UNKNOWN nativeCallAttempted=False</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.A_native_inventory_over_the_stream_limit_refuses_encryption_before_the_call" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0c58b47e-15ff-41a0-8119-11762f38bafb" executionId="0c58b47e-15ff-41a0-8119-11762f38bafb" computerName="DESKTOP-A60F1NE" duration="00:00:01.2457142" startTime="2026-11-22T20:52:04.5987613+00:00" endTime="2026-11-22T20:52:05.8446952+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Native_returns_require_an_observed_held_effect_and_each_preparation_can_be_consumed_once(nativeSucceeded: True)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="2db819d6-ec17-4a38-9d87-31ba2fa50a89" executionId="2db819d6-ec17-4a38-9d87-31ba2fa50a89" computerName="DESKTOP-A60F1NE" duration="00:00:00.0437128" startTime="2026-11-22T20:52:05.8454331+00:00" endTime="2026-11-22T20:52:05.8892570+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Native_returns_require_an_observed_held_effect_and_each_preparation_can_be_consumed_once(nativeSucceeded: False)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="22ef1e6a-e3f5-4c34-8d27-0a22fe3032b8" executionId="22ef1e6a-e3f5-4c34-8d27-0a22fe3032b8" computerName="DESKTOP-A60F1NE" duration="00:00:00.0392767" startTime="2026-11-22T20:52:05.8893563+00:00" endTime="2026-11-22T20:52:05.9287749+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Efs_consents_are_independent_and_identity_action_bound_before_a_binding_can_call_Windows" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="9837692c-160d-4cf5-bc8a-29e3aecd5ac8" executionId="9837692c-160d-4cf5-bc8a-29e3aecd5ac8" computerName="DESKTOP-A60F1NE" duration="00:00:00.1161008" startTime="2026-11-22T20:52:05.9291121+00:00" endTime="2026-11-22T20:52:06.0453438+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.An_in_place_junction_after_the_final_check_is_disclosed_and_reported_uncertain_without_undoing_other_objects" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f393328c-c33e-497d-b42d-cbd4052d86ea" executionId="f393328c-c33e-497d-b42d-cbd4052d86ea" computerName="DESKTOP-A60F1NE" duration="00:00:00.0713217" startTime="2026-11-22T20:52:06.0457064+00:00" endTime="2026-11-22T20:52:06.1171521+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Held_guards_block_ordinary_leaf_and_ancestor_replacement_and_a_disposed_review_pin_cannot_be_rebound" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="fc6f18d1-4568-4cb8-9632-6cba54920a74" executionId="fc6f18d1-4568-4cb8-9632-6cba54920a74" computerName="DESKTOP-A60F1NE" duration="00:00:00.0368290" startTime="2026-11-22T20:52:06.1175546+00:00" endTime="2026-11-22T20:52:06.1544890+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.A_new_hard_link_is_blocked_or_refused_before_the_native_efs_call" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="cb352d1a-8479-42a1-8afb-f22f2adef83a" executionId="cb352d1a-8479-42a1-8afb-f22f2adef83a" computerName="DESKTOP-A60F1NE" duration="00:00:00.0398405" startTime="2026-11-22T20:52:06.1547923+00:00" endTime="2026-11-22T20:52:06.1947376+00:00">
+      <Output>
+        <TextMessages>
+          <Message>EFS_HARD_LINK_BEFORE_CALL added=True win32=0</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Complete_stream_parser_rejects_truncation_duplicates_invalid_names_and_missing_main(directory: False)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="c1b5887c-600c-4d02-a348-856d75ed94d7" executionId="c1b5887c-600c-4d02-a348-856d75ed94d7" computerName="DESKTOP-A60F1NE" duration="00:00:00.0048147" startTime="2026-11-22T20:52:06.1957337+00:00" endTime="2026-11-22T20:52:06.2006773+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Complete_stream_parser_rejects_truncation_duplicates_invalid_names_and_missing_main(directory: True)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="3f4b91a7-8de6-426b-bb26-00a5ba58a999" executionId="3f4b91a7-8de6-426b-bb26-00a5ba58a999" computerName="DESKTOP-A60F1NE" duration="00:00:00.0007680" startTime="2026-11-22T20:52:06.2007545+00:00" endTime="2026-11-22T20:52:06.2016035+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.A_replacement_at_the_reviewed_spelling_is_refused_without_borrowing_the_original_pin_identity" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="9655756c-f5aa-43ba-ba36-41a02c2dc832" executionId="9655756c-f5aa-43ba-ba36-41a02c2dc832" computerName="DESKTOP-A60F1NE" duration="00:00:00.0171118" startTime="2026-11-22T20:52:06.2020376+00:00" endTime="2026-11-22T20:52:06.2192439+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Supported_physical_path_round_trips_main_and_named_stream_payload_with_explicit_decompression_consent(directory: False)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="605bdeb1-cca1-4ea9-ab72-7c6059a52bb5" executionId="605bdeb1-cca1-4ea9-ab72-7c6059a52bb5" computerName="DESKTOP-A60F1NE" duration="00:00:00.1944989" startTime="2026-11-22T20:52:06.2197948+00:00" endTime="2026-11-22T20:52:06.4144352+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Supported_physical_path_round_trips_main_and_named_stream_payload_with_explicit_decompression_consent(directory: True)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f6006851-864d-4aab-a746-255e4d884f44" executionId="f6006851-864d-4aab-a746-255e4d884f44" computerName="DESKTOP-A60F1NE" duration="00:00:00.6333588" startTime="2026-11-22T20:52:06.4145229+00:00" endTime="2026-11-22T20:52:07.0480649+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Cancel_before_preparation_admits_no_call_and_cancel_during_call_still_observes_effect_after_a_failed_return" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4f298109-9468-4973-aa69-3d6ade1a53ae" executionId="4f298109-9468-4973-aa69-3d6ade1a53ae" computerName="DESKTOP-A60F1NE" duration="00:00:00.0956838" startTime="2026-11-22T20:52:07.0484868+00:00" endTime="2026-11-22T20:52:07.1443097+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.ReadOnly_noop_needs_no_data_guard_or_Efs_call_and_a_later_needed_change_requires_fresh_preparation" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="55b0c41c-dd1a-4ae5-91ea-2708f8161e14" executionId="55b0c41c-dd1a-4ae5-91ea-2708f8161e14" computerName="DESKTOP-A60F1NE" duration="00:00:00.0703302" startTime="2026-11-22T20:52:07.1448693+00:00" endTime="2026-11-22T20:52:07.2152907+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Complete_stream_parser_has_a_finite_limit_and_never_returns_an_omitted_prefix" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b161b8c0-0fa8-47c3-aee6-b8d552c338c0" executionId="b161b8c0-0fa8-47c3-aee6-b8d552c338c0" computerName="DESKTOP-A60F1NE" duration="00:00:00.0206497" startTime="2026-11-22T20:52:07.2154805+00:00" endTime="2026-11-22T20:52:07.2362146+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Interactive_Cng_backup_keeps_parented_access_after_the_reviewed_key_is_matched" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="7488e5dd-891c-49df-ae9f-16ff541e8658" executionId="7488e5dd-891c-49df-ae9f-16ff541e8658" computerName="DESKTOP-A60F1NE" duration="00:00:00.0397411" startTime="2026-11-22T20:52:02.4182126+00:00" endTime="2026-11-22T20:52:02.4856964+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.A_cached_key_B_does_not_make_certificate_A_a_matching_key_even_when_direct_cached_acquisition_succeeds(cng: False)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="5e1db291-c3f4-4e1e-a046-23d472e0092f" executionId="5e1db291-c3f4-4e1e-a046-23d472e0092f" computerName="DESKTOP-A60F1NE" duration="00:00:00.9554695" startTime="2026-11-22T20:52:02.5028486+00:00" endTime="2026-11-22T20:52:03.4587633+00:00">
+      <Output>
+        <TextMessages>
+          <Message>EFS_KEY_CACHED_CONTROL provider=Capi cachedComparisonSucceeded=True freshResult=Unavailable code=efs-key-mismatch</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.A_cached_key_B_does_not_make_certificate_A_a_matching_key_even_when_direct_cached_acquisition_succeeds(cng: True)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b68d1589-2854-468a-9211-895688ff2b7a" executionId="b68d1589-2854-468a-9211-895688ff2b7a" computerName="DESKTOP-A60F1NE" duration="00:00:00.3906860" startTime="2026-11-22T20:52:03.4588554+00:00" endTime="2026-11-22T20:52:03.8497611+00:00">
+      <Output>
+        <TextMessages>
+          <Message>EFS_KEY_CACHED_CONTROL provider=Cng cachedComparisonSucceeded=True freshResult=Unavailable code=efs-key-mismatch</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Invalid_association_hashes_fail_before_any_native_owner_is_required" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0a3d6f56-a32d-4ea4-8969-4161b436bd94" executionId="0a3d6f56-a32d-4ea4-8969-4161b436bd94" computerName="DESKTOP-A60F1NE" duration="00:00:00.0009163" startTime="2026-11-22T20:52:03.8500988+00:00" endTime="2026-11-22T20:52:03.8511105+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.A_public_certificate_or_foreign_invoker_does_not_establish_private_key_access" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="e27665c2-0ce7-4ad5-a64d-45c43f3bacf5" executionId="e27665c2-0ce7-4ad5-a64d-45c43f3bacf5" computerName="DESKTOP-A60F1NE" duration="00:00:00.2735594" startTime="2026-11-22T20:52:03.8515422+00:00" endTime="2026-11-22T20:52:04.1251958+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.A_smart_card_key_is_compared_without_a_prompt_and_refused_for_PFX_backup_before_the_wizard" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0c96f429-122b-4bdc-ac06-0d9984ac40b2" executionId="0c96f429-122b-4bdc-ac06-0d9984ac40b2" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.1257033+00:00" endTime="2026-11-22T20:52:04.1276415+00:00">
+      <Output>
+        <StdOut>Requires the owner's smart-card EFS certificate with the card present.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Recovery_provider_access_hands_its_owner_only_to_the_matched_key" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="9a892b4e-9328-4264-b4f9-b3ac28a652bb" executionId="9a892b4e-9328-4264-b4f9-b3ac28a652bb" computerName="DESKTOP-A60F1NE" duration="00:00:00.0021564" startTime="2026-11-22T20:52:04.1279038+00:00" endTime="2026-11-22T20:52:04.1301209+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Fresh_private_key_comparison_supports_Capi_and_Cng_without_exporting_private_material(cng: False)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="8625fee6-79d2-461d-ad16-6f02170869d3" executionId="8625fee6-79d2-461d-ad16-6f02170869d3" computerName="DESKTOP-A60F1NE" duration="00:00:00.5291670" startTime="2026-11-22T20:52:04.1303699+00:00" endTime="2026-11-22T20:52:04.6596557+00:00">
+      <Output>
+        <TextMessages>
+          <Message>EFS_KEY_PROOF provider=Capi state=MatchedAvailable nonExportableFixture=True</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Fresh_private_key_comparison_supports_Capi_and_Cng_without_exporting_private_material(cng: True)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="da542c96-dd4c-4494-a719-31d21b5277c2" executionId="da542c96-dd4c-4494-a719-31d21b5277c2" computerName="DESKTOP-A60F1NE" duration="00:00:00.0555453" startTime="2026-11-22T20:52:04.6597530+00:00" endTime="2026-11-22T20:52:04.7154097+00:00">
+      <Output>
+        <TextMessages>
+          <Message>EFS_KEY_PROOF provider=Cng state=MatchedAvailable nonExportableFixture=True</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Without_the_card_explicit_access_is_not_offered_and_a_forced_request_stays_cancellable" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="974a6e72-8701-4cde-8e3b-a7a29bb6520b" executionId="974a6e72-8701-4cde-8e3b-a7a29bb6520b" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:04.7158681+00:00" endTime="2026-11-22T20:52:04.7199751+00:00">
+      <Output>
+        <StdOut>Requires the owner's smart-card EFS certificate with the card absent.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Fresh_parented_acquisition_compares_a_virtual_TPM_private_key" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="cb4b2c6b-540c-4b2e-b7bc-494125e4ef8f" executionId="cb4b2c6b-540c-4b2e-b7bc-494125e4ef8f" computerName="DESKTOP-A60F1NE" duration="00:00:00.7705805" startTime="2026-11-22T20:52:04.7202173+00:00" endTime="2026-11-22T20:52:05.4909252+00:00">
+      <Output>
+        <TextMessages>
+          <Message>Provider=CNG matched and rejected mismatched keys.</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.A_platform_Tpm_key_is_compared_from_a_fresh_certificate_context_without_export" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="647326fc-eaf8-48ae-a448-f0007bb73752" executionId="647326fc-eaf8-48ae-a448-f0007bb73752" computerName="DESKTOP-A60F1NE" duration="00:00:00.4372922" startTime="2026-11-22T20:52:05.4918638+00:00" endTime="2026-11-22T20:52:05.9350909+00:00">
+      <Output>
+        <TextMessages>
+          <Message>EFS_TPM_KEY provider=Microsoft Platform Crypto Provider state=MatchedAvailable exportPolicy=None</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Isolated_CryptoAPI_review_compares_only_the_exact_stored_key" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="485906f8-25ab-4eca-bd61-69a4586be9fd" executionId="485906f8-25ab-4eca-bd61-69a4586be9fd" computerName="DESKTOP-A60F1NE" duration="00:00:01.0032756" startTime="2026-11-22T20:52:05.9353290+00:00" endTime="2026-11-22T20:52:06.9387437+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.A_source_caching_preference_is_not_copied_into_the_fresh_context_or_healed_in_the_original(cng: False)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="07ed34c8-cd05-468d-9fcb-0d8b32341770" executionId="07ed34c8-cd05-468d-9fcb-0d8b32341770" computerName="DESKTOP-A60F1NE" duration="00:00:00.1995788" startTime="2026-11-22T20:52:06.9393382+00:00" endTime="2026-11-22T20:52:07.1390413+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.A_source_caching_preference_is_not_copied_into_the_fresh_context_or_healed_in_the_original(cng: True)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f05d8d07-c2a9-41dc-b22c-b979c6baa914" executionId="f05d8d07-c2a9-41dc-b22c-b979c6baa914" computerName="DESKTOP-A60F1NE" duration="00:00:00.0701476" startTime="2026-11-22T20:52:07.1391528+00:00" endTime="2026-11-22T20:52:07.2101962+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Without_the_smart_card_the_silent_check_cannot_authorize_new_encryption" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="df68cce9-880b-4b30-b434-a6d5ec4f2238" executionId="df68cce9-880b-4b30-b434-a6d5ec4f2238" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:07.2106041+00:00" endTime="2026-11-22T20:52:07.2113781+00:00">
+      <Output>
+        <StdOut>Requires the owner's smart-card EFS certificate with the card absent.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Unqualified_provider_parameters_and_a_different_encoded_certificate_do_not_become_known_key_access" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0b620070-701f-4d4f-97d0-00b997a44836" executionId="0b620070-701f-4d4f-97d0-00b997a44836" computerName="DESKTOP-A60F1NE" duration="00:00:00.4420773" startTime="2026-11-22T20:52:07.2115521+00:00" endTime="2026-11-22T20:52:07.6537794+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Unsupported_hosts_do_not_report_missing_certificates_or_open_a_key_owner" outcome="NotExecuted" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b485e9e6-6c28-4577-b30c-65d9f2982eca" executionId="b485e9e6-6c28-4577-b30c-65d9f2982eca" computerName="DESKTOP-A60F1NE" duration="00:00:00.0000000" startTime="2026-11-22T20:52:07.6543089+00:00" endTime="2026-11-22T20:52:07.6548973+00:00">
+      <Output>
+        <StdOut>This negative host case is exercised on unqualified platforms.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Fresh_parented_acquisition_still_requires_the_exact_public_key(cng: False)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="ecd68314-f33a-4ff8-ad35-2da89eb309b9" executionId="ecd68314-f33a-4ff8-ad35-2da89eb309b9" computerName="DESKTOP-A60F1NE" duration="00:00:00.3608978" startTime="2026-11-22T20:52:07.6553436+00:00" endTime="2026-11-22T20:52:08.0163586+00:00">
+      <Output>
+        <TextMessages>
+          <Message>Provider=CAPI matched and rejected mismatched keys.</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Fresh_parented_acquisition_still_requires_the_exact_public_key(cng: True)" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="13e34fdf-42dc-46f6-b9cb-152153c10e78" executionId="13e34fdf-42dc-46f6-b9cb-152153c10e78" computerName="DESKTOP-A60F1NE" duration="00:00:00.3032000" startTime="2026-11-22T20:52:08.0164579+00:00" endTime="2026-11-22T20:52:08.3197835+00:00">
+      <Output>
+        <TextMessages>
+          <Message>Provider=CNG matched and rejected mismatched keys.</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Exact_current_user_store_lookup_does_not_select_another_certificate_or_enroll_a_key" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="8441d924-b862-46e2-be39-ced718a25e99" executionId="8441d924-b862-46e2-be39-ced718a25e99" computerName="DESKTOP-A60F1NE" duration="00:00:00.1816195" startTime="2026-11-22T20:52:08.3201003+00:00" endTime="2026-11-22T20:52:08.5018388+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Reviewed_parented_acquisition_requires_explicit_access_to_the_associated_cng_key" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="9340a7cd-4196-424e-865f-aecd599e6af8" executionId="9340a7cd-4196-424e-865f-aecd599e6af8" computerName="DESKTOP-A60F1NE" duration="00:00:00.4869723" startTime="2026-11-22T20:52:08.5021447+00:00" endTime="2026-11-22T20:52:08.9892967+00:00" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.A_real_key_change_after_setup_requires_review_after_the_current_file_is_encrypted" id="7e0a5eba-dafe-4b3b-893e-ed322762ce8f" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="7e0a5eba-dafe-4b3b-893e-ed322762ce8f" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests" name="A_real_key_change_after_setup_requires_review_after_the_current_file_is_encrypted" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.A_native_metadata_failure_is_reported_after_retiring_the_owned_empty_setup_file" id="f5630fa8-ba7d-4562-8e2e-b7c664c6e389" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="f5630fa8-ba7d-4562-8e2e-b7c664c6e389" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests" name="A_native_metadata_failure_is_reported_after_retiring_the_owned_empty_setup_file" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.The_resulting_user_file_association_is_inspected_through_its_original_live_Efs_binding" id="f37e7850-5e75-4582-b2a2-219fededfd8d" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="f37e7850-5e75-4582-b2a2-219fededfd8d" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests" name="The_resulting_user_file_association_is_inspected_through_its_original_live_Efs_binding" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.Cancel_after_native_creation_retains_keys_and_cleans_only_the_created_zero_byte_object" id="cd683abf-a2a5-4e08-9851-c2398eb63d80" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="cd683abf-a2a5-4e08-9851-c2398eb63d80" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests" name="Cancel_after_native_creation_retains_keys_and_cleans_only_the_created_zero_byte_object" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.A_preexisting_application_namespace_with_other_writers_is_refused_before_key_provisioning" id="84f0071b-2983-424c-b297-b0c62c0021d9" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="84f0071b-2983-424c-b297-b0c62c0021d9" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests" name="A_preexisting_application_namespace_with_other_writers_is_refused_before_key_provisioning" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.Failed_or_canceled_setup_records_a_retained_artifact_even_without_a_recovery_dialog(canceled: False)" id="019a02fa-6990-4177-a386-4f19b1462bfa" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="019a02fa-6990-4177-a386-4f19b1462bfa" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests" name="Failed_or_canceled_setup_records_a_retained_artifact_even_without_a_recovery_dialog" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.Failed_or_canceled_setup_records_a_retained_artifact_even_without_a_recovery_dialog(canceled: True)" id="5a86f37a-1af1-44bd-88b4-bcede00aaee5" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="5a86f37a-1af1-44bd-88b4-bcede00aaee5" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests" name="Failed_or_canceled_setup_records_a_retained_artifact_even_without_a_recovery_dialog" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.First_use_in_a_deliberately_fresh_identity_creates_an_actual_key_only_after_explicit_setup" id="e2e85110-5006-477b-8ec8-bd754d4a9ee6" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="e2e85110-5006-477b-8ec8-bd754d4a9ee6" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests" name="First_use_in_a_deliberately_fresh_identity_creates_an_actual_key_only_after_explicit_setup" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.Setup_runs_on_a_drive_where_no_Cloud_Files_filter_answers_and_no_sync_root_is_registered" id="3f6aea67-a9fd-477f-9346-ec70ab6c4c07" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="3f6aea67-a9fd-477f-9346-ec70ab6c4c07" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests" name="Setup_runs_on_a_drive_where_no_Cloud_Files_filter_answers_and_no_sync_root_is_registered" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.Setup_requires_explicit_consent_before_resolving_a_workspace_or_claiming_native_capacity" id="01cd7296-4fbf-48d1-a3dd-26c7773d1f3a" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="01cd7296-4fbf-48d1-a3dd-26c7773d1f3a" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests" name="Setup_requires_explicit_consent_before_resolving_a_workspace_or_claiming_native_capacity" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.Added_stream_data_is_not_accepted_as_setup_or_removed_as_an_empty_artifact" id="6b857452-dede-4ad8-81ca-c3538e0c996a" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="6b857452-dede-4ad8-81ca-c3538e0c996a" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests" name="Added_stream_data_is_not_accepted_as_setup_or_removed_as_an_empty_artifact" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.An_explicit_zero_byte_encrypted_setup_file_has_actual_current_user_associations_and_is_cleaned_by_its_handle" id="60b6e98e-2505-4033-bff0-060e3c105327" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="60b6e98e-2505-4033-bff0-060e3c105327" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests" name="An_explicit_zero_byte_encrypted_setup_file_has_actual_current_user_associations_and_is_cleaned_by_its_handle" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.A_private_directory_permission_change_stops_setup_and_still_retires_the_owned_empty_file" id="736f8494-5f6f-4611-a312-c6685908d097" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="736f8494-5f6f-4611-a312-c6685908d097" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsSetupTests" name="A_private_directory_permission_change_stops_setup_and_still_retires_the_owned_empty_file" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Bound_replacement_preserves_the_exact_destination_when_it_becomes_EFS_protected(afterRetirement: False)" id="2e680775-5139-43c5-9a99-f31a33ab1ef8" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="2e680775-5139-43c5-9a99-f31a33ab1ef8" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests" name="Bound_replacement_preserves_the_exact_destination_when_it_becomes_EFS_protected" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Bound_replacement_preserves_the_exact_destination_when_it_becomes_EFS_protected(afterRetirement: True)" id="2f861567-d2e6-48ac-8dc2-e68d160843a7" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="2f861567-d2e6-48ac-8dc2-e68d160843a7" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests" name="Bound_replacement_preserves_the_exact_destination_when_it_becomes_EFS_protected" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Copy, sourceOnUsb: False)" id="e1aab76b-9c07-437b-9c34-768668ce3161" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="e1aab76b-9c07-437b-9c34-768668ce3161" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests" name="Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Move, sourceOnUsb: False)" id="bc9f1929-6912-4490-bdfa-0682415aff64" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="bc9f1929-6912-4490-bdfa-0682415aff64" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests" name="Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Copy, sourceOnUsb: True)" id="904f2617-d087-4586-8062-8e65ea2b3fda" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="904f2617-d087-4586-8062-8e65ea2b3fda" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests" name="Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Move, sourceOnUsb: True)" id="71f9c829-0314-4144-8263-aafef4e29f36" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="71f9c829-0314-4144-8263-aafef4e29f36" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests" name="Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.An_existing_EFS_target_removes_replace_even_with_a_default_replace_policy(kind: Copy)" id="99ebcfc2-babc-4ecb-9ed4-c70089e979bc" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="99ebcfc2-babc-4ecb-9ed4-c70089e979bc" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests" name="An_existing_EFS_target_removes_replace_even_with_a_default_replace_policy" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.An_existing_EFS_target_removes_replace_even_with_a_default_replace_policy(kind: Move)" id="14ae75c9-c724-436c-8a3b-90c16602b8d7" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="14ae75c9-c724-436c-8a3b-90c16602b8d7" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests" name="An_existing_EFS_target_removes_replace_even_with_a_default_replace_policy" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Efs_jobs_encrypt_and_decrypt_with_the_reviewed_smart_card_key" id="241b168e-5f51-4086-9fc8-b1f0c5299306" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="241b168e-5f51-4086-9fc8-b1f0c5299306" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Efs_jobs_encrypt_and_decrypt_with_the_reviewed_smart_card_key" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Managed_recovery_agent_decrypts_the_original_under_an_independent_account" id="bad57a8d-24a7-4dfb-83c2-2e7fbf8301a0" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="bad57a8d-24a7-4dfb-83c2-2e7fbf8301a0" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Managed_recovery_agent_decrypts_the_original_under_an_independent_account" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Recursive_Efs_uses_held_ancestry_for_overlaps_and_starts_setup_below_an_encrypted_root" id="94bf9263-4703-4008-a2c9-06fd133199c0" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="94bf9263-4703-4008-a2c9-06fd133199c0" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Recursive_Efs_uses_held_ancestry_for_overlaps_and_starts_setup_below_an_encrypted_root" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Backup_review_lists_only_selected_files_and_rechecks_their_exact_identities" id="4cf60b64-a8e9-4703-9a79-1698fe97fe69" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="4cf60b64-a8e9-4703-9a79-1698fe97fe69" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Backup_review_lists_only_selected_files_and_rechecks_their_exact_identities" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Selected_Efs_jobs_share_one_lazy_key_choice_and_record_native_effects_on_disk" id="0e54cd01-d176-45ae-a096-564d0315af89" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="0e54cd01-d176-45ae-a096-564d0315af89" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Selected_Efs_jobs_share_one_lazy_key_choice_and_record_native_effects_on_disk" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Without_the_smart_card_decryption_asks_before_Windows_waits_and_a_skip_leaves_the_file_encrypted" id="38a2fb85-8879-4a50-82ef-bde65ffba993" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="38a2fb85-8879-4a50-82ef-bde65ffba993" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Without_the_smart_card_decryption_asks_before_Windows_waits_and_a_skip_leaves_the_file_encrypted" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Only_a_key_provider_that_may_answer_later_leads_to_the_key_wait_question" id="30bdaa98-5b9c-4267-b36d-c7c018ab6121" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="30bdaa98-5b9c-4267-b36d-c7c018ab6121" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Only_a_key_provider_that_may_answer_later_leads_to_the_key_wait_question" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Detaching_after_native_Efs_encryption_retains_the_reviewed_key_and_uncertain_effect" id="bd908caf-698f-4f1f-9200-13d9e3b62e96" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="bd908caf-698f-4f1f-9200-13d9e3b62e96" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Detaching_after_native_Efs_encryption_retains_the_reviewed_key_and_uncertain_effect" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Canceling_lazy_recovery_stops_before_any_native_intent" id="5bdb2ad4-fa98-4d1f-95ab-a3bf5dc1a186" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="5bdb2ad4-fa98-4d1f-95ab-a3bf5dc1a186" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Canceling_lazy_recovery_stops_before_any_native_intent" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.A_file_whose_only_key_names_a_smart_card_is_asked_about_before_Windows_waits_for_a_reader" id="169c6e05-02fb-45ac-aa62-4c6b9f2a1b89" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="169c6e05-02fb-45ac-aa62-4c6b9f2a1b89" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="A_file_whose_only_key_names_a_smart_card_is_asked_about_before_Windows_waits_for_a_reader" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Default_recovery_workflow_requires_setup_and_an_explicit_recovery_choice_after_backup_failure" id="f010e9ee-a98b-4a15-a183-187a9e65cee2" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="f010e9ee-a98b-4a15-a183-187a9e65cee2" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Default_recovery_workflow_requires_setup_and_an_explicit_recovery_choice_after_backup_failure" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Efs_round_trips_on_a_prepared_64_KiB_NTFS_volume_without_compression_support" id="f45d9181-1eaa-4446-ac9c-fb8a96b5fcf4" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="f45d9181-1eaa-4446-ac9c-fb8a96b5fcf4" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Efs_round_trips_on_a_prepared_64_KiB_NTFS_volume_without_compression_support" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Ineligible_items_do_not_request_recovery_or_record_a_native_intent(blockedByPolicy: True)" id="13ca0704-2e61-4c63-bbdd-ee33a15a6735" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="13ca0704-2e61-4c63-bbdd-ee33a15a6735" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Ineligible_items_do_not_request_recovery_or_record_a_native_intent" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Ineligible_items_do_not_request_recovery_or_record_a_native_intent(blockedByPolicy: False)" id="e28bc182-05d7-4217-b6ea-cd4bfad86eff" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="e28bc182-05d7-4217-b6ea-cd4bfad86eff" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Ineligible_items_do_not_request_recovery_or_record_a_native_intent" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Another_users_file_with_allowed_ntfs_access_cannot_be_decrypted_without_an_efs_key" id="232077ac-4479-476b-a9f5-95ea863b268e" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="232077ac-4479-476b-a9f5-95ea863b268e" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Another_users_file_with_allowed_ntfs_access_cannot_be_decrypted_without_an_efs_key" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.An_exact_recipient_key_does_not_override_the_native_efs_access_check" id="b0dfa810-4b96-4916-b4e3-5015bf293318" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="b0dfa810-4b96-4916-b4e3-5015bf293318" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="An_exact_recipient_key_does_not_override_the_native_efs_access_check" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Managed_recovery_fixture_encrypts_with_a_reviewed_user_key" id="3eb0adb0-8386-4b9a-9a64-dc5c2ba3f7b3" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="3eb0adb0-8386-4b9a-9a64-dc5c2ba3f7b3" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Managed_recovery_fixture_encrypts_with_a_reviewed_user_key" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Detaching_after_native_Efs_decryption_retains_an_uncertain_effect_without_key_evidence" id="454d616e-aa11-4421-8873-b32297364011" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="454d616e-aa11-4421-8873-b32297364011" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Detaching_after_native_Efs_decryption_retains_an_uncertain_effect_without_key_evidence" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Efs_refuses_a_prepared_Wof_backed_file" id="17c09541-82f1-43ce-9cd8-05c0cc26d5e4" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="17c09541-82f1-43ce-9cd8-05c0cc26d5e4" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Efs_refuses_a_prepared_Wof_backed_file" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Unreadable_sparse_stream_after_encryption_retains_observed_key_and_stops_the_job" id="5d22c1fd-ea11-43b1-83ce-fcc05acde281" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="5d22c1fd-ea11-43b1-83ce-fcc05acde281" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Unreadable_sparse_stream_after_encryption_retains_observed_key_and_stops_the_job" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Without_the_smart_card_new_encryption_stops_before_any_native_intent" id="eb163d77-a9f8-4ccb-b161-05132ddd9671" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="eb163d77-a9f8-4ccb-b161-05132ddd9671" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Without_the_smart_card_new_encryption_stops_before_any_native_intent" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.A_restored_fixture_key_can_decrypt_the_same_file_under_an_independent_windows_account" id="35a6c3ce-b558-4473-9911-f8a02178a71c" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="35a6c3ce-b558-4473-9911-f8a02178a71c" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="A_restored_fixture_key_can_decrypt_the_same_file_under_an_independent_windows_account" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Files_encrypted_with_distinct_real_Efs_keys_keep_independent_backup_choices" id="6ba21811-221b-4b8b-a75b-f11771462456" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="6ba21811-221b-4b8b-a75b-f11771462456" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="Files_encrypted_with_distinct_real_Efs_keys_keep_independent_backup_choices" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.An_unexpected_real_key_stops_the_selected_job_and_retains_the_exact_call" id="ddf0c3bd-cf1d-4e26-b45a-3c6636b4fe9e" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="ddf0c3bd-cf1d-4e26-b45a-3c6636b4fe9e" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="An_unexpected_real_key_stops_the_selected_job_and_retains_the_exact_call" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Sparse_EFS_source_replacement_preserves_holes_or_refuses_an_EFS_target(kind: Copy, protectedTarget: False)" id="b3542cc1-1c6a-45bb-822d-fd88017dc204" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="b3542cc1-1c6a-45bb-822d-fd88017dc204" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Sparse_EFS_source_replacement_preserves_holes_or_refuses_an_EFS_target" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Sparse_EFS_source_replacement_preserves_holes_or_refuses_an_EFS_target(kind: Move, protectedTarget: False)" id="4d0eb9bd-c09e-4429-9cc7-2b41b7019921" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="4d0eb9bd-c09e-4429-9cc7-2b41b7019921" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Sparse_EFS_source_replacement_preserves_holes_or_refuses_an_EFS_target" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Sparse_EFS_source_replacement_preserves_holes_or_refuses_an_EFS_target(kind: Copy, protectedTarget: True)" id="bf23992d-7ae2-486d-a47c-9ad77f215bf2" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="bf23992d-7ae2-486d-a47c-9ad77f215bf2" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Sparse_EFS_source_replacement_preserves_holes_or_refuses_an_EFS_target" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Sparse_EFS_source_replacement_preserves_holes_or_refuses_an_EFS_target(kind: Move, protectedTarget: True)" id="b28c1572-9943-46ba-a502-6723849df370" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="b28c1572-9943-46ba-a502-6723849df370" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Sparse_EFS_source_replacement_preserves_holes_or_refuses_an_EFS_target" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_copy_preserves_efs_and_sparse_holes_in_main_and_named_streams" id="cdb439f7-fa8b-4364-ab92-1352b85dfe0d" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="cdb439f7-fa8b-4364-ab92-1352b85dfe0d" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Native_copy_preserves_efs_and_sparse_holes_in_main_and_named_streams" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.A_staged_clear_copy_reviews_the_temporary_and_final_names" id="cdc67062-5d7e-438f-8c0a-0cd451f17693" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="cdc67062-5d7e-438f-8c0a-0cd451f17693" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="A_staged_clear_copy_reviews_the_temporary_and_final_names" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Copy_then_delete_keeps_the_efs_source_when_the_output_is_decrypted_before_retirement" id="77a022d3-b288-4031-8847-c11881772c76" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="77a022d3-b288-4031-8847-c11881772c76" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Copy_then_delete_keeps_the_efs_source_when_the_output_is_decrypted_before_retirement" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Replacing_the_output_folder_during_approval_produces_no_clear_payload" id="26a48735-55aa-4e4c-aea7-cab6be0d2c62" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="26a48735-55aa-4e4c-aea7-cab6be0d2c62" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Replacing_the_output_folder_during_approval_produces_no_clear_payload" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Copy, sourceOnUsb: False, replaceExisting: False)" id="a08c2864-df85-4600-8191-fd7a045159ec" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="a08c2864-df85-4600-8191-fd7a045159ec" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Move, sourceOnUsb: False, replaceExisting: False)" id="e898cc58-f307-4251-a86c-a46b44e9e36d" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="e898cc58-f307-4251-a86c-a46b44e9e36d" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Copy, sourceOnUsb: True, replaceExisting: False)" id="c1639757-820e-48ab-9f10-81151f0f27a8" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="c1639757-820e-48ab-9f10-81151f0f27a8" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Move, sourceOnUsb: True, replaceExisting: False)" id="0a5b9240-3714-4c69-93d4-517716002256" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="0a5b9240-3714-4c69-93d4-517716002256" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Copy, sourceOnUsb: False, replaceExisting: True)" id="4643d4b1-3745-4dba-ad4f-bd13497d32ff" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="4643d4b1-3745-4dba-ad4f-bd13497d32ff" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Move, sourceOnUsb: False, replaceExisting: True)" id="a6a9fc7f-2bd0-43c3-b6c0-fe701f76c0d1" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="a6a9fc7f-2bd0-43c3-b6c0-fe701f76c0d1" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Copy, sourceOnUsb: True, replaceExisting: True)" id="c7880601-d7d7-4a2e-a191-fa7dbbeb6d56" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="c7880601-d7d7-4a2e-a191-fa7dbbeb6d56" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Move, sourceOnUsb: True, replaceExisting: True)" id="75d0ae62-8f36-467f-9353-173723a6c2d3" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="75d0ae62-8f36-467f-9353-173723a6c2d3" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_copy_and_same_volume_move_preserve_efs_and_named_streams_on_ntfs(kind: Copy)" id="a9c7471d-6bb7-4261-819b-6c44c35e3a72" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="a9c7471d-6bb7-4261-819b-6c44c35e3a72" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Native_copy_and_same_volume_move_preserve_efs_and_named_streams_on_ntfs" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_copy_and_same_volume_move_preserve_efs_and_named_streams_on_ntfs(kind: Move)" id="b2df1af6-db12-4c47-9d20-8a7965fb468d" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="b2df1af6-db12-4c47-9d20-8a7965fb468d" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Native_copy_and_same_volume_move_preserve_efs_and_named_streams_on_ntfs" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Copy_and_cross_volume_move_preserve_efs_on_a_capable_fat32_volume(kind: Copy)" id="a7c654c0-e10f-4795-a13a-0f930b877662" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="a7c654c0-e10f-4795-a13a-0f930b877662" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Copy_and_cross_volume_move_preserve_efs_on_a_capable_fat32_volume" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Copy_and_cross_volume_move_preserve_efs_on_a_capable_fat32_volume(kind: Move)" id="e01ac572-f047-4ca9-8a9a-2bc7af51fa52" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="e01ac572-f047-4ca9-8a9a-2bc7af51fa52" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="Copy_and_cross_volume_move_preserve_efs_on_a_capable_fat32_volume" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.A_destination_that_cannot_encrypt_needs_a_fresh_choice_for_each_file(kind: Copy, empty: False)" id="5b34ed5a-96b2-462c-b8a1-99b5dab1fa93" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="5b34ed5a-96b2-462c-b8a1-99b5dab1fa93" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="A_destination_that_cannot_encrypt_needs_a_fresh_choice_for_each_file" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.A_destination_that_cannot_encrypt_needs_a_fresh_choice_for_each_file(kind: Copy, empty: True)" id="be76535d-3908-42ab-8fc7-785d3dd775a8" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="be76535d-3908-42ab-8fc7-785d3dd775a8" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="A_destination_that_cannot_encrypt_needs_a_fresh_choice_for_each_file" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.A_destination_that_cannot_encrypt_needs_a_fresh_choice_for_each_file(kind: Move, empty: False)" id="c1c4b4ed-730f-48b5-8f38-8aea3831efa9" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="c1c4b4ed-730f-48b5-8f38-8aea3831efa9" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsCopyTests" name="A_destination_that_cannot_encrypt_needs_a_fresh_choice_for_each_file" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.An_existing_writer_that_denies_read_refuses_the_efs_call_until_a_fresh_preparation" id="563a4186-8006-41d6-944a-7a38050cc635" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="563a4186-8006-41d6-944a-7a38050cc635" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="An_existing_writer_that_denies_read_refuses_the_efs_call_until_a_fresh_preparation" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Approved_encryption_preserves_bytes_when_stream_compression_changes_after_final_inspection(lateStream: \&quot;main\&quot;)" id="4e48107d-9d19-4238-af36-7d4c241f27c6" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="4e48107d-9d19-4238-af36-7d4c241f27c6" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="Approved_encryption_preserves_bytes_when_stream_compression_changes_after_final_inspection" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Approved_encryption_preserves_bytes_when_stream_compression_changes_after_final_inspection(lateStream: \&quot;existing\&quot;)" id="93806805-739f-467f-80a1-11b5f99d4085" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="93806805-739f-467f-80a1-11b5f99d4085" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="Approved_encryption_preserves_bytes_when_stream_compression_changes_after_final_inspection" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Approved_encryption_preserves_bytes_when_stream_compression_changes_after_final_inspection(lateStream: \&quot;new\&quot;)" id="36cf91bf-acab-4f32-a27d-67c7fa9362a9" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="36cf91bf-acab-4f32-a27d-67c7fa9362a9" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="Approved_encryption_preserves_bytes_when_stream_compression_changes_after_final_inspection" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Extended_drive_and_volume_guid_spellings_keep_one_identity_or_refuse_an_unknown_long_path(longPath: False)" id="a0b2decc-b484-4a9c-9273-93782ca997e4" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="a0b2decc-b484-4a9c-9273-93782ca997e4" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="Extended_drive_and_volume_guid_spellings_keep_one_identity_or_refuse_an_unknown_long_path" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Extended_drive_and_volume_guid_spellings_keep_one_identity_or_refuse_an_unknown_long_path(longPath: True)" id="2ec280e3-67b0-4f57-a255-5018654f7293" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="2ec280e3-67b0-4f57-a255-5018654f7293" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="Extended_drive_and_volume_guid_spellings_keep_one_identity_or_refuse_an_unknown_long_path" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.A_native_inventory_over_the_stream_limit_refuses_encryption_before_the_call" id="0c58b47e-15ff-41a0-8119-11762f38bafb" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="0c58b47e-15ff-41a0-8119-11762f38bafb" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="A_native_inventory_over_the_stream_limit_refuses_encryption_before_the_call" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Native_returns_require_an_observed_held_effect_and_each_preparation_can_be_consumed_once(nativeSucceeded: True)" id="2db819d6-ec17-4a38-9d87-31ba2fa50a89" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="2db819d6-ec17-4a38-9d87-31ba2fa50a89" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="Native_returns_require_an_observed_held_effect_and_each_preparation_can_be_consumed_once" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Native_returns_require_an_observed_held_effect_and_each_preparation_can_be_consumed_once(nativeSucceeded: False)" id="22ef1e6a-e3f5-4c34-8d27-0a22fe3032b8" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="22ef1e6a-e3f5-4c34-8d27-0a22fe3032b8" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="Native_returns_require_an_observed_held_effect_and_each_preparation_can_be_consumed_once" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Efs_consents_are_independent_and_identity_action_bound_before_a_binding_can_call_Windows" id="9837692c-160d-4cf5-bc8a-29e3aecd5ac8" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="9837692c-160d-4cf5-bc8a-29e3aecd5ac8" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="Efs_consents_are_independent_and_identity_action_bound_before_a_binding_can_call_Windows" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.An_in_place_junction_after_the_final_check_is_disclosed_and_reported_uncertain_without_undoing_other_objects" id="f393328c-c33e-497d-b42d-cbd4052d86ea" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="f393328c-c33e-497d-b42d-cbd4052d86ea" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="An_in_place_junction_after_the_final_check_is_disclosed_and_reported_uncertain_without_undoing_other_objects" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Held_guards_block_ordinary_leaf_and_ancestor_replacement_and_a_disposed_review_pin_cannot_be_rebound" id="fc6f18d1-4568-4cb8-9632-6cba54920a74" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="fc6f18d1-4568-4cb8-9632-6cba54920a74" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="Held_guards_block_ordinary_leaf_and_ancestor_replacement_and_a_disposed_review_pin_cannot_be_rebound" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.A_new_hard_link_is_blocked_or_refused_before_the_native_efs_call" id="cb352d1a-8479-42a1-8afb-f22f2adef83a" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="cb352d1a-8479-42a1-8afb-f22f2adef83a" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="A_new_hard_link_is_blocked_or_refused_before_the_native_efs_call" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Complete_stream_parser_rejects_truncation_duplicates_invalid_names_and_missing_main(directory: False)" id="c1b5887c-600c-4d02-a348-856d75ed94d7" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="c1b5887c-600c-4d02-a348-856d75ed94d7" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="Complete_stream_parser_rejects_truncation_duplicates_invalid_names_and_missing_main" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Complete_stream_parser_rejects_truncation_duplicates_invalid_names_and_missing_main(directory: True)" id="3f4b91a7-8de6-426b-bb26-00a5ba58a999" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="3f4b91a7-8de6-426b-bb26-00a5ba58a999" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="Complete_stream_parser_rejects_truncation_duplicates_invalid_names_and_missing_main" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.A_replacement_at_the_reviewed_spelling_is_refused_without_borrowing_the_original_pin_identity" id="9655756c-f5aa-43ba-ba36-41a02c2dc832" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="9655756c-f5aa-43ba-ba36-41a02c2dc832" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="A_replacement_at_the_reviewed_spelling_is_refused_without_borrowing_the_original_pin_identity" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Supported_physical_path_round_trips_main_and_named_stream_payload_with_explicit_decompression_consent(directory: False)" id="605bdeb1-cca1-4ea9-ab72-7c6059a52bb5" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="605bdeb1-cca1-4ea9-ab72-7c6059a52bb5" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="Supported_physical_path_round_trips_main_and_named_stream_payload_with_explicit_decompression_consent" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Supported_physical_path_round_trips_main_and_named_stream_payload_with_explicit_decompression_consent(directory: True)" id="f6006851-864d-4aab-a746-255e4d884f44" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="f6006851-864d-4aab-a746-255e4d884f44" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="Supported_physical_path_round_trips_main_and_named_stream_payload_with_explicit_decompression_consent" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Cancel_before_preparation_admits_no_call_and_cancel_during_call_still_observes_effect_after_a_failed_return" id="4f298109-9468-4973-aa69-3d6ade1a53ae" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="4f298109-9468-4973-aa69-3d6ade1a53ae" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="Cancel_before_preparation_admits_no_call_and_cancel_during_call_still_observes_effect_after_a_failed_return" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.ReadOnly_noop_needs_no_data_guard_or_Efs_call_and_a_later_needed_change_requires_fresh_preparation" id="55b0c41c-dd1a-4ae5-91ea-2708f8161e14" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="55b0c41c-dd1a-4ae5-91ea-2708f8161e14" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="ReadOnly_noop_needs_no_data_guard_or_Efs_call_and_a_later_needed_change_requires_fresh_preparation" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsPathTests.Complete_stream_parser_has_a_finite_limit_and_never_returns_an_omitted_prefix" id="b161b8c0-0fa8-47c3-aee6-b8d552c338c0" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="b161b8c0-0fa8-47c3-aee6-b8d552c338c0" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsPathTests" name="Complete_stream_parser_has_a_finite_limit_and_never_returns_an_omitted_prefix" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Interactive_Cng_backup_keeps_parented_access_after_the_reviewed_key_is_matched" id="7488e5dd-891c-49df-ae9f-16ff541e8658" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="7488e5dd-891c-49df-ae9f-16ff541e8658" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="Interactive_Cng_backup_keeps_parented_access_after_the_reviewed_key_is_matched" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.A_cached_key_B_does_not_make_certificate_A_a_matching_key_even_when_direct_cached_acquisition_succeeds(cng: False)" id="5e1db291-c3f4-4e1e-a046-23d472e0092f" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="5e1db291-c3f4-4e1e-a046-23d472e0092f" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="A_cached_key_B_does_not_make_certificate_A_a_matching_key_even_when_direct_cached_acquisition_succeeds" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.A_cached_key_B_does_not_make_certificate_A_a_matching_key_even_when_direct_cached_acquisition_succeeds(cng: True)" id="b68d1589-2854-468a-9211-895688ff2b7a" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="b68d1589-2854-468a-9211-895688ff2b7a" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="A_cached_key_B_does_not_make_certificate_A_a_matching_key_even_when_direct_cached_acquisition_succeeds" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Invalid_association_hashes_fail_before_any_native_owner_is_required" id="0a3d6f56-a32d-4ea4-8969-4161b436bd94" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="0a3d6f56-a32d-4ea4-8969-4161b436bd94" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="Invalid_association_hashes_fail_before_any_native_owner_is_required" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.A_public_certificate_or_foreign_invoker_does_not_establish_private_key_access" id="e27665c2-0ce7-4ad5-a64d-45c43f3bacf5" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="e27665c2-0ce7-4ad5-a64d-45c43f3bacf5" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="A_public_certificate_or_foreign_invoker_does_not_establish_private_key_access" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.A_smart_card_key_is_compared_without_a_prompt_and_refused_for_PFX_backup_before_the_wizard" id="0c96f429-122b-4bdc-ac06-0d9984ac40b2" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="0c96f429-122b-4bdc-ac06-0d9984ac40b2" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="A_smart_card_key_is_compared_without_a_prompt_and_refused_for_PFX_backup_before_the_wizard" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Recovery_provider_access_hands_its_owner_only_to_the_matched_key" id="9a892b4e-9328-4264-b4f9-b3ac28a652bb" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="9a892b4e-9328-4264-b4f9-b3ac28a652bb" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="Recovery_provider_access_hands_its_owner_only_to_the_matched_key" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Fresh_private_key_comparison_supports_Capi_and_Cng_without_exporting_private_material(cng: False)" id="8625fee6-79d2-461d-ad16-6f02170869d3" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="8625fee6-79d2-461d-ad16-6f02170869d3" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="Fresh_private_key_comparison_supports_Capi_and_Cng_without_exporting_private_material" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Fresh_private_key_comparison_supports_Capi_and_Cng_without_exporting_private_material(cng: True)" id="da542c96-dd4c-4494-a719-31d21b5277c2" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="da542c96-dd4c-4494-a719-31d21b5277c2" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="Fresh_private_key_comparison_supports_Capi_and_Cng_without_exporting_private_material" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Without_the_card_explicit_access_is_not_offered_and_a_forced_request_stays_cancellable" id="974a6e72-8701-4cde-8e3b-a7a29bb6520b" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="974a6e72-8701-4cde-8e3b-a7a29bb6520b" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="Without_the_card_explicit_access_is_not_offered_and_a_forced_request_stays_cancellable" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Fresh_parented_acquisition_compares_a_virtual_TPM_private_key" id="cb4b2c6b-540c-4b2e-b7bc-494125e4ef8f" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="cb4b2c6b-540c-4b2e-b7bc-494125e4ef8f" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="Fresh_parented_acquisition_compares_a_virtual_TPM_private_key" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.A_platform_Tpm_key_is_compared_from_a_fresh_certificate_context_without_export" id="647326fc-eaf8-48ae-a448-f0007bb73752" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="647326fc-eaf8-48ae-a448-f0007bb73752" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="A_platform_Tpm_key_is_compared_from_a_fresh_certificate_context_without_export" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Isolated_CryptoAPI_review_compares_only_the_exact_stored_key" id="485906f8-25ab-4eca-bd61-69a4586be9fd" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="485906f8-25ab-4eca-bd61-69a4586be9fd" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="Isolated_CryptoAPI_review_compares_only_the_exact_stored_key" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.A_source_caching_preference_is_not_copied_into_the_fresh_context_or_healed_in_the_original(cng: False)" id="07ed34c8-cd05-468d-9fcb-0d8b32341770" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="07ed34c8-cd05-468d-9fcb-0d8b32341770" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="A_source_caching_preference_is_not_copied_into_the_fresh_context_or_healed_in_the_original" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.A_source_caching_preference_is_not_copied_into_the_fresh_context_or_healed_in_the_original(cng: True)" id="f05d8d07-c2a9-41dc-b22c-b979c6baa914" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="f05d8d07-c2a9-41dc-b22c-b979c6baa914" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="A_source_caching_preference_is_not_copied_into_the_fresh_context_or_healed_in_the_original" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Without_the_smart_card_the_silent_check_cannot_authorize_new_encryption" id="df68cce9-880b-4b30-b434-a6d5ec4f2238" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="df68cce9-880b-4b30-b434-a6d5ec4f2238" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="Without_the_smart_card_the_silent_check_cannot_authorize_new_encryption" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Unqualified_provider_parameters_and_a_different_encoded_certificate_do_not_become_known_key_access" id="0b620070-701f-4d4f-97d0-00b997a44836" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="0b620070-701f-4d4f-97d0-00b997a44836" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="Unqualified_provider_parameters_and_a_different_encoded_certificate_do_not_become_known_key_access" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Unsupported_hosts_do_not_report_missing_certificates_or_open_a_key_owner" id="b485e9e6-6c28-4577-b30c-65d9f2982eca" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="b485e9e6-6c28-4577-b30c-65d9f2982eca" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="Unsupported_hosts_do_not_report_missing_certificates_or_open_a_key_owner" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Fresh_parented_acquisition_still_requires_the_exact_public_key(cng: False)" id="ecd68314-f33a-4ff8-ad35-2da89eb309b9" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="ecd68314-f33a-4ff8-ad35-2da89eb309b9" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="Fresh_parented_acquisition_still_requires_the_exact_public_key" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Fresh_parented_acquisition_still_requires_the_exact_public_key(cng: True)" id="13e34fdf-42dc-46f6-b9cb-152153c10e78" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="13e34fdf-42dc-46f6-b9cb-152153c10e78" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="Fresh_parented_acquisition_still_requires_the_exact_public_key" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Exact_current_user_store_lookup_does_not_select_another_certificate_or_enroll_a_key" id="8441d924-b862-46e2-be39-ced718a25e99" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="8441d924-b862-46e2-be39-ced718a25e99" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="Exact_current_user_store_lookup_does_not_select_another_certificate_or_enroll_a_key" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Reviewed_parented_acquisition_requires_explicit_access_to_the_associated_cng_key" id="9340a7cd-4196-424e-865f-aecd599e6af8" storage="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="9340a7cd-4196-424e-865f-aecd599e6af8" />
+      <TestMethod codeBase="C:\fc-run\x64\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsKeyTests" name="Reviewed_parented_acquisition_requires_explicit_access_to_the_associated_cng_key" adapterTypeName="executor://420ee000-6687-4dcb-96de-4b0cf0576970/xunit.v3/3.2.2" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="7e0a5eba-dafe-4b3b-893e-ed322762ce8f" executionId="7e0a5eba-dafe-4b3b-893e-ed322762ce8f" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f5630fa8-ba7d-4562-8e2e-b7c664c6e389" executionId="f5630fa8-ba7d-4562-8e2e-b7c664c6e389" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f37e7850-5e75-4582-b2a2-219fededfd8d" executionId="f37e7850-5e75-4582-b2a2-219fededfd8d" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="cd683abf-a2a5-4e08-9851-c2398eb63d80" executionId="cd683abf-a2a5-4e08-9851-c2398eb63d80" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="84f0071b-2983-424c-b297-b0c62c0021d9" executionId="84f0071b-2983-424c-b297-b0c62c0021d9" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="019a02fa-6990-4177-a386-4f19b1462bfa" executionId="019a02fa-6990-4177-a386-4f19b1462bfa" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="5a86f37a-1af1-44bd-88b4-bcede00aaee5" executionId="5a86f37a-1af1-44bd-88b4-bcede00aaee5" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="e2e85110-5006-477b-8ec8-bd754d4a9ee6" executionId="e2e85110-5006-477b-8ec8-bd754d4a9ee6" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="3f6aea67-a9fd-477f-9346-ec70ab6c4c07" executionId="3f6aea67-a9fd-477f-9346-ec70ab6c4c07" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="01cd7296-4fbf-48d1-a3dd-26c7773d1f3a" executionId="01cd7296-4fbf-48d1-a3dd-26c7773d1f3a" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="6b857452-dede-4ad8-81ca-c3538e0c996a" executionId="6b857452-dede-4ad8-81ca-c3538e0c996a" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="60b6e98e-2505-4033-bff0-060e3c105327" executionId="60b6e98e-2505-4033-bff0-060e3c105327" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="736f8494-5f6f-4611-a312-c6685908d097" executionId="736f8494-5f6f-4611-a312-c6685908d097" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="2e680775-5139-43c5-9a99-f31a33ab1ef8" executionId="2e680775-5139-43c5-9a99-f31a33ab1ef8" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="2f861567-d2e6-48ac-8dc2-e68d160843a7" executionId="2f861567-d2e6-48ac-8dc2-e68d160843a7" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="e1aab76b-9c07-437b-9c34-768668ce3161" executionId="e1aab76b-9c07-437b-9c34-768668ce3161" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="bc9f1929-6912-4490-bdfa-0682415aff64" executionId="bc9f1929-6912-4490-bdfa-0682415aff64" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="904f2617-d087-4586-8062-8e65ea2b3fda" executionId="904f2617-d087-4586-8062-8e65ea2b3fda" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="71f9c829-0314-4144-8263-aafef4e29f36" executionId="71f9c829-0314-4144-8263-aafef4e29f36" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="99ebcfc2-babc-4ecb-9ed4-c70089e979bc" executionId="99ebcfc2-babc-4ecb-9ed4-c70089e979bc" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="14ae75c9-c724-436c-8a3b-90c16602b8d7" executionId="14ae75c9-c724-436c-8a3b-90c16602b8d7" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="241b168e-5f51-4086-9fc8-b1f0c5299306" executionId="241b168e-5f51-4086-9fc8-b1f0c5299306" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="bad57a8d-24a7-4dfb-83c2-2e7fbf8301a0" executionId="bad57a8d-24a7-4dfb-83c2-2e7fbf8301a0" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="94bf9263-4703-4008-a2c9-06fd133199c0" executionId="94bf9263-4703-4008-a2c9-06fd133199c0" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4cf60b64-a8e9-4703-9a79-1698fe97fe69" executionId="4cf60b64-a8e9-4703-9a79-1698fe97fe69" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0e54cd01-d176-45ae-a096-564d0315af89" executionId="0e54cd01-d176-45ae-a096-564d0315af89" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="38a2fb85-8879-4a50-82ef-bde65ffba993" executionId="38a2fb85-8879-4a50-82ef-bde65ffba993" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="30bdaa98-5b9c-4267-b36d-c7c018ab6121" executionId="30bdaa98-5b9c-4267-b36d-c7c018ab6121" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="bd908caf-698f-4f1f-9200-13d9e3b62e96" executionId="bd908caf-698f-4f1f-9200-13d9e3b62e96" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="5bdb2ad4-fa98-4d1f-95ab-a3bf5dc1a186" executionId="5bdb2ad4-fa98-4d1f-95ab-a3bf5dc1a186" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="169c6e05-02fb-45ac-aa62-4c6b9f2a1b89" executionId="169c6e05-02fb-45ac-aa62-4c6b9f2a1b89" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f010e9ee-a98b-4a15-a183-187a9e65cee2" executionId="f010e9ee-a98b-4a15-a183-187a9e65cee2" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f45d9181-1eaa-4446-ac9c-fb8a96b5fcf4" executionId="f45d9181-1eaa-4446-ac9c-fb8a96b5fcf4" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="13ca0704-2e61-4c63-bbdd-ee33a15a6735" executionId="13ca0704-2e61-4c63-bbdd-ee33a15a6735" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="e28bc182-05d7-4217-b6ea-cd4bfad86eff" executionId="e28bc182-05d7-4217-b6ea-cd4bfad86eff" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="232077ac-4479-476b-a9f5-95ea863b268e" executionId="232077ac-4479-476b-a9f5-95ea863b268e" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b0dfa810-4b96-4916-b4e3-5015bf293318" executionId="b0dfa810-4b96-4916-b4e3-5015bf293318" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="3eb0adb0-8386-4b9a-9a64-dc5c2ba3f7b3" executionId="3eb0adb0-8386-4b9a-9a64-dc5c2ba3f7b3" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="454d616e-aa11-4421-8873-b32297364011" executionId="454d616e-aa11-4421-8873-b32297364011" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="17c09541-82f1-43ce-9cd8-05c0cc26d5e4" executionId="17c09541-82f1-43ce-9cd8-05c0cc26d5e4" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="5d22c1fd-ea11-43b1-83ce-fcc05acde281" executionId="5d22c1fd-ea11-43b1-83ce-fcc05acde281" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="eb163d77-a9f8-4ccb-b161-05132ddd9671" executionId="eb163d77-a9f8-4ccb-b161-05132ddd9671" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="35a6c3ce-b558-4473-9911-f8a02178a71c" executionId="35a6c3ce-b558-4473-9911-f8a02178a71c" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="6ba21811-221b-4b8b-a75b-f11771462456" executionId="6ba21811-221b-4b8b-a75b-f11771462456" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="ddf0c3bd-cf1d-4e26-b45a-3c6636b4fe9e" executionId="ddf0c3bd-cf1d-4e26-b45a-3c6636b4fe9e" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b3542cc1-1c6a-45bb-822d-fd88017dc204" executionId="b3542cc1-1c6a-45bb-822d-fd88017dc204" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4d0eb9bd-c09e-4429-9cc7-2b41b7019921" executionId="4d0eb9bd-c09e-4429-9cc7-2b41b7019921" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="bf23992d-7ae2-486d-a47c-9ad77f215bf2" executionId="bf23992d-7ae2-486d-a47c-9ad77f215bf2" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b28c1572-9943-46ba-a502-6723849df370" executionId="b28c1572-9943-46ba-a502-6723849df370" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="cdb439f7-fa8b-4364-ab92-1352b85dfe0d" executionId="cdb439f7-fa8b-4364-ab92-1352b85dfe0d" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="cdc67062-5d7e-438f-8c0a-0cd451f17693" executionId="cdc67062-5d7e-438f-8c0a-0cd451f17693" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="77a022d3-b288-4031-8847-c11881772c76" executionId="77a022d3-b288-4031-8847-c11881772c76" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="26a48735-55aa-4e4c-aea7-cab6be0d2c62" executionId="26a48735-55aa-4e4c-aea7-cab6be0d2c62" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a08c2864-df85-4600-8191-fd7a045159ec" executionId="a08c2864-df85-4600-8191-fd7a045159ec" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="e898cc58-f307-4251-a86c-a46b44e9e36d" executionId="e898cc58-f307-4251-a86c-a46b44e9e36d" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="c1639757-820e-48ab-9f10-81151f0f27a8" executionId="c1639757-820e-48ab-9f10-81151f0f27a8" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0a5b9240-3714-4c69-93d4-517716002256" executionId="0a5b9240-3714-4c69-93d4-517716002256" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4643d4b1-3745-4dba-ad4f-bd13497d32ff" executionId="4643d4b1-3745-4dba-ad4f-bd13497d32ff" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a6a9fc7f-2bd0-43c3-b6c0-fe701f76c0d1" executionId="a6a9fc7f-2bd0-43c3-b6c0-fe701f76c0d1" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="c7880601-d7d7-4a2e-a191-fa7dbbeb6d56" executionId="c7880601-d7d7-4a2e-a191-fa7dbbeb6d56" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="75d0ae62-8f36-467f-9353-173723a6c2d3" executionId="75d0ae62-8f36-467f-9353-173723a6c2d3" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a9c7471d-6bb7-4261-819b-6c44c35e3a72" executionId="a9c7471d-6bb7-4261-819b-6c44c35e3a72" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b2df1af6-db12-4c47-9d20-8a7965fb468d" executionId="b2df1af6-db12-4c47-9d20-8a7965fb468d" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a7c654c0-e10f-4795-a13a-0f930b877662" executionId="a7c654c0-e10f-4795-a13a-0f930b877662" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="e01ac572-f047-4ca9-8a9a-2bc7af51fa52" executionId="e01ac572-f047-4ca9-8a9a-2bc7af51fa52" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="5b34ed5a-96b2-462c-b8a1-99b5dab1fa93" executionId="5b34ed5a-96b2-462c-b8a1-99b5dab1fa93" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="be76535d-3908-42ab-8fc7-785d3dd775a8" executionId="be76535d-3908-42ab-8fc7-785d3dd775a8" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="c1c4b4ed-730f-48b5-8f38-8aea3831efa9" executionId="c1c4b4ed-730f-48b5-8f38-8aea3831efa9" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="563a4186-8006-41d6-944a-7a38050cc635" executionId="563a4186-8006-41d6-944a-7a38050cc635" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4e48107d-9d19-4238-af36-7d4c241f27c6" executionId="4e48107d-9d19-4238-af36-7d4c241f27c6" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="93806805-739f-467f-80a1-11b5f99d4085" executionId="93806805-739f-467f-80a1-11b5f99d4085" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="36cf91bf-acab-4f32-a27d-67c7fa9362a9" executionId="36cf91bf-acab-4f32-a27d-67c7fa9362a9" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="a0b2decc-b484-4a9c-9273-93782ca997e4" executionId="a0b2decc-b484-4a9c-9273-93782ca997e4" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="2ec280e3-67b0-4f57-a255-5018654f7293" executionId="2ec280e3-67b0-4f57-a255-5018654f7293" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0c58b47e-15ff-41a0-8119-11762f38bafb" executionId="0c58b47e-15ff-41a0-8119-11762f38bafb" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="2db819d6-ec17-4a38-9d87-31ba2fa50a89" executionId="2db819d6-ec17-4a38-9d87-31ba2fa50a89" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="22ef1e6a-e3f5-4c34-8d27-0a22fe3032b8" executionId="22ef1e6a-e3f5-4c34-8d27-0a22fe3032b8" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="9837692c-160d-4cf5-bc8a-29e3aecd5ac8" executionId="9837692c-160d-4cf5-bc8a-29e3aecd5ac8" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f393328c-c33e-497d-b42d-cbd4052d86ea" executionId="f393328c-c33e-497d-b42d-cbd4052d86ea" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="fc6f18d1-4568-4cb8-9632-6cba54920a74" executionId="fc6f18d1-4568-4cb8-9632-6cba54920a74" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="cb352d1a-8479-42a1-8afb-f22f2adef83a" executionId="cb352d1a-8479-42a1-8afb-f22f2adef83a" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="c1b5887c-600c-4d02-a348-856d75ed94d7" executionId="c1b5887c-600c-4d02-a348-856d75ed94d7" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="3f4b91a7-8de6-426b-bb26-00a5ba58a999" executionId="3f4b91a7-8de6-426b-bb26-00a5ba58a999" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="9655756c-f5aa-43ba-ba36-41a02c2dc832" executionId="9655756c-f5aa-43ba-ba36-41a02c2dc832" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="605bdeb1-cca1-4ea9-ab72-7c6059a52bb5" executionId="605bdeb1-cca1-4ea9-ab72-7c6059a52bb5" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f6006851-864d-4aab-a746-255e4d884f44" executionId="f6006851-864d-4aab-a746-255e4d884f44" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="4f298109-9468-4973-aa69-3d6ade1a53ae" executionId="4f298109-9468-4973-aa69-3d6ade1a53ae" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="55b0c41c-dd1a-4ae5-91ea-2708f8161e14" executionId="55b0c41c-dd1a-4ae5-91ea-2708f8161e14" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b161b8c0-0fa8-47c3-aee6-b8d552c338c0" executionId="b161b8c0-0fa8-47c3-aee6-b8d552c338c0" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="7488e5dd-891c-49df-ae9f-16ff541e8658" executionId="7488e5dd-891c-49df-ae9f-16ff541e8658" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="5e1db291-c3f4-4e1e-a046-23d472e0092f" executionId="5e1db291-c3f4-4e1e-a046-23d472e0092f" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b68d1589-2854-468a-9211-895688ff2b7a" executionId="b68d1589-2854-468a-9211-895688ff2b7a" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0a3d6f56-a32d-4ea4-8969-4161b436bd94" executionId="0a3d6f56-a32d-4ea4-8969-4161b436bd94" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="e27665c2-0ce7-4ad5-a64d-45c43f3bacf5" executionId="e27665c2-0ce7-4ad5-a64d-45c43f3bacf5" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0c96f429-122b-4bdc-ac06-0d9984ac40b2" executionId="0c96f429-122b-4bdc-ac06-0d9984ac40b2" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="9a892b4e-9328-4264-b4f9-b3ac28a652bb" executionId="9a892b4e-9328-4264-b4f9-b3ac28a652bb" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="8625fee6-79d2-461d-ad16-6f02170869d3" executionId="8625fee6-79d2-461d-ad16-6f02170869d3" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="da542c96-dd4c-4494-a719-31d21b5277c2" executionId="da542c96-dd4c-4494-a719-31d21b5277c2" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="974a6e72-8701-4cde-8e3b-a7a29bb6520b" executionId="974a6e72-8701-4cde-8e3b-a7a29bb6520b" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="cb4b2c6b-540c-4b2e-b7bc-494125e4ef8f" executionId="cb4b2c6b-540c-4b2e-b7bc-494125e4ef8f" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="647326fc-eaf8-48ae-a448-f0007bb73752" executionId="647326fc-eaf8-48ae-a448-f0007bb73752" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="485906f8-25ab-4eca-bd61-69a4586be9fd" executionId="485906f8-25ab-4eca-bd61-69a4586be9fd" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="07ed34c8-cd05-468d-9fcb-0d8b32341770" executionId="07ed34c8-cd05-468d-9fcb-0d8b32341770" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="f05d8d07-c2a9-41dc-b22c-b979c6baa914" executionId="f05d8d07-c2a9-41dc-b22c-b979c6baa914" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="df68cce9-880b-4b30-b434-a6d5ec4f2238" executionId="df68cce9-880b-4b30-b434-a6d5ec4f2238" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0b620070-701f-4d4f-97d0-00b997a44836" executionId="0b620070-701f-4d4f-97d0-00b997a44836" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="b485e9e6-6c28-4577-b30c-65d9f2982eca" executionId="b485e9e6-6c28-4577-b30c-65d9f2982eca" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="ecd68314-f33a-4ff8-ad35-2da89eb309b9" executionId="ecd68314-f33a-4ff8-ad35-2da89eb309b9" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="13e34fdf-42dc-46f6-b9cb-152153c10e78" executionId="13e34fdf-42dc-46f6-b9cb-152153c10e78" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="8441d924-b862-46e2-be39-ced718a25e99" executionId="8441d924-b862-46e2-be39-ced718a25e99" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="9340a7cd-4196-424e-865f-aecd599e6af8" executionId="9340a7cd-4196-424e-865f-aecd599e6af8" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="111" executed="70" passed="70" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="41" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+  </ResultSummary>
+</TestRun>
