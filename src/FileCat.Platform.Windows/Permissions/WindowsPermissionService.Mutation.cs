@@ -19,6 +19,7 @@ internal sealed unsafe partial class WindowsPermissionService
         if (snapshot.BindingProblem is { } problem) return problem;
         if (snapshot.Mount is { IsServerProjection: true } mount) return mount.ChangeRefusal;
         if (snapshot.Binding is { FileSystem: "ReFS" }) return "ReFS permissions are inspection-only in FileCat.";
+        if (snapshot.Binding is { RemovableMedia: true }) return "Permissions on removable NTFS volumes are inspection-only in FileCat.";
         if (snapshot.Binding is not { FileSystem: "NTFS", ReadOnly: false, LinkCount: > 0, Identity.Kind: PermissionObjectKind.File } ||
             snapshot.Model != PermissionModel.WindowsDescriptor || snapshot.Subject.LinkPolicy != PermissionLinkPolicy.NoFollow)
             return "This permissions writer requires an ordinary file on a writable local NTFS volume.";

@@ -25,6 +25,8 @@ public sealed record PermissionBinding(PermissionIdentity Identity, string FileS
 {
     internal DarwinBindingRoute DarwinRoute { get; init; }
     internal bool PosixAclDisabled { get; init; }
+    /// <summary>The Windows volume reported itself as removable media (DRIVE_REMOVABLE).</summary>
+    internal bool RemovableMedia { get; init; }
 }
 
 // The digest identifies a reviewed server path and session, not a filesystem object.

@@ -10,7 +10,7 @@ namespace FileCat.Platform.Windows.Permissions;
 internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbReads = false, bool qualifyRefsReads = false,
     bool qualifyAccessEstimates = false, bool qualifyNativePropagation = false, bool qualifyInheritanceChanges = false,
     bool qualifyFileTrees = false, bool qualifyFolderOnly = false, bool qualifyAclResets = false,
-    bool qualifyFolderTrees = false, bool qualifyVolumeRootWrites = false) : IPermissionService
+    bool qualifyFolderTrees = false, bool qualifyVolumeRootWrites = false, bool qualifyRemovableReads = false) : IPermissionService
 {
     private const string Source = "Windows NtQuerySecurityObject";
     private const int ReviewedTreeMemberLimit = 4096;
@@ -55,7 +55,7 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
         try
         {
             file = Walk(root, names, subject.Authority, cancellationToken, out parent, out var chain, out var binding,
-                allowRefs: qualifyRefsReads);
+                allowRefs: qualifyRefsReads, allowRemovable: qualifyRemovableReads);
             if (!PermissionSnapshots.Matches(subject, binding.Identity))
                 throw new ReadFailure(PermissionReadStatus.Stale, "The original type, volume or object identity changed.");
             if (!PermissionSnapshots.MatchesListing(subject, chain[^1].Size, chain[^1].ModifiedUtcTicks))
@@ -69,7 +69,7 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
                     Reason: "Reading the Windows audit ACL requires an authorized FileCat session with SeSecurityPrivilege.") };
 
             using var current = Walk(root, names, subject.Authority, cancellationToken, out var currentParent, out var refreshed, out var currentBinding,
-                allowRefs: qualifyRefsReads);
+                allowRefs: qualifyRefsReads, allowRemovable: qualifyRemovableReads);
             using (currentParent)
             {
                 if (currentBinding != binding || !chain.Select(s => s.Identity).SequenceEqual(refreshed.Select(s => s.Identity)) || chain[^1] != refreshed[^1])
@@ -77,7 +77,8 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
             }
             cancellationToken.ThrowIfCancellationRequested();
             snapshot = PermissionSnapshots.WithCapabilities(snapshot, sections);
-            if (binding.FileSystem == "ReFS")
+            // ReFS and removable NTFS are inspection-only: no held write binding leaves the reader.
+            if (binding.FileSystem == "ReFS" || binding.RemovableMedia)
                 return new PermissionInspection(snapshot);
             var result = new PermissionInspection(snapshot, new WindowsInspectionPin(file, root, names, chain));
             file = null;
@@ -105,11 +106,14 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
     }
 
     private static SafeFileHandle Walk(string root, string[] names, PermissionAuthority authority, CancellationToken ct, out SafeFileHandle? parent,
-        out FileStamp[] chain, out PermissionBinding binding, uint leafReadAccess = 0, bool backupIntent = false, bool allowRefs = false)
+        out FileStamp[] chain, out PermissionBinding binding, uint leafReadAccess = 0, bool backupIntent = false, bool allowRefs = false,
+        bool allowRemovable = false)
     {
         string winRoot = root.Length == 3 ? root : @"\\?\" + root;
-        if (GetDriveType(winRoot) != 3 /* DRIVE_FIXED */)
-            throw new ReadFailure(PermissionReadStatus.Unsupported, "This reader supports fixed local NTFS volumes.");
+        uint driveType = GetDriveType(winRoot);
+        if (driveType != 3 /* DRIVE_FIXED */ && !(allowRemovable && driveType == 2 /* DRIVE_REMOVABLE */))
+            throw new ReadFailure(PermissionReadStatus.Unsupported, driveType == 2
+                ? "Removable volumes need the separately qualified removable NTFS reader." : "This reader supports fixed local NTFS volumes.");
         SafeFileHandle? current = Open(null, @"\??\" + root, security: false, ct,
             readAccess: names.Length == 0 ? leafReadAccess : 0, backupIntent: backupIntent);
         SafeFileHandle? previous = null;
@@ -138,7 +142,8 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
                     throw new ReadFailure(PermissionReadStatus.Stale, "An original ancestor is no longer a directory.");
             }
             var last = chain[^1];
-            binding = new(last.Identity, isNtfs ? "NTFS" : "ReFS", @"\\?\Volume{" + volume + @"}\", last.Links, (flags & 0x80000) != 0);
+            binding = new(last.Identity, isNtfs ? "NTFS" : "ReFS", @"\\?\Volume{" + volume + @"}\", last.Links, (flags & 0x80000) != 0)
+                { RemovableMedia = driveType == 2 };
             parent = previous;
             previous = null;
             var result = current;

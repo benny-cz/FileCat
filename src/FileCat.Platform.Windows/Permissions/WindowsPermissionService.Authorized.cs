@@ -14,7 +14,7 @@ internal sealed partial class WindowsPermissionService
     private const uint AccessSystemSecurity = 0x01000000, BackupSecurityInformation = 0x00010000, SaclInformation = 8;
 
     internal static bool CanBindAuthorizedInspection(PermissionSnapshot original) =>
-        original.Binding is { FileSystem: "NTFS", LinkCount: > 0 } binding &&
+        original.Binding is { FileSystem: "NTFS", LinkCount: > 0, RemovableMedia: false } binding &&
         PermissionSnapshots.IsLocal(original.Subject) && original.Subject.LinkPolicy == PermissionLinkPolicy.NoFollow &&
         original.BindingProblem is null && NtfsMetadataVolume.CanonicalGuid(binding.MountRoot) is not null;
 

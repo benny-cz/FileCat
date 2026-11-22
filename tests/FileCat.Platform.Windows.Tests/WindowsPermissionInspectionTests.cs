@@ -753,6 +753,47 @@ public sealed class WindowsPermissionInspectionTests
         Assert.Contains("reparse point", crossed.Snapshot.Access.Reason);
     }
 
+    [Fact]
+    public void Windows_removable_NTFS_reads_a_native_descriptor_without_admitting_writes()
+    {
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_REMOVABLE_ROOT");
+        if (!OperatingSystem.IsWindows() || root is null)
+            Assert.Skip("Requires a task-owned folder on a removable Windows NTFS volume.");
+        var drive = new DriveInfo(Path.GetPathRoot(root)!);
+        Assert.Equal(DriveType.Removable, drive.DriveType);
+        Assert.Equal("NTFS", drive.DriveFormat);
+        var folder = Directory.CreateDirectory(Path.Combine(root, "inspect-" + Guid.NewGuid().ToString("N")[..8]));
+        try
+        {
+            string path = Path.Combine(folder.FullName, "witness.txt");
+            File.WriteAllText(path, "witness");
+            var subject = new PermissionSubject(Location.FileSystem(folder.FullName), path, path, new(PermissionAuthorityKind.Local, "local", 0),
+                PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+            var ct = TestContext.Current.CancellationToken;
+            using var disabled = new WindowsPermissionService().Inspect(subject, PermissionSections.Ordinary, ct);
+            Assert.Equal(PermissionReadStatus.Unsupported, disabled.Snapshot.Access.Status);
+            Assert.Contains("removable NTFS reader", disabled.Snapshot.Access.Reason);
+
+            using var result = new WindowsPermissionService(qualifyRemovableReads: true).Inspect(subject, PermissionSections.Ordinary, ct);
+            var snapshot = result.Snapshot;
+            Assert.True(snapshot.Access.Status == PermissionReadStatus.Present, snapshot.Access.Reason);
+            Assert.Equal("NTFS", snapshot.Binding?.FileSystem);
+            Assert.True(snapshot.Binding!.RemovableMedia);
+            // A format-made NTFS volume stores DACLs without automatic inheritance; compare with the stored form, which
+            // GetNamedSecurityInfo would rewrite by inferring inherited entries.
+            AssertStoredDiscretionaryDescriptor(path, snapshot);
+            // Inspection only: no write route, broker binding or reviewed change.
+            Assert.Contains("inspection-only", WindowsPermissionService.EditRefusal(snapshot));
+            Assert.False(WindowsPermissionService.CanBindAuthorizedInspection(snapshot));
+            var grant = WindowsPermissionAclPatch.SimpleEntry(WindowsAceKind.Allow, new(PrincipalKind.WindowsSid, "S-1-5-4", "local"),
+                (uint)(FileSystemRights.Read | FileSystemRights.Synchronize));
+            var refusal = Assert.Throws<NotSupportedException>(() => WindowsPermissionService.Prepare(result, ItemRef.ForFileSystemPath(path, EntryKind.File),
+                new(PermissionScope.Objects, [new AddWindowsAce(grant)]), ct));
+            Assert.Contains("inspection-only", refusal.Message);
+        }
+        finally { FileCat.Tests.TestCleanup.DeleteTree(folder.FullName); }
+    }
+
     private static void AssertNativeDiscretionaryDescriptor(string path, PermissionSnapshot snapshot)
     {
         int error = ReadNativeNamedDescriptor(path, 1 /* SE_FILE_OBJECT */, 7 /* Owner, group and DACL */,
@@ -776,6 +817,24 @@ public sealed class WindowsPermissionInspectionTests
             new RawSecurityDescriptor(projected, 0).GetSddlForm(AccessControlSections.Access));
         Assert.Equal(DaclBytesForSmb(bytes), DaclBytesForSmb(projected));
     }
+
+    private static void AssertStoredDiscretionaryDescriptor(string path, PermissionSnapshot snapshot)
+    {
+        const uint sections = 7; // OWNER, GROUP and DACL_SECURITY_INFORMATION
+        _ = ReadStoredDescriptor(path, sections, null, 0, out uint length);
+        byte[] stored = new byte[length];
+        Assert.True(ReadStoredDescriptor(path, sections, stored, length, out _), $"GetFileSecurityW failed: {Marshal.GetLastWin32Error()}");
+        var expected = new RawSecurityDescriptor(stored, 0);
+        byte[] projected = Assert.IsType<WindowsDacl>(snapshot.Access.Value?.Acl).SecurityDescriptor.ToArray();
+        Assert.Equal(expected.Owner?.Value, snapshot.Owner.Value?.Id);
+        Assert.Equal(expected.Group?.Value, snapshot.Group.Value?.Id);
+        Assert.Equal(expected.GetSddlForm(AccessControlSections.Access),
+            new RawSecurityDescriptor(projected, 0).GetSddlForm(AccessControlSections.Access));
+    }
+
+    [DllImport("advapi32.dll", EntryPoint = "GetFileSecurityW", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ReadStoredDescriptor(string path, uint sections, byte[]? descriptor, uint length, out uint needed);
 
     [DllImport("advapi32.dll", EntryPoint = "GetNamedSecurityInfoW", CharSet = CharSet.Unicode)]
     private static extern int ReadNativeNamedDescriptor(string path, int type, uint sections,
