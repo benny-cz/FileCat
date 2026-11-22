@@ -80,3 +80,4 @@ The Properties fallback presses NVDA+T as a numpad Insert with T, injected like 
 
 - One guest, one NVDA version, and keyboard input injected in the signed-in session. NVDA's main program runs emulated, as it does on Windows on Arm devices.
 - The JSON receipts are re-indented copies of what the runners wrote; their content is unchanged.
+- The compression release on Windows on Arm, with its own release-build NVDA run, is in the [Windows on Arm compression receipt](2026-11-22-compression-release-arm64.md).

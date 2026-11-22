@@ -1,0 +1,210 @@
+﻿Speaking [LangChangeCommand ('en_US'), 'Loading NVDA. Please wait...']
+Input: kb(desktop):NVDA+tab
+Speaking [LangChangeCommand ('en_US'), 'FileCat — left-release-review — admin (administrator, not elevated)', 'window', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en_US'), 'Panel 1, source, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en_US'), 'Go to parent location', 'parent navigation, 1 of 3', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en_US'), 'Go to parent location', 'list item', 'focused', 'parent navigation, 1 of 3']
+Input: kb(desktop):home
+Input: kb(desktop):downArrow
+Speaking [LangChangeCommand ('en_US'), 'folder-release', 'not selected', 'folder, modified 11/22/2026 7:37:49 PM, not marked, 2 of 3', CancellableSpeech (still valid)]
+Input: kb(desktop):control+shift+p
+Input: kb(desktop):shift+e
+Input: kb(desktop):shift+f
+Input: kb(desktop):shift+s
+Input: kb(desktop):space
+Input: kb(desktop):p
+Input: kb(desktop):r
+Input: kb(desktop):o
+Input: kb(desktop):t
+Input: kb(desktop):e
+Input: kb(desktop):c
+Input: kb(desktop):t
+Input: kb(desktop):i
+Speaking [LangChangeCommand ('en_US'), 'Search commands', 'edit', 'EFS p', 'Type what you want to do: any command, by its name or other words for it. Ctrl+Shift+P comes here from anywhere.', CancellableSpeech (still valid)]
+Input: kb(desktop):o
+Input: kb(desktop):n
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'E', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'F', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'S', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [LangChangeCommand ('en_US'), 'space', EndUtteranceCommand()]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'p', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'r', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 't', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'e', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'c', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 't', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'i', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'n', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):escape
+Input: kb(desktop):control+shift+p
+Input: kb(desktop):shift+b
+Input: kb(desktop):a
+Input: kb(desktop):c
+Input: kb(desktop):k
+Input: kb(desktop):space
+Input: kb(desktop):u
+Input: kb(desktop):p
+Input: kb(desktop):space
+Input: kb(desktop):shift+e
+Input: kb(desktop):shift+f
+Input: kb(desktop):shift+s
+Input: kb(desktop):space
+Input: kb(desktop):k
+Input: kb(desktop):e
+Input: kb(desktop):y
+Speaking [LangChangeCommand ('en_US'), 'Panel 1, source, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en_US'), 'folder-release', 'not selected', 'folder, modified 11/22/2026 7:37:49 PM, not marked, 2 of 3', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en_US'), 'Search commands', 'edit', 'Back up EFS key', 'Type what you want to do: any command, by its name or other words for it. Ctrl+Shift+P comes here from anywhere.', CancellableSpeech (still valid)]
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'B', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'a', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'c', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'k', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [LangChangeCommand ('en_US'), 'space', EndUtteranceCommand()]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'u', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'p', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [LangChangeCommand ('en_US'), 'space', EndUtteranceCommand()]
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'E', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'F', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'S', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [LangChangeCommand ('en_US'), 'space', EndUtteranceCommand()]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'k', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'e', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'y', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):escape
+Input: kb(desktop):control+shift+p
+Speaking [LangChangeCommand ('en_US'), 'Panel 1, source, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en_US'), 'folder-release', 'not selected', 'folder, modified 11/22/2026 7:37:49 PM, not marked, 2 of 3', CancellableSpeech (still valid)]
+Input: kb(desktop):shift+n
+Input: kb(desktop):shift+t
+Input: kb(desktop):shift+f
+Input: kb(desktop):shift+s
+Input: kb(desktop):space
+Input: kb(desktop):c
+Input: kb(desktop):o
+Input: kb(desktop):m
+Input: kb(desktop):p
+Input: kb(desktop):r
+Input: kb(desktop):e
+Input: kb(desktop):s
+Input: kb(desktop):s
+Input: kb(desktop):i
+Input: kb(desktop):o
+Input: kb(desktop):n
+Speaking [LangChangeCommand ('en_US'), 'Search commands', 'edit', 'NTFS compression', 'Type what you want to do: any command, by its name or other words for it. Ctrl+Shift+P comes here from anywhere.', CancellableSpeech (still valid)]
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'N', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'T', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'F', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'S', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [LangChangeCommand ('en_US'), 'space', EndUtteranceCommand()]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'c', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'm', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'p', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'r', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'e', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 's', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 's', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'i', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'n', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en_US'), 'Choose an action to continue.']
+Speaking [LangChangeCommand ('en_US'), 'NTFS compression… dialog', 'grouping', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en_US'), 'Compress', 'radio button', 'not checked', CancellableSpeech (still valid)]
+Input: kb(desktop):space
+Speaking [LangChangeCommand ('en_US'), 'Every selected item passed inspection for this action.']
+Speaking [LangChangeCommand ('en_US'), 'checked']
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en_US'), 'Remove compression', 'radio button', 'not checked', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en_US'), 'Selected items only', 'radio button', 'checked', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en_US'), 'Selected folders and their existing contents', 'radio button', 'not checked', CancellableSpeech (still valid)]
+Input: kb(desktop):space
+Speaking [LangChangeCommand ('en_US'), 'checked']
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en_US'), 'Retry inspection of the original selected items', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en_US'), 'All 1 selected items, including hidden marks', 'grouping', 'collapsed', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en_US'), 'Selected items (1)', 'toggle button', 'not pressed', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en_US'), 'Cancel', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en_US'), 'Queue', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en_US'), 'Compress', 'button', 'Selected folders and their existing contents. Changes main data or folder defaults. Alternate data streams keep their compression settings.', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en_US'), 'Compress "folder-release" · selected folders and existing contents: 2 changed, 0 already satisfied, 1 skipped, 0 failed, 0 uncertain, 0 not processed. The requested scope was not fully completed.']
+Speaking [LangChangeCommand ('en_US'), 'Panel 1, source, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en_US'), 'folder-release', 'not selected', 'folder, modified 11/22/2026 7:37:49 PM, not marked, 2 of 3', CancellableSpeech (still valid)]
+Input: kb(desktop):escape
+Input: kb(desktop):control+shift+p
+Input: kb(desktop):shift+n
+Input: kb(desktop):shift+t
+Input: kb(desktop):shift+f
+Input: kb(desktop):shift+s
+Input: kb(desktop):space
+Input: kb(desktop):c
+Input: kb(desktop):o
+Input: kb(desktop):m
+Input: kb(desktop):p
+Input: kb(desktop):r
+Input: kb(desktop):e
+Input: kb(desktop):s
+Input: kb(desktop):s
+Input: kb(desktop):i
+Input: kb(desktop):o
+Input: kb(desktop):n
+Speaking [LangChangeCommand ('en_US'), 'Search commands', 'edit', 'NTFS compression', 'Type what you want to do: any command, by its name or other words for it. Ctrl+Shift+P comes here from anywhere.', CancellableSpeech (still valid)]
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'N', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'T', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'F', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'S', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [LangChangeCommand ('en_US'), 'space', EndUtteranceCommand()]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'c', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'm', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'p', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'r', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'e', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 's', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 's', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'i', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'n', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en_US'), 'Choose an action to continue.']
+Speaking [LangChangeCommand ('en_US'), 'NTFS compression… dialog', 'grouping', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en_US'), 'Compress', 'radio button', 'not checked', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en_US'), 'Remove compression', 'radio button', 'not checked', CancellableSpeech (still valid)]
+Input: kb(desktop):space
+Speaking [LangChangeCommand ('en_US'), 'Every selected item passed inspection for this action.']
+Speaking [LangChangeCommand ('en_US'), 'checked']
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en_US'), 'Selected items only', 'radio button', 'checked', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en_US'), 'Selected folders and their existing contents', 'radio button', 'not checked', CancellableSpeech (still valid)]
+Input: kb(desktop):space
+Speaking [LangChangeCommand ('en_US'), 'checked']
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en_US'), 'Retry inspection of the original selected items', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en_US'), 'All 1 selected items, including hidden marks', 'grouping', 'collapsed', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en_US'), 'Selected items (1)', 'toggle button', 'not pressed', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en_US'), 'Cancel', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en_US'), 'Queue', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en_US'), 'Remove compression', 'button', 'Selected folders and their existing contents. Changes main data or folder defaults. Alternate data streams keep their compression settings.', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en_US'), 'Panel 1, source, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en_US'), 'folder-release', 'unavailable', 'This item belongs to a previous listing and cannot be acted on.', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en_US'), 'Remove compression from "folder-release" · selected folders and existing contents: 2 changed, 1 already satisfied, 0 skipped, 0 failed, 0 uncertain, 0 not processed. The requested scope was fully checked.']
+Speaking [LangChangeCommand ('en_US'), 'folder-release', 'not selected', 'folder, modified 11/22/2026 7:37:49 PM, not marked, 2 of 3', CancellableSpeech (still valid)]
+Input: kb(desktop):escape
+Speaking [LangChangeCommand ('en_US'), 'C:\\Windows\\System32\\cmd.exe', 'window', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en_US'), 'C:\\Windows\\System32\\cmd.exe', 'terminal', CancellableSpeech (still valid)]

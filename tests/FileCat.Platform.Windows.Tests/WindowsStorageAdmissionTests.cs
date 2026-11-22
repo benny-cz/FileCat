@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
@@ -96,8 +97,11 @@ public sealed class WindowsStorageAdmissionTests
         }
         Assert.IsType<NoStorageTransforms>(release);
         var reason = WindowsStorageTransforms.ReleaseUnavailable();
-        Assert.Contains(reason.Code, new[] { "elevated-process", "arm64-unqualified", "windows-version", "target-unqualified" });
+        Assert.Contains(reason.Code, new[] { "elevated-process", "arm64-emulated", "windows-version", "target-unqualified" });
         Assert.Equal(WindowsTokenAuthority.IsHighIntegrity, reason.Code == "elevated-process");
+        // Native Arm64 is a release host; only an emulated copy on Windows on Arm gets the Arm64 reason.
+        bool emulatedOnArm = RuntimeInformation.OSArchitecture == Architecture.Arm64 && RuntimeInformation.ProcessArchitecture != Architecture.Arm64;
+        Assert.Equal(emulatedOnArm && !WindowsTokenAuthority.IsHighIntegrity, reason.Code == "arm64-emulated");
         foreach (var action in Enum.GetValues<StorageAction>()) Assert.Equal(reason, release.Unavailable(action));
         Assert.Throws<NotSupportedException>(() => release.InspectRoot(default!, StorageAction.Compress, Stop));
     }

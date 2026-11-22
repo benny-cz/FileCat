@@ -1,0 +1,5880 @@
+{
+ "Passed": true,
+ "Stage": "complete",
+ "Error": null,
+ "Session": 2,
+ "Controls": {
+  "Compress result": [
+   {
+    "Name": "WindowChrome",
+    "Type": "ControlType.Group",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "File",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Mark",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Navigate",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Commands",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Tools",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Search commands",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Type what you want to do: any command, by its name or other words for it. Ctrl+Shift+P comes here from anywhere."
+   },
+   {
+    "Name": "Back",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false,
+    "Help": "Back (Alt+Left)\nGoes back to the folder this tab showed before.\nUnavailable here: No earlier location in this tab."
+   },
+   {
+    "Name": "Back history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false,
+    "Help": "Back (Alt+Left)\nGoes back to the folder this tab showed before.\nUnavailable here: No earlier location in this tab."
+   },
+   {
+    "Name": "Forward",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false,
+    "Help": "Forward (Alt+Right)\nGoes forward again after going back.\nUnavailable here: No later location in this tab."
+   },
+   {
+    "Name": "Forward history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false,
+    "Help": "Forward (Alt+Right)\nGoes forward again after going back.\nUnavailable here: No later location in this tab."
+   },
+   {
+    "Name": "Go to parent",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Go to parent (Ctrl+PgUp)\nGoes up to the folder that holds this one (Backspace too)."
+   },
+   {
+    "Name": "Reread",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Reread (Ctrl+R)\nReads the folder again, with whatever changed in it."
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Copy… (F5)\nCopies the marked items (or the one under the cursor) to the target panel's folder, or to a place you choose."
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Move / rename… (F6)\nMoves the marked items (or the one under the cursor) to the target panel's folder, or renames them."
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Create folder… (F7)\nCreates a new folder in this panel's folder."
+   },
+   {
+    "Name": "New folder",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Delete… (F8)\nMoves the marked items (or the one under the cursor) to the Recycle Bin; Shift+Del deletes permanently."
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Find files…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Find files… (Alt+F7)\nSearches local folders by name, content, size, and date, or searches within a result set. From another provider, choose local folders explicitly before searching."
+   },
+   {
+    "Name": "Find",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Operations",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Operations (Ctrl+J)"
+   },
+   {
+    "Name": "Jobs",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "More toolbar commands",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "More toolbar commands, grouped by task. All commands also remain in the menus and command search."
+   },
+   {
+    "Name": "left-release-review, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Unlocked tab"
+   },
+   {
+    "Name": "left-release-review",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Choose a visible column to sort by. Choosing the current column reverses its order."
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "New tab (Ctrl+T)"
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "C:\nWindows · 33.2 GB free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Working sets\nCollect items from many folders (references, never copies)\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Home\nC:\\Users\\admin\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Connect to a server…\nSFTP, FTPS, or FTP: new or saved connection"
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "D:\nCCCOMA_A64FRE_EN-US_DV9 · 0 free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "E:\nFCSETUP · 0 free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Z:\nFAT · 33.2 GB free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "This PC\nAll drives\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Network\nComputers and file servers on this network, and their shares\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Phones and cameras\nPortable devices over MTP (unlock a phone; on an iPhone trust this computer, on an Android phone choose File transfer)\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Registry (default view)\nLocal Registry · keys and typed values\nMiddle-click opens it in a new tab\nRight-click offers: Registry (64-bit), Registry (32-bit)"
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Desktop\nC:\\Users\\admin\\Desktop\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Documents\nC:\\Users\\admin\\Documents\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Downloads\nC:\\Users\\admin\\Downloads\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Recycle Bin\nDeleted items, read-only: view them and copy them out; restore or empty them in Windows' Recycle Bin\nMiddle-click opens it in a new tab\nRight-click offers: Recycle Bin in Windows"
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "More places: those the row has no room for"
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Change location (Alt+F1 / Alt+F2)"
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "33.1 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "33.1 GB free"
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Ctrl+Shift+F focuses this field. Show only matching items: *.txt;*.log; after |, exclude matches (*.*|*.tmp). Enter applies, Esc restores. Folders always show."
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "1 folder, 1 file · 18.5 KB",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "1 folder, 1 file · 18.5 KB"
+   },
+   {
+    "Name": "folder-release",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "folder-release"
+   },
+   {
+    "Name": "Panel 1, source, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns."
+   },
+   {
+    "Name": "Go to parent location",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "parent navigation, 1 of 3"
+   },
+   {
+    "Name": "folder-release",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "folder, modified 11/22/2026 7:37:49 PM, not marked, 2 of 3"
+   },
+   {
+    "Name": "zeta-unselected.txt",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "file, 18.5 KB, modified 11/22/2026 7:37:49 PM, not marked, 3 of 3"
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Vertical panel boundary, first side's share of panels 1 and 2",
+    "Type": "ControlType.Slider",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores."
+   },
+   {
+    "Name": "right, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Unlocked tab"
+   },
+   {
+    "Name": "right",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Choose a visible column to sort by. Choosing the current column reverses its order."
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "New tab (Ctrl+T)"
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "C:\nWindows · 33.2 GB free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Working sets\nCollect items from many folders (references, never copies)\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Home\nC:\\Users\\admin\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Connect to a server…\nSFTP, FTPS, or FTP: new or saved connection"
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "D:\nCCCOMA_A64FRE_EN-US_DV9 · 0 free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "E:\nFCSETUP · 0 free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Z:\nFAT · 33.2 GB free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "This PC\nAll drives\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Network\nComputers and file servers on this network, and their shares\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Phones and cameras\nPortable devices over MTP (unlock a phone; on an iPhone trust this computer, on an Android phone choose File transfer)\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Registry (default view)\nLocal Registry · keys and typed values\nMiddle-click opens it in a new tab\nRight-click offers: Registry (64-bit), Registry (32-bit)"
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Desktop\nC:\\Users\\admin\\Desktop\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Documents\nC:\\Users\\admin\\Documents\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Downloads\nC:\\Users\\admin\\Downloads\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Recycle Bin\nDeleted items, read-only: view them and copy them out; restore or empty them in Windows' Recycle Bin\nMiddle-click opens it in a new tab\nRight-click offers: Recycle Bin in Windows"
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "More places: those the row has no room for"
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Change location (Alt+F1 / Alt+F2)"
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "33.1 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "33.1 GB free"
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Ctrl+Shift+F focuses this field. Show only matching items: *.txt;*.log; after |, exclude matches (*.*|*.tmp). Enter applies, Esc restores. Folders always show."
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Panel 1 copies and moves here (F5, F6). With two panels the other panel is always the target.",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Panel 1 copies and moves here (F5, F6). With two panels the other panel is always the target."
+   },
+   {
+    "Name": "TARGET",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "0 folders, 0 files",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "0 folders, 0 files"
+   },
+   {
+    "Name": "Panel 2, target, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\right",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Empty location. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns."
+   },
+   {
+    "Name": "Go to parent location",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "parent navigation, 1 of 1"
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "The window is too small for every panel · F11 shows the active one whole",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Compress \"folder-release\" · selected folders and existing contents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Completed with issues  ·  2 changed, 0 already satisfied, 1 skipped, 0 failed, 0 uncertain, 0 not processed. The requested scope was not fully completed.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review"
+   },
+   {
+    "Name": "Details (Ctrl+J)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review>",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Command line",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Command line (Ctrl+E) · Ctrl+Enter inserts the focused name"
+   },
+   {
+    "Name": "Keyboard reference",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F1: Keyboard reference"
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Rename in place",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F2: Rename in place"
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Rename",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F3: View"
+   },
+   {
+    "Name": "3",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F4: Edit"
+   },
+   {
+    "Name": "4",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F5: Copy…"
+   },
+   {
+    "Name": "5",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F6: Move / rename…"
+   },
+   {
+    "Name": "6",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F7: Create folder…"
+   },
+   {
+    "Name": "7",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "MkDir",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F8: Delete…"
+   },
+   {
+    "Name": "8",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "User commands…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F9: User commands…"
+   },
+   {
+    "Name": "9",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "User",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Menu bar",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F10: Menu bar"
+   },
+   {
+    "Name": "10",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Menu",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Maximize or restore panel",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F11: Maximize or restore panel"
+   },
+   {
+    "Name": "11",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Maximize",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Focus panel…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F12: Focus panel…"
+   },
+   {
+    "Name": "12",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Compress \"folder-release\" · selected folders and existing contents: 2 changed, 0 already satisfied, 1 skipped, 0 failed, 0 uncertain, 0 not processed. The requested scope was not fully completed.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Copy notification",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Recent notifications",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Dismiss notification",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   }
+  ],
+  "Remove compression result": [
+   {
+    "Name": "WindowChrome",
+    "Type": "ControlType.Group",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "File",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Mark",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Navigate",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Commands",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Tools",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Search commands",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Type what you want to do: any command, by its name or other words for it. Ctrl+Shift+P comes here from anywhere."
+   },
+   {
+    "Name": "Back",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false,
+    "Help": "Back (Alt+Left)\nGoes back to the folder this tab showed before.\nUnavailable here: No earlier location in this tab."
+   },
+   {
+    "Name": "Back history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false,
+    "Help": "Back (Alt+Left)\nGoes back to the folder this tab showed before.\nUnavailable here: No earlier location in this tab."
+   },
+   {
+    "Name": "Forward",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false,
+    "Help": "Forward (Alt+Right)\nGoes forward again after going back.\nUnavailable here: No later location in this tab."
+   },
+   {
+    "Name": "Forward history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false,
+    "Help": "Forward (Alt+Right)\nGoes forward again after going back.\nUnavailable here: No later location in this tab."
+   },
+   {
+    "Name": "Go to parent",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Go to parent (Ctrl+PgUp)\nGoes up to the folder that holds this one (Backspace too)."
+   },
+   {
+    "Name": "Reread",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Reread (Ctrl+R)\nReads the folder again, with whatever changed in it."
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Copy… (F5)\nCopies the marked items (or the one under the cursor) to the target panel's folder, or to a place you choose."
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Move / rename… (F6)\nMoves the marked items (or the one under the cursor) to the target panel's folder, or renames them."
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Create folder… (F7)\nCreates a new folder in this panel's folder."
+   },
+   {
+    "Name": "New folder",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Delete… (F8)\nMoves the marked items (or the one under the cursor) to the Recycle Bin; Shift+Del deletes permanently."
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Find files…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Find files… (Alt+F7)\nSearches local folders by name, content, size, and date, or searches within a result set. From another provider, choose local folders explicitly before searching."
+   },
+   {
+    "Name": "Find",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Operations",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Operations (Ctrl+J)"
+   },
+   {
+    "Name": "Jobs",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "More toolbar commands",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "More toolbar commands, grouped by task. All commands also remain in the menus and command search."
+   },
+   {
+    "Name": "left-release-review, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Unlocked tab"
+   },
+   {
+    "Name": "left-release-review",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Choose a visible column to sort by. Choosing the current column reverses its order."
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "New tab (Ctrl+T)"
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "C:\nWindows · 33.2 GB free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Working sets\nCollect items from many folders (references, never copies)\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Home\nC:\\Users\\admin\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Connect to a server…\nSFTP, FTPS, or FTP: new or saved connection"
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "D:\nCCCOMA_A64FRE_EN-US_DV9 · 0 free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "E:\nFCSETUP · 0 free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Z:\nFAT · 33.2 GB free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "This PC\nAll drives\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Network\nComputers and file servers on this network, and their shares\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Phones and cameras\nPortable devices over MTP (unlock a phone; on an iPhone trust this computer, on an Android phone choose File transfer)\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Registry (default view)\nLocal Registry · keys and typed values\nMiddle-click opens it in a new tab\nRight-click offers: Registry (64-bit), Registry (32-bit)"
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Desktop\nC:\\Users\\admin\\Desktop\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Documents\nC:\\Users\\admin\\Documents\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Downloads\nC:\\Users\\admin\\Downloads\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Recycle Bin\nDeleted items, read-only: view them and copy them out; restore or empty them in Windows' Recycle Bin\nMiddle-click opens it in a new tab\nRight-click offers: Recycle Bin in Windows"
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "More places: those the row has no room for"
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Change location (Alt+F1 / Alt+F2)"
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "33.1 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "33.1 GB free"
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Ctrl+Shift+F focuses this field. Show only matching items: *.txt;*.log; after |, exclude matches (*.*|*.tmp). Enter applies, Esc restores. Folders always show."
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "1 folder, 1 file · 18.5 KB",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "1 folder, 1 file · 18.5 KB"
+   },
+   {
+    "Name": "folder-release",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "folder-release"
+   },
+   {
+    "Name": "Panel 1, source, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns."
+   },
+   {
+    "Name": "Go to parent location",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "parent navigation, 1 of 3"
+   },
+   {
+    "Name": "folder-release",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "folder, modified 11/22/2026 7:37:49 PM, not marked, 2 of 3"
+   },
+   {
+    "Name": "zeta-unselected.txt",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "file, 18.5 KB, modified 11/22/2026 7:37:49 PM, not marked, 3 of 3"
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Vertical panel boundary, first side's share of panels 1 and 2",
+    "Type": "ControlType.Slider",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores."
+   },
+   {
+    "Name": "right, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Unlocked tab"
+   },
+   {
+    "Name": "right",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Choose a visible column to sort by. Choosing the current column reverses its order."
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "New tab (Ctrl+T)"
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "C:\nWindows · 33.2 GB free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Working sets\nCollect items from many folders (references, never copies)\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Home\nC:\\Users\\admin\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Connect to a server…\nSFTP, FTPS, or FTP: new or saved connection"
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "D:\nCCCOMA_A64FRE_EN-US_DV9 · 0 free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "E:\nFCSETUP · 0 free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Z:\nFAT · 33.2 GB free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "This PC\nAll drives\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Network\nComputers and file servers on this network, and their shares\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Phones and cameras\nPortable devices over MTP (unlock a phone; on an iPhone trust this computer, on an Android phone choose File transfer)\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Registry (default view)\nLocal Registry · keys and typed values\nMiddle-click opens it in a new tab\nRight-click offers: Registry (64-bit), Registry (32-bit)"
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Desktop\nC:\\Users\\admin\\Desktop\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Documents\nC:\\Users\\admin\\Documents\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Downloads\nC:\\Users\\admin\\Downloads\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Recycle Bin\nDeleted items, read-only: view them and copy them out; restore or empty them in Windows' Recycle Bin\nMiddle-click opens it in a new tab\nRight-click offers: Recycle Bin in Windows"
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "More places: those the row has no room for"
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Change location (Alt+F1 / Alt+F2)"
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "33.1 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "33.1 GB free"
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Ctrl+Shift+F focuses this field. Show only matching items: *.txt;*.log; after |, exclude matches (*.*|*.tmp). Enter applies, Esc restores. Folders always show."
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Panel 1 copies and moves here (F5, F6). With two panels the other panel is always the target.",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Panel 1 copies and moves here (F5, F6). With two panels the other panel is always the target."
+   },
+   {
+    "Name": "TARGET",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "0 folders, 0 files",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "0 folders, 0 files"
+   },
+   {
+    "Name": "Panel 2, target, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\right",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Empty location. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns."
+   },
+   {
+    "Name": "Go to parent location",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "parent navigation, 1 of 1"
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "The window is too small for every panel · F11 shows the active one whole",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Remove compression from \"folder-release\" · selected folders and existing contents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Completed  ·  2 changed, 1 already satisfied, 0 skipped, 0 failed, 0 uncertain, 0 not processed. The requested scope was fully checked.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review"
+   },
+   {
+    "Name": "Details (Ctrl+J)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review>",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Command line",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Command line (Ctrl+E) · Ctrl+Enter inserts the focused name"
+   },
+   {
+    "Name": "Keyboard reference",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F1: Keyboard reference"
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Rename in place",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F2: Rename in place"
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Rename",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F3: View"
+   },
+   {
+    "Name": "3",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F4: Edit"
+   },
+   {
+    "Name": "4",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F5: Copy…"
+   },
+   {
+    "Name": "5",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F6: Move / rename…"
+   },
+   {
+    "Name": "6",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F7: Create folder…"
+   },
+   {
+    "Name": "7",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "MkDir",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F8: Delete…"
+   },
+   {
+    "Name": "8",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "User commands…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F9: User commands…"
+   },
+   {
+    "Name": "9",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "User",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Menu bar",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F10: Menu bar"
+   },
+   {
+    "Name": "10",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Menu",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Maximize or restore panel",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F11: Maximize or restore panel"
+   },
+   {
+    "Name": "11",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Maximize",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Focus panel…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F12: Focus panel…"
+   },
+   {
+    "Name": "12",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Copy notification",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": true,
+    "Help": ""
+   },
+   {
+    "Name": "Recent notifications",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": true,
+    "Help": ""
+   },
+   {
+    "Name": "Dismiss notification",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": true,
+    "Help": ""
+   }
+  ],
+  "Remove compression review": [
+   {
+    "Name": "WindowChrome",
+    "Type": "ControlType.Group",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "File",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Mark",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Navigate",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Commands",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Tools",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Back",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false,
+    "Help": "Back (Alt+Left)\nGoes back to the folder this tab showed before.\nUnavailable here: No earlier location in this tab."
+   },
+   {
+    "Name": "Back history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false,
+    "Help": "Back (Alt+Left)\nGoes back to the folder this tab showed before.\nUnavailable here: No earlier location in this tab."
+   },
+   {
+    "Name": "Forward",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false,
+    "Help": "Forward (Alt+Right)\nGoes forward again after going back.\nUnavailable here: No later location in this tab."
+   },
+   {
+    "Name": "Forward history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false,
+    "Help": "Forward (Alt+Right)\nGoes forward again after going back.\nUnavailable here: No later location in this tab."
+   },
+   {
+    "Name": "Go to parent",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Go to parent (Ctrl+PgUp)\nGoes up to the folder that holds this one (Backspace too)."
+   },
+   {
+    "Name": "Reread",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Reread (Ctrl+R)\nReads the folder again, with whatever changed in it."
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Copy… (F5)\nCopies the marked items (or the one under the cursor) to the target panel's folder, or to a place you choose."
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Move / rename… (F6)\nMoves the marked items (or the one under the cursor) to the target panel's folder, or renames them."
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Create folder… (F7)\nCreates a new folder in this panel's folder."
+   },
+   {
+    "Name": "New folder",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Delete… (F8)\nMoves the marked items (or the one under the cursor) to the Recycle Bin; Shift+Del deletes permanently."
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Find files…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Find files… (Alt+F7)\nSearches local folders by name, content, size, and date, or searches within a result set. From another provider, choose local folders explicitly before searching."
+   },
+   {
+    "Name": "Find",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Operations",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Operations (Ctrl+J)"
+   },
+   {
+    "Name": "Jobs",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "More toolbar commands",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "More toolbar commands, grouped by task. All commands also remain in the menus and command search."
+   },
+   {
+    "Name": "left-release-review, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Unlocked tab"
+   },
+   {
+    "Name": "left-release-review",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Choose a visible column to sort by. Choosing the current column reverses its order."
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "New tab (Ctrl+T)"
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "C:\nWindows · 33.2 GB free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Working sets\nCollect items from many folders (references, never copies)\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Home\nC:\\Users\\admin\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Connect to a server…\nSFTP, FTPS, or FTP: new or saved connection"
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "D:\nCCCOMA_A64FRE_EN-US_DV9 · 0 free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "E:\nFCSETUP · 0 free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Z:\nFAT · 33.2 GB free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "This PC\nAll drives\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Network\nComputers and file servers on this network, and their shares\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Phones and cameras\nPortable devices over MTP (unlock a phone; on an iPhone trust this computer, on an Android phone choose File transfer)\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Registry (default view)\nLocal Registry · keys and typed values\nMiddle-click opens it in a new tab\nRight-click offers: Registry (64-bit), Registry (32-bit)"
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Desktop\nC:\\Users\\admin\\Desktop\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Documents\nC:\\Users\\admin\\Documents\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Downloads\nC:\\Users\\admin\\Downloads\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Recycle Bin\nDeleted items, read-only: view them and copy them out; restore or empty them in Windows' Recycle Bin\nMiddle-click opens it in a new tab\nRight-click offers: Recycle Bin in Windows"
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "More places: those the row has no room for"
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Change location (Alt+F1 / Alt+F2)"
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "33.1 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "33.1 GB free"
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Ctrl+Shift+F focuses this field. Show only matching items: *.txt;*.log; after |, exclude matches (*.*|*.tmp). Enter applies, Esc restores. Folders always show."
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "1 folder, 1 file · 18.5 KB",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "1 folder, 1 file · 18.5 KB"
+   },
+   {
+    "Name": "folder-release",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "folder-release"
+   },
+   {
+    "Name": "Panel 1, source, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns."
+   },
+   {
+    "Name": "Go to parent location",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "parent navigation, 1 of 3"
+   },
+   {
+    "Name": "folder-release",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "folder, modified 11/22/2026 7:37:49 PM, not marked, 2 of 3"
+   },
+   {
+    "Name": "zeta-unselected.txt",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "file, 18.5 KB, modified 11/22/2026 7:37:49 PM, not marked, 3 of 3"
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Vertical panel boundary, first side's share of panels 1 and 2",
+    "Type": "ControlType.Slider",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores."
+   },
+   {
+    "Name": "right, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Unlocked tab"
+   },
+   {
+    "Name": "right",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Choose a visible column to sort by. Choosing the current column reverses its order."
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "New tab (Ctrl+T)"
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "C:\nWindows · 33.2 GB free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Working sets\nCollect items from many folders (references, never copies)\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Home\nC:\\Users\\admin\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Connect to a server…\nSFTP, FTPS, or FTP: new or saved connection"
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "D:\nCCCOMA_A64FRE_EN-US_DV9 · 0 free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "E:\nFCSETUP · 0 free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Z:\nFAT · 33.2 GB free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "This PC\nAll drives\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Network\nComputers and file servers on this network, and their shares\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Phones and cameras\nPortable devices over MTP (unlock a phone; on an iPhone trust this computer, on an Android phone choose File transfer)\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Registry (default view)\nLocal Registry · keys and typed values\nMiddle-click opens it in a new tab\nRight-click offers: Registry (64-bit), Registry (32-bit)"
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Desktop\nC:\\Users\\admin\\Desktop\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Documents\nC:\\Users\\admin\\Documents\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Downloads\nC:\\Users\\admin\\Downloads\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Recycle Bin\nDeleted items, read-only: view them and copy them out; restore or empty them in Windows' Recycle Bin\nMiddle-click opens it in a new tab\nRight-click offers: Recycle Bin in Windows"
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "More places: those the row has no room for"
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Change location (Alt+F1 / Alt+F2)"
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "33.1 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "33.1 GB free"
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Ctrl+Shift+F focuses this field. Show only matching items: *.txt;*.log; after |, exclude matches (*.*|*.tmp). Enter applies, Esc restores. Folders always show."
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Panel 1 copies and moves here (F5, F6). With two panels the other panel is always the target.",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Panel 1 copies and moves here (F5, F6). With two panels the other panel is always the target."
+   },
+   {
+    "Name": "TARGET",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "0 folders, 0 files",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "0 folders, 0 files"
+   },
+   {
+    "Name": "Panel 2, target, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\right",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Empty location. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns."
+   },
+   {
+    "Name": "Go to parent location",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "parent navigation, 1 of 1"
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "The window is too small for every panel · F11 shows the active one whole",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Compress \"folder-release\" · selected folders and existing contents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Completed with issues  ·  2 changed, 0 already satisfied, 1 skipped, 0 failed, 0 uncertain, 0 not processed. The requested scope was not fully completed.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review"
+   },
+   {
+    "Name": "Details (Ctrl+J)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review>",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Command line",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Command line (Ctrl+E) · Ctrl+Enter inserts the focused name"
+   },
+   {
+    "Name": "Keyboard reference",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F1: Keyboard reference"
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Rename in place",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F2: Rename in place"
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Rename",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F3: View"
+   },
+   {
+    "Name": "3",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F4: Edit"
+   },
+   {
+    "Name": "4",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F5: Copy…"
+   },
+   {
+    "Name": "5",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F6: Move / rename…"
+   },
+   {
+    "Name": "6",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F7: Create folder…"
+   },
+   {
+    "Name": "7",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "MkDir",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F8: Delete…"
+   },
+   {
+    "Name": "8",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "User commands…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F9: User commands…"
+   },
+   {
+    "Name": "9",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "User",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Menu bar",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F10: Menu bar"
+   },
+   {
+    "Name": "10",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Menu",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Maximize or restore panel",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F11: Maximize or restore panel"
+   },
+   {
+    "Name": "11",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Maximize",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Focus panel…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F12: Focus panel…"
+   },
+   {
+    "Name": "12",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "NTFS compression… dialog",
+    "Type": "ControlType.Group",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "NTFS compression…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Close dialog",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Cancel this dialog without applying changes. Esc also closes it."
+   },
+   {
+    "Name": "NTFS compression… content",
+    "Type": "ControlType.Pane",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "1 selected items. Includes 0 marked items hidden by the filter.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Compression: 1 enabled, 0 disabled, 0 unknown or unreadable, 0 unsupported.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Current state of selected items. Folder contents have not been inspected.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Choose action",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Compress",
+    "Type": "ControlType.RadioButton",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Remove compression",
+    "Type": "ControlType.RadioButton",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Removing compression can require additional free space.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Selected items only",
+    "Type": "ControlType.RadioButton",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Selected folders and their existing contents",
+    "Type": "ControlType.RadioButton",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Includes hidden items. Links and unsupported items are left unchanged and reported. Files added or moved while this runs may be missed.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Every selected item passed inspection for this action.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Retry inspection of the original selected items",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "All 1 selected items, including hidden marks",
+    "Type": "ControlType.Group",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Selected items (1)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Selected items (1)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Changes the main file data or folder default. Alternate data streams keep their own compression settings.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Storage changes run separately from other tracked file operations. Later queued operations may wait while this change is queued, paused, or waiting for your decision.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Cancel",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Queue",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Remove compression",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Selected folders and their existing contents. Changes main data or folder defaults. Alternate data streams keep their compression settings."
+   },
+   {
+    "Name": "◢",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Resize dialog",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Drag to resize, or use arrow keys. Hold Shift for larger steps."
+   }
+  ],
+  "Compress review": [
+   {
+    "Name": "WindowChrome",
+    "Type": "ControlType.Group",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "File",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Mark",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Navigate",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Commands",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Tools",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.MenuItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Back",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false,
+    "Help": "Back (Alt+Left)\nGoes back to the folder this tab showed before.\nUnavailable here: No earlier location in this tab."
+   },
+   {
+    "Name": "Back history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false,
+    "Help": "Back (Alt+Left)\nGoes back to the folder this tab showed before.\nUnavailable here: No earlier location in this tab."
+   },
+   {
+    "Name": "Forward",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false,
+    "Help": "Forward (Alt+Right)\nGoes forward again after going back.\nUnavailable here: No later location in this tab."
+   },
+   {
+    "Name": "Forward history",
+    "Type": "ControlType.Button",
+    "Enabled": false,
+    "Offscreen": false,
+    "Help": "Forward (Alt+Right)\nGoes forward again after going back.\nUnavailable here: No later location in this tab."
+   },
+   {
+    "Name": "Go to parent",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Go to parent (Ctrl+PgUp)\nGoes up to the folder that holds this one (Backspace too)."
+   },
+   {
+    "Name": "Reread",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Reread (Ctrl+R)\nReads the folder again, with whatever changed in it."
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Copy… (F5)\nCopies the marked items (or the one under the cursor) to the target panel's folder, or to a place you choose."
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Move / rename… (F6)\nMoves the marked items (or the one under the cursor) to the target panel's folder, or renames them."
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Create folder… (F7)\nCreates a new folder in this panel's folder."
+   },
+   {
+    "Name": "New folder",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Delete… (F8)\nMoves the marked items (or the one under the cursor) to the Recycle Bin; Shift+Del deletes permanently."
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Find files…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Find files… (Alt+F7)\nSearches local folders by name, content, size, and date, or searches within a result set. From another provider, choose local folders explicitly before searching."
+   },
+   {
+    "Name": "Find",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Operations",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Operations (Ctrl+J)"
+   },
+   {
+    "Name": "Jobs",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "More toolbar commands",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "More toolbar commands, grouped by task. All commands also remain in the menus and command search."
+   },
+   {
+    "Name": "left-release-review, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Unlocked tab"
+   },
+   {
+    "Name": "left-release-review",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Choose a visible column to sort by. Choosing the current column reverses its order."
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "New tab (Ctrl+T)"
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "C:\nWindows · 33.2 GB free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Working sets\nCollect items from many folders (references, never copies)\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Home\nC:\\Users\\admin\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Connect to a server…\nSFTP, FTPS, or FTP: new or saved connection"
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "D:\nCCCOMA_A64FRE_EN-US_DV9 · 0 free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "E:\nFCSETUP · 0 free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Z:\nFAT · 33.2 GB free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "This PC\nAll drives\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Network\nComputers and file servers on this network, and their shares\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Phones and cameras\nPortable devices over MTP (unlock a phone; on an iPhone trust this computer, on an Android phone choose File transfer)\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Registry (default view)\nLocal Registry · keys and typed values\nMiddle-click opens it in a new tab\nRight-click offers: Registry (64-bit), Registry (32-bit)"
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Desktop\nC:\\Users\\admin\\Desktop\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Documents\nC:\\Users\\admin\\Documents\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Downloads\nC:\\Users\\admin\\Downloads\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Recycle Bin\nDeleted items, read-only: view them and copy them out; restore or empty them in Windows' Recycle Bin\nMiddle-click opens it in a new tab\nRight-click offers: Recycle Bin in Windows"
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "More places: those the row has no room for"
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Change location (Alt+F1 / Alt+F2)"
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "33.1 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "33.1 GB free"
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Ctrl+Shift+F focuses this field. Show only matching items: *.txt;*.log; after |, exclude matches (*.*|*.tmp). Enter applies, Esc restores. Folders always show."
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "1 folder, 1 file · 18.5 KB",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "1 folder, 1 file · 18.5 KB"
+   },
+   {
+    "Name": "folder-release",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "folder-release"
+   },
+   {
+    "Name": "Panel 1, source, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns."
+   },
+   {
+    "Name": "Go to parent location",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "parent navigation, 1 of 3"
+   },
+   {
+    "Name": "folder-release",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "folder, modified 11/22/2026 7:37:49 PM, not marked, 2 of 3"
+   },
+   {
+    "Name": "zeta-unselected.txt",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "file, 18.5 KB, modified 11/22/2026 7:37:49 PM, not marked, 3 of 3"
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Vertical panel boundary, first side's share of panels 1 and 2",
+    "Type": "ControlType.Slider",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Arrow keys resize; Shift+arrow moves farther; Tab chooses another boundary; Enter saves; Escape restores."
+   },
+   {
+    "Name": "right, Unlocked tab, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Unlocked tab"
+   },
+   {
+    "Name": "right",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Sort files: Name, ascending",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Choose a visible column to sort by. Choosing the current column reverses its order."
+   },
+   {
+    "Name": "+",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "New tab (Ctrl+T)"
+   },
+   {
+    "Name": "C:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "C:\nWindows · 33.2 GB free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "C",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Working sets\nCollect items from many folders (references, never copies)\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Working sets",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Home\nC:\\Users\\admin\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Home",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Connect to a server…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Connect to a server…\nSFTP, FTPS, or FTP: new or saved connection"
+   },
+   {
+    "Name": "Connect…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "D:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "D:\nCCCOMA_A64FRE_EN-US_DV9 · 0 free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "D",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "E:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "E:\nFCSETUP · 0 free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "E",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Z:",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Z:\nFAT · 33.2 GB free\nMiddle-click opens it in a new tab\nRight-click for drive properties"
+   },
+   {
+    "Name": "Z",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "This PC\nAll drives\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "This PC",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Network\nComputers and file servers on this network, and their shares\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Network",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Phones and cameras\nPortable devices over MTP (unlock a phone; on an iPhone trust this computer, on an Android phone choose File transfer)\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Phones and cameras",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Registry (default view)\nLocal Registry · keys and typed values\nMiddle-click opens it in a new tab\nRight-click offers: Registry (64-bit), Registry (32-bit)"
+   },
+   {
+    "Name": "Registry (default view)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Desktop\nC:\\Users\\admin\\Desktop\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Desktop",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Documents\nC:\\Users\\admin\\Documents\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Documents",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Downloads\nC:\\Users\\admin\\Downloads\nMiddle-click opens it in a new tab"
+   },
+   {
+    "Name": "Downloads",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Recycle Bin\nDeleted items, read-only: view them and copy them out; restore or empty them in Windows' Recycle Bin\nMiddle-click opens it in a new tab\nRight-click offers: Recycle Bin in Windows"
+   },
+   {
+    "Name": "Recycle Bin",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "More places",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "More places: those the row has no room for"
+   },
+   {
+    "Name": "»",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "▾",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Change location (Alt+F1 / Alt+F2)"
+   },
+   {
+    "Name": "Location",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "33.1 GB free",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "33.1 GB free"
+   },
+   {
+    "Name": "Filter",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Ctrl+Shift+F focuses this field. Show only matching items: *.txt;*.log; after |, exclude matches (*.*|*.tmp). Enter applies, Esc restores. Folders always show."
+   },
+   {
+    "Name": "Filter ready",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Panel 1 copies and moves here (F5, F6). With two panels the other panel is always the target.",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Panel 1 copies and moves here (F5, F6). With two panels the other panel is always the target."
+   },
+   {
+    "Name": "TARGET",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "0 folders, 0 files",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "0 folders, 0 files"
+   },
+   {
+    "Name": "Panel 2, target, C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\right",
+    "Type": "ControlType.List",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Empty location. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns."
+   },
+   {
+    "Name": "Go to parent location",
+    "Type": "ControlType.ListItem",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "parent navigation, 1 of 1"
+   },
+   {
+    "Name": "Listing columns",
+    "Type": "ControlType.ScrollBar",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page left",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Column right",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review>",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Command line",
+    "Type": "ControlType.Edit",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Command line (Ctrl+E) · Ctrl+Enter inserts the focused name"
+   },
+   {
+    "Name": "Keyboard reference",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F1: Keyboard reference"
+   },
+   {
+    "Name": "1",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Help",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Rename in place",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F2: Rename in place"
+   },
+   {
+    "Name": "2",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Rename",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F3: View"
+   },
+   {
+    "Name": "3",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "View",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F4: Edit"
+   },
+   {
+    "Name": "4",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Edit",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Copy…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F5: Copy…"
+   },
+   {
+    "Name": "5",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Copy",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Move / rename…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F6: Move / rename…"
+   },
+   {
+    "Name": "6",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Move",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Create folder…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F7: Create folder…"
+   },
+   {
+    "Name": "7",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "MkDir",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Delete…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F8: Delete…"
+   },
+   {
+    "Name": "8",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Delete",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "User commands…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F9: User commands…"
+   },
+   {
+    "Name": "9",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "User",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Menu bar",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F10: Menu bar"
+   },
+   {
+    "Name": "10",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Menu",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Maximize or restore panel",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F11: Maximize or restore panel"
+   },
+   {
+    "Name": "11",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Maximize",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Focus panel…",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "F12: Focus panel…"
+   },
+   {
+    "Name": "12",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Panels",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "NTFS compression… dialog",
+    "Type": "ControlType.Group",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "NTFS compression…",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Close dialog",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Cancel this dialog without applying changes. Esc also closes it."
+   },
+   {
+    "Name": "NTFS compression… content",
+    "Type": "ControlType.Pane",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "1 selected items. Includes 0 marked items hidden by the filter.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Compression: 0 enabled, 1 disabled, 0 unknown or unreadable, 0 unsupported.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Current state of selected items. Folder contents have not been inspected.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Choose action",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Compress",
+    "Type": "ControlType.RadioButton",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Remove compression",
+    "Type": "ControlType.RadioButton",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "NTFS compression may reduce disk space used. Results depend on the file and performance may change.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Selected items only",
+    "Type": "ControlType.RadioButton",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Selected folders and their existing contents",
+    "Type": "ControlType.RadioButton",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Includes hidden items. Links and unsupported items are left unchanged and reported. Files added or moved while this runs may be missed.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Every selected item passed inspection for this action.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Retry inspection of the original selected items",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "All 1 selected items, including hidden marks",
+    "Type": "ControlType.Group",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Selected items (1)",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Selected items (1)",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Changes the main file data or folder default. Alternate data streams keep their own compression settings.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Storage changes run separately from other tracked file operations. Later queued operations may wait while this change is queued, paused, or waiting for your decision.",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Line up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page up",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Page down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Position",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Line down",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Cancel",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Queue",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Compress",
+    "Type": "ControlType.Button",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Selected folders and their existing contents. Changes main data or folder defaults. Alternate data streams keep their compression settings."
+   },
+   {
+    "Name": "◢",
+    "Type": "ControlType.Text",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": ""
+   },
+   {
+    "Name": "Resize dialog",
+    "Type": "ControlType.Thumb",
+    "Enabled": true,
+    "Offscreen": false,
+    "Help": "Drag to resize, or use arrow keys. Hold Shift for larger steps."
+   }
+  ]
+ },
+ "Speech": {
+  "Compress folder scope": [
+   "[LangChangeCommand ('en_US'), 'checked']"
+  ],
+  "Compress radio": [
+   "[LangChangeCommand ('en_US'), 'Every selected item passed inspection for this action.']",
+   "[LangChangeCommand ('en_US'), 'checked']"
+  ],
+  "Remove compression review": [
+   "[LangChangeCommand ('en_US'), 'Choose an action to continue.']",
+   "[LangChangeCommand ('en_US'), 'NTFS compression… dialog', 'grouping', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Compress', 'radio button', 'not checked', CancellableSpeech (still valid)]"
+  ],
+  "Remove compression folder scope": [
+   "[LangChangeCommand ('en_US'), 'checked']"
+  ],
+  "Compress review": [
+   "[LangChangeCommand ('en_US'), 'Choose an action to continue.']",
+   "[LangChangeCommand ('en_US'), 'NTFS compression… dialog', 'grouping', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Compress', 'radio button', 'not checked', CancellableSpeech (still valid)]"
+  ],
+  "active FileCat window": [
+   "[LangChangeCommand ('en_US'), 'Loading NVDA. Please wait...']",
+   "[LangChangeCommand ('en_US'), 'FileCat — left-release-review — admin (administrator, not elevated)', 'window', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Panel 1, source, C:\\\\Users\\\\admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\release-r1\\\\session-bd75fb0c\\\\left-release-review', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]"
+  ],
+  "Remove compression radio": [
+   "[LangChangeCommand ('en_US'), 'Every selected item passed inspection for this action.']",
+   "[LangChangeCommand ('en_US'), 'checked']"
+  ],
+  "focused folder": [
+   "[LangChangeCommand ('en_US'), 'Go to parent location', 'parent navigation, 1 of 3', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Go to parent location', 'list item', 'focused', 'parent navigation, 1 of 3']",
+   "[LangChangeCommand ('en_US'), 'folder-release', 'not selected', 'folder, modified 11/22/2026 7:37:49 PM, not marked, 2 of 3', CancellableSpeech (still valid)]"
+  ],
+  "Compress folder scope focus": [
+   "[LangChangeCommand ('en_US'), 'Remove compression', 'radio button', 'not checked', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Selected items only', 'radio button', 'checked', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Selected folders and their existing contents', 'radio button', 'not checked', CancellableSpeech (still valid)]"
+  ],
+  "Remove compression radio focus": [
+   "[LangChangeCommand ('en_US'), 'Choose an action to continue.']",
+   "[LangChangeCommand ('en_US'), 'NTFS compression… dialog', 'grouping', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Compress', 'radio button', 'not checked', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Remove compression', 'radio button', 'not checked', CancellableSpeech (still valid)]"
+  ],
+  "focus after the palette checks": [
+   "[LangChangeCommand ('en_US'), 'Search commands', 'edit', 'EFS p', 'Type what you want to do: any command, by its name or other words for it. Ctrl+Shift+P comes here from anywhere.', CancellableSpeech (still valid)]",
+   "[PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'E', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'F', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'S', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[LangChangeCommand ('en_US'), 'space', EndUtteranceCommand()]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 'p', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 'r', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 't', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 'e', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 'c', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 't', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 'i', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 'n', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[LangChangeCommand ('en_US'), 'Panel 1, source, C:\\\\Users\\\\admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\release-r1\\\\session-bd75fb0c\\\\left-release-review', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'folder-release', 'not selected', 'folder, modified 11/22/2026 7:37:49 PM, not marked, 2 of 3', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Search commands', 'edit', 'Back up EFS key', 'Type what you want to do: any command, by its name or other words for it. Ctrl+Shift+P comes here from anywhere.', CancellableSpeech (still valid)]",
+   "[PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'B', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 'a', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 'c', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 'k', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[LangChangeCommand ('en_US'), 'space', EndUtteranceCommand()]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 'u', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 'p', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[LangChangeCommand ('en_US'), 'space', EndUtteranceCommand()]",
+   "[PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'E', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'F', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'S', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[LangChangeCommand ('en_US'), 'space', EndUtteranceCommand()]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 'k', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 'e', EndUtteranceCommand(), CharacterModeCommand(False)]",
+   "[CharacterModeCommand(True), LangChangeCommand ('en_US'), 'y', EndUtteranceCommand(), CharacterModeCommand(False)]"
+  ],
+  "Remove compression folder scope focus": [
+   "[LangChangeCommand ('en_US'), 'Selected items only', 'radio button', 'checked', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Selected folders and their existing contents', 'radio button', 'not checked', CancellableSpeech (still valid)]"
+  ],
+  "Compress radio focus": [
+   "[LangChangeCommand ('en_US'), 'Choose an action to continue.']",
+   "[LangChangeCommand ('en_US'), 'NTFS compression… dialog', 'grouping', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Compress', 'radio button', 'not checked', CancellableSpeech (still valid)]"
+  ],
+  "focus after removal": [
+   "[LangChangeCommand ('en_US'), 'Retry inspection of the original selected items', 'button', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'All 1 selected items, including hidden marks', 'grouping', 'collapsed', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Selected items (1)', 'toggle button', 'not pressed', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Cancel', 'button', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Queue', 'button', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Remove compression', 'button', 'Selected folders and their existing contents. Changes main data or folder defaults. Alternate data streams keep their compression settings.', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Panel 1, source, C:\\\\Users\\\\admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\release-r1\\\\session-bd75fb0c\\\\left-release-review', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'folder-release', 'unavailable', 'This item belongs to a previous listing and cannot be acted on.', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Remove compression from \"folder-release\" · selected folders and existing contents: 2 changed, 1 already satisfied, 0 skipped, 0 failed, 0 uncertain, 0 not processed. The requested scope was fully checked.']",
+   "[LangChangeCommand ('en_US'), 'folder-release', 'not selected', 'folder, modified 11/22/2026 7:37:49 PM, not marked, 2 of 3', CancellableSpeech (still valid)]"
+  ],
+  "focus after compression": [
+   "[LangChangeCommand ('en_US'), 'Retry inspection of the original selected items', 'button', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'All 1 selected items, including hidden marks', 'grouping', 'collapsed', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Selected items (1)', 'toggle button', 'not pressed', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Cancel', 'button', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Queue', 'button', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Compress', 'button', 'Selected folders and their existing contents. Changes main data or folder defaults. Alternate data streams keep their compression settings.', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'Compress \"folder-release\" · selected folders and existing contents: 2 changed, 0 already satisfied, 1 skipped, 0 failed, 0 uncertain, 0 not processed. The requested scope was not fully completed.']",
+   "[LangChangeCommand ('en_US'), 'Panel 1, source, C:\\\\Users\\\\admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\release-r1\\\\session-bd75fb0c\\\\left-release-review', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]",
+   "[LangChangeCommand ('en_US'), 'folder-release', 'not selected', 'folder, modified 11/22/2026 7:37:49 PM, not marked, 2 of 3', CancellableSpeech (still valid)]"
+  ]
+ },
+ "Results": {
+  "Remove compression operation text": [
+   "Remove compression from \"folder-release\" · selected folders and existing contents ",
+   "Remove compression from \"folder-release\" · selected folders and existing contents: 2 changed, 1 already satisfied, 0 skipped, 0 failed, 0 uncertain, 0 not processed. The requested scope was fully checked. "
+  ],
+  "palette Back up EFS key": 0,
+  "Remove compression": "Remove compression from \"folder-release\" · selected folders and existing contents: 2 changed, 1 already satisfied, 0 skipped, 0 failed, 0 uncertain, 0 not processed. The requested scope was fully checked.",
+  "Compress footer help": "Selected folders and their existing contents. Changes main data or folder defaults. Alternate data streams keep their compression settings.",
+  "Compress operation text": [
+   "Compress \"folder-release\" · selected folders and existing contents ",
+   "Compress \"folder-release\" · selected folders and existing contents: 2 changed, 0 already satisfied, 1 skipped, 0 failed, 0 uncertain, 0 not processed. The requested scope was not fully completed. "
+  ],
+  "Remove compression footer help": "Selected folders and their existing contents. Changes main data or folder defaults. Alternate data streams keep their compression settings.",
+  "palette EFS protection": 0,
+  "after compress": {
+   "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review\\zeta-unselected.txt": false,
+   "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review\\folder-release\\inside.txt": true,
+   "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review\\folder-release": true,
+   "C:\\Users\\admin\\AppData\\Local\\FileCatValidation\\release-r1\\session-bd75fb0c\\left-release-review\\folder-release\\locked.txt": false
+  },
+  "Compress": "Compress \"folder-release\" · selected folders and existing contents: 2 changed, 0 already satisfied, 1 skipped, 0 failed, 0 uncertain, 0 not processed. The requested scope was not fully completed."
+ },
+ "Fixture": "session-bd75fb0c",
+ "FileCatDllSHA256": "549A7D18CAFFDBC31D2D6829BBAC8730A9FECBE3A4507B45732D256656A1B350",
+ "WindowsDllSHA256": "9F177ADF8071272AC61103E125BEEB0639358CC71D973F268923826825F0700E",
+ "NvdaVersion": "2026.3.1",
+ "ClientDip": [
+  640,
+  420
+ ],
+ "Dpi": 96
+}

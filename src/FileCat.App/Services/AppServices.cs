@@ -144,9 +144,9 @@ public sealed class AppServices : IDisposable
         Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory,
             archiveBackends ?? Core.Archives.ArchiveJobBackends.Empty, storageTransforms ?? Platform.StorageTransforms,
             qualifyNativeArm64Storage ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateArm64QualificationJournal :
-                FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateJournal : null,
+                FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateReleaseJournal : null,
             qualifyNativeArm64Storage ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.Arm64QualificationBackend :
-                FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.Backend : null);
+                FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.ReleaseBackend : null);
         Archives.MutationAvailability = plan => Jobs.CanReviewArchive(plan) ? Jobs.ArchiveAvailability(plan)
             : Core.Archives.ArchiveJobAvailability.Unqualified;
         // A ZIP route composed here moves ZIP changes to the worker profile, available or refused with its reason; without

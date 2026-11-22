@@ -19,7 +19,9 @@ public sealed partial class WindowsStorageInspectionTests
             adapter.Unavailable(StorageAction.Compress)?.Code == "target-unqualified");
         Assert.Equal("efs-unqualified", adapter.Unavailable(StorageAction.EncryptEfs)?.Code);
         if (WindowsStorageTransforms.IsQualifiedHost) return;
-        Assert.False(WindowsStorageReviewEvidence.IsSupportedHost);
+        // Native Arm64 is released through its own opted-in adapter and backend, never through these x64 defaults.
+        Assert.Equal(WindowsStorageTransforms.IsNativeArm64QualificationHost && !WindowsTokenAuthority.IsHighIntegrity,
+            WindowsStorageReviewEvidence.IsSupportedHost);
         Assert.Throws<UnauthorizedAccessException>(() => WindowsStorageReviewEvidence.Backend.OpenCursor(
             Path.Join(Path.GetTempPath(), "filecat-must-not-create-" + Guid.NewGuid().ToString("N")), false, TestContext.Current.CancellationToken));
     }

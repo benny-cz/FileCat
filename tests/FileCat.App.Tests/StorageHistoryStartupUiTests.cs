@@ -20,7 +20,7 @@ public sealed class StorageHistoryStartupUiTests
     [InlineData(StorageAction.DecryptEfs, "Decrypt EFS")]
     public async Task Private_Windows_history_can_be_acknowledged_and_its_summary_survives_restart(StorageAction action, string label)
     {
-        Assert.SkipWhen(!FileCat.Platform.Windows.WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client private storage evidence and normal-user ACL fixture.");
+        Assert.SkipWhen(!FileCat.Platform.Windows.WindowsStorageTransforms.IsReleaseHost, "Released Windows 11 client (native x64 or Arm64) private storage evidence and normal-user ACL fixture.");
         Assert.False(WindowsTokenAuthority.IsHighIntegrity, "Run this fixture in the disposable normal-user Windows test process.");
         string state = Directory.CreateTempSubdirectory("filecat-storage-startup-").FullName;
         var paths = AppPaths.Resolve(overrideRoot: state); string journalDirectory = Directory.CreateDirectory(paths.JournalDirectory).FullName;
