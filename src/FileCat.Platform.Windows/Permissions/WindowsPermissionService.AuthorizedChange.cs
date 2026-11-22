@@ -71,10 +71,10 @@ internal sealed unsafe partial class WindowsPermissionService
     internal static PermissionSnapshot PreviewAuthorizedChange(PermissionSnapshot original, PermissionDelta delta) =>
         ProjectAuthorizedChange(original, delta).Expected;
 
-    // A volume root, and a file DACL stored without SE_DACL_AUTO_INHERITED (see HasLegacyDacl), are written as a descriptor.
+    // A volume root and every file DACL rule edit are written as a descriptor (see HasLegacyDacl): SetSecurityInfo would
+    // rebuild inherited entries from the current parent or convert a legacy DACL.
     private static bool WritesAuthorizedDescriptor(PermissionSnapshot original, PermissionDelta delta) =>
-        original.Binding?.Identity.Kind == PermissionObjectKind.VolumeRoot ||
-        delta is AddWindowsAce or ChangeWindowsAce && HasLegacyDacl(original);
+        original.Binding?.Identity.Kind == PermissionObjectKind.VolumeRoot || delta is AddWindowsAce or ChangeWindowsAce;
 
     private static (PermissionSnapshot Expected, uint Section, ImmutableArray<byte> Bytes) ProjectAuthorizedChange(
         PermissionSnapshot original, PermissionDelta delta)
