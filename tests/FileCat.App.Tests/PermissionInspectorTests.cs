@@ -481,6 +481,9 @@ public sealed class PermissionInspectorTests
             }
             await Until(() => window.GetVisualDescendants().OfType<UnixPermissionModeEditor>().Any(), ct);
             Assert.True(TextPresent(window, "SFTP identifies this item by its server path"));
+            // SFTP shows only mode bits, so server ACLs on an ancestor (NFSv4 ACLs on ZFS or NFS servers, Darwin ACLs) are
+            // disclosed as a residual rather than checked.
+            Assert.True(TextPresent(window, "accounts with ancestor write rights through server ACLs can still redirect a request"));
             Assert.True(TextPresent(window, profile.User + "@127.0.0.1"));
             var octal = window.GetVisualDescendants().OfType<TextBox>().Single(field => AutomationProperties.GetName(field) == "Permissions as octal");
             octal.Text = compound ? "2620" : "640";
