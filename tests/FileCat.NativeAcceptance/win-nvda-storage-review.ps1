@@ -10,7 +10,10 @@ param(
     [switch]$VerifyAlreadySatisfied,
     [switch]$VerifyCanceledKeyBackup,
     [switch]$VerifyCompletedKeyBackup,
-    [switch]$VerifySelectedFileBackup
+    [switch]$VerifySelectedFileBackup,
+    # The shipped FileCat.exe with its default composition instead of the qualification host; for the modes that need
+    # no qualification hooks (not Operations recovery, which holds the native call through a host-only fixture).
+    [switch]$ReleaseBuild
 )
 
 $ErrorActionPreference = 'Stop'
@@ -93,6 +96,9 @@ if ($PSCmdlet.ParameterSetName -eq 'Compile') {
 if (@($VerifyCanceledKeyBackup, $VerifyCompletedKeyBackup, $VerifySelectedFileBackup, $VerifyDuplicateRoots,
     $VerifyOperationsRecovery, $VerifyAlreadySatisfied).Where({ $_.IsPresent }).Count -gt 1) {
     throw 'Choose one of the optional fixture modes.'
+}
+if ($ReleaseBuild -and ($VerifyOperationsRecovery -or $HostedArm64)) {
+    throw 'The release build has no qualification hooks; run Operations recovery and hosted runs with the qualification host.'
 }
 $testRoot = [IO.Path]::GetFullPath($TestRoot)
 $nvdaPath = [IO.Path]::GetFullPath($NvdaPath)
@@ -216,9 +222,11 @@ try {
         Require-Front
         [System.Windows.Forms.SendKeys]::SendWait($phrase)
         Start-Sleep -Milliseconds 300
+        # On a slow guest the palette can still be filtering; Enter then runs whatever was first a moment ago.
+        Await { Find-Control "$phrase*" 'ListItem' } "the $phrase command in the palette" | Out-Null
         [void](Take-Speech)
         Key @(0x0D)
-        Await { Find-Control $title } $title | Out-Null
+        Await { Find-Control $title } $title 60 | Out-Null
     }
     function Snapshot([string]$label) {
         $record.Controls[$label] = @($main.FindAll($scope::Descendants, $all) | ForEach-Object {
@@ -618,13 +626,14 @@ try {
     if (Get-Process dotnet,testhost,FileCat,FileCat.ShellHost,FileCat.App.Tests,FileCat.*QualificationHost,FileCat.*CrashHarness,nvda -ErrorAction SilentlyContinue) {
         throw 'A test process started before the qualification instance could launch.'
     }
-    $exe = Join-Path $testRoot 'app\FileCat.ArchiveQualificationHost.exe'
+    $exe = Join-Path $testRoot $(if ($ReleaseBuild) { 'app\FileCat.exe' } else { 'app\FileCat.ArchiveQualificationHost.exe' })
+    $record.ReleaseBuild = [bool]$ReleaseBuild
     $record.FileCatDllSHA256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $exe) 'FileCat.dll')).Hash
     $record.WindowsDllSHA256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $exe) 'FileCat.Platform.Windows.dll')).Hash
     $record.NvdaVersion = (Get-Item -LiteralPath $nvdaPath).VersionInfo.ProductVersion
-    $qualification = if ($HostedArm64 -or $localArm64) { '--ntfs-storage-arm64-review' } else { '--ntfs-storage-review' }
-    $applicationArguments = @(
-        $qualification, '--new-instance', '--reset-layout', '--data', "`"$state`"", '--left', "`"$left`"", '--right', "`"$right`"") +
+    $qualification = if ($ReleaseBuild) { @() } elseif ($HostedArm64 -or $localArm64) { @('--ntfs-storage-arm64-review') } else { @('--ntfs-storage-review') }
+    $applicationArguments = $qualification + @(
+        '--new-instance', '--reset-layout', '--data', "`"$state`"", '--left', "`"$left`"", '--right', "`"$right`"") +
         $listArgument + $operationsArgument
     $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -PassThru -ArgumentList $applicationArguments
     $main = Await {
@@ -697,7 +706,7 @@ try {
         $record.Stage = 'restart to load retained history'
         [void]$app.CloseMainWindow()
         if (!$app.WaitForExit(10000)) { throw 'The first qualification instance did not close.' }
-        $applicationArguments = @($qualification, '--new-instance', '--reset-layout',
+        $applicationArguments = $qualification + @('--new-instance', '--reset-layout',
             '--data', "`"$state`"", '--left', "`"$right`"", '--right', "`"$left`"",
             '--ntfs-storage-postcondition-fixture', "`"$currentMarker`"")
         $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -PassThru -ArgumentList $applicationArguments

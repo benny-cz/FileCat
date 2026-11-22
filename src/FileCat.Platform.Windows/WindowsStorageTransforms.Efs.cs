@@ -16,6 +16,10 @@ internal sealed unsafe partial class WindowsStorageTransforms
     internal sealed record EfsNativeReturn(bool Succeeded, int Error);
     private static readonly Lazy<bool> EfsEdition = new(() => GetProductInfo(10, 0, 0, 0, out uint product) &&
         product is 0x30 or 0x31 /* Pro, Pro N */ or 0x04 or 0x1B /* Enterprise, Enterprise N */ or 0x79 or 0x7A /* Education, Education N */);
+    /// <summary>Whether this Windows edition is one EFS changes are qualified on; Home and unlisted editions are not.</summary>
+    internal static bool IsEfsEdition => EfsEdition.Value;
+    internal const string EfsEditionReason =
+        "Changing EFS protection in FileCat is qualified on Windows 11 Pro, Enterprise and Education; this Windows edition is not.";
 
     internal IStorageReviewLease InspectEfsRoot(StorageTarget target, StorageAction action, CancellationToken ct)
     {
@@ -79,7 +83,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
     private void RequireEfsHost(StorageAction action)
     {
         if (action is not (StorageAction.EncryptEfs or StorageAction.DecryptEfs)) throw new ArgumentException("Choose an EFS action.", nameof(action));
-        if (!SupportsHost(_qualifyNativeArm64) || !EfsEdition.Value) throw Refuse("efs-build", "This EFS candidate requires a qualified Windows 11 Pro, Enterprise or Education host.");
+        if (!SupportsHost(_qualifyNativeArm64) || !EfsEdition.Value) throw Refuse("efs-build", EfsEditionReason);
     }
     // Windows' own software and TPM providers answer a silent check without waiting for hardware. A missing key there fails
     // at once; a TPM key that needs a PIN already reports interaction.

@@ -32,6 +32,19 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
     internal static IStorageTransforms CreateRelease() => WindowsStorageReviewEvidence.IsSupportedHost
         ? new WindowsStorageTransforms(qualifyNativeArm64: IsNativeArm64QualificationHost) : new NoStorageTransforms(ReleaseUnavailable());
 
+    /// <summary>
+    /// The released App composition: NTFS compression, plus EFS protection and key backup where the EFS edition gate
+    /// passes (Windows 11 Pro, Enterprise or Education); other editions keep compression and get the edition reason for
+    /// EFS. EFS setup files go under FileCat's private local state. The key backup wizard and parented key comparisons
+    /// run through the UI-thread callbacks.
+    /// </summary>
+    internal static IStorageTransforms CreateReleaseWithEfs(Func<string> efsSetupBaseDirectory,
+        WindowsEfsKeys.InvokeBackupWizard invokeWizard, Action<Action> invokeProviderOwner) =>
+        WindowsStorageReviewEvidence.IsSupportedHost
+            ? new WindowsStorageTransforms(efsSetupBaseDirectory: efsSetupBaseDirectory, qualifyNativeArm64: IsNativeArm64QualificationHost)
+                .CreateEfsJobCandidate(invokeWizard, invokeProviderOwner)
+            : new NoStorageTransforms(ReleaseUnavailable());
+
     internal static StorageProblem ReleaseUnavailable() =>
         Core.State.WindowsTokenAuthority.IsHighIntegrity
             ? Problem(StorageReasonKind.FileCatBoundary, "elevated-process", "Open FileCat as your usual Windows user to change NTFS compression; an administrator window does not change it.")

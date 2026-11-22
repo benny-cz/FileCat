@@ -107,6 +107,57 @@ public sealed class WindowsStorageAdmissionTests
     }
 
     [Fact]
+    public void The_App_release_composition_adds_EFS_only_on_a_qualified_edition()
+    {
+        var release = WindowsStorageTransforms.CreateReleaseWithEfs(Path.GetTempPath, static show => show(), static compare => compare());
+        if (!WindowsStorageReviewEvidence.IsSupportedHost)
+        {
+            Assert.IsType<NoStorageTransforms>(release);
+            foreach (var action in Enum.GetValues<StorageAction>()) Assert.Equal(WindowsStorageTransforms.ReleaseUnavailable(), release.Unavailable(action));
+            return;
+        }
+        Assert.IsAssignableFrom<IStorageEfsJobAdapter>(release);
+        Assert.IsAssignableFrom<IStorageEfsFileBackup>(release);
+        Assert.Null(release.Unavailable(StorageAction.Compress));
+        Assert.Null(release.Unavailable(StorageAction.RemoveCompression));
+        foreach (var action in new[] { StorageAction.EncryptEfs, StorageAction.DecryptEfs })
+        {
+            var problem = release.Unavailable(action);
+            if (WindowsStorageTransforms.IsEfsEdition) Assert.Null(problem);
+            else Assert.Equal(("efs-build", WindowsStorageTransforms.EfsEditionReason), (problem?.Code, problem?.Message));
+        }
+    }
+
+    /// <summary>Runs on a released Windows 11 host whose edition EFS changes are not qualified on, such as Home.</summary>
+    [Fact]
+    public void Without_a_qualified_EFS_edition_EFS_review_is_refused_before_any_object_is_opened()
+    {
+        Assert.SkipWhen(!WindowsStorageReviewEvidence.IsSupportedHost || WindowsStorageTransforms.IsEfsEdition,
+            "Needs a released Windows 11 host whose edition EFS changes are not qualified on, such as Home.");
+        string root = Directory.CreateTempSubdirectory("filecat-efs-edition-").FullName;
+        try
+        {
+            string file = Path.Join(root, "plain.txt");
+            File.WriteAllText(file, "plain");
+            var release = WindowsStorageTransforms.CreateReleaseWithEfs(() => root, static show => show(), static compare => compare());
+            var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), release, Path.Join(root, "journal"));
+            foreach (var action in new[] { StorageAction.EncryptEfs, StorageAction.DecryptEfs })
+            {
+                var refused = Assert.Throws<NotSupportedException>(() => manager.PrepareStorageReview(
+                    [ItemRef.ForFileSystemPath(file, EntryKind.File)], action, Stop));
+                Assert.Equal(WindowsStorageTransforms.EfsEditionReason, refused.Message);
+            }
+            Assert.Empty(manager.Jobs);
+            Assert.False(Directory.Exists(Path.Join(root, "journal")));
+            Assert.Empty(Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories).Where(p => p != file));
+            // Compression stays available on the same host, and the file stays clear.
+            Assert.Null(release.Unavailable(StorageAction.Compress));
+            Assert.False(File.GetAttributes(file).HasFlag(FileAttributes.Encrypted));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public void Each_physical_refusal_has_its_own_reason_kind_and_precedence()
     {
         var held = new StorageObjectIdentity(7, "held") { VolumeBinding = "v" };

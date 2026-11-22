@@ -49,8 +49,8 @@ internal sealed unsafe partial class WindowsStorageTransforms
             if (capturedFile.Length > 32767 || apiFile.Length > 32767) throw Refuse("efs-setup-path-limit", "The complete setup pathname exceeds the bounded native query path.");
             using (var parent = OpenSetupParent(path, applicationBase, ct))
             {
-                RequireSetupNamespace(parent.File, invokerSid, strict: false, ct);
-                directory = OpenSetupDirectory(parent.File, invokerSid, ct);
+                RequireSetupNamespace(parent.File, path.Volume.Binding, invokerSid, strict: false, ct);
+                directory = OpenSetupDirectory(parent.File, path.Volume.Binding, invokerSid, ct);
             }
             directoryFacts = Facts(directory.File, path.Volume.Binding, ct);
             ValidateSetupPath(path, applicationBase, directory, directoryFacts, invokerSid, ct);
@@ -141,7 +141,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         catch { charge.Dispose(); throw; }
         finally { file?.Dispose(); }
     }
-    private static Held OpenSetupDirectory(SafeFileHandle parent, string owner, CancellationToken ct)
+    private static Held OpenSetupDirectory(SafeFileHandle parent, string volumeBinding, string owner, CancellationToken ct)
     {
         IDisposable? charge = StorageNativeAllowance.RequireCurrent().ClaimScratch(); SafeFileHandle? file = null;
         try
@@ -157,7 +157,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
                     NtFile.DirectoryFile | NtFile.OpenReparsePoint, out file, (uint)FileAttributes.Directory, SetupSecurity(owner, true), caseSensitive: true);
             }
             if (status < 0) throw NtFile.Error(status, "Open the private EFS setup directory");
-            RequireSetupNamespace(file, owner, strict: true, ct);
+            RequireSetupNamespace(file, volumeBinding, owner, strict: true, ct);
             var held = new Held(file, charge); file = null; charge = null; return held;
         }
         finally { file?.Dispose(); charge?.Dispose(); }
@@ -178,13 +178,20 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 EfsPathBinding.ValidateNode(Facts(current, path.Volume.Binding, ct), originalDirectory);
             }
         }
-        RequireSetupNamespace(directory.File, owner, strict: true, ct);
+        RequireSetupNamespace(directory.File, path.Volume.Binding, owner, strict: true, ct);
     }
-    private static void RequireSetupNamespace(SafeFileHandle file, string owner, bool strict, CancellationToken ct)
+    /// <summary>
+    /// The application directory is the leaf of the held no-follow walk, and the setup directory is opened from it without
+    /// following reparse points, so membership uses the held-walk rule: a drive where no Cloud Files filter answers is
+    /// admitted only when no sync root of any account is registered on it. Neither directory may be reparse-backed.
+    /// </summary>
+    private static void RequireSetupNamespace(SafeFileHandle file, string volumeBinding, string owner, bool strict, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested(); WindowsArchiveNative.SourceDirectory(file);
         uint attributes = NtFile.GetBasic(file).FileAttributes;
-        if (ManagedAttributes(attributes) || SyncRootProblem(file, ct) is not null) throw Refuse("efs-setup-managed", "The setup namespace is cloud-managed or unavailable.");
+        if ((attributes & (uint)FileAttributes.ReparsePoint) != 0 || ManagedAttributes(attributes) ||
+            SyncRootProblemAfterHeldWalk(file, volumeBinding, ct) is not null)
+            throw Refuse("efs-setup-managed", "The setup namespace is cloud-managed or unavailable.");
         if (strict) { WindowsArchiveNative.RequirePrivateEditSecurity(file, owner, directory: true); return; }
         var security = new RawSecurityDescriptor(WindowsArchiveNative.ReadOwnerDaclSecurity(file), 0);
         if (security.Owner?.Value != owner || security.DiscretionaryAcl is not { Count: > 0 } acl)

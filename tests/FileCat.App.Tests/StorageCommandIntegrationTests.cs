@@ -1028,7 +1028,7 @@ public sealed class StorageCommandIntegrationTests
     }
 
     [AvaloniaFact]
-    public async Task The_default_composition_offers_compression_without_EFS_only_where_private_evidence_is_qualified()
+    public async Task The_default_composition_offers_compression_and_EFS_only_where_qualified()
     {
         // The headless test application registers no Windows platform (App.OnFrameworkInitializationCompleted does that
         // for the real app), so compose the shipped one here; otherwise this would only ever see the portable platform.
@@ -1047,11 +1047,16 @@ public sealed class StorageCommandIntegrationTests
             if (OperatingSystem.IsWindows())
                 Assert.Equal(qualified, services.Platform.StorageTransforms is not FileCat.Core.FileSystem.NoStorageTransforms);
             if (!qualified) Assert.Contains("NTFS", availability.Reason);
-            // EFS is never part of the released composition: neither command is advertised or available.
-            Assert.False(vm.AdvertisesEfsCommand(CommandIds.EfsProtection));
-            Assert.False(vm.AdvertisesEfsCommand(CommandIds.EfsFileBackup));
-            Assert.False(vm.GetAvailability(CommandIds.EfsProtection).Enabled);
-            Assert.False(vm.GetAvailability(CommandIds.EfsFileBackup).Enabled);
+            // EFS joins the released composition where the EFS edition gate also passes (Windows 11 Pro, Enterprise or
+            // Education); everywhere else neither EFS command is advertised or available.
+            bool efs = qualified && FileCat.Platform.Windows.WindowsStorageTransforms.IsEfsEdition;
+            var protection = vm.GetAvailability(CommandIds.EfsProtection);
+            var backup = vm.GetAvailability(CommandIds.EfsFileBackup);
+            Assert.Equal(efs, vm.AdvertisesEfsCommand(CommandIds.EfsProtection));
+            Assert.Equal(efs, vm.AdvertisesEfsCommand(CommandIds.EfsFileBackup));
+            Assert.True(efs == protection.Enabled, $"EFS host {efs}, protection enabled {protection.Enabled}: {protection.Reason}");
+            Assert.True(efs == backup.Enabled, $"EFS host {efs}, key backup enabled {backup.Enabled}: {backup.Reason}");
+            if (qualified && !efs) Assert.Equal(FileCat.Platform.Windows.WindowsStorageTransforms.EfsEditionReason, protection.Reason);
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }

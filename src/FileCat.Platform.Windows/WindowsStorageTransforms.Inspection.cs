@@ -107,7 +107,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         QueryVolume(file, 4 /* FileFsDeviceInformation */, device, ct);
         uint characteristics = BinaryPrimitives.ReadUInt32LittleEndian(device[4..]);
         if ((characteristics & remoteDevice) != 0)
-            throw Refuse("remote-volume", "FileCat changes compression only on local drives; this drive is remote.");
+            throw Refuse("remote-volume", "FileCat changes compression and EFS protection only on local drives; this drive is remote.");
         QueryVolume(file, 3 /* FileFsSizeInformation */, size, ct);
         ulong unit = (ulong)BinaryPrimitives.ReadUInt32LittleEndian(size[16..]) * BinaryPrimitives.ReadUInt32LittleEndian(size[20..]);
         char* fs = stackalloc char[64];
