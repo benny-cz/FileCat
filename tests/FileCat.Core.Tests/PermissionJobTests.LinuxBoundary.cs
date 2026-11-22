@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using FileCat.Core.Analysis;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
 using FileCat.Core.Permissions;
 
 namespace FileCat.Core.Tests;
@@ -75,6 +76,44 @@ public sealed partial class PermissionJobTests
         Assert.Equal(PermissionVerification.SameObject, component.Verification);
         Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(path));
         Assert.Equal(aclBefore, RunAclTool("getfacl", "-ncp", path));
+    }
+
+    // G-RESULT: a native refusal after an earlier verified component. A seccomp policy fails utimensat with EPERM, so a
+    // compound mode and modification-time change verifies the mode and then reports the kernel's refusal of the time. The
+    // result is partial, the mode stays applied, the time is unchanged, and the journal holds complete history that needs
+    // no recovery review.
+    [Fact]
+    public async Task Ext4_native_refusal_after_a_verified_component_reports_a_partial_result()
+    {
+        RequireLinuxBoundary("FILECAT_TEST_PERMISSIONS_SECCOMP", "times");
+        using var fixture = new Fixture(nativeJournal: true);
+        var (item, subject) = Ext4Subject(fixture);
+        string path = item.FileSystemPath!;
+        var modifiedBefore = File.GetLastWriteTimeUtc(path);
+        var ct = TestContext.Current.CancellationToken;
+        using var inspection = new LinuxPermissionService().Inspect(subject, PermissionSections.Ordinary | PermissionSections.Times, ct);
+        using var review = LinuxPermissionService.Prepare(inspection, item, new(PermissionScope.Objects,
+            [new ChangePermissionTimes(new DateTimeOffset(2024, 2, 3, 4, 5, 6, TimeSpan.Zero), null), new ChangePermissionMode(0x1a0, 0xfff)]),
+            false, ct).Review;
+        var job = fixture.Manager.SubmitPermissions(review);
+        await fixture.Finish(job);
+        var result = Assert.Single(job.PermissionResults);
+        Assert.True(result.Verdict == PermissionVerdict.Partial, $"{result.Verdict}: {result.Detail}");
+        Assert.Equal([PermissionSections.Mode, PermissionSections.Times], result.Components.Select(component => component.Section));
+        Assert.Equal(PermissionVerdict.Verified, result.Components[0].Verdict);
+        Assert.Equal(PermissionVerdict.FailedBeforeChange, result.Components[1].Verdict);
+        Assert.Equal(1, result.Components[1].NativeError);
+        Assert.Equal(PermissionVerification.SameObject, result.Components[1].Verification);
+        Assert.Equal((UnixFileMode)0x1a0, File.GetUnixFileMode(path));
+        Assert.Equal(modifiedBefore, File.GetLastWriteTimeUtc(path));
+
+        var records = JobJournal.ReadAll(fixture.JournalPath!);
+        Assert.Equal(2, records.Count(record => record.Type == "permission-intent"));
+        Assert.Equal([nameof(PermissionVerdict.Verified), nameof(PermissionVerdict.FailedBeforeChange)],
+            records.Where(record => record.Type == "permission-outcome").Select(record => record.Get("verdict")));
+        string history = Path.GetDirectoryName(fixture.JournalPath!)!;
+        using var directory = UnixAnalysisPrivateDirectory.OpenPermissionJournalDirectory(Path.GetDirectoryName(history)!);
+        Assert.Empty(PermissionJournalRecovery.Scan(directory, history, ct));
     }
 
     // A seccomp supervisor answers FileCat's statx calls for the subject with result-mask bits removed and their fields
