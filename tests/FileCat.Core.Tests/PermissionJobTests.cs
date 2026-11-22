@@ -512,6 +512,74 @@ public sealed partial class PermissionJobTests
         Assert.Equal(withMask ? PermissionReadStatus.Present : PermissionReadStatus.Absent, observed.Snapshot.Access.Status);
     }
 
+    // A real native refusal: ext4 keeps an access ACL in one attribute block, so one more named user than fits makes
+    // setxattr fail. The job reports the unchanged object with the kernel's error, and the complete history needs no review.
+    [Fact]
+    public async Task Ext4_refuses_an_access_ACL_beyond_its_attribute_space_and_the_job_reports_the_unchanged_object()
+    {
+        RequireExt4Writer();
+        using var fixture = new Fixture(nativeJournal: true);
+        var (item, subject) = Ext4Subject(fixture);
+        string path = item.FileSystemPath!;
+        int accepted = 0, refused = PermissionSnapshots.MaxAclEntries - 8;
+        while (refused - accepted > 1)
+        {
+            int count = (accepted + refused) / 2;
+            if (TrySetNamedUsers(path, count)) accepted = count; else refused = count;
+        }
+        Assert.InRange(accepted, 8, refused - 1);
+        Assert.True(TrySetNamedUsers(path, accepted));
+        string before = RunAclTool("getfacl", "-ncp", path);
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        using var inspection = new LinuxPermissionService().Inspect(subject, PermissionSections.Ordinary, ct);
+        var rows = LinuxPermissionAcl.AccessRows(inspection.Snapshot).ToList();
+        Assert.Equal(accepted, rows.Count(row => row.Tag == PosixAclTag.NamedUser));
+        // The next named user sorts after the existing ones, just before the owning group.
+        rows.Insert(rows.FindIndex(row => row.Tag == PosixAclTag.OwningGroup),
+            new(PosixAclTag.NamedUser, 4, new Principal(PrincipalKind.UnixUser, (20000 + accepted).ToString(System.Globalization.CultureInfo.InvariantCulture), subject.Authority.Id)));
+        using var review = LinuxPermissionService.Prepare(inspection, item, new(PermissionScope.Objects,
+            [new ChangePosixAcl(false, [.. rows])]), false, ct).Review;
+        var job = fixture.Manager.SubmitPermissions(review);
+        await fixture.Finish(job);
+        var result = Assert.Single(job.PermissionResults);
+        var component = Assert.Single(result.Components);
+        Assert.True(result.Verdict == PermissionVerdict.FailedBeforeChange, $"{result.Verdict}: {component.Detail}");
+        Assert.Contains(component.NativeError, new int?[] { 7, 28, 34 }); // E2BIG, ENOSPC or ERANGE, by kernel and features
+        Assert.Equal(PermissionVerification.SameObject, component.Verification);
+        Assert.Equal(before, RunAclTool("getfacl", "-ncp", path));
+
+        var records = JobJournal.ReadAll(fixture.JournalPath!);
+        Assert.Single(records, record => record.Type == "permission-intent");
+        var outcome = Assert.Single(records, record => record.Type == "permission-outcome");
+        Assert.Equal(nameof(PermissionVerdict.FailedBeforeChange), outcome.Get("verdict"));
+        Assert.Equal(component.NativeError, outcome.Node["error"]?.GetValue<int>());
+        string history = Path.GetDirectoryName(fixture.JournalPath!)!;
+        using var directory = UnixAnalysisPrivateDirectory.OpenPermissionJournalDirectory(Path.GetDirectoryName(history)!);
+        Assert.Empty(PermissionJournalRecovery.Scan(directory, history, ct));
+        Assert.True(File.Exists(fixture.JournalPath));
+    }
+
+    // Replaces the access ACL with the owner, the given number of named users, the owning group, the mask and others.
+    private static bool TrySetNamedUsers(string path, int count)
+    {
+        var spec = new StringBuilder("user::rw-\ngroup::---\nmask::r--\nother::---\n");
+        for (int i = 0; i < count; i++) spec.Append("user:").Append(20000 + i).Append(":r--\n");
+        string file = path + ".acl";
+        File.WriteAllText(file, spec.ToString());
+        try
+        {
+            var start = new ProcessStartInfo("setfacl") { RedirectStandardError = true, RedirectStandardOutput = true };
+            start.ArgumentList.Add("--set-file=" + file);
+            start.ArgumentList.Add(path);
+            using var process = Process.Start(start)!;
+            _ = process.StandardOutput.ReadToEnd();
+            _ = process.StandardError.ReadToEnd();
+            Assert.True(process.WaitForExit(10_000));
+            return process.ExitCode == 0;
+        }
+        finally { File.Delete(file); }
+    }
+
     [Fact]
     public async Task Ext4_applies_nothing_when_the_reviewed_name_is_replaced()
     {

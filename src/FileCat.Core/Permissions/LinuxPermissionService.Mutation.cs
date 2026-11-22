@@ -456,7 +456,10 @@ internal sealed unsafe partial class LinuxPermissionService
         {
             if (result == 0) return new();
             int error = Marshal.GetLastPInvokeError();
-            return new(error, RejectedBeforeChange: error is 1 or 13 or 22 or 30 or 38 or 95);
+            // Refusals of a single-inode metadata update: EPERM, E2BIG, EACCES, EINVAL, ENOSPC, EROFS, ERANGE, ENOSYS,
+            // EOPNOTSUPP and EDQUOT (an ACL larger than the inode's attribute space, or a quota). The executor still
+            // requires a read-back of the original state before it reports the object unchanged.
+            return new(error, RejectedBeforeChange: error is 1 or 7 or 13 or 22 or 28 or 30 or 34 or 38 or 95 or 122);
         }
 
         public PermissionReadBack Observe(PermissionSections sections)
