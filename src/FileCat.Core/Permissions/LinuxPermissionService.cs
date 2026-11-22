@@ -95,7 +95,7 @@ internal sealed unsafe partial class LinuxPermissionService(bool qualifyDefaultW
                 identity = identity with { Authority = projectionAuthority };
             }
             var binding = new PermissionBinding(identity, mount.FileSystem, mount.Path,
-                (stamp.Valid & Links) != 0 ? stamp.LinkCount : null, mount.ReadOnly) { PosixAclDisabled = mount.PosixAclDisabled };
+                stamp.BindingLinks, mount.ReadOnly) { PosixAclDisabled = mount.PosixAclDisabled };
             var snapshot = projection is not null
                 ? ReadProjectedMount(subject, binding, stamp, projection, sections)
                 : ReadSnapshot(subject, binding, file, stamp, proc, pid, sections, cancellationToken, protectionWrites: qualifyProtectionWrites);
@@ -137,7 +137,7 @@ internal sealed unsafe partial class LinuxPermissionService(bool qualifyDefaultW
     {
         DateTimeOffset now = DateTimeOffset.UtcNow;
         var snapshot = PermissionSnapshots.Create(subject, binding.PosixAclDisabled ? PermissionModel.UnixMode : PermissionModel.PosixAcl,
-            binding with { LinkCount = (stamp.Valid & Links) != 0 ? stamp.LinkCount : null }, sections, now, Source);
+            binding with { LinkCount = stamp.BindingLinks }, sections, now, Source);
         if ((sections & PermissionSections.Owner) != 0)
             snapshot = snapshot with { Owner = Principal(stamp, Uid, stamp.User, PrincipalKind.UnixUser, subject.Authority.Id, now) };
         if ((sections & PermissionSections.Group) != 0)
@@ -480,6 +480,10 @@ internal sealed unsafe partial class LinuxPermissionService(bool qualifyDefaultW
     {
         internal bool? ResetUnprotected => KnownProtection == InodeProtection ? Protection == 0 : null;
         internal ushort FileKind => (ushort)(Mode & 0xf000);
+        // The binding counts the names that alias the object. Linux cannot hard-link a directory: its native count tracks
+        // `.` and its subdirectories' `..` entries and moves whenever a subdirectory is created or removed. Report 1 while
+        // the directory exists and 0 once it is removed, as Darwin's ATTR_DIR_LINKCOUNT and NTFS report for directories.
+        internal uint? BindingLinks => (Valid & Links) == 0 ? null : FileKind == DirectoryType && LinkCount > 1 ? 1 : LinkCount;
         internal (ulong Device, ulong Inode, ulong Mount, ushort Kind) Identity => (Device, Inode, Mount, FileKind);
     }
 
