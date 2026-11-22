@@ -230,6 +230,51 @@ public sealed class LinuxPermissionMountTests
         Assert.Null(cold.Snapshot.Subject.LastMountObservation);
     }
 
+    // G-MOUNT disconnects on the other claimed families: a kernel CIFS share whose server stops, a bindfs FUSE mount whose
+    // daemon ends and a GVfs SMB share whose FUSE daemon ends. The harness reports the disconnect once an independent read
+    // fails. A subject bound while the mount answered is then unavailable with the client's error, keeps its observation
+    // date and admits no review.
+    [Theory]
+    [InlineData("smb")]
+    [InlineData("fuse")]
+    [InlineData("gvfs")]
+    public async Task A_disconnected_mount_reports_the_client_error_and_keeps_the_observation_date(string fixture)
+    {
+        string? controls = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_DISCONNECT_CONTROL");
+        string? mounts = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_MOUNT_ROOT");
+        if (!OperatingSystem.IsLinux() || string.IsNullOrEmpty(controls) || string.IsNullOrEmpty(mounts) || Environment.IsPrivilegedProcess)
+            Assert.Skip("Requires disposable mounts with a disconnect controller.");
+        string? folder = fixture == "gvfs" ? Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_GVFS_ROOT") : Path.Combine(mounts, fixture);
+        if (string.IsNullOrEmpty(folder) || !File.Exists(Path.Combine(folder, "witness.txt")))
+            Assert.Skip("This native mount fixture is unavailable.");
+        string path = Path.Combine(folder, "witness.txt");
+        var subject = new PermissionSubject(Location.FileSystem(folder), path, path, new(PermissionAuthorityKind.Local, "local", 0),
+            PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+        var service = new LinuxPermissionService(qualifyMountProjections: true);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(150));
+        var cancellation = timeout.Token;
+
+        using var live = service.Inspect(subject, PermissionSections.Ordinary, cancellation);
+        Assert.Equal(PermissionReadStatus.Present, live.Snapshot.Mode.Status);
+        var binding = Assert.IsType<PermissionBinding>(live.Snapshot.Binding);
+        var captured = live.Snapshot.Subject with { ExpectedIdentity = binding.Identity };
+        File.WriteAllText(Path.Combine(controls, fixture + ".disconnect"), "");
+        while (!File.Exists(Path.Combine(controls, fixture + ".disconnected"))) await Task.Delay(50, cancellation);
+
+        using var observed = service.Inspect(captured, PermissionSections.Mode, cancellation);
+        var mode = observed.Snapshot.Mode;
+        TestContext.Current.TestOutputHelper?.WriteLine(
+            $"{fixture} ({binding.FileSystem}): {mode.Status} errno {mode.NativeError}: {observed.Snapshot.BindingProblem}");
+        Assert.Null(observed.Snapshot.Binding);
+        Assert.Equal(PermissionReadStatus.Failed, mode.Status);
+        Assert.Contains(mode.NativeError, new int?[] { 5, 103, 104, 107, 110, 111, 112, 113 });
+        if (live.Snapshot.Subject.Authority.Kind == PermissionAuthorityKind.MountedServer)
+            Assert.Contains("mounted client could not retrieve permission metadata", observed.Snapshot.BindingProblem, StringComparison.Ordinal);
+        Assert.Equal(live.Snapshot.Mode.ObservedAt, observed.Snapshot.Subject.LastMountObservation);
+        Assert.NotNull(LinuxPermissionService.ModeReviewRefusal(observed.Snapshot));
+    }
+
     [Fact]
     public async Task A_removed_and_remounted_share_does_not_reuse_the_old_permission_observation()
     {
