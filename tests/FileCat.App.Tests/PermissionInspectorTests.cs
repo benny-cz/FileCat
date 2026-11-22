@@ -1731,6 +1731,7 @@ public sealed class PermissionInspectorTests
             await Until(() => TextPresent(window, "Read content · Allowed by the current access check"), ct);
             Assert.True(TextPresent(window, "Write content · Denied by the current access check"));
             Assert.True(TextPresent(window, "Execute permission · Denied by the current access check"));
+            Assert.True(TextPresent(window, "Delete this entry from its parent · Allowed by the current access check"));
             Assert.True(TextPresent(window, "Effective UID "));
             Assert.True(TextPresent(window, "Supplementary groups"));
             Assert.Empty(services.Jobs.Jobs);

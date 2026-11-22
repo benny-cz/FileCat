@@ -367,7 +367,8 @@ public sealed class PermissionInspectionTests
                 check => Assert.Equal(PermissionReadStatus.Denied, check.Status),
                 check => Assert.Equal(PermissionReadStatus.Denied, check.Status),
                 check => Assert.Equal(PermissionReadStatus.Present, check.Status),
-                check => Assert.Equal(PermissionReadStatus.Denied, check.Status));
+                check => Assert.Equal(PermissionReadStatus.Denied, check.Status),
+                check => Assert.Equal(("Delete this entry from its parent", PermissionReadStatus.Present), (check.Right, check.Status)));
             Assert.Equal(UnixFileMode.UserExecute, File.GetUnixFileMode(path));
             Directory.Move(path, moved);
             Directory.CreateDirectory(path);
@@ -378,6 +379,64 @@ public sealed class PermissionInspectionTests
             File.SetUnixFileMode(Directory.Exists(moved) ? moved : path,
                 UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         }
+    }
+
+    // G-ACCESS parent delete: Linux has no access mode for unlinking, so the check composes write and search on the parent,
+    // the append-only parent, the protected entry and the sticky rule. A sticky folder this user owns still allows removal.
+    [Fact]
+    public void Native_ext4_delete_check_follows_parent_access_and_the_sticky_rule()
+    {
+        RequireExt4AccessCheck();
+        using var temporary = new TempDir();
+        string closed = Directory.CreateDirectory(Path.Combine(temporary.Path, "closed")).FullName;
+        string sticky = Directory.CreateDirectory(Path.Combine(temporary.Path, "sticky")).FullName;
+        string open = Path.Combine(temporary.Path, "open"), inClosed = Path.Combine(closed, "file"), inSticky = Path.Combine(sticky, "file");
+        foreach (string path in new[] { open, inClosed, inSticky }) File.WriteAllText(path, "fixture");
+        File.SetUnixFileMode(sticky, (UnixFileMode)0x3ff); // 1777, owned by this user
+        File.SetUnixFileMode(closed, (UnixFileMode)0x140); // 0500
+        try
+        {
+            Assert.Equal((PermissionReadStatus.Present, (int?)null), CheckDelete(open));
+            Assert.Equal((PermissionReadStatus.Denied, (int?)13), CheckDelete(inClosed));
+            Assert.Equal((PermissionReadStatus.Present, (int?)null), CheckDelete(inSticky));
+            Assert.Equal((PermissionReadStatus.Present, (int?)null), CheckDelete(sticky));
+            Assert.True(File.Exists(open) && File.Exists(inClosed) && File.Exists(inSticky));
+        }
+        finally { File.SetUnixFileMode(closed, (UnixFileMode)0x1c0); }
+    }
+
+    // The sticky, append-only and immutable cases need a sudo-made fixture: a root-owned 1777 folder holding a file of
+    // another user and one of this user, an append-only folder with a file, and an immutable file.
+    [Fact]
+    public void Native_ext4_delete_check_refuses_sticky_append_only_and_immutable_cases()
+    {
+        RequireExt4AccessCheck();
+        string fixture = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSION_ACCESS_FLAGS") ?? string.Empty;
+        if (fixture.Length == 0) Assert.Skip("Requires the sudo-made sticky, append-only and immutable ext4 fixture.");
+        string other = Path.Combine(fixture, "sticky", "other"), mine = Path.Combine(fixture, "sticky", "mine");
+        Assert.Equal((PermissionReadStatus.Denied, (int?)1), CheckDelete(other));
+        Assert.Equal((PermissionReadStatus.Present, (int?)null), CheckDelete(mine));
+        Assert.Equal((PermissionReadStatus.Denied, (int?)1), CheckDelete(Path.Combine(fixture, "append", "inside")));
+        Assert.Equal((PermissionReadStatus.Denied, (int?)1), CheckDelete(Path.Combine(fixture, "immutable")));
+        Assert.Equal((PermissionReadStatus.Denied, (int?)1), CheckDelete(Path.Combine(fixture, "append")));
+        Assert.True(File.Exists(other) && File.Exists(mine));
+    }
+
+    private static void RequireExt4AccessCheck()
+    {
+        if (!OperatingSystem.IsLinux() || Environment.IsPrivilegedProcess ||
+            Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_EXT4") != "1")
+            Assert.Skip("Requires an ordinary Linux process and an ext4 test fixture.");
+    }
+
+    private static (PermissionReadStatus Status, int? Error) CheckDelete(string path)
+    {
+        var kind = Directory.Exists(path) ? PermissionObjectKind.Directory : PermissionObjectKind.File;
+        var subject = new PermissionSubject(Location.FileSystem(Path.GetDirectoryName(path)!), path, path,
+            new(PermissionAuthorityKind.Local, "fixture", 1), kind, PermissionLinkPolicy.NoFollow);
+        var report = new LinuxPermissionService(qualifyAccessChecks: true).CheckEffectiveAccess(subject, TestContext.Current.CancellationToken);
+        var check = Assert.Single(report.Checks, check => check.Right == "Delete this entry from its parent");
+        return (check.Status, check.NativeError);
     }
 
     [Fact]

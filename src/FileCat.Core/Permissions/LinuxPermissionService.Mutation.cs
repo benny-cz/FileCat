@@ -295,7 +295,7 @@ internal sealed unsafe partial class LinuxPermissionService
         }
 
         internal LinuxAccessReport CheckEffectiveAccess(CancellationToken cancellation) =>
-            CheckBoundAccess(pin, binding, ancestry[^1], additionalFileSystems, NamespaceMatches, cancellation);
+            CheckBoundAccess(pin, binding, names, ancestry, additionalFileSystems, NamespaceMatches, cancellation);
 
         internal LinuxBrokerTarget DuplicateBrokerTarget(CancellationToken cancellation)
         {

@@ -26,9 +26,11 @@ internal sealed unsafe partial class LinuxPermissionService
         return lease.CheckEffectiveAccess(cancellation);
     }
 
-    private static LinuxAccessReport CheckBoundAccess(SafeFileHandle pin, PermissionBinding binding, Stamp original, bool additionalFileSystems,
-        Func<Dictionary<ulong, Mount>, CancellationToken, Stamp?, bool> namespaceMatches, CancellationToken cancellation)
+    private static LinuxAccessReport CheckBoundAccess(SafeFileHandle pin, PermissionBinding binding, string[] names, Stamp[] ancestry,
+        bool additionalFileSystems, Func<Dictionary<ulong, Mount>, CancellationToken, Stamp?, bool> namespaceMatches, CancellationToken cancellation)
     {
+        var original = ancestry[^1];
+        SafeFileHandle? parent = null;
         try
         {
             using var proc = OpenOwnProc(out string pid, cancellation);
@@ -44,15 +46,18 @@ internal sealed unsafe partial class LinuxPermissionService
             var credentials = ReadAccessCredentials(proc, pid);
             bool directory = stamp.FileKind == DirectoryType;
             DateTimeOffset checkedAt = DateTimeOffset.UtcNow;
-            var checks = ImmutableArray.CreateBuilder<PermissionAccessCheck>(directory ? 4 : 3);
+            var checks = ImmutableArray.CreateBuilder<PermissionAccessCheck>(directory ? 5 : 4);
             checks.Add(CheckRight(directory ? "List names" : "Read content", 4));
             checks.Add(CheckRight(directory ? "Write permission on this directory" : "Write content", 2));
             checks.Add(CheckRight(directory ? "Search known names" : "Execute permission", 1));
             if (directory) checks.Add(CheckRight("Write and search together", 3));
+            Stamp? parentStamp = null;
+            checks.Add(CheckDelete(mounts, stamp, credentials, ref parentStamp));
 
             var refreshedMounts = ReadMounts(proc, pid, cancellation);
             if (ReadAccessCredentials(proc, pid) != credentials || AdmitMount(pin, stamp, refreshedMounts, binding.MountRoot, additionalFileSystems) != mount ||
-                (VerifiedMountFlags(pin, mount.FileSystem) & AccessMountFlags) != flags || ReadStamp(pin) != stamp || !namespaceMatches(refreshedMounts, cancellation, stamp))
+                (VerifiedMountFlags(pin, mount.FileSystem) & AccessMountFlags) != flags || ReadStamp(pin) != stamp || !namespaceMatches(refreshedMounts, cancellation, stamp) ||
+                parent is not null && ReadStamp(parent) != parentStamp)
                 throw new PermissionBindingConflictException("The object, credentials or mount changed during the access check.");
             return new(binding.Identity, checkedAt, credentials.EffectiveUid, credentials.EffectiveGid,
                 credentials.FileSystemUid, credentials.FileSystemGid, credentials.Groups.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToImmutableArray(),
@@ -60,11 +65,14 @@ internal sealed unsafe partial class LinuxPermissionService
                 (flags & MountNoSetId) != 0, checks.MoveToImmutable());
         }
         catch (ReadFailure failure) { throw new IOException(failure.Message, failure); }
+        finally { parent?.Dispose(); }
 
-        PermissionAccessCheck CheckRight(string right, int mode)
+        PermissionAccessCheck CheckRight(string right, int mode) => Check(pin, right, mode);
+
+        PermissionAccessCheck Check(SafeFileHandle handle, string right, int mode)
         {
             cancellation.ThrowIfCancellationRequested();
-            if (Faccessat2(Faccessat2Number, pin, "", mode, AtEffectiveAccess | AtEmptyPath) == 0)
+            if (Faccessat2(Faccessat2Number, handle, "", mode, AtEffectiveAccess | AtEmptyPath) == 0)
                 return new(right, PermissionReadStatus.Present, null);
             int error = Marshal.GetLastPInvokeError();
             return new(right, error switch
@@ -74,6 +82,37 @@ internal sealed unsafe partial class LinuxPermissionService
                 _ => PermissionReadStatus.Failed
             }, error);
         }
+
+        // Linux has no access mode for unlinking, so this composes the kernel's own checks in the order may_delete applies
+        // them: write and search on the parent under the effective credentials, then the append-only parent, the
+        // immutable or append-only entry and the sticky-directory rule. A mount root cannot be removed (EBUSY). Security
+        // modules and an active swap file can still refuse the removal.
+        PermissionAccessCheck CheckDelete(Dictionary<ulong, Mount> mounts, Stamp entry, AccessCredentials credentials, ref Stamp? parentStamp)
+        {
+            const string right = "Delete this entry from its parent";
+            if (names.Length == 0) return new(right, PermissionReadStatus.Unsupported, null);
+            if (ancestry[^2].Mount != entry.Mount || ancestry[^2].Device != entry.Device) return new(right, PermissionReadStatus.Denied, 16);
+            parent = Walk(names[..^1], mounts, additionalFileSystems, cancellation, out var parents, out _);
+            var folder = parents[^1];
+            if (folder.Identity != ancestry[^2].Identity)
+                throw new PermissionBindingConflictException("The original parent changed before the access check.");
+            parentStamp = folder;
+            var search = Check(parent, right, 3);
+            if (search.Status != PermissionReadStatus.Present) return search;
+            if ((folder.KnownProtection & AppendOnlyInode) == 0 || entry.KnownProtection != InodeProtection)
+                return new(right, PermissionReadStatus.Incomplete, null);
+            if ((folder.Protection & AppendOnlyInode) != 0 || entry.Protection != 0) return new(right, PermissionReadStatus.Denied, 1);
+            if ((folder.Mode & 0x200) != 0 && !OwnsOrMayOverride(credentials, entry.User, folder.User))
+                return new(right, PermissionReadStatus.Denied, 1);
+            return new(right, PermissionReadStatus.Present, null);
+        }
+
+        // check_sticky: the entry's owner, the directory's owner or CAP_FOWNER (bit 3) may remove the entry.
+        static bool OwnsOrMayOverride(AccessCredentials credentials, uint entryOwner, uint folderOwner) =>
+            uint.TryParse(credentials.FileSystemUid, NumberStyles.None, CultureInfo.InvariantCulture, out uint uid) &&
+            (uid == entryOwner || uid == folderOwner ||
+             ulong.TryParse(credentials.Capabilities, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out ulong capabilities) &&
+             (capabilities & (1UL << 3)) != 0);
     }
 
     private sealed record AccessCredentials(string EffectiveUid, string EffectiveGid, string FileSystemUid, string FileSystemGid,
