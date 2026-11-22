@@ -601,6 +601,16 @@ public sealed partial class MainViewModel
 
     private static TextBlock Wrapped(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap };
 
+    /// <summary>
+    /// The wait while an administrator decides on an authorized inspection. Focus starts on Cancel, and a screen reader
+    /// reads that focused button, not the sentence beside it (NVDA said only "Inspect with authorization dialog, Cancel
+    /// button"), so the sentence is also the button's description.
+    /// </summary>
+    internal static Task<object?> ShowAuthorizationWaitAsync(IDialogService dialogs, string path, string approval, DialogCloser closer) =>
+        dialogs.ShowCustomAsync("Inspect with authorization", new StackPanel { Spacing = 8, Children = { Wrapped(path), Wrapped(approval) } },
+            [new("Cancel", "cancel", IsDefault: true, IsCancel: true) { HelpText = approval }], closer: closer,
+            behavior: new DialogBehavior { DismissOnBackdrop = false });
+
     // An editor whose Apply is still unavailable opens on its first shown field, not on the dialog card: a screen reader
     // then names that field along with the dialog, and the keyboard can change it at once.
     internal static Control? FirstField(Control content) => content.GetSelfAndLogicalDescendants().OfType<Control>().FirstOrDefault(

@@ -12,6 +12,7 @@ namespace FileCat.App.Views;
 
 internal sealed class WindowsAuditEditor : StackPanel
 {
+    internal const string MaskLabel = "Audit rights mask (hexadecimal)";
     private readonly WindowsSacl _baseline;
     private readonly string _authority;
     private readonly ListBox _entries = new()
@@ -38,13 +39,15 @@ internal sealed class WindowsAuditEditor : StackPanel
         Spacing = 7;
         AutomationProperties.SetName(_entries, "Ordered Windows audit entries");
         AutomationProperties.SetName(_sid, "Audit account SID");
-        AutomationProperties.SetName(_mask, "Audit rights mask");
+        // The spoken name is the visible label: NVDA said only "Audit rights mask, edit" for an empty mask, and speech
+        // input users say what they see.
+        AutomationProperties.SetName(_mask, MaskLabel);
         _entries.ItemsSource = baseline.Entries.Select((entry, index) => $"{index + 1}. {Describe(entry)}").ToArray();
         Children.Add(_entries);
         Children.Add(new WrapPanel { Children = { _add, _remove, _reset } });
         Children.Add(new TextBlock { Text = "Account SID" });
         Children.Add(_sid);
-        Children.Add(new TextBlock { Text = "File rights mask (hexadecimal)" });
+        Children.Add(new TextBlock { Text = MaskLabel });
         Children.Add(_mask);
         Children.Add(new WrapPanel { Children = { _success, _failure } });
         _entries.SelectionChanged += (_, _) => { if (!_setting) LoadEntry(); };

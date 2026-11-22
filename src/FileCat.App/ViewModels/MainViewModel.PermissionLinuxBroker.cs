@@ -21,16 +21,8 @@ public sealed partial class MainViewModel
         var broker = Services.LinuxBroker!;
         using var cancellation = new CancellationTokenSource();
         var closer = new DialogCloser();
-        var waiting = dialogs.ShowCustomAsync("Inspect with authorization", new StackPanel
-        {
-            Spacing = 8,
-            Children =
-            {
-                Wrapped(Formatters.SafeName(item.Snapshot.Subject.DisplayPath)),
-                Wrapped("The system asks for administrator approval to read this item's security metadata.")
-            }
-        }, [new("Cancel", "cancel", IsDefault: true, IsCancel: true)], closer: closer,
-            behavior: new DialogBehavior { DismissOnBackdrop = false });
+        var waiting = ShowAuthorizationWaitAsync(dialogs, Formatters.SafeName(item.Snapshot.Subject.DisplayPath),
+            "The system asks for administrator approval to read this item's security metadata.", closer);
 
         // An administrator may take time to answer. Keep this off the filesystem I/O queue.
         var inspect = Task.Run(() => LinuxAuthorizedPermissionEdit.Inspect(broker, item.Inspection, cancellation.Token));

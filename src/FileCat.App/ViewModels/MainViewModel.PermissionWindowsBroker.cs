@@ -28,16 +28,8 @@ public sealed partial class MainViewModel
         nint owner = WindowsPermissionOwner();
         using var cancellation = new CancellationTokenSource();
         var closer = new DialogCloser();
-        var waiting = dialogs.ShowCustomAsync("Inspect with authorization", new StackPanel
-        {
-            Spacing = 8,
-            Children =
-            {
-                Wrapped(Formatters.SafeName(item.Snapshot.Subject.DisplayPath)),
-                Wrapped("Windows asks for administrator approval to read this item's security metadata.")
-            }
-        }, [new("Cancel", "cancel", IsDefault: true, IsCancel: true)], closer: closer,
-            behavior: new DialogBehavior { DismissOnBackdrop = false });
+        var waiting = ShowAuthorizationWaitAsync(dialogs, Formatters.SafeName(item.Snapshot.Subject.DisplayPath),
+            "Windows asks for administrator approval to read this item's security metadata.", closer);
         var inspect = Task.Run(() => WindowsPermissionService.InspectWithAuthorizationAsync(item.Inspection,
             WindowsPermissionService.DiscretionarySections | PermissionSections.Audit, Services.Paths.IsPortable,
             Services.Paths.ElevationExchangeDirectory, owner, cancellation.Token));

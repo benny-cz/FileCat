@@ -554,6 +554,17 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     /// </summary>
     private static string OneLineBreak(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
 
+    /// <summary>A message as one spoken line, bounded: screen readers read a focused button's description whole.</summary>
+    internal static string SpokenMessage(string message)
+    {
+        const int Limit = 600;
+        string text = string.Join(" ", OneLineBreak(message).Split('\n').Select(line => line.Trim()).Where(line => line.Length > 0));
+        if (text.Length <= Limit) return text;
+        int cut = Limit - 1;
+        if (char.IsHighSurrogate(text[cut - 1])) cut--;
+        return text[..cut].TrimEnd() + "…";
+    }
+
     /// <summary>
     /// A message as selectable text, a block per line, with space where a blank line separated paragraphs: a line
     /// break inside one wrapped text makes Avalonia's text layout (headless, at least) add empty lines without end.
@@ -764,6 +775,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         message = OneLineBreak(message);
         var tcs = new TaskCompletionSource();
         var ok = new Button { Content = "OK", IsDefault = true, Classes = { "primary" } };
+        // Focus starts on OK, and a screen reader reads that button, not the message beside it: NVDA said only
+        // "Authorized inspection unavailable dialog, OK button". The message is the alert, so OK carries it.
+        Avalonia.Automation.AutomationProperties.SetHelpText(ok, SpokenMessage(message));
         Session? session = null;
         void Finish()
         {
@@ -784,6 +798,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     {
         var tcs = new TaskCompletionSource<object?>();
         Session? session = null;
+        DialogCard? shownCard = null;
         DispatcherTimer? requery = null;
         var presentationSubscriptions = new List<(DialogButtonPresentation Source, Action Changed)>();
         bool presentationClosed = false;
@@ -813,7 +828,13 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             if (button.InvokeAsync is not { } action) { Finish(button.Result); return; }
 
             running = true;
+            var invoker = TopLevel.GetTopLevel(host)?.FocusManager?.GetFocusedElement() as Control;
             SetActionPresentation();
+            // The invoking button is unavailable while its action runs, so focus fell to the window: NVDA then named
+            // nothing after "Apply with authorization", and Tab started outside the dialog. The dialog keeps focus
+            // instead; Enter there waits for the action, and Tab still reaches its controls and Close.
+            if (invoker is { IsEffectivelyEnabled: false } && shownCard is { } dialogCard && dialogCard.IsVisualAncestorOf(invoker) && IsCurrent(session))
+                dialogCard.Focus();
             try { await action(); }
             catch (OperationCanceledException) { }
             catch (Exception error)
@@ -891,6 +912,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 requery.Start();
             }
             var card = Card(title, content, ButtonRow(btns), 760, pinnedReview);
+            shownCard = card;
             if (resizable) card.EnableResizing(host, behavior?.PreferredSize);
             // Enter confirms as soon as the dialog would: whether the default button may act is asked when Enter is pressed,
             // not only when the 200 ms re-check last enabled it, so Enter right after typing is not lost. A button or a
