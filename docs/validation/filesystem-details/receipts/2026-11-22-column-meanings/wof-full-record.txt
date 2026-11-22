@@ -1,0 +1,57 @@
+﻿File-system details
+
+Item
+  Path         C:\Users\admin\AppData\Local\FileCatValidation\columns-probe\files\wof.txt
+  Kind         File
+  Observed     2026-11-22T21:42:06.0746206+00:00
+  Scope        Focused item only; marked items are not included.
+  File system  NTFS
+
+Storage
+  Logical size       324 602 bytes (317 KiB)
+  Allocated          24 576 bytes (24 KiB) · MainData · FileStandardInfo (held main stream)
+  NTFS compression   Off
+  EFS                Off
+  Sparse indication  Off
+
+  Allocated space is not a deletion-saving estimate or proof of exclusive ownership.
+
+Sharing
+  Names for this file  1
+  Extent sharing       Not inspected
+
+Access
+  Recorded mode          NotInspected: No qualified observation was requested.
+  Owner ID               NotInspected: No qualified observation was requested.
+  Group ID               NotInspected: No qualified observation was requested.
+  Recorded restrictions  0x00000020: archive
+
+  Recorded attributes are not an effective-access decision.
+
+Extra data
+  Streams, EAs, xattrs and forks  Not inspected
+
+Location
+  Volume/dataset encryption  Not inspected
+  Identity evidence          B246029D46026289 / 0000000000000000001D000000003C2B
+
+  FileCat requests metadata, not content. Providers may still perform network or OS activity.
+  Only the final component is inspected without following links; parent resolution can traverse mounts or providers.
+  The native queries share one metadata-only object handle; metadata may change between queries.
+  Observed volume serial: 46026289
+
+Full record · metadata only
+⚠ Not acquired: supplementary-data values and previews, raw volumes and journals, security value collectors, hard-link name inventories and extent/range collectors. These sections require separately bounded and qualified readers.
+
+Native metadata
+  Native attributes  0x00000020: archive
+  Created            2026-11-22 21:32:51.5214262 UTC
+  Accessed           2026-11-22 21:32:51.5214262 UTC
+  Modified           2026-11-22 21:32:51.5214262 UTC
+  Changed            2026-11-22 21:41:21.8023693 UTC
+
+Windows Overlay Filter backing
+  Backing      compressed by the file provider with XPRESS4K; Windows decompresses it when read
+  Observation  FSCTL_GET_EXTERNAL_BACKING (held object)
+  Scope        External backing, separate from the NTFS compression attribute
+
