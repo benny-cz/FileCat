@@ -216,7 +216,7 @@ public sealed partial class PermissionJobTests
     {
         if (!OperatingSystem.IsLinux()) Assert.Skip("Requires Linux.");
         string[] macOnly = ["acl_free", "acl_get_entry", "acl_valid", "fclonefileat", "filesec_free", "filesec_get_property",
-            "filesec_init", "filesec_query_property", "fstatfs$INODE64", "fstatx_np$INODE64", "readdir$INODE64", "renameatx_np"];
+            "filesec_init", "filesec_query_property", "fstatfs$INODE64", "fstatx_np", "fstatx_np$INODE64", "readdir$INODE64", "renameatx_np"];
         Type[] roots = [typeof(LinuxPermissionService), typeof(LinuxPinnedDescriptors), typeof(LinuxPosixAcl), typeof(UnixAnalysisPrivateDirectory)];
         string[] entries = roots.SelectMany(WithNested)
             .SelectMany(type => type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
