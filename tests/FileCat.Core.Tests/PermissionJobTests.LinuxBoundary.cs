@@ -80,8 +80,8 @@ public sealed partial class PermissionJobTests
 
     // G-RESULT: a native refusal after an earlier verified component. A seccomp policy fails utimensat with EPERM, so a
     // compound mode and modification-time change verifies the mode and then reports the kernel's refusal of the time. The
-    // result is partial, the mode stays applied, the time is unchanged, and the journal holds complete history that needs
-    // no recovery review.
+    // result is partial, the mode stays applied and the time is unchanged. A partial result writes no end record, so the
+    // journal keeps it for recovery review with both calls, their outcomes and the kernel's error.
     [Fact]
     public async Task Ext4_native_refusal_after_a_verified_component_reports_a_partial_result()
     {
@@ -113,7 +113,13 @@ public sealed partial class PermissionJobTests
             records.Where(record => record.Type == "permission-outcome").Select(record => record.Get("verdict")));
         string history = Path.GetDirectoryName(fixture.JournalPath!)!;
         using var directory = UnixAnalysisPrivateDirectory.OpenPermissionJournalDirectory(Path.GetDirectoryName(history)!);
-        Assert.Empty(PermissionJournalRecovery.Scan(directory, history, ct));
+        var interrupted = Assert.Single(PermissionJournalRecovery.Scan(directory, history, ct));
+        var kept = Assert.IsType<InterruptedPermissionReview>(interrupted.PermissionReview);
+        Assert.False(kept.Damaged);
+        Assert.Equal(PermissionVerdict.Partial, Assert.Single(kept.ObjectVerdicts).Value);
+        Assert.Equal([PermissionSections.Mode, PermissionSections.Times], kept.Calls.Select(call => call.Section));
+        Assert.Equal([PermissionVerdict.Verified, PermissionVerdict.FailedBeforeChange], kept.Calls.Select(call => call.Outcome!.Value));
+        Assert.Equal(1, kept.Calls[1].NativeError);
     }
 
     // A seccomp supervisor answers FileCat's statx calls for the subject with result-mask bits removed and their fields
