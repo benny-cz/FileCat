@@ -211,6 +211,62 @@ public sealed partial class WindowsPermissionJournalTests
         finally { FileCat.Tests.TestCleanup.DeleteTree(fixture.FullName); }
     }
 
+    // Abrupt device loss (N1, G-MOUNT): the NTFS volume holding the reviewed object is hot-removed after the call's intent
+    // is durable and before dispatch. The recheck on the held handle fails, so no write is attempted, the object reports
+    // a failure, and the history on the system volume is complete. A host harness owns the disk: the test signals it from
+    // the control folder and waits until the volume is gone (.tmp/acl-validation/hotremove).
+    [Fact]
+    public async Task A_volume_removed_after_the_intent_receives_no_write_and_leaves_complete_history()
+    {
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_HOTREMOVE_ROOT");
+        string? control = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_HOTREMOVE_CONTROL");
+        if (!OperatingSystem.IsWindows() || root is null || control is null || ReviewedPermissionOperation.ProcessRefusal() is not null ||
+            AnalysisAdmission.Refusal() is not null)
+            Assert.Skip("Requires the hot-removable NTFS volume harness.");
+        var ct = TestContext.Current.CancellationToken;
+        string path = CreateDocument(root, CurrentSid());
+        File.WriteAllText(Path.Combine(control, "before.sddl"), StoredDacl(path));
+        using var change = Change.Prepare(path, ct);
+        var jobs = Jobs(control, (leaf, cancellation) =>
+        {
+            var journal = WindowsAnalysisPrivateDirectory.CreatePermissionJournal(control, leaf, cancellation);
+            int checks = 0;
+            return journal with
+            {
+                Verify = () =>
+                {
+                    journal.Verify();
+                    if (++checks != 4) return; // after the intent flush, before the recheck and dispatch
+                    File.WriteAllText(Path.Combine(control, "ready"), "intent");
+                    var deadline = DateTime.UtcNow.AddMinutes(3);
+                    while (Directory.Exists(root))
+                    {
+                        if (DateTime.UtcNow > deadline) throw new TimeoutException("The harness did not remove the volume.");
+                        Thread.Sleep(100);
+                    }
+                }
+            };
+        });
+        var finished = new TaskCompletionSource<Job>(TaskCreationOptions.RunContinuationsAsynchronously);
+        jobs.JobFinished += job => finished.TrySetResult(job);
+        var submitted = jobs.SubmitPermissions(change.Review);
+        Assert.Same(submitted, await finished.Task.WaitAsync(TimeSpan.FromMinutes(5), ct));
+        Assert.False(Directory.Exists(root));
+        var result = Assert.Single(submitted.PermissionResults);
+        var component = Assert.Single(result.Components);
+        File.WriteAllText(Path.Combine(control, "result.txt"), $"{result.Verdict}|{component.Verdict}|{component.NativeCall}|{component.Detail}");
+        Assert.Contains(result.Verdict, new[] { PermissionVerdict.FailedBeforeChange, PermissionVerdict.Conflict });
+        Assert.Null(component.NativeCall);
+        Assert.Null(component.NativeError);
+
+        string folder = Path.Combine(control, PermissionJournalNames.Directory);
+        var records = JobJournal.ReadAll(Assert.Single(Directory.GetFiles(folder)));
+        Assert.Single(records, record => record.Type == "permission-intent");
+        Assert.Equal(result.Verdict.ToString(), Assert.Single(records, record => record.Type == "permission-outcome").Get("verdict"));
+        using var directory = new WindowsAnalysisPrivateDirectory(control, PermissionJournalNames.Directory);
+        Assert.Empty(PermissionJournalRecovery.Scan(directory, folder, ct));
+    }
+
     // The child half of the kill test: the real Windows writer and journal, stopped after the given journal check.
     // Each record is verified before and after its flush: begin (checks 1-2), the call intent (3-4, before dispatch)
     // and its outcome (5-6). Check 5 comes after the native call and read-back have returned.
