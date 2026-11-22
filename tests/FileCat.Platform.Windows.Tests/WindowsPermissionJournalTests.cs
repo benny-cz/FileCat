@@ -88,7 +88,7 @@ public sealed partial class WindowsPermissionJournalTests
             }
             finally { Assert.True(RemoveDirectory(redirect), $"RemoveDirectoryW failed: {Marshal.GetLastPInvokeError()}"); }
         }
-        finally { fixture.Delete(recursive: true); }
+        finally { FileCat.Tests.TestCleanup.DeleteTree(fixture.FullName); }
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public sealed partial class WindowsPermissionJournalTests
             Assert.Empty(PermissionJournalRecovery.Scan(directory, folder, ct, keepFinished: 0));
             Assert.False(File.Exists(journal));
         }
-        finally { fixture.Delete(recursive: true); }
+        finally { FileCat.Tests.TestCleanup.DeleteTree(fixture.FullName); }
     }
 
     [Theory]
@@ -208,7 +208,7 @@ public sealed partial class WindowsPermissionJournalTests
             Assert.True(File.Exists(interrupted.JournalPath));
             Assert.Equal($"O:{me}D:P(A;;FA;;;SY)(A;;FA;;;{me})", Stored(interrupted.JournalPath));
         }
-        finally { fixture.Delete(recursive: true); }
+        finally { FileCat.Tests.TestCleanup.DeleteTree(fixture.FullName); }
     }
 
     // The child half of the kill test: the real Windows writer and journal, stopped after the given journal check.
