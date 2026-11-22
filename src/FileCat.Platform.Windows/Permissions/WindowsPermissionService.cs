@@ -303,11 +303,17 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
         }
         cancellation.ThrowIfCancellationRequested();
         if (status < 0) throw NativeFailure(action, StatusToDosError(status));
-        if (length < 20 || length > buffer.Length)
-            throw new ReadFailure(PermissionReadStatus.Failed, "Windows returned an invalid security descriptor length.");
         fixed (byte* bytes = buffer)
-            if (!IsValidSecurityDescriptor((nint)bytes))
+        {
+            // The SMB redirector of Windows 11 26200 reports no length for a descriptor that fit the buffer. Validate it
+            // within the buffer, then take the length the self-relative descriptor states.
+            if (length == 0 && RtlValidRelativeSecurityDescriptor((nint)bytes, (uint)buffer.Length, 0))
+                length = GetSecurityDescriptorLength((nint)bytes);
+            if (length < 20 || length > buffer.Length)
+                throw new ReadFailure(PermissionReadStatus.Failed, "Windows returned an invalid security descriptor length.");
+            if (!RtlValidRelativeSecurityDescriptor((nint)bytes, length, 0))
                 throw new ReadFailure(PermissionReadStatus.Failed, "Windows returned an invalid security descriptor.");
+        }
         return decode(buffer.AsSpan(0, (int)length));
 
         int Query(byte[] destination, out uint resultLength)
@@ -388,4 +394,6 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
     [return: MarshalAs(UnmanagedType.Bool)] private static partial bool IsValidSecurityDescriptor(nint descriptor);
     [LibraryImport("advapi32.dll")]
     private static partial uint GetSecurityDescriptorLength(nint descriptor);
+    [LibraryImport("ntdll.dll")]
+    [return: MarshalAs(UnmanagedType.U1)] private static partial bool RtlValidRelativeSecurityDescriptor(nint descriptor, uint length, uint required);
 }
