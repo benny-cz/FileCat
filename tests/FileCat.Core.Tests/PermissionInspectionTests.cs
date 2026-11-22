@@ -422,6 +422,79 @@ public sealed class PermissionInspectionTests
         Assert.True(File.Exists(other) && File.Exists(mine));
     }
 
+    // G-ACCESS mask: root-owned files give this user a named-user entry and this user's group a group entry with more than
+    // the mask allows. The kernel's check limits both entries to the mask.
+    [Fact]
+    public void Native_ext4_access_check_limits_named_user_and_matching_group_entries_to_the_mask()
+    {
+        RequireExt4AccessCheck();
+        string fixture = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSION_ACCESS_MASK") ?? string.Empty;
+        if (fixture.Length == 0) Assert.Skip("Requires the sudo-made root-owned ACL mask fixture.");
+        foreach (string name in new[] { "named-user", "matching-group" })
+        {
+            var report = CheckAccess(Path.Combine(fixture, name));
+            Assert.Equal((PermissionReadStatus.Present, (int?)null), Right(report, "Read content"));
+            Assert.Equal((PermissionReadStatus.Denied, (int?)13), Right(report, "Write content"));
+            Assert.Equal((PermissionReadStatus.Denied, (int?)13), Right(report, "Execute permission"));
+        }
+    }
+
+    // G-ACCESS mount restrictions: an executable on an ext4 mount with noexec and nosuid is reported with both mount
+    // restrictions, and the kernel refuses execute even though the mode grants it.
+    [Fact]
+    public void Native_ext4_access_check_reports_noexec_and_nosuid_mounts()
+    {
+        RequireExt4AccessCheck();
+        string program = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSION_ACCESS_NOEXEC") ?? string.Empty;
+        if (program.Length == 0) Assert.Skip("Requires the sudo-made noexec and nosuid ext4 mount.");
+        Assert.Equal(UnixFileMode.UserExecute, File.GetUnixFileMode(program) & UnixFileMode.UserExecute);
+        var report = CheckAccess(program);
+        Assert.True(report.NoExecute);
+        Assert.True(report.NoSetId);
+        Assert.False(report.ReadOnly);
+        Assert.Equal((PermissionReadStatus.Present, (int?)null), Right(report, "Read content"));
+        Assert.Equal((PermissionReadStatus.Denied, (int?)13), Right(report, "Execute permission"));
+    }
+
+    // G-ACCESS real and effective IDs: in a process whose real UID is root and whose effective UID is not, the check uses
+    // the effective credentials, although plain access(2) answers for the real root identity.
+    [Fact]
+    public void Native_ext4_access_check_uses_the_effective_not_the_real_identity()
+    {
+        string secret = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSION_ACCESS_REAL_ROOT") ?? string.Empty;
+        if (!OperatingSystem.IsLinux() || secret.Length == 0)
+            Assert.Skip("Requires a Linux process whose real UID is root and effective UID is not.");
+        RequireExt4AccessCheck();
+        Assert.Equal(0u, GetUid());
+        Assert.NotEqual(0u, GetEffectiveUid());
+        var report = CheckAccess(secret);
+        Assert.Equal(GetEffectiveUid().ToString(System.Globalization.CultureInfo.InvariantCulture), report.EffectiveUid);
+        Assert.Equal(report.EffectiveUid, report.FileSystemUid);
+        Assert.Equal((PermissionReadStatus.Denied, (int?)13), Right(report, "Read content"));
+        Assert.Equal(0, Access(secret, 4));
+    }
+
+    private static LinuxAccessReport CheckAccess(string path)
+    {
+        var kind = Directory.Exists(path) ? PermissionObjectKind.Directory : PermissionObjectKind.File;
+        var subject = new PermissionSubject(Location.FileSystem(Path.GetDirectoryName(path)!), path, path,
+            new(PermissionAuthorityKind.Local, "fixture", 1), kind, PermissionLinkPolicy.NoFollow);
+        return new LinuxPermissionService(qualifyAccessChecks: true).CheckEffectiveAccess(subject, TestContext.Current.CancellationToken);
+    }
+
+    private static (PermissionReadStatus Status, int? Error) Right(LinuxAccessReport report, string right)
+    {
+        var check = Assert.Single(report.Checks, check => check.Right == right);
+        return (check.Status, check.NativeError);
+    }
+
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "getuid")]
+    private static extern uint GetUid();
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "geteuid")]
+    private static extern uint GetEffectiveUid();
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "access", SetLastError = true)]
+    private static extern int Access([System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPUTF8Str)] string path, int mode);
+
     private static void RequireExt4AccessCheck()
     {
         if (!OperatingSystem.IsLinux() || Environment.IsPrivilegedProcess ||
