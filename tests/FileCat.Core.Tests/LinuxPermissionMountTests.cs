@@ -234,10 +234,12 @@ public sealed class LinuxPermissionMountTests
     // daemon ends and a GVfs SMB share whose FUSE daemon ends. The harness reports the disconnect once an independent read
     // fails. A subject bound while the mount answered is then unavailable with the client's error, keeps its observation
     // date and admits no review.
+    // GVfs runs first: its share is served by the same Samba instance that the CIFS case stops. The FUSE daemons are
+    // killed, not terminated, because a terminated daemon unmounts cleanly (the path is then gone, not disconnected).
     [Theory]
-    [InlineData("smb")]
-    [InlineData("fuse")]
     [InlineData("gvfs")]
+    [InlineData("fuse")]
+    [InlineData("smb")]
     public async Task A_disconnected_mount_reports_the_client_error_and_keeps_the_observation_date(string fixture)
     {
         string? controls = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_DISCONNECT_CONTROL");
