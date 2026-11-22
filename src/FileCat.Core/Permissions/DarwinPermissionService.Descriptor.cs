@@ -132,10 +132,13 @@ internal sealed unsafe partial class DarwinPermissionService
             {
                 return MacMaterializationPolicy.Run(CancellationToken.None, () =>
                 {
+                    string? unflushed = FlushRefusal(descriptor, subject.RawLocator);
                     var observed = ReadDescriptor(sections);
                     _folderChanged |= !NameMatches(observed.Entry);
                     if (_dispatched) _previous = observed;
                     _dispatched = false;
+                    if (unflushed is not null)
+                        return new PermissionReadBack(observed.Snapshot, PermissionVerification.Unavailable, _folderChanged, unflushed);
                     return new PermissionReadBack(observed.Snapshot, PermissionVerification.SameObject, _folderChanged, _folderChanged
                         ? "The retained object was verified. Its original name or folder changed." : null);
                 }, (_, reason) => Unverified(sections, reason));

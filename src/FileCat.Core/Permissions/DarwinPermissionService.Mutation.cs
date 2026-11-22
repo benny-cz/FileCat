@@ -367,6 +367,8 @@ internal sealed unsafe partial class DarwinPermissionService
             bool eventBefore = _watch.TakeChanges();
             ushort? directoryMode = _pending?.Change is ChangePermissionMode mode ? mode.Bits : _expectedWritableDirectory;
             var directoryAcl = _pending?.Change is ApplyDarwinAcl ? _pending.Expected : _expectedDirectoryAcl;
+            // The entry has no descriptor here; a full flush through its held folder commits the volume's pending metadata.
+            string? unflushed = FlushRefusal(pin.Handle, subject.RawLocator);
             var observed = ReadLane(sections, directoryMode, directoryAcl);
             _folderChanged |= eventBefore | _watch.TakeChanges();
             if (_pending is not null)
@@ -380,6 +382,8 @@ internal sealed unsafe partial class DarwinPermissionService
                     _expectedDirectoryAcl = acl;
                 _pending = null;
             }
+            if (unflushed is not null)
+                return new PermissionReadBack(observed.Snapshot, PermissionVerification.Unavailable, _folderChanged, unflushed);
             return new PermissionReadBack(observed.Snapshot, PermissionVerification.SameObject, _folderChanged, _folderChanged
                 ? "The reviewed entry matched after the call. The original parent directory changed during the operation." : null);
         }

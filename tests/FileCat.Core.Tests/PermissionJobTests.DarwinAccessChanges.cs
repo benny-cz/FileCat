@@ -8,6 +8,45 @@ namespace FileCat.Core.Tests;
 
 public sealed partial class PermissionJobTests
 {
+    // G-RESULT durability on macOS: both writer routes commit the change with F_FULLFSYNC before reporting it verified.
+    // A flush that fails leaves the change uncertain, with the reason, although the file system already reads it back.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Darwin_job_reports_a_change_it_could_not_flush_as_uncertain(bool descriptor)
+    {
+        RequireDarwinWriter();
+        if (Environment.IsPrivilegedProcess) Assert.Skip("Requires ordinary macOS credentials.");
+        var ct = TestContext.Current.CancellationToken;
+        using var fixture = DarwinJournalFixture();
+        using var second = DarwinJournalFixture(); // one job per fixture
+        var (item, subject) = DarwinSubject(fixture);
+        string path = item.FileSystemPath!;
+        File.SetUnixFileMode(path, (UnixFileMode)0x1c0); // owner execute keeps the regular file eligible for O_EXEC.
+        var service = new DarwinPermissionService(qualifyParentWrites: !descriptor, qualifyDescriptorWrites: descriptor);
+        async Task<PermissionResult> Run(Fixture fixture, ushort mode)
+        {
+            using var inspection = service.Inspect(subject, DarwinSections, ct);
+            Assert.Equal(descriptor ? DarwinBindingRoute.Descriptor : DarwinBindingRoute.ParentRelative, inspection.Snapshot.Binding?.DarwinRoute);
+            using var review = DarwinPermissionService.Prepare(inspection, item,
+                new(PermissionScope.Objects, [new ChangePermissionMode(mode, 0xfff)]), false, ct).Review;
+            var job = fixture.Manager.SubmitPermissions(review);
+            await fixture.Finish(job);
+            return Assert.Single(job.PermissionResults);
+        }
+        var verified = await Run(fixture, 0x1e0);
+        Assert.True(verified.Verdict == PermissionVerdict.Verified, $"{verified.Verdict}: {verified.Detail}");
+        DarwinPermissionService.FlushFaultForTests = locator => locator == path ? 5 /* EIO */ : 0;
+        PermissionResult result;
+        try { result = await Run(second, 0x1c0); }
+        finally { DarwinPermissionService.FlushFaultForTests = null; }
+        Assert.Equal(PermissionVerdict.Uncertain, result.Verdict);
+        var component = Assert.Single(result.Components);
+        Assert.Equal(PermissionVerification.Unavailable, component.Verification);
+        Assert.Contains("could not write its pending changes to the device (error 5)", component.Detail);
+        Assert.Equal((UnixFileMode)0x1c0, File.GetUnixFileMode(path));
+    }
+
     [Theory]
     [InlineData(false, "protected")]
     [InlineData(true, "protected")]

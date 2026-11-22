@@ -112,6 +112,34 @@ internal sealed unsafe partial class DarwinPermissionService
     [StructLayout(LayoutKind.Sequential)]
     private struct Timespec { public long Seconds, Nanoseconds; }
 
+    // A read-back reflects the file system's cache. Ask the device to commit the change (F_FULLFSYNC; fsync where the file
+    // system has no full flush). An error leaves the result unverified, as on Linux after a failed syncfs.
+    // A test may fail the flush of objects at chosen locators with an errno.
+    internal static Func<string, int>? FlushFaultForTests;
+
+    internal static string? FlushRefusal(SafeFileHandle handle, string locator)
+    {
+        int error = FlushFaultForTests?.Invoke(locator) ?? 0;
+        if (error == 0)
+        {
+            if (FullFsync(handle, 51 /* F_FULLFSYNC */) == 0) return null;
+            error = Marshal.GetLastPInvokeError();
+            if (error is 25 or 45 /* ENOTTY, ENOTSUP */)
+            {
+                if (Fsync(handle) == 0) return null;
+                error = Marshal.GetLastPInvokeError();
+            }
+        }
+        return $"The file system could not write its pending changes to the device (error {error}). " +
+            "The change may not persist; inspect the object again once its device is available.";
+    }
+
+    // fcntl is variadic; F_FULLFSYNC passes no argument, so the fixed two-argument form is the same call on arm64.
+    [LibraryImport("libc", EntryPoint = "fcntl", SetLastError = true)]
+    private static partial int FullFsync(SafeFileHandle handle, int command);
+    [LibraryImport("libc", EntryPoint = "fsync", SetLastError = true)]
+    private static partial int Fsync(SafeFileHandle handle);
+
     [LibraryImport("libc", EntryPoint = "kqueue", SetLastError = true)]
     private static partial int Kqueue();
     // Darwin arm64 puts fcntl's variadic argument on the stack, after eight fixed register slots.

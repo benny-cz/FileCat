@@ -169,6 +169,44 @@ public sealed partial class WindowsPermissionScopeTests(ITestOutputHelper output
         Assert.Equal(WindowsPermissionDescriptor.Control(before).IsProtected, WindowsPermissionDescriptor.Control(after).IsProtected);
     }
 
+    // G-RESULT durability: the ordinary writer flushes a change through its containing folder before it reports it verified.
+    // A flush that fails leaves the change uncertain, with the reason, although the cache already reads it back.
+    [Fact]
+    public async Task Ordinary_Windows_job_reports_a_change_it_could_not_flush_as_uncertain()
+    {
+        RequireFixture();
+        var fixture = Directory.CreateTempSubdirectory("filecat-acl-flush-");
+        try
+        {
+            MakePrivate(fixture);
+            string flushed = CreateFile(fixture, "flushed.txt");
+            var failing = fixture.CreateSubdirectory("failing");
+            string unflushed = CreateFile(failing, "unflushed.txt");
+            CancellationToken ct = TestContext.Current.CancellationToken;
+            Assert.Equal(PermissionVerdict.Verified, (await RunWitnessJob(flushed, ct)).Verdict);
+            WindowsPermissionService.FlushFaultForTests = folder =>
+                string.Equals(folder, failing.FullName, StringComparison.OrdinalIgnoreCase) ? 1117 /* ERROR_IO_DEVICE */ : 0;
+            PermissionResult result;
+            try { result = await RunWitnessJob(unflushed, ct); }
+            finally { WindowsPermissionService.FlushFaultForTests = null; }
+            Assert.Equal(PermissionVerdict.Uncertain, result.Verdict);
+            var component = Assert.Single(result.Components);
+            Assert.Equal(PermissionVerification.Unavailable, component.Verification);
+            Assert.Contains("could not write its pending changes to the device (error 1117)", component.Detail);
+            Assert.True(HasWitness(ReadDescriptor(unflushed), inherited: false));
+            Assert.True(HasWitness(ReadDescriptor(flushed), inherited: false));
+        }
+        finally { fixture.Delete(recursive: true); }
+
+        static async Task<PermissionResult> RunWitnessJob(string path, CancellationToken ct)
+        {
+            var source = ItemRef.ForFileSystemPath(path, EntryKind.File);
+            using var inspection = new WindowsPermissionService().Inspect(FileSubject(source), PermissionSections.Ordinary, ct);
+            using var review = WindowsPermissionService.Prepare(inspection, source, WitnessDraft(), ct).Review;
+            return await RunJob(review, ct);
+        }
+    }
+
     [Fact]
     public async Task Ordinary_Windows_job_refuses_external_DACL_drift_on_the_same_file()
     {

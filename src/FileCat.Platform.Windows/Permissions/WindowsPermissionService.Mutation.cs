@@ -276,8 +276,10 @@ internal sealed unsafe partial class WindowsPermissionService
 
         public PermissionReadBack Observe(PermissionSections sections)
         {
+            string? unflushed = FlushRefusal(root, names, original.Subject.Authority, CancellationToken.None);
             var snapshot = ObserveHeld(sections, CancellationToken.None, out var held);
             var name = CheckNamespace(held, CancellationToken.None);
+            if (unflushed is not null) return new(snapshot, PermissionVerification.Unavailable, name == false, unflushed);
             return new(snapshot, PermissionVerification.SameObject, name == false, name switch
             {
                 false => "Security was read back on the original object. Its name or folder changed during the call.",
@@ -326,6 +328,37 @@ internal sealed unsafe partial class WindowsPermissionService
 
         public void Dispose() => admitted.Dispose();
     }
+
+    // NTFS answers a read-back from its cache, and an ordinary token cannot flush an object it may only re-permission
+    // (FlushFileBuffers needs write-data access; measured on Windows 11 26200). A handle to the containing folder with
+    // add-file access can flush, as can the volume root for a root. An error then leaves the result unverified, as on Linux
+    // after a failed syncfs; without that access the read-back stays the file system's view.
+    // A test may fail the flush for objects in chosen folders with a Win32 error.
+    internal static Func<string, int>? FlushFaultForTests;
+
+    private static string? FlushRefusal(string root, string[] names, PermissionAuthority authority, CancellationToken ct)
+    {
+        string folderPath = names.Length <= 1 ? root : root + string.Join(Path.DirectorySeparatorChar, names[..^1]);
+        SafeFileHandle folder;
+        try
+        {
+            folder = Walk(root, names.Length == 0 ? names : names[..^1], authority, ct, out var parent, out _, out _, leafReadAccess: 0x2 /* FILE_ADD_FILE */);
+            parent?.Dispose();
+        }
+        catch (Exception error) when (error is ReadFailure or Win32Exception or IOException or UnauthorizedAccessException) { return null; }
+        using (folder)
+        {
+            int error = FlushFaultForTests?.Invoke(folderPath) ?? 0;
+            if (error == 0 && FlushFileBuffers(folder)) return null;
+            if (error == 0) error = Marshal.GetLastPInvokeError();
+            return $"The file system could not write its pending changes to the device (error {error}). " +
+                "The change may not persist; inspect the object again once its device is available.";
+        }
+    }
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool FlushFileBuffers(SafeFileHandle handle);
 
     [LibraryImport("advapi32.dll")]
     private static partial uint SetSecurityInfo(SafeFileHandle handle, int objectType, uint flags, byte* owner, byte* group, byte* dacl, byte* sacl);
