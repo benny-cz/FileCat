@@ -24,8 +24,13 @@ public sealed partial class WindowsFileRecordsTests
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static void Fetched(nint info, nint parameters) => Interlocked.Increment(ref _fetches);
 
-    [Fact]
-    public unsafe void A_cloud_placeholder_reads_its_state_without_being_downloaded()
+    // Providers differ mainly in when the platform asks them for data: each CF_HYDRATION_POLICY, with folders complete.
+    // ALWAYS_FULL refuses a placeholder that is not downloaded (0x8007017C on Windows 11 26200), so it has no such case.
+    [Theory]
+    [InlineData((ushort)0, "partial (")]
+    [InlineData((ushort)1, "progressive (")]
+    [InlineData((ushort)2, "full (")]
+    public unsafe void A_cloud_placeholder_reads_its_state_without_being_downloaded(ushort hydration, string downloads)
     {
         Assert.SkipWhen(!OperatingSystem.IsWindows(), "Cloud Files are Windows'.");
         // Registering a sync root writes this user's sync-root registration (removed at the end): only where that is wanted.
@@ -55,8 +60,8 @@ public sealed partial class WindowsFileRecordsTests
                     StructSize = (uint)sizeof(CfSyncRegistration), ProviderName = (nint)name, ProviderVersion = (nint)version,
                     SyncRootIdentity = (nint)rootIdentity, SyncRootIdentityLength = 17, ProviderId = Guid.NewGuid(),
                 };
-                // Full downloads, folders always complete (no listing is ever asked of the provider), in-sync kept as set.
-                var policies = new CfSyncPolicies { StructSize = (uint)sizeof(CfSyncPolicies), HydrationPrimary = 2, PopulationPrimary = 3 };
+                // The theory's downloads, folders always complete (no listing is ever asked of the provider), in-sync kept as set.
+                var policies = new CfSyncPolicies { StructSize = (uint)sizeof(CfSyncPolicies), HydrationPrimary = hydration, PopulationPrimary = 3 };
                 int registeredResult = CfRegisterSyncRoot(root, &registration, &policies, 0x2 | 0x4 /* no population on the root, root in sync */);
                 Assert.True(registeredResult >= 0, $"CfRegisterSyncRoot: 0x{registeredResult:X8}");
                 registered = true;
@@ -134,7 +139,7 @@ public sealed partial class WindowsFileRecordsTests
                 Assert.StartsWith($"0x{(ulong)sequence << 48 | (ulong)record:X16} ", Field(cloud, "File ID"), StringComparison.Ordinal);
                 Assert.EndsWith($"· file ID 0x{(ulong)rootSequence << 48 | (ulong)rootRecord:X16}", Field(cloud, "Sync root"), StringComparison.Ordinal);
                 Assert.StartsWith("FileCat test 1.0 · ", Field(cloud, "Provider"), StringComparison.Ordinal);
-                Assert.StartsWith("full (", Field(cloud, "Downloads"), StringComparison.Ordinal);
+                Assert.StartsWith(downloads, Field(cloud, "Downloads"), StringComparison.Ordinal);
                 Assert.StartsWith("always full (", Field(cloud, "Folders"), StringComparison.Ordinal);
                 Assert.Equal($"{identity.Length} bytes: its provider's own name for it (below)", Field(cloud, "Its identity"));
                 Assert.Contains(cloud.Lines, l => l.Contains("filecat-identity", StringComparison.Ordinal));
