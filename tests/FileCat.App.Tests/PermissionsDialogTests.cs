@@ -271,6 +271,62 @@ public sealed class PermissionsDialogTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Mac_attributes_unmarks_its_verified_origin_only_while_the_marks_are_unchanged(bool changeMarks)
+    {
+        if (!OperatingSystem.IsMacOS() || Environment.IsPrivilegedProcess || Environment.GetEnvironmentVariable("FILECAT_TEST_DARWIN_ACL_ROOT") is not { } volume ||
+            !Path.GetTempPath().StartsWith(Path.TrimEndingDirectorySeparator(volume) + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            Assert.Skip("Requires the ordinary macOS disposable permissions volume.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
+            File.SetUnixFileMode(Path.Combine(folder, "a.txt"), (UnixFileMode)0x1a4),
+            permissionService: new DarwinPermissionService(qualifyParentWrites: true));
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            string file = Path.Combine(root, "files", "a.txt"), unmarked = Path.Combine(root, "files", "b.txt");
+            var other = File.GetUnixFileMode(unmarked);
+            var listing = vm.ActiveTab!.Listing;
+            await WaitFor(() => listing.State == Core.Listing.ListingState.Complete && listing.VisibleCount == 3, ct);
+            listing.MarkNames(["a.txt"], true);
+            Assert.True(listing.FocusName("b.txt")); // the marked item, not the focused one, is reviewed
+            vm.Execute(CommandIds.Attributes);
+            await WaitFor(() => window.GetVisualDescendants().OfType<UnixPermissionModeEditor>().Any(), ct);
+            TimeField(window, "Permissions as octal").Text = "600";
+            var apply = window.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "Apply");
+            await WaitFor(() => apply.IsEnabled, ct);
+            void PauseIfRequested(Job added)
+            {
+                if (changeMarks && added.Kind == JobKind.Permissions) added.Pause();
+            }
+            services.Jobs.JobAdded += PauseIfRequested;
+            apply.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitFor(() => services.Jobs.Jobs.Count != 0, ct);
+            services.Jobs.JobAdded -= PauseIfRequested;
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(JobKind.Permissions, job.Kind);
+            if (changeMarks)
+            {
+                listing.MarkNames(["b.txt"], true); // the panel's marks are no longer the reviewed one
+                Assert.Equal(2, listing.MarkedCount);
+                job.Resume();
+            }
+            await WaitFor(() => HasResult(window, "Verified changed"), ct);
+            Assert.Equal(PermissionVerdict.Verified, Assert.Single(job.PermissionResults).Verdict);
+            Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(file));
+            Assert.Equal(other, File.GetUnixFileMode(unmarked));
+            if (changeMarks)
+            {
+                // Unmarking decides when the job finishes; give a wrong decision time to show, then require both marks.
+                await Task.Delay(500, ct);
+                Assert.Equal(2, listing.MarkedCount);
+            }
+            else await WaitFor(() => listing.MarkedCount == 0, ct);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaFact]
     public async Task Mac_mode_is_read_only_and_independent_times_and_Finder_Hidden_preserve_permissions()
     {
