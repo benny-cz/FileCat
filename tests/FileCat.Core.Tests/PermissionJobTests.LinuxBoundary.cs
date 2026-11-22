@@ -216,7 +216,7 @@ public sealed partial class PermissionJobTests
     {
         if (!OperatingSystem.IsLinux()) Assert.Skip("Requires Linux.");
         string[] macOnly = ["acl_free", "acl_get_entry", "acl_valid", "fclonefileat", "filesec_free", "filesec_get_property",
-            "filesec_init", "filesec_query_property", "fstatx_np", "renameatx_np"];
+            "filesec_init", "filesec_query_property", "fstatfs$INODE64", "fstatx_np$INODE64", "readdir$INODE64", "renameatx_np"];
         Type[] roots = [typeof(LinuxPermissionService), typeof(LinuxPinnedDescriptors), typeof(LinuxPosixAcl), typeof(UnixAnalysisPrivateDirectory)];
         string[] entries = roots.SelectMany(WithNested)
             .SelectMany(type => type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
@@ -227,6 +227,7 @@ public sealed partial class PermissionJobTests
         Assert.Contains("statx", entries);
         Assert.Contains("getxattr", entries);
         Assert.Contains("syncfs", entries);
+        Assert.Subset(entries.ToHashSet(StringComparer.Ordinal), macOnly.ToHashSet(StringComparer.Ordinal)); // no stale exclusions
         Assert.True(NativeLibrary.TryLoad("libc", typeof(LinuxPermissionService).Assembly, null, out nint libc), "libc did not load.");
         string libcVersion = Marshal.PtrToStringUTF8(GnuLibcVersion()) ?? "unknown";
         string[] linux = entries.Except(macOnly, StringComparer.Ordinal).ToArray();
