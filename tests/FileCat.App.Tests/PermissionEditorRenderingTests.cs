@@ -8,6 +8,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Services;
+using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Permissions;
@@ -45,6 +46,25 @@ public sealed class PermissionEditorRenderingTests
         };
     }
 
+    private static PermissionSnapshot UnixSnapshot(PermissionModel model, PermissionAcl acl)
+    {
+        var subject = new PermissionSubject(Location.FileSystem("/fixture"), "/fixture/report.txt", "/fixture/report.txt",
+            new(PermissionAuthorityKind.Local, "local", 0), PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+        var now = DateTimeOffset.UtcNow;
+        return PermissionSnapshots.Create(subject, model, null, PermissionSections.Mode | PermissionSections.Access, now, "test") with
+        {
+            Mode = new(PermissionReadStatus.Present, "test", now, (ushort)0x1a0),
+            Access = new(PermissionReadStatus.Present, "test", now, new PermissionAclValue(acl)),
+        };
+    }
+
+    private static PosixAcl Posix() => new([new(PosixAclTag.Owner, 6, null), new(PosixAclTag.NamedUser, 4, new(PrincipalKind.UnixUser, "65534", "local")),
+        new(PosixAclTag.OwningGroup, 4, null), new(PosixAclTag.Mask, 4, null), new(PosixAclTag.Other, 0, null)], []);
+
+    private static DarwinAcl Darwin() => new(0, [
+        new(new(PrincipalKind.DarwinUuid, "ABCDEFAB-CDEF-ABCD-EFAB-CDEF0000000C", "local"), DarwinAceKind.Allow, 0, 2),
+        new(new(PrincipalKind.DarwinUuid, "ABCDEFAB-CDEF-ABCD-EFAB-CDEF0000000C", "local"), DarwinAceKind.Deny, 0, 4)], []);
+
     /// <summary>The surfaces in their less common states: selected rule, invalid mask and octal, legacy note.</summary>
     private static (Window Window, WindowsAccessEditor Access, UnixPermissionModeEditor Mode) Open(double width)
     {
@@ -52,7 +72,17 @@ public sealed class PermissionEditorRenderingTests
         var access = new WindowsAccessEditor(Dacl(12), "local", copy: _ => Task.CompletedTask);
         var audit = new WindowsAuditEditor(Sacl(), "local");
         var mode = new UnixPermissionModeEditor(bit => bit == UnixFileMode.UserRead, groupClassLimit: false);
-        var body = new StackPanel { Spacing = 12, Children = { inspector, access, audit, mode } };
+        var owner = new ComboBox { ItemsSource = new[] { "S-1-5-32-544", "S-1-5-21-3623811015-3361044348-30300820-1013" }, SelectedIndex = 1 };
+        AutomationProperties.SetName(owner, "Assignable owner SID");
+        var diff = new ListBox { ItemsPanel = PermissionInspectorView.AllRows(), ItemsSource = Enumerable.Range(1, 8).Select(index =>
+            $"Entry {index} · Allow · S-1-5-21-3623811015-3361044348-30300820-{1000 + index} · 0x00120089 → 0x001301BF").ToArray(),
+            ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((value, _) => new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap }) };
+        AutomationProperties.SetName(diff, "Reviewed changes");
+        diff.SelectedIndex = 2;
+        var posix = new PosixAccessEditor(UnixSnapshot(PermissionModel.PosixAcl, Posix()), copy: _ => Task.CompletedTask);
+        posix.GetVisualDescendants().OfType<TextBox>().FirstOrDefault()?.SetValue(TextBox.TextProperty, "x");
+        var darwin = new DarwinAccessEditor(UnixSnapshot(PermissionModel.DarwinAcl, Darwin()), copy: _ => Task.CompletedTask);
+        var body = new StackPanel { Spacing = 12, Children = { inspector, access, audit, mode, owner, diff, posix, darwin } };
         var window = new Window { Width = width, Height = 3000, Content = new DialogCard("Edit access ACL", body, null, 900) };
         // The headless application has Fluent only; the product's own styles render the dialog as the app does.
         window.Styles.Add(new Avalonia.Markup.Xaml.Styling.StyleInclude(new Uri("avares://FileCat/"))
@@ -127,7 +157,16 @@ public sealed class PermissionEditorRenderingTests
                 {
                     ThemeManager.Apply(name);
                     var (window, _, _) = Open(900);
-                    try { failures.AddRange(Failures(window, $"{name}/{density}")); }
+                    try
+                    {
+                        // The checked texts include the rarer states, not only the default labels.
+                        var shown = window.GetVisualDescendants().OfType<TextBlock>().Where(text => text.IsEffectivelyVisible)
+                            .Select(text => text.Text ?? "").ToArray();
+                        foreach (string expected in new[] { "Enter a numeric ID from 0 to 4294967294.",
+                                     "Enter three or four octal digits (0–7), or use the permission checkboxes.", "Inheritance: enabled, legacy form" })
+                            Assert.Contains(expected, shown);
+                        failures.AddRange(Failures(window, $"{name}/{density}"));
+                    }
                     finally { window.Close(); }
                 }
             }
@@ -181,6 +220,60 @@ public sealed class PermissionEditorRenderingTests
             ThemeManager.Apply(theme);
             ReadabilityPolicy.ApplyDensity("Compact");
         }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(21)]
+    [InlineData(28)]
+    public async Task Large_text_scrolls_the_editor_body_vertically_and_reveals_its_last_field(double fontSize)
+    {
+        var fallback = new TextBox { Text = "fallback" };
+        var host = new Grid();
+        var window = new Window { Width = 640, Height = 420, FontSize = fontSize, Content = new Grid { Children = { fallback, host } } };
+        window.Styles.Add(new Avalonia.Markup.Xaml.Styling.StyleInclude(new Uri("avares://FileCat/"))
+            { Source = new Uri("avares://FileCat/Themes/Styles.axaml") });
+        window.Show();
+        fallback.Focus();
+        var dialogs = new OverlayDialogService(host, () => fallback);
+        try
+        {
+            var access = new WindowsAccessEditor(Dacl(12), "local", copy: _ => Task.CompletedTask);
+            var mode = new UnixPermissionModeEditor(bit => bit == UnixFileMode.UserRead, groupClassLimit: false);
+            var body = new StackPanel { Spacing = 8, Children = { access, mode } };
+            var shown = dialogs.ShowCustomAsync("Edit access ACL", body,
+                [new("Cancel", "close", IsCancel: true), new("Apply", "apply", IsDefault: true) { IsAvailable = () => false }],
+                resizable: true, behavior: new DialogBehavior { DismissOnBackdrop = false, ConfirmOnOptionEnter = false, ConfirmOnListItemEnter = false });
+            Settle(window);
+            var card = window.GetVisualDescendants().OfType<DialogCard>().Single();
+            var scroll = card.GetVisualDescendants().OfType<ScrollViewer>().Single(viewer => viewer.Name == "DialogBodyScroll");
+            Assert.True(scroll.Extent.Height > scroll.Viewport.Height, "At large text the editor must scroll within the dialog.");
+            Assert.InRange(scroll.Extent.Width, 1, scroll.Viewport.Width + 1);
+            var last = mode.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "Permissions as octal");
+            Assert.True(last.Focus(Avalonia.Input.NavigationMethod.Tab));
+            var viewport = scroll.GetVisualDescendants().OfType<ScrollContentPresenter>().Single(presenter => ReferenceEquals(presenter.TemplatedParent, scroll));
+            for (int attempt = 0; attempt < 300 && !Inside(last, viewport); attempt++)
+            {
+                Settle(window);
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            }
+            Assert.True(Inside(last, viewport), "Keyboard focus must reveal the last field of the editor.");
+            Assert.True(scroll.Offset.Y > 0);
+            dialogs.CancelAll();
+            await shown;
+        }
+        finally { dialogs.CancelAll(); Dispatcher.UIThread.RunJobs(); window.Close(); }
+
+        static bool Inside(Control child, Control viewport) => child.TranslatePoint(default, viewport) is { } p &&
+            p.X >= -0.6 && p.Y >= -0.6 && p.X + child.Bounds.Width <= viewport.Bounds.Width + 0.6 &&
+            p.Y + child.Bounds.Height <= viewport.Bounds.Height + 0.6;
+    }
+
+    private static void Settle(Window window)
+    {
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
     }
 
     [AvaloniaFact]
