@@ -271,6 +271,59 @@ public sealed class PermissionsDialogTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    // G-UX combined submission: when the mode component of a reviewed mode, times and Finder Hidden job fails (another
+    // process changed the mode after review), the job stops. The times and the Finder Hidden flag are not written, the
+    // other mode stays, and the item stays marked.
+    [AvaloniaFact]
+    public async Task Mac_combined_attributes_stop_after_a_failed_mode_component()
+    {
+        if (!OperatingSystem.IsMacOS() || Environment.IsPrivilegedProcess || Environment.GetEnvironmentVariable("FILECAT_TEST_DARWIN_ACL_ROOT") is not { } volume ||
+            !Path.GetTempPath().StartsWith(Path.TrimEndingDirectorySeparator(volume) + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            Assert.Skip("Requires the ordinary macOS disposable permissions volume.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
+            File.SetUnixFileMode(Path.Combine(folder, "a.txt"), (UnixFileMode)0x1a4),
+            permissionService: new DarwinPermissionService(qualifyParentWrites: true));
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            string file = Path.Combine(root, "files", "a.txt");
+            uint initialFlags = ReadMacFlags(file);
+            var modifiedBefore = File.GetLastWriteTimeUtc(file);
+            var listing = vm.ActiveTab!.Listing;
+            await WaitFor(() => listing.State == Core.Listing.ListingState.Complete && listing.VisibleCount == 3, ct);
+            listing.MarkNames(["a.txt"], true);
+            vm.Execute(CommandIds.Attributes);
+            await WaitFor(() => window.GetVisualDescendants().OfType<UnixPermissionModeEditor>().Any(), ct);
+            TimeField(window, "Permissions as octal").Text = "600";
+            window.GetVisualDescendants().OfType<CheckBox>().Single(box => box.Content as string == "Hidden in Finder").IsChecked = true;
+            TimeField(window, "Modified").Text = new DateTime(2025, 2, 3, 4, 5, 6, DateTimeKind.Utc).ToString("O");
+            var apply = window.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "Apply");
+            await WaitFor(() => apply.IsEnabled, ct);
+            void Pause(Job added) { if (added.Kind == JobKind.Permissions) added.Pause(); }
+            services.Jobs.JobAdded += Pause;
+            apply.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitFor(() => services.Jobs.Jobs.Count != 0, ct);
+            services.Jobs.JobAdded -= Pause;
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(JobKind.Permissions, job.Kind);
+            File.SetUnixFileMode(file, (UnixFileMode)0x100); // another process changes the mode after review
+            job.Resume();
+            await WaitFor(() => job.State.IsFinished(), ct);
+            var result = Assert.Single(job.PermissionResults);
+            Assert.NotEqual(PermissionVerdict.Verified, result.Verdict);
+            var mode = Assert.Single(result.Components, component => component.Section == PermissionSections.Mode);
+            Assert.Null(mode.NativeCall);
+            Assert.All(result.Components.Where(component => component.Section != PermissionSections.Mode),
+                component => Assert.Equal(PermissionVerdict.Unattempted, component.Verdict));
+            Assert.Equal((UnixFileMode)0x100, File.GetUnixFileMode(file));
+            Assert.Equal(modifiedBefore, File.GetLastWriteTimeUtc(file));
+            Assert.Equal(initialFlags, ReadMacFlags(file));
+            await Task.Delay(500, ct); // unmarking follows the job's end; give a wrong decision time to show
+            Assert.Equal(1, listing.MarkedCount);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
@@ -372,6 +425,63 @@ public sealed class PermissionsDialogTests
             Assert.Equal(UnixFileMode.UserRead | UnixFileMode.GroupRead, File.GetUnixFileMode(file));
             Assert.Equal(modified, File.GetLastWriteTimeUtc(file));
             Assert.Equal(created, File.GetCreationTimeUtc(file));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    // G-UX unbound scopes: with no reviewed binding (an object on an unqualified filesystem in an ordinary process, or any
+    // object in a root process), the Attributes dialog keeps mode editing unavailable and says why. Timestamps applied to
+    // a file, a folder and the items inside it then leave every mode as it was.
+    [AvaloniaFact]
+    public async Task Unbound_attributes_scopes_apply_times_and_keep_every_mode()
+    {
+        string expected = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_UNBOUND") ?? string.Empty;
+        if (!OperatingSystem.IsLinux() || expected is not ("tmpfs" or "root") || Environment.IsPrivilegedProcess != (expected == "root"))
+            Assert.Skip("Requires the unbound-scope harness: an ordinary process on tmpfs, or a root process.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
+        {
+            File.SetUnixFileMode(Path.Combine(folder, "a.txt"), (UnixFileMode)0x1a0);
+            string inside = Directory.CreateDirectory(Path.Combine(folder, "inside")).FullName;
+            File.WriteAllText(Path.Combine(inside, "c.txt"), "gamma");
+            File.SetUnixFileMode(Path.Combine(inside, "c.txt"), (UnixFileMode)0x184);
+            File.SetUnixFileMode(inside, (UnixFileMode)0x1e8);
+        });
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            string files = Path.Combine(root, "files");
+            Assert.Equal(expected == "root" ? "ext2/ext3" : "tmpfs", RunTool("stat", "-f", "-c", "%T", files).Trim());
+            string[] names = ["a.txt", "b.txt", "inside", Path.Combine("inside", "c.txt")];
+            var modes = names.ToDictionary(name => name, name => File.GetUnixFileMode(Path.Combine(files, name)));
+            var listing = vm.ActiveTab!.Listing;
+            await WaitFor(() => listing.State == Core.Listing.ListingState.Complete && listing.VisibleCount == 4, ct);
+            listing.MarkNames(["a.txt", "inside"], true);
+            vm.Execute(CommandIds.Attributes);
+            await WaitFor(() => window.GetVisualDescendants().OfType<UnixPermissionModeEditor>().Any(), ct);
+            Assert.False(TimeField(window, "Permissions as octal").IsEffectivelyEnabled);
+            if (expected == "root") Assert.True(HasResult(window, "Open an ordinary FileCat window"));
+            else
+            {
+                var refusals = window.GetVisualDescendants().OfType<ListBox>().Single(list =>
+                    AutomationProperties.GetName(list) == "Objects unavailable for mode changes");
+                Assert.Equal(2, refusals.Items.Count);
+                Assert.All(refusals.Items.OfType<string>(), row => Assert.Contains("outside the qualified Linux permissions route", row));
+            }
+            window.GetVisualDescendants().OfType<CheckBox>().Single(box => box.Content as string == "Also apply timestamps inside folders").IsChecked = true;
+            var modified = new DateTime(2025, 3, 4, 5, 6, 7, DateTimeKind.Utc);
+            TimeField(window, "Modified").Text = modified.ToString("O");
+            var apply = window.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "Apply");
+            await WaitFor(() => apply.IsEnabled, ct);
+            apply.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitFor(() => services.Jobs.Jobs.Count == 1 &&
+                (services.Jobs.Jobs[0].State.IsFinished() || services.Jobs.Jobs[0].Decision is not null), ct);
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(JobKind.Attributes, job.Kind);
+            Assert.True(job.State == JobState.Completed, job.Decision?.Request.Message ?? string.Join(" | ", job.Issues.Select(issue => issue.Message)));
+            foreach (string name in names) Assert.Equal(modes[name], File.GetUnixFileMode(Path.Combine(files, name)));
+            Assert.Equal(modified, File.GetLastWriteTimeUtc(Path.Combine(files, "a.txt")));
+            Assert.Equal(modified, File.GetLastWriteTimeUtc(Path.Combine(files, "inside", "c.txt")));
+            Assert.NotEqual(modified, File.GetLastWriteTimeUtc(Path.Combine(files, "b.txt")));
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }

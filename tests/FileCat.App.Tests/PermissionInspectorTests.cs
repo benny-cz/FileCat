@@ -2261,6 +2261,54 @@ public sealed class PermissionInspectorTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    // G-UX Details Apply: a change applied from the inspector that the File-system details report opened has no panel
+    // origin. After it verifies, the panel's marks stay as they were, including the mark on the changed item.
+    [AvaloniaFact]
+    public async Task Details_route_apply_leaves_the_panel_marks_alone()
+    {
+        RequireExt4();
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
+            File.SetUnixFileMode(Path.Combine(folder, "a.txt"), (UnixFileMode)0x1a4));
+        ReportWindow? details = null;
+        using var watch = Window.WindowOpenedEvent.AddClassHandler<ReportWindow>((opened, _) => details = opened);
+        try
+        {
+            CancellationToken ct = TestContext.Current.CancellationToken;
+            var listing = vm.ActiveTab!.Listing;
+            await Until(() => listing.State == ListingState.Complete && listing.VisibleCount == 3, ct);
+            listing.MarkNames(["a.txt", "b.txt"], true);
+            Assert.Equal(2, listing.MarkedCount);
+            Assert.True(listing.FocusName("a.txt"));
+            vm.Execute(CommandIds.FileRecord);
+            await Until(() => details is not null, ct);
+            await Until(() => FindButton(details!, "Permissions and ownership…")?.IsEnabled == true, ct);
+            Click(FindButton(details!, "Permissions and ownership…")!);
+            await Until(() => FindButton(window, "Edit mode…") is not null, ct);
+            Click(FindButton(window, "Edit mode…")!);
+            await Until(() => window.GetVisualDescendants().OfType<UnixPermissionModeEditor>().Any(), ct);
+            var field = window.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "Permissions as octal");
+            Assert.Equal("644", field.Text);
+            field.Text = "600";
+            await Until(() => FindButton(window, "Apply")?.IsEnabled == true, ct);
+            string file = Path.Combine(root, "files", "a.txt");
+            var other = File.GetUnixFileMode(Path.Combine(root, "files", "b.txt"));
+            Click(FindButton(window, "Apply")!);
+            await Until(() => TextPresent(window, "Verified changed"), ct);
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(PermissionVerdict.Verified, Assert.Single(job.PermissionResults).Verdict);
+            Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(file));
+            Assert.Equal(other, File.GetUnixFileMode(Path.Combine(root, "files", "b.txt")));
+            // Unmarking would follow the job's end; give a wrong decision time to show, then require both marks.
+            await Task.Delay(500, ct);
+            Assert.Equal(2, listing.MarkedCount);
+        }
+        finally
+        {
+            details?.Close();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
     [AvaloniaFact]
     public async Task Item_menu_inspects_the_captured_object_after_focus_changes()
     {
