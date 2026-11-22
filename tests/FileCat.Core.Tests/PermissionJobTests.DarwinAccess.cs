@@ -1,3 +1,4 @@
+using FileCat.Core.FileSystem;
 using FileCat.Core.Permissions;
 using FileCat.Core.Resources;
 
@@ -80,6 +81,51 @@ public sealed partial class PermissionJobTests
         }
         finally { File.SetUnixFileMode(directory, (UnixFileMode)0x1c0); }
     }
+
+    // G-ACCESS mount restrictions on macOS: an executable on an image mounted noexec and nosuid is reported with both
+    // restrictions, and the kernel refuses execute although the mode grants it.
+    [Fact]
+    public void Darwin_access_check_reports_noexec_and_nosuid_mounts()
+    {
+        string program = Environment.GetEnvironmentVariable("FILECAT_TEST_DARWIN_ACCESS_NOEXEC") ?? string.Empty;
+        if (!OperatingSystem.IsMacOS() || program.Length == 0 || Environment.IsPrivilegedProcess)
+            Assert.Skip("Requires an ordinary macOS process and an image mounted noexec and nosuid.");
+        Assert.Equal(UnixFileMode.UserExecute, File.GetUnixFileMode(program) & UnixFileMode.UserExecute);
+        var report = CheckDarwinAccess(program);
+        Assert.True(report.NoExecute);
+        Assert.True(report.NoSetId);
+        Assert.False(report.ReadOnly);
+        Check(report, "Read content", PermissionReadStatus.Present);
+        Check(report, "Execute permission", PermissionReadStatus.Denied);
+        Assert.Equal(13, Assert.Single(report.Checks, check => check.Right == "Execute permission").NativeError);
+    }
+
+    // G-ACCESS real and effective IDs on macOS: with real UID 0 and an ordinary effective UID, the check answers for the
+    // effective identity, although access(2) answers for the real root identity.
+    [Fact]
+    public void Darwin_access_check_uses_the_effective_not_the_real_identity()
+    {
+        string secret = Environment.GetEnvironmentVariable("FILECAT_TEST_DARWIN_ACCESS_REAL_ROOT") ?? string.Empty;
+        if (!OperatingSystem.IsMacOS() || secret.Length == 0)
+            Assert.Skip("Requires a macOS process whose real UID is root and effective UID is not.");
+        Assert.False(Environment.IsPrivilegedProcess);
+        var report = CheckDarwinAccess(secret);
+        Assert.Equal(0u, report.RealUid);
+        Assert.NotEqual(0u, report.EffectiveUid);
+        Check(report, "Read content", PermissionReadStatus.Denied);
+        Assert.Equal(0, DarwinRealAccess(secret, 4));
+    }
+
+    private static DarwinAccessReport CheckDarwinAccess(string path)
+    {
+        var item = ItemRef.ForFileSystemPath(path, EntryKind.File);
+        var subject = new PermissionSubject(item.Parent, path, path, new(PermissionAuthorityKind.Local, "fixture", 0),
+            PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+        return new DarwinPermissionService(qualifyAccessChecks: true).CheckEffectiveAccess(subject, TestContext.Current.CancellationToken);
+    }
+
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "access", SetLastError = true)]
+    private static extern int DarwinRealAccess([System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPUTF8Str)] string path, int mode);
 
     private static void Check(DarwinAccessReport report, string right, PermissionReadStatus status)
     {
