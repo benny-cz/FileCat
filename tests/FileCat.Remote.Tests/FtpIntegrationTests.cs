@@ -52,6 +52,19 @@ internal sealed class TestFtpServer : IDisposable
             Handler.tls_data_required = True
         else:
             from pyftpdlib.handlers import FTPHandler as Handler
+        # FILECAT_FTP_DATA_CERT: data connections present this certificate instead of the control connection's.
+        data_cert = os.environ.get("FILECAT_FTP_DATA_CERT")
+        if cert and data_cert:
+            from pyftpdlib.handlers import TLS_DTPHandler
+            class DataContextSource(Handler):
+                certfile = data_cert
+                keyfile = None
+                ssl_context = None
+            data_context = DataContextSource.get_ssl_context()
+            class DataHandler(TLS_DTPHandler):
+                def secure_connection(self, ssl_context):
+                    return super().secure_connection(data_context)
+            Handler.dtp_handler = DataHandler
         late_name = os.environ.get("FILECAT_FTP_MUTATE_RNFR")
         fail_name = os.environ.get("FILECAT_FTP_FAIL_AFTER_BACKUP_RNTO")
         publish_fail_name = os.environ.get("FILECAT_FTP_FAIL_AFTER_STAGE_RNTO")
@@ -144,6 +157,13 @@ internal sealed class TestFtpServer : IDisposable
                     if os.path.isdir(path) and not os.listdir(path):
                         return self.respond("550 No files found.")
                     return super().ftp_LIST(path)
+        # FILECAT_FTP_PWD: the working folder the server reports, as a server with an unusual path would.
+        pwd_reply = os.environ.get("FILECAT_FTP_PWD")
+        if pwd_reply:
+            BaseHandler = Handler
+            class Handler(BaseHandler):
+                def ftp_PWD(self, line):
+                    self.respond('257 "%s" is the current directory.' % pwd_reply.replace('"', '""'))
         Handler.authorizer = auth
         Handler.use_gmt_times = True
         # FILECAT_FTP_ADVERTISE: the address PASV replies name (a server pointing data connections elsewhere);
@@ -203,8 +223,11 @@ internal sealed class TestFtpServer : IDisposable
     public static TestFtpServer? TryStart(string? certificatePem = null, string? advertise = null, bool implicitTls = false,
         string? mutateOnRename = null, string? failAfterBackupRename = null, string? failAfterStagePublish = null,
         string? failAfterBackupCleanup = null, int virtualListingCount = 0, bool virtualSelfLines = false, bool emptyFolders550 = false,
-        (int Lines, int Length)? virtualPadding = null, string? permissionListing = null)
+        (int Lines, int Length)? virtualPadding = null, string? permissionListing = null, string? dataCertificatePem = null,
+        string? workingFolderReply = null)
     {
+        if (dataCertificatePem is not null && certificatePem is null)
+            throw new ArgumentException("A data certificate requires a control certificate.", nameof(dataCertificatePem));
         if (implicitTls && certificatePem is null) throw new ArgumentException("Implicit TLS requires a test certificate.", nameof(certificatePem));
         if (mutateOnRename is not null && mutateOnRename != "late.bin")
             throw new ArgumentException("Only the owned late.bin fixture may be changed during rename.", nameof(mutateOnRename));
@@ -247,6 +270,14 @@ internal sealed class TestFtpServer : IDisposable
             start.Environment["FILECAT_FTP_PERMISSION_LISTING"] = permissionListing;
             start.Environment["FILECAT_FTP_LOG"] = Path.Combine(dir, "ftp-permissions.log");
         }
+        if (dataCertificatePem is not null)
+        {
+            var dataCert = Path.Combine(dir, "data.pem");
+            File.WriteAllText(dataCert, dataCertificatePem);
+            start.Environment["FILECAT_FTP_DATA_CERT"] = dataCert;
+            start.Environment["FILECAT_FTP_LOG"] = Path.Combine(dir, "ftp-data-certificate.log");
+        }
+        if (workingFolderReply is not null) start.Environment["FILECAT_FTP_PWD"] = workingFolderReply;
         var launched = Launch(start);
         if (launched is null) return null;
         return new TestFtpServer(launched.Value.Process, start, root, launched.Value.Port);
@@ -701,6 +732,80 @@ public sealed class FtpIntegrationTests : IDisposable
             Assert.Throws<CertificateRejectedException>(() => connections.Lease(profile.Id, ct).Dispose());
             Assert.Equal((CertificateStatus.Changed, sha), (interaction.CertificateQuestions[0].Status, interaction.CertificateQuestions[0].PinnedSha256));
         }
+    }
+
+    // G-FTP, an ambiguous server folder path: a folder FTP cannot name unambiguously (relative, a doubled separator, or a
+    // "." or ".." segment) is refused before any listing, including the working folder a server reports for "~".
+    [Theory]
+    [InlineData("~", "/srv/./ftp")]
+    [InlineData("relative", null)]
+    [InlineData("/srv//ftp", null)]
+    [InlineData("/srv/./ftp", null)]
+    [InlineData("/srv/../ftp", null)]
+    public void Permission_inspection_refuses_an_ambiguous_server_folder_before_listing(string folder, string? workingFolder)
+    {
+        using var server = TestFtpServer.TryStart(permissionListing: "mlsd", workingFolderReply: workingFolder);
+        if (server is null) Assert.Skip("Requires the owned pyftpdlib FTP test server.");
+        File.WriteAllText(Path.Combine(server.Root, "zero.txt"), "a");
+        var profile = server.Profile(RemoteProtocols.Ftp);
+        using var connections = Connections(profile, new FtpInteraction { AllowPlain = true });
+        var provider = new SftpProvider(connections, () => [profile], value => value);
+        var location = SftpProvider.At(profile, folder);
+        var authority = new PermissionAuthority(PermissionAuthorityKind.RemoteSession, profile.Id, 0);
+        var subject = new PermissionSubject(location, "zero.txt", "zero.txt", authority, PermissionObjectKind.File,
+            PermissionLinkPolicy.NoFollow, ListedSize: 1);
+        var result = Assert.Single(provider.InspectFtpPermissions(location, [subject], TestContext.Current.CancellationToken));
+        Assert.Equal(PermissionReadStatus.Failed, result.Mode.Status);
+        Assert.Contains("unambiguous absolute path", result.BindingProblem);
+        string commands = File.ReadAllText(Path.Combine(Path.GetDirectoryName(server.Root)!, "ftp-permissions.log"));
+        Assert.DoesNotContain("MLSD", commands);
+        Assert.DoesNotContain("LIST", commands);
+    }
+
+    // G-FTP, a certificate change during an FTPS session: the control connection presents the pinned certificate, but the
+    // server's data connections present another one. Every data connection of a session must present the certificate the
+    // session was accepted with, so the listing and the download are refused without a question.
+    [Fact]
+    public void FTPS_refuses_a_data_connection_presenting_another_certificate_within_the_session()
+    {
+        var (pem, sha) = TestFtpServer.SelfSigned("FileCat control");
+        var (data, _) = TestFtpServer.SelfSigned("FileCat data");
+        var ct = TestContext.Current.CancellationToken;
+        using var server = TestFtpServer.TryStart(pem, dataCertificatePem: data);
+        if (server is null) Assert.Skip("No FTPS test server here (pip install pyftpdlib pyopenssl, or set FILECAT_PYTHON).");
+        File.WriteAllText(Path.Combine(server.Root, "present.txt"), "server content");
+        var profile = server.Profile(RemoteProtocols.FtpExplicitTls);
+        File.WriteAllText(Path.Combine(_state, "trusted_certificates"), $"127.0.0.1:{server.Port} {sha}\n");
+        var interaction = new FtpInteraction { CertificateAnswer = HostKeyDecision.AcceptOnce };
+        using var connections = Connections(profile, interaction);
+        using var lease = connections.Lease(profile.Id, ct);
+        var listing = Assert.Throws<CertificateRejectedException>(() => lease.Channel.List("/", ct));
+        Assert.Contains("different certificate", listing.Message);
+        Assert.Throws<CertificateRejectedException>(() =>
+        {
+            using var read = lease.Channel.OpenRead("/present.txt");
+            read.ReadByte();
+        });
+        Assert.Empty(interaction.CertificateQuestions);
+    }
+
+    // A session whose certificate was accepted once does not ask again for each of its data connections.
+    [Fact]
+    public void FTPS_session_accepted_once_lists_and_reads_without_asking_again()
+    {
+        var (pem, _) = TestFtpServer.SelfSigned("FileCat accepted once");
+        var ct = TestContext.Current.CancellationToken;
+        using var server = TestFtpServer.TryStart(pem);
+        if (server is null) Assert.Skip("No FTPS test server here (pip install pyftpdlib pyopenssl, or set FILECAT_PYTHON).");
+        File.WriteAllText(Path.Combine(server.Root, "present.txt"), "server content");
+        var profile = server.Profile(RemoteProtocols.FtpExplicitTls);
+        var interaction = new FtpInteraction { CertificateAnswer = HostKeyDecision.AcceptOnce };
+        using var connections = Connections(profile, interaction);
+        using var lease = connections.Lease(profile.Id, ct);
+        for (int i = 0; i < 3; i++) Assert.Single(lease.Channel.List("/", ct));
+        using (var read = lease.Channel.OpenRead("/present.txt"))
+        using (var reader = new StreamReader(read)) Assert.Equal("server content", reader.ReadToEnd());
+        Assert.Single(interaction.CertificateQuestions);
     }
 
     [Fact]
