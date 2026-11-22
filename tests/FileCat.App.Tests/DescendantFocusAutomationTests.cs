@@ -258,6 +258,87 @@ public sealed class DescendantFocusAutomationTests
         finally { window.Close(); }
     }
 
+    /// <summary>
+    /// VoiceOver did not follow Tab into an in-window dialog's body on macOS 27: tracking the body's live region walked up
+    /// its automation parents while Avalonia was still attaching the body, and Avalonia then dropped the link from the
+    /// body's content to the dialog. Every control in the body reported parents that ended outside the window.
+    /// </summary>
+    [AvaloniaFact]
+    public void A_dialog_body_with_a_live_region_stays_linked_to_its_window_under_the_macOS_bridge()
+    {
+        var host = new Panel();
+        var window = new FocusWindow { Width = 800, Height = 600, Content = host };
+        window.Show();
+        bool mac = NativeLiveRegionBridges.UseMacBridge;
+        NativeLiveRegionBridges.UseMacBridge = true;
+        try
+        {
+            var root = ControlAutomationPeer.CreatePeerForElement(window);
+            _ = new NativeElementsStandIn(root);
+            var status = new TextBlock { Text = "Copied." };
+            AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
+            LiveRegions.Watch(status);
+            var copy = new Button { Content = "Copy exact path" };
+            host.Children.Add(new DialogCard("Permissions and ownership", new StackPanel { Children = { copy, status } }, null, 560));
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+
+            // Nothing in the body has focus, so no focus report relinks it: the links are the attachment's own.
+            Assert.False(copy.IsFocused);
+            foreach (var control in new Control[] { copy, status })
+                Assert.True(AutomationPaths.Reaches(ControlAutomationPeer.CreatePeerForElement(control), root),
+                    $"{control.GetType().Name} in the dialog body has no parent chain to the window.");
+        }
+        finally
+        {
+            NativeLiveRegionBridges.UseMacBridge = mac;
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// A walk up the automation parents while Avalonia attaches a subtree leaves the subtree's root without a parent: Avalonia
+    /// drops the link the walk made, and the parent keeps listing the root. Focus reported on macOS links such a chain to the
+    /// window again before the native bridge is told, so VoiceOver finds the focused element in its window.
+    /// </summary>
+    [AvaloniaFact]
+    public void Focus_reported_under_the_macOS_bridge_relinks_a_body_whose_parent_link_Avalonia_dropped()
+    {
+        var host = new Panel();
+        var window = new FocusWindow { Width = 800, Height = 600, Content = host };
+        window.Show();
+        bool mac = NativeLiveRegionBridges.UseMacBridge;
+        NativeLiveRegionBridges.UseMacBridge = true;
+        try
+        {
+            var root = Assert.IsType<DescendantFocusWindowAutomationPeer>(ControlAutomationPeer.CreatePeerForElement(window));
+            var provider = (IRootProvider)root;
+            var copy = new Button { Content = "Copy exact path" };
+            var peer = ControlAutomationPeer.CreatePeerForElement(copy);
+            // Stands in for any walk made during the attachment, as live-region tracking made one.
+            copy.AttachedToVisualTree += (_, _) => AutomationPaths.FromWindow(root, peer);
+            host.Children.Add(new DialogCard("Permissions and ownership", new StackPanel { Children = { copy } }, null, 560));
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(AutomationPaths.Reaches(peer, root),
+                "Avalonia kept the link; if it no longer drops it, NativeLiveRegionBridges.Relink may be unnecessary.");
+
+            // The native bridge reads the focused element's parents when it is told, so the links must be back by then.
+            var reported = new List<(AutomationPeer? Focus, bool Linked)>();
+            provider.FocusChanged += (_, _) => reported.Add((provider.GetFocus(), AutomationPaths.Reaches(peer, root)));
+            copy.Focus();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(((AutomationPeer?)peer, true), Assert.Single(reported));
+            // The window is what the native bridge resolves as the focused element's top-level element and window.
+            Assert.Same(root, peer.GetAutomationRoot());
+        }
+        finally
+        {
+            NativeLiveRegionBridges.UseMacBridge = mac;
+            window.Close();
+        }
+    }
+
     [AvaloniaFact]
     public void Linux_attachment_reaches_a_field_inside_a_container_that_was_hidden()
     {
@@ -582,6 +663,26 @@ public sealed class DescendantFocusAutomationTests
     private sealed class FocusWindow : Window
     {
         protected override AutomationPeer OnCreateAutomationPeer() => new DescendantFocusWindowAutomationPeer(this);
+    }
+
+    /// <summary>
+    /// Does what Avalonia's macOS bridge does with the peers it has native elements for, from the window down: lists a
+    /// peer's children again as soon as they change, and gives each listed child its own element.
+    /// </summary>
+    private sealed class NativeElementsStandIn
+    {
+        private readonly HashSet<AutomationPeer> _elements = new(ReferenceEqualityComparer.Instance);
+
+        public NativeElementsStandIn(AutomationPeer root) => Add(root);
+
+        private void Add(AutomationPeer peer)
+        {
+            if (!_elements.Add(peer)) return;
+            peer.ChildrenChanged += (_, _) =>
+            {
+                foreach (var child in peer.GetChildren()) Add(child);
+            };
+        }
     }
 
     /// <summary>Stands in for Avalonia's internal AT-SPI server with the same member shapes.</summary>
