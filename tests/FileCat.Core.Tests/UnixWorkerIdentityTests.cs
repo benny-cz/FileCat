@@ -15,7 +15,12 @@ public sealed class UnixWorkerIdentityTests
     [InlineData("CapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapAmb:\t0000000000000001\n", false)]
     [InlineData("CapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\n", false)]
     [InlineData("CapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapAmb:\tgarbled\n", false)]
-    public void Linux_worker_requires_a_complete_zero_capability_inventory(string status, bool expected) =>
+    // Ubuntu 26.04 desktop sessions inherit CAP_WAKE_ALARM only in the inheritable set: no authority without a file capability.
+    [InlineData("CapInh:\t0000000800000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapAmb:\t0000000000000000\n", true)]
+    [InlineData("CapInh:\t0000000800000000\nCapPrm:\t0000000800000000\nCapEff:\t0000000000000000\nCapAmb:\t0000000000000000\n", false)]
+    [InlineData("CapInh:\tgarbled\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapAmb:\t0000000000000000\n", false)]
+    [InlineData("CapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapAmb:\t0000000000000000\n", false)]
+    public void Linux_worker_requires_a_complete_capability_inventory_without_held_authority(string status, bool expected) =>
         Assert.Equal(expected, UnixWorkerIdentity.CapabilitiesClear(status));
 
     [Fact]
