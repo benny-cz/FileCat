@@ -1344,7 +1344,7 @@ public sealed partial class PermissionJobTests
         try
         {
             string? marker = await child.StandardOutput.ReadLineAsync(ct).AsTask().WaitAsync(TimeSpan.FromSeconds(15), ct);
-            Assert.True(marker == "PERMISSION_JOURNAL_READY", $"Child marker: {marker}. {(child.HasExited ? await errors : "Child still running.")}");
+            Assert.True(marker == "PERMISSION_JOURNAL_READY", $"Child marker: {marker}. {(child.HasExited ? $"Exit {child.ExitCode}. {await errors}" : "Child still running.")}");
             child.Kill();
             await child.WaitForExitAsync(ct).WaitAsync(TimeSpan.FromSeconds(10), ct);
         }
@@ -1354,7 +1354,9 @@ public sealed partial class PermissionJobTests
         }
 
         string document = Path.Join(fixture.Path, "document");
-        Assert.Equal((UnixFileMode)(changed ? 0x180 : 0x1a0), File.GetUnixFileMode(document));
+        // The descriptor writer needs an executable document (0750 to 0700); the others change 0640 to 0600.
+        int before = route == "darwin-descriptor" ? 0x1e8 : 0x1a0, after = route == "darwin-descriptor" ? 0x1c0 : 0x180;
+        Assert.Equal((UnixFileMode)(changed ? after : before), File.GetUnixFileMode(document));
         using var directory = UnixAnalysisPrivateDirectory.OpenPermissionJournalDirectory(fixture.Path);
         var interrupted = Assert.Single(PermissionJournalRecovery.Scan(directory,
             Path.Join(fixture.Path, PermissionJournalNames.Directory), ct, keepFinished: 0));

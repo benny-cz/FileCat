@@ -34,7 +34,9 @@ internal static class PermissionJournalCrash
             UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite
         }))
             file.WriteByte(42);
-        File.SetUnixFileMode(path, (UnixFileMode)0x1a0); // 0640
+        // The descriptor writer opens a regular file for execution only, so its document is executable: 0750 to 0700.
+        bool executable = route == "darwin-descriptor";
+        File.SetUnixFileMode(path, (UnixFileMode)(executable ? 0x1e8 : 0x1a0)); // 0750 or 0640
         var item = ItemRef.ForFileSystemPath(path, EntryKind.File);
         var subject = new PermissionSubject(item.Parent, path, path, new(PermissionAuthorityKind.Local, "fixture", 0),
             PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
@@ -45,7 +47,7 @@ internal static class PermissionJournalCrash
         using var inspection = service.Inspect(subject, sections, CancellationToken.None);
         if (darwin && inspection.Snapshot.Binding?.DarwinRoute != (route == "darwin-parent" ? DarwinBindingRoute.ParentRelative : DarwinBindingRoute.Descriptor))
             return 4;
-        PermissionDraft draft = new(PermissionScope.Objects, [new ChangePermissionMode(0x180, 0xfff)]);
+        PermissionDraft draft = new(PermissionScope.Objects, [new ChangePermissionMode((ushort)(executable ? 0x1c0 : 0x180), 0xfff)]);
         using var review = (darwin
             ? DarwinPermissionService.Prepare(inspection, item, draft, false, CancellationToken.None)
             : LinuxPermissionService.Prepare(inspection, item, draft, false, CancellationToken.None)).Review;
