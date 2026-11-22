@@ -743,6 +743,128 @@ public sealed partial class PermissionJobTests
         Assert.Equal("end", JobJournal.ReadAll(fixture.JournalPath!).Last().Type);
     }
 
+    // G-TREE, the remaining captured ext4 mode subcases. "matching-root": the root already carries the requested bit and is
+    // reported as matching without a call while its members change. "lose-search": a reviewed folder loses search after
+    // review, so its member cannot be reached through the reviewed names and the folder's own revision changed; both are
+    // conflicts without a call while the rest applies. "cancel": the job is cancelled once the first intent is durable and
+    // no member changes.
+    [Theory]
+    [InlineData("matching-root")]
+    [InlineData("lose-search")]
+    [InlineData("cancel")]
+    public async Task Ext4_reviewed_mode_tree_handles_a_matching_root_a_lost_search_and_cancellation(string scenario)
+    {
+        RequireExt4Writer();
+        using var fixture = new Fixture(nativeJournal: true);
+        var root = TreeSubject(Path.Join(fixture.Root, "tree"), EntryKind.Directory);
+        var file = TreeSubject(Path.Join(root.Subject.RawLocator, "file"), EntryKind.File);
+        var folder = TreeSubject(Path.Join(root.Subject.RawLocator, "folder"), EntryKind.Directory);
+        var nested = TreeSubject(Path.Join(folder.Subject.RawLocator, "nested"), EntryKind.File);
+        string rootPath = root.Subject.RawLocator, folderPath = folder.Subject.RawLocator;
+        var rootMode = (UnixFileMode)(scenario == "matching-root" ? 0x1e0 : 0x1c0);
+        Directory.CreateDirectory(rootPath, rootMode);
+        Directory.CreateDirectory(folderPath, (UnixFileMode)0x1c0);
+        File.SetUnixFileMode(rootPath, rootMode);
+        foreach (string path in new[] { file.Subject.RawLocator, nested.Subject.RawLocator })
+        {
+            File.WriteAllText(path, "fixture");
+            File.SetUnixFileMode(path, (UnixFileMode)0x180);
+        }
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        var prepared = new LinuxPermissionService().PrepareModeTree([file, nested, folder, root], new(0x20, 0x20), false, false, ct);
+        using var review = prepared.Operation;
+        Assert.Equal(4, review.Targets.Length);
+        bool cancelled = false;
+        if (scenario == "cancel")
+            fixture.Verify = () =>
+            {
+                if (cancelled || fixture.JournalPath is not { } journal ||
+                    !JobJournal.ReadAll(journal).Any(record => record.Type == "permission-intent")) return;
+                cancelled = true;
+                fixture.Manager.Jobs.Single().Cancel();
+            };
+        if (scenario == "lose-search") File.SetUnixFileMode(folderPath, (UnixFileMode)0x180);
+        try
+        {
+            var job = fixture.Manager.SubmitPermissions(review);
+            await fixture.Finish(job);
+            var byPath = job.PermissionResults.ToDictionary(result => job.Request.Sources[result.SourceIndex].FileSystemPath!);
+            Assert.Equal(4, byPath.Count);
+            string Describe(string path) => $"{path}: {byPath[path].Verdict} {byPath[path].Detail} " +
+                string.Join(' ', byPath[path].Components.Select(component => component.Detail));
+            void Expect(PermissionVerdict verdict, params string[] paths)
+            {
+                foreach (string path in paths) Assert.True(byPath[path].Verdict == verdict, Describe(path));
+            }
+            switch (scenario)
+            {
+                case "matching-root":
+                    Expect(PermissionVerdict.Verified, file.Subject.RawLocator, nested.Subject.RawLocator, folderPath);
+                    Expect(PermissionVerdict.AlreadyMatching, rootPath);
+                    Assert.Null(Assert.Single(byPath[rootPath].Components).NativeCall);
+                    Assert.Equal(JobState.Completed, job.State);
+                    Assert.Equal((UnixFileMode)0x1a0, File.GetUnixFileMode(nested.Subject.RawLocator));
+                    Assert.Equal((UnixFileMode)0x1e0, File.GetUnixFileMode(folderPath));
+                    Assert.Equal((UnixFileMode)0x1e0, File.GetUnixFileMode(rootPath));
+                    break;
+                case "lose-search":
+                    Expect(PermissionVerdict.Conflict, nested.Subject.RawLocator, folderPath);
+                    Assert.All(new[] { nested.Subject.RawLocator, folderPath },
+                        path => Assert.Null(Assert.Single(byPath[path].Components).NativeCall));
+                    Expect(PermissionVerdict.Verified, file.Subject.RawLocator, rootPath);
+                    Assert.Equal(JobState.CompletedWithIssues, job.State);
+                    Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(folderPath));
+                    Assert.Equal((UnixFileMode)0x1e0, File.GetUnixFileMode(rootPath));
+                    break;
+                default:
+                    Assert.True(cancelled);
+                    Expect(PermissionVerdict.Unattempted, byPath.Keys.ToArray());
+                    Assert.All(job.PermissionResults, result => Assert.All(result.Components, component => Assert.Null(component.NativeCall)));
+                    Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(nested.Subject.RawLocator));
+                    Assert.Equal((UnixFileMode)0x1c0, File.GetUnixFileMode(folderPath));
+                    Assert.Equal((UnixFileMode)0x1c0, File.GetUnixFileMode(rootPath));
+                    break;
+            }
+            Assert.Equal(scenario == "matching-root" ? (UnixFileMode)0x1a0 : scenario == "lose-search" ? (UnixFileMode)0x1a0 : (UnixFileMode)0x180,
+                File.GetUnixFileMode(file.Subject.RawLocator));
+            Assert.Equal("end", JobJournal.ReadAll(fixture.JournalPath!).Last().Type);
+        }
+        finally { File.SetUnixFileMode(folderPath, (UnixFileMode)0x1c0); }
+        if (scenario == "lose-search") Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(nested.Subject.RawLocator));
+    }
+
+    // G-TREE protected children: a captured ext4 mode tree leaves immutable and append-only members out, with the branch
+    // beneath a protected directory, and counts them for the review. A selection that is itself protected is refused.
+    [Fact]
+    public async Task Ext4_reviewed_mode_tree_excludes_protected_members_and_their_branches()
+    {
+        RequireExt4Writer();
+        string tree = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSION_MODE_TREE_FLAGS") ?? string.Empty;
+        if (tree.Length == 0) Assert.Skip("Requires an isolated ext4 fixture with immutable and append-only entries.");
+        using var fixture = new Fixture(nativeJournal: true);
+        string sibling = Path.Join(tree, "sibling"), immutable = Path.Join(tree, "immutable"), append = Path.Join(tree, "append");
+        string witness = Path.Join(immutable, "witness");
+        var ct = TestContext.Current.CancellationToken;
+        var service = new LinuxPermissionService();
+        foreach (var selected in new[] { TreeSubject(immutable, EntryKind.Directory), TreeSubject(append, EntryKind.File) })
+        {
+            var refusal = Assert.Throws<UnauthorizedAccessException>(() => service.PrepareModeTree([selected], new(0x20, 0x20), false, false, ct));
+            Assert.Contains("immutable and append-only", refusal.Message);
+        }
+        var prepared = service.PrepareModeTree([TreeSubject(tree, EntryKind.Directory)], new(0x20, 0x20), false, false, ct);
+        using var operation = prepared.Operation;
+        Assert.Equal(new PermissionTreeSummary(1, 0, 0, 0, ProtectedEntries: 2), operation.Tree!.Summary);
+        Assert.Equal(new[] { sibling, tree }, operation.Targets.Select(target => target.Subject.RawLocator));
+        var job = fixture.Manager.SubmitPermissions(operation);
+        await fixture.Finish(job);
+        Assert.All(job.PermissionResults, result => Assert.Equal(PermissionVerdict.Verified, result.Verdict));
+        Assert.Equal((UnixFileMode)0x1a0, File.GetUnixFileMode(sibling));
+        Assert.Equal((UnixFileMode)0x1e0, File.GetUnixFileMode(tree));
+        Assert.Equal((UnixFileMode)0x1c0, File.GetUnixFileMode(immutable));
+        Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(witness));
+        Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(append));
+    }
+
     // G-BIND: a pure rename between review and dispatch leaves the original name empty. The held object is not written
     // under its new name; the job reports a conflict before any intent.
     [Fact]

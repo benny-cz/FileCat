@@ -63,7 +63,9 @@ internal sealed unsafe partial class LinuxPermissionService
                 if (reset) CaptureTemplate(inspection);
                 else Visit(root.Item, inspection, -1, 0);
             }
-            if (prepared.Count == 0) throw new NotSupportedException("There are no eligible captured descendants to reset.");
+            if (prepared.Count == 0)
+                throw reset ? new NotSupportedException("There are no eligible captured descendants to reset.")
+                    : new UnauthorizedAccessException(ClearProtectionFirst);
             var manifest = PermissionTreeManifest.Capture(entries, inaccessible, ct, excluded, protectedEntries);
             var admitted = manifest.Entries.Where(entry => !reset || entry.ParentIndex >= 0)
                 .OrderByDescending(entry => entry.Depth).Select(entry => prepared[entry.Subject.RawLocator]).ToArray();
@@ -124,6 +126,13 @@ internal sealed unsafe partial class LinuxPermissionService
             var (target, expected) = PrepareTarget(inspection, item, new(PermissionScope.Objects, [delta]), acceptSetIdClear, ct);
             var row = new PermissionTreeRow(snapshot.Subject, before, expected.Mode.Value!.Value, binding.LinkCount, access);
             var mutation = (LinuxBoundPermission)target.Mutation;
+            if (parentIndex < 0 && mutation.TreeAncestry[^1].ResetUnprotected == false)
+            {
+                // A protected selection is counted and left out with its branch, like a protected descendant.
+                target.Mutation.Dispose();
+                protectedEntries++;
+                return;
+            }
             if (!prepared.TryAdd(snapshot.Subject.RawLocator, (target, row)))
             {
                 target.Mutation.Dispose();
@@ -172,12 +181,10 @@ internal sealed unsafe partial class LinuxPermissionService
                 catch (ReadFailure error) when (error.Error is 18 or 40) { excluded++; continue; } // EXDEV or ELOOP
                 catch (ReadFailure) { inaccessible++; continue; }
                 if (facts.FileKind is not (FileType or DirectoryType)) { excluded++; continue; }
-                if (reset && facts.ResetUnprotected != true)
-                {
-                    if (facts.ResetUnprotected == false) protectedEntries++;
-                    else inaccessible++;
-                    continue;
-                }
+                // Immutable and append-only entries, with the branch beneath a protected directory, stay out of every
+                // captured tree. A reset also needs proof that an entry is unprotected.
+                if (facts.ResetUnprotected == false) { protectedEntries++; continue; }
+                if (reset && facts.ResetUnprotected != true) { inaccessible++; continue; }
                 var child = new ItemRef(Location.FileSystem(snapshot.Subject.RawLocator), name,
                     facts.FileKind == FileType ? EntryKind.File : EntryKind.Directory);
                 string path = child.FileSystemPath!;
