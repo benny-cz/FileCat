@@ -228,15 +228,22 @@ public sealed partial class WindowsPermissionScopeTests(ITestOutputHelper output
     private static async Task<PermissionResult> RunJob(ReviewedPermissionOperation review, CancellationToken ct) =>
         Assert.Single(await RunJobResults(review, ct));
 
-    private static async Task<IReadOnlyList<PermissionResult>> RunJobResults(ReviewedPermissionOperation review, CancellationToken ct)
+    // afterVerify runs after each durable journal write with the job manager and the journal path.
+    private static async Task<IReadOnlyList<PermissionResult>> RunJobResults(ReviewedPermissionOperation review, CancellationToken ct,
+        Action<JobManager, string>? afterVerify = null)
     {
         var directory = Directory.CreateTempSubdirectory("filecat-permission-scope-journal-");
         try
         {
             var providers = new ProviderRegistry();
             providers.Register(new LocalFileSystemProvider());
-            var jobs = new JobManager(new PortableFileOperations(), providers, directory.FullName, ArchiveJobBackends.Empty, new NoStorageTransforms(),
-                createPermissionJournal: (leaf, cancellation) => WindowsAnalysisPrivateDirectory.CreatePermissionJournal(directory.FullName, leaf, cancellation));
+            JobManager? manager = null;
+            var jobs = manager = new JobManager(new PortableFileOperations(), providers, directory.FullName, ArchiveJobBackends.Empty, new NoStorageTransforms(),
+                createPermissionJournal: (leaf, cancellation) =>
+                {
+                    var file = WindowsAnalysisPrivateDirectory.CreatePermissionJournal(directory.FullName, leaf, cancellation);
+                    return afterVerify is null ? file : file with { Verify = () => { file.Verify(); afterVerify(manager!, file.Path); } };
+                });
             var finished = new TaskCompletionSource<Job>(TaskCreationOptions.RunContinuationsAsynchronously);
             jobs.JobFinished += job => finished.TrySetResult(job);
             var job = jobs.SubmitPermissions(review);
