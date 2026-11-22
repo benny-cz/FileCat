@@ -93,7 +93,8 @@ public sealed class AppServices : IDisposable
                 qualifyFolderTrees: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_ACL_FOLDER_TREE") == "1",
                 qualifyVolumeRootWrites: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_ACL_VOLUME_ROOT") == "1",
                 qualifyRemovableReads: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_REMOVABLE_PERMISSIONS") == "1",
-                qualifyRemovableWrites: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_REMOVABLE_WRITES") == "1")
+                qualifyRemovableWrites: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_REMOVABLE_WRITES") == "1",
+                qualifyRefsWrites: Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_REFS_WRITES") == "1")
             : OperatingSystem.IsLinux() ? new LinuxPermissionService(
                 // Each L2 lane stays off until its write and interaction gates pass; these switches let qualification runs
                 // exercise them in the real App, as the Windows switches above do.

@@ -7,11 +7,15 @@ using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows.Permissions;
 
+/// <summary>Ordinary single-file writer lanes beyond fixed NTFS that a qualification run has switched on.</summary>
+[Flags]
+internal enum WindowsQualifiedWrites { None = 0, RemovableFiles = 1, RefsFiles = 2 }
+
 internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbReads = false, bool qualifyRefsReads = false,
     bool qualifyAccessEstimates = false, bool qualifyNativePropagation = false, bool qualifyInheritanceChanges = false,
     bool qualifyFileTrees = false, bool qualifyFolderOnly = false, bool qualifyAclResets = false,
     bool qualifyFolderTrees = false, bool qualifyVolumeRootWrites = false, bool qualifyRemovableReads = false,
-    bool qualifyRemovableWrites = false) : IPermissionService
+    bool qualifyRemovableWrites = false, bool qualifyRefsWrites = false) : IPermissionService
 {
     private const string Source = "Windows NtQuerySecurityObject";
     private const int ReviewedTreeMemberLimit = 4096;
@@ -23,10 +27,12 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
     private readonly bool _qualifyFolderOnly = qualifyFolderOnly;
     private readonly bool _qualifyVolumeRootWrites = qualifyVolumeRootWrites;
     private readonly bool _qualifyAclResets = qualifyAclResets;
-    // Ordinary object writes on removable NTFS (W1 file baseline). Folders, trees, roots and the administrator route on
-    // removable media stay inspection-only.
+    // Ordinary object writes on removable NTFS and on ReFS (W1 file baseline), each with its qualified reader. Folders,
+    // trees, roots and the administrator route there stay inspection-only.
     private readonly bool _qualifyRemovableWrites = qualifyRemovableReads && qualifyRemovableWrites;
-    internal bool QualifiesRemovableWrites => _qualifyRemovableWrites;
+    private readonly bool _qualifyRefsWrites = qualifyRefsReads && qualifyRefsWrites;
+    internal WindowsQualifiedWrites QualifiedWrites =>
+        (_qualifyRemovableWrites ? WindowsQualifiedWrites.RemovableFiles : 0) | (_qualifyRefsWrites ? WindowsQualifiedWrites.RefsFiles : 0);
     private const uint ReadControl = 0x20000, OpenNoRecall = 0x400000;
     private const uint UnsafeAttributes = (uint)(FileAttributes.ReparsePoint | FileAttributes.Offline) | 0x00440000;
     internal const PermissionSections DiscretionarySections = PermissionSections.Owner | PermissionSections.Group |
@@ -82,10 +88,11 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
             }
             cancellationToken.ThrowIfCancellationRequested();
             snapshot = PermissionSnapshots.WithCapabilities(snapshot, sections);
-            // ReFS and removable NTFS are inspection-only: no held write binding leaves the reader, except a file on removable
-            // NTFS when its ordinary writer is qualified.
-            if (binding.FileSystem == "ReFS" ||
-                binding.RemovableMedia && !(_qualifyRemovableWrites && binding.Identity.Kind == PermissionObjectKind.File))
+            // ReFS and removable NTFS are inspection-only: no held write binding leaves the reader, except a file there whose
+            // ordinary writer lanes are all qualified.
+            bool isFile = binding.Identity.Kind == PermissionObjectKind.File;
+            if (binding.FileSystem == "ReFS" && !(_qualifyRefsWrites && isFile) ||
+                binding.RemovableMedia && !(_qualifyRemovableWrites && isFile))
                 return new PermissionInspection(snapshot);
             var result = new PermissionInspection(snapshot, new WindowsInspectionPin(file, root, names, chain));
             file = null;

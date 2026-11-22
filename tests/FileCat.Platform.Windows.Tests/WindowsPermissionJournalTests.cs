@@ -389,7 +389,7 @@ public sealed partial class WindowsPermissionJournalTests
                 var grant = WindowsPermissionAclPatch.SimpleEntry(WindowsAceKind.Allow, new(PrincipalKind.WindowsSid, Interactive, AuthorityId),
                     (uint)(FileSystemRights.Read | FileSystemRights.Synchronize));
                 var prepared = WindowsPermissionService.Prepare(inspection, source, new(PermissionScope.Objects, [new AddWindowsAce(grant)]), ct,
-                    removableWrites: removable);
+                    removable ? WindowsQualifiedWrites.RemovableFiles : WindowsQualifiedWrites.None);
                 return new(inspection, prepared.Review);
             }
             catch { inspection.Dispose(); throw; }

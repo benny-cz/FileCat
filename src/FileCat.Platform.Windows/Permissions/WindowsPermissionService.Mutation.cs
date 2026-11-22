@@ -13,15 +13,16 @@ internal sealed unsafe partial class WindowsPermissionService
     private const uint WriteDac = 0x40000, WriteOwner = 0x80000;
     private const uint OwnerInformation = 1, DaclInformation = 4;
 
-    internal static string? EditRefusal(PermissionSnapshot snapshot, bool removableWrites = false)
+    internal static string? EditRefusal(PermissionSnapshot snapshot, WindowsQualifiedWrites writes = WindowsQualifiedWrites.None)
     {
         if (ReviewedPermissionOperation.ProcessRefusal() is { } refusal) return refusal;
         if (snapshot.BindingProblem is { } problem) return problem;
         if (snapshot.Mount is { IsServerProjection: true } mount) return mount.ChangeRefusal;
-        if (snapshot.Binding is { FileSystem: "ReFS" }) return "ReFS permissions are inspection-only in FileCat.";
-        if (snapshot.Binding is { RemovableMedia: true } && !removableWrites)
+        if (snapshot.Binding is { FileSystem: "ReFS" } && (writes & WindowsQualifiedWrites.RefsFiles) == 0)
+            return "ReFS permissions are inspection-only in FileCat.";
+        if (snapshot.Binding is { RemovableMedia: true } && (writes & WindowsQualifiedWrites.RemovableFiles) == 0)
             return "Permissions on removable NTFS volumes are inspection-only in FileCat.";
-        if (snapshot.Binding is not { FileSystem: "NTFS", ReadOnly: false, LinkCount: > 0, Identity.Kind: PermissionObjectKind.File } ||
+        if (snapshot.Binding is not { FileSystem: "NTFS" or "ReFS", ReadOnly: false, LinkCount: > 0, Identity.Kind: PermissionObjectKind.File } ||
             snapshot.Model != PermissionModel.WindowsDescriptor || snapshot.Subject.LinkPolicy != PermissionLinkPolicy.NoFollow)
             return "This permissions writer requires an ordinary file on a writable local NTFS volume.";
         if (PermissionRevision.Read(snapshot, DiscretionarySections) is null)
@@ -74,14 +75,14 @@ internal sealed unsafe partial class WindowsPermissionService
         return PrepareChange(inspection, source, draft, boundary, ct, parent);
     }
 
-    // removableWrites: the caller's service qualifies ordinary file writes on removable NTFS (QualifiesRemovableWrites), whose
-    // inspection then carries a held binding.
+    // writes: the writer lanes the caller's service qualifies (QualifiedWrites); only such a service's inspection of a file
+    // on removable NTFS or ReFS carries a held binding.
     internal static (ReviewedPermissionOperation Review, PermissionSnapshot Expected) Prepare(PermissionInspection inspection, ItemRef source,
-        PermissionDraft draft, CancellationToken ct, bool removableWrites = false)
+        PermissionDraft draft, CancellationToken ct, WindowsQualifiedWrites writes = WindowsQualifiedWrites.None)
     {
         ct.ThrowIfCancellationRequested();
         var original = inspection.Snapshot;
-        if (EditRefusal(original, removableWrites) is { } refusal) throw new NotSupportedException(refusal);
+        if (EditRefusal(original, writes) is { } refusal) throw new NotSupportedException(refusal);
         if (original.Subject.RawLocator != source.FileSystemPath || draft.Scope != PermissionScope.Objects ||
             draft.Changes is not [AddWindowsAce or ChangeWindowsAce or AssignPermissionPrincipal { IsOwner: true }])
             throw new NotSupportedException("Review one owner or DACL change for the original Windows file.");
@@ -151,9 +152,9 @@ internal sealed unsafe partial class WindowsPermissionService
         WindowsDiscretionaryMutation? mutation = null;
         try
         {
-            // A held binding on removable media exists only when its ordinary writer is qualified (see Inspect).
+            // A held binding on removable media or ReFS exists only when its ordinary writer is qualified (see Inspect).
             using var current = Walk(pin.Root, pin.Names, original.Subject.Authority, ct, out var parent, out var chain, out var now,
-                allowRemovable: binding.RemovableMedia);
+                allowRefs: binding.FileSystem == "ReFS", allowRemovable: binding.RemovableMedia);
             using (parent)
             {
                 if ((!volumeRoot && parent is null) || now != binding || !SameChain(pin.Chain, chain) ||
@@ -281,7 +282,7 @@ internal sealed unsafe partial class WindowsPermissionService
 
         public PermissionReadBack Observe(PermissionSections sections)
         {
-            string? unflushed = FlushRefusal(root, names, original.Subject.Authority, CancellationToken.None, original.Binding!.RemovableMedia);
+            string? unflushed = FlushRefusal(root, names, original.Subject.Authority, CancellationToken.None, original.Binding!);
             var snapshot = ObserveHeld(sections, CancellationToken.None, out var held);
             var name = CheckNamespace(held, CancellationToken.None);
             if (unflushed is not null) return new(snapshot, PermissionVerification.Unavailable, name == false, unflushed);
@@ -322,7 +323,8 @@ internal sealed unsafe partial class WindowsPermissionService
             try
             {
                 using var observed = Walk(root, names, original.Subject.Authority, ct,
-                    out var parent, out var chain, out var binding, allowRemovable: original.Binding!.RemovableMedia);
+                    out var parent, out var chain, out var binding, allowRefs: original.Binding!.FileSystem == "ReFS",
+                    allowRemovable: original.Binding.RemovableMedia);
                 using (parent)
                     return SameChain(inspectedChain, chain) && binding == original.Binding &&
                         chain[^1] == held;
@@ -341,14 +343,14 @@ internal sealed unsafe partial class WindowsPermissionService
     // A test may fail the flush for objects in chosen folders with a Win32 error.
     internal static Func<string, int>? FlushFaultForTests;
 
-    private static string? FlushRefusal(string root, string[] names, PermissionAuthority authority, CancellationToken ct, bool removable = false)
+    private static string? FlushRefusal(string root, string[] names, PermissionAuthority authority, CancellationToken ct, PermissionBinding binding)
     {
         string folderPath = names.Length <= 1 ? root : root + string.Join(Path.DirectorySeparatorChar, names[..^1]);
         SafeFileHandle folder;
         try
         {
             folder = Walk(root, names.Length == 0 ? names : names[..^1], authority, ct, out var parent, out _, out _, leafReadAccess: 0x2 /* FILE_ADD_FILE */,
-                allowRemovable: removable);
+                allowRefs: binding.FileSystem == "ReFS", allowRemovable: binding.RemovableMedia);
             parent?.Dispose();
         }
         catch (Exception error) when (error is ReadFailure or Win32Exception or IOException or UnauthorizedAccessException) { return null; }
