@@ -687,6 +687,31 @@ public sealed partial class PermissionJobTests
         finally { File.Delete(file); }
     }
 
+    // G-BIND: a pure rename between review and dispatch leaves the original name empty. The held object is not written
+    // under its new name; the job reports a conflict before any intent.
+    [Fact]
+    public async Task Ext4_rename_between_review_and_dispatch_applies_nothing()
+    {
+        RequireExt4Writer();
+        using var fixture = new Fixture(nativeJournal: true);
+        var (item, subject) = Ext4Subject(fixture);
+        string path = item.FileSystemPath!, renamed = path + ".renamed";
+        File.SetUnixFileMode(path, (UnixFileMode)0x180);
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        using var inspection = new LinuxPermissionService().Inspect(subject, PermissionSections.Ordinary, ct);
+        using var review = LinuxPermissionService.Prepare(inspection, item, new(PermissionScope.Objects,
+            [new ChangePermissionMode(0x1a0, 0xfff)]), false, ct).Review;
+        File.Move(path, renamed);
+        var job = fixture.Manager.SubmitPermissions(review);
+        await fixture.Finish(job);
+        var result = Assert.Single(job.PermissionResults);
+        Assert.Equal(PermissionVerdict.Conflict, result.Verdict);
+        Assert.Null(Assert.Single(result.Components).NativeCall);
+        Assert.False(File.Exists(path));
+        Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(renamed));
+        Assert.DoesNotContain(JobJournal.ReadAll(fixture.JournalPath!), record => record.Type == "permission-intent");
+    }
+
     [Fact]
     public async Task Ext4_applies_nothing_when_the_reviewed_name_is_replaced()
     {
