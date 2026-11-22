@@ -76,10 +76,13 @@ public sealed partial class SftpPermissionAdmissionTests
             }, (_, _, _) => new SftpAccountNames(refusal == "wrong account" ? "someone-else" : "owner", null), Cancellation));
     }
 
+    // Group-writable and sticky world-writable folders, and a symbolic link whether Linux (0777) or a macOS server (0755)
+    // reports its mode, are refused by type or mode before the leaf is read.
     [Theory]
     [InlineData(0x41fd)]
     [InlineData(0x43ff)]
     [InlineData(0xa1ff)]
+    [InlineData(0xa1ed)]
     public void A_shared_or_symbolic_ancestor_refuses_before_the_leaf_read(uint mode)
     {
         var reads = new List<string>();
