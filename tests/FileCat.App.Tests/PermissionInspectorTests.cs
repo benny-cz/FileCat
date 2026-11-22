@@ -3,6 +3,7 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -1461,6 +1462,63 @@ public sealed class PermissionInspectorTests
             Assert.Contains(native.GetAccessRules(true, true, typeof(SecurityIdentifier)).OfType<FileSystemAccessRule>(), entry =>
                 entry.IdentityReference.Value == "S-1-5-32-546" && entry.AccessControlType == AccessControlType.Allow &&
                 (uint)entry.FileSystemRights == 0x00120189);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Windows_editor_keys_apply_once_from_a_field_and_never_from_a_rule_option()
+    {
+        if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_NTFS") != "1" ||
+            ReviewedPermissionOperation.ProcessRefusal() is not null)
+            Assert.Skip("Requires the ordinary Windows x64 NTFS test volume.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            var security = new FileSecurity();
+            security.SetAccessRuleProtection(true, false);
+            security.AddAccessRule(new FileSystemAccessRule(identity.User!, FileSystemRights.FullControl, AccessControlType.Allow));
+            new FileInfo(Path.Combine(folder, "a.txt")).SetAccessControl(security);
+        });
+        try
+        {
+            CancellationToken ct = TestContext.Current.CancellationToken;
+            var listing = vm.ActiveTab!.Listing;
+            await Until(() => listing.State == ListingState.Complete && listing.FocusName("a.txt"), ct);
+            vm.Execute(CommandIds.PermissionsOwnership);
+            await Until(() => FindButton(window, "Edit access ACL…") is not null, ct);
+            Click(FindButton(window, "Edit access ACL…")!);
+            await Until(() => window.GetVisualDescendants().OfType<WindowsAccessEditor>().Any(), ct);
+            var editor = Assert.Single(window.GetVisualDescendants().OfType<WindowsAccessEditor>());
+            editor.GetVisualDescendants().OfType<CheckBox>().Single(box => box.Content as string == "Add an explicit entry").IsChecked = true;
+            editor.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "New Windows entry SID").Text = "S-1-5-32-546";
+            // An unavailable Apply says why, where the keyboard and a screen reader reach it.
+            await Until(() => TextPresent(window, "Choose at least one right, or remove the entry explicitly."), ct);
+            Assert.False(FindButton(window, "Apply")!.IsEnabled);
+            var mask = editor.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "Windows access mask");
+            mask.Text = "0x00120089";
+            await Until(() => FindButton(window, "Apply")?.IsEnabled == true, ct);
+
+            // Enter on a rule option does not Apply.
+            var option = editor.GetVisualDescendants().OfType<CheckBox>().Single(box => box.Content as string == "Write attributes");
+            option.Focus();
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            await Task.Delay(300, ct);
+            Assert.Empty(services.Jobs.Jobs);
+            Assert.Equal("0x00120089", mask.Text);
+
+            // Enter in a field with a valid draft applies once; the editor stays open with the result, and a repeated
+            // Enter submits nothing more.
+            mask.Focus();
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            await Until(() => TextPresent(window, "Verified changed"), ct);
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            await Task.Delay(300, ct);
+            Assert.Single(services.Jobs.Jobs);
+            Assert.Single(window.GetVisualDescendants().OfType<WindowsAccessEditor>());
+            Assert.False(FindButton(window, "Apply")!.IsEnabled);
+            Assert.NotNull(FindButton(window, "Close"));
+            Assert.NotNull(FindButton(window, "Review current state…"));
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }
