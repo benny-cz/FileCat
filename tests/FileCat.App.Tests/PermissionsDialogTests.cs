@@ -298,7 +298,9 @@ public sealed class PermissionsDialogTests
             window.GetVisualDescendants().OfType<CheckBox>().Single(box => box.Content as string == "Hidden in Finder").IsChecked = true;
             TimeField(window, "Modified").Text = new DateTime(2025, 2, 3, 4, 5, 6, DateTimeKind.Utc).ToString("O");
             var apply = window.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "Apply");
-            await WaitFor(() => apply.IsEnabled, ct);
+            for (int i = 0; i < 250 && !apply.IsEnabled; i++) await Task.Delay(20, ct);
+            Assert.True(apply.IsEnabled, string.Join(" | ", window.GetVisualDescendants().OfType<TextBlock>()
+                .Where(text => text.IsEffectivelyVisible && !string.IsNullOrWhiteSpace(text.Text)).Select(text => text.Text)));
             void Pause(Job added) { if (added.Kind == JobKind.Permissions) added.Pause(); }
             services.Jobs.JobAdded += Pause;
             apply.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
