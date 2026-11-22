@@ -10,6 +10,10 @@ public sealed record StorageEfsKeyEvidence(string InvokerSid, string Certificate
 {
     public string? Subject { get; init; }
     public StorageProblem? BackupProblem { get; init; }
+
+    /// <summary>The key provider named by the certificate's key association, when it could be read. A key behind a
+    /// smart-card provider can make Windows wait for the card even when a silent check reports the key unavailable.</summary>
+    public string? ProviderName { get; init; }
 }
 
 /// <summary>E-only scheduled key check. The certificate hash must come from a reviewed actual file association.</summary>

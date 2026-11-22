@@ -32,10 +32,32 @@ All runs were at medium integrity in the VM's interactive session. The Windows p
 | Absent | Decrypt job on a file encrypted only to the card ([cipher record](receipts/2026-11-22-efs-hardware-key/card-fixture-cipher.txt)) | The guard open waited about 170 s on Windows, then failed. The job failed with `efs-guard-open`, no native call, and the file still encrypted | [TRX](receipts/2026-11-22-efs-hardware-key/absent-decrypt.trx), test `DE590D65…` |
 | Absent | Review offer and a forced explicit request | No explicit access offered for the Unknown result. A forced CryptoAPI request matched nothing, ended at its 30 s cancellation and left no worker process | [TRX](receipts/2026-11-22-efs-hardware-key/absent-access.trx), test `76EABB7D…` |
 
-The tests are `WindowsEfsKeyTests.SmartCard.cs` and `WindowsEfsJobTests.SmartCard.cs`. They run only with `FILECAT_TEST_EFS=1`, `FILECAT_TEST_EFS_SMART_CARD=present|absent` and the certificate hash in `FILECAT_TEST_EFS_SMART_CARD_SHA1`. The round trip also needs `FILECAT_TEST_EFS_SMART_CARD_ROUND_TRIP=1`, and the card-absent decrypt needs `FILECAT_TEST_EFS_SMART_CARD_ENCRYPTED_FILE`.
+The tests are `WindowsEfsKeyTests.SmartCard.cs` and `WindowsEfsJobTests.SmartCard.cs`. They run only with `FILECAT_TEST_EFS=1`, `FILECAT_TEST_EFS_SMART_CARD=present|absent` and the certificate hash in `FILECAT_TEST_EFS_SMART_CARD_SHA1`. The round trip also needs `FILECAT_TEST_EFS_SMART_CARD_ROUND_TRIP=1`, and the card-absent decrypt needs `FILECAT_TEST_EFS_SMART_CARD_ENCRYPTED_FILE`. The card-absent decrypt case above ran before the follow-up below; that test now answers the new question with Skip.
+
+## Follow-up: ask before Windows waits for a key
+
+Decrypting must not refuse on a silent check alone (§7.1). Instead, a decrypt job now checks before it opens an encrypted file's data, the step that makes Windows fetch the key. It reads the file's EFS users and silently checks the invoking user's own keys. It asks a question if none matches now and one of them:
+
+- needs interaction,
+- reports a smart-card error, or
+- belongs to a provider other than Windows' local software and TPM providers.
+
+The choices are **Retry** (the default), **Decrypt anyway**, **Skip** and **Cancel**. Skip leaves the file encrypted with no EFS call.
+
+The provider matters more than the error. Windows had cached the YubiKey's containers, so its silent check reported "no reader". A smart-card container Windows has not seen reports `NTE_BAD_KEYSET` instead, yet Windows still waits for a card. An earlier version of the rule looked only at the error and missed that case: the job then waited in Windows for over 300 seconds.
+
+The hardware-free fixture uses the account's own software EFS certificate. It encrypts a file to it, then points that certificate's key association at a smart-card container while the VM's reader is disabled. The original association is restored afterwards.
+
+| Case | Result | Receipt |
+|---|---|---|
+| Card-only fixture, reader disabled | Asked 0.4 s into the job. Skip: completed with issues, one item skipped (`efs-key-skipped`), no EFS call, file still encrypted | [TRX](receipts/2026-11-22-efs-hardware-key/key-wait-question.trx) |
+| EFS job, key, setup and path classes on the VM, run one at a time | 79 cases: 53 passed, 26 skipped for their own opt-ins, 0 failed | [TRX](receipts/2026-11-22-efs-hardware-key/key-wait-efs-regression.trx) |
+| Core storage executor | 37 of 37 passed, including the four answers (Retry, Decrypt anyway, Skip, Cancel), each before any durable intent | — |
+
+The rule's unit test covers matched, missing and absent keys, an unknown error and the smart-card errors. It also covers providers: Windows software providers, the Base Smart Card CSP and a third-party token provider.
 
 ## What remains
 
 - **A credential prompt raised by FileCat's own comparison:** none of these comparisons needed one. The card compares by public key without its PIN, and without the card Windows showed no prompt. PIN prompts came only from Windows' wizard and the EFS service.
-- **Decryption without the card:** it fails safely, but Windows holds FileCat's guard open for about three minutes first. A silent check of the file's recipient keys before opening its data could refuse at once.
+- **Decrypt anyway** still lets Windows wait. When EFS asks for the card through `efsui.exe`, no window appeared in this VM, so the wait is silent apart from FileCat's own question.
 - **ARM64:** not covered. The hosted runners have no smart-card hardware.

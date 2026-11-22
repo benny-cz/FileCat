@@ -474,6 +474,49 @@ public sealed class StorageExecutorTests
         Assert.Equal(file.Calls + later.Calls, h.Writer.Collector.LastIntent?.Call ?? 0); Assert.False(h.Writer.NeedsRecovery);
     }
 
+    [Theory]
+    [InlineData(DecisionAction.Retry)]
+    [InlineData(DecisionAction.Proceed)]
+    [InlineData(DecisionAction.Skip)]
+    [InlineData(DecisionAction.CancelJob)]
+    public void An_unreachable_key_asks_once_before_preparation_may_let_Windows_wait(DecisionAction answer)
+    {
+        var file = new Node("file"); var later = new Node("later"); bool accepted = false; int checks = 0;
+        var problem = new StorageProblem(StorageReasonKind.PermissionOrPolicy, "efs-key-not-reachable", "Fixture key behind a removed card.", true);
+        // Retry checks again and finds the card connected; Decrypt anyway lets the same item's preparation continue.
+        file.Preparing = () => { if (++checks == 1 && !accepted) throw new StorageKeyWaitException(problem, () => accepted = true); };
+        using var h = new Harness([file, later], StorageScope.SelectedItems); var asked = new List<ConfirmRequest>();
+        h.Job.Changed += job =>
+        {
+            if (job.State != JobState.AwaitingDecision || job.Decision is not { } pending) return;
+            asked.Add(Assert.IsType<ConfirmRequest>(pending.Request)); pending.Resolve(new(answer));
+        };
+        var result = h.Run();
+        var request = Assert.Single(asked);
+        Assert.Equal(file.Path, request.Path); Assert.Equal("confirm-storage-key-wait", request.ClassKey);
+        Assert.Equal(problem.Message, request.Message); Assert.Equal(DecisionAction.Retry, request.InitialAction);
+        Assert.Equal([DecisionAction.Retry, DecisionAction.Proceed, DecisionAction.Skip, DecisionAction.CancelJob], request.Actions);
+        Assert.Equal(answer == DecisionAction.Proceed, accepted);
+        switch (answer)
+        {
+            case DecisionAction.Retry or DecisionAction.Proceed: // the same held item is prepared again, then admitted once
+                Assert.Equal(2, file.Preparations); Assert.Equal(1, file.Calls); Assert.Equal(1, later.Calls);
+                Assert.Equal(new StorageOutcomeCounts(Changed: 2), result.Counts); Assert.Equal(JobState.Completed, result.FinalState());
+                break;
+            case DecisionAction.Skip:
+                Assert.Equal(1, file.Preparations); Assert.Equal(0, file.Calls); Assert.Equal(1, later.Calls);
+                Assert.Equal(new StorageOutcomeCounts(Changed: 1, Skipped: 1), result.Counts);
+                Assert.Contains(result.Reasons, reason => reason.Problem.Code == "efs-key-skipped"); Assert.Equal(JobState.CompletedWithIssues, result.FinalState());
+                break;
+            default:
+                Assert.Equal(1, file.Preparations); Assert.Equal(0, file.Calls + later.Calls + later.Preparations);
+                Assert.True(result.Canceled); Assert.Equal(JobState.Canceled, result.FinalState());
+                break;
+        }
+        // The question comes before any durable intent: every intent belongs to an actual native call.
+        Assert.Equal(file.Calls + later.Calls, h.Writer.Collector.LastIntent?.Call ?? 0); Assert.False(h.Writer.NeedsRecovery);
+    }
+
     [Fact]
     public void A_sharing_failure_inside_an_admitted_call_is_uncertain_and_never_retried_or_turned_into_a_decision()
     {

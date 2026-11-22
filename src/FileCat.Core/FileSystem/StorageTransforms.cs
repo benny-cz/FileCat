@@ -13,6 +13,16 @@ public sealed class StorageInspectionException(StorageProblem problem, Exception
 {
     public StorageProblem Problem { get; } = problem;
 }
+
+/// <summary>Preparation found that the item's key cannot be reached now, though its provider might still answer if
+/// Windows is allowed to wait for it (a removed smart card, for example). The job asks before letting Windows wait.</summary>
+internal sealed class StorageKeyWaitException(StorageProblem problem, Action proceed) : IOException(problem.Message)
+{
+    internal StorageProblem Problem { get; } = problem;
+
+    /// <summary>Lets the same held item's next preparation go on to the step that makes Windows wait for the key.</summary>
+    internal void Proceed() => proceed();
+}
 public sealed record StorageObjectIdentity(ulong Volume, string ObjectId)
 {
     /// <summary>Verified native volume binding. Serial numbers alone may collide between cloned volumes.</summary>

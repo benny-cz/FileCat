@@ -81,6 +81,50 @@ internal sealed unsafe partial class WindowsStorageTransforms
         if (action is not (StorageAction.EncryptEfs or StorageAction.DecryptEfs)) throw new ArgumentException("Choose an EFS action.", nameof(action));
         if (!SupportsHost(_qualifyNativeArm64) || !EfsEdition.Value) throw Refuse("efs-build", "This EFS candidate requires a qualified Windows 11 Pro, Enterprise or Education host.");
     }
+    // Windows' own software and TPM providers answer a silent check without waiting for hardware. A missing key there fails
+    // at once; a TPM key that needs a PIN already reports interaction.
+    private static readonly HashSet<string> LocalKeyProviders = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Microsoft Base Cryptographic Provider v1.0", "Microsoft Enhanced Cryptographic Provider v1.0", "Microsoft Strong Cryptographic Provider",
+        "Microsoft Enhanced RSA and AES Cryptographic Provider", "Microsoft Software Key Storage Provider", "Microsoft Platform Crypto Provider",
+    };
+
+    /// <summary>The question to ask before Windows waits for an EFS key, or null when nothing suggests a wait: one of the
+    /// user's own keys on the file matches now, the user has none on it, or each is simply missing from a local software
+    /// provider, which Windows refuses at once. A key that needs interaction, reports a smart-card error, or sits with any
+    /// other provider (a smart card's container can be unknown until its card is present) leads to the question.</summary>
+    internal static StorageProblem? KeyWaitProblem(StorageEfsAssociationSnapshot association, string fileName)
+    {
+        var own = association.CurrentUserKeys;
+        if (own.IsDefaultOrEmpty || own.Any(key => key.State == StorageEfsKeyState.MatchedAvailable)) return null;
+        var waiting = own.FirstOrDefault(key => key.State == StorageEfsKeyState.InteractionRequired || IsSmartCardError(key.NativeError) ||
+            key.ProviderName is { } provider && !LocalKeyProviders.Contains(provider));
+        if (waiting is null) return null;
+        string? name = association.Users.IsDefault ? null
+            : association.Users.FirstOrDefault(user => user.CertificateSha1 == waiting.CertificateSha1)?.Display;
+        string certificate = string.IsNullOrWhiteSpace(name) ? waiting.CertificateSha1 : name.Trim() + " (" + waiting.CertificateSha1[..8] + "…)";
+        return Problem(StorageReasonKind.PermissionOrPolicy, "efs-key-not-reachable",
+            "Windows needs the EFS key of certificate " + certificate + " to decrypt " + fileName + ", and FileCat could not reach that key " +
+            "without asking: " + KeyWaitReason(waiting) + ". If the key is on a smart card or security key, connect it and choose Retry. " +
+            "Decrypt anyway lets Windows wait for the key, which can take several minutes and may still fail. Skip leaves this file encrypted.");
+    }
+
+    private static bool IsSmartCardError(int? error) => error is { } code && (code & unchecked((int)0xFFFF0000)) == unchecked((int)0x80100000);
+
+    private static string KeyWaitReason(StorageEfsKeyEvidence key) => key.NativeError switch
+    {
+        unchecked((int)0x8010002E) => "no smart card reader or security key is connected",
+        unchecked((int)0x8010000C) => "no smart card is inserted",
+        unchecked((int)0x80100069) => "the smart card was removed",
+        unchecked((int)0x8010001D) => "the Windows smart card service is not running",
+        _ when key.State == StorageEfsKeyState.InteractionRequired => "its key provider needs your interaction, such as a PIN",
+        _ when key.ProviderName?.Contains("Smart Card", StringComparison.OrdinalIgnoreCase) == true =>
+            "its key is on a smart card or security key that is not available now",
+        _ when key.ProviderName is { } provider => "its key provider, " + provider + ", did not confirm the key without asking",
+        { } error => "its key provider did not answer (0x" + error.ToString("X8", System.Globalization.CultureInfo.InvariantCulture) + ")",
+        null => "its key provider did not answer",
+    };
+
     private static string EfsInvoker()
     {
         using var charge = StorageNativeAllowance.RequireCurrent().ClaimScratch();
@@ -141,6 +185,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         private StorageObservation? _prepared;
         private bool _preparedNeeded;
         private bool _guards;
+        private bool _keyWaitAccepted;
         private bool _disposed;
         internal ImmutableArray<WindowsEfsStream> PreparedStreams { get; private set; } = [];
         // The containing type owns construction; callers receive no unpinned ID-to-path authority.
@@ -223,6 +268,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             if (before.Ineligible is not null || !NeedsChange(before.Efs, _consent.Action)) return before;
             if (!_guards)
             {
+                ConfirmKeyReachable(before, ct);
                 EnsureGuards(ct);
                 before = Observe(ct);
                 if (before.Ineligible is not null || !NeedsChange(before.Efs, _consent.Action)) return before;
@@ -307,6 +353,28 @@ internal sealed unsafe partial class WindowsStorageTransforms
             if (_guards) return;
             PromoteEfsGuards(_path, Path, ct);
             _guards = true;
+        }
+
+        // The data guard on an encrypted file makes Windows fetch the file's key. If that key sits behind a provider that
+        // cannot answer now, such as a removed smart card, Windows waits minutes without a visible prompt. Ask first. This
+        // is advisory: it never refuses by itself, and a silent failure is not proof that Windows cannot decrypt.
+        private void ConfirmKeyReachable(StorageObservation before, CancellationToken ct)
+        {
+            if (_consent.Action != StorageAction.DecryptEfs || before.IsDirectory || before.Efs != StorageObservationState.Enabled ||
+                _keyWaitAccepted) return;
+            StorageEfsAssociationSnapshot association;
+            try
+            {
+                association = WindowsEfsAssociations.Read(_apiPath, Identity, _pin.InvokerSid!, _pin.Adapter._efsKeys, token =>
+                {
+                    var observed = Observe(token);
+                    if (observed.Efs != StorageObservationState.Enabled || observed.Ineligible is not null)
+                        throw Changed("efs-association-changed", "The held encrypted item changed during its certificate query.");
+                }, ct);
+            }
+            catch (StorageInspectionException) { return; } // The guarded preparation decides; this check only asks.
+            if (KeyWaitProblem(association, System.IO.Path.GetFileName(Path)) is { } problem)
+                throw new StorageKeyWaitException(problem, () => _keyWaitAccepted = true);
         }
 
         private void RequireRecoveryKey(StorageAction action, CancellationToken ct)
