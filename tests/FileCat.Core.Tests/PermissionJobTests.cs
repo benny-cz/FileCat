@@ -1202,7 +1202,9 @@ public sealed partial class PermissionJobTests
         Assert.Contains(Assert.IsType<PosixAcl>(original.Snapshot.Access.Value?.Acl).Entries, row => row.Principal?.Id == "12345");
         var denied = service.CheckEffectiveAccess(file.Subject, ct);
         Assert.True(denied.NoSetId);
-        Assert.All(denied.Checks, check => Assert.Equal(PermissionReadStatus.Denied, check.Status));
+        // Mode 000 refuses the object's own rights; removing it depends on the owner's folder, which allows it.
+        Assert.Equal(new[] { PermissionReadStatus.Denied, PermissionReadStatus.Denied, PermissionReadStatus.Denied, PermissionReadStatus.Present },
+            denied.Checks.Select(check => check.Status));
         var time = new DateTimeOffset(2024, 6, 1, 2, 3, 4, TimeSpan.Zero);
         using var mode = LinuxPermissionService.Prepare(original, file.Item, new(PermissionScope.Objects,
             [new ChangePermissionMode(0x1a0, 0xfff), new ChangePermissionTimes(time, null)]), false, ct).Review;
@@ -1212,7 +1214,7 @@ public sealed partial class PermissionJobTests
         Assert.Equal((UnixFileMode)0x1a0, File.GetUnixFileMode(path));
         Assert.Equal(time.UtcDateTime, File.GetLastWriteTimeUtc(path));
         Assert.Contains("user:12345:r--", RunAclTool("getfacl", "-ncp", path));
-        Assert.Equal(new[] { PermissionReadStatus.Present, PermissionReadStatus.Present, PermissionReadStatus.Denied },
+        Assert.Equal(new[] { PermissionReadStatus.Present, PermissionReadStatus.Present, PermissionReadStatus.Denied, PermissionReadStatus.Present },
             service.CheckEffectiveAccess(file.Subject, ct).Checks.Select(check => check.Status));
 
         using var updated = service.Inspect(file.Subject, PermissionSections.Ordinary, ct);
