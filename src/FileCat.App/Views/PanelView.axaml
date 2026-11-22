@@ -22,7 +22,7 @@
                         AutomationProperties.HelpText="{Binding TabLockDescription}" PointerReleased="OnTabPointerReleased">
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="{Binding TabHeader}" MaxWidth="220" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Text="⟳" IsVisible="{Binding IsLoading}" Classes="muted" />
+                    <TextBlock Text="⟳" IsVisible="{Binding ShowsBusy}" Classes="muted" />
                   </StackPanel>
                 </Button>
               </DataTemplate>

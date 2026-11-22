@@ -212,6 +212,9 @@ public sealed partial class MetadataService : IDisposable
         return false;
     }
 
+    /// <summary>Why a cached observation-lane value is last known: it is older than its field's interval.</summary>
+    public const string ExpiredDetail = "The observation interval expired; refresh is required for a current value.";
+
     private static TimeSpan? EffectiveRefresh(MetadataField field, bool slowLocation) =>
         field.RefreshAfter is { } refresh ? TimeSpan.FromTicks(refresh.Ticks * (slowLocation ? 6 : 1)) : null;
 
@@ -220,7 +223,7 @@ public sealed partial class MetadataService : IDisposable
 
     private MetadataValue QualifyCached(MetadataField field, string key, MetadataValue value, bool slowLocation) =>
         field.ObservationLane && value.State == MetadataState.Available && !Fresh(key, EffectiveRefresh(field, slowLocation))
-            ? value with { Observation = MetadataObservation.LastKnown, Detail = value.Detail ?? "The observation interval expired; refresh is required for a current value." }
+            ? value with { Observation = MetadataObservation.LastKnown, Detail = value.Detail ?? ExpiredDetail }
             : value;
 
     private bool AutomaticallyDue(string key, MetadataValue value, TimeSpan? refresh) =>

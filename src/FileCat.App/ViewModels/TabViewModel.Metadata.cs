@@ -27,8 +27,13 @@ public sealed partial class TabViewModel
     private void PreparingMetadataStore(Location location, EntryStore store)
     {
         RetireMetadataAnalysis();
-        if (_ownershipLocation is { IsFileSystem: true } old && old != location) RetireOwnershipFolder(old.Path);
-        if (location.IsFileSystem) RetireOwnershipFolder(location.Path);
+        bool sameFolder = _ownershipLocation == location;
+        if (_ownershipLocation is { IsFileSystem: true } old && !sameFolder) RetireOwnershipFolder(old.Path);
+        // A folder entered afresh drops what an earlier visit read. A reread of the folder shown keeps it: values are
+        // cached by each item's size and time, so a changed item is read again while an unchanged one keeps its value
+        // instead of showing "…" (in a folder that keeps changing, every column flashed once a second), and each field
+        // still reads its value again after its own interval. Refresh (Ctrl+R) invalidates every value itself.
+        if (location.IsFileSystem && !sameFolder) RetireOwnershipFolder(location.Path);
         _ownershipLocation = location;
         _ownershipDemandStore = store;
     }
@@ -98,6 +103,11 @@ public sealed partial class TabViewModel
             () => ReferenceEquals(captured.Store, Listing.Store) && VisibleStoreIndices.Contains(storeIndex) &&
                 (!ownership || ReferenceEquals(captured.Store, _ownershipDemandStore)))
             : Services.Metadata.Peek(fieldId, path, entry, context.SlowLocation);
+        // A value past its interval is read again as soon as the list draws it (Get schedules that). Meanwhile it shows
+        // as it was, so every 20 seconds a column does not flash "(last known)" through each row; a peek (inspection,
+        // which reads nothing) still says the value is last known, as does a read that failed.
+        if (demand && value is { State: MetadataState.Available, Observation: MetadataObservation.LastKnown, Detail: MetadataService.ExpiredDetail })
+            value = value with { Observation = MetadataObservation.Current, Detail = "Being read again; this is the value read before." };
         string text = value.State switch
         {
             MetadataState.Available => field.Format(value.Value) + (value.Observation == MetadataObservation.LastKnown ? " (last known)" : ""),

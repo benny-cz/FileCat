@@ -108,5 +108,61 @@ public sealed class ChangeMonitorCadenceTests
         }
     }
 
+    /// <summary>
+    /// A folder that keeps changing (a log written every second, in C:\Windows say) is read again at most every
+    /// <see cref="ChangeMonitor.ChurnInterval"/> once it counts as busy, which it says (for the status line); a quiet
+    /// spell ends that, and the next change is read again promptly. The knobs are shortened here.
+    /// </summary>
+    [Fact]
+    public async Task A_busy_folder_is_read_again_at_the_churn_interval_until_it_calms()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var dir = new TempDir();
+        string folder = Directory.CreateDirectory(Path.Combine(dir.Path, "busy")).FullName;
+        var clock = Stopwatch.StartNew();
+        var reads = new List<double>();
+        int churnChanges = 0;
+        using var monitor = new ChangeMonitor(folder, () => { lock (reads) reads.Add(clock.Elapsed.TotalSeconds); })
+        {
+            ChurnInterval = TimeSpan.FromSeconds(1), ChurnWindow = TimeSpan.FromSeconds(5), CalmAfter = TimeSpan.FromSeconds(1.5),
+        };
+        monitor.ChurnChanged += () => Interlocked.Increment(ref churnChanges);
+        if (!monitor.IsActive) Assert.Skip("This folder cannot be watched here.");
+        double[] Reads() { lock (reads) return [.. reads]; }
+        async Task Until(Func<bool> condition, TimeSpan limit)
+        {
+            var deadline = clock.Elapsed + limit;
+            while (!condition() && clock.Elapsed < deadline) await Task.Delay(25, ct);
+        }
+
+        // A line every 400 ms for six seconds, as a busy log is written: each change settles (a quarter second) before
+        // the next, so without the churn interval every one was read again; after three rereads within the window the
+        // folder counts as busy. (Changes closer together than a quarter second are already read every two seconds.)
+        double started = clock.Elapsed.TotalSeconds;
+        for (int i = 0; clock.Elapsed.TotalSeconds - started < 6; i++)
+        {
+            File.WriteAllText(Path.Combine(folder, $"f{i:0000}.txt"), "x");
+            await Task.Delay(400, ct);
+        }
+        Assert.True(monitor.IsChurning, $"rereads: {string.Join(", ", Reads().Select(t => t.ToString("F2")))}");
+        double[] busy = Reads();
+        int first = Array.FindIndex(busy, t => t >= busy[ChangeMonitor.ChurnRereads - 1]);
+        var gaps = busy.Skip(first).Zip(busy.Skip(first + 1), (a, b) => b - a).ToArray();
+        TestContext.Current.TestOutputHelper?.WriteLine($"rereads: {string.Join(", ", busy.Select(t => t.ToString("F2")))}");
+        Assert.NotEmpty(gaps);
+        Assert.All(gaps, gap => Assert.True(gap >= 0.9, $"rereads {gap:F2} s apart while the folder counted as busy"));
+
+        // Quiet for longer than CalmAfter: no longer busy, and a change is read again within the usual quarter second.
+        await Until(() => !monitor.IsChurning, TimeSpan.FromSeconds(5));
+        Assert.False(monitor.IsChurning);
+        Assert.Equal(2, Volatile.Read(ref churnChanges));
+        int before = Reads().Length;
+        double written = clock.Elapsed.TotalSeconds;
+        File.WriteAllText(Path.Combine(folder, "late.txt"), "x");
+        await Until(() => Reads().Length > before, TimeSpan.FromSeconds(3));
+        Assert.True(Reads().Length > before, "The change after the quiet spell was not read again.");
+        Assert.True(Reads()[before] - written < 0.9, $"read again {Reads()[before] - written:F2} s after the change");
+    }
+
     private sealed record Reading(double Time, (string Name, long Length)[] Files);
 }
