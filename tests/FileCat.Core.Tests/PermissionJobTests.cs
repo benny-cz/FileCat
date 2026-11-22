@@ -687,6 +687,51 @@ public sealed partial class PermissionJobTests
         finally { File.Delete(file); }
     }
 
+    // G-TREE: captured members that disappear after review (one file, and a folder with its file) are reported without a
+    // native call while the rest of the reviewed tree is applied and verified, directories last.
+    [Fact]
+    public async Task Ext4_reviewed_mode_tree_finishes_the_rest_when_captured_members_disappear()
+    {
+        RequireExt4Writer();
+        using var fixture = new Fixture(nativeJournal: true);
+        var root = TreeSubject(Path.Join(fixture.Root, "tree"), EntryKind.Directory);
+        var kept = TreeSubject(Path.Join(root.Subject.RawLocator, "kept"), EntryKind.File);
+        var gone = TreeSubject(Path.Join(root.Subject.RawLocator, "gone"), EntryKind.File);
+        var folder = TreeSubject(Path.Join(root.Subject.RawLocator, "folder"), EntryKind.Directory);
+        var nested = TreeSubject(Path.Join(folder.Subject.RawLocator, "nested"), EntryKind.File);
+        Directory.CreateDirectory(root.Subject.RawLocator, (UnixFileMode)0x1c0);
+        Directory.CreateDirectory(folder.Subject.RawLocator, (UnixFileMode)0x1c0);
+        foreach (string path in new[] { kept.Subject.RawLocator, gone.Subject.RawLocator, nested.Subject.RawLocator })
+        {
+            File.WriteAllText(path, "fixture");
+            File.SetUnixFileMode(path, (UnixFileMode)0x180);
+        }
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        var prepared = new LinuxPermissionService().PrepareModeTree([kept, gone, nested, folder, root], new(0x20, 0x20), false, false, ct);
+        using var review = prepared.Operation;
+        Assert.Equal(5, review.Targets.Length);
+        File.Delete(gone.Subject.RawLocator);
+        Directory.Delete(folder.Subject.RawLocator, recursive: true);
+
+        var job = fixture.Manager.SubmitPermissions(review);
+        await fixture.Finish(job);
+        var byPath = job.PermissionResults.ToDictionary(result => job.Request.Sources[result.SourceIndex].FileSystemPath!);
+        Assert.Equal(5, byPath.Count);
+        foreach (var vanished in new[] { gone, folder, nested })
+        {
+            var result = byPath[vanished.Subject.RawLocator];
+            Assert.True(result.Verdict is PermissionVerdict.Conflict or PermissionVerdict.FailedBeforeChange,
+                $"{vanished.Subject.RawLocator}: {result.Verdict}");
+            Assert.All(result.Components, component => Assert.Null(component.NativeCall));
+        }
+        Assert.Equal(PermissionVerdict.Verified, byPath[kept.Subject.RawLocator].Verdict);
+        Assert.Equal(PermissionVerdict.Verified, byPath[root.Subject.RawLocator].Verdict);
+        Assert.Equal((UnixFileMode)0x1a0, File.GetUnixFileMode(kept.Subject.RawLocator));
+        Assert.Equal((UnixFileMode)0x1e0, File.GetUnixFileMode(root.Subject.RawLocator));
+        Assert.Equal(JobState.CompletedWithIssues, job.State);
+        Assert.Equal("end", JobJournal.ReadAll(fixture.JournalPath!).Last().Type);
+    }
+
     // G-BIND: a pure rename between review and dispatch leaves the original name empty. The held object is not written
     // under its new name; the job reports a conflict before any intent.
     [Fact]
