@@ -1581,6 +1581,64 @@ public sealed partial class PermissionJobTests
         Assert.Equal((UnixFileMode)0x1e4, File.GetUnixFileMode(path));
     }
 
+    // G-LINUX a racing member of the new group: a group change that also removes group write removes it under the old group
+    // first, so a member of the new group probing between the chgrp and the final mode can read but never write, and the
+    // final mode keeps it that way.
+    [Fact]
+    public async Task Ext4_restrictive_group_change_never_lets_a_new_group_member_write()
+    {
+        RequireExt4Writer();
+        string control = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_GROUP_RACER") ?? string.Empty;
+        string target = Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_GROUP_RACE_FILE") ?? string.Empty;
+        bool haveGroup = uint.TryParse(Environment.GetEnvironmentVariable("FILECAT_TEST_PERMISSIONS_GROUP_RACE_GID"), out uint raceGroup);
+        if (control.Length == 0 || target.Length == 0 || !haveGroup) Assert.Skip("Requires the racing group-member helper.");
+        File.SetUnixFileMode(target, (UnixFileMode)0x1b0); // 0660 under this user's group
+        Assert.Equal("denied,denied", AskRacer(control, "before"));
+        using var fixture = new Fixture(nativeJournal: true);
+        var item = new ItemRef(Location.FileSystem(Path.GetDirectoryName(target)!), Path.GetFileName(target), EntryKind.File);
+        var subject = new PermissionSubject(item.Parent, target, target, new(PermissionAuthorityKind.Local, "fixture", 0),
+            PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+        var service = new LinuxPermissionService(qualifyGroupWrites: true);
+        var ct = TestContext.Current.CancellationToken;
+        var authority = LinuxPermissionService.ReadGroupAuthority(ct);
+        Assert.True(authority.Includes(raceGroup));
+        using var inspection = service.Inspect(subject, PermissionSections.Ordinary, ct);
+        var group = new Principal(PrincipalKind.UnixGroup, raceGroup.ToString(System.Globalization.CultureInfo.InvariantCulture), subject.Authority.Id);
+        var draft = new PermissionDraft(PermissionScope.Objects, [new AssignPermissionPrincipal(false, group), new ChangePermissionMode(0x1a4, 0x1ff)]);
+        var plan = LinuxPermissionService.PreviewGroupChange(inspection.Snapshot, draft, authority);
+        Assert.Equal(new[] { PermissionSections.Mode, PermissionSections.Group, PermissionSections.Mode }, plan.Stages.Select(stage => stage.Change.Section));
+        Assert.Equal((ushort)0x1a0, plan.Stages[0].Expected.Mode.Value);
+        using var review = LinuxPermissionService.Prepare(inspection, item, draft, false, ct, authority).Review;
+        string? duringChange = null;
+        fixture.Verify = () =>
+        {
+            if (duringChange is not null || fixture.JournalPath is not { } journal ||
+                JobJournal.ReadAll(journal).Count(record => record.Type == "permission-outcome") != 2) return;
+            duringChange = AskRacer(control, "during");
+        };
+        var job = fixture.Manager.SubmitPermissions(review);
+        await fixture.Finish(job);
+        Assert.Equal(PermissionVerdict.Verified, Assert.Single(job.PermissionResults).Verdict);
+        Assert.Equal("denied,allowed", duringChange);
+        Assert.Equal("denied,allowed", AskRacer(control, "after"));
+        Assert.Equal((UnixFileMode)0x1a4, File.GetUnixFileMode(target));
+        Assert.Equal(raceGroup.ToString(System.Globalization.CultureInfo.InvariantCulture), RunAclTool("stat", "-c", "%g", target).Trim());
+
+        // The helper, running as another account in the new group, answers "<write>,<read>" for each request.
+        static string AskRacer(string control, string name)
+        {
+            File.WriteAllText(Path.Join(control, name + ".go"), string.Empty);
+            string result = Path.Join(control, name + ".result");
+            var deadline = DateTime.UtcNow.AddSeconds(15);
+            while (!File.Exists(result))
+            {
+                if (DateTime.UtcNow > deadline) throw new TimeoutException("The racing group member did not answer.");
+                Thread.Sleep(20);
+            }
+            return File.ReadAllText(result).Trim();
+        }
+    }
+
     [Fact]
     public async Task Ext4_group_job_requires_set_id_consent_and_verifies_capability_clearance()
     {
