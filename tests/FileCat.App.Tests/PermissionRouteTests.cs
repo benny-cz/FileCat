@@ -8,6 +8,7 @@ using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
 using FileCat.Core.Listing;
+using FileCat.Core.Search;
 using FileCat.Core.Permissions;
 using FileCat.Core.Selection;
 using Location = FileCat.Core.Resources.Location;
@@ -26,9 +27,15 @@ public sealed class PermissionRouteTests
 
         internal string[] Locators { get { lock (_locators) return [.. _locators]; } }
 
+        /// <summary>When set, each read waits here (on FileCat's I/O thread) until the test releases it.</summary>
+        internal ManualResetEventSlim? Gate { get; set; }
+        internal readonly ManualResetEventSlim Reading = new();
+
         public PermissionInspection Inspect(PermissionSubject subject, PermissionSections sections, CancellationToken cancellationToken)
         {
             lock (_locators) _locators.Add(subject.RawLocator);
+            Reading.Set();
+            Gate?.Wait(TimeSpan.FromSeconds(20), cancellationToken);
             return PermissionSnapshots.Unavailable(subject, sections, PermissionReadStatus.Unsupported, "Route fixture reader.");
         }
 
@@ -93,6 +100,63 @@ public sealed class PermissionRouteTests
             await Until(() => InspectorOpen(window), ct);
             Assert.Equal([Path.Combine(root, "files", "b.txt")], permissions.Locators);
             CloseInspector(window);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Find_results_inspect_the_original_and_closing_Find_retires_the_inspector(bool closeFind)
+    {
+        var (services, vm, window, root, permissions) = Open();
+        FindWindow? find = null;
+        try
+        {
+            CancellationToken ct = TestContext.Current.CancellationToken;
+            find = FindWindow.Open(vm, Path.Join(root, "files"), null);
+            find.NamesBox.Text = "a.txt";
+            find.StartSearch(RefineMode.Replace);
+            await Until(() => find.ResultsTab is { } results && results.Listing.State == ListingState.Complete &&
+                results.Listing.FocusName("a.txt"), ct);
+            find.Run(CommandIds.PermissionsOwnership);
+            await Until(() => InspectorOpen(find), ct);
+            Assert.Equal([Path.Combine(root, "files", "a.txt")], permissions.Locators);
+            if (closeFind)
+            {
+                // Closing Find while its inspector is open takes the inspector with it and leaves nothing behind.
+                find.Close();
+                await Until(() => !find.IsVisible, ct);
+                Assert.Empty(services.Jobs.Jobs);
+                Assert.False(vm.Dialogs.IsOpen);
+            }
+            else CloseInspector(find);
+        }
+        finally
+        {
+            find?.Close();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task A_selection_changed_while_permissions_open_shows_no_inspector()
+    {
+        var (services, vm, window, root, permissions) = Open();
+        try
+        {
+            CancellationToken ct = TestContext.Current.CancellationToken;
+            var listing = vm.ActiveTab!.Listing;
+            await Until(() => listing.State == ListingState.Complete && listing.FocusName("a.txt"), ct);
+            using var gate = new ManualResetEventSlim();
+            permissions.Gate = gate;
+            vm.Execute(CommandIds.PermissionsOwnership);
+            await Until(() => permissions.Reading.IsSet, ct);
+            listing.MarkNames(["b.txt"], true);     // the reviewed selection is no longer the original one
+            gate.Set();
+            await Until(() => vm.RecentNotifications.Any(note => note.Message == "The selection changed while opening permissions."), ct);
+            Assert.False(InspectorOpen(window));
+            Assert.Empty(services.Jobs.Jobs);
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }
