@@ -1462,6 +1462,10 @@ public sealed class PermissionInspectorTests
             Assert.Contains(native.GetAccessRules(true, true, typeof(SecurityIdentifier)).OfType<FileSystemAccessRule>(), entry =>
                 entry.IdentityReference.Value == "S-1-5-32-546" && entry.AccessControlType == AccessControlType.Allow &&
                 (uint)entry.FileSystemRights == 0x00120189);
+            // The App's own protected Windows journal holds the complete history, which needs no recovery review.
+            string history = Path.Combine(services.Paths.JournalDirectory, PermissionJournalNames.Directory);
+            Assert.True(PermissionJournalNames.TryParse(Path.GetFileName(Assert.Single(Directory.GetFiles(history))), out _, out _));
+            Assert.Empty(services.ScanPermissionHistory(ct));
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }
