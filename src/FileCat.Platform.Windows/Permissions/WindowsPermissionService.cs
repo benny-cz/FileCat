@@ -75,6 +75,8 @@ internal sealed unsafe partial class WindowsPermissionService(bool qualifySmbRea
             var snapshot = PermissionSnapshots.Create(subject, PermissionModel.WindowsDescriptor, binding, sections, DateTimeOffset.UtcNow, Source);
             if ((sections & DiscretionarySections) != 0)
                 snapshot = ReadDescriptor(snapshot, sections, parent, names.Length == 0 ? @"\??\" + root : names[^1], chain[^1], cancellationToken);
+            if ((sections & DiscretionarySections) == DiscretionarySections)
+                snapshot = WithInheritedReading(snapshot, root, names, cancellationToken);
             if ((sections & PermissionSections.Audit) != 0)
                 snapshot = snapshot with { Audit = new(PermissionReadStatus.Unsupported, Source, DateTimeOffset.UtcNow,
                     Reason: "Reading the Windows audit ACL requires an authorized FileCat session with SeSecurityPrivilege.") };

@@ -56,6 +56,8 @@ public sealed class WindowsSetterComparisonTests
                 new("stale inherited", $"D:AI(A;;FA;;;{me})(A;ID;FR;;;WD)", $"D:AI(A;;FA;;;{me}){added}(A;ID;FR;;;WD)"),
                 new("legacy", $"D:(A;;FA;;;{me})(A;;FA;;;SY)(A;;FA;;;BA)", $"D:(A;;FA;;;{me})(A;;FA;;;SY)(A;;FA;;;BA){added}"),
                 new("protected", $"D:PAI(A;;FA;;;{me})(A;;FA;;;SY)", $"D:PAI(A;;FA;;;{me})(A;;FA;;;SY){added}"),
+                // A legacy DACL whose trailing entries carry inheritance marks (no SE_DACL_AUTO_INHERITED).
+                new("legacy marked", $"D:(A;;FA;;;{me})(A;ID;FA;;;SY)(A;ID;FA;;;BA)", $"D:(A;;FA;;;{me}){added}(A;ID;FA;;;SY)(A;ID;FA;;;BA)"),
                 new("NULL", "D:NO_ACCESS_CONTROL", $"D:AI(A;;FA;;;{me}){added}"),
                 // An empty DACL leaves the owner without WRITE_DAC here (a filtered administrator token), so it is the written
                 // shape: the same object loses every entry.

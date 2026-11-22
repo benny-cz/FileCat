@@ -105,7 +105,17 @@ public sealed record PermissionSnapshot(PermissionSubject Subject, PermissionMod
     internal PermissionServerState? ServerState { get; init; }
     internal PermissionMountObservation? Mount { get; init; }
     internal PermissionObservation<PermissionFileCapabilities>? FileCapabilities { get; init; }
+    // How Windows tools read a DACL stored without SE_DACL_AUTO_INHERITED. Informational: not part of any revision digest.
+    internal WindowsInheritedReading? WindowsReading { get; init; }
 }
+
+/// <summary>
+/// A legacy DACL as Windows tools read it: ConvertToAutoInheritPrivateObjectSecurity against the verified parent marks the
+/// entries the parent's inheritable rules produce as inherited, lists them last and sets SE_DACL_AUTO_INHERITED, or reports
+/// the DACL as protected when they no longer match.
+/// </summary>
+internal sealed record WindowsInheritedReading(PermissionIdentity ParentIdentity, PermissionRevision ParentRevision,
+    WindowsAclControl Control, WindowsDacl Acl);
 
 public sealed record FtpPermissionObservation(string Protocol, string Source, DateTimeOffset ObservedAt,
     string? TransferRights, string? Unique, string? OwnerName, string? GroupName);
@@ -129,6 +139,8 @@ public sealed record AddWindowsAce(WindowsAce Entry) : PermissionDelta(Permissio
 internal enum WindowsInheritanceAction { ProtectCopy, ProtectRemove, Enable }
 internal sealed record ChangeWindowsInheritance(WindowsInheritanceAction Action) : PermissionDelta(PermissionSections.Access);
 internal sealed record ResetWindowsDacl(ImmutableArray<byte> InheritedAcl) : PermissionDelta(PermissionSections.Access);
+/// <summary>Store a legacy DACL exactly as its reviewed WindowsInheritedReading, in automatic-inheritance form.</summary>
+internal sealed record ConvertWindowsInheritance() : PermissionDelta(PermissionSections.Access);
 internal sealed record ChangeWindowsAuditAce(int? Occurrence, WindowsAuditAce? Expected, WindowsAuditAce? Replacement)
     : PermissionDelta(PermissionSections.Audit);
 public abstract record DarwinAclDelta() : PermissionDelta(PermissionSections.Access);

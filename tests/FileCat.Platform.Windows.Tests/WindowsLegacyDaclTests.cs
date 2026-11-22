@@ -152,6 +152,173 @@ public sealed partial class WindowsLegacyDaclTests
         finally { directory.Delete(recursive: true); }
     }
 
+    // A DACL stored without SE_DACL_AUTO_INHERITED whose trailing entries carry inheritance marks, as a tool that copies
+    // marked entries without the control bit leaves it: the folder-only route adds the reviewed rule before the marked
+    // entries and keeps the marks, the legacy control and the children.
+    [Fact]
+    public async Task Native_NTFS_folder_only_edit_keeps_a_legacy_folder_DACL_with_inheritance_marks()
+    {
+        RequireOrdinaryNtfs();
+        var directory = Directory.CreateTempSubdirectory("filecat-acl-legacy-marked-");
+        try
+        {
+            string me = CurrentSid();
+            var folder = directory.CreateSubdirectory("marked");
+            SetStoredDacl(folder.FullName, $"D:(A;OICI;FA;;;{me})(A;OICIID;FR;;;BG)");
+            Assert.Equal($"0x8004 D:(A;OICI;FA;;;{me})(A;OICIID;FR;;;BG)", StoredSddl(folder.FullName));
+            string child = Path.Combine(folder.FullName, "child.txt");
+            File.WriteAllText(child, "fixture");
+            string childBefore = StoredSddl(child);
+
+            var ct = TestContext.Current.CancellationToken;
+            var service = new WindowsPermissionService(qualifyFolderOnly: true);
+            var source = ItemRef.ForFileSystemPath(folder.FullName, EntryKind.Directory);
+            using var inspection = service.Inspect(FolderSubject(folder), WindowsPermissionService.DiscretionarySections, ct);
+            Assert.True(service.CanReviewFolderOnly(inspection.Snapshot), inspection.Snapshot.BindingProblem ?? inspection.Snapshot.Access.Reason);
+            var grant = WindowsPermissionAclPatch.SimpleEntry(WindowsAceKind.Allow, new(PrincipalKind.WindowsSid, Interactive, AuthorityId),
+                (uint)(FileSystemRights.Read | FileSystemRights.Synchronize), flags: 3 /* OBJECT_INHERIT | CONTAINER_INHERIT */);
+            var prepared = service.PrepareFolderOnly(inspection, source, new(PermissionScope.Objects, [new AddWindowsAce(grant)]), ct);
+            using var operation = prepared.Review;
+            var result = await RunJob(operation, ct);
+            Assert.True(result.Verdict == PermissionVerdict.Verified, $"{result.Verdict}: {result.Detail}");
+            Assert.Equal("Windows NtSetSecurityObject folder DACL", Assert.Single(result.Components).NativeCall);
+            Assert.Equal($"0x8004 D:(A;OICI;FA;;;{me})(A;OICI;FR;;;IU)(A;OICIID;FR;;;BG)", StoredSddl(folder.FullName));
+            Assert.Equal(childBefore, StoredSddl(child));
+        }
+        finally { directory.Delete(recursive: true); }
+    }
+
+    // The reading FileCat shows beside a legacy DACL is what Windows tools show: GetNamedSecurityInfo's DACL and protection.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Native_NTFS_legacy_reading_matches_what_Windows_tools_show(bool parentChanged)
+    {
+        RequireOrdinaryNtfs();
+        var directory = Directory.CreateTempSubdirectory("filecat-acl-legacy-reading-");
+        try
+        {
+            string me = CurrentSid();
+            string path = CreateLegacyChild(directory, me, protect: false);
+            // A parent change that does not propagate: the entries that match the new inheritable rules now read as inherited.
+            if (parentChanged) SetStoredDacl(directory.FullName, $"D:P(A;OICI;FA;;;{me})(A;OICI;FR;;;BU)");
+            var ct = TestContext.Current.CancellationToken;
+            var source = ItemRef.ForFileSystemPath(path, EntryKind.File);
+            using var inspection = new WindowsPermissionService().Inspect(Subject(source), WindowsPermissionService.DiscretionarySections, ct);
+            var reading = Assert.IsType<WindowsInheritedReading>(inspection.Snapshot.WindowsReading);
+            var tools = new RawSecurityDescriptor(NamedDescriptor(path), 0);
+            var shown = new RawSecurityDescriptor(reading.Acl.SecurityDescriptor.ToArray(), 0);
+            // The same entries in the same order and the same protection. GetNamedSecurityInfo returns them without
+            // SE_DACL_AUTO_INHERITED; the conversion FileCat would store adds it.
+            Assert.Equal(Entries(tools), Entries(shown));
+            Assert.Equal((tools.ControlFlags & ControlFlags.DiscretionaryAclProtected) != 0, reading.Control.IsProtected);
+            Assert.True(reading.Control.IsAutoInherited);
+            if (!parentChanged) Assert.Equal($"(A;;FR;;;BU)(A;ID;FA;;;{me})(A;ID;FR;;;BG)", Entries(shown));
+            else Assert.Equal($"(A;;FR;;;BG)(A;ID;FA;;;{me})(A;ID;FR;;;BU)", Entries(shown));
+            Assert.StartsWith("0x8004 ", StoredSddl(path), StringComparison.Ordinal); // Reading never writes.
+        }
+        finally { directory.Delete(recursive: true); }
+    }
+
+    // The explicit conversion stores the reviewed reading in automatic form, leaves the children alone and is the way
+    // to native propagation on a legacy folder; a file converts through the ordinary writer.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Native_NTFS_conversion_stores_the_reviewed_reading_in_automatic_form(bool folder)
+    {
+        RequireOrdinaryNtfs();
+        var directory = Directory.CreateTempSubdirectory("filecat-acl-legacy-convert-");
+        try
+        {
+            string me = CurrentSid();
+            SetStoredDacl(directory.FullName, $"D:P(A;OICI;FA;;;{me})(A;OICI;FR;;;BG)");
+            string path;
+            string? child = null, childBefore = null;
+            if (folder)
+            {
+                path = directory.CreateSubdirectory("legacy").FullName;
+                SetStoredDacl(path, $"D:(A;;FR;;;BU)(A;OICI;FA;;;{me})(A;OICI;FR;;;BG)");
+                child = Path.Combine(path, "child.txt");
+                File.WriteAllText(child, "fixture");
+                childBefore = StoredSddl(child);
+            }
+            else path = CreateLegacyChild(directory, me, protect: false);
+            var ct = TestContext.Current.CancellationToken;
+            var service = new WindowsPermissionService(qualifyFolderOnly: true, qualifyNativePropagation: true);
+            var source = ItemRef.ForFileSystemPath(path, folder ? EntryKind.Directory : EntryKind.File);
+            var subject = folder ? FolderSubject(new DirectoryInfo(path)) : Subject(source);
+            using var inspection = service.Inspect(subject, WindowsPermissionService.DiscretionarySections, ct);
+            var reading = Assert.IsType<WindowsInheritedReading>(inspection.Snapshot.WindowsReading);
+            Assert.False(service.CanReviewNativePropagation(inspection.Snapshot));
+            Assert.True(service.CanReviewInheritanceConversion(inspection.Snapshot));
+            string readingSddl = new RawSecurityDescriptor(reading.Acl.SecurityDescriptor.ToArray(), 0).GetSddlForm(AccessControlSections.Access);
+            var prepared = service.PrepareInheritanceConversion(inspection, source, ct);
+            using var operation = prepared.Review;
+            var result = await RunJob(operation, ct);
+            Assert.True(result.Verdict == PermissionVerdict.Verified, $"{result.Verdict}: {result.Detail}");
+            Assert.Equal("Windows NtSetSecurityObject inheritance conversion", Assert.Single(result.Components).NativeCall);
+            Assert.Equal("0x8404 " + readingSddl, StoredSddl(path));
+            Assert.Contains("ID;FA;;;" + me + ")", readingSddl); // The parent's rule now reads as inherited.
+            if (child is not null) Assert.Equal(childBefore, StoredSddl(child));
+            using var after = service.Inspect(subject, WindowsPermissionService.DiscretionarySections, ct);
+            Assert.Null(after.Snapshot.WindowsReading);
+            Assert.Equal(folder, service.CanReviewNativePropagation(after.Snapshot));
+        }
+        finally { directory.Delete(recursive: true); }
+    }
+
+    [Fact]
+    public void Native_NTFS_conversion_refuses_after_the_parent_changes()
+    {
+        RequireOrdinaryNtfs();
+        var directory = Directory.CreateTempSubdirectory("filecat-acl-legacy-convert-stale-");
+        try
+        {
+            string me = CurrentSid();
+            string path = CreateLegacyChild(directory, me, protect: false);
+            var ct = TestContext.Current.CancellationToken;
+            var service = new WindowsPermissionService();
+            var source = ItemRef.ForFileSystemPath(path, EntryKind.File);
+            using var inspection = service.Inspect(Subject(source), WindowsPermissionService.DiscretionarySections, ct);
+            Assert.NotNull(inspection.Snapshot.WindowsReading);
+            SetStoredDacl(directory.FullName, $"D:P(A;OICI;FA;;;{me})(A;OICI;FR;;;BU)");
+            Assert.Throws<PermissionBindingConflictException>(() => service.PrepareInheritanceConversion(inspection, source, ct));
+            Assert.StartsWith("0x8004 ", StoredSddl(path), StringComparison.Ordinal);
+        }
+        finally { directory.Delete(recursive: true); }
+    }
+
+    private static string Entries(RawSecurityDescriptor descriptor)
+    {
+        string sddl = descriptor.GetSddlForm(AccessControlSections.Access);
+        return sddl[sddl.IndexOf('(')..];
+    }
+
+    // Windows tools' reading: GetNamedSecurityInfo's DACL.
+    private static byte[] NamedDescriptor(string path)
+    {
+        uint error = GetNamedSecurityInfo(path, 1 /* SE_FILE_OBJECT */, 4 /* DACL */, out _, out _, out _, out _, out nint descriptor);
+        Assert.Equal(0u, error);
+        try
+        {
+            byte[] bytes = new byte[GetSecurityDescriptorLength(descriptor)];
+            Marshal.Copy(descriptor, bytes, 0, bytes.Length);
+            return bytes;
+        }
+        finally { LocalFree(descriptor); }
+    }
+
+    [LibraryImport("advapi32.dll", EntryPoint = "GetNamedSecurityInfoW", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial uint GetNamedSecurityInfo(string path, int objectType, uint information, out nint owner, out nint group,
+        out nint dacl, out nint sacl, out nint descriptor);
+
+    [LibraryImport("advapi32.dll")]
+    private static partial uint GetSecurityDescriptorLength(nint descriptor);
+
+    [LibraryImport("kernel32.dll")]
+    private static partial nint LocalFree(nint memory);
+
     // A folder whose inheritable rules the child copies as plain entries, then a child that also lists Users after them,
     // both stored the legacy way.
     private static string CreateLegacyChild(DirectoryInfo directory, string me, bool protect)

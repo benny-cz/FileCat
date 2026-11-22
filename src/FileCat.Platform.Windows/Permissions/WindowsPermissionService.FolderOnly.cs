@@ -52,11 +52,11 @@ internal sealed unsafe partial class WindowsPermissionService
     private static bool TryGetUnprotectedDacl(PermissionSnapshot snapshot, out WindowsDacl acl, out WindowsAclControl control) =>
         TryGetSimpleAutoInheritedDacl(snapshot, out acl, out control) && !control.IsProtected;
 
-    // The folder-only write keeps the DACL's stored form: automatic, or legacy with no inheritance marks (see HasLegacyDacl).
-    // A DACL without SE_DACL_AUTO_INHERITED whose entries are marked inherited is neither, and stays read-only here.
+    // The folder-only write keeps the DACL's stored form, automatic or legacy (see HasLegacyDacl), including a legacy DACL
+    // whose entries carry inheritance marks: the descriptor stores the marks as reviewed, and HasSimpleFolderDacl keeps
+    // the marked entries after the explicit ones, where the new rule goes before them.
     private static bool TryGetFolderOnlyDacl(PermissionSnapshot snapshot, out WindowsDacl acl, out WindowsAclControl control) =>
-        TryGetSimpleAutoInheritedDacl(snapshot, out acl, out control, legacyForm: true) && !control.IsProtected &&
-        (control.IsAutoInherited || acl.Entries.All(entry => (entry.Flags & InheritedAce) == 0));
+        TryGetSimpleAutoInheritedDacl(snapshot, out acl, out control, legacyForm: true) && !control.IsProtected;
 
     private static bool TryGetSimpleAutoInheritedDacl(PermissionSnapshot snapshot, out WindowsDacl acl, out WindowsAclControl control,
         bool volumeRoot = false, bool legacyForm = false)

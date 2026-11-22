@@ -72,6 +72,9 @@ public sealed partial class MainViewModel
             source.FileSystemPath == inspected[index].Snapshot.Subject.RawLocator &&
             Services.Permissions is WindowsPermissionService windows &&
             (volumeRoot ? windows.CanReviewVolumeRoot(inspected[index].Snapshot) : windows.CanReviewFolderOnly(inspected[index].Snapshot));
+        bool WindowsConversionAvailable(int index) => inspected[index].Source is { } source &&
+            source.FileSystemPath == inspected[index].Snapshot.Subject.RawLocator &&
+            Services.Permissions is WindowsPermissionService windows && windows.CanReviewInheritanceConversion(inspected[index].Snapshot);
         bool WindowsResetAvailable(int index) => inspected[index].Source is { Kind: EntryKind.Directory } source &&
             source.FileSystemPath == inspected[index].Snapshot.Subject.RawLocator &&
             Services.Permissions is WindowsPermissionService windows && windows.CanReviewAclReset(inspected[index].Snapshot);
@@ -125,6 +128,9 @@ public sealed partial class MainViewModel
         if (Enumerable.Range(0, inspected.Length).Any(index => WindowsFolderOnlyAvailable(index, volumeRoot: true)))
             buttons.Insert(0, new("Edit volume root access rules…", "windows-volume-root")
                 { IsAvailable = () => WindowsFolderOnlyAvailable(view.SelectedSubject, volumeRoot: true) });
+        if (Enumerable.Range(0, inspected.Length).Any(WindowsConversionAvailable))
+            buttons.Insert(0, new("Convert to automatic inheritance…", "windows-convert")
+                { IsAvailable = () => WindowsConversionAvailable(view.SelectedSubject) });
         if (Enumerable.Range(0, inspected.Length).Any(WindowsResetAvailable))
             buttons.Insert(0, new("Reset Windows descendant ACLs…", "windows-reset-tree")
                 { IsAvailable = () => WindowsResetAvailable(view.SelectedSubject) });
@@ -164,6 +170,9 @@ public sealed partial class MainViewModel
             if (WindowsFolderOnlyAvailable(view.SelectedSubject, volumeRoot: answer is "windows-volume-root"))
                 await ShowBoundPermissionEditorAsync(dialogs, inspected[view.SelectedSubject], copy, "acl", origin, windowsFolderOnly: true);
         }
+        else if (answer is "windows-convert" && WindowsConversionAvailable(view.SelectedSubject) && !Services.Io.IsStopped &&
+            Services.Permissions is WindowsPermissionService windowsConvert)
+            await ShowWindowsInheritanceConversionAsync(dialogs, inspected[view.SelectedSubject], windowsConvert, origin);
         else if (answer is "windows-reset-tree" && WindowsResetAvailable(view.SelectedSubject) && !Services.Io.IsStopped &&
             Services.Permissions is WindowsPermissionService windowsReset)
             await ShowWindowsAclResetAsync(dialogs, inspected[view.SelectedSubject], windowsReset, origin);
@@ -1099,6 +1108,7 @@ public sealed partial class MainViewModel
     private static string[] DescribeWindowsPermissionDiff(PermissionSnapshot original, PermissionSnapshot expected, PermissionDelta change) => change switch
     {
         ChangeWindowsInheritance inheritance => DescribeWindowsInheritance(original, expected, inheritance.Action),
+        ConvertWindowsInheritance => DescribeWindowsConversion(original, expected).Prepend("Store the DACL in automatic-inheritance form").ToArray(),
         AssignPermissionPrincipal owner => [$"Owner · {Formatters.SafeName(original.Owner.Value?.Id ?? "unavailable")} → {Formatters.SafeName(owner.Principal.Id)}"],
         ChangeWindowsAce { Replacement: null } removed when expected.Access.Value?.Acl is WindowsDacl { Entries.IsEmpty: true } =>
             [$"Remove entry {removed.Occurrence + 1} · {WindowsAccessEditor.Describe(removed.Expected)}", "The resulting empty DACL grants no discretionary access."],

@@ -165,6 +165,11 @@ internal sealed class PermissionInspectorView : StackPanel
             bool legacy = snapshot.Model == PermissionModel.WindowsDescriptor && !control.IsAutoInherited;
             _subject.Children.Add(Label((control.IsProtected ? "Inheritance: protected" : "Inheritance: enabled") + (legacy ? ", legacy form" : "")));
             if (legacy) _subject.Children.Add(Label(LegacyDaclNote(control, snapshot.Binding?.Identity.Kind ?? snapshot.Subject.Kind)));
+            // Beside the stored entries: how Windows tools read them against the parent (WindowsInheritedReading).
+            if (legacy && snapshot.WindowsReading is { } reading)
+                AddAcl(reading.Control.IsProtected ? "Windows tools read this DACL as protected" : "Windows tools read this DACL as",
+                    new PermissionObservation<PermissionAclValue>(PermissionReadStatus.Present, "Windows ConvertToAutoInheritPrivateObjectSecurity",
+                        snapshot.Access.ObservedAt, new PermissionAclValue(reading.Acl)), snapshot.Subject.Authority, directory);
         }
         if (snapshot.Model == PermissionModel.WindowsDescriptor && snapshot.Audit.Status != PermissionReadStatus.Unloaded)
             AddAcl("Auditing", snapshot.Audit, snapshot.Subject.Authority, directory);
