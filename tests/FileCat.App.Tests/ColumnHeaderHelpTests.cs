@@ -62,6 +62,21 @@ public sealed class ColumnHeaderHelpTests
     }
 
     /// <summary>
+    /// On Linux Created is the birth time, which not every file system keeps: its header says so. Elsewhere the title says
+    /// it all.
+    /// </summary>
+    [Fact]
+    public void Created_says_on_Linux_that_it_is_the_birth_time()
+    {
+        var created = new ColumnSpec(ColumnField.Created, "Created", 128);
+        var help = ColumnDescriptions.HeaderHelpFor(created, windows: false, "Ctrl+I", linux: true)!;
+        Assert.Contains("its birth time, as its file system records it; blank where the file system keeps none", help.Lead);
+        Assert.Contains("File → File-system details… (Ctrl+I) shows all four of an item's times.", help.Hints);
+        Assert.Null(ColumnDescriptions.HeaderHelpFor(created, windows: true, "Ctrl+I"));
+        Assert.Null(ColumnDescriptions.HeaderHelpFor(created, windows: false, "Ctrl+I"));
+    }
+
+    /// <summary>
     /// Tooltips respect every theme: a header's tooltip is drawn on each palette's tooltip surface in its text color, with
     /// its hints in the muted color, and the quiet "none" reads at 4.5:1 on an active and an inactive panel alike.
     /// </summary>

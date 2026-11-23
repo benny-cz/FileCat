@@ -45,7 +45,11 @@ internal interface IDecryptedCopyReview : IDisposable
     void Copy(FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct);
 }
 
-/// <summary>Native identity and metadata of one file-system item.</summary>
+/// <summary>
+/// Native identity and metadata of one file-system item. On Linux <see cref="CreatedUtc"/> is .NET's stand-in (the
+/// earlier of the modification and status change times), not a birth time: it is not shown there (LinuxBirthTime reads
+/// the birth time), and it is never written back, as nothing on Linux sets a birth time.
+/// </summary>
 public sealed record FileSystemItemInfo(
     string Path,
     bool IsDirectory,
@@ -599,7 +603,9 @@ public class PortableFileOperations : IFileSystemOperations
                 dst.Flush(flushToDisk: options.FlushDestination);
             }
             File.SetLastWriteTimeUtc(destination, info.LastWriteTimeUtc);
-            File.SetCreationTimeUtc(destination, info.CreationTimeUtc);
+            // Linux keeps no settable creation time: .NET's SetCreationTime there sets the modification time, to the
+            // earlier of the source's modification and status change times (a source modified "in the future" lost its time).
+            if (!OperatingSystem.IsLinux()) File.SetCreationTimeUtc(destination, info.CreationTimeUtc);
             if (!OperatingSystem.IsWindows() && !linuxModeSet)
             {
                 // Drives without permissions (FAT, some network shares) refuse or ignore this; the copy itself is complete.
@@ -681,7 +687,8 @@ public class PortableFileOperations : IFileSystemOperations
     {
         PathUtil.RefuseAmbiguousUnixName(path);
         bool dir = Directory.Exists(path);
-        if (createdUtc is { } c)
+        // Nothing on Linux sets a birth time: .NET's SetCreationTime there sets the modification time instead.
+        if (createdUtc is { } c && !OperatingSystem.IsLinux())
         {
             if (dir) Directory.SetCreationTimeUtc(path, c);
             else File.SetCreationTimeUtc(path, c);

@@ -641,8 +641,21 @@ public sealed class SearchSession
         }
         if (_query.ModifiedAfterUtc is { } after && info.LastWriteTimeUtc < after) return false;
         if (_query.ModifiedBeforeUtc is { } before && info.LastWriteTimeUtc > before) return false;
-        if (_query.CreatedAfterUtc is { } createdAfter && info.CreationTimeUtc < createdAfter) return false;
-        if (_query.CreatedBeforeUtc is { } createdBefore && info.CreationTimeUtc > createdBefore) return false;
+        if (_query.CreatedAfterUtc is not null || _query.CreatedBeforeUtc is not null)
+        {
+            // Linux: the birth time, where the file system keeps one (.NET's is the earlier of the modification and status
+            // change times, a time the item may never have been made at).
+            long born = OperatingSystem.IsLinux() ? LinuxBirthTime.Ticks(info.FullName) : info.CreationTimeUtc.Ticks;
+            if (born <= 0)
+            {
+                AddLog(SearchLogKind.Inaccessible, info.FullName,
+                    "Its file system keeps no creation (birth) time; creation-time criteria cannot be checked.");
+                return false;
+            }
+            var created = new DateTime(born, DateTimeKind.Utc);
+            if (_query.CreatedAfterUtc is { } createdAfter && created < createdAfter) return false;
+            if (_query.CreatedBeforeUtc is { } createdBefore && created > createdBefore) return false;
+        }
         if (!isDir && _query.HasContent)
         {
             Interlocked.Increment(ref FilesExamined);

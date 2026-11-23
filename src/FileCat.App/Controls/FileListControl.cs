@@ -1912,7 +1912,7 @@ public sealed partial class FileListControl : Control
     internal RichTip? HeaderTip(ColumnSpec column)
     {
         string? gesture = Tab?.Services.Keymap.GetGestureText(Core.Commands.CommandIds.FileRecord) is { Length: > 0 } g ? g.Split(',')[0].Trim() : null;
-        var help = ColumnDescriptions.HeaderHelpFor(column, OperatingSystem.IsWindows(), gesture);
+        var help = ColumnDescriptions.HeaderHelpFor(column, OperatingSystem.IsWindows(), gesture, OperatingSystem.IsLinux());
         if (help is null && column.SortField is null) return null;
         string? sort = column.SortField is null ? null : "Click to sort by it; click again to reverse.";
         return new RichTip(Formatters.SafeName(column.DisplayHeader), detail: help?.Lead, hints: [.. help?.Hints ?? [], sort], legend: help?.Legend);

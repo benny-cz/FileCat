@@ -143,6 +143,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     private void RefreshSortDescription()
     {
+        UpdateBirthTimes();
         var sort = Listing.Sort;
         var column = Columns.FirstOrDefault(c => c.SortField == sort.Field &&
             (sort.Field != SortField.Metadata || c.MetadataId == sort.MetadataId));
@@ -207,8 +208,19 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     /// <summary>The columns last announced (<see cref="ColumnsChanged"/>): what the list of this tab shows.</summary>
     private ColumnSpec[]? _shownColumns;
 
+    /// <summary>
+    /// Linux lists a folder's items' birth times (one more call per item) only while this list shows or sorts by Created:
+    /// .NET's creation time there is the earlier of the modification and status change times, not when the item was made.
+    /// </summary>
+    private bool WantsBirthTimes(Location? location) => OperatingSystem.IsLinux() && location is { IsFileSystem: true } &&
+        (Listing.Sort.Field == SortField.Created ||
+         Services.Columns.Get(_columnProfile, Schemes.FileSystem).Any(c => c.Field == ColumnField.Created));
+
+    private void UpdateBirthTimes() => Listing.IncludeBirthTimes = WantsBirthTimes(Location);
+
     private void AnnounceColumns(bool widthsOnly = false)
     {
+        UpdateBirthTimes();
         _shownColumns = Columns;
         ColumnsChanged?.Invoke(this, widthsOnly ? ColumnsChangedEventArgs.Widths : ColumnsChangedEventArgs.Other);
     }
@@ -658,6 +670,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
         _navigatedFocus = (location, focusName);
         _historyDetachedTop = null;
+        // Before the read starts, so that it lists birth times where this tab's columns show them.
+        Listing.IncludeBirthTimes = WantsBirthTimes(location);
         if (jump is not null)
         {
             var visit = location == jump.Visit.Location ? jump.Visit : null;

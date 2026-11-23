@@ -232,8 +232,14 @@ public static class ColumnDescriptions
     /// of the values to expect (Attr's letters, the commonest reparse types), and hints on where to look further.
     /// <paramref name="detailsGesture"/> is the current shortcut of File-system details, which shows an item's reparse data.
     /// </summary>
-    public static HeaderHelp? HeaderHelpFor(ColumnSpec column, bool windows, string? detailsGesture) => column.Field switch
+    public static HeaderHelp? HeaderHelpFor(ColumnSpec column, bool windows, string? detailsGesture, bool linux = false) => column.Field switch
     {
+        ColumnField.Created when linux => new(
+            "When the item was made. For an item on disk: its birth time, as its file system records it; blank where the file system keeps none.",
+            [],
+            ["Programs can set the modification time but not the birth time, so a copy is born when it was copied.",
+             "File → File-system details…" + (detailsGesture is { Length: > 0 } ? $" ({detailsGesture})" : "") +
+             " shows all four of an item's times."]),
         ColumnField.Metadata when column.MetadataId == Core.Metadata.FileDetailsFields.ReparseType => new(
             "What Windows does when the item is opened: follow a link, or let a filter supply the data.",
             [("Symbolic link", "points to another file or folder, on any drive or computer"),
