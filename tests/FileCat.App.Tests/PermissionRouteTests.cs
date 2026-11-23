@@ -117,8 +117,10 @@ public sealed class PermissionRouteTests
             find = FindWindow.Open(vm, Path.Join(root, "files"), null);
             find.NamesBox.Text = "a.txt";
             find.StartSearch(RefineMode.Replace);
-            await Until(() => find.ResultsTab is { } results && results.Listing.State == ListingState.Complete &&
-                results.Listing.FocusName("a.txt"), ct);
+            // Find refuses permissions until its search has finished and its last results are published, and a tick can
+            // list a.txt before that; a command run then is refused and the inspector never opens.
+            await Until(() => find.StorageResultsSettled && find.ResultsTab is { } results &&
+                results.Listing.State == ListingState.Complete && results.Listing.FocusName("a.txt"), ct);
             find.Run(CommandIds.PermissionsOwnership);
             await Until(() => InspectorOpen(find), ct);
             // Find reports the folder names as stored, and a temporary folder may be spelled C:\WINDOWS\Temp in TEMP.
