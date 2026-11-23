@@ -48,16 +48,14 @@ internal sealed partial class WindowsPermissionService
     private static ElevationPlan CreateFileSecurityPlan(PermissionSnapshot snapshot, WindowsInspectionPin pin,
         PermissionSections sections, ElevatedFileSecurityChange? change)
     {
-        var binding = snapshot.Binding!;
-        string volume = NtfsMetadataVolume.CanonicalGuid(binding.MountRoot)!;
+        var target = ReviewedTarget.Of(snapshot.Binding!, pin);
         using var requester = NtfsMetadataPeer.HoldSelf(elevated: false);
         using var image = ElevationBroker.OpenNtfsMetadataImage(requester.Image);
-        var scope = new ElevatedFileSecurityScope(binding.Identity.Object.VolumeSerial.ToString("X16", CultureInfo.InvariantCulture),
-            pin.Chain.Select(entry => entry.Identity.Object.FileId).ToArray(), binding.Identity.Kind, binding.LinkCount!.Value, requester.Creation,
+        var scope = new ElevatedFileSecurityScope(target.VolumeSerial, target.FileIds, target.Kind, target.LinkCount, requester.Creation,
             requester.Session, requester.LogonSid.Value, ElevationBroker.ImageId(image), sections, PermissionScope.Objects, change);
         var step = new ElevatedStep(change is null ? ElevatedVerb.InspectFileSecurity : ElevatedVerb.ChangeFileSecurity)
         {
-            Path = volume + string.Join('\\', pin.Names),
+            Path = ReviewedPath(snapshot, pin),
             FileSecurity = scope,
         };
         return new ElevationPlan
@@ -88,14 +86,17 @@ internal sealed partial class WindowsPermissionService
         catch (Win32Exception error) { throw new IOException("The Windows permission binding could not be verified.", error); }
     }
 
-    private static PermissionSnapshot DecodeAuthorizedInspection(PermissionSnapshot original, PermissionSections sections,
-        FileSecurityInspection read)
+    // The helper reads with the approving administrator's token, an administrator window (InspectElevated) with its own.
+    internal static PermissionSnapshot DecodeAuthorizedInspection(PermissionSnapshot original, PermissionSections sections,
+        FileSecurityInspection read, bool administratorWindow = false)
     {
+        string token = administratorWindow ? "This administrator window's" : "The approving administrator's";
+        string reader = administratorWindow ? "This administrator window" : "The helper";
         DateTimeOffset now = DateTimeOffset.UtcNow;
         var snapshot = PermissionSnapshots.Create(original.Subject, PermissionModel.WindowsDescriptor, original.Binding, sections, now,
             Source, read.Discretionary.Status, WindowsFileSecurityPrivilege.IsMissingPrivilege(read.Discretionary.NativeError)
-                ? "The approving administrator's Windows token lacks the backup privilege needed to read this section."
-                : "The helper could not read the requested Windows security section.", Error(read.Discretionary));
+                ? $"{token} Windows token lacks the backup privilege needed to read this section."
+                : $"{reader} could not read the requested Windows security section.", Error(read.Discretionary));
         if (read.Discretionary.Descriptor is { } access)
             snapshot = Decode(snapshot, sections & DiscretionarySections, access, now);
         if ((sections & PermissionSections.Audit) != 0)
@@ -117,8 +118,8 @@ internal sealed partial class WindowsPermissionService
             else
                 snapshot = snapshot with { Audit = new(read.Audit.Status, Source, now,
                     Reason: WindowsFileSecurityPrivilege.IsMissingPrivilege(read.Audit.NativeError)
-                        ? "The approving administrator's Windows token lacks the backup or system security privilege needed to read audit rules."
-                        : "The helper could not read the requested Windows audit ACL.", NativeError: Error(read.Audit)) };
+                        ? $"{token} Windows token lacks the backup or system security privilege needed to read audit rules."
+                        : $"{reader} could not read the requested Windows audit ACL.", NativeError: Error(read.Audit)) };
         }
         return PermissionSnapshots.WithCapabilities(snapshot, sections);
 
@@ -156,12 +157,19 @@ internal sealed partial class WindowsPermissionService
         if (!ElevationBroker.IsNativeFileSecurityHost || step is not
             { Verb: ElevatedVerb.InspectFileSecurity, Path: { } path, FileSecurity: { } reviewed })
             throw new NotSupportedException("The Windows security helper requires one reviewed inspection.");
+        return ReadReviewedSecurity(path, ReviewedTarget.Of(reviewed), reviewed.Sections, cancellation);
+    }
 
+    // The helper's read and the administrator window's (InspectElevated): each section through its own backup-intent walk of
+    // the reviewed volume path under privileges scoped to that read, then a fresh walk and screen against the reviewed target.
+    private static FileSecurityInspection ReadReviewedSecurity(string path, ReviewedTarget reviewed, PermissionSections sections,
+        CancellationToken cancellation)
+    {
         var (root, names) = SplitLocalPath(path);
         var authority = new PermissionAuthority(PermissionAuthorityKind.Local, "local", 0);
-        PermissionSections discretionary = reviewed.Sections & DiscretionarySections;
+        PermissionSections discretionary = sections & DiscretionarySections;
         var access = ReadSection(discretionary != 0, audit: false, out FileStamp? accessStamp);
-        var audit = ReadSection((reviewed.Sections & PermissionSections.Audit) != 0, audit: true, out FileStamp? auditStamp);
+        var audit = ReadSection((sections & PermissionSections.Audit) != 0, audit: true, out FileStamp? auditStamp);
         if (accessStamp is { } first && auditStamp is { } second && first != second)
             return new(new(PermissionReadStatus.Stale), new(PermissionReadStatus.Stale));
         return new(access, audit);
@@ -216,7 +224,24 @@ internal sealed partial class WindowsPermissionService
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     private static unsafe partial int NtQuerySecurityObject(SafeFileHandle file, uint information, byte* descriptor, uint bytes, out uint resultLength);
 
-    private static void RequireReviewedTarget(ElevatedFileSecurityScope reviewed, FileStamp[] chain, PermissionBinding current)
+    // The reviewed object as the helper walks it: from its volume's GUID root, so no drive-letter mapping can retarget it.
+    private static string ReviewedPath(PermissionSnapshot snapshot, WindowsInspectionPin pin) =>
+        NtfsMetadataVolume.CanonicalGuid(snapshot.Binding!.MountRoot)! + string.Join('\\', pin.Names);
+
+    /// <summary>What every walk of the reviewed object re-checks: its volume, root-to-leaf file IDs, kind and link count.</summary>
+    private sealed record ReviewedTarget(string VolumeSerial, IReadOnlyList<string> FileIds, PermissionObjectKind Kind, uint LinkCount)
+    {
+        internal static ReviewedTarget Of(ElevatedFileSecurityScope scope) => new(scope.VolumeSerial, scope.FileIds, scope.Kind, scope.LinkCount);
+
+        internal static ReviewedTarget Of(PermissionBinding binding, WindowsInspectionPin pin) =>
+            new(binding.Identity.Object.VolumeSerial.ToString("X16", CultureInfo.InvariantCulture),
+                pin.Chain.Select(entry => entry.Identity.Object.FileId).ToArray(), binding.Identity.Kind, binding.LinkCount!.Value);
+    }
+
+    private static void RequireReviewedTarget(ElevatedFileSecurityScope reviewed, FileStamp[] chain, PermissionBinding current) =>
+        RequireReviewedTarget(ReviewedTarget.Of(reviewed), chain, current);
+
+    private static void RequireReviewedTarget(ReviewedTarget reviewed, FileStamp[] chain, PermissionBinding current)
     {
         if (reviewed.Kind != current.Identity.Kind || reviewed.LinkCount != current.LinkCount ||
             reviewed.VolumeSerial != current.Identity.Object.VolumeSerial.ToString("X16", CultureInfo.InvariantCulture) ||
