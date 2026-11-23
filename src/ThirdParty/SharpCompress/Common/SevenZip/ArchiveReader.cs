@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -542,9 +541,10 @@ internal partial class ArchiveReader
                         }
                     }
 
+                    // Both sides count the same substreams, so this cannot fail; it throws instead of breaking into a debugger.
                     if (digestIndex != numDigests || numDigestsTotal != digests.Count)
                     {
-                        Debugger.Break();
+                        throw new InvalidFormatException("The archive's substream checksums do not match its substream counts.");
                     }
                 }
                 else if (type == BlockType.End)
@@ -1274,8 +1274,7 @@ internal partial class ArchiveReader
                     ProcessEmptyFiles();
                     if (_currentIndex == _extractStatuses.Count)
                     {
-                        // we support partial extracting
-                        Debugger.Break();
+                        // Decoded data remains after the last selected file. Nothing in FileCat calls Extract.
                         throw new NotSupportedException();
                     }
                     OpenFile();
