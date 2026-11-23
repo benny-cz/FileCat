@@ -110,10 +110,11 @@ jobs:
           $work = Join-Path $env:RUNNER_TEMP 'signing-run'
           $run = Get-Content -LiteralPath (Join-Path $work 'run.json') -Raw | ConvertFrom-Json
           $verify = @{
-            Path = @($run.Outputs.Payload) + @($run.Outputs.Zips) + @($run.Outputs.Installer)
+            Path = @($run.Outputs.Payload) + @($run.Outputs.Zips) + @($run.Outputs.Installers)
             ExpectedSignerSha256 = $run.ExpectedSignerSHA256
-            SigningManifest = @(Join-Path $work 'artifacts/signing/win-x64/signed-outputs.json')
-            Installer = $run.Outputs.Installer
+            SigningManifest = @(@($run.Runtimes) | ForEach-Object { Join-Path $work "artifacts/signing/$_/signed-outputs.json" })
+            # The silent install round trip needs a Setup this x64 runner can run.
+            Installer = @($run.Outputs.Installers) | Where-Object { $_ -like '*-win-x64-setup.exe' } | Select-Object -First 1
             ReportPath = Join-Path $work 'verification.json'
           }
           ./eng/signing/Test-WindowsSignatures.ps1 @verify -CheckRevocation -PrivateIdentity
