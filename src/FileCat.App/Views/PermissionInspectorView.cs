@@ -322,7 +322,7 @@ internal sealed class PermissionInspectorView : StackPanel
 
     private Control PrincipalRow(string label, PermissionObservation<Principal> principal)
     {
-        var row = new PermissionTablePanel([1, 2.4, 1.8], [6, 10, 13]);
+        var row = new PermissionTablePanel([0.8, 3.2, 1.8], [6, 10, 13]);
         row.Children.Add(Muted(label));
         if (principal.Value is not { } value)
         {
