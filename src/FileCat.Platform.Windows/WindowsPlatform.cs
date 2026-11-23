@@ -16,6 +16,7 @@ public sealed class WindowsPlatform : PortablePlatform
         HiddenData = new WindowsHiddenData();
         FileRecords = new WindowsFileRecords();
         Ownership = new WindowsOwnership();
+        StorageTransforms = WindowsStorageTransforms.CreateRelease();
         Core.Jobs.Junctions.CreateHandler = Junction.Create;
         Core.Jobs.JobExecutors.ExtraExecutors[Core.Jobs.JobKind.Elevated] =
             (job, _, _, journal) => new Elevation.ElevatedJobExecutor(job, journal);
@@ -66,5 +67,16 @@ public sealed class WindowsPlatform : PortablePlatform
         registry.Register(new RecycleBinProvider());
     }
 
-    protected override LocalFileSystemProvider CreateFileSystemProvider() => new WindowsFileSystemProvider();
+    /// <summary>
+    /// The native tag-bearing listing (F4) is qualified on x64 and on Windows on Arm (N-ENUM, F-ENUM), including the
+    /// case-distinct SMB fixture. A process emulated on another architecture keeps the managed route. Both publish the same
+    /// names, attributes and batches.
+    /// </summary>
+    protected override LocalFileSystemProvider CreateFileSystemProvider() => new WindowsFileSystemProvider
+    {
+        UseNativeEnumeration = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture ==
+                System.Runtime.InteropServices.RuntimeInformation.OSArchitecture &&
+            System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture is
+                System.Runtime.InteropServices.Architecture.X64 or System.Runtime.InteropServices.Architecture.Arm64,
+    };
 }

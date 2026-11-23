@@ -56,6 +56,13 @@ public interface IEnumerationSink
     bool Shown => false;
 
     /// <summary>
+    /// Linux: read each item's birth time for <see cref="EntryData.Created"/>, one more call per item, which only a list
+    /// that shows or sorts by Created asks for. Without it a Linux folder's items have no creation time; Windows and macOS
+    /// list theirs anyway.
+    /// </summary>
+    bool IncludeBirthTimes => false;
+
+    /// <summary>
     /// Keeps <paramref name="work"/> while this listing stays shown (a panel's listing, until the panel moves on, refreshes
     /// into a new listing or closes) and disposes it then; any other enumeration disposes it at once.
     /// </summary>

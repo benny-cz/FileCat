@@ -29,8 +29,8 @@ public static class NativeSearchPredicates
         FileAttributes.Offline => "Tests only the Windows Offline attribute bit. It does not determine recall, residency, provider synchronization or all cloud-managed files.",
         FileAttributes.SparseFile => "Tests the Windows SparseFile attribute. It does not measure current holes, nonzero data or physical savings.",
         FileAttributes.ReparsePoint => "Tests the Windows ReparsePoint attribute, including unknown types. It does not follow targets or change recursion policy.",
-        FileAttributes.Compressed => "Tests the Windows Compressed attribute. It does not inspect Btrfs policy, APFS compression or dataset/volume state.",
-        FileAttributes.Encrypted => "Tests the Windows Encrypted (EFS) attribute. It does not inspect fscrypt, APFS volumes, BitLocker or dataset encryption.",
+        FileAttributes.Compressed => "Tests the Windows Compressed attribute. It does not inspect Btrfs policy, APFS compression or dataset/volume state. Each folder's listing supplies the bit, and NTFS can still list a file with more than one name in its earlier state there until that name is opened.",
+        FileAttributes.Encrypted => "Tests the Windows Encrypted (EFS) attribute. It does not inspect fscrypt, APFS volumes, BitLocker or dataset encryption. Each folder's listing supplies the bit, and NTFS can still list a file with more than one name in its earlier state there until that name is opened.",
         FileAttributes.ReadOnly => "Tests the FileSystemInfo.Attributes ReadOnly projection. It is not an effective-access or immutable-flag decision.",
         _ => "Tests the FileSystemInfo.Attributes projection for this platform; archive-member attributes are a separate scope.",
     };

@@ -81,7 +81,8 @@ internal static class QualificationHost
                 ready.WriteByte(succeeded ? (byte)1 : (byte)0);
             var timer = System.Diagnostics.Stopwatch.StartNew();
             string release = Path.Join(control, "fail-postcondition");
-            while (!File.Exists(release) && timer.Elapsed < TimeSpan.FromSeconds(60)) Thread.Sleep(50);
+            // Emulated NVDA on Windows on Arm needs more than a minute to walk the blocker escape before the release.
+            while (!File.Exists(release) && timer.Elapsed < TimeSpan.FromMinutes(5)) Thread.Sleep(50);
             throw new IOException(succeeded && File.Exists(release)
                 ? "The qualification fixture withheld the postcondition after Windows returned success."
                 : "The qualification fixture did not observe a successful SET and release.");

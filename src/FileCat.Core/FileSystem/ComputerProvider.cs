@@ -3,7 +3,14 @@ using FileCat.Core.Resources;
 namespace FileCat.Core.FileSystem;
 
 /// <summary>Information shown for a drive row.</summary>
-public sealed record DriveTag(string RootPath, string? Label, string DriveType, string? Format, long FreeBytes, long TotalBytes, bool Ready, string? RemoteName = null);
+public sealed record DriveTag(string RootPath, string? Label, string DriveType, string? Format, long FreeBytes, long TotalBytes, bool Ready, string? RemoteName = null)
+{
+    /// <summary>
+    /// The free space the row's Size column shows ("120 GB free"), which sorting by size orders drives by (the row's own
+    /// size is the capacity); -1 when it shows none: the drive is not ready, or its capacity could not be read.
+    /// </summary>
+    public long ShownFreeBytes => Ready && TotalBytes > 0 ? FreeBytes : -1;
+}
 
 /// <summary>
 /// "This PC": the list of drives/volumes (mount points on Unix). Each drive is queried with its own

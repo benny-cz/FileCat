@@ -1,0 +1,9 @@
+xUnit.net v3 In-Process Runner v3.2.2+728c1dce01 (64-bit .NET 10.0.14)
+  Discovering: FileCat.Platform.Windows.Tests
+  Discovered:  FileCat.Platform.Windows.Tests
+  Starting:    FileCat.Platform.Windows.Tests
+    FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.A_platform_Tpm_key_is_compared_from_a_fresh_certificate_context_without_export [OUTPUT] EFS_TPM_KEY provider=Microsoft Platform Crypto Provider state=MatchedAvailable exportPolicy=None
+    FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Fresh_parented_acquisition_compares_a_virtual_TPM_private_key [OUTPUT] Provider=CNG matched and rejected mismatched keys.
+  Finished:    FileCat.Platform.Windows.Tests (ID = '51f9326ed81dc9b4698c6b3c5bc50bb5c624f04529e25a8678ba9c52b0532519')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Platform.Windows.Tests  Total: 2, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 12.766s

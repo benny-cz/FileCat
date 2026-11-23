@@ -1,0 +1,11 @@
+{
+  "Phase": "after-decrypt",
+  "AllocationUnit": 4096,
+  "PayloadSHA256": "A0501BE36A6E80476026352760D24BDAB888AF0F9F53A84FD806872BE460597A",
+  "NativeSetSucceeded": null,
+  "DetachStartedUtc": null,
+  "NativeReturnUtc": null,
+  "Test": "Detaching_after_native_Efs_decryption_retains_an_uncertain_effect_without_key_evidence",
+  "InterruptedJournalSHA256": "85AF314B1AC399DE6D9F345DA2A50AE0BB184E95141C4F817E70C1B3FE5CA4CF",
+  "FreshRetryJournalSHA256": "2CC7F088CF6DB1EE060EF93B623F9F67519D676B461B0ECEAB78174A9C50EA82"
+}

@@ -128,6 +128,30 @@ public sealed class ListingModel : IDisposable
     public HiddenData.HiddenInventory? SupplementaryInventory { get; private set; }
     public bool IncludeSupplementaryEaValues { get; private set; }
 
+    /// <summary>
+    /// Whether a Linux folder's listing reads each item's birth time for Created (one more call per item): set while the
+    /// list shows or sorts by Created. Turned on, the location is read again (quietly, its rows staying meanwhile) so that
+    /// the items shown get theirs. Other providers and systems list creation times anyway.
+    /// </summary>
+    public bool IncludeBirthTimes
+    {
+        get => _includeBirthTimes;
+        set
+        {
+            if (_includeBirthTimes == value) return;
+            _includeBirthTimes = value;
+            // Posted: the list's own handlers may be what turned it on (a sort by Created), mid-notification.
+            if (value && OperatingSystem.IsLinux())
+                _ui.Post(() =>
+                {
+                    // Not when the latest read already asks for them (a load started after it was turned on).
+                    if (_includeBirthTimes && Provider is FileSystem.LocalFileSystemProvider && Location is not null &&
+                        (_refreshing ?? _pipeline) is not { IncludeBirthTimes: true }) Refresh();
+                });
+        }
+    }
+    private bool _includeBirthTimes;
+
     public void AdmitSupplementaryEaQuery()
     {
         if (Location?.Scheme != Schemes.HiddenData || _disposed) return;
@@ -1450,6 +1474,7 @@ public sealed class ListingModel : IDisposable
             _owner = owner;
             Sink = new StoreSink(this);
             IncludeEaValues = owner.IncludeSupplementaryEaValues;
+            IncludeBirthTimes = owner.IncludeBirthTimes;
             StartedTimestamp = Stopwatch.GetTimestamp();
         }
 
@@ -1461,6 +1486,7 @@ public sealed class ListingModel : IDisposable
         public CancellationTokenSource Cts { get; } = new();
         public IEnumerationSink Sink { get; }
         public bool IncludeEaValues { get; }
+        public bool IncludeBirthTimes { get; }
         public volatile HiddenData.HiddenInventory? SupplementaryInventory;
         public long StartedTimestamp { get; }
         public Task? LoadTask { get; set; }
@@ -1748,6 +1774,7 @@ public sealed class ListingModel : IDisposable
         private sealed class StoreSink(Pipeline owner) : IEnumerationSink
         {
             public bool IncludeSupplementaryEaValues => owner.IncludeEaValues;
+            public bool IncludeBirthTimes => owner.IncludeBirthTimes;
             public void ReportSupplementaryInventory(HiddenData.HiddenInventory inventory)
             {
                 owner.Cts.Token.ThrowIfCancellationRequested();

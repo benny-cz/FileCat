@@ -1,8 +1,10 @@
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
+using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.Tests;
 
@@ -20,13 +22,14 @@ public sealed class EscAuditTests
         CommandIds.ThemePick, CommandIds.About, CommandIds.Copy, CommandIds.Move, CommandIds.MakeDirectory,
         CommandIds.EditNew, CommandIds.MarkSelectMask, CommandIds.BulkRename, CommandIds.CreateLink,
         CommandIds.Checksum, CommandIds.ApplyCommand, CommandIds.SftpConnect, CommandIds.Attributes, CommandIds.CompareDirectories,
-        CommandIds.Pack, CommandIds.DeletePermanent,
+        CommandIds.Pack, CommandIds.DeletePermanent, CommandIds.StorageAttributes,
     ];
 
     [AvaloniaFact]
     public async Task Esc_closes_every_dialog_even_with_the_keyboard_outside_it()
     {
-        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        // A compression adapter lets NTFS compression open its review (or its refusal of a non-Windows original).
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(storageTransforms: new StorageCommandIntegrationTests.Adapter());
         try
         {
             var ct = TestContext.Current.CancellationToken;
@@ -67,6 +70,59 @@ public sealed class EscAuditTests
         }
         finally
         {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Esc_cancels_the_actionable_storage_review_and_returns_focus_to_the_file_list(bool keyboardOutside)
+    {
+        var adapter = new StorageCommandIntegrationTests.Adapter();
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(storageTransforms: adapter);
+        Task? running = null;
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var tab = vm.ActiveTab!;
+            var set = services.ResultSets.Create("Reviewed roots", "fixture"); set.FullFolders = true;
+            set.Add(new(Location.FileSystem(@"C:\captured"), "original", Core.Resources.EntryKind.File), ""); set.IsComplete = true;
+            tab.Navigate(Core.Search.ResultSetProvider.LocationOf(set));
+            for (int i = 0; i < 250 && !(tab.Listing.State == Core.Listing.ListingState.Complete && tab.Listing.TotalCount == 1); i++) await Task.Delay(20, ct);
+            tab.Listing.FocusName("original");
+            var list = Assert.IsType<FileCat.App.Controls.FileListControl>(window.ActiveList);
+            Assert.True(list.Focus());
+            running = vm.ExecuteAsync(CommandIds.StorageAttributes);
+            Avalonia.Controls.RadioButton? compress = null;
+            for (int i = 0; i < 250 && compress is null; i++)
+            {
+                await Task.Delay(20, ct);
+                compress = window.GetVisualDescendants().OfType<Avalonia.Controls.RadioButton>()
+                    .FirstOrDefault(button => Avalonia.Automation.AutomationProperties.GetName(button) == "Compress");
+            }
+            Assert.NotNull(compress);
+            compress.IsChecked = true;
+            Avalonia.Controls.Button Primary() => window.GetVisualDescendants().OfType<Avalonia.Controls.Button>()
+                .Single(button => button is not Avalonia.Controls.RadioButton && button.Content as string == "Compress");
+            for (int i = 0; i < 250 && !Primary().IsEnabled; i++) await Task.Delay(20, ct);
+            Assert.True(Primary().IsEnabled); // an actionable review, past the initial inspection
+            await Task.Delay(60, ct); // the dialog's own focus has arrived
+            Assert.IsNotType<FileCat.App.Controls.FileListControl>(window.FocusManager?.GetFocusedElement());
+            // With the keyboard outside, Esc must still cancel the review rather than reach the list's own handling.
+            if (keyboardOutside) list.Focus();
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await running.WaitAsync(TimeSpan.FromSeconds(10), ct);
+            Assert.False(vm.Dialogs.IsOpen);
+            Assert.Empty(services.Jobs.Jobs); Assert.Equal(0, vm.StorageOriginCount);
+            Assert.Equal(1, Assert.Single(adapter.Pins).Disposals);
+            for (int i = 0; i < 100 && !ReferenceEquals(window.FocusManager?.GetFocusedElement(), list); i++) await Task.Delay(20, ct);
+            Assert.Same(list, window.FocusManager?.GetFocusedElement());
+            Assert.Equal("original", tab.Listing.TryGetFocused(out var focused) ? focused.Name : null);
+        }
+        finally
+        {
+            ((OverlayDialogService)vm.Dialogs).CancelAll(); if (running is not null) await running;
             AccessibilityTests.Close(services, window, root);
         }
     }

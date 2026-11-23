@@ -303,4 +303,32 @@ public sealed class UnixPermissionTests : IDisposable
         Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(file));
         Assert.Equal(original, File.GetLastWriteTimeUtc(file));
     }
+
+    /// <summary>
+    /// A folder that may be listed but not searched (r without x) names its items, yet nothing about them can be read: the
+    /// Permissions column says "no access" and why, where it showed a blank. An item gone since the list was read says so.
+    /// </summary>
+    [Fact]
+    public void Permissions_that_cannot_be_read_say_why()
+    {
+        if (OperatingSystem.IsWindows()) Assert.Skip("Unix permissions.");
+        if (UnixPermissions.CurrentUserId == 0) Assert.Skip("Root looks items up in any folder.");
+        var ct = TestContext.Current.CancellationToken;
+        string folder = Directory.CreateDirectory(Path.Combine(_dir.Path, "listable")).FullName;
+        string file = Path.Combine(folder, "inside.txt");
+        File.WriteAllText(file, "x");
+        Assert.IsType<UnixFileMode>(BuiltInFields.Permissions.Produce(file, ct));
+        File.SetUnixFileMode(folder, UnixFileMode.UserRead);
+        try
+        {
+            var denied = Assert.IsType<MetadataValue>(BuiltInFields.Permissions.Produce(file, ct));
+            Assert.Equal(MetadataState.Denied, denied.State);
+            Assert.Contains("no search permission", denied.Detail);
+        }
+        finally { File.SetUnixFileMode(folder, (UnixFileMode)0x1C0); }
+        File.Delete(file);
+        var gone = Assert.IsType<MetadataValue>(BuiltInFields.Permissions.Produce(file, ct));
+        Assert.Equal(MetadataState.Failed, gone.State);
+        Assert.StartsWith("The item is gone", gone.Detail);
+    }
 }

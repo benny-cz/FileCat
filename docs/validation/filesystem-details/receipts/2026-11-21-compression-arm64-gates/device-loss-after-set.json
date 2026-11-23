@@ -1,0 +1,11 @@
+{
+  "Phase": "after-set",
+  "AllocationUnit": 4096,
+  "PayloadSHA256": "A0501BE36A6E80476026352760D24BDAB888AF0F9F53A84FD806872BE460597A",
+  "NativeSetSucceeded": null,
+  "DetachStartedUtc": null,
+  "NativeReturnUtc": null,
+  "Test": "Detaching_after_native_compression_returns_retains_uncertainty_without_replay",
+  "InterruptedJournalSHA256": "62350C38FBB9959BA52806DD83507F3E7B2E4294DE2CA30A3E48F39CA698B516",
+  "FreshRetryJournalSHA256": "23135B18814C458227B83576ED7BFC003BAB0D2EDFA31980E434926F6224641A"
+}

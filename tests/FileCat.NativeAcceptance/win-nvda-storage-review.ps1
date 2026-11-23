@@ -10,7 +10,10 @@ param(
     [switch]$VerifyAlreadySatisfied,
     [switch]$VerifyCanceledKeyBackup,
     [switch]$VerifyCompletedKeyBackup,
-    [switch]$VerifySelectedFileBackup
+    [switch]$VerifySelectedFileBackup,
+    # The shipped FileCat.exe with its default composition instead of the qualification host; for the modes that need
+    # no qualification hooks (not Operations recovery, which holds the native call through a host-only fixture).
+    [switch]$ReleaseBuild
 )
 
 $ErrorActionPreference = 'Stop'
@@ -94,9 +97,14 @@ if (@($VerifyCanceledKeyBackup, $VerifyCompletedKeyBackup, $VerifySelectedFileBa
     $VerifyOperationsRecovery, $VerifyAlreadySatisfied).Where({ $_.IsPresent }).Count -gt 1) {
     throw 'Choose one of the optional fixture modes.'
 }
+if ($ReleaseBuild -and ($VerifyOperationsRecovery -or $HostedArm64)) {
+    throw 'The release build has no qualification hooks; run Operations recovery and hosted runs with the qualification host.'
+}
 $testRoot = [IO.Path]::GetFullPath($TestRoot)
 $nvdaPath = [IO.Path]::GetFullPath($NvdaPath)
 $session = (Get-Process -Id $PID).SessionId
+# The disposable Windows on Arm guest that UTM runs under QEMU on the test Mac reviews with the native ARM64 storage.
+$localArm64 = $false
 if ($HostedArm64) {
     if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows' -or
         $env:RUNNER_ARCH -ne 'ARM64' -or ![IO.Path]::IsPathRooted($env:RUNNER_TEMP)) {
@@ -104,8 +112,11 @@ if ($HostedArm64) {
     }
     $validationRoot = [IO.Path]::GetFullPath((Join-Path $env:RUNNER_TEMP 'filecat-native-nvda')) + '\'
 } else {
-    if ((Get-CimInstance Win32_ComputerSystem).Manufacturer -notmatch 'VMware') {
-        throw 'Use the disposable VMware validation guest.'
+    $guest = (Get-CimInstance Win32_ComputerSystem).Manufacturer
+    # Ask the OS: an emulated x64 launcher passes its own PROCESSOR_ARCHITECTURE down to native Arm64 children.
+    $localArm64 = $guest -match 'QEMU|UTM' -and [Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64'
+    if ($guest -notmatch 'VMware' -and !$localArm64) {
+        throw 'Use the disposable VMware validation guest or the Windows on Arm guest under UTM.'
     }
     $validationRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'FileCatValidation')) + '\'
 }
@@ -211,9 +222,11 @@ try {
         Require-Front
         [System.Windows.Forms.SendKeys]::SendWait($phrase)
         Start-Sleep -Milliseconds 300
+        # On a slow guest the palette can still be filtering; Enter then runs whatever was first a moment ago.
+        Await { Find-Control "$phrase*" 'ListItem' } "the $phrase command in the palette" | Out-Null
         [void](Take-Speech)
         Key @(0x0D)
-        Await { Find-Control $title } $title | Out-Null
+        Await { Find-Control $title } $title 60 | Out-Null
     }
     function Snapshot([string]$label) {
         $record.Controls[$label] = @($main.FindAll($scope::Descendants, $all) | ForEach-Object {
@@ -613,26 +626,30 @@ try {
     if (Get-Process dotnet,testhost,FileCat,FileCat.ShellHost,FileCat.App.Tests,FileCat.*QualificationHost,FileCat.*CrashHarness,nvda -ErrorAction SilentlyContinue) {
         throw 'A test process started before the qualification instance could launch.'
     }
-    $exe = Join-Path $testRoot 'app\FileCat.ArchiveQualificationHost.exe'
+    $exe = Join-Path $testRoot $(if ($ReleaseBuild) { 'app\FileCat.exe' } else { 'app\FileCat.ArchiveQualificationHost.exe' })
+    $record.ReleaseBuild = [bool]$ReleaseBuild
     $record.FileCatDllSHA256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $exe) 'FileCat.dll')).Hash
     $record.WindowsDllSHA256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $exe) 'FileCat.Platform.Windows.dll')).Hash
     $record.NvdaVersion = (Get-Item -LiteralPath $nvdaPath).VersionInfo.ProductVersion
-    $qualification = if ($HostedArm64) { '--ntfs-storage-arm64-review' } else { '--ntfs-storage-review' }
-    $applicationArguments = @(
-        $qualification, '--new-instance', '--reset-layout', '--data', "`"$state`"", '--left', "`"$left`"", '--right', "`"$right`"") +
+    $qualification = if ($ReleaseBuild) { @() } elseif ($HostedArm64 -or $localArm64) { @('--ntfs-storage-arm64-review') } else { @('--ntfs-storage-review') }
+    $applicationArguments = $qualification + @(
+        '--new-instance', '--reset-layout', '--data', "`"$state`"", '--left', "`"$left`"", '--right', "`"$right`"") +
         $listArgument + $operationsArgument
     $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -PassThru -ArgumentList $applicationArguments
     $main = Await {
         $app.Refresh()
         if ($app.HasExited) { throw "The qualification instance exited with $($app.ExitCode)." }
         if ($app.MainWindowHandle -ne [IntPtr]::Zero) { $ui::FromHandle($app.MainWindowHandle) }
-    } 'the qualification window'
+    } 'the qualification window' 90 # a cold start on the Windows on Arm VM took over 30 s
     $list = Await {
+        # A window taken early in a slow cold start can stay an empty shell to UI Automation; take it again each time.
+        $app.Refresh()
+        if ($app.MainWindowHandle -ne [IntPtr]::Zero) { $script:main = $ui::FromHandle($app.MainWindowHandle) }
         $main.FindAll($scope::Descendants, $all) | Where-Object {
             $_.Current.ClassName -eq 'FileList' -and
                 @($_.FindAll($scope::Children, $all) | Where-Object { $_.Current.Name -eq 'alpha-review.txt' }).Count -eq $expectedFileRows
         } | Select-Object -First 1
-    } 'the populated source list'
+    } 'the populated source list' 60
     $handle = [IntPtr]$main.Current.NativeWindowHandle
     [void][StorageReviewInput]::SetForegroundWindow($handle)
     if (![StorageReviewInput]::ResizeClient($handle, 640, 420)) { throw 'Could not resize the owned window.' }
@@ -657,7 +674,7 @@ try {
         $reader.Refresh()
         if ($reader.HasExited) { throw "NVDA exited with $($reader.ExitCode) during startup." }
         Select-String -LiteralPath $speechPath -SimpleMatch 'NVDA initialized' -Quiet -ErrorAction SilentlyContinue
-    } 'NVDA startup' 60 | Out-Null
+    } 'NVDA startup' 120 | Out-Null # NVDA's x64 build runs emulated on Windows on Arm
     $record.Foreground.AfterNvda = [StorageReviewInput]::ForegroundProcess()
     if ([StorageReviewInput]::GetForegroundWindow() -ne $handle) {
         $record.Foreground.ActivationRequested = [StorageReviewInput]::SetForegroundWindow($handle)
@@ -668,7 +685,8 @@ try {
     }
     $list.SetFocus()
     Key @(0x2D, 0x09)
-    Hear 'active FileCat window' 'FileCat.{0,180}window|Panel 1, source'
+    # Emulated NVDA on Windows on Arm sometimes speaks the window's title alone, without its role.
+    Hear 'active FileCat window' "'FileCat [^']{0,200}'|FileCat.{0,180}window|Panel 1, source"
     Key @(0x24) $true
     Key @(0x28) $true
     Hear 'focused file' 'alpha-review\.txt'
@@ -688,7 +706,7 @@ try {
         $record.Stage = 'restart to load retained history'
         [void]$app.CloseMainWindow()
         if (!$app.WaitForExit(10000)) { throw 'The first qualification instance did not close.' }
-        $applicationArguments = @('--ntfs-storage-review', '--new-instance', '--reset-layout',
+        $applicationArguments = $qualification + @('--new-instance', '--reset-layout',
             '--data', "`"$state`"", '--left', "`"$right`"", '--right', "`"$left`"",
             '--ntfs-storage-postcondition-fixture', "`"$currentMarker`"")
         $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -PassThru -ArgumentList $applicationArguments
@@ -696,7 +714,7 @@ try {
             $app.Refresh()
             if ($app.HasExited) { throw "The restarted instance exited with $($app.ExitCode)." }
             if ($app.MainWindowHandle -ne [IntPtr]::Zero) { $ui::FromHandle($app.MainWindowHandle) }
-        } 'the restarted qualification window'
+        } 'the restarted qualification window' 90
         $handle = [IntPtr]$main.Current.NativeWindowHandle
         [void][StorageReviewInput]::SetForegroundWindow($handle)
         if (![StorageReviewInput]::ResizeClient($handle, 640, 420)) { throw 'Could not resize the restarted window.' }

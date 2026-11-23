@@ -1,0 +1,9 @@
+{
+ "Passed": true,
+ "Foreground": true,
+ "Gesture": "Input: kb(desktop):NVDA+t",
+ "Speech": [
+  "Speaking [LangChangeCommand ('en_US'), 'FileCat NVDA title probe']"
+ ],
+ "Error": null
+}

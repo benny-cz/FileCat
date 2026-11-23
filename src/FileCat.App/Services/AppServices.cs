@@ -182,11 +182,11 @@ public sealed class AppServices : IDisposable
         if (Providers.Get(Schemes.FileSystem) is LocalFileSystemProvider local) local.ContainerDetector = new ContainerDetectors(Zip, Archives);
         Formatters.DateFormat = Settings.DateFormat;
         Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory,
-            archiveBackends ?? Core.Archives.ArchiveJobBackends.Empty, storageTransforms ?? Platform.StorageTransforms,
+            archiveBackends ?? Core.Archives.ArchiveJobBackends.Empty, storageTransforms ?? ReleaseStorageTransforms(Platform, paths),
             qualifyNativeArm64Storage ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateArm64QualificationJournal :
-                FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateJournal : null,
+                FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateReleaseJournal : null,
             qualifyNativeArm64Storage ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.Arm64QualificationBackend :
-                FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.Backend : null,
+                FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.ReleaseBackend : null,
             createPermissionJournal: (leaf, ct) => OperatingSystem.IsWindows()
                 ? FileCat.Platform.Windows.WindowsAnalysisPrivateDirectory.CreatePermissionJournal(paths.JournalDirectory, leaf, ct)
                 : Core.Analysis.UnixAnalysisPrivateDirectory.CreatePermissionJournal(paths.JournalDirectory, leaf, ct));
@@ -245,7 +245,8 @@ public sealed class AppServices : IDisposable
         Columns.Changed += () =>
         {
             Settings.ColumnProfiles = Columns.ToSettings();
-            SaveSettings();
+            // Profiles transferred into an administrator session are shown there; they stay the user's own settings.
+            if (!_applyingTransferredColumns) SaveSettings();
         };
         RegisterSavedFilters();
     }
@@ -426,6 +427,17 @@ public sealed class AppServices : IDisposable
         : OperatingSystem.IsMacOS() ? Core.Archives.MacOS.MacArchiveJobBackend.Create(format, executable)
         : throw new PlatformNotSupportedException("No archive worker launcher exists for this platform.");
 
+    /// <summary>
+    /// The released storage composition. On Windows the platform's compression adapter gains EFS protection and key backup
+    /// where the EFS edition gate passes; the key backup wizard and parented key comparisons run on the UI thread.
+    /// </summary>
+    private static IStorageTransforms ReleaseStorageTransforms(IPlatform platform, AppPaths paths) =>
+        OperatingSystem.IsWindows() && platform is FileCat.Platform.Windows.WindowsPlatform
+            ? FileCat.Platform.Windows.WindowsStorageTransforms.CreateReleaseWithEfs(() => paths.LocalDirectory,
+                static show => Avalonia.Threading.Dispatcher.UIThread.Invoke(show),
+                static compare => Avalonia.Threading.Dispatcher.UIThread.Invoke(compare))
+            : platform.StorageTransforms;
+
     internal static bool CanQualifyNtfsStorage(bool nativeArm64) => (nativeArm64
         ? FileCat.Platform.Windows.WindowsStorageTransforms.IsNativeArm64QualificationHost
         : FileCat.Platform.Windows.WindowsStorageTransforms.IsQualifiedHost) && !WindowsTokenAuthority.IsHighIntegrity;
@@ -587,6 +599,22 @@ public sealed class AppServices : IDisposable
     }
 
     private readonly WindowsSettingsFile? _windowsSettings;
+    private bool _applyingTransferredColumns;
+
+    /// <summary>
+    /// Shows column profiles copied from the user's session, validated as saved settings are, without saving them: an
+    /// administrator session cannot write the user's settings. Only columns that read file-system metadata are shown
+    /// (<see cref="Controls.ColumnProfileSet.ElevatedKeys"/>); the titles of the others are returned. Applied is false, with
+    /// nothing changed, when no profile is usable.
+    /// </summary>
+    internal (bool Applied, string[] Withheld) ApplyTransferredColumns(IReadOnlyList<ColumnProfile> profiles)
+    {
+        var (shown, withheld) = Controls.ColumnProfileSet.ForElevatedSession(profiles);
+        _applyingTransferredColumns = true;
+        try { return (Columns.ReplaceFromSettings(shown), withheld); }
+        finally { _applyingTransferredColumns = false; }
+    }
+
     internal AdministratorTransferPreferences? AdministratorTransfers { get; }
     internal string? AdministratorTransferWarning { get; }
     internal WorkspaceTransfer? RememberedAdministratorWorkspace { get; }

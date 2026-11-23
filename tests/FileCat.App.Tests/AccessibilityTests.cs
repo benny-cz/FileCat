@@ -103,9 +103,11 @@ public sealed class AccessibilityTests
         if (window.DataContext is MainViewModel vm)
             foreach (var tab in vm.Workspace.Panels.SelectMany(p => p.Tabs).ToList()) tab.Dispose();
         services.Dispose();
-        try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        // Best-effort cleanup of the test's own temporary tree. At normal integrity a recursive delete that meets a junction
+        // can fail with UnauthorizedAccessException rather than IOException; neither may fail the test it cleans up after.
+        try { Directory.Delete(root, recursive: true); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         if (DarwinPermissionDataRoot(root) is { } dataRoot && services.Paths.DataRoot == dataRoot && dataRoot != root)
-            try { Directory.Delete(dataRoot, recursive: true); } catch (IOException) { }
+            try { Directory.Delete(dataRoot, recursive: true); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
     private static string? DarwinPermissionDataRoot(string root)

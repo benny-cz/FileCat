@@ -1,0 +1,6 @@
+fixture nofilter unit 4096 letter D
+fixture full unit 4096 letter E
+fixture unit512 unit 512 letter F
+fixture unit1024 unit 1024 letter G
+fixture unit2048 unit 2048 letter H
+fixture mount unit 4096 mounted at C:\a\_temp\filecat-release-mount

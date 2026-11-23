@@ -1,0 +1,67 @@
+uname -a
+ldd --version | head -n 1
+truncate -s 64M "$RUNNER_TEMP/inline.img"
+mkfs.ext4 -q -F -O inline_data "$RUNNER_TEMP/inline.img"
+sudo mkdir -p /mnt/fc-inline
+sudo mount -o loop "$RUNNER_TEMP/inline.img" /mnt/fc-inline
+sudo chown "$(id -u):$(id -g)" /mnt/fc-inline
+echo probe > /mnt/fc-inline/probe
+lsattr /mnt/fc-inline/probe
+rm /mnt/fc-inline/probe
+shell: /usr/bin/bash -e {0}
+env:
+Linux runnervmnfvap 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 19:06:39 UTC 2026 aarch64 aarch64 aarch64 GNU/Linux
+/usr/bin/ldd: line 43: printf: write error: Broken pipe
+ldd (Ubuntu GLIBC 2.39-0ubuntu8.12) 2.39
+------------------N--- /mnt/fc-inline/probe
+sudo apt-get update -qq
+sudo apt-get install -y -qq btrfs-progs xfsprogs > /dev/null
+bash eng/validation/prepare-linux-details-fixtures.sh "$RUNNER_TEMP/fc-details"
+shell: /usr/bin/bash -e {0}
+env:
+--------------e-----V- /home/runner/work/_temp/fc-details/restrictions/verity
+----i---------e------- /home/runner/work/_temp/fc-details/restrictions/immutable
+-----a--------e------- /home/runner/work/_temp/fc-details/restrictions/append
+------d-------e------- /home/runner/work/_temp/fc-details/restrictions/no-dump
+--------------e------- /home/runner/work/_temp/fc-details/restrictions/ordinary
+FILECAT_TEST_EXT4_RESTRICTIONS_ROOT=/home/runner/work/_temp/fc-details/restrictions
+--------------e------- /home/runner/work/_temp/fc-details/casefold/ordinary
+--------------e--F---- /home/runner/work/_temp/fc-details/casefold/folded
+FILECAT_TEST_EXT4_CASEFOLD_ROOT=/home/runner/work/_temp/fc-details/casefold
+su------c------------- /home/runner/work/_temp/fc-details/ext-flags/ext2/marked.bin
+su------c------------- /home/runner/work/_temp/fc-details/ext-flags/ext2/flagged-directory
+ext2   ro,nosuid,nodev,noexec,relatime
+su------c------------- /home/runner/work/_temp/fc-details/ext-flags/ext3/marked.bin
+su------c------------- /home/runner/work/_temp/fc-details/ext-flags/ext3/flagged-directory
+ext3   ro,nosuid,nodev,noexec,relatime
+su------c-----e------- /home/runner/work/_temp/fc-details/ext-flags/ext4/marked.bin
+su------c-----e------- /home/runner/work/_temp/fc-details/ext-flags/ext4/flagged-directory
+ext4   ro,nosuid,nodev,noexec,relatime
+FILECAT_TEST_EXT_FLAGS_ROOT=/home/runner/work/_temp/fc-details/ext-flags
+FILECAT_TEST_LINUX_BTRFS_ROOT=/home/runner/work/_temp/fc-details/btrfs
+FILECAT_TEST_LINUX_BTRFS_SUBVOLUME_ID=256
+   0:        0..     127:       3328..      3455:    128:             last,shared,eof
+/home/runner/work/_temp/fc-details/btrfs-extents/source: 1 extent found
+   0:        0..     127:       3328..      3455:    128:             last,shared,eof
+/home/runner/work/_temp/fc-details/btrfs-extents/clone: 1 extent found
+   0:        0..     127:       3456..      3583:    128:             last,eof
+/home/runner/work/_temp/fc-details/btrfs-extents/ordinary: 1 extent found
+   0:        0..      31:      15616..     15647:     32:             encoded
+   1:       32..      63:      15617..     15648:     32:      15648: encoded
+   2:       64..      95:      15618..     15649:     32:      15649: encoded
+   3:       96..     127:      15619..     15650:     32:      15650: encoded
+   4:      128..     159:      15620..     15651:     32:      15651: encoded
+   5:      160..     176:      15621..     15637:     17:      15652: last,encoded,eof
+/home/runner/work/_temp/fc-details/btrfs-extents/compressed: 6 extents found
+FILECAT_TEST_LINUX_BTRFS_EXTENTS_ROOT=/home/runner/work/_temp/fc-details/btrfs-extents
+   0:        0..      15:        296..       311:     16:            
+   1:       16..     255:         40..       279:    240:        312: last,shared,eof
+/home/runner/work/_temp/fc-details/xfs/partial: 2 extents found
+   0:        0..       0:         13..        13:      1:            
+   1:      256..     256:         14..        14:      1:             last,eof
+/home/runner/work/_temp/fc-details/xfs/sparse: 1 extent found
+   0:        0..      15:        280..       295:     16:             last,unwritten,eof
+/home/runner/work/_temp/fc-details/xfs/reserved: 1 extent found
+FILECAT_TEST_LINUX_XFS_EXTENTS_ROOT=/home/runner/work/_temp/fc-details/xfs
+FILECAT_TEST_LINUX_FIEMAP=1
+7.0.0-1017-azure

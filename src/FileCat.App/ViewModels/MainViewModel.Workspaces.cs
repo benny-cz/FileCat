@@ -269,11 +269,19 @@ public sealed partial class MainViewModel
         WorkspaceTransfer.Prepared? prepared = null;
         bool applying = false;
         AppearanceTransferV1? previousAppearance = null;
+        List<ColumnProfile>? previousColumns = null;
+        string[] withheld = [];
         try
         {
             prepared = await Task.Run(() => transfer.Prepare(WorkspaceViewModel.DefaultLocation()));
             // Keep the accepted directory names pinned while the initial provider reads run.
             applying = true;
+            // The copied column profiles first, so each tab opens on the profile it showed in the user's session.
+            if (transfer.ColumnProfiles is { } columns)
+            {
+                previousColumns = Services.Columns.ToSettings();
+                withheld = Services.ApplyTransferredColumns(columns).Withheld;
+            }
             Workspace.LoadState(prepared.State);
             int skipped = prepared.Skipped;
             if (appearance is not null)
@@ -293,7 +301,7 @@ public sealed partial class MainViewModel
             {
                 try
                 {
-                    var workspace = WorkspaceTransfer.Capture(Workspace);
+                    var workspace = WorkspaceTransfer.Capture(Workspace, Services.Columns);
                     if (appearance is null) store.RememberWorkspace(workspace);
                     else store.RememberBoth(appearance, workspace);
                     message = $"{subject} applied and remembered for future administrator launches.";
@@ -304,6 +312,8 @@ public sealed partial class MainViewModel
                     message += " Could not save the transfer for future launches. " + Formatters.SafeName(ex.Message);
                 }
             }
+            if (withheld.Length > 0)
+                message += " Columns that read file contents stay in your own session: " + string.Join(", ", withheld) + ".";
             Notify(message +
                 (skipped == 0 ? "" : $" Skipped {skipped} unavailable or linked {(skipped == 1 ? "folder" : "folders")}."),
                 saveFailed,
@@ -316,6 +326,7 @@ public sealed partial class MainViewModel
             {
                 try { Workspace.LoadState(previous); } catch (Exception) { }
             }
+            if (previousColumns is not null) Services.ApplyTransferredColumns(previousColumns);
             if (previousAppearance is not null)
             {
                 previousAppearance.ApplyTo(Services.Settings);
@@ -328,7 +339,12 @@ public sealed partial class MainViewModel
     }
 
     internal WorkspaceTransfer.Prepared? PrepareRememberedWorkspace()
-        => Services.RememberedAdministratorWorkspace?.Prepare(WorkspaceViewModel.DefaultLocation());
+    {
+        if (Services.RememberedAdministratorWorkspace is not { } remembered) return null;
+        // Remembered column profiles are shown before the tabs that name them open.
+        if (remembered.ColumnProfiles is { } columns) Services.ApplyTransferredColumns(columns);
+        return remembered.Prepare(WorkspaceViewModel.DefaultLocation());
+    }
 
     internal void RetainWorkspaceTransferPaths(WorkspaceTransfer.Prepared prepared)
     {

@@ -1,0 +1,23 @@
+<TestRun id="29551b9f-ebce-46d9-be41-333350462b60" name="admin@FC-WINHOME 2026-11-22T20:53:33.3707107+00:00" runUser="admin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-22T20:53:33.3707107+00:00" queuing="2026-11-22T20:53:33.3707107+00:00" start="2026-11-22T20:53:33.3707107+00:00" finish="2026-11-22T21:53:36.6364467+01:00" />
+  <TestSettings name="default" id="6c4d5628-128d-4c3b-a1a4-ab366a4594ad" />
+  <Results>
+    <UnitTestResult testName="FileCat.App.Tests.StorageCommandIntegrationTests.The_default_composition_offers_compression_and_EFS_only_where_qualified" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="35a02dd1-dfb0-4afc-ac1a-387019220b69" executionId="35a02dd1-dfb0-4afc-ac1a-387019220b69" computerName="FC-WINHOME" duration="00:00:03.2490533" startTime="2026-11-22T20:53:33.3707107+00:00" endTime="2026-11-22T20:53:36.6256783+00:00" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.App.Tests.StorageCommandIntegrationTests.The_default_composition_offers_compression_and_EFS_only_where_qualified" id="35a02dd1-dfb0-4afc-ac1a-387019220b69" storage="C:\fc-run\at3\FileCat.App.Tests.dll">
+      <Execution id="35a02dd1-dfb0-4afc-ac1a-387019220b69" />
+      <TestMethod codeBase="C:\fc-run\at3\FileCat.App.Tests.dll" className="FileCat.App.Tests.StorageCommandIntegrationTests" name="The_default_composition_offers_compression_and_EFS_only_where_qualified" adapterTypeName="executor://29551b9f-ebce-46d9-be41-333350462b60/xunit.v3/3.2.2" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="35a02dd1-dfb0-4afc-ac1a-387019220b69" executionId="35a02dd1-dfb0-4afc-ac1a-387019220b69" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="1" executed="1" passed="1" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+  </ResultSummary>
+</TestRun>

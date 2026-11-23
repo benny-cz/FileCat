@@ -1,0 +1,225 @@
+{
+  "passed": true,
+  "appDllSha256": "3b6110a005af765fa2a2d1ab4ea90f8b5f43682fb9de31f092dfc2de50432fb6",
+  "fixture": "/home/runner/FileCatValidation/details-orca-12xxdr1z",
+  "propertiesShortcut": false,
+  "findResults": true,
+  "speechLog": "/home/runner/FileCatValidation/details-orca-12xxdr1z/orca-debug.log",
+  "input": "XTEST on dedicated Xvfb display",
+  "steps": [
+    {
+      "step": "Screen reader starts",
+      "heard": [
+        "Screen reader on."
+      ]
+    },
+    {
+      "step": "Native file panel opens on the owned source",
+      "heard": [
+        "source \u2014 FileCat \u2014 runner frame.",
+        "Panel 1, source, /home/runner/FileCatValidation/details-orca-12xxdr1z/source.",
+        "List with 3 items.",
+        "Go to parent location, parent navigation, 1 of 3.",
+        "not selected."
+      ]
+    },
+    {
+      "step": "Keyboard focuses the selected file",
+      "heard": [
+        "alpha-details.txt, file, 27 bytes, modified 11/21/2026 22:14:23, not marked, 2 of 3.",
+        "not selected."
+      ]
+    },
+    {
+      "step": "Orca speaks the standalone Find result",
+      "heard": [
+        "Panel 1, panel, Results: Search alpha-details.txt.",
+        "List with 1 item.",
+        "alpha-details.txt, File, 27 bytes, modified 11/21/2026 22:14:23, location: /home/runner/FileCatValidation/details-orca-12xxdr1z/source, not marked, 1 of 1.",
+        "not selected."
+      ]
+    },
+    {
+      "step": "Details window opens from the keyboard",
+      "heard": [
+        "left control",
+        "left alt",
+        "return",
+        "Line 1 of 1. Reading file-system metadata\u2026",
+        "Line 1 of 42. File-system details",
+        "Summary \u00b7 observation 22:14:30 \u00b7 F5 reads this tier again"
+      ]
+    },
+    {
+      "step": "Tab reaches Read full record",
+      "heard": [
+        "source \u2014 FileCat \u2014 runner frame.",
+        "tab",
+        "alpha-details.txt \u00b7 File-system details \u2014 FileCat frame.",
+        "Refresh push button.",
+        "Read it again (F5)",
+        "tab",
+        "Find in the report entry Find (Ctrl+F)",
+        "Find (Ctrl+F)",
+        "tab",
+        "Aa check box not checked.",
+        "Match case.",
+        "tab",
+        "Wrap check box checked.",
+        "Wrap long lines (F2)",
+        "tab",
+        "Copy all push button.",
+        "Copy the complete original report text. Ctrl+C copies selected source text or the visible lines; Ctrl+Shift+C uses displayed text.",
+        "tab",
+        "Copy visible source text push button.",
+        "tab",
+        "Copy displayed text push button.",
+        "Copy selected text or visible lines with tabs expanded and controls shown as symbols. Visual wraps add no line endings.",
+        "tab",
+        "Save as\u2026 push button.",
+        "Save the report as a text file.",
+        "tab",
+        "Read full record push button."
+      ]
+    },
+    {
+      "step": "Orca announces the full record",
+      "heard": [
+        "space",
+        "Line 1 of 43. Previous observation \u00b7 reading\u2026 \u00b7 showing observation 2026-11-21T22:14:30.1019996+00:00",
+        "Line 1 of 64. File-system details",
+        "Full \u00b7 observation 22:14:43 \u00b7 F5 reads this tier again"
+      ]
+    },
+    {
+      "step": "Tab reaches Copy all",
+      "heard": [
+        "tab",
+        "Open attributes push button.",
+        "Opens the captured item's names, kinds and lengths in a new workspace tab. Values are read only through an explicit action; Windows extended attributes require separate admission.",
+        "tab",
+        "Next report line push button.",
+        "tab",
+        "File-system details read only entry File-system details\n\nItem\n  Path         /home/runner/FileCatValidation/details-orca-12xxdr1z/source/alpha-details.txt\n  Kind         File\n  Observed     2026-11-21T22:14:43.7305725+00:00\n  Scope        Focused item only; marked items are not included.\n  File system  ext4\n\nStorage\n  Logical size                   27 bytes\n  Allocated                      4,096 bytes (4 KiB) \u00b7 Entry \u00b7 statx on O_PATH descriptor\n  File compression               Unsupported: Recorded flags are separate. File compression behavior is not implemented by this filesystem.\n  Recorded file encryption flag  Off\n  Sparse indication              NotInspected: No qualified observation was requested.\n\n  Allocated space is not a deletion-saving estimate or proof of exclusive ownership.\n\nSharing\n  Names for this file  1\n  Extent sharing       Not inspected\n\nAccess.",
+        "No selection; Copy visible source text copies the visible lines; utf-8; wrapped.",
+        "tab",
+        "Refresh push button.",
+        "Read it again (F5)",
+        "tab",
+        "Find in the report entry Find (Ctrl+F)",
+        "Find (Ctrl+F)",
+        "tab",
+        "Aa check box not checked.",
+        "Match case.",
+        "tab",
+        "Wrap check box checked.",
+        "Wrap long lines (F2)",
+        "tab",
+        "Copy all push button.",
+        "Copy the complete original report text. Ctrl+C copies selected source text or the visible lines; Ctrl+Shift+C uses displayed text."
+      ]
+    },
+    {
+      "step": "Tab reaches Show summary",
+      "heard": [
+        "The whole report is on the clipboard.",
+        "tab",
+        "Copy visible source text push button.",
+        "tab",
+        "Copy displayed text push button.",
+        "Copy selected text or visible lines with tabs expanded and controls shown as symbols. Visual wraps add no line endings.",
+        "tab",
+        "Save as\u2026 push button.",
+        "Save the report as a text file.",
+        "tab",
+        "Show summary push button."
+      ]
+    },
+    {
+      "step": "Orca announces the summary",
+      "heard": [
+        "space",
+        "Line 1 of 42. File-system details",
+        "Summary \u00b7 observation 22:14:43 \u00b7 F5 reads this tier again"
+      ]
+    },
+    {
+      "step": "Tab reaches Show full record",
+      "heard": [
+        "tab",
+        "Open attributes push button.",
+        "Opens the captured item's names, kinds and lengths in a new workspace tab. Values are read only through an explicit action; Windows extended attributes require separate admission.",
+        "tab",
+        "Next report line push button.",
+        "tab",
+        "Dismiss copy result push button.",
+        "tab",
+        "Copy result and completeness read only entry Copied the complete original report: 2,550 characters. Tabs and logical line endings are preserved.",
+        "tab",
+        "File-system details read only entry File-system details\n\nItem\n  Path         /home/runner/FileCatValidation/details-orca-12xxdr1z/source/alpha-details.txt\n  Kind         File\n  Observed     2026-11-21T22:14:43.7305725+00:00\n  Scope        Focused item only; marked items are not included.\n  File system  ext4\n\nStorage\n  Logical size                   27 bytes\n  Allocated                      4,096 bytes (4 KiB) \u00b7 Entry \u00b7 statx on O_PATH descriptor\n  File compression               Unsupported: Recorded flags are separate. File compression behavior is not implemented by this filesystem.\n  Recorded file encryption flag  Off\n  Sparse indication              NotInspected: No qualified observation was requested.\n\n  Allocated space is not a deletion-saving estimate or proof of exclusive ownership.\n\nSharing\n  Names for this file  1\n  Extent sharing       Not inspected.",
+        "No selection; Copy visible source text copies the visible lines; utf-8; wrapped.",
+        "tab",
+        "Refresh push button.",
+        "Read it again (F5)",
+        "tab",
+        "Find in the report entry Find (Ctrl+F)",
+        "Find (Ctrl+F)",
+        "tab",
+        "Aa check box not checked.",
+        "Match case.",
+        "tab",
+        "Wrap check box checked.",
+        "Wrap long lines (F2)",
+        "tab",
+        "Copy all push button.",
+        "Copy the complete original report text. Ctrl+C copies selected source text or the visible lines; Ctrl+Shift+C uses displayed text.",
+        "tab",
+        "Copy visible source text push button.",
+        "tab",
+        "Copy displayed text push button.",
+        "Copy selected text or visible lines with tabs expanded and controls shown as symbols. Visual wraps add no line endings.",
+        "tab",
+        "Save as\u2026 push button.",
+        "Save the report as a text file.",
+        "tab",
+        "Show full record push button."
+      ]
+    },
+    {
+      "step": "Orca announces the cached full observation",
+      "heard": [
+        "space",
+        "Line 1 of 64. File-system details",
+        "Full \u00b7 observation 22:14:43 \u00b7 F5 reads this tier again"
+      ]
+    },
+    {
+      "step": "Focus returns to the selected row",
+      "heard": [
+        "source \u2014 FileCat \u2014 runner frame.",
+        "escape",
+        "Find: alpha-details.txt frame."
+      ]
+    },
+    {
+      "step": "Orca speaks the selected original's attribute name",
+      "heard": [
+        "alpha-details.txt \u203a attributes \u2014 FileCat \u2014 runner frame.",
+        "Panel 1, source, /home/runner/FileCatValidation/details-orca-12xxdr1z/source/alpha-details.txt \u203a attributes.",
+        "List with 2 items.",
+        "user.filecat-details, Attribute (user), 28 bytes, Not read \u2014 F3 to view, not marked, 2 of 2.",
+        "not selected."
+      ]
+    },
+    {
+      "step": "Orca still speaks the original Find result",
+      "heard": [
+        "Find: alpha-details.txt frame."
+      ]
+    }
+  ],
+  "orca": "46.1",
+  "fullReportClipboardBytes": 2678,
+  "findResultWindowRetained": true,
+  "workspaceInventory": "Panel 1, source, /home/runner/FileCatValidation/details-orca-12xxdr1z/source/alpha-details.txt \u203a attributes"
+}

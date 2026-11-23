@@ -1,0 +1,3 @@
+Mandatory Label\Medium Mandatory Level                        Label            S-1-16-8192
+EditionID Core; ProductName Windows 10 Home; build 26300.9457
+OS Arm64

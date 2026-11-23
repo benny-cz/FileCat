@@ -205,7 +205,10 @@ public sealed class RecoveryJobTests : IDisposable
     {
         var root = RecoveryProvider.ForImage(RecoveryFixtures.Image("fat32"), 1);
         var rows = await ListAsync(root);
-        Assert.Contains(rows.Entries, e => e.Name == "docs" && e.Kind == EntryKind.Directory);
+        var docs = Assert.Single(rows.Entries, e => e.Name == "docs" && e.Kind == EntryKind.Directory);
+        // A folder that was not deleted says so, and why it is listed, rather than two blank cells.
+        Assert.Equal("Not deleted", ((IDisplayDetails)docs.Tag!).KindText);
+        Assert.Matches(@"^Holds \d+ deleted items?\.", ((IDisplayDetails)docs.Tag!).DetailsText);
         var photos = rows.Entries.Single(e => e.Name == "photos");
         Assert.Equal("Deleted folder", ((IDisplayDetails)photos.Tag!).KindText); // its items carry their own states
         var frag = rows.Entries.Single(e => e.Name == "frag-a.bin");

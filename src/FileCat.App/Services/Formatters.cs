@@ -25,20 +25,7 @@ public static class Formatters
     /// <summary>Raised when dates are shown differently: lists redraw them (and widen their date columns as needed).</summary>
     public static event Action? DateFormatChanged;
 
-    public static string Size(long bytes)
-    {
-        if (bytes < 0) return string.Empty;
-        if (bytes < 1_000_000) return bytes.ToString("N0", CultureInfo.CurrentCulture);
-        string[] units = ["KB", "MB", "GB", "TB", "PB", "EB"];
-        double v = bytes / 1024.0;
-        int u = 0;
-        while (v >= 1000 && u < units.Length - 1)
-        {
-            v /= 1024;
-            u++;
-        }
-        return v.ToString(v < 10 ? "0.0#" : v < 100 ? "0.0" : "0", CultureInfo.CurrentCulture) + " " + units[u];
-    }
+    public static string Size(long bytes) => Core.Resources.SizeText.Compact(bytes);
 
     /// <summary>Size with a unit for sentences and status lines ("85 bytes", "12.4 MB").</summary>
     public static string SizeWithUnit(long bytes) => bytes < 0 ? "unknown size" : bytes < 1024 ? (bytes == 1 ? "1 byte" : bytes.ToString("N0", CultureInfo.CurrentCulture) + " bytes") : bytes < 1_000_000 ? (bytes / 1024.0).ToString("0.#", CultureInfo.CurrentCulture) + " KB" : Size(bytes);

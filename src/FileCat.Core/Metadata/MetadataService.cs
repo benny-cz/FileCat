@@ -38,6 +38,12 @@ public enum MetadataObservation
     Gone,
 }
 
+/// <summary>A link target shown with what it is (an app execution alias's program, a WSL link's Linux path).</summary>
+public sealed record LinkTargetText(string Target, string Detail);
+
+/// <summary>An Origin value with what it rests on (the zone and addresses a Zone.Identifier names; who quarantined a file).</summary>
+public sealed record OriginMark(string Text, string Detail);
+
 public readonly record struct MetadataValue(MetadataState State, object? Value = null, string? Detail = null,
     MetadataObservation Observation = MetadataObservation.Current)
 {
@@ -48,7 +54,10 @@ public readonly record struct MetadataValue(MetadataState State, object? Value =
 /// <summary>
 /// A metadata column's descriptor: stable id, cost class, applicability, producer, formatter, and sort key. Fields read for
 /// files only unless <paramref name="Folders"/>; a value that can change without a new modification time (permissions)
-/// is read again after <paramref name="RefreshAfter"/>, while the old one stays on screen.
+/// is read again after <paramref name="RefreshAfter"/>, while the old one stays on screen. A value
+/// <paramref name="Quiet"/> marks is real but unremarkable (Reparse type's "none"): the list draws it muted. With
+/// <paramref name="DetailLines"/> the field's own detail is FileCat's text whose line feeds separate lines, so each line
+/// is escaped on its own; any other detail is escaped whole, line feeds included.
 /// </summary>
 public sealed record MetadataField(
     string Id,
@@ -65,7 +74,9 @@ public sealed record MetadataField(
     Func<object?, bool>? NeedsExplanation = null,
     bool ObservationLane = false,
     bool MetadataOnlyOnOffline = false,
-    Func<EntryData, bool>? AppliesToEntry = null)
+    Func<EntryData, bool>? AppliesToEntry = null,
+    Func<object?, bool>? Quiet = null,
+    bool DetailLines = false)
 {
     public IComparable? CaptureKey(MetadataValue value) => value.State == MetadataState.Available &&
         (!ObservationLane || value.Observation == MetadataObservation.Current)
@@ -207,6 +218,9 @@ public sealed partial class MetadataService : IDisposable
         return false;
     }
 
+    /// <summary>Why a cached observation-lane value is last known: it is older than its field's interval.</summary>
+    public const string ExpiredDetail = "The observation interval expired; refresh is required for a current value.";
+
     private static TimeSpan? EffectiveRefresh(MetadataField field, bool slowLocation) =>
         field.RefreshAfter is { } refresh ? TimeSpan.FromTicks(refresh.Ticks * (slowLocation ? 6 : 1)) : null;
 
@@ -215,7 +229,7 @@ public sealed partial class MetadataService : IDisposable
 
     private MetadataValue QualifyCached(MetadataField field, string key, MetadataValue value, bool slowLocation) =>
         field.ObservationLane && value.State == MetadataState.Available && !Fresh(key, EffectiveRefresh(field, slowLocation))
-            ? value with { Observation = MetadataObservation.LastKnown, Detail = value.Detail ?? "The observation interval expired; refresh is required for a current value." }
+            ? value with { Observation = MetadataObservation.LastKnown, Detail = value.Detail ?? ExpiredDetail }
             : value;
 
     private bool AutomaticallyDue(string key, MetadataValue value, TimeSpan? refresh) =>
@@ -574,7 +588,8 @@ public sealed partial class MetadataService : IDisposable
 /// <summary>First-party fields with bounded, managed parsing (no native parsers in-process; plan §6.2).</summary>
 public static class BuiltInFields
 {
-    private static readonly HashSet<string> VersionExt = new(StringComparer.OrdinalIgnoreCase) { "exe", "dll", "sys", "ocx", "cpl", "scr", "msi", "mui", "winmd" };
+    // No "msi": an installer package has no version resource (its ProductVersion lives in the package's database).
+    private static readonly HashSet<string> VersionExt = new(StringComparer.OrdinalIgnoreCase) { "exe", "dll", "sys", "ocx", "cpl", "scr", "mui", "winmd" };
     private static readonly HashSet<string> ImageExt = new(StringComparer.OrdinalIgnoreCase) { "png", "jpg", "jpeg", "gif", "bmp", "webp", "ico" };
 
     public static readonly MetadataField Version = new("version", "Version", MetadataCost.Cheap,
@@ -583,11 +598,22 @@ public static class BuiltInFields
         {
             if (!OperatingSystem.IsWindows()) return null;
             var vi = FileVersionInfo.GetVersionInfo(p);
-            var v = vi.FileVersion?.Split(' ')[0];
-            return string.IsNullOrWhiteSpace(v) ? null : v;
+            return FileVersionText(vi.FileMajorPart, vi.FileMinorPart, vi.FileBuildPart, vi.FilePrivatePart, vi.FileVersion);
         },
         v => v as string ?? string.Empty,
         SortKey: v => v is string s && System.Version.TryParse(s, out var parsed) ? parsed : null);
+
+    /// <summary>
+    /// The Version column's text, as Explorer's "File version" reads it: the fixed version numbers when any is set; else
+    /// the version string with comma separators as dots (the old Visual C++ template's "1, 0, 0, 1") and without a trailing
+    /// build tag (" (WinBuild.160101.0800)"); null when neither holds a version.
+    /// </summary>
+    internal static string? FileVersionText(int major, int minor, int build, int revision, string? text)
+    {
+        if ((major | minor | build | revision) != 0) return $"{major}.{minor}.{build}.{revision}";
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        return string.Join('.', text.Split(',', StringSplitOptions.TrimEntries)).Split([' ', '\t'], 2)[0];
+    }
 
     public static readonly MetadataField Dimensions = new("dimensions", "Dimensions", MetadataCost.Expensive,
         n => ImageExt.Contains(NameParts.GetExtension(n)),
@@ -596,20 +622,56 @@ public static class BuiltInFields
         RightAlign: true,
         SortKey: v => v is (int w, int h) ? (long)w * h : null);
 
+    /// <summary>
+    /// Where a link points: a symbolic link's or junction's stored target; on Windows also the program an app execution
+    /// alias starts and a WSL symbolic link's Linux path, which .NET does not read. Those two are shown, never followed.
+    /// </summary>
     public static readonly MetadataField LinkTarget = new("linkTarget", "Link target", MetadataCost.Cheap,
         _ => true,
-        (p, _) => new FileInfo(p).LinkTarget,
-        v => v as string ?? string.Empty,
-        Folders: true);
+        (p, _) => (object?)new FileInfo(p).LinkTarget ?? (OperatingSystem.IsWindows() ? DescriptiveLinkTarget(p) : null),
+        v => v switch { string s => s, LinkTargetText t => t.Target, _ => string.Empty },
+        SortKey: v => v switch { string s => s, LinkTargetText t => t.Target, _ => null },
+        Folders: true,
+        Detail: v => v is LinkTargetText t ? t.Detail : string.Empty,
+        NeedsExplanation: v => v is LinkTargetText);
+
+    /// <summary>An app execution alias's program or a WSL link's path, for an item .NET finds no link target in.</summary>
+    private static LinkTargetText? DescriptiveLinkTarget(string path)
+    {
+        try
+        {
+            // Only a reparse point is opened a second time.
+            if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0) return null;
+            return ReparseLinks.ReadPayload(path) switch
+            {
+                { State: ReparsePayloadState.Known, Alias: { } alias } => new(alias.Executable,
+                    $"App execution alias: Windows starts this program for {alias.AppId}, from the package {alias.Package}. FileCat neither starts nor follows it."),
+                { State: ReparsePayloadState.Known, WslTarget: { } wsl } => new(wsl,
+                    "WSL symbolic link: programs in WSL follow this Linux path; Windows programs do not, and FileCat does not."),
+                _ => null,
+            };
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
+    }
 
     /// <summary>Linux and macOS: permissions as ls prints them ("rwxr-xr-x"), for files and folders.</summary>
     public static readonly MetadataField Permissions = new("permissions", "Permissions", MetadataCost.Cheap,
         _ => true,
-        (p, _) => UnixPermissions.Stat(p)?.Mode,
+        (p, _) => UnixPermissions.Stat(p, out int error) is { } stat ? stat.Mode : PermissionsUnread(error),
         v => v is UnixFileMode m ? UnixPermissions.Format(m) : string.Empty,
         SortKey: v => v is UnixFileMode m ? (int)m : null,
         Folders: true, RefreshAfter: TimeSpan.FromSeconds(5),
         Detail: v => v is UnixFileMode mode ? $"Octal {UnixPermissions.Octal(mode)} · mode bits only; an ACL or the mount can allow or deny more." : string.Empty);
+
+    /// <summary>Why an item's permissions could not be read, said in its cell ("no access", "error") rather than a blank.</summary>
+    internal static MetadataValue PermissionsUnread(int error) => error switch
+    {
+        0 => new(MetadataState.Unsupported, Detail: "Permissions are read on Linux and macOS."),
+        1 or 13 => new(MetadataState.Denied, Detail:
+            "Its permissions cannot be read: a folder on the way does not let this user look items up in it (no search permission, x)."),
+        2 => new(MetadataState.Failed, Detail: "The item is gone: it was removed or renamed after the list was read."),
+        _ => new(MetadataState.Failed, Detail: $"Its permissions cannot be read: {System.Runtime.InteropServices.Marshal.GetPInvokeErrorMessage(error)} (error {error})."),
+    };
 
     public static readonly MetadataField Owner = new("owner", "Owner", MetadataCost.Cheap,
         _ => true,
@@ -628,19 +690,24 @@ public static class BuiltInFields
         _ => true,
         (p, ct) =>
         {
-            if (OperatingSystem.IsMacOS()) return Xattr.Get(p, UnixFileOperations.QuarantineAttribute) is { Length: > 0 } ? "Quarantined" : null;
-            if (OperatingSystem.IsLinux()) return Xattr.Get(p, UnixFileOperations.OriginAttribute) is { Length: > 0 } ? "Internet" : null;
+            if (OperatingSystem.IsMacOS()) return Xattr.Get(p, UnixFileOperations.QuarantineAttribute) is { Length: > 0 } quarantine ? QuarantineMark(quarantine) : null;
+            if (OperatingSystem.IsLinux())
+                return Xattr.Get(p, UnixFileOperations.OriginAttribute) is { Length: > 0 } origin
+                    ? new OriginMark("Internet", Lines(("Downloaded from: ", origin), ("Linked from: ", Referrer(p)))) : null;
             var ads = p + ":Zone.Identifier";
             const int maxMarkBytes = 64 * 1024;
             FileStream stream;
             try { stream = new FileStream(ads, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete); }
             catch (FileNotFoundException) { return null; }
+            // FAT32 and exFAT keep no alternate data streams: Windows refuses the stream's name (ERROR_INVALID_NAME, seen
+            // on both), and no mark can be there. Every file on such a stick showed "error".
+            catch (IOException ex) when (ex.HResult == unchecked((int)0x8007007B)) { return null; }
             using (stream)
             {
                 // Origin is automatic visible-row metadata. A single newline-free ADS must not allocate
                 // in proportion to its size, and a growing stream must not bypass the size precheck.
                 long length = stream.Length;
-                if (length > maxMarkBytes) return "Marked";
+                if (length > maxMarkBytes) return new OriginMark("Marked", TooLarge);
                 // Ordinary marks are tiny; reserve only their observed size plus a growth sentinel.
                 // A concurrent writer can still grow the stream, so keep the actual read bounded.
                 var bytes = new byte[(int)Math.Min(maxMarkBytes + 1L, Math.Max(256L, length + 1))];
@@ -653,23 +720,70 @@ public static class BuiltInFields
                     read += count;
                     if (read == bytes.Length)
                     {
-                        if (bytes.Length == maxMarkBytes + 1) return "Marked";
+                        if (bytes.Length == maxMarkBytes + 1) return new OriginMark("Marked", TooLarge);
                         Array.Resize(ref bytes, maxMarkBytes + 1);
                     }
                 }
                 using var reader = new StreamReader(new MemoryStream(bytes, 0, read, writable: false),
                     System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
                 string? line;
+                int? zone = null;
+                string? host = null, referrer = null;
                 while ((line = reader.ReadLine()) is not null)
                 {
                     ct.ThrowIfCancellationRequested();
-                    if (line.StartsWith("ZoneId=", StringComparison.OrdinalIgnoreCase) && int.TryParse(line.AsSpan(7), out var zone))
-                        return zone switch { 3 => "Internet", 4 => "Restricted", 2 => "Trusted", 1 => "Intranet", 0 => "Local", _ => $"Zone {zone}" };
+                    if (zone is null && line.StartsWith("ZoneId=", StringComparison.OrdinalIgnoreCase) && int.TryParse(line.AsSpan(7), out var id)) zone = id;
+                    else if (host is null && line.StartsWith("HostUrl=", StringComparison.OrdinalIgnoreCase)) host = line[8..];
+                    else if (referrer is null && line.StartsWith("ReferrerUrl=", StringComparison.OrdinalIgnoreCase)) referrer = line[12..];
                 }
+                if (zone is not { } z)
+                    return new OriginMark("Marked", Lines(("", "A Zone.Identifier stream is present but names no zone."), ("Downloaded from: ", host), ("Linked from: ", referrer)));
+                var (text, meaning) = z switch
+                {
+                    0 => ("Local", "this computer"),
+                    1 => ("Intranet", "the local intranet"),
+                    2 => ("Trusted", "trusted sites"),
+                    3 => ("Internet", "the Internet"),
+                    4 => ("Restricted", "restricted sites"),
+                    _ => ($"Zone {z}", "not one of Windows' zones (0 to 4)"),
+                };
+                return new OriginMark(text, Lines(("", $"Zone.Identifier: ZoneId={z}, {meaning}."), ("Downloaded from: ", host), ("Linked from: ", referrer)));
             }
-            return "Marked";
         },
-        v => v as string ?? string.Empty);
+        v => v switch { string s => s, OriginMark m => m.Text, _ => string.Empty },
+        SortKey: v => v switch { string s => s, OriginMark m => m.Text, _ => null },
+        Detail: v => v is OriginMark m ? m.Detail : string.Empty,
+        NeedsExplanation: v => v is OriginMark { Detail.Length: > 0 },
+        DetailLines: true);
+
+    private const string TooLarge = "A Zone.Identifier stream larger than 64 KiB is present; FileCat does not read it.";
+
+    /// <summary>Origin's explanation lines: each labelled value that is there, an address cut to 400 characters.</summary>
+    private static string Lines(params (string Label, string? Value)[] lines) => string.Join('\n', lines
+        .Where(line => !string.IsNullOrWhiteSpace(line.Value))
+        .Select(line => line.Label + (line.Value!.Length > 400 ? line.Value[..400] + "…" : line.Value)));
+
+    /// <summary>Linux: the page a download was linked from, when the browser kept it; never a reason to fail.</summary>
+    private static string? Referrer(string path)
+    {
+        try { return Xattr.Get(path, "user.xdg.referrer.url"); }
+        catch (IOException) { return null; }
+    }
+
+    /// <summary>
+    /// macOS: com.apple.quarantine is "flags;time;agent;id", the time in hexadecimal seconds: who marked the file, and when.
+    /// </summary>
+    private static OriginMark QuarantineMark(string value)
+    {
+        string[] parts = value.Split(';');
+        string? agent = parts.Length > 2 && parts[2].Length > 0 ? parts[2] : null;
+        string? when = parts.Length > 1 && long.TryParse(parts[1], System.Globalization.NumberStyles.AllowHexSpecifier,
+            System.Globalization.CultureInfo.InvariantCulture, out long seconds) && seconds is > 0 and < 253_402_300_799
+            ? DateTimeOffset.FromUnixTimeSeconds(seconds).ToLocalTime().ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture)
+            : null;
+        return new OriginMark("Quarantined", Lines(("", "com.apple.quarantine: macOS checks this file when it is first opened."),
+            ("Marked by: ", agent), ("Marked on: ", when)));
+    }
 
     /// <summary>Where the column reads streams and attributes from: the platform's (set at start).</summary>
     public static HiddenData.IHiddenData? HiddenDataSource { get; set; }
@@ -684,13 +798,16 @@ public static class BuiltInFields
         {
             var inventory = HiddenDataSource is { IsSupported: true } source ? source.ReadInventory(p, new(), ct)
                 : HiddenData.HiddenInventory.Unavailable(p, HiddenData.HiddenInventoryState.Unsupported, "A bounded inventory adapter is unavailable.");
-            return new FileDetailsFields.Cell(inventory.CountText, inventory.Description + $" · Observed {inventory.ObservedAt:O}", inventory.ExactCount, !inventory.IsComplete);
+            // A category a line, then when it was read: the tooltip lays these lines out (DetailLines).
+            return new FileDetailsFields.Cell(inventory.CountText, string.Join('\n', [.. inventory.DescriptionLines,
+                "Observed " + inventory.ObservedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)]),
+                inventory.ExactCount, !inventory.IsComplete);
         },
         v => (v as FileDetailsFields.Cell)?.Text ?? "Not inspected",
         RightAlign: true, SortKey: v => (v as FileDetailsFields.Cell)?.Key, Folders: true,
         RefreshAfter: TimeSpan.FromSeconds(20),
         Detail: v => (v as FileDetailsFields.Cell)?.Explanation ?? "Not inspected",
-        NeedsExplanation: _ => true, ObservationLane: true);
+        NeedsExplanation: _ => true, ObservationLane: true, DetailLines: true);
 
     /// <summary>
     /// Whether the file matches the checksums and signatures beside it (D-57): empty when nothing covers it, "not checked"
@@ -710,12 +827,20 @@ public static class BuiltInFields
 /// <summary>Reads image dimensions from bounded headers (never decodes pixels).</summary>
 public static class ImageHeader
 {
+    /// <summary>Enough for every size <see cref="Parse"/> reads but a JPEG's (WebP's ends at byte 30); a JPEG is walked through the file.</summary>
+    private const int HeadBytes = 32;
+    /// <summary>A JPEG walk's bounds: its steps (segments, and runs of fill or stray bytes) and how far into the data a step may start.</summary>
+    private const int MaxJpegSteps = 512;
+    private const long MaxJpegOffset = 16L << 20;
+    /// <summary>The bytes a JPEG walk step looks at: a frame header's size ends at its 9th byte.</summary>
+    private const int JpegWindow = 64;
+
     public static (int Width, int Height)? TryRead(string path, CancellationToken ct)
     {
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.RandomAccess);
-        var head = new byte[64 * 1024];
-        int n = fs.Read(head, 0, head.Length);
-        return Parse(head.AsSpan(0, n), ct);
+        Span<byte> head = stackalloc byte[HeadBytes];
+        int n = fs.ReadAtLeast(head, head.Length, throwOnEndOfStream: false);
+        return n >= 2 && head[0] == 0xFF && head[1] == 0xD8 ? Jpeg([], fs, ct) : Parse(head[..n], ct);
     }
 
     public static (int Width, int Height)? Parse(ReadOnlySpan<byte> b, CancellationToken ct = default)
@@ -740,21 +865,55 @@ public static class ImageHeader
         }
         if (b.Length >= 8 && b[0] == 0 && b[1] == 0 && b[2] == 1 && b[3] == 0)
             return (b[6] == 0 ? 256 : b[6], b[7] == 0 ? 256 : b[7]); // ICO: first image
-        if (b.Length >= 4 && b[0] == 0xFF && b[1] == 0xD8)
+        if (b.Length >= 4 && b[0] == 0xFF && b[1] == 0xD8) return Jpeg(b, null, ct);
+        return null;
+    }
+
+    /// <summary>
+    /// The first JPEG frame header's size, found by walking segment headers from after SOI and skipping their payloads
+    /// (EXIF, XMP, ICC and MPF segments can put it megabytes in): through <paramref name="file"/> when given, else in
+    /// <paramref name="b"/>, the same bounded walk either way. Fill bytes, standalone markers and stray bytes between
+    /// segments (libjpeg skips those too) are stepped over; SOS or EOI first, or a malformed length, gives null.
+    /// </summary>
+    private static (int Width, int Height)? Jpeg(ReadOnlySpan<byte> b, Stream? file, CancellationToken ct)
+    {
+        Span<byte> window = stackalloc byte[JpegWindow];
+        long at = 2;
+        for (int step = 0; step < MaxJpegSteps && at <= MaxJpegOffset; step++)
         {
-            int i = 2;
-            while (i + 9 < b.Length)
+            ct.ThrowIfCancellationRequested();
+            scoped ReadOnlySpan<byte> h;
+            if (file is null) h = at < b.Length ? b.Slice((int)at, (int)Math.Min(JpegWindow, b.Length - at)) : [];
+            else
             {
-                ct.ThrowIfCancellationRequested();
-                if (b[i] != 0xFF) { i++; continue; }
-                byte marker = b[i + 1];
-                if (marker is 0xD8 or 0x01 || marker is >= 0xD0 and <= 0xD7) { i += 2; continue; }
-                int len = BinaryPrimitives.ReadUInt16BigEndian(b[(i + 2)..]);
-                if (marker is >= 0xC0 and <= 0xCF and not 0xC4 and not 0xC8 and not 0xCC)
-                    return (BinaryPrimitives.ReadUInt16BigEndian(b[(i + 7)..]), BinaryPrimitives.ReadUInt16BigEndian(b[(i + 5)..]));
-                i += 2 + len;
+                file.Position = at;
+                h = window[..file.ReadAtLeast(window, window.Length, throwOnEndOfStream: false)];
             }
-            return null;
+            if (h.Length < 2) return null;
+            if (h[0] != 0xFF)
+            {
+                int next = h.IndexOf((byte)0xFF);
+                at += next < 0 ? h.Length : next;
+                continue;
+            }
+            int fill = h[1..].IndexOfAnyExcept((byte)0xFF);
+            if (fill != 0)
+            {
+                at += fill < 0 ? h.Length - 1 : fill; // to the last fill byte, which then starts the marker
+                continue;
+            }
+            byte marker = h[1];
+            if (marker is 0xD8 or 0x01 or 0x00 || marker is >= 0xD0 and <= 0xD7) { at += 2; continue; } // no length; FF 00 is no marker
+            if (marker is 0xD9 or 0xDA || h.Length < 4) return null;
+            int length = BinaryPrimitives.ReadUInt16BigEndian(h[2..]);
+            if (length < 2) return null;
+            if (marker is >= 0xC0 and <= 0xCF and not 0xC4 and not 0xC8 and not 0xCC)
+            {
+                if (length < 8 || h.Length < 9) return null;
+                int height = BinaryPrimitives.ReadUInt16BigEndian(h[5..]), width = BinaryPrimitives.ReadUInt16BigEndian(h[7..]);
+                return width > 0 && height > 0 ? (width, height) : null; // a zero height is only given later, by a DNL marker
+            }
+            at += 2 + length;
         }
         return null;
     }

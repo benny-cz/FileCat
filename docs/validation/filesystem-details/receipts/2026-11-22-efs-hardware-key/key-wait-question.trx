@@ -1,0 +1,33 @@
+<TestRun id="5dcdb94a-4ccd-4bad-be01-bb03a5f28030" name="Admin@DESKTOP-A60F1NE 2026-11-22T13:28:57.9207055+00:00" runUser="Admin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-22T13:28:57.9207055+00:00" queuing="2026-11-22T13:28:57.9207055+00:00" start="2026-11-22T13:28:57.9207055+00:00" finish="2026-11-22T14:28:58.6359517+01:00" />
+  <TestSettings name="default" id="6c4d5628-128d-4c3b-a1a4-ab366a4594ad" />
+  <Results>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.A_file_whose_only_key_names_a_smart_card_is_asked_about_before_Windows_waits_for_a_reader" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0ed71235-c6b3-4480-a5c6-d2f4a15258a3" executionId="0ed71235-c6b3-4480-a5c6-d2f4a15258a3" computerName="DESKTOP-A60F1NE" duration="00:00:00.6781100" startTime="2026-11-22T13:28:57.9207055+00:00" endTime="2026-11-22T13:28:58.6109016+00:00">
+      <Output>
+        <TextMessages>
+          <Message>EFS_SMART_CARD step=card-only-users finished=True seconds=0,0</Message>
+          <Message>EFS_SMART_CARD step=card-only-key finished=True seconds=0,0</Message>
+          <Message>EFS_SMART_CARD phase=card-only-key certificate=B9007ED529620A44E8C99F03D6F4891D27564EA5 state=Unavailable provider=Capi error=0x80090016 problem=efs-private-key backup=none</Message>
+          <Message>EFS_SMART_CARD phase=card-only-decrypt job=CompletedWithIssues asked=1 asked-after=0,4 total=0,4 changed=0 skipped=1 reasons=efs-key-skipped</Message>
+          <Message>EFS_SMART_CARD question Windows needs the EFS key of certificate Admin(Admin@DESKTOP-A60F1NE) (B9007ED5…) to decrypt card-only.txt, and FileCat could not reach that key without asking: its key is on a smart card or security key that is not available now. If the key is on a smart card or security key, connect it and choose Retry. Decrypt anyway lets Windows wait for the key, which can take several minutes and may still fail. Skip leaves this file encrypted.</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsJobTests.A_file_whose_only_key_names_a_smart_card_is_asked_about_before_Windows_waits_for_a_reader" id="0ed71235-c6b3-4480-a5c6-d2f4a15258a3" storage="C:\fc-run\yk\tests\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="0ed71235-c6b3-4480-a5c6-d2f4a15258a3" />
+      <TestMethod codeBase="C:\fc-run\yk\tests\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsEfsJobTests" name="A_file_whose_only_key_names_a_smart_card_is_asked_about_before_Windows_waits_for_a_reader" adapterTypeName="executor://5dcdb94a-4ccd-4bad-be01-bb03a5f28030/xunit.v3/3.2.2" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0ed71235-c6b3-4480-a5c6-d2f4a15258a3" executionId="0ed71235-c6b3-4480-a5c6-d2f4a15258a3" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="1" executed="1" passed="1" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+  </ResultSummary>
+</TestRun>

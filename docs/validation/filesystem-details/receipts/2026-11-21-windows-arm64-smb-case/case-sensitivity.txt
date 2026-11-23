@@ -1,0 +1,1 @@
+Case sensitive attribute on directory C:\a\_temp\fc-smb-case\share is enabled.

@@ -144,13 +144,19 @@ public static class RecordText
             0xA000_1027 => "Windows Container Isolation link",
             0xA000_0028 => "dataless CIM",
             0x9000_0027 => "Azure File Sync folder",
+            0x8000_0005 => "Drive Extender (Windows Home Server)",
+            0x8000_000B => "Filter Manager test harness",
+            0xA000_0010 => "IIS cache",
+            0xC000_0014 => "AppX stream (unused)",
+            0x8000_0016 => "Dynamic File filter",
             _ => null,
         };
         if (name is null && (tag & 0xFFFF_0FFF) == 0x9000_001A) name = "Cloud Files placeholder (OneDrive, iCloud, and other sync apps)";
         string bits = (tag & 0x8000_0000) != 0 ? "Microsoft" : "third-party";
         if ((tag & 0x2000_0000) != 0) bits += ", name surrogate (points elsewhere)";
         if ((tag & 0x1000_0000) != 0) bits += ", can be a folder";
-        return $"0x{tag:X8} {name ?? "(not a tag FileCat knows)"} · {bits}";
+        string published = FileSystem.ReparsePresentation.TagName(tag) is { } constant ? $" ({constant})" : "";
+        return $"0x{tag:X8} {name ?? "(not a tag FileCat knows)"}{published} · {bits}";
     }
 
     /// <summary>What a reparse point's data says, for the tags whose layout is known; null for the others.</summary>

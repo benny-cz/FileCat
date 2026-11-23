@@ -27,7 +27,16 @@ public sealed class SearchCriteriaCorpusTests : IDisposable
 
     private static int Seed => int.TryParse(Environment.GetEnvironmentVariable("FILECAT_FIND_CORPUS_SEED"), out int s) ? s : 1313;
 
-    private sealed record Item(string Path, string Relative, string Name, bool IsDir, FileAttributes Attributes, long Size, DateTime ModifiedUtc, DateTime CreatedUtc);
+    /// <summary>An item as the reference sees it; <paramref name="CreatedUtc"/> is null where Linux keeps no birth time.</summary>
+    private sealed record Item(string Path, string Relative, string Name, bool IsDir, FileAttributes Attributes, long Size, DateTime ModifiedUtc, DateTime? CreatedUtc);
+
+    /// <summary>
+    /// When Find takes the item to have been made: on Linux its birth time (nothing can set it, so the corpus's items were
+    /// all born as it was made), elsewhere the creation time the corpus set.
+    /// </summary>
+    private static DateTime? Created(FileSystemInfo info) => OperatingSystem.IsLinux()
+        ? FileSystem.LinuxBirthTime.Ticks(info.FullName) is > 0 and var ticks ? new DateTime(ticks, DateTimeKind.Utc) : null
+        : info.CreationTimeUtc;
 
     private static readonly StringComparison PathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
@@ -59,16 +68,18 @@ public sealed class SearchCriteriaCorpusTests : IDisposable
                 files.Add(path);
             }
         DateTime When() => nowUtc.AddSeconds(-rng.Next(0, 400 * 24 * 3600));
+        // Linux keeps no settable creation time (.NET's SetCreationTime there sets the modification time instead).
+        bool creation = !OperatingSystem.IsLinux();
         foreach (var file in files)
         {
             File.SetLastWriteTimeUtc(file, When());
-            File.SetCreationTimeUtc(file, When());
+            if (creation) File.SetCreationTimeUtc(file, When());
         }
         // Folders last, deepest first: making their children changed their times.
         foreach (var dir in dirs.Skip(1).OrderByDescending(d => d.Length))
         {
             Directory.SetLastWriteTimeUtc(dir, When());
-            Directory.SetCreationTimeUtc(dir, When());
+            if (creation) Directory.SetCreationTimeUtc(dir, When());
         }
         if (OperatingSystem.IsWindows())
             foreach (var path in files.Concat(dirs.Skip(1)))
@@ -83,7 +94,7 @@ public sealed class SearchCriteriaCorpusTests : IDisposable
         string top = FileSystem.PathUtil.WithDiskCase(_dir.Path);
         foreach (var info in new DirectoryInfo(top).EnumerateFileSystemInfos("*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = 0 }))
             items.Add(new Item(info.FullName, Path.GetRelativePath(top, info.FullName), info.Name, info is DirectoryInfo, info.Attributes,
-                info is FileInfo f ? f.Length : 0, info.LastWriteTimeUtc, info.CreationTimeUtc));
+                info is FileInfo f ? f.Length : 0, info.LastWriteTimeUtc, Created(info)));
         return items;
     }
 
@@ -226,6 +237,8 @@ public sealed class SearchCriteriaCorpusTests : IDisposable
                 if (!MaskMatches(c.Names, item.Name, item.IsDir)) return false;
                 if (!item.IsDir && (item.Size < least || item.Size > most)) return false;
                 if (item.ModifiedUtc < mAfter || item.ModifiedUtc > mBefore || item.CreatedUtc < cAfter || item.CreatedUtc > cBefore) return false;
+                // A creation-time criterion cannot be checked where there is no creation time: Find logs it, unexamined.
+                if ((cAfter is not null || cBefore is not null) && item.CreatedUtc is null) return false;
                 return true;
             }
             var expected = tree.Where(i => Reached(i) && Matches(i)).Select(i => i.Path).ToHashSet(StringComparer.Ordinal);

@@ -139,6 +139,32 @@ public sealed class WindowsEnumerationTests
         finally { Directory.Delete(root); }
     }
 
+    [Fact]
+    public async Task A_no_match_answer_is_settled_by_the_managed_route_before_any_publication()
+    {
+        // Some SMB servers answer a missing folder with "no such file" (ERROR_FILE_NOT_FOUND), which the find API also
+        // reports for an empty share or FAT root. The managed route opens the folder first and tells the two apart.
+        string root = Directory.CreateTempSubdirectory("fc-enum-no-match-").FullName;
+        var ct = TestContext.Current.CancellationToken;
+        try
+        {
+            File.WriteAllBytes(Path.Join(root, "managed.txt"), [1, 2, 3]);
+            var api = new ScriptedFindApi([2]);
+            var sink = new Sink(_ => Assert.All(api.Cursors, cursor => Assert.True(cursor.IsInvalid)));
+            await new WindowsFileSystemProvider().EnumerateWithFindApi(Location.FileSystem(root), sink, ct, api);
+            Assert.Equal("managed.txt", Assert.Single(sink.Entries).Value.Name);
+            Assert.Equal(new[] { true }, api.LargeFetchCalls);
+            Assert.Equal(0, api.AdvanceCalls);
+
+            var missing = new ScriptedFindApi([2]);
+            var nothing = new Sink();
+            await Assert.ThrowsAsync<DirectoryNotFoundException>(() =>
+                new WindowsFileSystemProvider().EnumerateWithFindApi(Location.FileSystem(Path.Join(root, "missing")), nothing, ct, missing));
+            Assert.Empty(nothing.Entries);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [Theory]
     [InlineData(50, 50)]
     [InlineData(87, 87)]

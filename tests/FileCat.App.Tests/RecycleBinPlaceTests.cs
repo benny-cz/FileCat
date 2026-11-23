@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Text;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.Commands;
 using FileCat.Core.Listing;
@@ -102,6 +103,14 @@ public sealed class RecycleBinPlaceTests
                 Assert.Equal("Recycle Bin", tab.DisplayPath);
                 Assert.Equal(["Old", "report.txt"], Rows().Where(e => e.Kind != EntryKind.Parent).Select(e => e.Name.ToString()).Order(StringComparer.Ordinal));
                 Assert.Equal(@"C:\Docs", tab.GetDetailsText(Rows().Single(e => e.Name == "report.txt")));
+                // A deleted folder's size is its record's, and known: shown as it is, not as a folder still being counted
+                // ("5…"), and counted in the marked total instead of "size not counted".
+                int old = Rows().FindIndex(e => e.Name == "Old");
+                Assert.Equal(Formatters.Size(5), Formatters.SizeCell(Rows()[old], tab.Location));
+                tab.Listing.ToggleMark(old);
+                tab.UpdateStatus();
+                Assert.Equal("Marked 1 of 1 folder · " + Formatters.SizeWithUnit(5), tab.StatusMarked);
+                tab.Listing.ToggleMark(old);
                 // FILECAT_RECYCLE_BIN_SHOT: the window as drawn, to look at the view (this bin holds no one's names).
                 if (Environment.GetEnvironmentVariable("FILECAT_RECYCLE_BIN_SHOT") is { Length: > 0 } shot) window.CaptureRenderedFrame()?.Save(shot, Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
                 // Read-only: deleting says where it is done.

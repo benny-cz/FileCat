@@ -62,12 +62,16 @@ $appPath = [IO.Path]::GetFullPath($AppPath)
 $nvdaPath = [IO.Path]::GetFullPath($NvdaPath)
 $report = [IO.Path]::GetFullPath($ReportPath)
 $session = [Diagnostics.Process]::GetCurrentProcess().SessionId
-if ($session -eq 0 -or (Get-CimInstance Win32_ComputerSystem).Manufacturer -notmatch 'VMware' -or
+# The disposable VMware guest, or the disposable Windows on Arm guest that UTM runs under QEMU on the test Mac.
+$guest = (Get-CimInstance Win32_ComputerSystem).Manufacturer
+# Ask the OS: an emulated x64 launcher passes its own PROCESSOR_ARCHITECTURE down to native Arm64 children.
+$validationGuest = $guest -match 'VMware' -or ($guest -match 'QEMU|UTM' -and [Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64')
+if ($session -eq 0 -or !$validationGuest -or
     !$appPath.StartsWith($root, [StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($appPath) -ine 'FileCat.exe' -or
     !$nvdaPath.StartsWith($root, [StringComparison]::OrdinalIgnoreCase) -or (Get-AuthenticodeSignature -LiteralPath $nvdaPath).Status -ne 'Valid' -or
     !$report.StartsWith($root, [StringComparison]::OrdinalIgnoreCase) -or (Test-Path -LiteralPath $report) -or
     (Get-Process dotnet,testhost,FileCat,FileCat.ShellHost,FileCat.*QualificationHost,nvda -ErrorAction SilentlyContinue)) {
-    throw 'Use an idle interactive VMware guest, an owned FileCat build and signed NVDA below FileCatValidation, and a fresh receipt path.'
+    throw 'Use an idle interactive validation guest, an owned FileCat build and signed NVDA below FileCatValidation, and a fresh receipt path.'
 }
 
 function Await([scriptblock]$probe, [string]$label, [int]$seconds = 20) {
@@ -101,6 +105,19 @@ function Take-Speech {
     $fresh = @($lines | Select-Object -Skip $script:speechIndex)
     $script:speechIndex = $lines.Count
     @($fresh | Where-Object { $_ -match 'Speaking \[' } | ForEach-Object { $_.Substring($_.IndexOf('Speaking [') + 9).Trim() })
+}
+
+# A clipboard viewer (the UTM guest's SPICE agent, a clipboard manager) can hold the clipboard open for a moment.
+function Use-Clipboard([scriptblock]$action) {
+    for ($attempt = 1; ; $attempt++) {
+        try { return & $action }
+        catch {
+            $busy = $_.Exception -is [Runtime.InteropServices.ExternalException] -or
+                $_.Exception.InnerException -is [Runtime.InteropServices.ExternalException]
+            if (!$busy -or $attempt -ge 12) { throw }
+        }
+        Start-Sleep -Milliseconds 400
+    }
 }
 
 function Hear([string]$label, [string]$pattern) {
@@ -171,26 +188,30 @@ $result = [ordered]@{
     Fixture = Split-Path $fixture -Leaf; Steps = @(); Error = $null
 }
 try {
-    $clipboardBefore = Get-Clipboard -Raw -ErrorAction SilentlyContinue
-    Set-Clipboard -Value 'FileCat details clipboard sentinel'
+    $clipboardBefore = try { Use-Clipboard { Get-Clipboard -Raw } } catch { $null }
+    Use-Clipboard { Set-Clipboard -Value 'FileCat details clipboard sentinel' }
     $application = Start-Process -FilePath $appPath -WorkingDirectory (Split-Path $appPath) -WindowStyle Normal -PassThru `
         -ArgumentList @('--new-instance', '--data', "`"$data`"", '--left', "`"$left`"", '--right', "`"$right`"")
     $main = Await {
         $application.Refresh()
         if ($application.MainWindowHandle -ne [IntPtr]::Zero) { $ui::FromHandle($application.MainWindowHandle) }
-    } 'FileCat main window' 30
+    } 'FileCat main window' 90 # a cold start on the Windows on Arm VM took over 30 s
     $list = Await {
+        # A window taken early in a slow cold start can stay an empty shell to UI Automation; take it again each time.
+        $application.Refresh()
+        if ($application.MainWindowHandle -ne [IntPtr]::Zero) { $script:main = $ui::FromHandle($application.MainWindowHandle) }
         $named = @($main.FindAll($scope::Descendants, $all) | Where-Object { $_.Current.ClassName -eq 'FileList' })[0]
         if ($named -and ($named.FindAll($scope::Children, $all) | Where-Object { $_.Current.Name -eq 'alpha-details.txt' })) { $named }
-    } 'the populated source list'
+    } 'the populated source list' 60
     $result.Stage = 'keyboard selection'
     [void][DetailsNativeInput]::SetForegroundWindow([IntPtr]$main.Current.NativeWindowHandle)
     $list.SetFocus()
     Await { $ui::FocusedElement.Current.ProcessId -eq $application.Id } 'focus in FileCat' | Out-Null
     $reader = Start-Process -FilePath $nvdaPath -WindowStyle Hidden -PassThru -ArgumentList @(
         "--log-file=`"$speechPath`"", '--log-level=12', "--config-path=`"$config`"", '--disable-addons')
-    Await { (Test-Path -LiteralPath $speechPath) -and (Select-String -LiteralPath $speechPath -SimpleMatch 'NVDA initialized' -Quiet) } 'NVDA' 30 | Out-Null
-    Hear 'the active FileCat window' 'FileCat.{0,180}window|Panel 1, source'
+    Await { (Test-Path -LiteralPath $speechPath) -and (Select-String -LiteralPath $speechPath -SimpleMatch 'NVDA initialized' -Quiet) } 'NVDA' 120 | Out-Null # NVDA's x64 build runs emulated on Windows on Arm
+    # Emulated NVDA on Windows on Arm sometimes speaks the window's title alone, without its role.
+    Hear 'the active FileCat window' "'FileCat [^']{0,200}'|FileCat.{0,180}window|Panel 1, source"
     Send-Key $main @(0x24) $true
     [void](Take-Speech)
     Send-Key $main @(0x28) $true
@@ -270,7 +291,7 @@ try {
     Tab-To $details 'Copy all'
     Send-Key $details @(0x0D)
     $copied = Await {
-        $current = Get-Clipboard -Raw
+        $current = Use-Clipboard { Get-Clipboard -Raw }
         if ($current -like '*Full record*' -and $current.Contains($file)) { $current }
     } 'the full report on the clipboard'
     if ($copied -notlike '*metadata only*' -or $copied -notlike '*supplementary-data values and previews*' -or
@@ -318,13 +339,23 @@ try {
         [void](Take-Speech)
         Send-Key $origin @(0x12, 0x0D)
         $properties = Await { & $findProperties } 'the native Properties dialog for the same file'
-        Hear 'native Properties for the same file' 'alpha-details(?:\.txt)? Properties'
+        $propertyTitle = 'alpha-details(?:\.txt)? Properties'
+        Hear 'native Properties for the same file' "$propertyTitle|General.{0,8}property page"
+        $titleOnOpen = ($result.Steps[-1].Speech -join ' ') -match $propertyTitle
         if (OwnedDetails) { throw 'Alt+Enter also opened File-system details.' }
         $propertyHandle = [IntPtr]$properties.Current.NativeWindowHandle
         if ([DetailsNativeInput]::GetForegroundWindow() -ne $propertyHandle) {
             throw 'The native Properties dialog does not own the foreground keyboard input.'
         }
-        $result.NativeProperties = @{ Title = $properties.Current.Name; ClassName = $properties.Current.ClassName }
+        if (!$titleOnOpen) {
+            # NVDA's x64 build, emulated on Windows on Arm, can stall as the sheet opens and announce only its page; NVDA+T reads the title.
+            [void](Take-Speech)
+            [DetailsNativeInput]::Send(@(0x2D, 0x54), $false) # Numpad Insert, an NVDA key by default, with T.
+            Hear 'the native Properties title on request' $propertyTitle
+        }
+        $result.NativeProperties = @{
+            Title = $properties.Current.Name; ClassName = $properties.Current.ClassName; TitleSpokenOnOpen = $titleOnOpen
+        }
         [DetailsNativeInput]::Send(@(0x1B), $false)
         Await { !(& $findProperties) } 'the native Properties dialog to close' | Out-Null
     }
@@ -337,6 +368,8 @@ catch { $result.Error = $_.Exception.Message; throw }
 finally {
     if ($application -and !$application.HasExited) { $application.CloseMainWindow() | Out-Null; if (!$application.WaitForExit(4000)) { $application.Kill() } }
     if ($reader -and !$reader.HasExited) { $reader.Kill(); $reader.WaitForExit(4000) | Out-Null }
-    if ($null -ne $clipboardBefore) { Set-Clipboard -Value $clipboardBefore }
+    if ($null -ne $clipboardBefore) {
+        try { Use-Clipboard { Set-Clipboard -Value $clipboardBefore } } catch { $result.ClipboardRestoreError = $_.Exception.Message }
+    }
     $result | ConvertTo-Json -Depth 7 | Set-Content -LiteralPath $report -Encoding UTF8
 }

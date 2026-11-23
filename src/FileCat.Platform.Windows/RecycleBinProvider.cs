@@ -203,7 +203,7 @@ public sealed class RecycleBinProvider : ResourceProvider
                     {
                         Tag = new RecycleBinTag(record.OriginalPath, record.DeletedUtc, dataPath, isFolder),
                         Attributes = (uint)a,
-                        Flags = (a & FileAttributes.Hidden) != 0 ? EntryFlags.Hidden : EntryFlags.None,
+                        Flags = ((a & FileAttributes.Hidden) != 0 ? EntryFlags.Hidden : EntryFlags.None) | RecordedSize(isFolder, record),
                     });
                 }
             }
@@ -228,8 +228,17 @@ public sealed class RecycleBinProvider : ResourceProvider
         {
             Tag = new RecycleBinTag(record.OriginalPath, record.DeletedUtc, path, isFolder),
             Attributes = (uint)a,
+            Flags = RecordedSize(isFolder, record),
         }]);
     }
+
+    /// <summary>
+    /// A deleted folder's size is its record's: all it held when it was deleted, counted by Windows then. It is known, not
+    /// a count in progress, so it shows as it is (without the "…" of a folder still being counted) and counts in the
+    /// marked total. Nothing counts it again here: folder sizes are counted only on drives and shares.
+    /// </summary>
+    private static EntryFlags RecordedSize(bool isFolder, RecycleBinRecord record) =>
+        isFolder && record.Size >= 0 ? EntryFlags.SizeComputed : EntryFlags.None;
 
     /// <summary>What a deleted folder holds, by the names it had; links in it are shown, never followed.</summary>
     private void ListFolder(Location location, IEnumerationSink sink, CancellationToken ct)

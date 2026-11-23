@@ -66,7 +66,7 @@ public sealed partial class FileListControl : Control
     // Only cells in the most recently drawn viewport. Pointer hover never starts provider or metadata work.
     private readonly Dictionary<(int Row, int Column), RenderedCell> _renderedCells = new();
     private sealed record RenderedCell(int StoreIndex, string Name, EntryKind Kind, string Text, bool Clipped,
-        string? Detail = null, bool NeedsExplanation = false, bool SuppressTooltip = false);
+        string? Detail = null, bool NeedsExplanation = false, bool SuppressTooltip = false, bool DetailLines = false);
     private readonly Dictionary<int, MetadataRowContext> _metadataContexts = [];
     private MetadataRowContext? _focusedMetadataContext;
     private EntryStore? _inspectionStore;
@@ -1288,6 +1288,13 @@ public sealed partial class FileListControl : Control
         : IconProvider.Classify(e) == IconKind.Executable ? _exec
         : _text;
 
+    /// <summary>
+    /// A metadata cell's color: a value still being read, or a quiet one (Reparse type's "none"), recedes into the muted
+    /// color; a quiet value keeps the marked and active-cursor colors, which carry its row's state.
+    /// </summary>
+    internal IBrush MetadataBrush(in MetadataCellPresentation cell, IBrush rowBrush, bool marked, bool cursor) =>
+        cell.State == Core.Metadata.MetadataState.Pending || cell.Quiet && !marked && !cursor ? _muted : rowBrush;
+
     private void RenderRow(DrawingContext dc, ListingModel listing, int row, double y, double width, bool focused, bool active, bool inCloudRoot)
     {
         var e = listing.GetVisible(row);
@@ -1370,10 +1377,10 @@ public sealed partial class FileListControl : Control
                 bool pending = cell.State == Core.Metadata.MetadataState.Pending;
                 var mtext = Formatters.SafeName(cell.Text);
                 if (mtext.Length == 0) continue;
-                using var mft = MakeText(mtext, pending ? _muted : textBrush, typeface, avail);
+                using var mft = MakeText(mtext, MetadataBrush(cell, textBrush, marked, focused && active), typeface, avail);
                 double mx = c.RightAlign ? colX + colW - Padding - mft.Width : textX;
                 mft.Draw(dc, new Point(mx, y + (_rowHeight - mft.Height) / 2));
-                _renderedCells[(row, i)] = new RenderedCell(storeIndex, e.Name, e.Kind, mtext, mft.IsTruncated, cell.Detail, cell.NeedsExplanation, pending);
+                _renderedCells[(row, i)] = new RenderedCell(storeIndex, e.Name, e.Kind, mtext, mft.IsTruncated, cell.Detail, cell.NeedsExplanation, pending, cell.DetailLines);
                 continue;
             }
             long key = ((long)storeIndex << 16) | ((long)i << 8) | (uint)style;
@@ -1859,7 +1866,12 @@ public sealed partial class FileListControl : Control
             return;
         }
         string? tip = null;
-        if (pos is { } p && _listing is { } listing && RowAt(p) is var row and >= 0 && ColumnAt(p) is var col and >= 0)
+        Control? richTip = null;
+        if (pos is { } header && header.Y >= 0 && header.Y < _headerHeight && ColumnAt(header) is var headerColumn and >= 0)
+        {
+            if (HeaderTip(_columns[headerColumn]) is { } headerTip) (richTip, tip) = (headerTip, headerTip.Text);
+        }
+        else if (pos is { } p && _listing is { } listing && RowAt(p) is var row and >= 0 && ColumnAt(p) is var col and >= 0)
         {
             bool overIcon = col == 0 && p.X + _horizontalOffset >= _columnX[0] + MarkGutter &&
                 p.X + _horizontalOffset < _columnX[0] + MarkGutter + IconSize + 2;
@@ -1872,14 +1884,38 @@ public sealed partial class FileListControl : Control
             if (tip is null && _renderedCells.TryGetValue((row, col), out var cell) &&
                 cell.StoreIndex == listing.GetStoreIndex(row) && cell.Name == entry.Name && cell.Kind == entry.Kind &&
                 !cell.SuppressTooltip && cell.Text.Length > 0 && (cell.Clipped || cell.NeedsExplanation))
-                tip = CellTip(entry, _columns[col], cell.Text) + (string.IsNullOrEmpty(cell.Detail) ? "" : "\n" + cell.Detail);
+            {
+                // A field's own explanation lines are laid out by what they say; any other detail stays plain text.
+                if (cell.DetailLines)
+                {
+                    var valueTip = new ValueTip(Formatters.SafeName(_columns[col].DisplayHeader), cell.Text,
+                        (cell.Detail ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries));
+                    richTip = valueTip;
+                    tip = valueTip.Text;
+                }
+                else tip = CellTip(entry, _columns[col], cell.Text) + (string.IsNullOrEmpty(cell.Detail) ? "" : "\n" + cell.Detail);
+            }
             if (tip is null && _columns[col].Field is ColumnField.Name or ColumnField.Extension)
                 tip = IdentityTip(entry);
         }
         if (tip is { Length: > 8192 }) tip = tip[..8192] + "…\nCtrl+Shift+I shows the complete focused row.";
         if (tip == _tip) return;
         _tip = tip;
-        ToolTip.SetTip(this, tip);
+        ToolTip.SetTip(this, (object?)richTip ?? tip);
+    }
+
+    /// <summary>
+    /// A header's tooltip, laid out as the toolbar's are in the theme's tooltip styles: the column's title, what the column
+    /// shows where the title cannot say it (<see cref="ColumnDescriptions.HeaderHelp"/>), then hints in the muted color:
+    /// where to look further, and how clicking it sorts. A header with nothing to add has none.
+    /// </summary>
+    internal RichTip? HeaderTip(ColumnSpec column)
+    {
+        string? gesture = Tab?.Services.Keymap.GetGestureText(Core.Commands.CommandIds.FileRecord) is { Length: > 0 } g ? g.Split(',')[0].Trim() : null;
+        var help = ColumnDescriptions.HeaderHelpFor(column, OperatingSystem.IsWindows(), gesture, OperatingSystem.IsLinux());
+        if (help is null && column.SortField is null) return null;
+        string? sort = column.SortField is null ? null : "Click to sort by it; click again to reverse.";
+        return new RichTip(Formatters.SafeName(column.DisplayHeader), detail: help?.Lead, hints: [.. help?.Hints ?? [], sort], legend: help?.Legend);
     }
 
     private static string CellTip(in EntryData entry, ColumnSpec column, string text)

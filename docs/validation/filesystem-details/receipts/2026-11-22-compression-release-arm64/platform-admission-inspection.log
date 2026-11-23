@@ -1,0 +1,43 @@
+xUnit.net v3 In-Process Runner v3.2.2+728c1dce01 (64-bit .NET 10.0.14)
+  Discovering: FileCat.Platform.Windows.Tests
+  Discovered:  FileCat.Platform.Windows.Tests
+  Starting:    FileCat.Platform.Windows.Tests
+    FileCat.Platform.Windows.Tests.WindowsStorageAdmissionTests.The_system_volume_resolves_to_its_held_binding_and_reports_a_fixed_attachment [SKIP]
+      Qualified Windows 11 client fixture (x64, or native ARM64 when opted in).
+    FileCat.Platform.Windows.Tests.WindowsStorageInspectionTests.Protected_tree_uses_live_ancestry_while_a_lookalike_name_and_System_ancestor_do_not_create_a_denylist [SKIP]
+      Qualified Windows 11 x64 client NTFS fixture.
+    FileCat.Platform.Windows.Tests.WindowsStorageAdmissionTests.Reviewed_jobs_run_on_an_owned_volume_where_no_Cloud_Files_filter_answers [SKIP]
+      Qualified Windows 11 client fixture (x64, or native ARM64 when opted in).
+    FileCat.Platform.Windows.Tests.WindowsStorageInspectionTests.A_file_in_the_active_Windows_tree_is_refused_by_inspection [SKIP]
+      Qualified Windows 11 x64 client NTFS fixture.
+    FileCat.Platform.Windows.Tests.WindowsStorageInspectionTests.Efs_candidates_refuse_actual_removable_NTFS_before_key_setup_or_a_job [SKIP]
+      Requires the disposable normal-user Windows EFS qualification fixture.
+    FileCat.Platform.Windows.Tests.WindowsStorageInspectionTests.Efs_candidates_refuse_the_actual_ReFS_filesystem_before_admitting_a_change [SKIP]
+      Requires the disposable normal-user Windows EFS qualification fixture.
+    FileCat.Platform.Windows.Tests.WindowsStorageInspectionTests.Prepared_volumes_have_specific_inspection_refusals(variable: "FILECAT_STORAGE_NATIVE_64K_TARGET", reason: "allocation-unit", rejectsBinding: False) [SKIP]
+      Qualified Windows 11 client fixture.
+    FileCat.Platform.Windows.Tests.WindowsStorageAdmissionTests.A_hot_plug_disk_that_reports_fixed_media_is_refused_at_review [SKIP]
+      Qualified Windows 11 client fixture (x64, or native ARM64 when opted in).
+    FileCat.Platform.Windows.Tests.WindowsStorageInspectionTests.Prepared_volumes_have_specific_inspection_refusals(variable: "FILECAT_STORAGE_NATIVE_READONLY_TARGET", reason: "read-only-volume", rejectsBinding: False) [SKIP]
+      Qualified Windows 11 client fixture.
+    FileCat.Platform.Windows.Tests.WindowsStorageInspectionTests.Prepared_volumes_have_specific_inspection_refusals(variable: "FILECAT_STORAGE_NATIVE_FAT_TARGET", reason: "filesystem", rejectsBinding: True) [SKIP]
+      Qualified Windows 11 client fixture.
+    FileCat.Platform.Windows.Tests.WindowsStorageInspectionTests.Prepared_volumes_have_specific_inspection_refusals(variable: "FILECAT_STORAGE_NATIVE_EXFAT_TARGET", reason: "filesystem", rejectsBinding: True) [SKIP]
+      Qualified Windows 11 client fixture.
+    FileCat.Platform.Windows.Tests.WindowsStorageInspectionTests.Prepared_volumes_have_specific_inspection_refusals(variable: "FILECAT_STORAGE_NATIVE_REFS_TARGET", reason: "filesystem", rejectsBinding: True) [SKIP]
+      Qualified Windows 11 client fixture.
+    FileCat.Platform.Windows.Tests.WindowsStorageInspectionTests.Prepared_volumes_have_specific_inspection_refusals(variable: "FILECAT_STORAGE_NATIVE_MAPPED_TARGET", reason: "remote-volume", rejectsBinding: True) [SKIP]
+      Qualified Windows 11 client fixture.
+    FileCat.Platform.Windows.Tests.WindowsStorageInspectionTests.Prepared_volumes_have_specific_inspection_refusals(variable: "FILECAT_STORAGE_NATIVE_REMOVABLE_TARGET", reason: "removable-media-unqualified", rejectsBinding: True) [SKIP]
+      Qualified Windows 11 client fixture.
+    FileCat.Platform.Windows.Tests.WindowsStorageInspectionTests.Bounded_cursor_reuses_a_held_directory_across_batches_and_returns_native_child_IDs [SKIP]
+      Qualified Windows 11 x64 client NTFS fixture.
+    FileCat.Platform.Windows.Tests.WindowsStorageInspectionTests.Compression_enable_size_ceiling_uses_the_held_logical_file_length [SKIP]
+      Requires the explicit Windows NTFS large sparse fixture.
+    FileCat.Platform.Windows.Tests.WindowsStorageInspectionTests.Reparse_entries_and_multiple_names_are_refused_while_sparse_regular_files_can_be_reviewed [SKIP]
+      Qualified Windows 11 x64 client NTFS fixture.
+    FileCat.Platform.Windows.Tests.WindowsStorageInspectionTests.Ordinary_objects_have_bound_volume_IDs_and_ReadOnly_files_only_refuse_when_a_change_is_needed [SKIP]
+      Qualified Windows 11 x64 client NTFS fixture.
+  Finished:    FileCat.Platform.Windows.Tests (ID = '51f9326ed81dc9b4698c6b3c5bc50bb5c624f04529e25a8678ba9c52b0532519')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Platform.Windows.Tests  Total: 38, Errors: 0, Failed: 0, Skipped: 18, Not Run: 0, Time: 12.127s

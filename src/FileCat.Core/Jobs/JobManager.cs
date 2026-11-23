@@ -62,6 +62,10 @@ public sealed partial class JobManager
 
     public int MaxConcurrent { get; set; } = 4;
 
+    /// <summary>The actual worker handoff for a claimed job. Tests inject a real handoff failure here; a failure
+    /// finalizes the claim as a pre-start failure, because no worker can have entered.</summary>
+    internal Action<Thread> StartWorker { get; set; } = static thread => thread.Start();
+
     /// <summary>Retention of finished jobs in the list (history survives in the journal).</summary>
     public int KeepFinished { get; set; } = 50;
 
@@ -539,7 +543,7 @@ public sealed partial class JobManager
                     return; // a stale attempt never retires another worker's owner
             }
             var thread = new Thread(() => Run(job)) { IsBackground = true, Name = "FileCat job " + job.ShortId };
-            thread.Start();
+            StartWorker(thread);
         }
         catch (Exception error)
         {

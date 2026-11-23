@@ -104,6 +104,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     /// <summary>Validation for the filter field only; location and listing warnings keep their own banner.</summary>
     [ObservableProperty] private string? _filterValidationError;
     [ObservableProperty] private bool _isLoading;
+    /// <summary>
+    /// What the tab's ⟳ and the status line show (<see cref="BusyShown"/>): a load or a reread the user asked for at
+    /// once, a reread the folder's own changes started only once it is slow. <see cref="IsLoading"/> stays the state.
+    /// </summary>
+    [ObservableProperty] private bool _showsBusy;
     [ObservableProperty] private bool _isActiveTab;
     [ObservableProperty] private bool _pictureView;
 
@@ -138,6 +143,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     private void RefreshSortDescription()
     {
+        UpdateBirthTimes();
         var sort = Listing.Sort;
         var column = Columns.FirstOrDefault(c => c.SortField == sort.Field &&
             (sort.Field != SortField.Metadata || c.MetadataId == sort.MetadataId));
@@ -202,8 +208,19 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     /// <summary>The columns last announced (<see cref="ColumnsChanged"/>): what the list of this tab shows.</summary>
     private ColumnSpec[]? _shownColumns;
 
+    /// <summary>
+    /// Linux lists a folder's items' birth times (one more call per item) only while this list shows or sorts by Created:
+    /// .NET's creation time there is the earlier of the modification and status change times, not when the item was made.
+    /// </summary>
+    private bool WantsBirthTimes(Location? location) => OperatingSystem.IsLinux() && location is { IsFileSystem: true } &&
+        (Listing.Sort.Field == SortField.Created ||
+         Services.Columns.Get(_columnProfile, Schemes.FileSystem).Any(c => c.Field == ColumnField.Created));
+
+    private void UpdateBirthTimes() => Listing.IncludeBirthTimes = WantsBirthTimes(Location);
+
     private void AnnounceColumns(bool widthsOnly = false)
     {
+        UpdateBirthTimes();
         _shownColumns = Columns;
         ColumnsChanged?.Invoke(this, widthsOnly ? ColumnsChangedEventArgs.Widths : ColumnsChangedEventArgs.Other);
     }
@@ -318,6 +335,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
         if (!loc.IsFileSystem) return;
         var monitor = new ChangeMonitor(loc.Path, () => Services.Ui.Post(() => OnFolderChanged(loc)));
+        monitor.ChurnChanged += () => Services.Ui.Post(() => { if (!_disposed && Location == loc) UpdateStatus(); });
         _monitor = monitor.IsActive ? monitor : null;
         if (!monitor.IsActive) monitor.Dispose();
         // Changes made on a server are not reported to its mounts (inotify never sees them, some SMB servers send
@@ -652,6 +670,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
         _navigatedFocus = (location, focusName);
         _historyDetachedTop = null;
+        // Before the read starts, so that it lists birth times where this tab's columns show them.
+        Listing.IncludeBirthTimes = WantsBirthTimes(location);
         if (jump is not null)
         {
             var visit = location == jump.Visit.Location ? jump.Visit : null;
@@ -802,8 +822,48 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
         ComparisonLabel = null;
         if (Location is { IsFileSystem: true }) _forceFreeSpaceOnListingComplete = true;
+        _loudRefresh = true; // asked for: shown at once, even joining a reread already under way
         if (Listing.State == ListingState.Failed && Location is not null) Listing.Load(Location);
         else Listing.Refresh();
+        ShowsBusy = BusyShown();
+        UpdateStatus();
+    }
+
+    /// <summary>How long a reread the folder's own changes started may run before the tab shows it is busy.</summary>
+    internal static readonly TimeSpan QuietRefreshGrace = TimeSpan.FromSeconds(1);
+    private bool _loudRefresh;
+    private long _refreshStartedAt;
+    private Timer? _slowRefreshCheck;
+
+    /// <summary>
+    /// Whether the tab shows it is busy: while it loads, or rereads because the user asked (Refresh); a reread the
+    /// folder's own changes started (a watcher's notice, a newer time stamp) only after <see cref="QuietRefreshGrace"/>.
+    /// The old rows stay meanwhile, so a folder that keeps changing (C:\Windows) no longer flashes the tab's ⟳ and
+    /// "refreshing…" every second; a slow reread (a network share) still says so.
+    /// </summary>
+    private bool BusyShown()
+    {
+        if (Listing.State == ListingState.Loading) return true;
+        if (!Listing.IsRefreshing)
+        {
+            _loudRefresh = false;
+            _refreshStartedAt = 0;
+            _slowRefreshCheck?.Dispose();
+            _slowRefreshCheck = null;
+            return false;
+        }
+        if (_refreshStartedAt == 0)
+        {
+            _refreshStartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+            if (!_loudRefresh)
+                _slowRefreshCheck = new Timer(_ => Services.Ui.Post(() =>
+                {
+                    if (_disposed || !Listing.IsRefreshing) return;
+                    ShowsBusy = BusyShown();
+                    UpdateStatus();
+                }), null, QuietRefreshGrace, Timeout.InfiniteTimeSpan);
+        }
+        return _loudRefresh || System.Diagnostics.Stopwatch.GetElapsedTime(_refreshStartedAt) >= QuietRefreshGrace;
     }
 
     /// <summary>Enter: navigate into containers; returns the entry when it should be opened otherwise.</summary>
@@ -906,6 +966,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                 _freeSpaceUnavailable = false;
             }
             IsLoading = Listing.State == ListingState.Loading || Listing.IsRefreshing;
+            ShowsBusy = BusyShown();
             DeniedFolderVolume = !IsLoading && Location is { IsFileSystem: true } folder &&
                 (Listing.LoadError is UnauthorizedAccessException || Listing.LastRefreshError is UnauthorizedAccessException) &&
                 !Services.Shell.IsElevated ? AdministratorWindow.LocalVolume(folder.Path) : null;
@@ -1018,7 +1079,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         // What follows the counts, in both states.
         var rest = new List<string>();
         if (l.State == ListingState.Loading) rest.Add(l.LoadingProgress ?? "loading…");
-        else if (l.IsRefreshing) rest.Add(l.LoadingProgress ?? "refreshing…");
+        else if (l.IsRefreshing && ShowsBusy) rest.Add(l.LoadingProgress ?? "refreshing…");
+        // Why its changes now appear every few seconds: the folder keeps changing (a busy log in C:\Windows, say).
+        if (_monitor is { IsChurning: true } busy) rest.Add($"changing often, shown every {busy.ChurnInterval.TotalSeconds:0} s");
         if (l.Filter is not null) rest.Add($"filter \"{l.Filter.Text}\" shows {Math.Max(0, l.VisibleCount - (l.HasParentRow ? 1 : 0))}");
         else if (!l.ShowHidden && l.State == ListingState.Complete)
         {
@@ -1112,7 +1175,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public string GetFolderText(in EntryData e) => e.Tag switch
     {
-        Core.Search.ResultTag r => r.Folder ?? r.RelativeFolder,
+        // An item at the top of a list made from one folder (flat view, a comparison) is in that folder itself: ".", as
+        // the others' relative folders read, not a blank.
+        Core.Search.ResultTag r => r.Folder ?? (r.RelativeFolder.Length > 0 ? r.RelativeFolder : "."),
         _ => string.Empty,
     };
 
@@ -1211,6 +1276,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         RetireMetadataAnalysis();
         Closed = null;
         StopWatching();
+        _slowRefreshCheck?.Dispose();
+        _slowRefreshCheck = null;
         Listing.Changed -= OnListingChanged;
         Listing.PreparingStore -= PreparingMetadataStore;
         Services.Columns.Changed -= OnProfilesChanged;

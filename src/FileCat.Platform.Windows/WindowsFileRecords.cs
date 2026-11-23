@@ -40,7 +40,10 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
     public InspectionReport Read(string path, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return new Reader(Path.GetFullPath(path), !AssumeNotPrivileged && Environment.IsPrivilegedProcess, ct) { ViewIndexLimit = ViewIndexReadLimit }.Run();
+        // With Cloud Files placeholders exposed on this thread, like the details tiers, so another provider's placeholder
+        // gets its Cloud Files section (FILECAT_CLOUD_PLACEHOLDER_EXPOSURE_PLAN.md). The reader runs synchronously.
+        var reader = new Reader(Path.GetFullPath(path), !AssumeNotPrivileged && Environment.IsPrivilegedProcess, ct) { ViewIndexLimit = ViewIndexReadLimit };
+        return PlaceholderView.Exposed(reader.Run);
     }
 
     private sealed partial class Reader(string path, bool privileged, CancellationToken ct)

@@ -1,3 +1,4 @@
+using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 
 namespace FileCat.Core.Listing;
@@ -98,6 +99,14 @@ public static class EntrySorter
             bool ca = a.IsContainer, cb = b.IsContainer;
             if (ca != cb) return ca ? -1 : 1;
         }
+        if (spec.Field == SortField.Size && a.Kind == EntryKind.Drive && b.Kind == EntryKind.Drive)
+        {
+            // Drives order by the free space they show. One that shows none (not ready) sorts last in both directions, as
+            // unknown values do (plan §10), and by name among such drives: equal to every drive, it made the order depend
+            // on which drive was listed first.
+            bool unknownA = ShownSize(a) < 0, unknownB = ShownSize(b) < 0;
+            if (unknownA != unknownB) return unknownA ? 1 : -1;
+        }
         int r = spec.Field switch
         {
             SortField.Name => NaturalCompare.CompareCore(a.Name, b.Name, spec.Natural),
@@ -121,10 +130,17 @@ public static class EntrySorter
 
     private static int CompareSize(scoped in EntryView a, scoped in EntryView b)
     {
+        long sa = ShownSize(a), sb = ShownSize(b);
         // Directories without an explicitly computed size keep name order (TC/Salamander behavior).
-        if (a.IsContainer && b.IsContainer && (a.Size < 0 || b.Size < 0)) return 0;
-        return a.Size.CompareTo(b.Size);
+        if (a.IsContainer && b.IsContainer && (sa < 0 || sb < 0)) return 0;
+        return sa.CompareTo(sb);
     }
+
+    /// <summary>
+    /// The size the Size column shows: a drive's free space (<see cref="DriveTag.ShownFreeBytes"/>; its own size is its
+    /// capacity), any other row's size.
+    /// </summary>
+    private static long ShownSize(scoped in EntryView e) => e.Kind == EntryKind.Drive && e.Tag is DriveTag drive ? drive.ShownFreeBytes : e.Size;
 }
 
 /// <summary>
@@ -193,6 +209,7 @@ internal readonly ref struct EntryView
         Created = e.Created;
         Attributes = e.Attributes;
         NativeReparseTag = e.NativeReparseTag;
+        Tag = e.Tag;
     }
 
     public EntryView(ReadOnlySpan<char> name, EntryKind kind, EntryFlags flags, long size, long modified, long created, uint attributes, uint nativeReparseTag = 0)
@@ -205,6 +222,7 @@ internal readonly ref struct EntryView
         Created = created;
         Attributes = attributes;
         NativeReparseTag = nativeReparseTag;
+        Tag = null;
     }
 
     public ReadOnlySpan<char> Name { get; }
@@ -215,6 +233,8 @@ internal readonly ref struct EntryView
     public long Created { get; }
     public uint Attributes { get; }
     public uint NativeReparseTag { get; }
+    /// <summary>The provider's payload (a drive's <see cref="DriveTag"/>); a spilled entry holds none.</summary>
+    public object? Tag { get; }
 
     public bool IsContainer => Kind is EntryKind.Directory or EntryKind.Parent or EntryKind.Drive
         or EntryKind.Server or EntryKind.Share or EntryKind.RegistryKey;

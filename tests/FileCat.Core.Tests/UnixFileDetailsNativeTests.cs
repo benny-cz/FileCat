@@ -145,8 +145,8 @@ public sealed partial class UnixFileDetailsNativeTests
     [Fact]
     public void Linux_full_report_observes_casefold_on_the_held_ext4_directory()
     {
-        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64,
-            "Requires a qualified Linux x64 ext4 fixture.");
+        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture is Architecture.X64 or Architecture.Arm64,
+            "Requires a qualified Linux x64 or ARM64 ext4 fixture.");
         string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_EXT4_CASEFOLD_ROOT");
         if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires a disposable ext4 mount with both directory policies prepared.");
 
@@ -184,8 +184,8 @@ public sealed partial class UnixFileDetailsNativeTests
     [InlineData("ext4")]
     public void Linux_details_label_historical_ext_flags_without_claiming_compression(string format)
     {
-        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64,
-            "Requires the Linux x64 ext-family fixture.");
+        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture is Architecture.X64 or Architecture.Arm64,
+            "Requires the Linux x64 or ARM64 ext-family fixture.");
         string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_EXT_FLAGS_ROOT");
         if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires the prepared read-only ext2, ext3 and ext4 mounts.");
 

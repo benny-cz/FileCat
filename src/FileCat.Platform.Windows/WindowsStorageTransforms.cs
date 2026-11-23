@@ -7,7 +7,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows;
 
-/// <summary>Qualification-stage C adapter. WindowsPlatform keeps the unsupported adapter until execution gates close.</summary>
+/// <summary>The NTFS compression adapter. WindowsPlatform composes it through <see cref="CreateRelease"/>; the EFS candidate stays a qualification-only wrapper.</summary>
 internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransforms, IStorageEfsSetup
 {
     // Native x64 removal can allocate a hole at this length. Keep the unqualified large sparse scope unavailable.
@@ -15,10 +15,44 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
 
     // The qualification target is the Windows 11 client, not a Server product with the same build number.
     private static bool IsWindows11Client => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000) && !IsOS(29 /* OS_ANYSERVER */);
-    internal static bool IsQualifiedHost => RuntimeInformation.ProcessArchitecture == Architecture.X64 && IsWindows11Client;
+    // An x64 process emulated on Arm64 Windows runs a different native stack from the qualified x64 target.
+    internal static bool IsQualifiedHost => RuntimeInformation.ProcessArchitecture == Architecture.X64 &&
+        RuntimeInformation.OSArchitecture == Architecture.X64 && IsWindows11Client;
     internal static bool IsNativeArm64QualificationHost => RuntimeInformation.ProcessArchitecture == Architecture.Arm64 &&
         RuntimeInformation.OSArchitecture == Architecture.Arm64 && IsWindows11Client;
     internal static bool SupportsHost(bool qualifyNativeArm64) => IsQualifiedHost || qualifyNativeArm64 && IsNativeArm64QualificationHost;
+    /// <summary>Where NTFS compression is released: a native x64 or a native Arm64 Windows 11 client process.</summary>
+    internal static bool IsReleaseHost => IsQualifiedHost || IsNativeArm64QualificationHost;
+
+    /// <summary>
+    /// The released composition: NTFS compression only (Compress and Remove compression), where the private storage
+    /// evidence is qualified - a native x64 or native Arm64 Windows 11 client process at normal integrity. EFS stays
+    /// unavailable until its own release gates close; every other host gets its specific reason and no adapter.
+    /// </summary>
+    internal static IStorageTransforms CreateRelease() => WindowsStorageReviewEvidence.IsSupportedHost
+        ? new WindowsStorageTransforms(qualifyNativeArm64: IsNativeArm64QualificationHost) : new NoStorageTransforms(ReleaseUnavailable());
+
+    /// <summary>
+    /// The released App composition: NTFS compression, plus EFS protection and key backup where the EFS edition gate
+    /// passes (Windows 11 Pro, Enterprise or Education); other editions keep compression and get the edition reason for
+    /// EFS. EFS setup files go under FileCat's private local state. The key backup wizard and parented key comparisons
+    /// run through the UI-thread callbacks.
+    /// </summary>
+    internal static IStorageTransforms CreateReleaseWithEfs(Func<string> efsSetupBaseDirectory,
+        WindowsEfsKeys.InvokeBackupWizard invokeWizard, Action<Action> invokeProviderOwner) =>
+        WindowsStorageReviewEvidence.IsSupportedHost
+            ? new WindowsStorageTransforms(efsSetupBaseDirectory: efsSetupBaseDirectory, qualifyNativeArm64: IsNativeArm64QualificationHost)
+                .CreateEfsJobCandidate(invokeWizard, invokeProviderOwner)
+            : new NoStorageTransforms(ReleaseUnavailable());
+
+    internal static StorageProblem ReleaseUnavailable() =>
+        Core.State.WindowsTokenAuthority.IsHighIntegrity
+            ? Problem(StorageReasonKind.FileCatBoundary, "elevated-process", "Open FileCat as your usual Windows user to change NTFS compression; an administrator window does not change it.")
+            : RuntimeInformation.OSArchitecture == Architecture.Arm64 && RuntimeInformation.ProcessArchitecture != Architecture.Arm64
+                ? Problem(StorageReasonKind.FileCatBoundary, "arm64-emulated", "On Windows on Arm, NTFS compression changes need the Arm64 build of FileCat; this copy runs emulated.")
+                : !IsWindows11Client
+                    ? Problem(StorageReasonKind.FileCatBoundary, "windows-version", "NTFS compression changes in FileCat require Windows 11 (not Windows Server or Windows 10).")
+                    : Problem(StorageReasonKind.FileCatBoundary, "target-unqualified", "NTFS compression changes are not qualified on this system.");
     [LibraryImport("shlwapi.dll")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -27,16 +61,18 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
     private readonly Func<string> _efsSetupBaseDirectory;
     private readonly Action<bool>? _compressionSetReturnedForQualification;
     private readonly Action? _compressionSetPendingForQualification;
+    private readonly Action? _compressionSetStartingForQualification;
     private readonly bool _qualifyNativeArm64;
     private readonly WindowsEfsKeys _efsKeys;
     internal WindowsStorageTransforms(Func<string>? windowsDirectory = null, Func<string>? efsSetupBaseDirectory = null,
         Action<bool>? compressionSetReturnedForQualification = null, bool qualifyNativeArm64 = false,
-        Action? compressionSetPendingForQualification = null)
+        Action? compressionSetPendingForQualification = null, Action? compressionSetStartingForQualification = null)
     {
         _windowsDirectory = windowsDirectory ?? (() => Environment.GetFolderPath(Environment.SpecialFolder.Windows));
         _efsSetupBaseDirectory = efsSetupBaseDirectory ?? (() => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
         _compressionSetReturnedForQualification = compressionSetReturnedForQualification;
         _compressionSetPendingForQualification = compressionSetPendingForQualification;
+        _compressionSetStartingForQualification = compressionSetStartingForQualification;
         _qualifyNativeArm64 = qualifyNativeArm64;
         _efsKeys = new(qualifyNativeArm64);
     }
@@ -149,17 +185,14 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
                 ? "This file uses external storage backing, which this workflow does not change."
                 : "External storage backing could not be ruled out; storage changes are unavailable.");
         }
-        if (problem is null) problem = SyncRootProblem(file, ct);
+        if (problem is null) problem = SyncRootProblemAfterHeldWalk(file, volume.Binding, ct);
         if (problem is null)
         {
             ct.ThrowIfCancellationRequested();
             var format = WindowsCompression.Query(file);
             ct.ThrowIfCancellationRequested();
             compression = format.State;
-            if (compression == StorageObservationState.Unknown)
-                problem = Problem(StorageReasonKind.Unknown, "compression-unknown", "The main-data compression format could not be established.");
-            else if (compression == StorageObservationState.Enabled && efs == StorageObservationState.Enabled)
-                problem = Problem(StorageReasonKind.Unknown, "inconsistent-storage", "Both compression and EFS were observed; automatic conversion is refused.");
+            problem = StateProblem(compression, efs);
         }
         return new(new(compression, efs, facts.Identity, facts.IsDirectory, problem),
             (facts.Attributes & (uint)FileAttributes.ReadOnly) != 0,
@@ -187,10 +220,18 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
         }
     }
 
+    /// <summary>An unreadable main-data format, or compression and EFS observed together, refuses any change.</summary>
+    internal static StorageProblem? StateProblem(StorageObservationState compression, StorageObservationState efs) =>
+        compression == StorageObservationState.Unknown
+            ? Problem(StorageReasonKind.Unknown, "compression-unknown", "The main-data compression format could not be established.")
+            : compression == StorageObservationState.Enabled && efs == StorageObservationState.Enabled
+                ? Problem(StorageReasonKind.Unknown, "inconsistent-storage", "Both compression and EFS were observed; automatic conversion is refused.")
+                : null;
+
     private static bool NeedsChange(StorageObservationState current, StorageAction action) =>
         action is StorageAction.Compress or StorageAction.EncryptEfs ? current != StorageObservationState.Enabled : current != StorageObservationState.Disabled;
 
-    private static StorageProblem? PhysicalProblem(StorageObjectIdentity expected, IEnumerable<StorageObjectIdentity> ancestry,
+    internal static StorageProblem? PhysicalProblem(StorageObjectIdentity expected, IEnumerable<StorageObjectIdentity> ancestry,
         StorageObjectIdentity volumeRoot, VolumeFacts volume, NodeFacts facts, StorageObjectIdentity protectedWindows, bool compressionPolicy = true)
     {
         if (facts.Identity != expected || facts.DeletePending) return Problem(StorageReasonKind.IdentityChanged, "entry-changed", "The held entry changed or is being deleted.");
@@ -248,8 +289,8 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
         }
         public void Dispose() { try { file.Dispose(); } finally { Interlocked.Exchange(ref _charge, null)?.Dispose(); } }
     }
-    private sealed record NodeFacts(StorageObjectIdentity Identity, uint Attributes, uint Links, long Size, bool IsDirectory, bool DeletePending, uint CaseFlags);
-    private sealed record VolumeFacts(string Binding, uint Flags, ulong AllocationUnit);
+    internal sealed record NodeFacts(StorageObjectIdentity Identity, uint Attributes, uint Links, long Size, bool IsDirectory, bool DeletePending, uint CaseFlags);
+    internal sealed record VolumeFacts(string Binding, uint Flags, ulong AllocationUnit);
     private sealed record Node(Held Handle, NodeFacts Facts);
     private sealed class NativePath(List<Node> nodes, VolumeFacts volume, int ownedFrom = 0) : IDisposable
     {

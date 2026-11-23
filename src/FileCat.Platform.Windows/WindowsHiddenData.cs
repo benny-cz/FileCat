@@ -232,5 +232,8 @@ public sealed unsafe partial class WindowsHiddenData : IHiddenData, IHiddenValue
     private static partial int NtSetEaFile(SafeFileHandle file, out IoStatusBlock status, byte* buffer, uint length);
 
     [LibraryImport("ntdll.dll")]
+    private static partial int NtQueryInformationFile(SafeFileHandle file, out IoStatusBlock status, void* buffer, uint length, int informationClass);
+
+    [LibraryImport("ntdll.dll")]
     private static partial int RtlNtStatusToDosError(int status);
 }

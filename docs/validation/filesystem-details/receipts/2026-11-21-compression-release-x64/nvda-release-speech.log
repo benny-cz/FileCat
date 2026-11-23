@@ -1,0 +1,537 @@
+INFO - __main__ (16:34:12.086) - MainThread (7484):
+Starting NVDA version 2026.3.1 AMD64
+INFO - core.main (16:34:12.375) - MainThread (7484):
+Config dir: C:\Users\Admin\AppData\Local\FileCatValidation\release-1a2e2b61\session-a46e2200\nvda
+INFO - config.ConfigManager._loadConfig (16:34:12.385) - MainThread (7484):
+Loading config: C:\Users\Admin\AppData\Local\FileCatValidation\release-1a2e2b61\session-a46e2200\nvda\nvda.ini
+DEBUGWARNING - languageHandler._createGettextTranslation (16:34:12.403) - MainThread (7484):
+couldn't set the translation service locale to en_US
+DEBUGWARNING - Python warning (16:34:13.641) - MainThread (7484):
+hwIo\ble\_io.pyc:21: DeprecationWarning: importing WinRTClientArgs from bleak.backends.winrt.client is deprecated, use bleak.args.winrt instead
+INFO - core.main (16:34:14.864) - MainThread (7484):
+Windows version: Windows 11 26H2 (10.0.26340.9843) workstation AMD64
+INFO - core.main (16:34:14.864) - MainThread (7484):
+Using Python version 3.13.17 (tags/v3.13.17:64e080d, Oct 21 2026, 14:08:53) [MSC v.1944 64 bit (AMD64)]
+INFO - core.main (16:34:14.864) - MainThread (7484):
+Using comtypes version 1.4.16
+INFO - core.main (16:34:14.867) - MainThread (7484):
+Using configobj version 5.1.0 with validate version 1.0.1
+INFO - core.main (16:34:14.927) - MainThread (7484):
+Add-ons are disabled. Restart NVDA to enable them.
+INFO - _asyncioEventLoop.initialize (16:34:14.927) - MainThread (7484):
+Initializing asyncio event loop
+INFO - NVDAHelperLocal (16:34:15.289) - MainThread (7484):
+Thread 7484, build\x86_64\localWin10\oneCoreSpeech.cpp, ocSpeech_initialize, 215:
+ocSpeech_initialize
+
+INFO - NVDAHelperLocal (16:34:15.290) - MainThread (7484):
+Thread 7484, build\x86_64\localWin10\oneCoreSpeech.cpp, OcSpeechState::activate, 89:
+Activating
+
+INFO - NVDAHelperLocal (16:34:15.493) - MainThread (7484):
+Thread 7484, build\x86_64\localWin10\oneCoreSpeech.cpp, preventEndUtteranceSilence_, 447:
+AppendedSilence supported
+
+INFO - speechDictHandler.dictFormatUpgrade._doSynthVoiceDictBackupAndMove (16:34:15.522) - MainThread (7484):
+Upgrading voice dictionaries for espeak
+INFO - speechDictHandler.dictFormatUpgrade._doSynthVoiceDictBackupAndMove (16:34:15.523) - MainThread (7484):
+Upgrading voice dictionaries for oneCore
+INFO - synthDriverHandler.setSynth (16:34:15.525) - MainThread (7484):
+Loaded synthDriver oneCore
+INFO - mathPres.MathCAT.MathCAT.MathCAT.__init__ (16:34:15.551) - MainThread (7484):
+MathCAT 0.7.2 installed. Using rules dir: C:\Users\Admin\AppData\Local\FileCatValidation\nvda-2026.3.1\include\nvda-mathcat\assets\Rules
+INFO - core._setUpWxApp (16:34:15.568) - MainThread (7484):
+Using wx version 4.2.4 msw (phoenix) wxWidgets 3.2.8
+INFO - braille.input.initialize (16:34:15.572) - MainThread (7484):
+Braille input initialized
+INFO - braille.initialize (16:34:15.572) - MainThread (7484):
+Using liblouis version 3.39.0
+INFO - braille.initialize (16:34:15.572) - MainThread (7484):
+Using pySerial version 3.5
+INFO - braille.brailleHandler.BrailleHandler._setDisplay (16:34:15.576) - MainThread (7484):
+Loaded braille display driver 'noBraille', current display has 0 cells.
+DEBUGWARNING - appModuleHandler.getProcessHandleFromProcessId (16:34:16.086) - MainThread (7484):
+Unable to open process for processId 960
+Traceback (most recent call last):
+  File "appModuleHandler.pyc", line 201, in getProcessHandleFromProcessId
+PermissionError: [WinError 5] Access is denied.
+DEBUGWARNING - appModuleHandler.getProcessHandleFromProcessId (16:34:16.088) - MainThread (7484):
+Unable to get process handle for process 960 using window enumeration and subsequently getting process handle from that window
+Traceback (most recent call last):
+  File "appModuleHandler.pyc", line 214, in getProcessHandleFromProcessId
+RuntimeError: No window handle found for process 960 to create process handle
+INFO - core.main (16:34:19.184) - MainThread (7484):
+Java Access Bridge support initialized
+INFO - UIAHandler.UIAHandler.MTAThreadFunc (16:34:19.334) - UIAHandler.UIAHandler.MTAThread (7204):
+UIAutomation: IUIAutomation6
+DEBUGWARNING - inputCore.InputManager.loadLocaleGestureMap (16:34:19.605) - MainThread (7484):
+No locale gesture map for language en
+DEBUGWARNING - inputCore.InputManager.loadUserGestureMap (16:34:19.605) - MainThread (7484):
+No user gesture map
+DEBUGWARNING - touchHandler.touchSupported (16:34:19.692) - MainThread (7484):
+Touch only supported on installed copies
+DEBUGWARNING - updateCheck.initialize (16:34:19.696) - MainThread (7484):
+Couldn't retrieve update state
+Traceback (most recent call last):
+  File "updateCheck.pyc", line 1038, in initialize
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\release-1a2e2b61\\session-a46e2200\\nvda\\updateCheckState.pickle'
+INFO - core.main (16:34:19.698) - MainThread (7484):
+NVDA initialized
+IO - inputCore.InputManager.executeGesture (16:34:19.796) - winInputHook (9500):
+Input: kb(desktop):NVDA+tab
+IO - speech.speech.speak (16:34:20.026) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'FileCat — left-release-review — Admin (administrator, not elevated)', 'window', CancellableSpeech (still valid)]
+DEBUGWARNING - characterProcessing._getSpeechSymbolsForLocale (16:34:20.030) - MainThread (7484):
+Error loading 'cldr' symbols for locale 'en_US'
+Traceback (most recent call last):
+  File "characterProcessing.pyc", line 419, in _getSpeechSymbolsForLocale
+  File "characterProcessing.pyc", line 817, in getSymbols
+  File "characterProcessing.pyc", line 66, in fetchLocaleData
+  File "characterProcessing.pyc", line 825, in _initSymbols
+FileNotFoundError: No 'cldr' data for locale 'en_US'
+DEBUGWARNING - characterProcessing._getSpeechSymbolsForLocale (16:34:20.032) - MainThread (7484):
+Error loading 'builtin' symbols for locale 'en_US'
+Traceback (most recent call last):
+  File "characterProcessing.pyc", line 419, in _getSpeechSymbolsForLocale
+  File "characterProcessing.pyc", line 817, in getSymbols
+  File "characterProcessing.pyc", line 66, in fetchLocaleData
+  File "characterProcessing.pyc", line 825, in _initSymbols
+FileNotFoundError: No 'builtin' data for locale 'en_US'
+IO - inputCore.InputManager.executeGesture (16:34:20.146) - winInputHook (9500):
+Input: kb(desktop):home
+IO - speech.speech.speak (16:34:20.269) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\release-1a2e2b61\\session-a46e2200\\left-release-review', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]
+IO - speech.speech.speak (16:34:20.334) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Go to parent location', 'parent navigation, 1 of 3', CancellableSpeech (still valid)]
+IO - speech.speech.speak (16:34:20.388) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Go to parent location', 'list item', 'focused', 'parent navigation, 1 of 3']
+IO - inputCore.InputManager.executeGesture (16:34:20.472) - winInputHook (9500):
+Input: kb(desktop):downArrow
+IO - speech.speech.speak (16:34:20.578) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'folder-release', 'not selected', 'folder, modified 21.11.2026 16:34:01, not marked, 2 of 3', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:34:23.583) - winInputHook (9500):
+Input: kb(desktop):control+shift+p
+IO - inputCore.InputManager.executeGesture (16:34:24.007) - winInputHook (9500):
+Input: kb(desktop):shift+e
+IO - inputCore.InputManager.executeGesture (16:34:24.032) - winInputHook (9500):
+Input: kb(desktop):shift+f
+IO - inputCore.InputManager.executeGesture (16:34:24.059) - winInputHook (9500):
+Input: kb(desktop):shift+s
+IO - inputCore.InputManager.executeGesture (16:34:24.080) - winInputHook (9500):
+Input: kb(desktop):space
+IO - inputCore.InputManager.executeGesture (16:34:24.094) - winInputHook (9500):
+Input: kb(desktop):p
+IO - inputCore.InputManager.executeGesture (16:34:24.106) - winInputHook (9500):
+Input: kb(desktop):r
+IO - inputCore.InputManager.executeGesture (16:34:24.122) - winInputHook (9500):
+Input: kb(desktop):o
+IO - inputCore.InputManager.executeGesture (16:34:24.140) - winInputHook (9500):
+Input: kb(desktop):t
+IO - inputCore.InputManager.executeGesture (16:34:24.155) - winInputHook (9500):
+Input: kb(desktop):e
+IO - inputCore.InputManager.executeGesture (16:34:24.175) - winInputHook (9500):
+Input: kb(desktop):c
+IO - inputCore.InputManager.executeGesture (16:34:24.190) - winInputHook (9500):
+Input: kb(desktop):t
+IO - inputCore.InputManager.executeGesture (16:34:24.207) - winInputHook (9500):
+Input: kb(desktop):i
+IO - inputCore.InputManager.executeGesture (16:34:24.221) - winInputHook (9500):
+Input: kb(desktop):o
+IO - inputCore.InputManager.executeGesture (16:34:24.235) - winInputHook (9500):
+Input: kb(desktop):n
+IO - speech.speech.speak (16:34:24.520) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Search commands', 'edit', 'EFS protection', 'Type what you want to do: any command, by its name or other words for it. Ctrl+Shift+P comes here from anywhere.', CancellableSpeech (still valid)]
+IO - speech.speech.speak (16:34:24.532) - MainThread (7484):
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'E', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:24.533) - MainThread (7484):
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'F', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:24.534) - MainThread (7484):
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'S', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speakTypedCharacters (16:34:24.535) - MainThread (7484):
+typed word: EFS
+IO - speech.speech.speak (16:34:24.535) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'space', EndUtteranceCommand()]
+IO - speech.speech.speak (16:34:24.535) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'p', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:24.536) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'r', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:24.536) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:24.537) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 't', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:24.537) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'e', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:24.538) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'c', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:24.538) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 't', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:24.538) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'i', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:24.539) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:24.539) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'n', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - inputCore.InputManager.executeGesture (16:34:28.507) - winInputHook (9500):
+Input: kb(desktop):escape
+IO - speech.speech.speakTypedCharacters (16:34:28.675) - MainThread (7484):
+typed word: protection
+IO - inputCore.InputManager.executeGesture (16:34:28.932) - winInputHook (9500):
+Input: kb(desktop):control+shift+p
+IO - inputCore.InputManager.executeGesture (16:34:29.868) - winInputHook (9500):
+Input: kb(desktop):shift+b
+IO - inputCore.InputManager.executeGesture (16:34:29.891) - winInputHook (9500):
+Input: kb(desktop):a
+IO - inputCore.InputManager.executeGesture (16:34:29.908) - winInputHook (9500):
+Input: kb(desktop):c
+IO - inputCore.InputManager.executeGesture (16:34:29.927) - winInputHook (9500):
+Input: kb(desktop):k
+IO - inputCore.InputManager.executeGesture (16:34:29.941) - winInputHook (9500):
+Input: kb(desktop):space
+IO - inputCore.InputManager.executeGesture (16:34:29.960) - winInputHook (9500):
+Input: kb(desktop):u
+IO - inputCore.InputManager.executeGesture (16:34:29.976) - winInputHook (9500):
+Input: kb(desktop):p
+IO - inputCore.InputManager.executeGesture (16:34:30.012) - winInputHook (9500):
+Input: kb(desktop):space
+IO - inputCore.InputManager.executeGesture (16:34:30.087) - winInputHook (9500):
+Input: kb(desktop):shift+e
+IO - inputCore.InputManager.executeGesture (16:34:30.116) - winInputHook (9500):
+Input: kb(desktop):shift+f
+IO - inputCore.InputManager.executeGesture (16:34:30.195) - winInputHook (9500):
+Input: kb(desktop):shift+s
+IO - inputCore.InputManager.executeGesture (16:34:30.225) - winInputHook (9500):
+Input: kb(desktop):space
+IO - inputCore.InputManager.executeGesture (16:34:30.240) - winInputHook (9500):
+Input: kb(desktop):k
+IO - inputCore.InputManager.executeGesture (16:34:30.255) - winInputHook (9500):
+Input: kb(desktop):e
+IO - inputCore.InputManager.executeGesture (16:34:30.278) - winInputHook (9500):
+Input: kb(desktop):y
+IO - speech.speech.speak (16:34:31.001) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\release-1a2e2b61\\session-a46e2200\\left-release-review', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]
+IO - speech.speech.speak (16:34:31.045) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'folder-release', 'not selected', 'folder, modified 21.11.2026 16:34:01, not marked, 2 of 3', CancellableSpeech (still valid)]
+IO - speech.speech.speak (16:34:31.190) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Search commands', 'edit', 'Back up EFS key', 'Type what you want to do: any command, by its name or other words for it. Ctrl+Shift+P comes here from anywhere.', CancellableSpeech (still valid)]
+IO - speech.speech.speak (16:34:31.193) - MainThread (7484):
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'B', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:31.194) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'a', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:31.194) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'c', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:31.195) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'k', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speakTypedCharacters (16:34:31.195) - MainThread (7484):
+typed word: Back
+IO - speech.speech.speak (16:34:31.196) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'space', EndUtteranceCommand()]
+IO - speech.speech.speak (16:34:31.197) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'u', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:31.199) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'p', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speakTypedCharacters (16:34:31.200) - MainThread (7484):
+typed word: up
+IO - speech.speech.speak (16:34:31.200) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'space', EndUtteranceCommand()]
+IO - speech.speech.speak (16:34:31.201) - MainThread (7484):
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'E', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:31.202) - MainThread (7484):
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'F', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:31.202) - MainThread (7484):
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'S', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speakTypedCharacters (16:34:31.202) - MainThread (7484):
+typed word: EFS
+IO - speech.speech.speak (16:34:31.203) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'space', EndUtteranceCommand()]
+IO - speech.speech.speak (16:34:31.203) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'k', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:31.204) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'e', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:31.205) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'y', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - inputCore.InputManager.executeGesture (16:34:34.949) - winInputHook (9500):
+Input: kb(desktop):escape
+IO - speech.speech.speakTypedCharacters (16:34:35.028) - MainThread (7484):
+typed word: key
+IO - speech.speech.speak (16:34:35.258) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\release-1a2e2b61\\session-a46e2200\\left-release-review', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]
+IO - speech.speech.speak (16:34:35.298) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'folder-release', 'not selected', 'folder, modified 21.11.2026 16:34:01, not marked, 2 of 3', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:34:35.330) - winInputHook (9500):
+Input: kb(desktop):control+shift+p
+IO - inputCore.InputManager.executeGesture (16:34:36.008) - winInputHook (9500):
+Input: kb(desktop):shift+n
+IO - inputCore.InputManager.executeGesture (16:34:36.036) - winInputHook (9500):
+Input: kb(desktop):shift+t
+IO - inputCore.InputManager.executeGesture (16:34:36.064) - winInputHook (9500):
+Input: kb(desktop):shift+f
+IO - inputCore.InputManager.executeGesture (16:34:36.095) - winInputHook (9500):
+Input: kb(desktop):shift+s
+IO - inputCore.InputManager.executeGesture (16:34:36.116) - winInputHook (9500):
+Input: kb(desktop):space
+IO - inputCore.InputManager.executeGesture (16:34:36.130) - winInputHook (9500):
+Input: kb(desktop):c
+IO - inputCore.InputManager.executeGesture (16:34:36.144) - winInputHook (9500):
+Input: kb(desktop):o
+IO - inputCore.InputManager.executeGesture (16:34:36.159) - winInputHook (9500):
+Input: kb(desktop):m
+IO - inputCore.InputManager.executeGesture (16:34:36.174) - winInputHook (9500):
+Input: kb(desktop):p
+IO - inputCore.InputManager.executeGesture (16:34:36.191) - winInputHook (9500):
+Input: kb(desktop):r
+IO - inputCore.InputManager.executeGesture (16:34:36.206) - winInputHook (9500):
+Input: kb(desktop):e
+IO - inputCore.InputManager.executeGesture (16:34:36.224) - winInputHook (9500):
+Input: kb(desktop):s
+IO - inputCore.InputManager.executeGesture (16:34:36.238) - winInputHook (9500):
+Input: kb(desktop):s
+IO - inputCore.InputManager.executeGesture (16:34:36.251) - winInputHook (9500):
+Input: kb(desktop):i
+IO - inputCore.InputManager.executeGesture (16:34:36.264) - winInputHook (9500):
+Input: kb(desktop):o
+IO - inputCore.InputManager.executeGesture (16:34:36.278) - winInputHook (9500):
+Input: kb(desktop):n
+IO - speech.speech.speak (16:34:36.536) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Search commands', 'edit', 'NTFS compres', 'Type what you want to do: any command, by its name or other words for it. Ctrl+Shift+P comes here from anywhere.', CancellableSpeech (still valid)]
+IO - speech.speech.speak (16:34:36.548) - MainThread (7484):
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'N', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:36.549) - MainThread (7484):
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'T', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:36.550) - MainThread (7484):
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'F', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:36.551) - MainThread (7484):
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'S', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speakTypedCharacters (16:34:36.552) - MainThread (7484):
+typed word: NTFS
+IO - speech.speech.speak (16:34:36.552) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'space', EndUtteranceCommand()]
+IO - speech.speech.speak (16:34:36.553) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'c', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:36.554) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:36.554) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'm', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:36.555) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'p', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:36.555) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'r', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:36.556) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'e', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:36.556) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 's', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:36.556) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 's', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:36.557) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'i', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:36.557) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:34:36.558) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'n', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - inputCore.InputManager.executeGesture (16:34:36.602) - winInputHook (9500):
+Input: kb(desktop):enter
+IO - speech.speech.speakTypedCharacters (16:34:36.876) - MainThread (7484):
+typed word: compression
+IO - speech.speech.speak (16:34:39.231) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Choose an action to continue.']
+IO - speech.speech.speak (16:34:39.558) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'NTFS compression… dialog', 'grouping', CancellableSpeech (still valid)]
+IO - speech.speech.speak (16:34:39.774) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Compress', 'radio button', 'not checked', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:34:58.768) - winInputHook (9500):
+Input: kb(desktop):space
+IO - speech.speech.speak (16:34:58.834) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Every selected item passed inspection for this action.']
+IO - speech.speech.speak (16:34:58.841) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'checked']
+IO - inputCore.InputManager.executeGesture (16:35:01.938) - winInputHook (9500):
+Input: kb(desktop):tab
+IO - speech.speech.speak (16:35:02.022) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Remove compression', 'radio button', 'not checked', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:35:02.261) - winInputHook (9500):
+Input: kb(desktop):tab
+IO - speech.speech.speak (16:35:02.368) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Selected items only', 'radio button', 'checked', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:35:02.578) - winInputHook (9500):
+Input: kb(desktop):tab
+IO - speech.speech.speak (16:35:02.711) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Selected folders and their existing contents', 'radio button', 'not checked', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:35:02.897) - winInputHook (9500):
+Input: kb(desktop):space
+IO - speech.speech.speak (16:35:02.923) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'checked']
+IO - inputCore.InputManager.executeGesture (16:35:16.045) - winInputHook (9500):
+Input: kb(desktop):tab
+IO - speech.speech.speak (16:35:16.148) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Retry inspection of the original selected items', 'button', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:35:16.369) - winInputHook (9500):
+Input: kb(desktop):tab
+IO - speech.speech.speak (16:35:16.489) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'All 1 selected items, including hidden marks', 'grouping', 'collapsed', CancellableSpeech (still valid)]
+IO - speech.speech.speak (16:35:16.515) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Selected items (1)', 'toggle button', 'not pressed', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:35:16.679) - winInputHook (9500):
+Input: kb(desktop):tab
+IO - speech.speech.speak (16:35:16.794) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Cancel', 'button', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:35:16.993) - winInputHook (9500):
+Input: kb(desktop):tab
+IO - speech.speech.speak (16:35:17.069) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Queue', 'button', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:35:17.310) - winInputHook (9500):
+Input: kb(desktop):tab
+IO - speech.speech.speak (16:35:17.398) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Compress', 'button', 'Selected folders and their existing contents. Changes main data or folder defaults. Alternate data streams keep their compression settings.', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:35:17.635) - winInputHook (9500):
+Input: kb(desktop):enter
+DEBUGWARNING - NVDAObjects.UIA.UIA._prefetchUIACacheForPropertyIDs (16:35:17.808) - MainThread (7484):
+IUIAutomationElement.buildUpdatedCache failed given IDs of {30019, 30086, 30022, 30025, 30155, 30060, 30138, 30036, 30070, 30103, 30008, 30009, 30010, 30046, 30079}
+IO - speech.speech.speak (16:35:20.739) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\release-1a2e2b61\\session-a46e2200\\left-release-review', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]
+IO - speech.speech.speak (16:35:20.787) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'folder-release', 'unavailable', 'This item belongs to a previous listing and cannot be acted on.', CancellableSpeech (still valid)]
+DEBUGWARNING - NVDAObjects.behaviors.ProgressBar.event_valueChange (16:35:20.795) - MainThread (7484):
+Invalid value: None
+IO - speech.speech.speak (16:35:20.799) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Compress "folder-release" · selected folders and existing contents: 2 changed, 0 already satisfied, 1 skipped, 0 failed, 0 uncertain, 0 not processed. The requested scope was not fully completed.']
+IO - speech.speech.speak (16:35:20.855) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'folder-release', 'not selected', 'folder, modified 21.11.2026 16:34:01, not marked, 2 of 3', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:35:27.741) - winInputHook (9500):
+Input: kb(desktop):escape
+IO - inputCore.InputManager.executeGesture (16:35:30.617) - winInputHook (9500):
+Input: kb(desktop):control+shift+p
+IO - inputCore.InputManager.executeGesture (16:35:31.067) - winInputHook (9500):
+Input: kb(desktop):shift+n
+IO - inputCore.InputManager.executeGesture (16:35:31.099) - winInputHook (9500):
+Input: kb(desktop):shift+t
+IO - inputCore.InputManager.executeGesture (16:35:31.125) - winInputHook (9500):
+Input: kb(desktop):shift+f
+IO - inputCore.InputManager.executeGesture (16:35:31.158) - winInputHook (9500):
+Input: kb(desktop):shift+s
+IO - inputCore.InputManager.executeGesture (16:35:31.182) - winInputHook (9500):
+Input: kb(desktop):space
+IO - inputCore.InputManager.executeGesture (16:35:31.195) - winInputHook (9500):
+Input: kb(desktop):c
+IO - inputCore.InputManager.executeGesture (16:35:31.212) - winInputHook (9500):
+Input: kb(desktop):o
+IO - inputCore.InputManager.executeGesture (16:35:31.228) - winInputHook (9500):
+Input: kb(desktop):m
+IO - inputCore.InputManager.executeGesture (16:35:31.245) - winInputHook (9500):
+Input: kb(desktop):p
+IO - inputCore.InputManager.executeGesture (16:35:31.263) - winInputHook (9500):
+Input: kb(desktop):r
+IO - inputCore.InputManager.executeGesture (16:35:31.278) - winInputHook (9500):
+Input: kb(desktop):e
+IO - inputCore.InputManager.executeGesture (16:35:31.292) - winInputHook (9500):
+Input: kb(desktop):s
+IO - inputCore.InputManager.executeGesture (16:35:31.306) - winInputHook (9500):
+Input: kb(desktop):s
+IO - inputCore.InputManager.executeGesture (16:35:31.322) - winInputHook (9500):
+Input: kb(desktop):i
+IO - inputCore.InputManager.executeGesture (16:35:31.337) - winInputHook (9500):
+Input: kb(desktop):o
+IO - inputCore.InputManager.executeGesture (16:35:31.349) - winInputHook (9500):
+Input: kb(desktop):n
+IO - speech.speech.speak (16:35:31.636) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Search commands', 'edit', 'NTFS comp', 'Type what you want to do: any command, by its name or other words for it. Ctrl+Shift+P comes here from anywhere.', CancellableSpeech (still valid)]
+IO - speech.speech.speak (16:35:31.718) - MainThread (7484):
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'N', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:35:31.720) - MainThread (7484):
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'T', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - inputCore.InputManager.executeGesture (16:35:31.721) - winInputHook (9500):
+Input: kb(desktop):enter
+IO - speech.speech.speak (16:35:31.723) - MainThread (7484):
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'F', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:35:31.723) - MainThread (7484):
+Speaking [PitchCommand(offset=30), CharacterModeCommand(True), LangChangeCommand ('en_US'), 'S', PitchCommand(), EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speakTypedCharacters (16:35:31.724) - MainThread (7484):
+typed word: NTFS
+IO - speech.speech.speak (16:35:31.724) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'space', EndUtteranceCommand()]
+IO - speech.speech.speak (16:35:31.725) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'c', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:35:31.727) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:35:31.728) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'm', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:35:31.729) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'p', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:35:31.729) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'r', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:35:31.730) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'e', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:35:31.731) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 's', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:35:31.731) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 's', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:35:31.732) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'i', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:35:31.732) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speak (16:35:31.808) - MainThread (7484):
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en_US'), 'n', EndUtteranceCommand(), CharacterModeCommand(False)]
+IO - speech.speech.speakTypedCharacters (16:35:31.810) - MainThread (7484):
+typed word: compression
+IO - speech.speech.speak (16:35:31.943) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Choose an action to continue.']
+IO - speech.speech.speak (16:35:34.331) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'NTFS compression… dialog', 'grouping', CancellableSpeech (still valid)]
+IO - speech.speech.speak (16:35:34.409) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Compress', 'radio button', 'not checked', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:35:53.519) - winInputHook (9500):
+Input: kb(desktop):tab
+IO - speech.speech.speak (16:35:53.604) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Remove compression', 'radio button', 'not checked', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:35:53.850) - winInputHook (9500):
+Input: kb(desktop):space
+IO - speech.speech.speak (16:35:53.960) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Every selected item passed inspection for this action.']
+IO - speech.speech.speak (16:35:53.984) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'checked']
+IO - inputCore.InputManager.executeGesture (16:35:57.105) - winInputHook (9500):
+Input: kb(desktop):tab
+IO - speech.speech.speak (16:35:57.213) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Selected items only', 'radio button', 'checked', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:35:57.419) - winInputHook (9500):
+Input: kb(desktop):tab
+IO - speech.speech.speak (16:35:57.594) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Selected folders and their existing contents', 'radio button', 'not checked', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:35:57.754) - winInputHook (9500):
+Input: kb(desktop):space
+IO - speech.speech.speak (16:35:57.787) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'checked']
+IO - inputCore.InputManager.executeGesture (16:36:11.747) - winInputHook (9500):
+Input: kb(desktop):tab
+IO - speech.speech.speak (16:36:11.849) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Retry inspection of the original selected items', 'button', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:36:12.057) - winInputHook (9500):
+Input: kb(desktop):tab
+IO - speech.speech.speak (16:36:12.176) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'All 1 selected items, including hidden marks', 'grouping', 'collapsed', CancellableSpeech (still valid)]
+IO - speech.speech.speak (16:36:12.205) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Selected items (1)', 'toggle button', 'not pressed', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:36:12.375) - winInputHook (9500):
+Input: kb(desktop):tab
+IO - speech.speech.speak (16:36:12.561) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Cancel', 'button', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:36:12.695) - winInputHook (9500):
+Input: kb(desktop):tab
+IO - speech.speech.speak (16:36:12.774) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Queue', 'button', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:36:13.010) - winInputHook (9500):
+Input: kb(desktop):tab
+IO - speech.speech.speak (16:36:13.087) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Remove compression', 'button', 'Selected folders and their existing contents. Changes main data or folder defaults. Alternate data streams keep their compression settings.', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:36:13.328) - winInputHook (9500):
+Input: kb(desktop):enter
+DEBUGWARNING - NVDAObjects.UIA.UIA._prefetchUIACacheForPropertyIDs (16:36:13.361) - MainThread (7484):
+IUIAutomationElement.buildUpdatedCache failed given IDs of {30019, 30086, 30022, 30025, 30155, 30060, 30138, 30036, 30070, 30103, 30008, 30009, 30010, 30046, 30079}
+IO - speech.speech.speak (16:36:15.918) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Panel 1, source, C:\\Users\\Admin\\AppData\\Local\\FileCatValidation\\release-1a2e2b61\\session-a46e2200\\left-release-review', 'list', '3 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark. Left and Right scroll the columns; Shift with the wheel also scrolls columns.', CancellableSpeech (still valid)]
+IO - speech.speech.speak (16:36:15.946) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'folder-release', 'unavailable', 'This item belongs to a previous listing and cannot be acted on.', CancellableSpeech (still valid)]
+IO - speech.speech.speak (16:36:15.954) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'Remove compression from "folder-release" · selected folders and existing contents: 2 changed, 1 already satisfied, 0 skipped, 0 failed, 0 uncertain, 0 not processed. The requested scope was fully checked.']
+IO - speech.speech.speak (16:36:16.058) - MainThread (7484):
+Speaking [LangChangeCommand ('en_US'), 'folder-release', 'not selected', 'folder, modified 21.11.2026 16:34:01, not marked, 2 of 3', CancellableSpeech (still valid)]
+IO - inputCore.InputManager.executeGesture (16:36:23.430) - winInputHook (9500):
+Input: kb(desktop):escape

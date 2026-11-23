@@ -1,0 +1,19 @@
+utc 2026-11-22T12:00:18Z
+reader: Yubico YubiKey OTP+FIDO+CCID 0
+select PIV: SW 9000
+firmware: 5.8.0
+PIN: algorithm FF, default value yes, retries 3 of 3
+PUK: algorithm FF, default value yes, retries 3 of 3
+management key: algorithm 0A, pin policy 0, touch policy 1, default value yes
+slot 9a: algorithm 07, pin policy 2, touch policy 1, origin generated, public key 265 bytes
+slot 9c: empty
+slot 9d: empty
+slot 9e: empty
+cert 9a: present, 819 bytes
+cert 9c: absent
+cert 9d: absent
+cert 9e: absent
+admin data: absent
+minidriver container map: present, 111 bytes
+CHUID: present, 61 bytes
+

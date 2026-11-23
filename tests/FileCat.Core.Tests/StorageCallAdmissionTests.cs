@@ -53,6 +53,25 @@ public sealed class StorageCallAdmissionTests
         Assert.Equal(StorageCallAdmission.Canceled, job.TryAdmitStorageCall(next)); writer.FlushNotAttempted(next, StorageNoCallReason.Canceled);
     }
     [Fact]
+    public void Pause_after_admission_neither_denies_nor_steals_the_admitted_call_and_holds_only_the_next_intent()
+    {
+        var (job, header) = Make(); using var data = new MemoryStream(); using var writer = new StorageTransformJournalWriter(data, () => { }, header);
+        job.AttachStorageWriter(writer); var call = writer.FlushIntent(0, @"C:\source\file", Before);
+        Assert.Equal(StorageCallAdmission.Admitted, job.TryAdmitStorageCall(call)); job.Pause();
+        Assert.Equal(JobState.Pausing, job.State); Assert.True(call.IsAdmitted);
+        Assert.Equal(StorageCallAdmission.Busy, job.TryAdmitStorageCall(call)); // in flight: no second admission and no Paused denial
+        writer.FlushResult(call, Changed());
+        Assert.True(call.IsSettled); Assert.Null(writer.Collector.Pending); Assert.Equal(StorageCallDisposition.Observed, writer.Collector.LastOutcome!.Disposition);
+        var next = writer.FlushIntent(0, @"C:\source\file", Before);
+        Assert.Equal(StorageCallAdmission.Paused, job.TryAdmitStorageCall(next)); writer.FlushNotAttempted(next, StorageNoCallReason.Paused);
+        Assert.Equal(StorageNoCallReason.Paused, writer.Collector.LastOutcome!.NoCallReason); Assert.Equal(StorageCallAdmission.Stale, job.TryAdmitStorageCall(next));
+        job.Resume();
+        var fresh = writer.FlushIntent(0, @"C:\source\file", Before);
+        Assert.Equal(StorageCallAdmission.Admitted, job.TryAdmitStorageCall(fresh)); writer.FlushResult(fresh, Changed());
+        Assert.Null(writer.Collector.Pending); Assert.Equal(3, writer.Collector.LastOutcome!.Call);
+    }
+
+    [Fact]
     public void Another_writer_or_consumed_receipt_never_obtains_job_call_authority()
     {
         var (job, header) = Make(); using var firstData = new MemoryStream(); using var otherData = new MemoryStream();

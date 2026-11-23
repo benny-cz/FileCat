@@ -34,7 +34,11 @@ public sealed partial class MainViewModel
                     status.Acknowledgment.AcknowledgedUtc, "Verified retained storage review", string.Empty, true) { StorageAcknowledgment = status.Acknowledgment });
                 Operations.UpdateSummary();
             }
-            string report = StorageHistoryReport.Format(status);
+            // Evidence handles are closed; the current observation takes the native lane on its own owned delegate.
+            scope.SetPhase(RecoveryActionPhase.Reviewing, "Observing the recorded items as they are now, without changing them…");
+            var (current, observedUtc) = await ObserveStorageObjectsAsync(status.Current.History, scope);
+            scope.Check();
+            string report = StorageHistoryReport.Format(status, current, observedUtc);
             var window = new ReportWindow("Storage history snapshot", Formatters.SafeName(job.Title), _ => Task.FromResult(report));
             window.ConfigureStorageReview(report, () => SaveStorageCallDetailsAsync(job, status.Current), status.ReviewPending
                 ? async () => { if (await AcknowledgeStorageHistoryAsync(job, status, report)) window.Close(); } : null);
@@ -46,6 +50,18 @@ public sealed partial class MainViewModel
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         { if (EditSessionsActive) Notify("Storage history could not be reviewed: " + Formatters.SafeName(ex.Message), true); return null; }
         finally { EndRecoveryAction(scope); }
+    }
+
+    /// <summary>The recorded roots and the last call's object, read now (§6.5.2); each is released before the report shows.</summary>
+    private async Task<(IReadOnlyList<StorageCurrentObservation> Current, DateTime ObservedUtc)> ObserveStorageObjectsAsync(
+        StorageHistorySnapshot history, RecoveryActionScope scope)
+    {
+        var objects = history.Roots.Select(r => (r.Path, r.Observation.IsDirectory)).ToList();
+        if (history.LastCall is { } call && objects.All(o => o.Path != call.Path)) objects.Add((call.Path, call.Before.IsDirectory));
+        if (objects.Count == 0) return ([], DateTime.UtcNow);
+        var observed = await Services.Io.RunOwned(PathUtil.GetDeviceKey(objects[0].Path), IoPriority.Interactive,
+            ct => { scope.Check(); return Services.Jobs.ObserveStorageObjects(objects, ct); }, scope.StopSource.Token);
+        return (observed, DateTime.UtcNow);
     }
 
     internal async Task<ReportWindow?> ShowRetainedStorageHistoryAsync(RecoveryReviewRecord row)

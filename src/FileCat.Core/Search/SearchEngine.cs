@@ -641,8 +641,21 @@ public sealed class SearchSession
         }
         if (_query.ModifiedAfterUtc is { } after && info.LastWriteTimeUtc < after) return false;
         if (_query.ModifiedBeforeUtc is { } before && info.LastWriteTimeUtc > before) return false;
-        if (_query.CreatedAfterUtc is { } createdAfter && info.CreationTimeUtc < createdAfter) return false;
-        if (_query.CreatedBeforeUtc is { } createdBefore && info.CreationTimeUtc > createdBefore) return false;
+        if (_query.CreatedAfterUtc is not null || _query.CreatedBeforeUtc is not null)
+        {
+            // Linux: the birth time, where the file system keeps one (.NET's is the earlier of the modification and status
+            // change times, a time the item may never have been made at).
+            long born = OperatingSystem.IsLinux() ? LinuxBirthTime.Ticks(info.FullName) : info.CreationTimeUtc.Ticks;
+            if (born <= 0)
+            {
+                AddLog(SearchLogKind.Inaccessible, info.FullName,
+                    "Its file system keeps no creation (birth) time; creation-time criteria cannot be checked.");
+                return false;
+            }
+            var created = new DateTime(born, DateTimeKind.Utc);
+            if (_query.CreatedAfterUtc is { } createdAfter && created < createdAfter) return false;
+            if (_query.CreatedBeforeUtc is { } createdBefore && created > createdBefore) return false;
+        }
         if (!isDir && _query.HasContent)
         {
             Interlocked.Increment(ref FilesExamined);
@@ -854,16 +867,25 @@ public sealed class SearchSession
         AddResult(info, isDir, rel);
     }
 
+    /// <summary>
+    /// A match as a reference. A reparse point carries its tag, by which the results list tells a link from another
+    /// reparse point: an earlier result's tag while its metadata still agrees, else the tag read from the item itself
+    /// (never followed). The .NET listing the search walks reports no tags, and ordinary items need none, so they cost
+    /// no extra read. The tag only labels the result; traversal decides on the raw attributes alone.
+    /// </summary>
     private void AddResult(FileSystemInfo info, bool isDir, string relativeFolder, ItemRef? earlier = null)
     {
         var parentPath = Path.GetDirectoryName(info.FullName) ?? info.FullName;
         var kind = isDir ? EntryKind.Directory : EntryKind.File;
         long size = isDir ? -1 : ((FileInfo)info).Length, modified = info.LastWriteTimeUtc.Ticks;
-        uint refreshedAttributes = earlier is { NativeReparseTag: not 0 } ? (uint)info.Attributes : 0;
+        uint attributes = (uint)info.Attributes;
+        uint tag = earlier?.RetainReparseTag(kind, attributes, size, modified) ?? 0;
+        if (tag == 0 && (attributes & (uint)FileAttributes.ReparsePoint) != 0) tag = ReparseLinks.ReadTag(info.FullName);
         var item = new ItemRef(Location.FileSystem(parentPath), info.Name, kind, size, modified)
         {
-            NativeAttributes = refreshedAttributes,
-            NativeReparseTag = earlier?.RetainReparseTag(kind, refreshedAttributes, size, modified) ?? 0,
+            // The attributes travel with the tag: a refresh keeps the tag only while they still agree.
+            NativeAttributes = tag != 0 ? attributes : 0,
+            NativeReparseTag = tag,
         };
         _results.Add(item, relativeFolder);
         long m = Interlocked.Increment(ref Matches);

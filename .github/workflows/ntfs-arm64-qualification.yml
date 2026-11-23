@@ -87,6 +87,10 @@ on:
         description: Compare native and managed listing on a mapped and UNC SMB share
         type: boolean
         default: false
+      release_gates:
+        description: Run the x64 compression release gates natively (traversal, executor, admission, crash, cross-process Cloud Files)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -452,6 +456,107 @@ jobs:
           $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
           $root = Join-Path $env:RUNNER_TEMP ('filecat-native-storage-volumes-' + [guid]::NewGuid().ToString('N'))
           ./eng/validation/Invoke-NtfsVolumeAdmission.ps1 -ScratchRoot $root
+      - name: Prepare the release-gate fixture volumes
+        if: inputs.release_gates
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = Join-Path $env:RUNNER_TEMP 'filecat-native-storage-abi-evidence'
+          $log = Join-Path $evidence 'release-fixtures.txt'
+          # An owned VHDX volume: formatted NTFS with the given allocation unit, at a drive letter or a folder mount point.
+          function New-FixtureVolume([string]$Name, [int]$SizeMB, [int]$Unit, [string]$Label, [string]$MountFolder) {
+            # Clusters below 4 KiB need 512-byte physical sectors, which a .vhd provides and a .vhdx does not.
+            $vhd = Join-Path $env:RUNNER_TEMP ("filecat-release-$Name." + $(if ($Unit -lt 4096) { 'vhd' } else { 'vhdx' }))
+            $script = Join-Path $env:RUNNER_TEMP "filecat-release-$Name-dp.txt"
+            "create vdisk file=`"$vhd`" maximum=$SizeMB type=expandable" | Set-Content -LiteralPath $script -Encoding ascii
+            & diskpart.exe /s $script | Out-Null
+            if (!(Test-Path -LiteralPath $vhd)) { throw "The $Name VHDX was not created." }
+            Mount-DiskImage -ImagePath $vhd -NoDriveLetter | Out-Null
+            $disk = Get-DiskImage -ImagePath $vhd | Get-Disk
+            if ($disk.PartitionStyle -ne 'RAW' -or $disk.IsBoot -or $disk.IsSystem) { throw "Unexpected $Name fixture disk." }
+            $disk | Initialize-Disk -PartitionStyle GPT
+            if ($MountFolder) {
+              $part = $disk | New-Partition -UseMaximumSize
+              Format-Volume -Partition $part -FileSystem NTFS -AllocationUnitSize $Unit -NewFileSystemLabel $Label -Confirm:$false | Out-Null
+              New-Item -ItemType Directory -Path $MountFolder | Out-Null
+              Add-PartitionAccessPath -DiskNumber $disk.Number -PartitionNumber $part.PartitionNumber -AccessPath ($MountFolder + '\')
+              Add-Content $log "fixture $Name unit $Unit mounted at $MountFolder"
+              return $MountFolder
+            }
+            $part = $disk | New-Partition -UseMaximumSize -AssignDriveLetter
+            Format-Volume -Partition $part -FileSystem NTFS -AllocationUnitSize $Unit -NewFileSystemLabel $Label -Confirm:$false | Out-Null
+            $letter = (Get-Partition -DiskNumber $disk.Number -PartitionNumber $part.PartitionNumber).DriveLetter
+            Add-Content $log "fixture $Name unit $Unit letter $letter"
+            return "${letter}:"
+          }
+
+          # No Cloud Files filter instance: the no-filter admission case.
+          $drive = New-FixtureVolume 'nofilter' 1024 4096 'FCNOFILTER' $null
+          & fltmc.exe detach CldFlt $drive 2>&1 | Out-Null
+          $instances = & fltmc.exe instances -v $drive
+          $instances | Set-Content -LiteralPath (Join-Path $evidence 'release-nofilter-instances.txt')
+          if ($instances -match '^\s*CldFlt\s') { throw 'The Cloud Files filter is still attached to the no-filter volume.' }
+          $owned = New-Item -ItemType Directory -Path "$drive\owned"
+          "FILECAT_STORAGE_NATIVE_NOFILTER_ROOT=$($owned.FullName)" | Add-Content $env:GITHUB_ENV
+
+          # A small volume the full-capacity case fills, with its canary.
+          $drive = New-FixtureVolume 'full' 256 4096 'FCFreshArm64' $null
+          Set-Content -LiteralPath "$drive\canary.txt" -Value 'FileCat capacity fixture' -Encoding ascii
+          "FILECAT_STORAGE_NATIVE_FULL_TARGET=$drive\canary.txt" | Add-Content $env:GITHUB_ENV
+
+          # Volumes with 512-, 1,024- and 2,048-byte allocation units.
+          $roots = foreach ($unit in 512, 1024, 2048) {
+            $drive = New-FixtureVolume "unit$unit" 128 $unit "FCUNIT$unit" $null
+            (New-Item -ItemType Directory -Path "$drive\owned").FullName
+          }
+          "FILECAT_STORAGE_NATIVE_SMALL_UNIT_ROOTS=$($roots -join ';')" | Add-Content $env:GITHUB_ENV
+
+          # A volume mounted on an empty folder, holding mounted.bin at its root.
+          $mount = Join-Path $env:RUNNER_TEMP 'filecat-release-mount'
+          New-FixtureVolume 'mount' 128 4096 'FCMOUNT' $mount | Out-Null
+          [IO.File]::WriteAllBytes((Join-Path $mount 'mounted.bin'), [Text.Encoding]::ASCII.GetBytes('FileCat mounted volume payload'))
+          "FILECAT_STORAGE_NATIVE_MOUNT_FOLDER=$mount" | Add-Content $env:GITHUB_ENV
+
+          # A WOF-backed file on the system volume.
+          $wofRoot = New-Item -ItemType Directory -Path (Join-Path $env:RUNNER_TEMP 'filecat-release-wof')
+          $wof = Join-Path $wofRoot.FullName 'wof-backed.txt'
+          [IO.File]::WriteAllText($wof, ('FileCat WOF fixture line ' * 40000))
+          & compact.exe /c /exe:xpress4k $wof | Set-Content -LiteralPath (Join-Path $evidence 'release-wof.txt')
+          # fsutil reports a WOF file as no reparse point on this build; compact's own query states its backing.
+          & compact.exe /q /exe $wof | Add-Content -LiteralPath (Join-Path $evidence 'release-wof.txt')
+          "FILECAT_STORAGE_NATIVE_WOF_TARGET=$wof" | Add-Content $env:GITHUB_ENV
+          Get-Content $log
+          exit 0
+      - name: Qualify the compression release gates natively at medium integrity
+        if: inputs.release_gates
+        shell: pwsh
+        run: |
+          $fixture = Join-Path $env:RUNNER_TEMP 'filecat-native-storage-abi-fixture'
+          if (!(Test-Path -LiteralPath $fixture -PathType Container)) { throw 'The prepared private NTFS fixture is missing.' }
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ROOT = $fixture
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS = '1'
+          $env:FILECAT_TEST_CLOUD_FILES = '1'
+          $env:FILECAT_TEST_EFS = '1'
+          $env:TMP = $fixture
+          $env:TEMP = $fixture
+          $filter = @(
+            'WindowsStorageTraversalTests'
+            'WindowsStorageExecutorTests'
+            'WindowsStorageAdmissionTests'
+            'WindowsStorageCrashTests'
+            'WindowsFileRecordsTests.Storage_changes_from_another_process_refuse_the_sync_root_and_its_placeholder'
+            'WindowsFileRecordsTests.Storage_changes_never_enter_a_registered_sync_root_or_ask_its_provider_for_data'
+          ) | ForEach-Object { "FullyQualifiedName~$_" }
+          ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Platform.Windows.Tests -LogFileName native-release-gates.trx -Filter ($filter -join '|')
+          $exit = $LASTEXITCODE
+          $results = 'tests/FileCat.Platform.Windows.Tests/TestResults/native-release-gates.trx'
+          Copy-Item -LiteralPath $results -Destination (Join-Path $env:RUNNER_TEMP 'filecat-native-storage-abi-evidence') -ErrorAction SilentlyContinue
+          if ($exit -ne 0) { exit $exit }
+          [xml]$receipt = Get-Content -LiteralPath $results -Raw
+          $counters = $receipt.TestRun.ResultSummary.Counters
+          "release gates: total $($counters.total), executed $($counters.executed), passed $($counters.passed), failed $($counters.failed)"
+          if ($counters.failed -ne '0' -or [int]$counters.passed -lt 1) { throw 'The release gates must execute without failures.' }
       - name: Qualify compression and EFS across owned VHDX detachment
         if: inputs.device_loss
         shell: pwsh

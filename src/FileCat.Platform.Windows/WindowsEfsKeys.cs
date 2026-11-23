@@ -54,7 +54,11 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
                 int error = Marshal.GetLastPInvokeError();
                 return Error(invokerSid, certificateSha1, error == NotFound ? false : null, null, error, "efs-certificate-missing", "The exact file-associated certificate was not found in CurrentUser My.");
             }
-            try { return ProbeHeldCertificate(certificate, invokerSid, certificateSha1, ct, useMatchedCertificate, interaction, capi); }
+            try
+            {
+                var evidence = ProbeHeldCertificate(certificate, invokerSid, certificateSha1, ct, useMatchedCertificate, interaction, capi);
+                return evidence with { ProviderName = BoundProviderName(certificate, ct) };
+            }
             finally { FreeCertificate(certificate); }
         }
         finally { CloseStore(store, 0); }
@@ -147,6 +151,13 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
             }
         }
         finally { FreeCertificate(fresh); }
+    }
+
+    // The provider named by the stored key association, so a caller can tell a software key from one behind a smart card.
+    private static string? BoundProviderName(nint certificate, CancellationToken ct)
+    {
+        try { return ReadBinding(certificate, ct).Provider; }
+        catch (KeyInspectionException) { return null; }
     }
 
     private static string? CertificateSubject(nint certificate)

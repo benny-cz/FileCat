@@ -1,0 +1,212 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="73eddf5f-4861-48e3-adef-118c344c07c3" name="runneradmin@runnervmjtlf1 2026-11-21 11:33:33" runUser="runnervmjtlf1\runneradmin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-21T11:33:34.0060541-08:00" queuing="2026-11-21T11:33:34.0060543-08:00" start="2026-11-21T11:33:29.8664416-08:00" finish="2026-11-21T11:33:53.3325691-08:00" />
+  <TestSettings name="default" id="460f3de9-400d-4e79-8f3e-453e19ceeb69">
+    <Deployment runDeploymentRoot="runneradmin_runnervmjtlf1_2026-11-21_11_33_33" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="bfa25f10-065a-4b6e-ae29-37f92e4e9dfa" testId="fe73826e-f170-4dcc-b050-cf7d50d6766c" testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Listing_a_sync_root_opens_none_of_its_placeholders_on_either_route" computerName="runnervmjtlf1" duration="00:00:00.0010000" startTime="2026-11-21T11:33:32.4552612-08:00" endTime="2026-11-21T11:33:46.6227739-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="bfa25f10-065a-4b6e-ae29-37f92e4e9dfa">
+      <Output>
+        <ErrorInfo>
+          <Message>This Windows build reports only data-access opens to the provider. Listing caused none, but metadata-only opens are unobservable here.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="461cad75-9daf-4cd0-a570-ef601a38fa44" testId="b0ac8337-64d2-c1f6-ba39-7464355a5025" testName="FileCat.Platform.Windows.Tests.PlaceholderViewTests.Without_the_export_the_read_keeps_the_view_the_thread_has" computerName="runnervmjtlf1" duration="00:00:00.0006674" startTime="2026-11-21T11:33:32.5215604-08:00" endTime="2026-11-21T11:33:32.5224578-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="461cad75-9daf-4cd0-a570-ef601a38fa44" />
+    <UnitTestResult executionId="b4189aa0-f898-47a7-941f-0e41245a3ba2" testId="87ad2fe4-61a7-f5ea-1bfa-4506d2db0ef8" testName="FileCat.Platform.Windows.Tests.PlaceholderViewTests.Pool_threads_leave_with_the_mode_they_arrived_with_after_failure_and_cancellation" computerName="runnervmjtlf1" duration="00:00:00.0448911" startTime="2026-11-21T11:33:32.4552576-08:00" endTime="2026-11-21T11:33:32.5116301-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b4189aa0-f898-47a7-941f-0e41245a3ba2" />
+    <UnitTestResult executionId="ea78229f-12a0-417f-88b5-345696e36587" testId="71d06784-b152-2bc9-c9ba-3126bbb20cdb" testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Another_process_describes_placeholders_as_cloud_files_and_operates_on_them_as_ordinary_ones" computerName="runnervmjtlf1" duration="00:00:00.8347571" startTime="2026-11-21T11:33:46.6270133-08:00" endTime="2026-11-21T11:33:47.4618648-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ea78229f-12a0-417f-88b5-345696e36587">
+      <Output>
+        <StdOut>Child: cloud.txt tag 0x9000401A, attributes 0x00401620 (disguised 0x00400020), flags Offline&#xD;
+Child: folder tag 0x9000601A, attributes 0x00000410 (disguised 0x00000010), flags None&#xD;
+Child: gone.txt tag 0x9000601A, attributes 0x00000420 (disguised 0x00000020), flags None&#xD;
+Child: kept.txt tag 0x9000601A, attributes 0x00000420 (disguised 0x00000020), flags None&#xD;
+Child: moved.txt tag 0x9000601A, attributes 0x00000420 (disguised 0x00000020), flags None&#xD;
+Child: cloud.txt details tag 0x9000401A; record: pin state unspecified (its provider decides); provider FileCat exposure test 1.0 · idle&#xD;
+Child: kept.txt details tag 0x9000601A; record: pin state unspecified (its provider decides); provider FileCat exposure test 1.0 · idle&#xD;
+Child: folder details tag 0x9000601A; record: pin state unspecified (its provider decides); provider FileCat exposure test 1.0 · idle&#xD;
+Child: copied kept.txt and folder out, moved moved.txt into folder, deleted gone.txt, found folder\inner.txt</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="741cddfa-eba5-4c11-a21c-a52432048eea" testId="dceb8766-0e86-bc5d-b994-62da760dd355" testName="FileCat.Platform.Windows.Tests.PlaceholderViewTests.Exposure_is_scoped_to_the_calling_thread_and_always_restored" computerName="runnervmjtlf1" duration="00:00:00.0042308" startTime="2026-11-21T11:33:32.5227520-08:00" endTime="2026-11-21T11:33:32.5270138-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="741cddfa-eba5-4c11-a21c-a52432048eea" />
+    <UnitTestResult executionId="51e1a3db-2e79-4111-b64c-d43ae6657145" testId="162f3e47-ae20-6b88-6366-eb37ad249947" testName="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.A_cloud_placeholder_reads_its_state_without_being_downloaded" computerName="runnervmjtlf1" duration="00:00:05.7398728" startTime="2026-11-21T11:33:47.4627478-08:00" endTime="2026-11-21T11:33:53.2026710-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="51e1a3db-2e79-4111-b64c-d43ae6657145">
+      <Output>
+        <StdOut>Supplementary data was omitted for this cloud-managed or offline item.
+File-system record · NTFS&#xD;
+&#xD;
+Item&#xD;
+  Path        C:\Users\runneradmin\AppData\Local\Temp\filecat-record-tests\b2510462d0c0406c869520cbfcd4dd1e\cloud.txt&#xD;
+  Kind        file with a reparse point&#xD;
+  Volume      C:\ · NTFS “Windows” · serial 8473-1912&#xD;
+  MFT record  932,216 (0xE3978), sequence 3&#xD;
+  File ID     0x00030000000E3978&#xD;
+  Parent      record 932,215, sequence 3 · C:\Users\runneradmin\AppData\Local\Temp\filecat-record-tests\b2510462d0c0406c869520cbfcd4dd1e&#xD;
+  Attributes  0x00401620: archive, sparse, reparse point, offline, recall on data access&#xD;
+  8.3 name    none (its name fits 8.3, or 8.3 names are off on this volume)&#xD;
+  Hard links  1 (this name only)&#xD;
+&#xD;
+Reparse point&#xD;
+  Tag   0x9000401A Cloud Files placeholder (OneDrive, iCloud, and other sync apps) · Microsoft, can be a folder&#xD;
+  Data  140 bytes&#xD;
+&#xD;
+  0000  01 00 8C 00 46 65 52 70 BE 69 DF 26 88 00 00 00  ....FeRp.i.&amp;....&#xD;
+  0010  02 00 0A 00 07 00 01 00 60 00 00 00 0A 00 04 00  ........`.......&#xD;
+  0020  64 00 00 00 06 00 08 00 7C 00 00 00 11 00 12 00  d.......|.......&#xD;
+  0030  68 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  h...............&#xD;
+  0040  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................&#xD;
+  0050  00 00 00 00 00 00 00 00 00 00 00 00 0A 00 04 00  ................&#xD;
+  0060  84 00 00 00 01 00 00 00 40 00 00 00 66 69 6C 65  ........@...file&#xD;
+  0070  63 61 74 2D 69 64 65 6E 74 69 74 79 2D 31 00 00  cat-identity-1..&#xD;
+  … 12 more bytes&#xD;
+&#xD;
+Cloud placeholder (Cloud Files)&#xD;
+  On this device  0 bytes of 5,000 bytes (4.88 KiB): none of it (only in the cloud)&#xD;
+  Validated       0 bytes (what its provider has confirmed is current)&#xD;
+  Changed here    0 bytes&#xD;
+  Pin state       unspecified (its provider decides)&#xD;
+  In sync         in sync (provider-reported)&#xD;
+  File ID         0x00030000000E3978 (its own)&#xD;
+  Sync root       C:\Users\runneradmin\AppData\Local\Temp\filecat-record-tests\b2510462d0c0406c869520cbfcd4dd1e · file ID 0x00030000000E3977&#xD;
+  Provider        FileCat test 1.0 · idle&#xD;
+  Downloads       full (all of it before a read completes)&#xD;
+  Folders         always full (folders are always complete on this device)&#xD;
+  Its identity    18 bytes: its provider's own name for it (below)&#xD;
+&#xD;
+  Cloud Files metadata is requested through the item's metadata handle. FileCat requests no content or state&#xD;
+  mutation; providers may still perform network or OS activity. Pin policy, reported local data and&#xD;
+  synchronization are separate observations.&#xD;
+  Its identity:&#xD;
+  0000  66 69 6C 65 63 61 74 2D 69 64 65 6E 74 69 74 79  filecat-identity&#xD;
+  0010  2D 31                                            -1&#xD;
+&#xD;
+Layout on disk&#xD;
+  Size          5,000 bytes (4.88 KiB)&#xD;
+  Allocated     0 bytes&#xD;
+  Cluster size  4,096 bytes (4 KiB)&#xD;
+  Sparse        yes (stored ranges were not queried for this cloud-managed or offline item)&#xD;
+  Fragments     0 (1 extent on the volume)&#xD;
+&#xD;
+  VCN  LCN  Clusters  Where&#xD;
+  ───  ───  ────────  ───────────────────────&#xD;
+    0  —          16  sparse (nothing stored)&#xD;
+&#xD;
+Supplementary data was omitted for this cloud-managed or offline item.
+File-system record · NTFS&#xD;
+&#xD;
+Item&#xD;
+  Path        C:\Users\runneradmin\AppData\Local\Temp\filecat-record-tests\b2510462d0c0406c869520cbfcd4dd1e\cloud.txt&#xD;
+  Kind        file with a reparse point&#xD;
+  Volume      C:\ · NTFS “Windows” · serial 8473-1912&#xD;
+  MFT record  932,216 (0xE3978), sequence 3&#xD;
+  File ID     0x00030000000E3978&#xD;
+  Parent      record 932,215, sequence 3 · C:\Users\runneradmin\AppData\Local\Temp\filecat-record-tests\b2510462d0c0406c869520cbfcd4dd1e&#xD;
+  Attributes  0x00401620: archive, sparse, reparse point, offline, recall on data access&#xD;
+  8.3 name    none (its name fits 8.3, or 8.3 names are off on this volume)&#xD;
+  Hard links  1 (this name only)&#xD;
+&#xD;
+Reparse point&#xD;
+  Tag   0x9000401A Cloud Files placeholder (OneDrive, iCloud, and other sync apps) · Microsoft, can be a folder&#xD;
+  Data  140 bytes&#xD;
+&#xD;
+  0000  01 00 8C 00 46 65 52 70 BE 69 DF 26 88 00 00 00  ....FeRp.i.&amp;....&#xD;
+  0010  02 00 0A 00 07 00 01 00 60 00 00 00 0A 00 04 00  ........`.......&#xD;
+  0020  64 00 00 00 06 00 08 00 7C 00 00 00 11 00 12 00  d.......|.......&#xD;
+  0030  68 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  h...............&#xD;
+  0040  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................&#xD;
+  0050  00 00 00 00 00 00 00 00 00 00 00 00 0A 00 04 00  ................&#xD;
+  0060  84 00 00 00 01 00 00 00 40 00 00 00 66 69 6C 65  ........@...file&#xD;
+  0070  63 61 74 2D 69 64 65 6E 74 69 74 79 2D 31 00 00  cat-identity-1..&#xD;
+  … 12 more bytes&#xD;
+&#xD;
+Cloud placeholder (Cloud Files)&#xD;
+  On this device  0 bytes of 5,000 bytes (4.88 KiB): none of it (only in the cloud)&#xD;
+  Validated       0 bytes (what its provider has confirmed is current)&#xD;
+  Changed here    0 bytes&#xD;
+  Pin state       unspecified (its provider decides)&#xD;
+  In sync         in sync (provider-reported)&#xD;
+  File ID         0x00030000000E3978 (its own)&#xD;
+  Sync root       C:\Users\runneradmin\AppData\Local\Temp\filecat-record-tests\b2510462d0c0406c869520cbfcd4dd1e · file ID 0x00030000000E3977&#xD;
+  Provider        FileCat test 1.0 · idle&#xD;
+  Downloads       full (all of it before a read completes)&#xD;
+  Folders         always full (folders are always complete on this device)&#xD;
+  Its identity    18 bytes: its provider's own name for it (below)&#xD;
+&#xD;
+  Cloud Files metadata is requested through the item's metadata handle. FileCat requests no content or state&#xD;
+  mutation; providers may still perform network or OS activity. Pin policy, reported local data and&#xD;
+  synchronization are separate observations.&#xD;
+  Its identity:&#xD;
+  0000  66 69 6C 65 63 61 74 2D 69 64 65 6E 74 69 74 79  filecat-identity&#xD;
+  0010  2D 31                                            -1&#xD;
+&#xD;
+Layout on disk&#xD;
+  Size          5,000 bytes (4.88 KiB)&#xD;
+  Allocated     0 bytes&#xD;
+  Cluster size  4,096 bytes (4 KiB)&#xD;
+  Sparse        yes (stored ranges were not queried for this cloud-managed or offline item)&#xD;
+  Fragments     0 (1 extent on the volume)&#xD;
+&#xD;
+  VCN  LCN  Clusters  Where&#xD;
+  ───  ───  ────────  ───────────────────────&#xD;
+    0  —          16  sparse (nothing stored)</StdOut>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Listing_a_sync_root_opens_none_of_its_placeholders_on_either_route" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="fe73826e-f170-4dcc-b050-cf7d50d6766c">
+      <Execution id="bfa25f10-065a-4b6e-ae29-37f92e4e9dfa" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Listing_a_sync_root_opens_none_of_its_placeholders_on_either_route" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.PlaceholderViewTests.Exposure_is_scoped_to_the_calling_thread_and_always_restored" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="dceb8766-0e86-bc5d-b994-62da760dd355">
+      <Execution id="741cddfa-eba5-4c11-a21c-a52432048eea" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.PlaceholderViewTests" name="Exposure_is_scoped_to_the_calling_thread_and_always_restored" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Another_process_describes_placeholders_as_cloud_files_and_operates_on_them_as_ordinary_ones" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="71d06784-b152-2bc9-c9ba-3126bbb20cdb">
+      <Execution id="ea78229f-12a0-417f-88b5-345696e36587" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="Another_process_describes_placeholders_as_cloud_files_and_operates_on_them_as_ordinary_ones" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.PlaceholderViewTests.Pool_threads_leave_with_the_mode_they_arrived_with_after_failure_and_cancellation" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="87ad2fe4-61a7-f5ea-1bfa-4506d2db0ef8">
+      <Execution id="b4189aa0-f898-47a7-941f-0e41245a3ba2" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.PlaceholderViewTests" name="Pool_threads_leave_with_the_mode_they_arrived_with_after_failure_and_cancellation" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.PlaceholderViewTests.Without_the_export_the_read_keeps_the_view_the_thread_has" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="b0ac8337-64d2-c1f6-ba39-7464355a5025">
+      <Execution id="461cad75-9daf-4cd0-a570-ef601a38fa44" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.PlaceholderViewTests" name="Without_the_export_the_read_keeps_the_view_the_thread_has" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.A_cloud_placeholder_reads_its_state_without_being_downloaded" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="162f3e47-ae20-6b88-6366-eb37ad249947">
+      <Execution id="51e1a3db-2e79-4111-b64c-d43ae6657145" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsFileRecordsTests" name="A_cloud_placeholder_reads_its_state_without_being_downloaded" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="fe73826e-f170-4dcc-b050-cf7d50d6766c" executionId="bfa25f10-065a-4b6e-ae29-37f92e4e9dfa" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b0ac8337-64d2-c1f6-ba39-7464355a5025" executionId="461cad75-9daf-4cd0-a570-ef601a38fa44" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="87ad2fe4-61a7-f5ea-1bfa-4506d2db0ef8" executionId="b4189aa0-f898-47a7-941f-0e41245a3ba2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="71d06784-b152-2bc9-c9ba-3126bbb20cdb" executionId="ea78229f-12a0-417f-88b5-345696e36587" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="dceb8766-0e86-bc5d-b994-62da760dd355" executionId="741cddfa-eba5-4c11-a21c-a52432048eea" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="162f3e47-ae20-6b88-6366-eb37ad249947" executionId="51e1a3db-2e79-4111-b64c-d43ae6657145" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="6" executed="5" passed="5" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.15)&#xD;
+[xUnit.net 00:00:00.27]   Discovering: FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:01.79]   Discovered:  FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:02.02]   Starting:    FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:16.27]       This Windows build reports only data-access opens to the provider. Listing caused none, but metadata-only opens are unobservable here.&#xD;
+[xUnit.net 00:00:16.27]       Output:&#xD;
+[xUnit.net 00:00:16.27]         Child: process placeholder mode 1; native tags 0x9000401A; attributes 0x00401620, disguised 0x00400020&#xD;
+[xUnit.net 00:00:16.27]         Placeholder opens: listing 0; first control the provider observed: data access without a read&#xD;
+Test 'FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Listing_a_sync_root_opens_none_of_its_placeholders_on_either_route' was skipped in the test run.&#xD;
+[xUnit.net 00:00:22.86]   Finished:    FileCat.Platform.Windows.Tests (ID = 'a01939c32015dcf8cf76016c79755b847ab552dac5bad90e3e6dd7668fd98cae')&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="runnervmjtlf1" outcome="Warning" timestamp="2026-11-21T11:33:46.6256157-08:00">
+        <Text>[xUnit.net 00:00:16.27]     FileCat.Platform.Windows.Tests.WindowsFileRecordsTests.Listing_a_sync_root_opens_none_of_its_placeholders_on_either_route [SKIP]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

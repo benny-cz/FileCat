@@ -3,7 +3,8 @@ namespace FileCat.Core.FileSystem;
 /// <summary>
 /// Watches one open folder (not recursively, not every persisted tab; plan §8.2). Notifications are only
 /// invalidation hints (AI-08): they are coalesced and trigger a revalidating refresh; an overflow or error also
-/// refreshes. Refreshes of large folders are throttled so churn cannot cause an endless rescan.
+/// refreshes. Refreshes of large folders are throttled so churn cannot cause an endless rescan, and a folder that keeps
+/// changing (a log written every second, as in C:\Windows) is read again at most every <see cref="ChurnInterval"/>.
 /// </summary>
 public sealed class ChangeMonitor : IDisposable
 {
@@ -13,6 +14,10 @@ public sealed class ChangeMonitor : IDisposable
     private readonly object _lock = new();
     private DateTime _firstPending = DateTime.MaxValue;
     private DateTime _lastFire = DateTime.MinValue;
+    private DateTime _lastNotice = DateTime.MinValue;
+    private readonly Queue<DateTime> _recentFires = new();
+    private bool _churning;
+    private Timer? _calm;
     private bool _disposed;
     private Timer? _rearm;
     private int _rearmAttempts;
@@ -59,6 +64,22 @@ public sealed class ChangeMonitor : IDisposable
     /// <summary>Minimum time between rereads; set from the last listing duration.</summary>
     public TimeSpan MinInterval { get; set; } = TimeSpan.FromMilliseconds(300);
 
+    /// <summary>
+    /// While the folder keeps changing, the time between rereads (at least): rereading a busy folder every second shows
+    /// nothing a reader can follow and costs a full read each time. <see cref="ChurnRereads"/> rereads within
+    /// <see cref="ChurnWindow"/> start it; <see cref="CalmAfter"/> without a change ends it.
+    /// </summary>
+    public TimeSpan ChurnInterval { get; internal set; } = TimeSpan.FromSeconds(2);
+    internal const int ChurnRereads = 3;
+    internal TimeSpan ChurnWindow { get; set; } = TimeSpan.FromSeconds(10);
+    internal TimeSpan CalmAfter { get; set; } = TimeSpan.FromSeconds(10);
+
+    /// <summary>Whether the folder keeps changing, so that it is read again only every <see cref="ChurnInterval"/>.</summary>
+    public bool IsChurning { get { lock (_lock) return _churning; } }
+
+    /// <summary>Raised on a worker thread when the folder starts or stops changing often (<see cref="IsChurning"/>).</summary>
+    public event Action? ChurnChanged;
+
     /// <summary>Reports a change once more, as a notification would (one that arrived while the folder was being read).</summary>
     public void Again() => Pending();
 
@@ -83,9 +104,41 @@ public sealed class ChangeMonitor : IDisposable
         {
             if (_disposed) return;
             var now = DateTime.UtcNow;
+            _lastNotice = now;
             if (_firstPending == DateTime.MaxValue) _firstPending = now;
-            _debounce.Change(RefreshDelay(now, _firstPending, _lastFire, MinInterval), Timeout.InfiniteTimeSpan);
+            var interval = _churning && ChurnInterval > MinInterval ? ChurnInterval : MinInterval;
+            _debounce.Change(RefreshDelay(now, _firstPending, _lastFire, interval), Timeout.InfiniteTimeSpan);
+            if (_churning) _calm?.Change(CalmAfter, Timeout.InfiniteTimeSpan);
         }
+    }
+
+    /// <summary>A reread happened: three within the window mean the folder keeps changing.</summary>
+    private bool NoteFire(DateTime now)
+    {
+        _recentFires.Enqueue(now);
+        while (_recentFires.Count > 0 && now - _recentFires.Peek() > ChurnWindow) _recentFires.Dequeue();
+        if (_churning || _recentFires.Count < ChurnRereads) return false;
+        _churning = true;
+        (_calm ??= new Timer(_ => Calm(), null, Timeout.Infinite, Timeout.Infinite)).Change(CalmAfter, Timeout.InfiniteTimeSpan);
+        return true;
+    }
+
+    /// <summary>No change for <see cref="CalmAfter"/>: the next change is read again as soon as it settles.</summary>
+    private void Calm()
+    {
+        lock (_lock)
+        {
+            if (_disposed || !_churning) return;
+            var quiet = DateTime.UtcNow - _lastNotice;
+            if (quiet < CalmAfter)
+            {
+                _calm?.Change(CalmAfter - quiet, Timeout.InfiniteTimeSpan);
+                return;
+            }
+            _churning = false;
+            _recentFires.Clear();
+        }
+        ChurnChanged?.Invoke();
     }
 
     internal static TimeSpan RefreshDelay(DateTime now, DateTime firstPending, DateTime lastFire, TimeSpan minInterval)
@@ -152,14 +205,24 @@ public sealed class ChangeMonitor : IDisposable
         finally { Volatile.Write(ref _checking, 0); }
     }
 
+    /// <summary>Runs as a reread falls due, before it takes the monitor's lock (tests: a timer callback held up).</summary>
+    internal Action? BeforeFire { get; set; }
+
     private void Fire()
     {
+        BeforeFire?.Invoke();
+        bool started;
         lock (_lock)
         {
-            if (_disposed) return;
+            // Nothing noticed since the last reread: a notice that came as that reread fell due, before it took this lock,
+            // armed the timer again from the reread before it, and that reread has already read its change. Reading again
+            // here read a busy folder 0.4 s after the last time (seen on macOS in CI).
+            if (_disposed || _firstPending == DateTime.MaxValue) return;
             _firstPending = DateTime.MaxValue;
             _lastFire = DateTime.UtcNow;
+            started = NoteFire(_lastFire);
         }
+        if (started) ChurnChanged?.Invoke();
         _onChange();
     }
 
@@ -173,5 +236,6 @@ public sealed class ChangeMonitor : IDisposable
         _debounce.Dispose();
         _rearm?.Dispose();
         _rootCheck?.Dispose();
+        _calm?.Dispose();
     }
 }
