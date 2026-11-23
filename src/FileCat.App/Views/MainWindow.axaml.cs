@@ -85,7 +85,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         _dialogs = new OverlayDialogService(OverlayHost, () => ActivePanelView()?.List, list =>
         {
             AnnounceRestoredRowIfCurrent(list);
-        });
+        }) { Sizes = vm.Services.DialogSizes };
         _dialogs.OperationsRegion = OperationsPane;
         vm.Dialogs = _dialogs;
         vm.View = this;

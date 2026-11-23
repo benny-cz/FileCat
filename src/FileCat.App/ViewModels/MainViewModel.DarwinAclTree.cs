@@ -16,7 +16,8 @@ public sealed partial class MainViewModel
         var snapshot = item.Snapshot;
         var source = item.Source!;
         var subject = snapshot.Subject with { ExpectedIdentity = snapshot.Binding!.Identity };
-        var behavior = new DialogBehavior { DismissOnBackdrop = false, ConfirmOnListItemEnter = false, PreferredSize = new Avalonia.Size(760, 665) };
+        var behavior = new DialogBehavior { DismissOnBackdrop = false, ConfirmOnListItemEnter = false, PreferredSize = new Avalonia.Size(760, 665),
+            SizeKey = "permissions.darwin-acl-tree" };
         string title = reset ? "Reset descendant access ACLs" : "Refresh inherited access rules";
         var options = new StackPanel { Spacing = 8, Children =
         {
@@ -71,7 +72,7 @@ public sealed partial class MainViewModel
             if (await dialogs.ShowCustomAsync(title, preview,
                     [new("Cancel", "cancel", IsCancel: true), new(applyLabel, "apply", IsDanger: reset)
                         { IsAvailable = () => rows.Length > 0 && accept.IsChecked == true }],
-                    resizable: true, behavior: behavior) is not "apply") return;
+                    resizable: true, behavior: behavior with { SizeKey = "permissions.darwin-acl-tree-review" }) is not "apply") return;
             cancellation.ThrowIfCancellationRequested();
             if (origin is not null && !origin.HasOriginalMarks)
                 throw new PermissionBindingConflictException("The original selection changed. Capture a new review.");

@@ -67,7 +67,6 @@ public sealed partial class MainViewModel
         switch (id)
         {
             case CommandIds.PermissionsOwnership:
-                if (PermissionProcessRefusal() is { } permissionsRefusal) return CommandAvailability.No(permissionsRefusal);
                 if (Scope?.StorageAvailability?.Invoke() is { Enabled: false })
                     return CommandAvailability.No("Wait for the results to finish before inspecting permissions.");
                 return tab is not null && hasItem ? CommandAvailability.Yes : CommandAvailability.No("Focus or mark objects to inspect their permissions.");

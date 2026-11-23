@@ -176,7 +176,7 @@ public sealed partial class FindWindow : Window, IViewActions
         Width = 1040; Height = 720; MinWidth = 640; MinHeight = 420;
         WindowFit.Attach(this);
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }
-        _dialogs = new OverlayDialogService(_overlay, () => _tab is null ? _names : _list);
+        _dialogs = new OverlayDialogService(_overlay, () => _tab is null ? _names : _list) { Sizes = _services.DialogSizes };
         _list.FontSize = vm.ListFontSize;
         _list.ComfortableRows = vm.ComfortableDensity;
         Classes.Set("comfortable", vm.ComfortableDensity);

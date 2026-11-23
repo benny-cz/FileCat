@@ -62,7 +62,8 @@ public sealed partial class DiskSpaceWindow
         using var close = lifetime.Register(() => Dispatcher.UIThread.Post(() => closer.Close(null)));
         lifetime.ThrowIfCancellationRequested();
         await _dialogs.ShowCustomAsync("Review primary-content reads", body,
-            [new DialogButton("Close read review", false, IsDefault: true, IsCancel: true)], closer: closer, resizable: true);
+            [new DialogButton("Close read review", false, IsDefault: true, IsCancel: true)], closer: closer, resizable: true,
+            behavior: new DialogBehavior { SizeKey = "analysis.duplicate-read-review" });
         lifetime.ThrowIfCancellationRequested();
         if (consent is null) return;
         var result = await IndexedComparisonProgressAsync("Reading approved primary contents", token => plan.ReadAsync(consent, token), lifetime,
@@ -148,7 +149,8 @@ public sealed partial class DiskSpaceWindow
         using var close = lifetime.Register(() => Dispatcher.UIThread.Post(() => closer.Close(null)));
         lifetime.ThrowIfCancellationRequested();
         await _dialogs.ShowCustomAsync("Primary-content results", body,
-            [new DialogButton("Close content results", false, IsDefault: true, IsCancel: true)], closer: closer, resizable: true);
+            [new DialogButton("Close content results", false, IsDefault: true, IsCancel: true)], closer: closer, resizable: true,
+            behavior: new DialogBehavior { SizeKey = "analysis.duplicate-read-results" });
 
         static DuplicateReadDisplay Format(AnalysisDuplicateReadRow row, string label)
         {

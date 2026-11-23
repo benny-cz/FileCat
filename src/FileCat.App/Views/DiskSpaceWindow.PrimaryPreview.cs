@@ -68,7 +68,8 @@ public sealed partial class DiskSpaceWindow
         try
         {
             await _dialogs.ShowCustomAsync("File preview", body,
-                [new DialogButton("Close preview", false, IsDefault: true, IsCancel: true)], closer: closer, resizable: true);
+                [new DialogButton("Close preview", false, IsDefault: true, IsCancel: true)], closer: closer, resizable: true,
+                behavior: new DialogBehavior { SizeKey = "analysis.file-preview" });
         }
         finally { content.Text = ""; }
     }

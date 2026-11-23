@@ -1,4 +1,5 @@
 using Avalonia.Input.Platform;
+using FileCat.App.Services;
 using FileCat.App.Views;
 using FileCat.Core.Listing;
 using FileCat.Core.Jobs;
@@ -6,6 +7,7 @@ using FileCat.Core.Permissions;
 using FileCat.Core.Resources;
 using FileCat.Core.State;
 using FileCat.Core.Threading;
+using FileCat.Platform.Windows.Permissions;
 
 namespace FileCat.App.ViewModels;
 
@@ -28,16 +30,53 @@ public sealed partial class MainViewModel
         internal bool IsCurrent => HasOriginalMarks && Tab.Listing.Generation == ListingGeneration;
     }
 
-    internal static string? PermissionProcessRefusal()
+    /// <summary>
+    /// Why this FileCat process changes no permissions (null: it may). An administrator window, or FileCat running as root,
+    /// acts with another token, may run user-writable code and has no per-plan consent (plan §6): it inspects read-only,
+    /// with every change action absent, and points to the usual window for changes.
+    /// </summary>
+    internal static string? PermissionChangeRefusal()
     {
         if (OperatingSystem.IsWindows())
         {
             if (!WindowsTokenAuthority.IsHighIntegrity) return null;
             return WindowsTokenAuthority.HasDefaultElevationType
-                ? "This sign-in has no standard-user token. Sign in with a standard token to inspect permissions."
-                : "Open your usual FileCat window to inspect permissions.";
+                ? "Read-only: this sign-in has no standard-user token. Change permissions after signing in with a standard token."
+                : "Read-only in an administrator window. Change permissions from your usual FileCat window.";
         }
-        return Environment.IsPrivilegedProcess ? "Open an ordinary FileCat window to inspect permissions." : null;
+        return Environment.IsPrivilegedProcess ? "Read-only while FileCat runs as root. Change permissions from an ordinary FileCat window." : null;
+    }
+
+    /// <summary>
+    /// One local object's permissions for display. In an administrator window on Windows x64 the window's own backup and
+    /// security privileges complete the ordinary read (owner, DACL and audit rules even where its DACL denies the
+    /// Administrators group), read-only (G-PRIV). Where that read is refused or fails, the ordinary read stays, and the
+    /// audit section says why.
+    /// </summary>
+    private PermissionInspection InspectLocalPermissions(PermissionSubject subject, PermissionSections sections, CancellationToken ct)
+    {
+        var inspection = Services.Permissions.Inspect(subject, sections, ct);
+        if (Services.Permissions is not WindowsPermissionService || !WindowsPermissionService.CanInspectElevated(inspection.Snapshot))
+            return inspection;
+        try
+        {
+            return WindowsPermissionService.InspectElevated(inspection, WindowsPermissionService.DiscretionarySections | PermissionSections.Audit, ct);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException or
+            System.ComponentModel.Win32Exception)
+        {
+            ct.ThrowIfCancellationRequested();
+            // The binding was given up with the failed read; this window changes nothing, so the observation alone stays.
+            var snapshot = inspection.Snapshot;
+            inspection.Dispose();
+            return new(snapshot with
+            {
+                Audit = snapshot.Audit with
+                {
+                    Reason = "This administrator window could not complete its privileged read: " + Formatters.SafeName(error.Message)
+                }
+            });
+        }
     }
 
     internal static PermissionSelection CapturePermissionsSelection(TabViewModel tab)
@@ -105,7 +144,6 @@ public sealed partial class MainViewModel
     /// </summary>
     internal async Task InspectPlacePermissionsAsync(PanelViewModel panel, Place place)
     {
-        if (PermissionProcessRefusal() is { } refusal) { Notify(refusal); return; }
         if (!place.OpensInPanel || place.Location is not { IsFileSystem: true } location)
         {
             Notify("Only file-system places have permissions to inspect here.");
@@ -139,7 +177,7 @@ public sealed partial class MainViewModel
 
     internal async Task InspectPermissionsAsync(PermissionSelection selection)
     {
-        if ((PermissionProcessRefusal() ?? selection.Refusal) is { } refusal) { Notify(refusal); return; }
+        if (selection.Refusal is { } refusal) { Notify(refusal); return; }
         if (_preparingPermissionInspection) { Notify("A permissions inspection is already opening."); return; }
         if (!selection.IsCurrent) { Notify("The original selection changed. Open its permissions again."); return; }
         var dialogs = Dialogs;
@@ -196,7 +234,7 @@ public sealed partial class MainViewModel
                         var location = target.Subject.OriginalLocation;
                         string device = Services.Providers.For(location).GetDeviceKey(location);
                         inspection = await Services.Io.RunOwned(device, IoPriority.Interactive,
-                            ct => Services.Permissions.Inspect(target.Subject, sections, ct), preparation.Stop.Token);
+                            ct => InspectLocalPermissions(target.Subject, sections, ct), preparation.Stop.Token);
                     }
                     inspections.Add((target, inspection));
                 }
@@ -221,7 +259,7 @@ public sealed partial class MainViewModel
 
     private async Task<string?> InspectRecoveredPermissionsAsync(string path, string identityDigest, CancellationToken cancellation)
     {
-        if (PermissionProcessRefusal() is { } refusal) return refusal;
+        if (PermissionChangeRefusal() is { } refusal) return refusal;
         if (!Path.IsPathFullyQualified(path)) return "The retained locator has no admitted local filesystem path.";
         if (_view?.TopLevel is not Avalonia.Controls.Window { IsVisible: true } main || Services.Io.IsStopped || _dialogs.IsOpen)
             return "Open the owning workspace and close any other dialog before inspecting permissions.";
@@ -239,7 +277,7 @@ public sealed partial class MainViewModel
         await _dialogs.ShowCustomAsync("Current permissions and ownership", new PermissionInspectorView([(path, inspection.Snapshot)],
             clipboard is null ? null : clipboard.SetTextAsync, principalNames: Services.PermissionPrincipalNames),
             [new("Close", "close", IsDefault: true, IsCancel: true)], resizable: true,
-            behavior: new DialogBehavior { DismissOnBackdrop = false });
+            behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(860, 640), SizeKey = "permissions.current" });
         return null;
     }
 }

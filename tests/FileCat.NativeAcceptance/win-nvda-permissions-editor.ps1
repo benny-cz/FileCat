@@ -96,6 +96,8 @@ if ($machine.Manufacturer -notmatch 'VMware' -or [Diagnostics.Process]::GetCurre
 $fixture = Join-Path (Split-Path $report) ('fixture-' + [Guid]::NewGuid().ToString('N'))
 $data = Join-Path $fixture 'data'; $left = Join-Path $fixture 'left'; $right = Join-Path $fixture 'right'; $config = Join-Path $fixture 'nvda-config'
 New-Item -ItemType Directory -Force -Path $data, $left, $right, $config | Out-Null
+# No update check: a development build's update notice would hold the keyboard before the inspector opens.
+[IO.File]::WriteAllText((Join-Path $data 'settings.json'), '{ "SchemaVersion": 1, "CheckForUpdates": false }')
 $witness = Join-Path $left 'acl-witness.txt'
 [IO.File]::WriteAllText($witness, "Permissions editor reader fixture`r`n")
 $before = (Get-Acl -LiteralPath $witness).Sddl
@@ -130,7 +132,8 @@ try {
     Hear 'inspector opens' @('Permissions and ownership dialog') 12
 
     # Keyboard users meet the inspector through its focusable controls: one full Tab cycle must speak the subject, its
-    # access entries and the actions, so nothing that matters is reachable only by mouse or review cursor.
+    # access entries (each a sentence in plain language: "Allow SYSTEM: Full control; ...") and the actions, which sit
+    # in the sections they change, so nothing that matters is reachable only by mouse or review cursor.
     $script:result.Stage = 'inspector Tab cycle'
     $cycle = @()
     for ($i = 0; $i -lt 40; $i++) {
@@ -142,7 +145,8 @@ try {
         if ($i -gt 3 -and $spoken.Contains('Close') -and ($cycle -join ' ').Contains('Edit access ACL')) { break }
     }
     $heardCycle = ($cycle -join ' ').Replace('\\', '\')
-    $script:result.TabCycleMissing = @(foreach ($part in 'acl-witness.txt', 'Allow', 'Edit access ACL') { if (!$heardCycle.Contains($part)) { $part } })
+    $script:result.TabCycleMissing = @(foreach ($part in 'acl-witness.txt', 'Allow', 'Full control', 'Change owner', 'Edit access ACL') {
+        if (!$heardCycle.Contains($part)) { $part } })
     $edit = Await { Named ('Edit access ACL' + [char]0x2026) $CT::Button } 'the Edit access ACL action'
     $edit.SetFocus(); Start-Sleep -Milliseconds 500
     Hear 'edit action focused' @('Edit access ACL', 'button') 8

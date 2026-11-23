@@ -14,10 +14,13 @@ public sealed partial class MainViewModel
     private nint WindowsPermissionOwner() =>
         View.TopLevel?.TryGetPlatformHandle() is { HandleDescriptor: "HWND", Handle: not 0 } handle ? handle.Handle : 0;
 
+    // The installed x64 FileCat's administrator helper (G-PRIV, G-PKG): present, in Program Files, administrator-protected.
+    // Asked once: the availability checks run while the inspector is open, and each request verifies the helper again.
+    private static readonly Lazy<bool> InstalledWindowsHelper = new(() => ElevationBroker.Locate(portable: false, out _) is not null);
+
     private bool CanInspectWithWindowsAuthorization(InspectedPermission item) =>
         Services.Permissions is WindowsPermissionService && !Services.Paths.IsPortable &&
-        Environment.GetEnvironmentVariable("FILECAT_QUALIFY_WINDOWS_PERMISSIONS_BROKER") == "1" &&
-        ElevationBroker.IsNativeFileSecurityHost && WindowsPermissionOwner() != 0 &&
+        ElevationBroker.IsNativeFileSecurityHost && InstalledWindowsHelper.Value && WindowsPermissionOwner() != 0 &&
         item.Source?.FileSystemPath == item.Snapshot.Subject.RawLocator &&
         WindowsPermissionService.CanBindAuthorizedInspection(item.Snapshot);
 
@@ -45,20 +48,23 @@ public sealed partial class MainViewModel
             var snapshot = observation.Snapshot;
             bool volumeRoot = Services.Permissions is WindowsPermissionService windows && windows.CanReviewVolumeRoot(snapshot);
             string? refusal = WindowsPermissionService.EditRefusal(snapshot);
-            var view = new PermissionInspectorView([(item.Name, snapshot)], copy, [volumeRoot ? null : refusal], Services.PermissionPrincipalNames);
-            var buttons = new List<DialogButton> { new("Close", "close", IsDefault: true, IsCancel: true) };
+            var actions = new List<PermissionInspectorAction>();
             if (refusal is null)
             {
-                buttons.Insert(0, new("Change owner…", "owner"));
+                actions.Add(new("Change owner…", "owner", PermissionInspectorArea.Ownership, _ => true));
                 if (snapshot.Access.Value?.Acl is WindowsDacl { Form: WindowsDaclForm.Entries, Revision: 2 or 4 })
-                    buttons.Insert(0, new("Edit access ACL…", "acl"));
+                    actions.Add(new("Edit access ACL…", "acl", PermissionInspectorArea.Access, _ => true));
                 if (snapshot.Audit.Value?.Acl is WindowsSacl { Revision: null or 2 or 4 })
-                    buttons.Insert(0, new("Edit audit rules…", "audit"));
+                    actions.Add(new("Edit audit rules…", "audit", PermissionInspectorArea.Auditing, _ => true));
             }
-            if (volumeRoot) buttons.Insert(0, new("Edit volume root access rules…", "acl"));
-            var choice = await dialogs.ShowCustomAsync("Authorized permissions and ownership", view, buttons, resizable: true,
-                behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(740, 550) });
-            if (choice is string command && command is "owner" or "acl" or "audit" && buttons.Any(button => Equals(button.Result, command)) &&
+            if (volumeRoot) actions.Add(new("Edit volume root access rules…", "acl", PermissionInspectorArea.Access, _ => true));
+            var inspectorCloser = new DialogCloser();
+            var view = new PermissionInspectorView([(item.Name, snapshot)], copy, [volumeRoot ? null : refusal], Services.PermissionPrincipalNames,
+                actions, inspectorCloser);
+            var choice = await dialogs.ShowCustomAsync("Authorized permissions and ownership", view, [new("Close", "close", IsDefault: true, IsCancel: true)],
+                closer: inspectorCloser, resizable: true,
+                behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(860, 640), SizeKey = "permissions.authorized" });
+            if (choice is string command && command is "owner" or "acl" or "audit" && actions.Any(action => action.Result == command) &&
                 !Services.Io.IsStopped && owner == WindowsPermissionOwner() && origin is not { IsCurrent: false })
                 await ShowBoundPermissionEditorAsync(dialogs, item with { Inspection = observation }, copy, command, origin,
                     windowsAuthorizationOwner: owner);

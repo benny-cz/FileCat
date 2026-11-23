@@ -394,7 +394,7 @@ public sealed class ViewerWindow : Window
         root.Children.Add(_copyNotice);
         root.Children.Add(content);
         Content = new Grid { Children = { ThemeLayers.Over(root, content), _dialogHost } };
-        _dialogs = new OverlayDialogService(_dialogHost, () => _isHex ? _hex : _isInfo ? _info : _text);
+        _dialogs = new OverlayDialogService(_dialogHost, () => _isHex ? _hex : _isInfo ? _info : _text) { Sizes = _services.DialogSizes };
 
         _modeText.Click += (_, _) => SetMode(false);
         _modeHex.Click += (_, _) => SetMode(true);

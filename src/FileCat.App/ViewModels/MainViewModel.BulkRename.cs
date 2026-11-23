@@ -345,7 +345,8 @@ public sealed partial class MainViewModel
         administratorButton.Click += (_, _) => { if (CanRename()) closer.Close("administrator"); };
         var answer = await Dialogs.ShowCustomAsync("Bulk rename", body,
             [new("Cancel", "cancel", IsCancel: true), new("Rename", "rename", IsDefault: true)],
-            nameMask, CanRename, closer: closer, resizable: true, pinnedReview: pinnedReview);
+            nameMask, CanRename, closer: closer, resizable: true, pinnedReview: pinnedReview,
+            behavior: new DialogBehavior { SizeKey = "bulk-rename" });
         dialogOpen = false;
         generation++;
         previewCancellation?.Cancel();

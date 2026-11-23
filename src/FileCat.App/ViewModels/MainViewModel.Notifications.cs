@@ -32,6 +32,6 @@ public sealed partial class MainViewModel
         AutomationProperties.SetName(text, "Recent notifications, newest first; Ctrl+A selects all and Ctrl+C copies");
         await Dialogs.ShowCustomAsync("Recent notifications", text,
             [new DialogButton("Close", true, IsDefault: true, IsCancel: true)], text,
-            resizable: true);
+            resizable: true, behavior: new DialogBehavior { SizeKey = "notifications.recent" });
     }
 }

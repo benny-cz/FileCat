@@ -20,7 +20,8 @@ public sealed partial class MainViewModel
         options.Children.Add(Wrapped($"Use the default ACL of {Formatters.SafeName(snapshot.Subject.DisplayPath)} as the template."));
         options.Children.Add(Wrapped("The reset replaces access rules on captured descendants. By default, regular files without execute stay non-executable."));
         options.Children.Add(exact);
-        var behavior = new DialogBehavior { DismissOnBackdrop = false, ConfirmOnListItemEnter = false, PreferredSize = new Avalonia.Size(760, 665) };
+        var behavior = new DialogBehavior { DismissOnBackdrop = false, ConfirmOnListItemEnter = false, PreferredSize = new Avalonia.Size(760, 665),
+            SizeKey = "permissions.reset-tree" };
         if (await dialogs.ShowCustomAsync("Reset descendant access ACLs", options,
                 [new("Cancel", "cancel", IsCancel: true), new("Capture reset review", "review", IsDefault: true)],
                 resizable: true, behavior: behavior) is not "review" || Services.Io.IsStopped) return;
@@ -68,7 +69,7 @@ public sealed partial class MainViewModel
             var confirmed = await dialogs.ShowCustomAsync("Review descendant access ACL reset", preview,
                 [new("Cancel", "cancel", IsCancel: true), new("Reset captured access ACLs", "reset", IsDanger: true)
                     { IsAvailable = () => rows.Length > 0 && allowAccess.IsChecked == true && (!acceptSetId.IsVisible || acceptSetId.IsChecked == true) }],
-                resizable: true, behavior: behavior);
+                resizable: true, behavior: behavior with { SizeKey = "permissions.reset-tree-review" });
             if (confirmed is not "reset") return;
             cancellation.ThrowIfCancellationRequested();
             if (origin is not null && !origin.HasOriginalMarks)
@@ -111,7 +112,8 @@ public sealed partial class MainViewModel
         draft.Children.Add(editor);
         draft.Children.Add(Wrapped("By default, new execute bits reach directories and descendant files that already have an execute bit."));
         draft.Children.Add(exact);
-        var behavior = new DialogBehavior { DismissOnBackdrop = false, ConfirmOnListItemEnter = false, PreferredSize = new Avalonia.Size(760, 640) };
+        var behavior = new DialogBehavior { DismissOnBackdrop = false, ConfirmOnListItemEnter = false, PreferredSize = new Avalonia.Size(760, 640),
+            SizeKey = "permissions.mode-tree" };
         var choice = await dialogs.ShowCustomAsync("Change mode in a folder tree", draft,
             [new("Cancel", "cancel", IsCancel: true), new("Capture review", "review", IsDefault: true)
                 { IsAvailable = () => editor.TryGetChange(out var candidate) && candidate.TouchedBits != 0 }],
@@ -219,6 +221,7 @@ public sealed partial class MainViewModel
         return await dialogs.ShowCustomAsync("Review captured mode changes", preview,
             [new("Cancel", "cancel", IsCancel: true), new("Apply to captured objects", "apply")
                 { IsAvailable = () => rows.Length > 0 && (!accept.IsVisible || accept.IsChecked == true) }], resizable: true,
-            behavior: new DialogBehavior { DismissOnBackdrop = false, ConfirmOnListItemEnter = false, PreferredSize = new Avalonia.Size(760, 640) }) is "apply";
+            behavior: new DialogBehavior { DismissOnBackdrop = false, ConfirmOnListItemEnter = false, PreferredSize = new Avalonia.Size(760, 640),
+                SizeKey = "permissions.mode-tree-review" }) is "apply";
     }
 }

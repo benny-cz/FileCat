@@ -30,7 +30,7 @@ public sealed partial class MainViewModel
     {
         var targets = new List<AttributePermissionTarget>();
         bool darwin = Services.Permissions is DarwinPermissionService { WritesEnabled: true };
-        string? unavailable = PermissionProcessRefusal();
+        string? unavailable = PermissionChangeRefusal();
         int targetLimit = UnixAttributeBindingLimit;
         if (unavailable is null && targetLimit == 0)
             unavailable = "Mode editing is unavailable until this platform can bind the reviewed object.";
@@ -215,7 +215,7 @@ public sealed partial class MainViewModel
                 initialFocus: FirstField(body), resizable: true, closer: closer, behavior: new DialogBehavior
                 {
                     DismissOnBackdrop = false, KeepOperationsUsableDuringAction = true, ConfirmOnOptionEnter = false, ConfirmOnListItemEnter = false,
-                    ClosePresentation = close, PreferredSize = new Avalonia.Size(640, 640),
+                    ClosePresentation = close, PreferredSize = new Avalonia.Size(640, 640), SizeKey = "permissions.attributes",
                     OnImplicitDismiss = () => { if (MayClose()) closer.Close("close"); }
                 });
         }
@@ -512,7 +512,7 @@ public sealed partial class MainViewModel
         await dialogs.ShowCustomAsync("Current permissions and times", new PermissionInspectorView(current.ToArray(),
             clipboard is null ? null : clipboard.SetTextAsync, principalNames: Services.PermissionPrincipalNames),
             [new("Close", "close", IsDefault: true, IsCancel: true)], resizable: true,
-            behavior: new DialogBehavior { DismissOnBackdrop = false });
+            behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(860, 640), SizeKey = "permissions.current" });
     }
 
     private async Task<ReviewedPermissionOperation> PrepareAttributePermissionsAsync(IReadOnlyList<AttributePermissionTarget> targets,

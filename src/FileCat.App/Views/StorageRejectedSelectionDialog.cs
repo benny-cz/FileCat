@@ -67,7 +67,7 @@ internal static class StorageRejectedSelectionDialog
             disclosure,
         } };
         await dialogs.ShowCustomAsync(feature + "…", body, [new DialogButton("Cancel", "cancel", IsCancel: true, IsDefault: true)],
-            search, resizable: true, behavior: new DialogBehavior { KeepOperationsUsable = true });
+            search, resizable: true, behavior: new DialogBehavior { KeepOperationsUsable = true, SizeKey = "storage.rejected-selection" });
         return true;
     }
 

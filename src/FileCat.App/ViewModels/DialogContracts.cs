@@ -125,6 +125,12 @@ public sealed record DialogBehavior
     public bool AlignTop { get; init; }
     /// <summary>Initial size for a resizable dialog, clamped to the available client area.</summary>
     public Avalonia.Size? PreferredSize { get; init; }
+    /// <summary>
+    /// A stable id, such as "find.advanced", under which a resizable dialog keeps the size the user gives it across sessions;
+    /// without one it opens at <see cref="PreferredSize"/> every time. Printable ASCII without spaces, at most 64 characters
+    /// (<see cref="Core.State.DialogSizeMemory.IsValidKey"/>), and never made from a title or an item's name.
+    /// </summary>
+    public string? SizeKey { get; init; }
     /// <summary>Esc and the title-bar close button use this action; explicit buttons keep their own behavior.</summary>
     public Action? OnImplicitDismiss { get; init; }
     /// <summary>

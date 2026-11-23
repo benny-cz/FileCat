@@ -91,7 +91,8 @@ public sealed partial class DiskSpaceWindow
         try
         {
             await _dialogs.ShowCustomAsync("Duplicate review", body,
-                [new DialogButton("Close review", false, IsDefault: true, IsCancel: true)], closer: closer, resizable: true);
+                [new DialogButton("Close review", false, IsDefault: true, IsCancel: true)], closer: closer, resizable: true,
+                behavior: new DialogBehavior { SizeKey = "analysis.duplicate-review" });
         }
         finally
         {
