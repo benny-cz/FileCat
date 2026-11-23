@@ -50,6 +50,8 @@ public sealed class QuietRefreshTests
                 var entry = tab.Listing.Store[index];
                 return tab.MetadataPresentation(entry, index, FileDetailsFields.Allocated, tab.CaptureMetadataContext(entry, index), demand);
             }
+            // Asked for as the list asks, once it has drawn the row: a read for a row not shown is dropped.
+            await Until(() => tab.VisibleStoreIndices.Contains(tab.Listing.FindStoreIndex("a.txt")));
             Allocated(demand: true);
             await Until(() => Allocated(demand: false).State == MetadataState.Available);
             int readsBefore = records.Reads["a.txt"];
@@ -65,12 +67,15 @@ public sealed class QuietRefreshTests
             Assert.DoesNotContain(true, busy);
             Assert.DoesNotContain("refreshing", tab.StatusLeft, StringComparison.Ordinal);
 
-            // A reread the user asks for shows at once.
+            // A reread the user asks for shows at once, and reads the values again.
             tab.Refresh();
             Assert.True(tab.ShowsBusy);
             await Until(() => !tab.Listing.IsRefreshing && tab.Listing.State == ListingState.Complete);
             Assert.False(tab.ShowsBusy);
             Assert.Contains(true, busy);
+            await Until(() => tab.VisibleStoreIndices.Contains(tab.Listing.FindStoreIndex("a.txt")));
+            Allocated(demand: true);
+            await Until(() => records.Reads["a.txt"] > readsBefore && Allocated(demand: false).State == MetadataState.Available);
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }
@@ -102,6 +107,7 @@ public sealed class QuietRefreshTests
                 var entry = tab.Listing.Store[index];
                 return tab.MetadataPresentation(entry, index, "test-revalidate", tab.CaptureMetadataContext(entry, index), demand);
             }
+            await Until(() => tab.VisibleStoreIndices.Contains(tab.Listing.FindStoreIndex("a.txt")));
             Cell(demand: true);
             await Until(() => Cell(demand: false) is { State: MetadataState.Available, Text: "v1" });
             hold.Reset(); // the next read waits

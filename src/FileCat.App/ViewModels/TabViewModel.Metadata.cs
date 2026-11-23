@@ -29,11 +29,12 @@ public sealed partial class TabViewModel
         RetireMetadataAnalysis();
         bool sameFolder = _ownershipLocation == location;
         if (_ownershipLocation is { IsFileSystem: true } old && !sameFolder) RetireOwnershipFolder(old.Path);
-        // A folder entered afresh drops what an earlier visit read. A reread of the folder shown keeps it: values are
-        // cached by each item's size and time, so a changed item is read again while an unchanged one keeps its value
-        // instead of showing "…" (in a folder that keeps changing, every column flashed once a second), and each field
-        // still reads its value again after its own interval. Refresh (Ctrl+R) invalidates every value itself.
-        if (location.IsFileSystem && !sameFolder) RetireOwnershipFolder(location.Path);
+        // A folder entered afresh, or read again because the user asked (Refresh, Ctrl+R), drops what was read before, so a
+        // read started for the old list cannot publish into the new one. A reread the folder's own changes started keeps
+        // it: values are cached by each item's size and time, so a changed item is read again while an unchanged one keeps
+        // its value instead of showing "…" (in a folder that keeps changing, every column flashed once a second), and each
+        // field still reads its value again after its own interval.
+        if (location.IsFileSystem && (!sameFolder || _loudRefresh)) RetireOwnershipFolder(location.Path);
         _ownershipLocation = location;
         _ownershipDemandStore = store;
     }
