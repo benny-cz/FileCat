@@ -1186,9 +1186,9 @@ public sealed class StorageCommandIntegrationTests
         Assert.DoesNotContain(enabled.ToolbarMore, entry => entry.EndsWith("/" + CommandIds.StorageAttributes, StringComparison.Ordinal));
         Assert.Equal(unsupported.KeyBar, enabled.KeyBar);
         Assert.DoesNotContain(enabled.KeyBar, key => key.Contains("/" + CommandIds.StorageAttributes + "/", StringComparison.Ordinal));
-        // File → Inspect: the five existing entries gain one, directly after Change attributes and times. EFS stays hidden in C.
-        string[] inspect = [CommandIds.Checksum, CommandIds.VerifyChecksums, CommandIds.Attributes, CommandIds.StorageAttributes,
-            CommandIds.HiddenData, CommandIds.FileRecord];
+        // File → Inspect: the six existing entries gain one, directly after Change attributes and times. EFS stays hidden in C.
+        string[] inspect = [CommandIds.PermissionsOwnership, CommandIds.Checksum, CommandIds.VerifyChecksums, CommandIds.Attributes,
+            CommandIds.StorageAttributes, CommandIds.HiddenData, CommandIds.FileRecord];
         Assert.Equal(inspect, unsupported.Inspect); Assert.Equal(inspect, enabled.Inspect);
     }
 }
