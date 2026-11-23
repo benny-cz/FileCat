@@ -128,8 +128,9 @@ The installed broker handles plans that fit its operations. Portable FileCat rev
 a separate administrator window, which also handles transfers that need the original conflict prompts.
 Canceling that review makes the original retry available again in Operations.
 
-In an ordinary FileCat window, **File → Inspect → Permissions and ownership** shows the
-selected item's permissions and available review actions. A local mode change requires a verified
+**File → Inspect → Permissions and ownership** shows the selected item's owner, mode and access
+rules in plain language beside their exact values, each section with the review actions available
+there; in an administrator window, or as root, it is read-only. A local mode change requires a verified
 binding to the selected object. **Change attributes and times…** also offers independent
 timestamp and Finder Hidden changes where available. **Tools → Recover deleted files →
 Authorize and scan** requests read-only access to the selected device on Linux and macOS.
