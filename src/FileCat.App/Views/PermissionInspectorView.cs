@@ -237,7 +237,7 @@ internal sealed class PermissionInspectorView : StackPanel
             if (AclPrincipal(model, 0) is { } principal) AddAccountActions(authority, () => principal, null);
             return;
         }
-        var list = new ListBox { ItemsSource = entries, MaxHeight = 260, MinHeight = 90, ItemsPanel = AllRows(),
+        var list = new Controls.CountedListBox { ItemsSource = entries, MaxHeight = 260, MinHeight = 90, ItemsPanel = AllRows(),
             ItemTemplate = new FuncDataTemplate<string>((entry, _) => Label(entry ?? string.Empty)) };
         AutomationProperties.SetName(list, title);
         _subject.Children.Add(list);

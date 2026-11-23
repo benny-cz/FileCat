@@ -13,7 +13,7 @@ internal sealed class DarwinAccessEditor : StackPanel
 {
     private readonly ImmutableArray<DarwinAce> _original;
     private readonly string _authority;
-    private readonly ListBox _entries = new() { MaxHeight = 175, MinHeight = 60, ItemsPanel = PermissionInspectorView.AllRows(),
+    private readonly ListBox _entries = new Controls.CountedListBox { MaxHeight = 175, MinHeight = 60, ItemsPanel = PermissionInspectorView.AllRows(),
         ItemTemplate = new FuncDataTemplate<string>((value, _) => new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap }) };
     private readonly ComboBox _operation = new();
     private readonly ComboBox _position = new();

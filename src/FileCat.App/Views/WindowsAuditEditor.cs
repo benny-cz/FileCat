@@ -15,7 +15,7 @@ internal sealed class WindowsAuditEditor : StackPanel
     internal const string MaskLabel = "Audit rights mask (hexadecimal)";
     private readonly WindowsSacl _baseline;
     private readonly string _authority;
-    private readonly ListBox _entries = new()
+    private readonly ListBox _entries = new Controls.CountedListBox()
     {
         MinHeight = 80, MaxHeight = 200, ItemsPanel = PermissionInspectorView.AllRows(),
         ItemTemplate = new FuncDataTemplate<string>((value, _) => new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap })

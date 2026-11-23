@@ -26,7 +26,7 @@ internal sealed class WindowsAccessEditor : StackPanel
     ];
     private readonly WindowsDacl? _baseline;
     private readonly string _authority;
-    private readonly ListBox _entries = new() { MinHeight = 80, MaxHeight = 210, ItemsPanel = PermissionInspectorView.AllRows(), ItemTemplate =
+    private readonly ListBox _entries = new Controls.CountedListBox { MinHeight = 80, MaxHeight = 210, ItemsPanel = PermissionInspectorView.AllRows(), ItemTemplate =
         new FuncDataTemplate<string>((value, _) => new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap }) };
     private readonly CheckBox _add = new() { Content = "Add an explicit entry" };
     private readonly CheckBox _remove = new() { Content = "Remove selected entry" };

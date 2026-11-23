@@ -339,6 +339,55 @@ public sealed class DescendantFocusAutomationTests
         }
     }
 
+    /// <summary>
+    /// VoiceOver read an ACL row as a bare "table row": it says a row's position and the list's size only for a row whose
+    /// parent is its list, and Avalonia's list box reaches its rows through its template. Under the macOS bridge a counted
+    /// list's rows are its own children, in item order, each naming the list as its parent; elsewhere it is a list box.
+    /// </summary>
+    [AvaloniaFact]
+    public void A_counted_list_owns_its_rows_in_order_under_the_macOS_bridge()
+    {
+        bool mac = NativeLiveRegionBridges.UseMacBridge;
+        NativeLiveRegionBridges.UseMacBridge = true;
+        var list = new CountedListBox { ItemsSource = new[] { "Deny · everyone · Write data", "Allow · everyone · Read data" },
+            ItemsPanel = PermissionInspectorView.AllRows() };
+        AutomationProperties.SetName(list, "Access now");
+        var window = new FocusWindow { Width = 400, Height = 300, Content = list };
+        window.Show();
+        try
+        {
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            var root = ControlAutomationPeer.CreatePeerForElement(window);
+            var listPeer = ControlAutomationPeer.CreatePeerForElement(list);
+            Assert.Equal(AutomationControlType.List, listPeer.GetAutomationControlType());
+            var rows = listPeer.GetChildren();
+            Assert.Equal(["Deny · everyone · Write data", "Allow · everyone · Read data"], rows.Select(row => row.GetName()));
+            Assert.All(rows, row =>
+            {
+                Assert.Equal(AutomationControlType.ListItem, row.GetAutomationControlType());
+                Assert.Same(listPeer, row.GetParent());
+                Assert.True(AutomationPaths.Reaches(row, root));
+            });
+
+            // New items are listed again once their rows are prepared.
+            list.ItemsSource = new[] { "Only rule" };
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(["Only rule"], listPeer.GetChildren().Select(row => row.GetName()));
+        }
+        finally
+        {
+            NativeLiveRegionBridges.UseMacBridge = mac;
+            window.Close();
+        }
+
+        // Without the macOS bridge the list keeps Avalonia's own peer and template children.
+        NativeLiveRegionBridges.UseMacBridge = false;
+        try { Assert.IsType<ListBoxAutomationPeer>(ControlAutomationPeer.CreatePeerForElement(new CountedListBox())); }
+        finally { NativeLiveRegionBridges.UseMacBridge = mac; }
+    }
+
     [AvaloniaFact]
     public void Linux_attachment_reaches_a_field_inside_a_container_that_was_hidden()
     {
