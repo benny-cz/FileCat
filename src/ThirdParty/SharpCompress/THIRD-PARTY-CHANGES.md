@@ -11,6 +11,12 @@ FileCat's changes, all for release issue I14: only code under OSI-approved licen
 derived from UnRAR. FileCat uses this library for 7z archives and bzip2, xz and zstd streams only, so
 everything else is left out.
 
+- Debugger breakpoints, 23 November 2026: `Common/SevenZip/ArchiveReader.cs` no longer calls `Debugger.Break()`.
+  The substream checksum count check now throws `InvalidFormatException`; both sides count the same substreams,
+  so it cannot fail. `FolderUnpackStream`, used only by the uncalled `Extract`, keeps its `NotSupportedException`
+  without the breakpoint. No archive could reach either call. `DebuggerBreakPolicyTests` in FileCat's Core tests
+  keeps new calls out of FileCat's sources. No third-party source was added.
+
 - 7z preservation follow-up, 7 November 2026: the existing LZMA encoder properties gain an internal constructor
   for explicit position/literal context bits. Existing public constructors retain their previous 2/3/0 defaults.
   This lets the stream-only assembler reproduce admitted source-header properties rather than relabel a default
