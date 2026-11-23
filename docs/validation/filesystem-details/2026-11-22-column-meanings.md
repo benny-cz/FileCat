@@ -51,5 +51,5 @@ The Windows native classes `WindowsDetailsNativeGapTests` and `WindowsHiddenData
 
 ## Left open
 
-- **Find and Flat view** show a found link as "P" and `<DIR>`: the search reads no reparse tags, and the details plan forbids per-item queries made only to match a listing's completeness. A fix that reads a found reparse point's own tag is ready on a branch, waiting for the owner's decision on that rule.
+- **Find and Flat view** show a found link as "P" and `<DIR>`: the search reads no reparse tags, and the details plan forbids per-item queries made only to match a listing's completeness. A fix that reads a found reparse point's own tag is ready on a branch, waiting for the owner's decision on that rule. The owner approved it on 23 November, and it is in `dcb04c7d3`. Its three native tests (a found junction, found file and folder symbolic links in Find and Flat view, and searching within results) passed on Windows x64 at medium integrity, none skipped.
 - **Created on Linux** shows the older of the modification and change times: .NET reads no birth time there. On the Ubuntu guest a file created on 22 November with its modification time set to 2020 showed `Birth 2026-11-22` in `stat` and a creation time of 1 January 2020 through .NET. Fixed on 23 November: see [Created on Linux](2026-11-23-linux-birth-time.md).
