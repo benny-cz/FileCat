@@ -86,6 +86,26 @@ public sealed class PermissionAuthorizationSpeechTests
         Assert.EndsWith("…", spoken, StringComparison.Ordinal);
     }
 
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_confirmation_speaks_its_message_from_the_button_that_starts_focused(bool danger)
+    {
+        var (window, dialogs) = Open();
+        try
+        {
+            const string message = "The edited permissions have not been applied.";
+            var confirm = dialogs.ConfirmAsync("Discard changes?", message, "Discard", danger);
+            Settle(window);
+            var focused = Assert.IsType<Button>(Focused(window));
+            Assert.Equal(danger ? "Cancel" : "Discard", focused.Content);
+            Assert.Equal(message, ControlAutomationPeer.CreatePeerForElement(focused).GetHelpText());
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            Assert.False(await confirm);
+        }
+        finally { window.Close(); }
+    }
+
     [AvaloniaFact]
     public async Task An_asynchronous_action_keeps_keyboard_focus_in_its_dialog()
     {

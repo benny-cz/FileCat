@@ -521,6 +521,10 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 AutomationProperties.SetHelpText(danger ? cancel : ok,
                     "Key points: " + string.Join("; ", spokenPoints));
         }
+        // As for an alert: a screen reader reads the focused button, not the message beside it (NVDA and VoiceOver said
+        // only "Discard changes? dialog, Discard button"), so the button that starts focused carries the message.
+        else if (!string.IsNullOrWhiteSpace(message))
+            AutomationProperties.SetHelpText(danger ? cancel : ok, SpokenMessage(message));
         var text = highlights is { Count: > 0 }
             ? HighlightedReviewBody(highlights, message, summaryHeading, detailsHeading, collapseDetails, warnings) : MessageBody(message);
         Session? session = null;
