@@ -45,11 +45,11 @@ internal sealed class DialogCard : Border
         ClipToBounds = true;
         Styles.Add(new Style(s => s.OfType<CheckBox>())
         {
-            Setters = { new Setter(ContentControl.ContentTemplateProperty, DialogLayout.WrappingText) },
+            Setters = { new Setter(ContentControl.ContentTemplateProperty, DialogLayout.StringContentTemplate()) },
         });
         Styles.Add(new Style(s => s.OfType<RadioButton>())
         {
-            Setters = { new Setter(ContentControl.ContentTemplateProperty, DialogLayout.WrappingText) },
+            Setters = { new Setter(ContentControl.ContentTemplateProperty, DialogLayout.StringContentTemplate()) },
         });
         var titleLine = new Grid { ColumnDefinitions = new ColumnDefinitions("4,*,Auto"), ColumnSpacing = 10 };
         titleLine.Children.Add(new Border { Classes = { "dialogAccent" }, Height = 20, VerticalAlignment = VerticalAlignment.Center });
@@ -335,6 +335,17 @@ internal static class DialogLayout
     // Keep the original string Content (and thus the accessible name and access key) intact.
     internal static readonly IDataTemplate WrappingText = new FuncDataTemplate<string>((text, _) =>
         new AccessText { Text = text, TextWrapping = TextWrapping.Wrap });
+
+    /// <summary>
+    /// <see cref="WrappingText"/> for a string label only: a label that is already a control (a wrapping TextBlock) shows as
+    /// itself. Set for every label, the template met a control it does not match and the presenter fell back to the control's
+    /// type name: the folder choices of the NTFS compression review read "Avalonia.Controls.TextBlock".
+    /// </summary>
+    internal static Avalonia.Data.Binding StringContentTemplate() => new(nameof(ContentControl.Content))
+    {
+        RelativeSource = new Avalonia.Data.RelativeSource(Avalonia.Data.RelativeSourceMode.Self),
+        Converter = new Avalonia.Data.Converters.FuncValueConverter<object?, IDataTemplate?>(content => content is string ? WrappingText : null),
+    };
 
     internal static readonly IDataTemplate WrappingListText = new FuncDataTemplate<string>((text, _) =>
         new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap });
