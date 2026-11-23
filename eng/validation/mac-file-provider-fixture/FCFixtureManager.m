@@ -1,16 +1,22 @@
 #import <FileProvider/FileProvider.h>
 #import <Foundation/Foundation.h>
 
-// Manager for the "ready" fixture domain fixture-12760a2e-d: add, remove, root, and (version 2) signal, which asks the
-// system to enumerate the working set's changes so it learns about items the provider added.
+// Manager for the fixture domains: add, remove, root, and (version 2) signal, which asks the system to enumerate the
+// working set's changes so it learns about items the provider added. The optional second argument picks the domain:
+// "ready" (the default, fixture-12760a2e-d) or, from version 3, "writable" (fixture-permissions-w).
 int main(int argc, const char **argv)
 {
     @autoreleasepool
     {
-        if (argc != 2) return 2;
+        if (argc != 2 && argc != 3) return 2;
         NSString *verb = [NSString stringWithUTF8String:argv[1]];
-        NSFileProviderDomain *domain = [[NSFileProviderDomain alloc] initWithIdentifier:@"fixture-12760a2e-d"
-            displayName:@"FileCat Native Fixture 12760a2e D"];
+        NSString *which = argc == 3 ? [NSString stringWithUTF8String:argv[2]] : @"ready";
+        NSFileProviderDomain *domain;
+        if ([which isEqualToString:@"ready"])
+            domain = [[NSFileProviderDomain alloc] initWithIdentifier:@"fixture-12760a2e-d" displayName:@"FileCat Native Fixture 12760a2e D"];
+        else if ([which isEqualToString:@"writable"])
+            domain = [[NSFileProviderDomain alloc] initWithIdentifier:@"fixture-permissions-w" displayName:@"FileCat Permissions Fixture W"];
+        else return 2;
         dispatch_semaphore_t finished = dispatch_semaphore_create(0);
         __block NSError *failure;
         void (^complete)(NSError *) = ^(NSError *error) {

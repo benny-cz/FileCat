@@ -86,4 +86,65 @@ public sealed partial class PermissionJobTests
             return (summary.Identity.Value, (summary.NativeAttributes.Value & MacMaterializationPolicy.DatalessFlag) != 0);
         }
     }
+
+    // G-MAC (ordinary, D1) a write dispatched to a File Provider item under the fetch sentinel: in the writable fixture
+    // domain (FILECAT_TEST_MAC_PROVIDER_WRITABLE_ROOT) the harness downloads writable.txt first and leaves sentinel.bin a
+    // placeholder. With downloads disabled, each Darwin writer route runs a mode job that adds owner execute to the
+    // downloaded file and another that removes it again, and each job verifies on the same object. The file keeps its
+    // identity, the sentinel stays a dataless placeholder with its identity, and the caller's materialization policy is
+    // restored. The harness reads the provider's log: the changes reach the provider as modify requests carrying the
+    // file-system flags, and nothing is fetched.
+    [Fact]
+    public async Task Live_Mac_File_Provider_mode_jobs_change_a_downloaded_item_without_fetching()
+    {
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_MAC_PROVIDER_WRITABLE_ROOT");
+        if (!OperatingSystem.IsMacOS() || Environment.IsPrivilegedProcess || string.IsNullOrWhiteSpace(root))
+            Assert.Skip("Requires an ordinary macOS worker and the writable File Provider fixture.");
+        var reader = new UnixFileRecords();
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        string file = Path.Join(root, "writable.txt"), sentinel = Path.Join(root, "sentinel.bin");
+        var fileBefore = State(file);
+        var sentinelBefore = State(sentinel);
+        Assert.False(fileBefore.Dataless, "The harness downloads writable.txt before the run.");
+        Assert.True(sentinelBefore.Dataless, "sentinel.bin must still be a placeholder.");
+        int policy = MacMaterializationPolicy.Get();
+        var original = (ushort)((int)File.GetUnixFileMode(file) & 0xfff);
+        Assert.Equal(0, original & 0x40);
+        foreach (var (parent, descriptor) in new[] { (true, false), (false, true), (true, true) })
+        {
+            foreach (ushort mode in new[] { (ushort)(original | 0x40), original })
+            {
+                using var fixture = DarwinJournalFixture(); // one job per fixture
+                var (item, subject) = TreeSubject(file, EntryKind.File);
+                var service = new DarwinPermissionService(qualifyParentWrites: parent, qualifyDescriptorWrites: descriptor);
+                using var inspection = service.Inspect(subject, DarwinSections, ct);
+                Assert.Null(DarwinPermissionService.ModeRefusal(inspection.Snapshot));
+                using var review = DarwinPermissionService.Prepare(inspection, item,
+                    new(PermissionScope.Objects, [new ChangePermissionMode(mode, 0xfff)]), false, ct).Review;
+                var job = fixture.Manager.SubmitPermissions(review);
+                await fixture.Finish(job);
+                var result = Assert.Single(job.PermissionResults);
+                string steps = string.Join(" | ", result.Components.Select(step => $"{step.Verdict} {step.NativeCall} {step.NativeError} {step.Detail}"));
+                TestContext.Current.SendDiagnosticMessage($"parent {parent}, descriptor {descriptor}, route " +
+                    $"{inspection.Snapshot.Binding?.DarwinRoute}: {Convert.ToString(mode, 8)} -> {result.Verdict}: {steps}");
+                Assert.True(result.Verdict is PermissionVerdict.Verified or PermissionVerdict.AppliedWithFolderDrift, steps);
+                Assert.All(result.Components, component => Assert.Equal(PermissionVerification.SameObject, component.Verification));
+                Assert.Equal(mode, (ushort)((int)File.GetUnixFileMode(file) & 0xfff));
+                Assert.Equal(policy, MacMaterializationPolicy.Get());
+            }
+        }
+        var fileAfter = State(file);
+        Assert.Equal(fileBefore.Identity, fileAfter.Identity);
+        Assert.False(fileAfter.Dataless);
+        var sentinelAfter = State(sentinel);
+        Assert.Equal(sentinelBefore.Identity, sentinelAfter.Identity);
+        Assert.True(sentinelAfter.Dataless, "sentinel.bin was downloaded.");
+
+        (DetailsIdentity? Identity, bool Dataless) State(string path)
+        {
+            var summary = reader.ReadSummary(path, ct);
+            Assert.Equal(FactState.Known, summary.NativeAttributes.State);
+            return (summary.Identity.Value, (summary.NativeAttributes.Value & MacMaterializationPolicy.DatalessFlag) != 0);
+        }
+    }
 }
