@@ -164,5 +164,42 @@ public sealed class ChangeMonitorCadenceTests
         Assert.True(Reads()[before] - written < 0.9, $"read again {Reads()[before] - written:F2} s after the change");
     }
 
+    /// <summary>
+    /// A change noticed as a reread falls due, before that reread takes the monitor's lock, is read by that reread: the
+    /// timer it armed again from the reread before must not read the folder a second time a quarter second later (on macOS
+    /// in CI a busy folder was read 0.4 s after the last time this way). The held timer callback forces that order.
+    /// </summary>
+    [Fact]
+    public async Task A_change_noticed_as_a_reread_falls_due_is_not_read_again_on_its_own()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var dir = new TempDir();
+        string folder = Directory.CreateDirectory(Path.Combine(dir.Path, "race")).FullName;
+        var clock = Stopwatch.StartNew();
+        var reads = new List<double>();
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        int due = 0;
+        using var monitor = new ChangeMonitor(folder, () => { lock (reads) reads.Add(clock.Elapsed.TotalSeconds); });
+        if (!monitor.IsActive) Assert.Skip("This folder cannot be watched here.");
+        monitor.BeforeFire = () =>
+        {
+            if (Interlocked.Increment(ref due) != 1) return;
+            entered.Set();
+            release.Wait(TimeSpan.FromSeconds(10));
+        };
+
+        monitor.Again(); // a change: a reread falls due a quarter second later
+        Assert.True(entered.Wait(TimeSpan.FromSeconds(5), ct), "The reread never fell due.");
+        monitor.Again(); // noticed while that reread is held before the lock: it will read this change too
+        release.Set();
+        await Task.Delay(1500, ct); // well past the quarter second the second notice armed the timer for
+
+        double[] times;
+        lock (reads) times = [.. reads];
+        Assert.True(times.Length == 1, $"rereads: {string.Join(", ", times.Select(t => t.ToString("F2")))}");
+        Assert.True(Volatile.Read(ref due) >= 2, "The timer the second notice armed never fell due.");
+    }
+
     private sealed record Reading(double Time, (string Name, long Length)[] Files);
 }

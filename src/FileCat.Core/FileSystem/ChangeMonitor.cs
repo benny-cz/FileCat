@@ -205,12 +205,19 @@ public sealed class ChangeMonitor : IDisposable
         finally { Volatile.Write(ref _checking, 0); }
     }
 
+    /// <summary>Runs as a reread falls due, before it takes the monitor's lock (tests: a timer callback held up).</summary>
+    internal Action? BeforeFire { get; set; }
+
     private void Fire()
     {
+        BeforeFire?.Invoke();
         bool started;
         lock (_lock)
         {
-            if (_disposed) return;
+            // Nothing noticed since the last reread: a notice that came as that reread fell due, before it took this lock,
+            // armed the timer again from the reread before it, and that reread has already read its change. Reading again
+            // here read a busy folder 0.4 s after the last time (seen on macOS in CI).
+            if (_disposed || _firstPending == DateTime.MaxValue) return;
             _firstPending = DateTime.MaxValue;
             _lastFire = DateTime.UtcNow;
             started = NoteFire(_lastFire);
