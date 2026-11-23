@@ -138,7 +138,7 @@ public sealed class WindowsStorageCrashTests
     [InlineData("before-first-call", false, false)]
     [InlineData("after-first-call", true, false)]
     [InlineData("before-second-call", true, false)]
-    public void A_killed_process_leaves_a_pending_review_of_the_recorded_prefix_and_no_replay(string phase, bool firstCompressed, bool secondCompressed)
+    public async Task A_killed_process_leaves_a_pending_review_of_the_recorded_prefix_and_no_replay(string phase, bool firstCompressed, bool secondCompressed)
     {
         bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
         Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows 11 client NTFS fixture (x64, or native ARM64 when opted in).");
@@ -161,7 +161,7 @@ public sealed class WindowsStorageCrashTests
             {
                 var output = child.StandardOutput.ReadToEndAsync(Stop); var error = child.StandardError.ReadToEndAsync(Stop);
                 Assert.True(child.WaitForExit(TimeSpan.FromMinutes(3)), "The crash child did not exit.");
-                TestContext.Current.TestOutputHelper?.WriteLine($"Child exit {child.ExitCode}: {output.Result}{error.Result}");
+                TestContext.Current.TestOutputHelper?.WriteLine($"Child exit {child.ExitCode}: {await output}{await error}");
                 Assert.NotEqual(0, child.ExitCode);
             }
             Assert.Equal(phase, File.ReadAllText(Path.Join(root, "phase-reached")));
