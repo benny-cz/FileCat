@@ -48,6 +48,13 @@ __pycache__/
 *~
 CodeCoverage/
 
+# Raw validation receipts belong in the evidence store (V:\FileCat\artifacts\retained-archives), not the
+# repository; see docs/validation/disk-space/README.md. Force-add (git add -f) one only when a report links to it.
+docs/validation/**/*.tgz
+docs/validation/disk-space/**/*.xml
+docs/validation/disk-space/**/*.log
+docs/validation/disk-space/**/*.png
+
 # MSBuild Binary and Structured Log
 *.binlog
 

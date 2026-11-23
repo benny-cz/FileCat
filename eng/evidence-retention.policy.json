@@ -47,6 +47,12 @@
       "root": "E:\\FileCatEvidenceBackup\\vendor-duplicates-20261116-v1",
       "manifest_sha256": "c1db274dff49215b0ed10a95dfcb536f01b27c6a14e5c9c3e00ace2e1d1994d6",
       "sealed_content_files": 1019
+    },
+    {
+      "id": "docs_validation_receipts",
+      "root": "V:\\FileCat\\artifacts\\retained-archives\\docs-validation-receipts-20261123-v1",
+      "manifest_sha256": "e6e62a45a4de67fd86ad21db4968841bbe574f2cb904a3757b12c9a486596955",
+      "sealed_content_files": 2248
     }
   ],
   "retirement_packet": {
@@ -63,6 +69,7 @@
     "E:\\FileCat\\.tmp\\artifact-retirement-20261116T200455Z",
     "V:\\FileCat\\artifacts\\retained-archives\\vendor-duplicates-20261116-v1",
     "E:\\FileCatEvidenceBackup\\vendor-duplicates-20261116-v1",
-    "V:\\FileCat\\artifacts\\retained-archives\\vendor-duplicates-20261116-v1-retirement-20261116T200455Z"
+    "V:\\FileCat\\artifacts\\retained-archives\\vendor-duplicates-20261116-v1-retirement-20261116T200455Z",
+    "V:\\FileCat\\artifacts\\retained-archives\\docs-validation-receipts-20261123-v1"
   ]
 }

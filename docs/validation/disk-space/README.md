@@ -108,6 +108,15 @@ The r302 [name/state ordering checkpoint](../../design/FILECAT_DISK_SPACE_EXPLOR
 
 After the other Ubuntu FileCat process exited, fresh process gates allowed ordinary-user testing to resume. The portable bundle passed native ext4 scanning, anonymous O_TMPFILE/procfs publication, Unicode names, conflict preservation, no-follow ancestry, privacy/link refusal and shared I/O lifetime controls. Existing stat clients also passed. [The Ubuntu receipt](ubuntu-native-r24.json) records matching deployed DLL hashes and a clear final FileCat process check. The subsequent native desktop run exercised Start, shared-hard-link focus/drilldown, text filtering and preserving close with real X11 input. [Its final receipt](ubuntu-native-ui-r25.json) records all 509 generated regular paths unchanged, no deadline closure and zero remaining sessions. The owned process exited. Selected screenshots and AT-SPI observations are retained; broader desktop, assistive-technology, packaging and filesystem/resource qualification remain open.
 
+## Raw receipts
+
+Raw receipts that no report links to moved out of the repository on 23 November 2026: 447 `.tgz` archives, 943 `.xml` test results, 142 `.png` captures and 681 `.log` files from this folder, and 33 `.png` captures from `docs/validation/evidence`.
+
+- They are sealed at their repository paths in `V:\FileCat\artifacts\retained-archives\docs-validation-receipts-20261123-v1`. The seal, `FINAL-PACKAGE-SHA256.txt`, has SHA-256 `e6e62a45a4de67fd86ad21db4968841bbe574f2cb904a3757b12c9a486596955`, and `eng/evidence-retention.policy.json` registers it.
+- Commit `1ec1207f5fe26d10be806a4896ab0cad49ff0af5` is the last whose tree holds them. `git show 1ec1207f5:<path>` returns one as git stores it.
+- The JSON manifests in this folder still record each receipt's SHA-256. The package's `PACKAGE.json` gives both line-ending forms of every text receipt, and the package stores the form its records cite.
+- New receipts go to the evidence store too. `.gitignore` keeps these file types out of this folder; force-add one (`git add -f`) only when a report links to it.
+
 ## Current evidence
 
 | Run | Result | Receipt |
