@@ -893,6 +893,7 @@ jobs:
     runs-on: windows-2025-vs2026
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
+      payload_manifest_sha256: ${{ steps.payload.outputs.payload_manifest_sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -917,19 +918,41 @@ jobs:
           name: dependency-restore-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/filecat-dependency-restore/**
           if-no-files-found: error
-      - name: Publish portable, framework-dependent, and installer payloads (x64 and ARM64, D-48)
+      # A v1.0.0-rc.N tag publishes only the unsigned candidate payload here: the sign-candidate job below checks it
+      # byte for byte, signs it, packages it and drafts the candidate (Section 10.4 steps 5 and 6). Every other tag keeps
+      # the unsigned packages and, for previews, the draft-preview path.
+      - name: Check the signing environment before a candidate requests it (RC tags)
+        if: startsWith(github.ref, 'refs/tags/v1.0.0-rc.')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./eng/signing/Assert-SigningEnvironment.ps1 -Repository $env:GITHUB_REPOSITORY -Environment signing
+      - name: Publish the unsigned candidate payload (win-x64 and win-arm64, RC tags)
+        id: payload
+        if: startsWith(github.ref, 'refs/tags/v1.0.0-rc.')
         shell: pwsh
         run: |
           $v = "${{ github.ref_name }}".TrimStart('v')
-          $packageOptions = @{ Version = $v }
-          if ($env:GITHUB_REF -cmatch '^refs/tags/v1\.0\.0-rc\.[1-9][0-9]*$') {
-            $packageOptions.ProductVersion = '1.0.0'
-            $packageOptions.CandidateRef = $env:GITHUB_REF
-          }
-          ./eng/publish.ps1 @packageOptions
-          $packageOptions.Runtime = 'win-arm64'
-          ./eng/publish.ps1 @packageOptions
+          ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase Build -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run') -Version $v -Runtimes win-x64,win-arm64 -ProductVersion 1.0.0 -CandidateRef $env:GITHUB_REF
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: startsWith(github.ref, 'refs/tags/v1.0.0-rc.')
+        with:
+          name: unsigned-candidate-payload
+          path: |
+            ${{ runner.temp }}/signing-run/payload-manifest.json
+            ${{ runner.temp }}/signing-run/artifacts/publish/
+          # Unsigned bytes only; a week leaves room for the owner's approval of the signing job.
+          retention-days: 7
+          if-no-files-found: error
+      - name: Publish portable, framework-dependent, and installer payloads (x64 and ARM64, D-48)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v1.0.0-rc.') }}
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart('v')
+          ./eng/publish.ps1 -Version $v
+          ./eng/publish.ps1 -Version $v -Runtime win-arm64
       - name: Build installers
+        if: ${{ !startsWith(github.ref, 'refs/tags/v1.0.0-rc.') }}
         shell: pwsh
         run: |
           $compiler = ./eng/Acquire-InnoSetup.ps1 -ToolRoot (Join-Path $env:RUNNER_TEMP ('FileCat-Inno-' + [guid]::NewGuid().ToString('N'))) -ReceiptDirectory (Join-Path $PWD 'artifacts/toolchains/inno-setup')
@@ -937,19 +960,20 @@ jobs:
           ./eng/Compile-WindowsInstaller.ps1 -Version $v -CompilerRoot $compiler.ToolRoot -ReceiptDirectory $compiler.ReceiptDirectory
           ./eng/Compile-WindowsInstaller.ps1 -Version $v -Architecture arm64 -CompilerRoot $compiler.ToolRoot -ReceiptDirectory $compiler.ReceiptDirectory
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        if: always()
+        if: ${{ always() && !startsWith(github.ref, 'refs/tags/v1.0.0-rc.') }}
         with:
           name: inno-setup-provenance-windows-package
           path: artifacts/toolchains/inno-setup/**
-      # Windows signing is a separate candidate producer step. This package job currently emits
-      # unsigned inputs only; the draft-preview job below must never consume an RC tag.
+      # These unsigned packages serve previews and other prerelease tags; the draft-preview job never consumes an RC tag.
       - name: Select exact Windows release assets
         id: assets
+        if: ${{ !startsWith(github.ref, 'refs/tags/v1.0.0-rc.') }}
         shell: pwsh
         env:
           PACKAGE_VERSION: ${{ github.ref_name }}
         run: ./eng/Select-ReleaseAssets.ps1 -Platform windows -Version $env:PACKAGE_VERSION.Substring(1) -SourceCommit $env:GITHUB_SHA -GitHubOutputPath $env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: ${{ !startsWith(github.ref, 'refs/tags/v1.0.0-rc.') }}
         with:
           name: filecat-release
           path: ${{ steps.assets.outputs.files }}
@@ -1154,5 +1178,148 @@ jobs:
         if: always()
         with:
           name: draft-preview-receipts
+          path: ${{ runner.temp }}/filecat-draft-receipts/*.json
+          if-no-files-found: warn
+
+  sign-candidate:
+    name: Sign and draft the release candidate (RC tags only)
+    if: startsWith(github.ref, 'refs/tags/v1.0.0-rc.')
+    needs: [package, package-linux, package-macos]
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 150
+    # Section 10.4 steps 5-8 for a v1.0.0-rc.N tag. FileCat's SSL.com certificate signs through eSigner only in the
+    # protected `signing` environment (DEC-12, DEC-13): the owner approves each run, administrator bypass is off, and only
+    # main and v* tags deploy. The credentials reach only the two signing steps, on a machine that never built FileCat.
+    # This owner-approved job also creates the candidate's private draft (DEC-09, as amended for RC tags), so signed bytes
+    # never pass through public workflow artifacts; its signing records, which name the signer, go into a second private
+    # draft. Nothing here publishes: the draft stays private until the owner's GO and a separate promotion.
+    environment: signing
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Check the signing environment's protections
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./eng/signing/Assert-SigningEnvironment.ps1 -Repository $env:GITHUB_REPOSITORY -Environment signing
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: unsigned-candidate-payload
+          path: ${{ runner.temp }}/signing-run
+          digest-mismatch: error
+      - name: Check the payload against the package job's manifest and prepare the tools
+        shell: pwsh
+        env:
+          PAYLOAD_MANIFEST_SHA256: ${{ needs.package.outputs.payload_manifest_sha256 }}
+        run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase Prepare -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run') -Mode ESigner -PayloadManifestSha256 $env:PAYLOAD_MANIFEST_SHA256
+      - name: Sign the win-x64 and win-arm64 payloads
+        id: sign-payload
+        shell: pwsh
+        env:
+          FILECAT_ESIGNER_USERNAME: ${{ secrets.ESIGNER_USERNAME }}
+          FILECAT_ESIGNER_PASSWORD: ${{ secrets.ESIGNER_PASSWORD }}
+          FILECAT_ESIGNER_CREDENTIAL_ID: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
+          FILECAT_ESIGNER_TOTP_SECRET: ${{ secrets.ESIGNER_TOTP_SECRET }}
+          FILECAT_EXPECTED_SIGNER_SHA256: ${{ secrets.ESIGNER_CERT_SHA256 }}
+        run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase SignPayload -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run')
+      - name: Write SBOMs and archives of the signed payloads
+        shell: pwsh
+        run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase Package -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run')
+      - name: Sign both Setups and their uninstallers
+        shell: pwsh
+        env:
+          FILECAT_ESIGNER_USERNAME: ${{ secrets.ESIGNER_USERNAME }}
+          FILECAT_ESIGNER_PASSWORD: ${{ secrets.ESIGNER_PASSWORD }}
+          FILECAT_ESIGNER_CREDENTIAL_ID: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
+          FILECAT_ESIGNER_TOTP_SECRET: ${{ secrets.ESIGNER_TOTP_SECRET }}
+          FILECAT_EXPECTED_SIGNER_SHA256: ${{ secrets.ESIGNER_CERT_SHA256 }}
+        run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase SignInstaller -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run')
+      - name: Verify against Windows' roots with revocation, a silent install and the negative controls
+        id: verify
+        shell: pwsh
+        run: |
+          $work = Join-Path $env:RUNNER_TEMP 'signing-run'
+          $run = Get-Content -LiteralPath (Join-Path $work 'run.json') -Raw | ConvertFrom-Json
+          $verify = @{
+            Path = @($run.Outputs.Payload) + @($run.Outputs.Zips) + @($run.Outputs.Installers)
+            ExpectedSignerSha256 = $run.ExpectedSignerSHA256
+            SigningManifest = @(@($run.Runtimes) | ForEach-Object { Join-Path $work "artifacts/signing/$_/signed-outputs.json" })
+            # The silent install round trip needs a Setup this x64 runner can run; the arm64 Setup is verified as a file.
+            Installer = @($run.Outputs.Installers) | Where-Object { $_ -like '*-win-x64-setup.exe' } | Select-Object -First 1
+            ReportPath = Join-Path $work 'verification.json'
+          }
+          ./eng/signing/Test-WindowsSignatures.ps1 @verify -CheckRevocation -PrivateIdentity
+      - name: Keep the signing records in a private draft
+        if: always() && steps.sign-payload.outcome == 'success'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFICATION_OUTCOME: ${{ steps.verify.outcome }}
+        run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase Draft -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run') -VerificationOutcome $env:VERIFICATION_OUTCOME
+      - name: Select the signed Windows release assets
+        id: windows-assets
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ github.ref_name }}
+        run: ./eng/Select-ReleaseAssets.ps1 -Platform windows -Version $env:PACKAGE_VERSION.Substring(1) -SourceCommit $env:GITHUB_SHA -ArtifactDirectory (Join-Path $env:RUNNER_TEMP 'signing-run/artifacts') -GitHubOutputPath $env:GITHUB_OUTPUT
+      - name: Stage the signed Windows assets beside the other platforms
+        shell: pwsh
+        env:
+          WINDOWS_ASSETS: ${{ steps.windows-assets.outputs.files }}
+        run: |
+          $windows = Join-Path $env:RUNNER_TEMP 'filecat-draft-inputs/windows'
+          [void][IO.Directory]::CreateDirectory($windows)
+          foreach ($path in @($env:WINDOWS_ASSETS -split "`n" | Where-Object { $_ })) { Copy-Item -LiteralPath $path -Destination $windows }
+          if (@(Get-ChildItem -LiteralPath $windows -File).Count -ne 13) { throw 'The signed Windows selection is not the 13-file contract.' }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: filecat-linux
+          path: ${{ runner.temp }}/filecat-draft-inputs/linux
+          digest-mismatch: error
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: filecat-macos
+          path: ${{ runner.temp }}/filecat-draft-inputs/macos
+          digest-mismatch: error
+      - name: Check all three producer manifests and the candidate draft inventory
+        id: draft-assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WINDOWS_MANIFEST_SHA256: ${{ steps.windows-assets.outputs.manifest_sha256 }}
+          LINUX_MANIFEST_SHA256: ${{ needs.package-linux.outputs.manifest_sha256 }}
+          MACOS_MANIFEST_SHA256: ${{ needs.package-macos.outputs.manifest_sha256 }}
+        run: ./eng/Invoke-DraftPackageChecks.ps1 -SignedCandidate -ArtifactDirectory "${{ runner.temp }}/filecat-draft-inputs" -SourceCommit $env:GITHUB_SHA -Reference $env:GITHUB_REF -Repository $env:GITHUB_REPOSITORY -WindowsManifestSHA256 $env:WINDOWS_MANIFEST_SHA256 -LinuxManifestSHA256 $env:LINUX_MANIFEST_SHA256 -MacOSManifestSHA256 $env:MACOS_MANIFEST_SHA256 -ReceiptDirectory "${{ runner.temp }}/filecat-draft-receipts" -GitHubOutputPath $env:GITHUB_OUTPUT
+      - name: Upload the signed candidate's private draft
+        id: draft-release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          draft: true
+          prerelease: true
+          name: FileCat ${{ github.ref_name }} (signed release candidate)
+          files: ${{ steps.draft-assets.outputs.files }}
+          fail_on_unmatched_files: true
+          overwrite_files: false
+      - name: Verify every uploaded ID and server digest
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WINDOWS_MANIFEST_SHA256: ${{ steps.windows-assets.outputs.manifest_sha256 }}
+          LINUX_MANIFEST_SHA256: ${{ needs.package-linux.outputs.manifest_sha256 }}
+          MACOS_MANIFEST_SHA256: ${{ needs.package-macos.outputs.manifest_sha256 }}
+          UPLOADED_ASSETS: ${{ steps.draft-release.outputs.assets }}
+          UPLOADED_RELEASE_ID: ${{ steps.draft-release.outputs.id }}
+        run: ./eng/Invoke-DraftPackageChecks.ps1 -SignedCandidate -ArtifactDirectory "${{ runner.temp }}/filecat-draft-inputs" -SourceCommit $env:GITHUB_SHA -Reference $env:GITHUB_REF -Repository $env:GITHUB_REPOSITORY -WindowsManifestSHA256 $env:WINDOWS_MANIFEST_SHA256 -LinuxManifestSHA256 $env:LINUX_MANIFEST_SHA256 -MacOSManifestSHA256 $env:MACOS_MANIFEST_SHA256 -ReceiptDirectory "${{ runner.temp }}/filecat-draft-receipts" -VerifyUpload -UploadedAssetsJson $env:UPLOADED_ASSETS -ExpectedReleaseID $env:UPLOADED_RELEASE_ID
+      # The draft receipts list asset names, sizes and digests, never the signer.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: candidate-draft-receipts
           path: ${{ runner.temp }}/filecat-draft-receipts/*.json
           if-no-files-found: warn

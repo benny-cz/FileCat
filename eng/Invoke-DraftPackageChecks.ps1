@@ -1,4 +1,5 @@
-<# Assemble/read-check this run's three unsigned preview artifacts. No build, signing or release mutation. #>
+<# Assemble/read-check this run's three platform artifacts for an unsigned preview's draft or, with -SignedCandidate, a
+   signed release candidate's draft. No build, signing or release mutation. #>
 param(
     [Parameter(Mandatory)][string]$ArtifactDirectory,
     [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{40}$')][string]$SourceCommit,
@@ -11,12 +12,19 @@ param(
     [string]$GitHubOutputPath,
     [switch]$VerifyUpload,
     [string]$UploadedAssetsJson,
-    [long]$ExpectedReleaseID
+    [long]$ExpectedReleaseID,
+    # The signed-candidate path: a v1.0.0-rc.N tag whose Windows files the signing job signed. Previews never take it.
+    [switch]$SignedCandidate
 )
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $Policy=& (Join-Path $PSScriptRoot 'Assert-ProducerReference.ps1') -Reference $Reference -EventName push
-if($Policy.Mode -cne 'prerelease' -or $Reference -cnotmatch '^refs/tags/v1\.0\.0-preview\.[1-9][0-9]*$'){
+if($SignedCandidate){
+    if($Policy.Mode -cne 'prerelease' -or $Reference -cnotmatch '^refs/tags/v1\.0\.0-rc\.[1-9][0-9]*$'){
+        throw 'Signed-candidate package checks require a 1.0.0 RC tag; previews keep the unsigned draft path.'
+    }
+}
+elseif($Policy.Mode -cne 'prerelease' -or $Reference -cnotmatch '^refs/tags/v1\.0\.0-preview\.[1-9][0-9]*$'){
     throw 'Draft package checks require a 1.0.0 preview tag; RC artifacts need the separate signed-candidate path.'
 }
 $Version=$Reference.Substring('refs/tags/v'.Length)
@@ -48,6 +56,7 @@ foreach($Specification in $Specifications){
         ManifestPath=$ManifestPath;ManifestSHA256=$Specification.Hash;SourceCommit=$SourceCommit
         Reference=$Reference;Repository=$Repository
         ReceiptPath=(Join-Path $ReceiptDirectory "$Platform-$(if($VerifyUpload){'uploaded'}else{'preflight'}).json")
+        SignedCandidate=[bool]$SignedCandidate
     }
     if($VerifyUpload){
         $Manifest=Get-Content -Raw -LiteralPath $ManifestPath | ConvertFrom-Json
@@ -71,4 +80,4 @@ if($GitHubOutputPath){
     $Delimiter='FILECAT_DRAFT_FILES_'+[guid]::NewGuid().ToString('N')
     [IO.File]::AppendAllText([IO.Path]::GetFullPath($GitHubOutputPath),"files<<$Delimiter`n"+($Paths -join "`n")+"`n$Delimiter`n",[Text.UTF8Encoding]::new($false))
 }
-[pscustomobject]@{Mode=$(if($VerifyUpload){'verify-upload'}else{'preflight'});Files=@($Paths.ToArray());PlatformReceipts=@($Results.ToArray());SourceCommit=$SourceCommit;StablePromotionAuthorized=$false;CandidateQualified=$false}
+[pscustomobject]@{Mode=$(if($VerifyUpload){'verify-upload'}else{'preflight'});Kind=$(if($SignedCandidate){'signed-candidate'}else{'unsigned-preview'});Files=@($Paths.ToArray());PlatformReceipts=@($Results.ToArray());SourceCommit=$SourceCommit;StablePromotionAuthorized=$false;CandidateQualified=$false}
