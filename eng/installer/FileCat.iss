@@ -15,6 +15,8 @@
 #ifndef PayloadDir
   #define PayloadDir "..\..\artifacts\publish\win-" + Arch
 #endif
+#define Windows11Build 22000
+#define Server2016Build 14393
 
 [Setup]
 AppId={{6F3C2B5E-9A41-4E57-8C5E-1F2A3B4C5D6E}
@@ -32,11 +34,13 @@ PrivilegesRequired=admin
 #if Arch == "arm64"
 ArchitecturesAllowed=arm64
 ArchitecturesInstallIn64BitMode=arm64
+MinVersion=10.0.{#Windows11Build}
 #else
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+; Let Server 2016 reach the edition check below. Windows 10 shares this build number.
+MinVersion=10.0.{#Server2016Build}
 #endif
-MinVersion=10.0.22000
 LicenseFile=..\..\LICENSE
 OutputDir=..\..\artifacts
 OutputBaseFilename=FileCat-{#AppVersion}-win-{#Arch}-setup
@@ -71,3 +75,19 @@ Filename: "{app}\FileCat.exe"; Description: "Start FileCat"; Flags: nowait posti
 ; empty. The folder may be one the user chose that already held other files, and those must survive (release issue
 ; I15). FileCat writes nothing into its installation folder; settings, history, and journals live in the user profile
 ; and are intentionally kept.
+
+#if Arch == "x64"
+[Code]
+function InitializeSetup: Boolean;
+var
+  Version: TWindowsVersion;
+begin
+  GetWindowsVersionEx(Version);
+  Result := (GetWindowsVersion >= $0A000000 + {#Windows11Build}) or
+    ((Version.Build = {#Server2016Build}) and
+     ((Version.ProductType = VER_NT_SERVER) or (Version.ProductType = VER_NT_DOMAIN_CONTROLLER)));
+  if not Result then
+    SuppressibleMsgBox('FileCat Setup requires Windows 11 or Windows Server 2016 (x64).',
+      mbCriticalError, MB_OK, IDOK);
+end;
+#endif

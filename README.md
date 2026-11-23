@@ -228,11 +228,11 @@ connected-glass header. They do not establish installed-package or native-intera
 
 For 1.0.0, **Windows 11 x64 is the planned stable tier**. Windows 11 ARM64,
 Ubuntu 24.04/26.04 x64 with GNOME, and macOS 26+ on Apple silicon are planned previews.
-The public preview packages are unsigned; these labels describe the validation targets for
-stable 1.0.0. Windows
-provides MTP, Registry and native Shell actions; the Unix builds use their own trash,
-permission, keyring and device-authorization paths. [What works where](docs/CAPABILITIES.md)
-lists the differences by platform and location.
+The public preview packages are unsigned. These labels describe the validation targets for
+stable 1.0.0. The x64 installer also accepts Windows Server 2016 (build 14393) with Desktop Experience.
+Windows provides MTP, Registry and native Shell actions. The Unix builds use their own trash,
+permission, keyring and device-authorization paths. See [what works where](docs/CAPABILITIES.md)
+for differences by platform and location.
 
 ## Development and validation
 
