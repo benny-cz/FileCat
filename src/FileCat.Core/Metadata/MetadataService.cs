@@ -654,11 +654,21 @@ public static class BuiltInFields
     /// <summary>Linux and macOS: permissions as ls prints them ("rwxr-xr-x"), for files and folders.</summary>
     public static readonly MetadataField Permissions = new("permissions", "Permissions", MetadataCost.Cheap,
         _ => true,
-        (p, _) => UnixPermissions.Stat(p)?.Mode,
+        (p, _) => UnixPermissions.Stat(p, out int error) is { } stat ? stat.Mode : PermissionsUnread(error),
         v => v is UnixFileMode m ? UnixPermissions.Format(m) : string.Empty,
         SortKey: v => v is UnixFileMode m ? (int)m : null,
         Folders: true, RefreshAfter: TimeSpan.FromSeconds(5),
         Detail: v => v is UnixFileMode mode ? $"Octal {UnixPermissions.Octal(mode)} · mode bits only; an ACL or the mount can allow or deny more." : string.Empty);
+
+    /// <summary>Why an item's permissions could not be read, said in its cell ("no access", "error") rather than a blank.</summary>
+    internal static MetadataValue PermissionsUnread(int error) => error switch
+    {
+        0 => new(MetadataState.Unsupported, Detail: "Permissions are read on Linux and macOS."),
+        1 or 13 => new(MetadataState.Denied, Detail:
+            "Its permissions cannot be read: a folder on the way does not let this user look items up in it (no search permission, x)."),
+        2 => new(MetadataState.Failed, Detail: "The item is gone: it was removed or renamed after the list was read."),
+        _ => new(MetadataState.Failed, Detail: $"Its permissions cannot be read: {System.Runtime.InteropServices.Marshal.GetPInvokeErrorMessage(error)} (error {error})."),
+    };
 
     public static readonly MetadataField Owner = new("owner", "Owner", MetadataCost.Cheap,
         _ => true,

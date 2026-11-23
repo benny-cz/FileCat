@@ -109,12 +109,20 @@ public static unsafe partial class UnixPermissions
     }
 
     /// <summary>The entry's own mode, owner, and group (a link's, not its target's); null when they cannot be read.</summary>
-    public static (UnixFileMode Mode, uint Uid, uint Gid)? Stat(string path)
+    public static (UnixFileMode Mode, uint Uid, uint Gid)? Stat(string path) => Stat(path, out _);
+
+    /// <summary>
+    /// As <see cref="Stat(string)"/>, with the system's error number when they cannot be read: EACCES (13) when a folder
+    /// on the way does not let this user look items up in it, ENOENT (2) when the item is gone. 0 when they can be read,
+    /// and where there is nothing to read (Windows, a C library without statx).
+    /// </summary>
+    public static (UnixFileMode Mode, uint Uid, uint Gid)? Stat(string path, out int error)
     {
+        error = 0;
         try
         {
-            if (OperatingSystem.IsLinux()) return LinuxStat(path);
-            if (OperatingSystem.IsMacOS()) return MacStat(path);
+            if (OperatingSystem.IsLinux()) return LinuxStat(path, out error);
+            if (OperatingSystem.IsMacOS()) return MacStat(path, out error);
         }
         catch (Exception ex) when (ex is EntryPointNotFoundException or DllNotFoundException)
         {
@@ -123,22 +131,32 @@ public static unsafe partial class UnixPermissions
         return null;
     }
 
-    private static (UnixFileMode, uint, uint)? LinuxStat(string path)
+    private static (UnixFileMode, uint, uint)? LinuxStat(string path, out int error)
     {
+        error = 0;
         // struct statx has one layout on every architecture: uid at 20, gid at 24, the 16-bit mode at 28 (256 bytes).
         const int AtFdCwd = -100, AtSymlinkNoFollow = 0x100;
         const uint Wanted = 0x1 | 0x2 | 0x8 | 0x10; // STATX_TYPE | STATX_MODE | STATX_UID | STATX_GID
         byte* buffer = stackalloc byte[256];
-        if (Statx(AtFdCwd, path, AtSymlinkNoFollow | 0x800, Wanted, buffer) != 0) return null; // AT_NO_AUTOMOUNT
+        if (Statx(AtFdCwd, path, AtSymlinkNoFollow | 0x800, Wanted, buffer) != 0) // AT_NO_AUTOMOUNT
+        {
+            error = Marshal.GetLastPInvokeError();
+            return null;
+        }
         return ((UnixFileMode)(*(ushort*)(buffer + 28) & 0xFFF), *(uint*)(buffer + 20), *(uint*)(buffer + 24));
     }
 
-    private static (UnixFileMode, uint, uint)? MacStat(string path)
+    private static (UnixFileMode, uint, uint)? MacStat(string path, out int error)
     {
+        error = 0;
         // struct stat with 64-bit inodes: dev_t st_dev; mode_t st_mode (16-bit, at 4); nlink_t; ino_t; uid at 16; gid at 20.
         byte* buffer = stackalloc byte[256];
         int result = RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? MacLstat(path, buffer) : MacLstatInode64(path, buffer);
-        if (result != 0) return null;
+        if (result != 0)
+        {
+            error = Marshal.GetLastPInvokeError();
+            return null;
+        }
         return ((UnixFileMode)(*(ushort*)(buffer + 4) & 0xFFF), *(uint*)(buffer + 16), *(uint*)(buffer + 20));
     }
 
@@ -248,13 +266,13 @@ public static unsafe partial class UnixPermissions
         return id.ToString(CultureInfo.InvariantCulture);
     }
 
-    [LibraryImport("libc", EntryPoint = "statx", StringMarshalling = StringMarshalling.Utf8)]
+    [LibraryImport("libc", EntryPoint = "statx", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int Statx(int directory, string path, int flags, uint mask, byte* buffer);
 
-    [LibraryImport("libc", EntryPoint = "lstat", StringMarshalling = StringMarshalling.Utf8)]
+    [LibraryImport("libc", EntryPoint = "lstat", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int MacLstat(string path, byte* buffer);
 
-    [LibraryImport("libc", EntryPoint = "lstat$INODE64", StringMarshalling = StringMarshalling.Utf8)]
+    [LibraryImport("libc", EntryPoint = "lstat$INODE64", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int MacLstatInode64(string path, byte* buffer);
 
     [LibraryImport("libc", EntryPoint = "getuid")]
