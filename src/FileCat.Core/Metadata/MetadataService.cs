@@ -38,6 +38,9 @@ public enum MetadataObservation
     Gone,
 }
 
+/// <summary>A link target shown with what it is (an app execution alias's program, a WSL link's Linux path).</summary>
+public sealed record LinkTargetText(string Target, string Detail);
+
 public readonly record struct MetadataValue(MetadataState State, object? Value = null, string? Detail = null,
     MetadataObservation Observation = MetadataObservation.Current)
 {
@@ -616,11 +619,37 @@ public static class BuiltInFields
         RightAlign: true,
         SortKey: v => v is (int w, int h) ? (long)w * h : null);
 
+    /// <summary>
+    /// Where a link points: a symbolic link's or junction's stored target; on Windows also the program an app execution
+    /// alias starts and a WSL symbolic link's Linux path, which .NET does not read. Those two are shown, never followed.
+    /// </summary>
     public static readonly MetadataField LinkTarget = new("linkTarget", "Link target", MetadataCost.Cheap,
         _ => true,
-        (p, _) => new FileInfo(p).LinkTarget,
-        v => v as string ?? string.Empty,
-        Folders: true);
+        (p, _) => (object?)new FileInfo(p).LinkTarget ?? (OperatingSystem.IsWindows() ? DescriptiveLinkTarget(p) : null),
+        v => v switch { string s => s, LinkTargetText t => t.Target, _ => string.Empty },
+        SortKey: v => v switch { string s => s, LinkTargetText t => t.Target, _ => null },
+        Folders: true,
+        Detail: v => v is LinkTargetText t ? t.Detail : string.Empty,
+        NeedsExplanation: v => v is LinkTargetText);
+
+    /// <summary>An app execution alias's program or a WSL link's path, for an item .NET finds no link target in.</summary>
+    private static LinkTargetText? DescriptiveLinkTarget(string path)
+    {
+        try
+        {
+            // Only a reparse point is opened a second time.
+            if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0) return null;
+            return ReparseLinks.ReadPayload(path) switch
+            {
+                { State: ReparsePayloadState.Known, Alias: { } alias } => new(alias.Executable,
+                    $"App execution alias: Windows starts this program for {alias.AppId}, from the package {alias.Package}. FileCat neither starts nor follows it."),
+                { State: ReparsePayloadState.Known, WslTarget: { } wsl } => new(wsl,
+                    "WSL symbolic link: programs in WSL follow this Linux path; Windows programs do not, and FileCat does not."),
+                _ => null,
+            };
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
+    }
 
     /// <summary>Linux and macOS: permissions as ls prints them ("rwxr-xr-x"), for files and folders.</summary>
     public static readonly MetadataField Permissions = new("permissions", "Permissions", MetadataCost.Cheap,

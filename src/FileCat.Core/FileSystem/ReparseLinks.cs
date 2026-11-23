@@ -34,6 +34,31 @@ public static partial class ReparseLinks
         return (info.FileAttributes & (uint)FileAttributes.ReparsePoint) != 0 && IsLinkTag(info.ReparseTag);
     }
 
+    /// <summary>
+    /// Windows: the item's own reparse data, parsed (FSCTL_GET_REPARSE_POINT on a handle that neither follows the item nor
+    /// reads its content); null when it has none or it cannot be read. Its descriptive targets (an app execution alias's
+    /// program, a WSL link's Linux path) are for display, never paths to follow.
+    /// </summary>
+    public static ReparsePayload? ReadPayload(string path)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        string full = Path.GetFullPath(path);
+        string native = full.Length >= 248 && !full.StartsWith(@"\\", StringComparison.Ordinal) ? @"\\?\" + full : full;
+        using var handle = CreateFile(native, ReadAttributes, FileShare.ReadWrite | FileShare.Delete, 0, OpenExisting,
+            BackupSemantics | OpenReparsePoint, 0);
+        if (handle.IsInvalid) return null;
+        byte[] buffer = new byte[16 * 1024];
+        if (!DeviceIoControl(handle, GetReparsePoint, 0, 0, buffer, buffer.Length, out int returned, 0) || returned < 8) return null;
+        return ReparsePayloadReader.Parse(buffer.AsSpan(0, returned));
+    }
+
+    private const uint GetReparsePoint = 0x000900A8; // FSCTL_GET_REPARSE_POINT
+
+    [LibraryImport("kernel32.dll", EntryPoint = "DeviceIoControl", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool DeviceIoControl(SafeFileHandle device, uint code, nint input, int inputLength, byte[] output,
+        int outputLength, out int returned, nint overlapped);
+
     [StructLayout(LayoutKind.Sequential)]
     private struct AttributeTag
     {

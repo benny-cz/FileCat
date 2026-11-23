@@ -264,7 +264,7 @@ public static class ColumnDescriptions
     {
         "version" => "Program and library versions (.exe, .dll, and similar)",
         "dimensions" => "Picture sizes in pixels",
-        "linkTarget" => "Where links and junctions point",
+        "linkTarget" => "Where links and junctions point; on Windows also the program an app alias starts and a WSL link's path",
         "zone" => "Where files came from (downloaded from the internet, say)",
         "permissions" => "The mode bits: what owner, group, and others may read, write, and run. ACLs, where present, are not shown",
         "owner" => OperatingSystem.IsWindows()
