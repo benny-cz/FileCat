@@ -208,10 +208,17 @@ public sealed class ChangeMonitor : IDisposable
     /// <summary>Runs as a reread falls due, before it takes the monitor's lock (tests: a timer callback held up).</summary>
     internal Action? BeforeFire { get; set; }
 
+    /// <summary>
+    /// Runs with the time a reread was taken at, the time its interval counts from, before it reads (tests: the time between
+    /// rereads on the monitor's own clock, which the time its callback ran at only approximates on a loaded machine).
+    /// </summary>
+    internal Action<DateTime>? Fired { get; set; }
+
     private void Fire()
     {
         BeforeFire?.Invoke();
         bool started;
+        DateTime fired;
         lock (_lock)
         {
             // Nothing noticed since the last reread: a notice that came as that reread fell due, before it took this lock,
@@ -219,9 +226,10 @@ public sealed class ChangeMonitor : IDisposable
             // here read a busy folder 0.4 s after the last time (seen on macOS in CI).
             if (_disposed || _firstPending == DateTime.MaxValue) return;
             _firstPending = DateTime.MaxValue;
-            _lastFire = DateTime.UtcNow;
-            started = NoteFire(_lastFire);
+            _lastFire = fired = DateTime.UtcNow;
+            started = NoteFire(fired);
         }
+        Fired?.Invoke(fired);
         if (started) ChurnChanged?.Invoke();
         _onChange();
     }
