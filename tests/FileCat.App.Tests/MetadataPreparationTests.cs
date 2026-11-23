@@ -78,10 +78,11 @@ public sealed class MetadataPreparationTests(ITestOutputHelper output)
         if (change == "selection") f.Left.Listing.FocusName("second.txt");
         else if (change == "source") f.Left.Navigate(Location.FileSystem(f.Root));
         else f.Right.Navigate(Location.FileSystem(f.Root));
+        // Windows closes its attributes dialog on Apply. On Linux and macOS, permissions and times share one dialog: it enables
+        // Apply on its next availability check after an edit, and stays open with the job's result until it is closed.
+        await Wait(() => f.Button("Apply")?.IsEffectivelyEnabled == true);
         f.Click("Apply"); await Wait(() => f.Services.Jobs.Jobs.Count == 1);
         var job = Assert.Single(f.Services.Jobs.Jobs); await Wait(() => job.State.IsFinished());
-        // Windows closes its attributes dialog on Apply. On Linux and macOS, permissions and times share one dialog that stays
-        // open with the job's result until it is closed.
         if (!OperatingSystem.IsWindows()) { await Wait(() => f.Button("Close") is not null); f.Click("Close"); }
         await task.WaitAsync(TimeSpan.FromSeconds(10));
         Emit("approved-attributes", f, new { change, state = job.State.ToString(), sources = job.Request.Sources.Select(s => s.FileSystemPath).ToArray() });

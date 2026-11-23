@@ -52,7 +52,10 @@ public sealed partial class MainViewModel
                 }
             scope.Check();
             if (!origin.IsCurrent) throw new OperationCanceledException();
-            if (targets.Any(target => target.Refusal is null)) scope.Detach();
+            // Preparation belongs to the listing until the user sees its result: from here the dialog keeps the selection it
+            // shows, so a later listing change no longer closes it. A reviewed permission change still needs the original
+            // marks when it applies.
+            scope.Detach();
             await ShowUnixAttributesAsync(origin, selection, metadata, scope, targets, unavailable);
         }
         catch (OperationCanceledException) { }
