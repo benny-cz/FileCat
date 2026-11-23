@@ -155,10 +155,16 @@ public sealed partial class AnalysisWindowsTests
         bool assertionsPassed = false;
         try
         {
+            // New files inherit NTFS compression from their folder, and test binaries may sit in a compressed checkout. A
+            // compressed file's primary allocation is its compressed size, which does not match the default stream's
+            // allocation in FileStreamInformation, so its detailed named-stream evidence stays unavailable by design.
+            // This case measures an ordinary file.
+            ClearInheritedCompression(temp);
             string root = Path.Combine(temp, "root"); Directory.CreateDirectory(root);
             string a = Path.Combine(root, "a"); Directory.CreateDirectory(a);
             string b = Path.Combine(root, "b"); Directory.CreateDirectory(b);
             string file = Path.Combine(a, "data.bin"); File.WriteAllBytes(file, new byte[10000]);
+            Assert.False(File.GetAttributes(file).HasFlag(FileAttributes.Compressed), "The owned fixture file must not be compressed.");
             Assert.True(HardLink(Path.Combine(b, "alias.bin"), file, 0));
             string outside = Path.Combine(temp, "outside"); Directory.CreateDirectory(outside);
             File.WriteAllText(Path.Combine(outside, "must-not-appear"), "outside");
@@ -212,6 +218,21 @@ public sealed partial class AnalysisWindowsTests
             { TestContext.Current.TestOutputHelper?.WriteLine("Fixture cleanup also failed: " + ex.GetType().Name); }
         }
     }
+    private static void ClearInheritedCompression(string directory)
+    {
+        if (!File.GetAttributes(directory).HasFlag(FileAttributes.Compressed)) return;
+        using var handle = Elevation.NtFile.OpenOrThrow(null, @"\??\" + directory,
+            Elevation.NtFile.ReadData | Elevation.NtFile.WriteData | Elevation.NtFile.ReadAttributes | Elevation.NtFile.Synchronize,
+            Elevation.NtFile.ShareAll, Elevation.NtFile.Open, Elevation.NtFile.DirectoryFile | Elevation.NtFile.OpenReparsePoint,
+            "Open the owned fixture folder");
+        ushort none = 0; // COMPRESSION_FORMAT_NONE: children created from now on are not compressed.
+        Assert.True(SetFixtureCompression(handle, 0x9C040 /* FSCTL_SET_COMPRESSION */, ref none, sizeof(ushort), 0, 0, out _, 0),
+            "Clearing inherited compression on the owned fixture folder failed: " + Marshal.GetLastPInvokeError());
+    }
+    [LibraryImport("kernel32.dll", EntryPoint = "DeviceIoControl", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetFixtureCompression(Microsoft.Win32.SafeHandles.SafeFileHandle handle, uint code, ref ushort format,
+        uint formatBytes, nint output, uint outputBytes, out uint returned, nint overlapped);
     [LibraryImport("kernel32.dll", EntryPoint = "CreateHardLinkW", StringMarshalling = StringMarshalling.Utf16)]
     [return: MarshalAs(UnmanagedType.Bool)] private static partial bool HardLink(string link, string existing, nint attributes);
     [LibraryImport("kernel32.dll", EntryPoint = "RemoveDirectoryW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
