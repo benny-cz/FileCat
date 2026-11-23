@@ -349,7 +349,9 @@ public sealed partial class MainViewModel
             bool boundMetadata = mac && !preview.Recursive && admitted.Length == selection.Count &&
                 (preview.Modification.HasValue || preview.Creation.HasValue || preview.Hidden is not null);
             bool useReview = preview.ChangeMode || boundMetadata;
-            bool originalSelection = useReview ? origin.HasOriginalMarks : origin.IsCurrent;
+            // A reviewed permission change needs the original marks, because its bindings came from them. A timestamp or
+            // attribute job keeps the selection this dialog shows, as on Windows, whatever the panels show by now.
+            bool originalSelection = !useReview || origin.HasOriginalMarks;
             if (preview.Problem is not null || !available || !originalSelection || viewToken.IsCancellationRequested)
             {
                 if (!originalSelection && !viewToken.IsCancellationRequested)
