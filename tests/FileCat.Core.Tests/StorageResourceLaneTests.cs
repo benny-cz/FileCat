@@ -13,7 +13,7 @@ public sealed class StorageResourceLaneTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public void A_full_native_owner_a_full_pin_review_a_history_cursor_and_a_live_report_use_separate_bounded_lanes()
+    public async Task A_full_native_owner_a_full_pin_review_a_history_cursor_and_a_live_report_use_separate_bounded_lanes()
     {
         using var full = new ManualResetEventSlim();
         using var release = new ManualResetEventSlim();
@@ -76,14 +76,15 @@ public sealed class StorageResourceLaneTests
                 waiting.CancelAfter(TimeSpan.FromMilliseconds(300));
                 var second = Task.Factory.StartNew(() => StorageReviewResources.EnterNative(waiting.Token),
                     CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-                Assert.ThrowsAny<OperationCanceledException>(() => second.GetAwaiter().GetResult());
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => second);
             }
         }
         finally
         {
             release.Set();
-            owner.Wait(TimeSpan.FromSeconds(30));
-            foreach (var pin in pins) pin.Dispose();
+            // An owner still running after its release would leave the EnterNative below waiting; fail instead.
+            try { await owner.WaitAsync(TimeSpan.FromSeconds(30), Ct); }
+            finally { foreach (var pin in pins) pin.Dispose(); }
         }
         Assert.Null(ownerFault);
         // Every lane is whole again afterwards.

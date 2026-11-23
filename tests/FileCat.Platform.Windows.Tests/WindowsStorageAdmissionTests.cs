@@ -149,7 +149,7 @@ public sealed class WindowsStorageAdmissionTests
             }
             Assert.Empty(manager.Jobs);
             Assert.False(Directory.Exists(Path.Join(root, "journal")));
-            Assert.Empty(Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories).Where(p => p != file));
+            Assert.DoesNotContain(Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories), p => p != file);
             // Compression stays available on the same host, and the file stays clear.
             Assert.Null(release.Unavailable(StorageAction.Compress));
             Assert.False(File.GetAttributes(file).HasFlag(FileAttributes.Encrypted));

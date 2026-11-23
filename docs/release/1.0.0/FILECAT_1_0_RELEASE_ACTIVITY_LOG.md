@@ -5389,3 +5389,10 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-23 — Bundled 7z reader breakpoints
 
 - Correction to the first release sync: no archive could reach the two `Debugger.Break()` calls in the bundled 7z reader, so they were never a crash risk; the sync record had said a malformed 7z reached one. Main removed both in `7230e412` and added `DebuggerBreakPolicyTests`, which keeps `Debugger.Break` and `Debugger.Launch` out of FileCat's sources. `release/1.0` gets the change through its own PR after the second sync. [Sync record](evidence/E-REL-SYNC-20261120-release-branch.md).
+
+## 2026-11-23 — Release-branch syncs
+
+- `release/1.0` was synced with main at `e5cf68f2`, the newest commit with fully green CI. PR #3 merged as `f25a2d6a`, with 431 commits in and the tree identical to `e5cf68f2`. In the first attempt, GitHub could not get a hosted macOS runner for the required macOS check, and the non-required Ubuntu App job failed one permissions route test. Re-running those two jobs passed.
+- The failing test ran Find's permissions command before Find allows it. Main `59abfde1` makes it wait for Find to settle. A slow-search probe reproduced the refusal in 5 of 5 runs, and 30 runs of the class passed after the change.
+- The scan found no secrets. SSH.NET is now vendored, so its security fixes must be ported by hand.
+- Main's tip `59abfde1` then passed its full CI, and the permissions work looked finished, so `release/1.0` was synced again. PR #5 merged as `6611a72d`, with 10 commits in and the tree identical to `59abfde1`. It brings the 7z breakpoint removal and the test fix, so backport PR #4 was closed. [Sync record](evidence/E-REL-SYNC-20261123-release-branch.md).

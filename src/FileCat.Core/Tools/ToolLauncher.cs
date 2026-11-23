@@ -188,7 +188,7 @@ public static class ToolLauncher
                 foreach (var a in args) psi.ArgumentList.Add(a);
                 try
                 {
-                    using var process = Process.Start(psi);
+                    using var process = ProgramStart.Start(psi);
                     started |= process is not null;
                 }
                 catch (System.ComponentModel.Win32Exception ex)
