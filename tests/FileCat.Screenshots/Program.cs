@@ -18,7 +18,8 @@ using Location = FileCat.Core.Resources.Location;
 //   FileCat.Screenshots <out> record <path> [pages] [theme ...]      the file-system record of <path>, page by page
 //   FileCat.Screenshots <out> window <left> [right] [theme ...]      the main window with these locations in its panels
 //   FileCat.Screenshots <out> command <left>[|right] <id>[@tab] [theme ...]  the main window after a command (its dialog
-//                                                                    open), on the dialog's tab of that number (from 0) if given;
+//                                                                    open), on the dialog's tab of that number (from 0) if given,
+//                                                                    and FILECAT_SHOT_DIALOG_PAGES=<n> pages of the dialog's body;
 //                                                                    menu:<name> (menu:View) pictures that menu open instead;
 //                                                                    tip:toolbar:<id> or tip:place:<title> a button's tooltip
 // A location is a folder or file path, journal:<drive root> for a drive's change journal, or what the path box reads
@@ -165,6 +166,15 @@ int MainWindowShot(string[] a, string? command = null)
                     Pump(() => false, 500);
                 }
                 Save(window, $"{parts[0].Replace('.', '-')}{(parts.Length > 1 ? "-" + parts[1] : "")}-{theme}.png");
+                // FILECAT_SHOT_DIALOG_PAGES=<n>: the open dialog's body again, scrolled down a viewport at a time.
+                if (int.TryParse(Environment.GetEnvironmentVariable("FILECAT_SHOT_DIALOG_PAGES"), out int pages) &&
+                    window.GetVisualDescendants().OfType<ScrollViewer>().LastOrDefault(viewer => viewer.Name == "DialogBodyScroll") is { } body)
+                    for (int page = 2; page <= pages && body.Offset.Y + body.Viewport.Height < body.Extent.Height; page++)
+                    {
+                        body.Offset = body.Offset.WithY(body.Offset.Y + body.Viewport.Height * 0.9);
+                        Pump(() => false, 300);
+                        Save(window, $"{parts[0].Replace('.', '-')}{(parts.Length > 1 ? "-" + parts[1] : "")}-{theme}-page{page}.png");
+                    }
                 int n = 0;
                 foreach (var other in opened.Where(w => !ReferenceEquals(w, window) && w.IsVisible).ToList())
                 {

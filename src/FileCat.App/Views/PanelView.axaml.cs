@@ -397,10 +397,8 @@ public partial class PanelView : UserControl
                 items.Add(ContextMenuFactory.Analyze(main, MainViewModel.AnalyzeDiskSpaceTitle, [root]));
             if (place.OpensInPanel && place.Location is { IsFileSystem: true } && Panel is { } placePanel)
             {
-                string? refusal = MainViewModel.PermissionProcessRefusal();
-                var permissions = new MenuItem { Header = "Permissions and ownership…", Icon = MenuIconFactory.Create(CommandIds.PermissionsOwnership),
-                    IsEnabled = refusal is null };
-                string help = refusal ?? "Opens the place in a new tab and inspects that folder's permissions.";
+                var permissions = new MenuItem { Header = "Permissions and ownership…", Icon = MenuIconFactory.Create(CommandIds.PermissionsOwnership) };
+                const string help = "Opens the place in a new tab and inspects that folder's permissions.";
                 ToolTip.SetTip(permissions, help);
                 ToolTip.SetShowOnDisabled(permissions, true);
                 AutomationProperties.SetHelpText(permissions, help);

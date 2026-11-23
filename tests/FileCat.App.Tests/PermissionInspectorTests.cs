@@ -227,7 +227,7 @@ public sealed class PermissionInspectorTests
     [AvaloniaFact]
     public async Task A_place_opens_in_a_new_tab_and_inspects_that_folder()
     {
-        if (FileCat.App.ViewModels.MainViewModel.PermissionProcessRefusal() is not null)
+        if (FileCat.App.ViewModels.MainViewModel.PermissionChangeRefusal() is not null)
             Assert.Skip("Requires an ordinary FileCat process.");
         var permissions = new UnavailablePermissions();
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(permissionService: permissions,
@@ -267,7 +267,7 @@ public sealed class PermissionInspectorTests
     [AvaloniaFact]
     public async Task A_drive_row_names_the_route_that_can_inspect_its_mounted_root()
     {
-        if (FileCat.App.ViewModels.MainViewModel.PermissionProcessRefusal() is not null)
+        if (FileCat.App.ViewModels.MainViewModel.PermissionChangeRefusal() is not null)
             Assert.Skip("Requires an ordinary FileCat process.");
         var permissions = new UnavailablePermissions();
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(permissionService: permissions);
@@ -1029,18 +1029,23 @@ public sealed class PermissionInspectorTests
                 vm.Execute(CommandIds.PermissionsOwnership);
                 await Until(() => TextPresent(window, "Darwin extended ACL"), ct);
                 var access = window.GetVisualDescendants().OfType<ListBox>().Single(box => AutomationProperties.GetName(box) == "Access now");
-                var rules = access.Items.OfType<string>().ToArray();
+                var rules = access.Items.OfType<PermissionInspectorView.AclRow>().Select(row => row.Exact).ToArray();
                 Assert.Collection(rules, deny => Assert.Contains("Write data", deny), allow => Assert.Contains("Read data", allow));
                 Assert.StartsWith("Deny", rules[0]);
                 Assert.StartsWith("Allow", rules[1]);
+                // The first rule is chosen as the dialog opens; its account actions act on it.
                 var lookup = FindButton(window, "Look up account")!;
-                Assert.False(lookup.IsEnabled);
+                Assert.Equal(0, access.SelectedIndex);
+                Assert.True(lookup.IsEnabled);
                 Assert.False(TextPresent(window, "User · " + owner));
                 access.SelectedIndex = 1;
                 Assert.True(lookup.IsEnabled);
                 Click(lookup);
                 await Until(() => TextPresent(window, "User · " + owner), ct);
-                Assert.Equal(rules, access.Items.OfType<string>());
+                // The account's name is also looked up for its row as the dialog opens.
+                await Until(() => access.Items.OfType<PermissionInspectorView.AclRow>().ElementAt(1).Refresh is not null &&
+                    TextPresent(window, owner), ct);
+                Assert.Equal(rules, access.Items.OfType<PermissionInspectorView.AclRow>().Select(row => row.Exact));
                 Assert.True(TextPresent(window, "BSD flags"));
                 Assert.Null(FindButton(window, "Edit access ACL…"));
                 Assert.Null(FindButton(window, "Edit mode…"));

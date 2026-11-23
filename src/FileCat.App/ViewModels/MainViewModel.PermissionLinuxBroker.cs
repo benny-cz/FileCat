@@ -33,17 +33,20 @@ public sealed partial class MainViewModel
             await waiting;
             using var authorized = await inspect;
             if (cancellation.IsCancellationRequested || Services.Io.IsStopped || origin is { IsCurrent: false }) return;
-            var view = new PermissionInspectorView([(item.Name, authorized.Snapshot)], copy,
-                principalNames: Services.PermissionPrincipalNames);
-            var buttons = new List<DialogButton> { new("Close", "close", IsDefault: true, IsCancel: true) };
-            foreach (var (command, label) in new (string, string)[]
+            var actions = new List<PermissionInspectorAction>();
+            foreach (var (command, label, area) in new (string, string, PermissionInspectorArea)[]
             {
-                ("mode", "Edit mode…"), ("acl", "Edit access ACL…"), ("defaults", "Edit default ACL…"),
-                ("owner", "Change owner…"), ("group", "Change group…"), ("protection", "Edit file protection…")
+                ("owner", "Change owner…", PermissionInspectorArea.Ownership), ("group", "Change group…", PermissionInspectorArea.Ownership),
+                ("mode", "Edit mode…", PermissionInspectorArea.Mode), ("protection", "Edit file protection…", PermissionInspectorArea.Flags),
+                ("acl", "Edit access ACL…", PermissionInspectorArea.Access), ("defaults", "Edit default ACL…", PermissionInspectorArea.Defaults)
             })
-                if (authorized.CanEdit(command)) buttons.Insert(0, new(label, command));
-            var choice = await dialogs.ShowCustomAsync("Authorized permissions and ownership", view, buttons, resizable: true,
-                behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(740, 550) });
+                if (authorized.CanEdit(command)) actions.Add(new(label, command, area, _ => true));
+            var inspectorCloser = new DialogCloser();
+            var view = new PermissionInspectorView([(item.Name, authorized.Snapshot)], copy,
+                principalNames: Services.PermissionPrincipalNames, actions: actions, closer: inspectorCloser);
+            var choice = await dialogs.ShowCustomAsync("Authorized permissions and ownership", view, [new("Close", "close", IsDefault: true, IsCancel: true)],
+                closer: inspectorCloser, resizable: true,
+                behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(860, 640) });
             if (choice is string commandChoice && authorized.CanEdit(commandChoice) && !Services.Io.IsStopped &&
                 origin is not { IsCurrent: false })
                 await ShowBoundPermissionEditorAsync(dialogs, item, copy, commandChoice, origin, authorizedLinux: authorized);

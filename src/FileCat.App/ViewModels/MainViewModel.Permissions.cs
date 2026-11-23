@@ -30,7 +30,7 @@ public sealed partial class MainViewModel
     {
         var targets = new List<AttributePermissionTarget>();
         bool darwin = Services.Permissions is DarwinPermissionService { WritesEnabled: true };
-        string? unavailable = PermissionProcessRefusal();
+        string? unavailable = PermissionChangeRefusal();
         int targetLimit = UnixAttributeBindingLimit;
         if (unavailable is null && targetLimit == 0)
             unavailable = "Mode editing is unavailable until this platform can bind the reviewed object.";

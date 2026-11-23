@@ -51,7 +51,6 @@ public sealed partial class MainViewModel
         } : null, OpenTargetAsync, compression, PermissionsUnavailable, OpenPermissionsAsync);
         string? PermissionsUnavailable(FileDetailsSnapshot? snapshot)
         {
-            if (PermissionProcessRefusal() is { } refusal) return refusal;
             if (Services.Permissions is NoPermissionService) return "A permissions reader is unavailable on this platform.";
             if (_view?.TopLevel is not Avalonia.Controls.Window { IsVisible: true } || Services.Io.IsStopped)
                 return "The owning workspace is unavailable.";
@@ -68,7 +67,7 @@ public sealed partial class MainViewModel
             var original = new PermissionSubject(subject, path, path, LocalPermissionAuthority, kind, PermissionLinkPolicy.NoFollow,
                 ExpectedObject: identity);
             using var inspection = await Services.Io.RunOwned(device, IoPriority.Interactive,
-                token => Services.Permissions.Inspect(original, PermissionReadSections, token), ct);
+                token => InspectLocalPermissions(original, PermissionReadSections, token), ct);
             ct.ThrowIfCancellationRequested();
             if (!current() || !main.IsVisible || _view.TopLevel != main || _dialogs.IsOpen)
                 throw new NotSupportedException("The original details or the owning workspace changed during inspection.");

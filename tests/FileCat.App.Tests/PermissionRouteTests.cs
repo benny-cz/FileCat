@@ -44,7 +44,7 @@ public sealed class PermissionRouteTests
 
     private static (AppServices Services, MainViewModel Vm, MainWindow Window, string Root, RecordingPermissions Permissions) Open()
     {
-        if (MainViewModel.PermissionProcessRefusal() is not null) Assert.Skip("Requires an ordinary FileCat process.");
+        if (MainViewModel.PermissionChangeRefusal() is not null) Assert.Skip("Requires an ordinary FileCat process.");
         var permissions = new RecordingPermissions();
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(permissionService: permissions);
         return (services, vm, window, root, permissions);

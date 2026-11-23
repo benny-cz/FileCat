@@ -490,7 +490,7 @@ public sealed partial class MainViewModel
         if (job.IsStorageTransform) return await ShowStorageHistoryReportAsync(job);
         if (job.IsPermissions)
         {
-            if (PermissionProcessRefusal() is not null) return null;
+            if (PermissionChangeRefusal() is not null) return null;
             var window = new ReportWindow("Interrupted permissions", "Permissions and ownership",
                 _ => Task.FromResult(PermissionOperationReport.Interrupted(job)));
             if (job.PermissionReview is { ServerPath: false } evidence)

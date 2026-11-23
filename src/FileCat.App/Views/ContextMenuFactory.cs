@@ -48,8 +48,7 @@ public static class ContextMenuFactory
         Add(CommandIds.Refresh, true);
         int generation = tab.Listing.Generation;
         long navigation = tab.NavigationGeneration;
-        string? permissionRefusal = MainViewModel.PermissionProcessRefusal();
-        Add(CommandIds.PermissionsOwnership, permissionRefusal is null, permissionRefusal, () =>
+        Add(CommandIds.PermissionsOwnership, true, null, () =>
         {
             if (!panel.Tabs.Contains(tab) || tab.NavigationGeneration != navigation)
             {
@@ -157,7 +156,7 @@ public static class ContextMenuFactory
             if (def is null) continue;
             if (id == CommandIds.PermissionsOwnership && permissions is { } captured)
             {
-                string? refusal = MainViewModel.PermissionProcessRefusal() ?? captured.Refusal;
+                string? refusal = captured.Refusal;
                 var permissionItem = new MenuItem { Header = def.Title, Icon = MenuIconFactory.Create(id), IsEnabled = refusal is null };
                 if (refusal is not null)
                 {

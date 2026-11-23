@@ -26,18 +26,15 @@ public sealed partial class MainViewModel
     private async Task ShowPermissionInspectorAsync(IDialogService dialogs, InspectedPermission[] inspected, Func<string, Task>? copy,
         PermissionSelection? origin = null)
     {
-        var refusals = inspected.Select(item => item.Source?.FileSystemPath == item.Snapshot.Subject.RawLocator ? Services.Permissions switch
+        // An administrator window (or root) inspects read-only: every subject carries that note and no change is offered.
+        string? readOnly = PermissionChangeRefusal();
+        var refusals = inspected.Select(item => readOnly ?? (item.Source?.FileSystemPath == item.Snapshot.Subject.RawLocator ? Services.Permissions switch
         {
             LinuxPermissionService => LinuxPermissionService.ModeReviewRefusal(item.Snapshot),
             DarwinPermissionService => DarwinPermissionService.ModeRefusal(item.Snapshot),
             WindowsPermissionService windows => WindowsPermissionService.EditRefusal(item.Snapshot, windows.QualifiedWrites),
             _ => "Editing is unavailable for this object."
-        } : "Editing is unavailable for this object.").ToArray();
-        var view = new PermissionInspectorView(inspected.Select(item => (item.Name, item.Snapshot)).ToArray(), copy,
-            refusals.Select((refusal, index) => WindowsFolderOnlyAvailable(index, volumeRoot: false) ||
-                WindowsFolderOnlyAvailable(index, volumeRoot: true) || WindowsResetAvailable(index) ? null : refusal).ToArray(),
-            Services.PermissionPrincipalNames);
-        var buttons = new List<DialogButton> { new("Close", "close", IsDefault: true, IsCancel: true) };
+        } : "Editing is unavailable for this object.")).ToArray();
         bool AclAvailable(int index) => refusals[index] is null && (Services.Permissions is LinuxPermissionService linux && linux.CanEditAccessAcl(inspected[index].Snapshot) ||
             Services.Permissions is DarwinPermissionService && DarwinPermissionService.CanEditAcl(inspected[index].Snapshot) ||
             Services.Permissions is WindowsPermissionService &&
@@ -86,65 +83,52 @@ public sealed partial class MainViewModel
         };
         var estimates = inspected.Select((item, index) => Services.Permissions is LinuxPermissionService && AccessCheckAvailable(index)
             ? PosixAclEvaluation.FromSnapshot(item.Snapshot) : null).ToArray();
-        if (refusals.Any(refusal => refusal is null))
+        // Each action sits in the section it changes, offered while any subject could use it and enabled for the one shown.
+        var actions = new List<PermissionInspectorAction>();
+        bool anyEditable = refusals.Any(refusal => refusal is null);
+        void Offer(string text, string result, PermissionInspectorArea area, Func<int, bool> available)
         {
-            if (Services.Permissions is LinuxPermissionService or DarwinPermissionService)
-                buttons.Insert(0, new("Edit mode…", "mode") { IsAvailable = () => refusals[view.SelectedSubject] is null });
-            if (Enumerable.Range(0, inspected.Length).Any(ProtectionAvailable))
-                buttons.Insert(0, new("Edit file protection…", "protection") { IsAvailable = () => ProtectionAvailable(view.SelectedSubject) });
-            if (Enumerable.Range(0, inspected.Length).Any(ModeTreeAvailable))
-                buttons.Insert(0, new("Review folder tree mode…", "mode-tree") { IsAvailable = () => ModeTreeAvailable(view.SelectedSubject) });
-            if (Enumerable.Range(0, inspected.Length).Any(ResetTreeAvailable))
-                buttons.Insert(0, new("Reset descendant access ACLs…", "reset-tree") { IsAvailable = () => ResetTreeAvailable(view.SelectedSubject) });
-            if (Enumerable.Range(0, inspected.Length).Any(DarwinAclTreeAvailable))
-                buttons.Insert(0, new("Refresh inherited access rules…", "inherit-tree") { IsAvailable = () => DarwinAclTreeAvailable(view.SelectedSubject) });
-            if (Services.Permissions is WindowsPermissionService)
-                buttons.Insert(0, new("Change owner…", "owner") { IsAvailable = () => refusals[view.SelectedSubject] is null });
-            if (Enumerable.Range(0, inspected.Length).Any(AclAvailable))
-                buttons.Insert(0, new("Edit access ACL…", "acl") { IsAvailable = () => AclAvailable(view.SelectedSubject) });
-            if (Enumerable.Range(0, inspected.Length).Any(DefaultsAvailable))
-                buttons.Insert(0, new("Edit default ACL…", "defaults") { IsAvailable = () => DefaultsAvailable(view.SelectedSubject) });
-            if (Enumerable.Range(0, inspected.Length).Any(GroupAvailable))
-                buttons.Insert(0, new("Change group…", "group") { IsAvailable = () => GroupAvailable(view.SelectedSubject) });
+            if (readOnly is null && Enumerable.Range(0, inspected.Length).Any(available)) actions.Add(new(text, result, area, available));
         }
-        if (Enumerable.Range(0, inspected.Length).Any(AccessCheckAvailable))
-            buttons.Insert(0, new("Check current process access…", "current-access") { IsAvailable = () => AccessCheckAvailable(view.SelectedSubject) });
-        if (estimates.Any(estimate => estimate is not null))
-            buttons.Insert(0, new("Estimate POSIX ACL access…", "estimate-access") { IsAvailable = () => estimates[view.SelectedSubject] is not null });
-        if (Enumerable.Range(0, inspected.Length).Any(WindowsEstimateAvailable))
-            buttons.Insert(0, new("Estimate Windows ACL access…", "windows-estimate") { IsAvailable = () => WindowsEstimateAvailable(view.SelectedSubject) });
-        if (Enumerable.Range(0, inspected.Length).Any(WindowsPropagationAvailable))
-            buttons.Insert(0, new("Review Windows inheritance…", "windows-propagation")
-                { IsAvailable = () => WindowsPropagationAvailable(view.SelectedSubject) });
-        if (Enumerable.Range(0, inspected.Length).Any(index => WindowsAccessTreeAvailable(index, PermissionObjectKind.File)))
-            buttons.Insert(0, new("Add access rule to descendant files…", "windows-file-tree")
-                { IsAvailable = () => WindowsAccessTreeAvailable(view.SelectedSubject, PermissionObjectKind.File) });
-        if (Enumerable.Range(0, inspected.Length).Any(index => WindowsAccessTreeAvailable(index, PermissionObjectKind.Directory)))
-            buttons.Insert(0, new("Add access rule to descendant folders…", "windows-folder-tree")
-                { IsAvailable = () => WindowsAccessTreeAvailable(view.SelectedSubject, PermissionObjectKind.Directory) });
-        if (Enumerable.Range(0, inspected.Length).Any(index => WindowsFolderOnlyAvailable(index, volumeRoot: false)))
-            buttons.Insert(0, new("Edit selected folder access rules…", "windows-folder-only")
-                { IsAvailable = () => WindowsFolderOnlyAvailable(view.SelectedSubject, volumeRoot: false) });
-        if (Enumerable.Range(0, inspected.Length).Any(index => WindowsFolderOnlyAvailable(index, volumeRoot: true)))
-            buttons.Insert(0, new("Edit volume root access rules…", "windows-volume-root")
-                { IsAvailable = () => WindowsFolderOnlyAvailable(view.SelectedSubject, volumeRoot: true) });
-        if (Enumerable.Range(0, inspected.Length).Any(WindowsConversionAvailable))
-            buttons.Insert(0, new("Convert to automatic inheritance…", "windows-convert")
-                { IsAvailable = () => WindowsConversionAvailable(view.SelectedSubject) });
-        if (Enumerable.Range(0, inspected.Length).Any(WindowsResetAvailable))
-            buttons.Insert(0, new("Reset Windows descendant ACLs…", "windows-reset-tree")
-                { IsAvailable = () => WindowsResetAvailable(view.SelectedSubject) });
-        if (Enumerable.Range(0, inspected.Length).Any(SftpReviewAvailable))
-            buttons.Insert(0, new("Review SFTP permissions…", "sftp") { IsAvailable = () => SftpReviewAvailable(view.SelectedSubject) });
-        if (inspected.Any(CanInspectWithLinuxAuthorization))
-            buttons.Insert(0, new("Inspect with authorization…", "authorized-linux")
-                { IsAvailable = () => CanInspectWithLinuxAuthorization(inspected[view.SelectedSubject]) });
-        if (inspected.Any(CanInspectWithWindowsAuthorization))
-            buttons.Insert(0, new("Inspect with authorization…", "authorized-windows")
-                { IsAvailable = () => CanInspectWithWindowsAuthorization(inspected[view.SelectedSubject]) });
+        if (anyEditable && Services.Permissions is WindowsPermissionService)
+            Offer("Change owner…", "owner", PermissionInspectorArea.Ownership, index => refusals[index] is null);
+        if (anyEditable) Offer("Change group…", "group", PermissionInspectorArea.Ownership, GroupAvailable);
+        if (anyEditable && Services.Permissions is LinuxPermissionService or DarwinPermissionService)
+            Offer("Edit mode…", "mode", PermissionInspectorArea.Mode, index => refusals[index] is null);
+        if (anyEditable) Offer("Review folder tree mode…", "mode-tree", PermissionInspectorArea.Mode, ModeTreeAvailable);
+        if (anyEditable) Offer("Edit file protection…", "protection", PermissionInspectorArea.Flags, ProtectionAvailable);
+        if (anyEditable) Offer("Edit access ACL…", "acl", PermissionInspectorArea.Access, AclAvailable);
+        Offer("Edit selected folder access rules…", "windows-folder-only", PermissionInspectorArea.Access,
+            index => WindowsFolderOnlyAvailable(index, volumeRoot: false));
+        Offer("Edit volume root access rules…", "windows-volume-root", PermissionInspectorArea.Access,
+            index => WindowsFolderOnlyAvailable(index, volumeRoot: true));
+        Offer("Estimate Windows ACL access…", "windows-estimate", PermissionInspectorArea.Access, WindowsEstimateAvailable);
+        Offer("Estimate POSIX ACL access…", "estimate-access", PermissionInspectorArea.Access, index => estimates[index] is not null);
+        Offer("Check current process access…", "current-access", PermissionInspectorArea.Access, AccessCheckAvailable);
+        if (anyEditable) Offer("Reset descendant access ACLs…", "reset-tree", PermissionInspectorArea.Access, ResetTreeAvailable);
+        if (anyEditable) Offer("Refresh inherited access rules…", "inherit-tree", PermissionInspectorArea.Access, DarwinAclTreeAvailable);
+        if (anyEditable) Offer("Edit default ACL…", "defaults", PermissionInspectorArea.Defaults, DefaultsAvailable);
+        Offer("Review Windows inheritance…", "windows-propagation", PermissionInspectorArea.Inheritance, WindowsPropagationAvailable);
+        Offer("Convert to automatic inheritance…", "windows-convert", PermissionInspectorArea.Inheritance, WindowsConversionAvailable);
+        Offer("Add access rule to descendant files…", "windows-file-tree", PermissionInspectorArea.Inheritance,
+            index => WindowsAccessTreeAvailable(index, PermissionObjectKind.File));
+        Offer("Add access rule to descendant folders…", "windows-folder-tree", PermissionInspectorArea.Inheritance,
+            index => WindowsAccessTreeAvailable(index, PermissionObjectKind.Directory));
+        Offer("Reset Windows descendant ACLs…", "windows-reset-tree", PermissionInspectorArea.Inheritance, WindowsResetAvailable);
+        Offer("Review SFTP permissions…", "sftp", PermissionInspectorArea.Server, SftpReviewAvailable);
+        Offer("Inspect with authorization…", "authorized-linux", PermissionInspectorArea.Summary,
+            index => CanInspectWithLinuxAuthorization(inspected[index]));
+        Offer("Inspect with authorization…", "authorized-windows", PermissionInspectorArea.Summary,
+            index => CanInspectWithWindowsAuthorization(inspected[index]));
 
-        var answer = await dialogs.ShowCustomAsync("Permissions and ownership", view, buttons, resizable: true,
-            behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(740, 550) });
+        var closer = new DialogCloser();
+        var view = new PermissionInspectorView(inspected.Select(item => (item.Name, item.Snapshot)).ToArray(), copy,
+            readOnly is not null ? refusals : refusals.Select((refusal, index) => WindowsFolderOnlyAvailable(index, volumeRoot: false) ||
+                WindowsFolderOnlyAvailable(index, volumeRoot: true) || WindowsResetAvailable(index) ? null : refusal).ToArray(),
+            Services.PermissionPrincipalNames, actions, closer);
+        var answer = await dialogs.ShowCustomAsync("Permissions and ownership", view, [new("Close", "close", IsDefault: true, IsCancel: true)],
+            closer: closer, resizable: true,
+            behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(860, 640) });
         if (answer is "authorized-linux")
             await ShowAuthorizedLinuxPermissionsAsync(dialogs, inspected[view.SelectedSubject], copy, origin);
         else if (answer is "authorized-windows")
