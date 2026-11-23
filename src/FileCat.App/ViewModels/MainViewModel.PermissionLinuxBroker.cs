@@ -46,7 +46,7 @@ public sealed partial class MainViewModel
                 principalNames: Services.PermissionPrincipalNames, actions: actions, closer: inspectorCloser);
             var choice = await dialogs.ShowCustomAsync("Authorized permissions and ownership", view, [new("Close", "close", IsDefault: true, IsCancel: true)],
                 closer: inspectorCloser, resizable: true,
-                behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(860, 640) });
+                behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(860, 640), SizeKey = "permissions.authorized" });
             if (choice is string commandChoice && authorized.CanEdit(commandChoice) && !Services.Io.IsStopped &&
                 origin is not { IsCurrent: false })
                 await ShowBoundPermissionEditorAsync(dialogs, item, copy, commandChoice, origin, authorizedLinux: authorized);

@@ -83,6 +83,13 @@ public sealed partial class MainViewModel
         };
         var estimates = inspected.Select((item, index) => Services.Permissions is LinuxPermissionService && AccessCheckAvailable(index)
             ? PosixAclEvaluation.FromSnapshot(item.Snapshot) : null).ToArray();
+        // Windows: the item's folder (a folder itself) in an administrator window, where the inspector reads every section,
+        // read-only (G-PRIV). Resolved once: its volume is asked of Windows.
+        var administratorFolders = inspected.Select(item => OperatingSystem.IsWindows() && !Services.Shell.IsElevated &&
+            item.Snapshot.Subject.Authority.Kind == PermissionAuthorityKind.Local && item.Source?.FileSystemPath is { } path &&
+            (item.Snapshot.Subject.Kind is PermissionObjectKind.Directory or PermissionObjectKind.VolumeRoot || item.Source.Kind == EntryKind.Directory
+                ? path : Path.GetDirectoryName(path)) is { } folder && AdministratorWindow.LocalVolume(folder) is { } volume
+            ? ((string Folder, string Volume)?)(folder, volume) : null).ToArray();
         // Each action sits in the section it changes, offered while any subject could use it and enabled for the one shown.
         var actions = new List<PermissionInspectorAction>();
         bool anyEditable = refusals.Any(refusal => refusal is null);
@@ -120,19 +127,24 @@ public sealed partial class MainViewModel
             index => CanInspectWithLinuxAuthorization(inspected[index]));
         Offer("Inspect with authorization…", "authorized-windows", PermissionInspectorArea.Summary,
             index => CanInspectWithWindowsAuthorization(inspected[index]));
+        Offer("Open folder as administrator…", "administrator-window", PermissionInspectorArea.Summary,
+            index => administratorFolders[index] is not null);
 
         var closer = new DialogCloser();
+        // Read-only, the window's note stands for every subject (an unreadable one too), in place of per-subject refusals.
         var view = new PermissionInspectorView(inspected.Select(item => (item.Name, item.Snapshot)).ToArray(), copy,
-            readOnly is not null ? refusals : refusals.Select((refusal, index) => WindowsFolderOnlyAvailable(index, volumeRoot: false) ||
+            readOnly is not null ? null : refusals.Select((refusal, index) => WindowsFolderOnlyAvailable(index, volumeRoot: false) ||
                 WindowsFolderOnlyAvailable(index, volumeRoot: true) || WindowsResetAvailable(index) ? null : refusal).ToArray(),
-            Services.PermissionPrincipalNames, actions, closer);
+            Services.PermissionPrincipalNames, actions, closer, notice: readOnly);
         var answer = await dialogs.ShowCustomAsync("Permissions and ownership", view, [new("Close", "close", IsDefault: true, IsCancel: true)],
             closer: closer, resizable: true,
-            behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(860, 640) });
+            behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(860, 640), SizeKey = "permissions.inspector" });
         if (answer is "authorized-linux")
             await ShowAuthorizedLinuxPermissionsAsync(dialogs, inspected[view.SelectedSubject], copy, origin);
         else if (answer is "authorized-windows")
             await ShowAuthorizedWindowsPermissionsAsync(dialogs, inspected[view.SelectedSubject], copy, origin);
+        else if (answer is "administrator-window" && administratorFolders[view.SelectedSubject] is { } administratorFolder)
+            await OpenAdministratorWindowAsync(folder: administratorFolder);
         else if (answer is "sftp" && SftpReviewAvailable(view.SelectedSubject) && !Services.Io.IsStopped)
             await ShowSftpPermissionEditorAsync(dialogs, inspected[view.SelectedSubject], copy, origin);
         else if (answer is "current-access" && AccessCheckAvailable(view.SelectedSubject) && !Services.Io.IsStopped)
@@ -176,7 +188,7 @@ public sealed partial class MainViewModel
         else if (answer is "estimate-access" && estimates[view.SelectedSubject] is { } estimate)
             await dialogs.ShowCustomAsync("Estimate POSIX ACL access", new PosixAccessEstimateView(inspected[view.SelectedSubject].Snapshot, estimate),
                 [new("Close", "close", IsDefault: true, IsCancel: true)], resizable: true,
-                behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(700, 590) });
+                behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(700, 590), SizeKey = "permissions.posix-estimate" });
         else if (answer is string command && command is "mode" or "acl" or "owner" or "defaults" or "group" or "protection" &&
             refusals[view.SelectedSubject] is null && (command != "defaults" || DefaultsAvailable(view.SelectedSubject)) &&
             (command != "acl" || AclAvailable(view.SelectedSubject)) &&
@@ -278,7 +290,7 @@ public sealed partial class MainViewModel
             content.Children.Add(Wrapped(Formatters.SafeName(error.Message)));
         }
         await dialogs.ShowCustomAsync("Windows ACL access estimate", content, [new("Close", "close", IsDefault: true, IsCancel: true)],
-            resizable: true, behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(700, 535) });
+            resizable: true, behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(700, 535), SizeKey = "permissions.windows-estimate" });
     }
 
     private async Task ShowCurrentAccessReportAsync(IDialogService dialogs, InspectedPermission item)
@@ -333,7 +345,7 @@ public sealed partial class MainViewModel
             }
             content.Children.Add(Wrapped("Results apply to this object at the time shown. Creating, replacing, renaming or removing an entry also depends on its parent, sticky bits and other policy. Executing a file can depend on its interpreter and other policy."));
             await dialogs.ShowCustomAsync("Current process access", content, [new("Close", "close", IsDefault: true, IsCancel: true)], resizable: true,
-                behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(700, 535) });
+                behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(700, 535), SizeKey = "permissions.current-access" });
 
             void AddGroups(string label, IEnumerable<string> ids, int count)
             {
@@ -630,7 +642,7 @@ public sealed partial class MainViewModel
                 await dialogs.ShowCustomAsync("Current permissions and ownership", new PermissionInspectorView([(item.Name, observation.Snapshot)], copy,
                     principalNames: Services.PermissionPrincipalNames),
                     [new("Close", "close", IsDefault: true, IsCancel: true)], resizable: true,
-                    behavior: new DialogBehavior { DismissOnBackdrop = false });
+                    behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(860, 640), SizeKey = "permissions.current" });
             }
             catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
@@ -671,6 +683,7 @@ public sealed partial class MainViewModel
                 {
                     DismissOnBackdrop = false, KeepOperationsUsableDuringAction = true, ConfirmOnOptionEnter = false, ConfirmOnListItemEnter = false,
                     ClosePresentation = close, PreferredSize = new Avalonia.Size(760, 665),
+                    SizeKey = windowsPropagation is not null ? "permissions.windows-inheritance" : "permissions.editor." + command,
                     OnImplicitDismiss = () => { if (CanClose()) closer.Close("close"); }
                 });
         }

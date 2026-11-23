@@ -29,7 +29,8 @@ public sealed partial class MainViewModel
         }
         editor.Changed += Changed;
         Changed();
-        var behavior = new DialogBehavior { DismissOnBackdrop = false, ConfirmOnListItemEnter = false, PreferredSize = new Avalonia.Size(760, 660) };
+        var behavior = new DialogBehavior { DismissOnBackdrop = false, ConfirmOnListItemEnter = false, PreferredSize = new Avalonia.Size(760, 660),
+            SizeKey = "permissions.windows-access-tree" };
         var options = new StackPanel { Spacing = 8, Children =
         {
             Wrapped(Formatters.SafeName(subject.DisplayPath)),
@@ -67,7 +68,8 @@ public sealed partial class MainViewModel
             } };
             if (await dialogs.ShowCustomAsync(title, preview,
                     [new("Cancel", "cancel", IsCancel: true), new($"Apply to captured {kind}s", "apply")
-                        { IsAvailable = () => changes > 0 }], resizable: true, behavior: behavior) is not "apply") return;
+                        { IsAvailable = () => changes > 0 }], resizable: true,
+                    behavior: behavior with { SizeKey = "permissions.windows-access-tree-review" }) is not "apply") return;
             cancellation.ThrowIfCancellationRequested();
             if (origin is not null && !origin.HasOriginalMarks)
                 throw new PermissionBindingConflictException("The original selection changed. Capture a new review.");

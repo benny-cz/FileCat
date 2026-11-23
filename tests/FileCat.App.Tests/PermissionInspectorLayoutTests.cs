@@ -4,7 +4,9 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using FileCat.App;
 using FileCat.App.Controls;
+using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
@@ -72,6 +74,14 @@ public sealed class PermissionInspectorLayoutTests
         .First(border => border.Classes.Contains("permissionSection")).GetVisualDescendants().OfType<TextBlock>()
         .First(text => text.Classes.Contains("permissionHeading")).Text!;
 
+    // sudo leaves macOS's TMPDIR unset, and /tmp is a link to /private/tmp.
+    private static bool ReachedThroughLink(string path)
+    {
+        for (var folder = new DirectoryInfo(path); folder is not null; folder = folder.Parent)
+            if (folder.LinkTarget is not null) return true;
+        return false;
+    }
+
     private static async Task Until(Func<bool> condition, CancellationToken ct)
     {
         for (int i = 0; i < 250 && !condition(); i++) await Task.Delay(20, ct);
@@ -116,6 +126,9 @@ public sealed class PermissionInspectorLayoutTests
             Assert.Contains("The parent folder's inheritable rules reach this folder as inherited entries.", texts);
             Assert.Equal("Ownership", SectionOf(Button(view, "Copy exact owner ID")));
             Assert.Equal("Access now", SectionOf(Button(view, "Copy exact account ID")));
+            // Section titles are headings a screen reader can move between.
+            Assert.All(view.GetVisualDescendants().OfType<TextBlock>().Where(text => text.Classes.Contains("permissionHeading")),
+                heading => Assert.Equal(2, AutomationProperties.GetHeadingLevel(heading)));
         }
         finally { window.Close(); }
     }
@@ -157,6 +170,81 @@ public sealed class PermissionInspectorLayoutTests
             Assert.Equal("acl", result);
         }
         finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void Ways_to_read_more_sit_under_unread_audit_rules_or_atop_an_unreadable_item()
+    {
+        var actions = new PermissionInspectorAction[]
+        {
+            new("Inspect with authorization…", "authorized-windows", PermissionInspectorArea.Summary, _ => true),
+            new("Open folder as administrator…", "administrator-window", PermissionInspectorArea.Summary, _ => true),
+        };
+        var now = DateTimeOffset.UtcNow;
+        var unread = Folder(Rules) with
+        {
+            Audit = new(PermissionReadStatus.Unsupported, "test", now,
+                Reason: "Reading the Windows audit ACL requires an authorized FileCat session with SeSecurityPrivilege.")
+        };
+        var view = new PermissionInspectorView([("shared", unread)], copy: null, actions: actions, closer: new DialogCloser());
+        var window = Show(view);
+        try
+        {
+            Assert.Equal("Auditing", SectionOf(Button(view, "Inspect with authorization…")));
+            Assert.Equal("Auditing", SectionOf(Button(view, "Open folder as administrator…")));
+        }
+        finally { window.Close(); }
+
+        var denied = unread with { Access = new(PermissionReadStatus.Denied, "test", now, Reason: "Access was denied.") };
+        view = new PermissionInspectorView([("shared", denied)], copy: null, actions: actions, closer: new DialogCloser());
+        window = Show(view);
+        try
+        {
+            var note = Button(view, "Open folder as administrator…").GetVisualAncestors().OfType<Border>().First();
+            Assert.Contains("permissionNote", note.Classes);
+            Assert.Contains("warning", note.Classes);
+            Assert.Contains("This account cannot read part of this item's security information.", Texts(view));
+            Assert.Same(note, Button(view, "Inspect with authorization…").GetVisualAncestors().OfType<Border>().First());
+        }
+        finally { window.Close(); }
+    }
+
+    /// <summary>
+    /// The inspector opens the item's folder in an administrator window through the usual confirmation, where every
+    /// section is read (read-only); the ordinary window stays as it was.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task An_ordinary_Windows_window_offers_the_items_folder_as_administrator()
+    {
+        if (!OperatingSystem.IsWindows() || MainViewModel.PermissionChangeRefusal() is not null)
+            Assert.Skip("Requires an ordinary Windows FileCat process.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(prepareFiles: folder =>
+            File.WriteAllText(Path.Combine(folder, "witness.txt"), "administrator folder"));
+        try
+        {
+            CancellationToken ct = TestContext.Current.CancellationToken;
+            var offered = new TaskCompletionSource<StartupOptions>(TaskCreationOptions.RunContinuationsAsynchronously);
+            vm.LaunchAdministratorWindow = (start, _) => offered.TrySetResult(StartupOptions.Parse(start.ArgumentList.ToArray()));
+            string folder = Path.Combine(root, "files");
+            var tab = vm.ActiveTab!;
+            tab.Navigate(Location.FileSystem(folder));
+            await Until(() => tab.Listing.State == ListingState.Complete && tab.Listing.FocusName("witness.txt"), ct);
+            vm.Execute(CommandIds.PermissionsOwnership);
+            await Until(() => window.GetVisualDescendants().OfType<PermissionInspectorView>().Any(), ct);
+            var view = window.GetVisualDescendants().OfType<PermissionInspectorView>().Single();
+            var open = Button(view, "Open folder as administrator…");
+            Assert.True(open.IsEnabled);
+            open.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+            await Until(() => window.GetVisualDescendants().OfType<Button>().Any(button => button.Content as string == "Open as administrator"), ct);
+            window.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "Open as administrator")
+                .RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+            var options = await offered.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
+            Assert.True(options.NewInstance);
+            Assert.Equal((folder, AdministratorWindow.LocalVolume(folder)!), options.AdministratorFolder);
+            Assert.Equal(Location.FileSystem(folder), tab.Location);
+            Assert.Empty(services.Jobs.Jobs);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
     }
 
     private sealed class FixtureAccounts : IOwnership
@@ -230,6 +318,21 @@ public sealed class PermissionInspectorLayoutTests
         finally { window.Close(); }
     }
 
+    [AvaloniaFact]
+    public void A_window_wide_note_stands_even_for_an_item_that_could_not_be_read()
+    {
+        var subject = new PermissionSubject(Location.FileSystem("/fixture"), "/fixture/item", "/fixture/item", Local,
+            PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+        using var inspection = PermissionSnapshots.Unavailable(subject, PermissionSections.Ordinary, PermissionReadStatus.Failed,
+            "Permission metadata is unavailable.");
+        const string note = "Read-only while FileCat runs as root. Change permissions from an ordinary FileCat window.";
+        var view = new PermissionInspectorView([("item", inspection.Snapshot)], copy: null, notice: note);
+        string?[] texts = view.GetVisualDescendants().OfType<TextBlock>().Select(text => text.Text).ToArray();
+        Assert.Contains(note, texts);
+        Assert.Contains("Permission metadata is unavailable.", texts);
+        Assert.DoesNotContain("This view shows the observed permissions.", texts);
+    }
+
     /// <summary>
     /// G-PRIV: an administrator window inspects read-only. On Windows x64 its own backup and security privileges complete the
     /// read, so the audit rules appear, and no change is offered. Run from an elevated process; the ordinary run skips.
@@ -251,7 +354,11 @@ public sealed class PermissionInspectorLayoutTests
             vm.Execute(CommandIds.PermissionsOwnership);
             await Until(() => window.GetVisualDescendants().OfType<PermissionInspectorView>().Any(), ct);
             var view = window.GetVisualDescendants().OfType<PermissionInspectorView>().Single();
-            await Until(() => Texts(view).Contains(readOnly), ct);
+            Dispatcher.UIThread.RunJobs();
+            // The note holds whatever the read found (a fixture on a link-reached path is not bound, for one); a bound item
+            // shows its sections.
+            Assert.Contains(readOnly, Texts(view));
+            if (!ReachedThroughLink(root)) Assert.Contains("Ownership", Texts(view));
             foreach (string change in new[] { "Change owner…", "Edit access ACL…", "Edit mode…", "Change group…", "Inspect with authorization…" })
                 Assert.DoesNotContain(view.GetVisualDescendants().OfType<Button>(), button => button.Content as string == change);
             if (OperatingSystem.IsWindows() && FileCat.Platform.Windows.Elevation.ElevationBroker.IsNativeFileSecurityHost)

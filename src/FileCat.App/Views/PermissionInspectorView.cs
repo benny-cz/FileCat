@@ -176,6 +176,8 @@ internal sealed class PermissionInspectorView : StackPanel
         var kind = snapshot.Binding?.Identity.Kind ?? snapshot.Subject.Kind;
         bool directory = kind is PermissionObjectKind.Directory or PermissionObjectKind.VolumeRoot;
         _subject.Children.Add(Summary(snapshot));
+        // The window-wide note (an administrator window's read-only view) holds even when this item could not be read.
+        if (_notice is not null) _subject.Children.Add(Note([_notice], warning: false));
         if (snapshot.BindingProblem is { } problem)
         {
             var lines = new List<string> { problem };
@@ -187,7 +189,6 @@ internal sealed class PermissionInspectorView : StackPanel
             _subject.Children.Add(Note(lines, warning: true));
             return;
         }
-        if (_notice is not null) _subject.Children.Add(Note([_notice], warning: false));
         if (snapshot.Ftp is { } ftp)
         {
             _subject.Children.Add(FtpSection(snapshot, ftp));
@@ -204,7 +205,12 @@ internal sealed class PermissionInspectorView : StackPanel
         if (snapshot.Model == PermissionModel.DarwinAcl && snapshot.Flags.Value is { } darwinFlags &&
             (darwinFlags.Bits & MacMaterializationPolicy.DatalessFlag) != 0)
             _subject.Children.Add(Note(["Dataless item. Showing metadata without downloading content."], warning: false));
-        if (AuthorizationNote(snapshot) is { } authorization) _subject.Children.Add(authorization);
+        // The ways to read more (authorization, an administrator window) sit with what this read could not show: under the
+        // unread audit rules, or in a note at the top when part of the item itself is unreadable.
+        bool denied = snapshot.Owner.Status == PermissionReadStatus.Denied || snapshot.Group.Status == PermissionReadStatus.Denied ||
+            snapshot.Access.Status == PermissionReadStatus.Denied || snapshot.Defaults.Status == PermissionReadStatus.Denied;
+        bool auditShown = snapshot.Model == PermissionModel.WindowsDescriptor && snapshot.Audit.Status != PermissionReadStatus.Unloaded;
+        if ((denied || !auditShown) && AuthorizationNote(snapshot, denied) is { } authorization) _subject.Children.Add(authorization);
         _subject.Children.Add(OwnershipSection(snapshot));
         if (snapshot.Mode.Value is ushort mode) _subject.Children.Add(ModeSection(snapshot, mode));
         if (FlagsSection(snapshot) is { } flags) _subject.Children.Add(flags);
@@ -235,7 +241,7 @@ internal sealed class PermissionInspectorView : StackPanel
         if (snapshot.Times?.Value?.Modified is { } modified) times.Add($"Modified: {modified.ToLocalTime():g}");
         if (snapshot.Times?.Value?.Created is { } created) times.Add($"Created: {created.ToLocalTime():g}");
         if (times.Count > 0) lines.Children.Add(Small(Muted(string.Join(" · ", times))));
-        if (_editRefusals is null && snapshot.Mount is null && snapshot.BindingProblem is null && snapshot.Binding?.ReadOnly != true)
+        if (_editRefusals is null && _notice is null && snapshot.Mount is null && snapshot.BindingProblem is null && snapshot.Binding?.ReadOnly != true)
             lines.Children.Add(Small(Muted("This view shows the observed permissions.")));
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 12 };
         grid.Children.Add(lines);
@@ -286,15 +292,13 @@ internal sealed class PermissionInspectorView : StackPanel
     }
 
     // "Inspect with authorization…": what it adds, with the button.
-    private Control? AuthorizationNote(PermissionSnapshot snapshot)
+    private Control? AuthorizationNote(PermissionSnapshot snapshot, bool denied)
     {
         var buttons = ActionButtons(PermissionInspectorArea.Summary);
         if (buttons is null) return null;
-        bool denied = snapshot.Owner.Status == PermissionReadStatus.Denied || snapshot.Group.Status == PermissionReadStatus.Denied ||
-            snapshot.Access.Status == PermissionReadStatus.Denied || snapshot.Defaults.Status == PermissionReadStatus.Denied;
-        string text = denied ? "This account cannot read part of this item's security information. An authorized inspection reads all of it."
+        string text = denied ? "This account cannot read part of this item's security information."
             : snapshot.Model == PermissionModel.WindowsDescriptor
-                ? "Auditing rules are read only with administrator authorization."
+                ? "Auditing rules need administrator rights to read."
                 : "An authorized inspection reads what this account cannot.";
         return Note([text], warning: denied, buttons);
     }
@@ -307,29 +311,24 @@ internal sealed class PermissionInspectorView : StackPanel
         var section = Section("Ownership", out var content);
         if (snapshot.VolumePolicy.Value is { } policy)
             content.Children.Add(Muted(policy.HonorsOwnership ? "This volume honors file ownership." : "This volume ignores file ownership."));
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 12, RowSpacing = 8 };
-        AddPrincipalRow(grid, projectsOwnership ? "Presented owner" : "Owner", snapshot.Owner);
-        AddPrincipalRow(grid, projectsOwnership ? "Presented primary group" : "Primary group", snapshot.Group);
-        content.Children.Add(grid);
+        // Label, name and copy button in columns, or flowing onto lines in a narrow dialog.
+        var rows = new StackPanel { Spacing = 8 };
+        rows.Children.Add(PrincipalRow(projectsOwnership ? "Presented owner" : "Owner", snapshot.Owner));
+        rows.Children.Add(PrincipalRow(projectsOwnership ? "Presented primary group" : "Primary group", snapshot.Group));
+        content.Children.Add(rows);
         AddActions(content, PermissionInspectorArea.Ownership);
         return section;
     }
 
-    private void AddPrincipalRow(Grid grid, string label, PermissionObservation<Principal> principal)
+    private Control PrincipalRow(string label, PermissionObservation<Principal> principal)
     {
-        int row = grid.RowDefinitions.Count;
-        grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        var caption = Muted(label);
-        Grid.SetRow(caption, row);
-        grid.Children.Add(caption);
+        var row = new PermissionTablePanel([1, 2.4, 1.8], [6, 10, 13]);
+        row.Children.Add(Muted(label));
         if (principal.Value is not { } value)
         {
-            var missing = Label(ObservationText(principal.Status, principal.Reason));
-            Grid.SetRow(missing, row);
-            Grid.SetColumn(missing, 1);
-            Grid.SetColumnSpan(missing, 2);
-            grid.Children.Add(missing);
-            return;
+            row.Children.Add(Label(ObservationText(principal.Status, principal.Reason)));
+            row.Children.Add(new TextBlock());
+            return row;
         }
         var title = new TextBlock { FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap };
         var subtitle = Small(Muted(""));
@@ -342,16 +341,18 @@ internal sealed class PermissionInspectorView : StackPanel
         Show();
         _nameListeners.Add(Show);
         Want(value);
-        var names = new StackPanel { Spacing = 1, Children = { title, subtitle } };
-        Grid.SetRow(names, row);
-        Grid.SetColumn(names, 1);
-        grid.Children.Add(names);
-        if (_copy is null) return;
+        row.Children.Add(new StackPanel { Spacing = 1, Children = { title, subtitle } });
+        if (_copy is null)
+        {
+            row.Children.Add(new TextBlock());
+            return row;
+        }
         var copy = CopyButton("Copy exact " + label.ToLowerInvariant() + " ID", value.Id);
+        copy.ContentTemplate = DialogLayout.WrappingText;
+        copy.HorizontalAlignment = HorizontalAlignment.Right;
         copy.VerticalAlignment = VerticalAlignment.Top;
-        Grid.SetRow(copy, row);
-        Grid.SetColumn(copy, 2);
-        grid.Children.Add(copy);
+        row.Children.Add(copy);
+        return row;
     }
 
     private Control ModeSection(PermissionSnapshot snapshot, ushort mode)
@@ -395,8 +396,9 @@ internal sealed class PermissionInspectorView : StackPanel
         bool offered = _actions.Any(action => action.Area == PermissionInspectorArea.Flags);
         if (set.Count == 0 && details.Count == 0 && !offered) return null;
         var section = Section("File flags", out var content);
-        if (set.Count == 0) content.Children.Add(Label("No protection or visibility flags are set."));
-        else
+        // "None set" only from a read that succeeded; otherwise the reason below says why nothing is known.
+        if (set.Count == 0 && snapshot.Flags.Value is not null) content.Children.Add(Label("No protection or visibility flags are set."));
+        else if (set.Count > 0)
         {
             var chosen = new WrapPanel { ItemSpacing = 12, LineSpacing = 2 };
             foreach (string flag in set) chosen.Children.Add(new TextBlock { Text = flag, FontWeight = FontWeight.SemiBold });
@@ -427,8 +429,6 @@ internal sealed class PermissionInspectorView : StackPanel
             shape is null ? null : Formatters.Plural(rows.Count, acl is PosixAcl ? "entry" : "rule", acl is PosixAcl ? "entries" : "rules"));
         if (acl is DarwinAcl darwinAcl) content.Children.Add(Small(Muted($"Extended ACL flags · 0x{darwinAcl.Flags:X8}")));
         if (acl is WindowsSacl { Present: true } sacl) content.Children.Add(Small(Muted($"System ACL flags · 0x{sacl.Control.Flags:X4}")));
-        // The section's actions come first, in view above a long table and the chosen rule's details.
-        AddActions(content, area);
         if (shape is null)
         {
             var (text, warning) = acl switch
@@ -447,8 +447,14 @@ internal sealed class PermissionInspectorView : StackPanel
             var line = Label(text);
             if (warning) line.Classes.Add("warning");
             content.Children.Add(line);
+            AddSectionActions(content, area);
         }
-        else content.Children.Add(Table(title, shape, rows, snapshot.Subject.Authority));
+        else
+        {
+            // Above a table, the section's actions stay in view, ahead of a long list and the chosen rule's details.
+            AddSectionActions(content, area);
+            content.Children.Add(Table(title, shape, rows, snapshot.Subject.Authority));
+        }
         return section;
     }
 
@@ -794,7 +800,9 @@ internal sealed class PermissionInspectorView : StackPanel
             string title = reading.Control.IsProtected ? "Windows tools read this DACL as protected" : "Windows tools read this DACL as";
             var rows = reading.Acl.Entries.Select(entry => WindowsRow(entry, directory)).ToList();
             var shown = new StackPanel { Spacing = 6, IsVisible = false };
-            shown.Children.Add(new TextBlock { Text = title, Classes = { "permissionHeading" }, TextWrapping = TextWrapping.Wrap });
+            var readingTitle = new TextBlock { Text = title, Classes = { "permissionHeading" }, TextWrapping = TextWrapping.Wrap };
+            AutomationProperties.SetHeadingLevel(readingTitle, 3);
+            shown.Children.Add(readingTitle);
             if (rows.Count == 0) shown.Children.Add(Label("No entries"));
             else shown.Children.Add(Table(title, EntryShape, rows, snapshot.Subject.Authority, details: false));
             var toggle = new CheckBox { Content = "Show how Windows tools read this DACL" };
@@ -903,6 +911,13 @@ internal sealed class PermissionInspectorView : StackPanel
         if (ActionButtons(area) is { } row) content.Children.Add(row);
     }
 
+    // Unread audit rules carry the ways to read them, unless a note at the top already offers those.
+    private void AddSectionActions(Panel content, PermissionInspectorArea area)
+    {
+        AddActions(content, area);
+        if (area == PermissionInspectorArea.Auditing) AddActions(content, PermissionInspectorArea.Summary);
+    }
+
     // Actions whose section this item does not show (an unreadable item) stay offered, together at the end.
     private void AddRemainingActions()
     {
@@ -969,6 +984,8 @@ internal sealed class PermissionInspectorView : StackPanel
                 NotifyNames();
             }
             catch (OperationCanceledException) { }
+            // A name is only shown beside the ID: a failed lookup (the resolver gone with the window) leaves the ID.
+            catch (Exception error) when (error is ObjectDisposedException or InvalidOperationException) { }
             finally { gate.Release(); }
         }
         await Task.WhenAll(pending.Select(One));
@@ -1059,7 +1076,10 @@ internal sealed class PermissionInspectorView : StackPanel
     {
         content = new StackPanel { Spacing = 8 };
         var heading = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 12 };
-        heading.Children.Add(new TextBlock { Text = title, Classes = { "permissionHeading" }, TextWrapping = TextWrapping.Wrap });
+        var titleText = new TextBlock { Text = title, Classes = { "permissionHeading" }, TextWrapping = TextWrapping.Wrap };
+        // A real heading: a screen reader can move from section to section (the dialog's title is the first level).
+        AutomationProperties.SetHeadingLevel(titleText, 2);
+        heading.Children.Add(titleText);
         if (aside is not null)
         {
             var count = Muted(aside);

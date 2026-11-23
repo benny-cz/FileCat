@@ -63,7 +63,7 @@ public sealed partial class MainViewModel
                 actions, inspectorCloser);
             var choice = await dialogs.ShowCustomAsync("Authorized permissions and ownership", view, [new("Close", "close", IsDefault: true, IsCancel: true)],
                 closer: inspectorCloser, resizable: true,
-                behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(860, 640) });
+                behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(860, 640), SizeKey = "permissions.authorized" });
             if (choice is string command && command is "owner" or "acl" or "audit" && actions.Any(action => action.Result == command) &&
                 !Services.Io.IsStopped && owner == WindowsPermissionOwner() && origin is not { IsCurrent: false })
                 await ShowBoundPermissionEditorAsync(dialogs, item with { Inspection = observation }, copy, command, origin,

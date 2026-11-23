@@ -47,7 +47,8 @@ public sealed partial class MainViewModel
             if (await dialogs.ShowCustomAsync(title, preview,
                     [new("Cancel", "cancel", IsCancel: true), new("Reset captured ACLs", "apply", IsDanger: true)
                         { IsAvailable = () => changed > 0 && approve.IsChecked == true }], resizable: true,
-                    behavior: new DialogBehavior { DismissOnBackdrop = false, ConfirmOnListItemEnter = false, PreferredSize = new Avalonia.Size(760, 665) }) is not "apply") return;
+                    behavior: new DialogBehavior { DismissOnBackdrop = false, ConfirmOnListItemEnter = false, PreferredSize = new Avalonia.Size(760, 665),
+                        SizeKey = "permissions.windows-reset-tree" }) is not "apply") return;
             cancellation.ThrowIfCancellationRequested();
             if (origin is not null && !origin.HasOriginalMarks)
                 throw new PermissionBindingConflictException("The original selection changed. Capture a new review.");

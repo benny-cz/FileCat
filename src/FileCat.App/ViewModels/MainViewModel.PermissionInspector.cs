@@ -277,7 +277,7 @@ public sealed partial class MainViewModel
         await _dialogs.ShowCustomAsync("Current permissions and ownership", new PermissionInspectorView([(path, inspection.Snapshot)],
             clipboard is null ? null : clipboard.SetTextAsync, principalNames: Services.PermissionPrincipalNames),
             [new("Close", "close", IsDefault: true, IsCancel: true)], resizable: true,
-            behavior: new DialogBehavior { DismissOnBackdrop = false });
+            behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Avalonia.Size(860, 640), SizeKey = "permissions.current" });
         return null;
     }
 }

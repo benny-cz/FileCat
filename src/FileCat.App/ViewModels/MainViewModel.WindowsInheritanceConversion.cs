@@ -42,7 +42,8 @@ public sealed partial class MainViewModel
             preview.Children.Add(approve);
             if (await dialogs.ShowCustomAsync(title, preview,
                     [new("Cancel", "cancel", IsCancel: true), new("Convert", "apply") { IsAvailable = () => approve.IsChecked == true }], resizable: true,
-                    behavior: new DialogBehavior { DismissOnBackdrop = false, ConfirmOnListItemEnter = false, PreferredSize = new Avalonia.Size(760, 600) })
+                    behavior: new DialogBehavior { DismissOnBackdrop = false, ConfirmOnListItemEnter = false, PreferredSize = new Avalonia.Size(760, 600),
+                        SizeKey = "permissions.windows-convert" })
                 is not "apply") return;
             cancellation.ThrowIfCancellationRequested();
             if (origin is not null && !origin.HasOriginalMarks)
