@@ -436,6 +436,14 @@ public sealed class DescendantFocusAutomationTests
         }
     }
 
+    /// <summary>
+    /// The macOS layout notices replace Avalonia.Native's two methods only where the native classes and methods exist
+    /// with the expected signatures. Without them, as in a headless process or on another system, nothing is replaced.
+    /// </summary>
+    [AvaloniaFact]
+    public void Layout_notices_replace_nothing_without_Avalonia_Natives_methods() =>
+        Assert.False(MacLayoutNotices.Install());
+
     [AvaloniaFact]
     public void Linux_attachment_reaches_a_field_inside_a_container_that_was_hidden()
     {

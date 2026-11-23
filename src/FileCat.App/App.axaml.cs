@@ -46,6 +46,7 @@ public partial class App : Application
         Controls.ComboBoxAnnouncements.Install();
         Controls.ToolTipNames.Install();
         Controls.SyntheticModifierKeys.Install();
+        Controls.MacLayoutNotices.Install();
         if (PlatformSettings is { } ps)
         {
             // System follows dark mode and high contrast; any other theme gives way to high contrast while it is on.
