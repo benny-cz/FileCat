@@ -7,9 +7,11 @@ namespace FileCat.Recovery;
 
 /// <summary>
 /// What a recovery row shows in the Kind and Details columns: the state, and why. A deleted folder has no content of its
-/// own to judge: it says so, and its items carry their own states.
+/// own to judge: it says so, and its items carry their own states. A folder that was not deleted says so, and how many
+/// deleted items it holds (why it is listed), instead of two blank cells.
 /// </summary>
-public sealed record RecoveryEntryTag(RecoveryState? State, string Reasons, int Ordinal, bool Uncertain, bool DeletedFolder = false) : IDisplayDetails
+public sealed record RecoveryEntryTag(RecoveryState? State, string Reasons, int Ordinal, bool Uncertain, bool DeletedFolder = false,
+    bool Live = false, int DeletedInside = 0) : IDisplayDetails
 {
     public string KindText => DeletedFolder ? "Deleted folder" : State switch
     {
@@ -18,10 +20,13 @@ public sealed record RecoveryEntryTag(RecoveryState? State, string Reasons, int 
         RecoveryState.Partial => "Partly lost",
         RecoveryState.Overwritten => "Overwritten",
         RecoveryState.NameOnly => "Name only",
+        null when Live => "Not deleted",
         _ => string.Empty,
     };
 
-    public string DetailsText => Reasons;
+    public string DetailsText => Live && State is null && DeletedInside > 0
+        ? $"Holds {DeletedInside.ToString("N0", CultureInfo.CurrentCulture)} deleted item{(DeletedInside == 1 ? "" : "s")}." + (Reasons.Length > 0 ? " " + Reasons : "")
+        : Reasons;
 }
 
 /// <summary>A volume row in a source's list of volumes.</summary>
@@ -348,7 +353,8 @@ public sealed class RecoveryProvider : ResourceProvider, IUnprotectedContentOutp
             {
                 Created = item.CreatedUtc?.Ticks ?? 0,
                 Tag = new RecoveryEntryTag(item.IsDeleted || volume.WholeFileSystem && !item.IsDirectory ? item.State : null, string.Join(" ", item.Evidence), item.Ordinal,
-                    item.NameUncertain, item.IsDirectory && item.IsDeleted),
+                    item.NameUncertain, item.IsDirectory && item.IsDeleted, Live: !item.IsDeleted,
+                    DeletedInside: item.IsDirectory && !item.IsDeleted ? Count(item) : 0),
                 Flags = lost ? EntryFlags.Unavailable : EntryFlags.None,
             });
         }
