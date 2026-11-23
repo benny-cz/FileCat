@@ -62,7 +62,7 @@ public sealed class QuietRefreshTests
             File.WriteAllText(Path.Combine(root, "files", "c.txt"), "c");
             await Until(() => tab.Listing.TotalCount == 3 && !tab.Listing.IsRefreshing && tab.Listing.State == ListingState.Complete);
             var kept = Allocated(demand: false);
-            Assert.Equal((MetadataState.Available, 4096L.ToString("N0", System.Globalization.CultureInfo.CurrentCulture) + " B"), (kept.State, kept.Text));
+            Assert.Equal((MetadataState.Available, 4096L.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)), (kept.State, kept.Text));
             Assert.Equal(readsBefore, records.Reads["a.txt"]);
             Assert.DoesNotContain(true, busy);
             Assert.DoesNotContain("refreshing", tab.StatusLeft, StringComparison.Ordinal);

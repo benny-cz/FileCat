@@ -26,9 +26,10 @@ public sealed record HiddenItem(string Name, HiddenKind Kind, long Size)
     public string KindText => Kind switch
     {
         HiddenKind.Stream => "Stream",
-        HiddenKind.NtfsAttribute => "NTFS attribute",
+        // An NTFS EA is an extended attribute, as the summary and the Linux and macOS views call theirs.
+        HiddenKind.NtfsAttribute => "Extended attribute",
         HiddenKind.ResourceFork => "Resource fork",
-        _ => "Attribute",
+        _ => "Extended attribute",
     };
 }
 

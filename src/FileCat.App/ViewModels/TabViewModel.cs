@@ -1175,7 +1175,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public string GetFolderText(in EntryData e) => e.Tag switch
     {
-        Core.Search.ResultTag r => r.Folder ?? r.RelativeFolder,
+        // An item at the top of a list made from one folder (flat view, a comparison) is in that folder itself: ".", as
+        // the others' relative folders read, not a blank.
+        Core.Search.ResultTag r => r.Folder ?? (r.RelativeFolder.Length > 0 ? r.RelativeFolder : "."),
         _ => string.Empty,
     };
 

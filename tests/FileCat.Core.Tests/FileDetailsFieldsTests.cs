@@ -54,6 +54,26 @@ public sealed class FileDetailsFieldsTests
         Assert.Equal(1, records.Calls);
     }
 
+    /// <summary>
+    /// Allocated reads as the Size column does, so a large value keeps its unit in a narrow column (exact bytes were cut to
+    /// their leading digits there, hiding the magnitude); the exact bytes are the tooltip's first line, and it sorts by them.
+    /// </summary>
+    [Theory]
+    [InlineData(4096L, false)]
+    [InlineData(123_456_789_012L, true)]
+    public void Allocated_reads_as_sizes_do_with_the_exact_bytes_in_its_tooltip(long bytes, bool unit)
+    {
+        using var io = new DeviceIoScheduler(); var records = new Records { Allocation = bytes };
+        using var metadata = new MetadataService(io, () => 0, fileRecords: records);
+        string path = Path.Combine(Path.GetTempPath(), "column-subject");
+        var value = metadata.Compute(FileDetailsFields.Allocated, path, new EntryData("column-subject", EntryKind.File), TestContext.Current.CancellationToken);
+        var cell = Assert.IsType<FileDetailsFields.Cell>(value.Value);
+        Assert.Equal(SizeText.Compact(bytes), cell.Text);
+        Assert.Equal(unit, cell.Text.EndsWith(" GB", StringComparison.Ordinal));
+        Assert.StartsWith(bytes.ToString("N0", System.Globalization.CultureInfo.CurrentCulture) + " bytes\n", cell.Explanation);
+        Assert.Equal(bytes, cell.Key);
+    }
+
     [Fact]
     public void Native_cells_expire_without_size_time_changes_and_last_known_values_have_unknown_sort_keys()
     {

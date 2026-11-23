@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Metadata;
 using FileCat.Core.Resources;
 using FileCat.Core.Threading;
@@ -303,7 +304,8 @@ public class MetadataTests
 
         Assert.True(allocated < 2 * 1024 * 1024, $"Automatic Origin metadata allocated {allocated:N0} bytes for one oversized stream.");
         Assert.Equal(MetadataState.Available, value.State);
-        Assert.Equal("Marked", value.Value);
+        Assert.Equal("Marked", BuiltInFields.Zone.Format(value.Value));
+        Assert.Contains("larger than 64 KiB", BuiltInFields.Zone.Detail!(value.Value));
     }
 
     [Fact]
@@ -317,13 +319,73 @@ public class MetadataTests
         using var dir = new TempDir();
         string path = Path.Combine(dir.Path, "owned.bin");
         File.WriteAllText(path, "owned");
-        File.WriteAllText(path + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n");
+        File.WriteAllText(path + ":Zone.Identifier",
+            "[ZoneTransfer]\r\nZoneId=3\r\nReferrerUrl=https://example.com/page\r\nHostUrl=https://example.com/tool.zip\r\n");
 
         using var io = new DeviceIoScheduler();
         var value = new MetadataService(io).Compute("zone", path,
             new EntryData("owned.bin", EntryKind.File), TestContext.Current.CancellationToken);
         Assert.Equal(MetadataState.Available, value.State);
-        Assert.Equal("Internet", value.Value);
+        Assert.Equal("Internet", BuiltInFields.Zone.Format(value.Value));
+        // Pointing at it says what the mark rests on, and where the file came from.
+        Assert.Equal("Zone.Identifier: ZoneId=3, the Internet.\nDownloaded from: https://example.com/tool.zip\nLinked from: https://example.com/page",
+            BuiltInFields.Zone.Detail!(value.Value));
+        Assert.True(BuiltInFields.Zone.NeedsExplanation!(value.Value));
+    }
+
+    [Theory]
+    [InlineData("[ZoneTransfer]\r\nZoneId=5\r\n", "Zone 5", "Zone.Identifier: ZoneId=5, not one of Windows' zones (0 to 4).")]
+    [InlineData("[ZoneTransfer]\r\nHostUrl=about:internet\r\n", "Marked", "A Zone.Identifier stream is present but names no zone.\nDownloaded from: about:internet")]
+    public void Windows_origin_column_explains_a_mark_it_cannot_name(string mark, string text, string detail)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Windows NTFS alternate streams only.");
+            return;
+        }
+        using var dir = new TempDir();
+        string path = Path.Combine(dir.Path, "owned.bin");
+        File.WriteAllText(path, "owned");
+        File.WriteAllText(path + ":Zone.Identifier", mark);
+        using var io = new DeviceIoScheduler();
+        var value = new MetadataService(io).Compute("zone", path, new EntryData("owned.bin", EntryKind.File), TestContext.Current.CancellationToken);
+        Assert.Equal((text, detail), (BuiltInFields.Zone.Format(value.Value), BuiltInFields.Zone.Detail!(value.Value)));
+    }
+
+    /// <summary>Linux names where a download came from (and was linked from); macOS, who quarantined it and when.</summary>
+    [Fact]
+    public void Unix_origin_column_says_where_the_mark_came_from()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Linux and macOS extended attributes.");
+            return;
+        }
+        using var dir = new TempDir();
+        string path = Path.Combine(dir.Path, "owned.bin");
+        File.WriteAllText(path, "owned");
+        bool mac = OperatingSystem.IsMacOS();
+        // 0x66f1c2a3 seconds is 23 September 2024 (UTC).
+        if (!Xattr.Set(path, mac ? UnixFileOperations.QuarantineAttribute : UnixFileOperations.OriginAttribute,
+                mac ? "0083;66f1c2a3;Safari;" : "https://example.com/tool.bin"))
+        {
+            Assert.Skip("This file system keeps no extended attributes here.");
+            return;
+        }
+        if (!mac) Assert.True(Xattr.Set(path, "user.xdg.referrer.url", "https://example.com/downloads"));
+        using var io = new DeviceIoScheduler();
+        var value = new MetadataService(io).Compute("zone", path, new EntryData("owned.bin", EntryKind.File), TestContext.Current.CancellationToken);
+        string detail = BuiltInFields.Zone.Detail!(value.Value);
+        if (mac)
+        {
+            Assert.Equal("Quarantined", BuiltInFields.Zone.Format(value.Value));
+            Assert.Contains("\nMarked by: Safari\nMarked on: 2024-09-2", detail);
+        }
+        else
+        {
+            Assert.Equal("Internet", BuiltInFields.Zone.Format(value.Value));
+            Assert.Equal("Downloaded from: https://example.com/tool.bin\nLinked from: https://example.com/downloads", detail);
+        }
     }
 
     [Fact]

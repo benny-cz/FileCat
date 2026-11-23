@@ -1,6 +1,7 @@
 using System.Globalization;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Records;
+using FileCat.Core.Resources;
 
 namespace FileCat.Core.Metadata;
 
@@ -27,11 +28,14 @@ public static class FileDetailsFields
 
         var fields = new List<MetadataField>
         {
+            // As the Size column shows sizes, so the two compare at a glance and a large value keeps its unit in a narrow
+            // column (exact bytes were cut to their leading digits); the tooltip gives the exact bytes.
             Field(Allocated, "Allocated", true, snapshot => Value(snapshot, snapshot.Allocated,
-                value => value.ToString("N0", CultureInfo.CurrentCulture) + " B", value => value >= 0 ? value : null,
+                SizeText.Compact, value => value >= 0 ? value : null,
                 snapshot.Kind == FileObjectKind.Directory
                     ? "This directory object's allocation; contents are not counted."
-                    : "Filesystem/server-reported allocation; not exclusive ownership or a deletion-saving estimate.")),
+                    : "Filesystem/server-reported allocation; not exclusive ownership or a deletion-saving estimate.",
+                value => value.ToString("N0", CultureInfo.CurrentCulture) + (value == 1 ? " byte" : " bytes"))),
             Field(HardLinks, "Hard links", false, snapshot => snapshot.Kind == FileObjectKind.File && (!windows || FileDetailsTargets.IsOrdinaryWindowsEntry(snapshot))
                 ? Value(snapshot, snapshot.LinkCount, value => value.ToString(CultureInfo.CurrentCulture), value => value,
                     "Names for this regular file; sharing of extents is not inferred.")

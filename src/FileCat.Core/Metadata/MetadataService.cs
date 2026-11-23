@@ -41,6 +41,9 @@ public enum MetadataObservation
 /// <summary>A link target shown with what it is (an app execution alias's program, a WSL link's Linux path).</summary>
 public sealed record LinkTargetText(string Target, string Detail);
 
+/// <summary>An Origin value with what it rests on (the zone and addresses a Zone.Identifier names; who quarantined a file).</summary>
+public sealed record OriginMark(string Text, string Detail);
+
 public readonly record struct MetadataValue(MetadataState State, object? Value = null, string? Detail = null,
     MetadataObservation Observation = MetadataObservation.Current)
 {
@@ -687,19 +690,24 @@ public static class BuiltInFields
         _ => true,
         (p, ct) =>
         {
-            if (OperatingSystem.IsMacOS()) return Xattr.Get(p, UnixFileOperations.QuarantineAttribute) is { Length: > 0 } ? "Quarantined" : null;
-            if (OperatingSystem.IsLinux()) return Xattr.Get(p, UnixFileOperations.OriginAttribute) is { Length: > 0 } ? "Internet" : null;
+            if (OperatingSystem.IsMacOS()) return Xattr.Get(p, UnixFileOperations.QuarantineAttribute) is { Length: > 0 } quarantine ? QuarantineMark(quarantine) : null;
+            if (OperatingSystem.IsLinux())
+                return Xattr.Get(p, UnixFileOperations.OriginAttribute) is { Length: > 0 } origin
+                    ? new OriginMark("Internet", Lines(("Downloaded from: ", origin), ("Linked from: ", Referrer(p)))) : null;
             var ads = p + ":Zone.Identifier";
             const int maxMarkBytes = 64 * 1024;
             FileStream stream;
             try { stream = new FileStream(ads, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete); }
             catch (FileNotFoundException) { return null; }
+            // FAT32 and exFAT keep no alternate data streams: Windows refuses the stream's name (ERROR_INVALID_NAME, seen
+            // on both), and no mark can be there. Every file on such a stick showed "error".
+            catch (IOException ex) when (ex.HResult == unchecked((int)0x8007007B)) { return null; }
             using (stream)
             {
                 // Origin is automatic visible-row metadata. A single newline-free ADS must not allocate
                 // in proportion to its size, and a growing stream must not bypass the size precheck.
                 long length = stream.Length;
-                if (length > maxMarkBytes) return "Marked";
+                if (length > maxMarkBytes) return new OriginMark("Marked", TooLarge);
                 // Ordinary marks are tiny; reserve only their observed size plus a growth sentinel.
                 // A concurrent writer can still grow the stream, so keep the actual read bounded.
                 var bytes = new byte[(int)Math.Min(maxMarkBytes + 1L, Math.Max(256L, length + 1))];
@@ -712,23 +720,70 @@ public static class BuiltInFields
                     read += count;
                     if (read == bytes.Length)
                     {
-                        if (bytes.Length == maxMarkBytes + 1) return "Marked";
+                        if (bytes.Length == maxMarkBytes + 1) return new OriginMark("Marked", TooLarge);
                         Array.Resize(ref bytes, maxMarkBytes + 1);
                     }
                 }
                 using var reader = new StreamReader(new MemoryStream(bytes, 0, read, writable: false),
                     System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
                 string? line;
+                int? zone = null;
+                string? host = null, referrer = null;
                 while ((line = reader.ReadLine()) is not null)
                 {
                     ct.ThrowIfCancellationRequested();
-                    if (line.StartsWith("ZoneId=", StringComparison.OrdinalIgnoreCase) && int.TryParse(line.AsSpan(7), out var zone))
-                        return zone switch { 3 => "Internet", 4 => "Restricted", 2 => "Trusted", 1 => "Intranet", 0 => "Local", _ => $"Zone {zone}" };
+                    if (zone is null && line.StartsWith("ZoneId=", StringComparison.OrdinalIgnoreCase) && int.TryParse(line.AsSpan(7), out var id)) zone = id;
+                    else if (host is null && line.StartsWith("HostUrl=", StringComparison.OrdinalIgnoreCase)) host = line[8..];
+                    else if (referrer is null && line.StartsWith("ReferrerUrl=", StringComparison.OrdinalIgnoreCase)) referrer = line[12..];
                 }
+                if (zone is not { } z)
+                    return new OriginMark("Marked", Lines(("", "A Zone.Identifier stream is present but names no zone."), ("Downloaded from: ", host), ("Linked from: ", referrer)));
+                var (text, meaning) = z switch
+                {
+                    0 => ("Local", "this computer"),
+                    1 => ("Intranet", "the local intranet"),
+                    2 => ("Trusted", "trusted sites"),
+                    3 => ("Internet", "the Internet"),
+                    4 => ("Restricted", "restricted sites"),
+                    _ => ($"Zone {z}", "not one of Windows' zones (0 to 4)"),
+                };
+                return new OriginMark(text, Lines(("", $"Zone.Identifier: ZoneId={z}, {meaning}."), ("Downloaded from: ", host), ("Linked from: ", referrer)));
             }
-            return "Marked";
         },
-        v => v as string ?? string.Empty);
+        v => v switch { string s => s, OriginMark m => m.Text, _ => string.Empty },
+        SortKey: v => v switch { string s => s, OriginMark m => m.Text, _ => null },
+        Detail: v => v is OriginMark m ? m.Detail : string.Empty,
+        NeedsExplanation: v => v is OriginMark { Detail.Length: > 0 },
+        DetailLines: true);
+
+    private const string TooLarge = "A Zone.Identifier stream larger than 64 KiB is present; FileCat does not read it.";
+
+    /// <summary>Origin's explanation lines: each labelled value that is there, an address cut to 400 characters.</summary>
+    private static string Lines(params (string Label, string? Value)[] lines) => string.Join('\n', lines
+        .Where(line => !string.IsNullOrWhiteSpace(line.Value))
+        .Select(line => line.Label + (line.Value!.Length > 400 ? line.Value[..400] + "…" : line.Value)));
+
+    /// <summary>Linux: the page a download was linked from, when the browser kept it; never a reason to fail.</summary>
+    private static string? Referrer(string path)
+    {
+        try { return Xattr.Get(path, "user.xdg.referrer.url"); }
+        catch (IOException) { return null; }
+    }
+
+    /// <summary>
+    /// macOS: com.apple.quarantine is "flags;time;agent;id", the time in hexadecimal seconds: who marked the file, and when.
+    /// </summary>
+    private static OriginMark QuarantineMark(string value)
+    {
+        string[] parts = value.Split(';');
+        string? agent = parts.Length > 2 && parts[2].Length > 0 ? parts[2] : null;
+        string? when = parts.Length > 1 && long.TryParse(parts[1], System.Globalization.NumberStyles.AllowHexSpecifier,
+            System.Globalization.CultureInfo.InvariantCulture, out long seconds) && seconds is > 0 and < 253_402_300_799
+            ? DateTimeOffset.FromUnixTimeSeconds(seconds).ToLocalTime().ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture)
+            : null;
+        return new OriginMark("Quarantined", Lines(("", "com.apple.quarantine: macOS checks this file when it is first opened."),
+            ("Marked by: ", agent), ("Marked on: ", when)));
+    }
 
     /// <summary>Where the column reads streams and attributes from: the platform's (set at start).</summary>
     public static HiddenData.IHiddenData? HiddenDataSource { get; set; }

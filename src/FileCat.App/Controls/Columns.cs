@@ -334,7 +334,8 @@ public sealed class ColumnProfileSet
             f.Id == Core.Metadata.BuiltInFields.LinkTarget.Id ? ColumnProfiles.LinkTargetFillShare : ColumnProfiles.DefaultFillShare,
             ColumnDescriptions.For(f.Id))),
         .. Core.Metadata.FileDetailsFields.Create(new Core.Records.NoFileRecords(), OperatingSystem.IsWindows()).Select(f =>
-            new ColumnChoice("meta:" + f.Id, f.Title, f.Id != Core.Metadata.FileDetailsFields.ReparseType, 110,
+            new ColumnChoice("meta:" + f.Id, f.Title, f.Id != Core.Metadata.FileDetailsFields.ReparseType,
+                f.Id == Core.Metadata.FileDetailsFields.ReparseType ? 170 : 110, // "Junction or volume mount" fits
                 ColumnProfiles.DefaultFillShare, ColumnDescriptions.For(f.Id))),
     ];
 

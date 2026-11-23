@@ -35,4 +35,30 @@ public sealed class FatDriveRecordTests
         }
         finally { Directory.Delete(Path.Combine(drive, "filecat-records"), recursive: true); }
     }
+
+    /// <summary>
+    /// FAT32 keeps no alternate data streams, so Windows refuses a Zone.Identifier stream's name there
+    /// (ERROR_INVALID_NAME): a file on a FAT stick has no download mark, and its Origin cell is blank, not "error".
+    /// </summary>
+    [Fact]
+    public void A_file_on_FAT32_has_no_download_mark_rather_than_an_error()
+    {
+        string? drive = Environment.GetEnvironmentVariable("FILECAT_TEST_FAT_DRIVE");
+        if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(drive))
+        {
+            Assert.Skip("Set FILECAT_TEST_FAT_DRIVE to a FAT32 drive's root.");
+            return;
+        }
+        string folder = Directory.CreateDirectory(Path.Combine(drive, "filecat-origin", Guid.NewGuid().ToString("N")[..8])).FullName;
+        try
+        {
+            string file = Path.Combine(folder, "download.bin");
+            File.WriteAllText(file, "x");
+            using var io = new Core.Threading.DeviceIoScheduler();
+            var value = new Core.Metadata.MetadataService(io).Compute("zone", file,
+                new Core.Resources.EntryData("download.bin", Core.Resources.EntryKind.File), TestContext.Current.CancellationToken);
+            Assert.Equal(Core.Metadata.MetadataState.Absent, value.State);
+        }
+        finally { Directory.Delete(Path.Combine(drive, "filecat-origin"), recursive: true); }
+    }
 }
