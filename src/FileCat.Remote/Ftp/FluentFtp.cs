@@ -176,11 +176,36 @@ internal sealed class BoundedFtpClient(string host, string user, string password
             DataTls?.GetValue(socket) is SslStream { RemoteCertificate: { } certificate }
             ? Convert.ToHexString(SHA256.HashData(certificate.GetRawCertData())) : null;
         if (presented is not null && presented == SessionCertificate) return data;
+        // The server accepted the command that opened this connection (a 125 or 150 reply), so it still owes that command a
+        // final reply, 226 or 426, which it sends only once the data connection closes. Disposing the stream closes only
+        // the sockets; FtpDataStream.Close, which reads that reply, is not reached. Left on the control connection, the
+        // reply answers the next command instead: a listing refused under load made the following MLST read "226" and
+        // report a file that was there as missing. So the reply is read now, within a bounded wait, and a connection
+        // whose reply does not come is ended rather than reused.
+        bool owesReply = data is FtpDataStream { CommandStatus.Type: FtpResponseType.PositivePreliminary };
         try { data.Dispose(); }
         catch (Exception ex) when (ex is IOException or FtpException or SocketException or TimeoutException) { }
+        if (owesReply && !TakeFinalReply()) Dispose();
         throw new CertificateRejectedException(presented is null
             ? "The server's FTPS data connection was not encrypted with a certificate FileCat could check, so FileCat closed it before any data crossed it."
             : "The server presented a different certificate on an FTPS data connection than the one this session was accepted with, so FileCat closed that connection before any data crossed it.");
+    }
+
+    /// <summary>Reads one pending reply within at most five seconds; false when none could be read.</summary>
+    private bool TakeFinalReply()
+    {
+        int previousTimeout = Config.ReadTimeout;
+        Config.ReadTimeout = Math.Min(previousTimeout, 5_000);
+        try
+        {
+            GetReply();
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or FtpException or SocketException or TimeoutException or InvalidOperationException)
+        {
+            return false;
+        }
+        finally { Config.ReadTimeout = previousTimeout; }
     }
 }
 
@@ -215,6 +240,8 @@ internal sealed partial class FtpChannel : ISftpChannel
     internal T Run<T>(Func<T> action)
     {
         try { return action(); }
+        // A certificate refusal stays one, even when the refused connection had to be ended (CheckData).
+        catch (CertificateRejectedException) { throw; }
         catch (RemoteListingLimitException) { throw; }
         catch (FtpCommandException ex) when (ex.CompletionCode is "550" or "450" && ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
         {
