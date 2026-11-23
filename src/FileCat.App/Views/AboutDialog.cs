@@ -29,24 +29,47 @@ internal static class AboutDialog
     public const string AuthorMail = "marek.strihavka@gmail.com";
     private const string Tagline = "Multiplatform File Manager on steroids";
 
+    /// <summary>
+    /// How much of the theme's art the glass under the header's words hides. Psychedelic's drifting light is bright: over its
+    /// whole cycle the pink of the name reads at 1.5:1 behind a 55% glass and at 3.7:1 at worst behind 88%; Steampunk's
+    /// darker iron needs only 55% (tests measure both over the art itself).
+    /// </summary>
+    internal static byte GlassAlpha(ThemeEffect effect) => effect == ThemeEffect.Psychedelic ? (byte)0xE0 : (byte)0x8C;
+
     public static async Task ShowAsync(MainViewModel vm)
     {
         string version = Version();
         var facts = Facts(vm);
-        var palette = ThemeManager.Current;
-        using var logo = palette.Name == ThemePalette.DosCommander.Name ? null : Logo();
+        // Loaded whatever the theme: DOS Commander shows its text-mode cat instead, but the theme can change while About is open.
+        using var logo = Logo();
         var logoImage = new Image { Source = logo, Width = 84, Height = 84 };
         try
         {
             var body = new StackPanel { Spacing = 14, MaxWidth = 600 };
-            body.Children.Add(Header(palette, version, logoImage));
+            // The header is dressed in the theme in use, and redressed when the theme changes while About is open (System
+            // following the operating system's dark mode or high contrast): its colors are the palette's, not resources.
+            var header = new Decorator { Child = Header(ThemeManager.Current, version, logoImage) };
+            body.Children.Add(header);
             var made = new WrapPanel { ItemSpacing = 6, LineSpacing = 2 };
             made.Children.Add(new TextBlock { Text = "Made by " + Author, VerticalAlignment = VerticalAlignment.Center });
             var mail = new HyperlinkButton { Content = AuthorMail, NavigateUri = new Uri("mailto:" + AuthorMail), Padding = new Thickness(2, 0) };
             Avalonia.Automation.AutomationProperties.SetName(mail, "Write to " + Author);
             made.Children.Add(mail);
             body.Children.Add(made);
-            body.Children.Add(FactsGrid(facts));
+            var factsGrid = FactsGrid(facts);
+            body.Children.Add(factsGrid);
+            void Redress()
+            {
+                if (logoImage.Parent is Panel previous) previous.Children.Remove(logoImage);
+                header.Child = Header(ThemeManager.Current, version, logoImage);
+                int theme = facts.FindIndex(fact => fact.Label == "Theme");
+                if (theme < 0) return;
+                facts[theme] = ("Theme", ThemeManager.Current.DisplayName);
+                foreach (var value in factsGrid.Children.OfType<FactValue>().Where(value => value.Label == "Theme"))
+                    value.Text = ThemeManager.Current.DisplayName;
+            }
+            header.AttachedToVisualTree += (_, _) => ThemeManager.ThemeChanged += Redress;
+            header.DetachedFromVisualTree += (_, _) => ThemeManager.ThemeChanged -= Redress;
             var actions = new WrapPanel { ItemSpacing = 8, LineSpacing = 6 };
             var status = new TextBlock { IsVisible = false, Classes = { "muted" } };
             AutomationProperties.SetAutomationId(status, "About support action status");
@@ -137,7 +160,7 @@ internal static class AboutDialog
             [("Open settings folder", settings), ("Open local data folder", local)];
     }
 
-    private static Control FactsGrid(List<(string Label, string Value)> facts)
+    private static Grid FactsGrid(List<(string Label, string Value)> facts)
     {
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), RowSpacing = 3, ColumnSpacing = 14 };
         for (int i = 0; i < facts.Count; i++)
@@ -163,6 +186,8 @@ internal static class AboutDialog
     /// </summary>
     private sealed class FactValue(string label) : SelectableTextBlock
     {
+        internal string Label => label;
+
         protected override Type StyleKeyOverride => typeof(SelectableTextBlock);
 
         protected override AutomationPeer OnCreateAutomationPeer() => new FactValuePeer(this, label);
@@ -225,10 +250,11 @@ internal static class AboutDialog
                 {
                     StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
                     EndPoint = new RelativePoint(1, 0, RelativeUnit.Relative),
+                    // Neon pink, yellow and teal: the palette's text colors (its search-hit fill is a dark olive, about 2:1 on the glass).
                     GradientStops =
                     {
                         new GradientStop(Color.Parse(palette.ActiveAccent), 0),
-                        new GradientStop(Color.Parse(palette.SearchHit), 0.5),
+                        new GradientStop(Color.Parse(palette.TextDirectory), 0.5),
                         new GradientStop(Color.Parse(palette.TargetAccent), 1),
                     },
                 };
@@ -241,7 +267,7 @@ internal static class AboutDialog
                 break;
         }
         words.Children.Add(name);
-        words.Children.Add(new TextBlock
+        var versionLine = new TextBlock
         {
             Text = palette.Effect switch
             {
@@ -249,13 +275,15 @@ internal static class AboutDialog
                 ThemeEffect.Steampunk => "Version " + version + " · Est. MMXXVI",
                 _ => "Version " + version,
             },
-            Classes = { "muted" },
             TextWrapping = TextWrapping.Wrap,
-        });
+        };
+        // Muted gray on the accent glow reads at about 3.6:1 in Classic Dark: there the version keeps the text color.
+        if (palette.Effect != ThemeEffect.None || palette.Name == ThemePalette.HighContrast.Name) versionLine.Classes.Add("muted");
+        words.Children.Add(versionLine);
         words.Children.Add(new TextBlock { Text = Tagline, TextWrapping = TextWrapping.Wrap, MaxWidth = 440 });
-        // Over drifting light or riveted iron the words sit on a dark glass, so they stay readable.
+        // Over drifting light or riveted iron the words sit on a glass of the window's own color, so they stay readable.
         var wordHost = palette.Effect is ThemeEffect.Psychedelic or ThemeEffect.Steampunk
-            ? new Border { Background = new SolidColorBrush(Color.FromArgb(0x8C, 0x10, 0x08, 0x18)), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 6), Child = words }
+            ? new Border { Background = new SolidColorBrush(WithAlpha(palette.Window, GlassAlpha(palette.Effect))), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 6), Child = words }
             : (Control)words;
         Grid.SetColumn(wordHost, 1);
         row.Children.Add(wordHost);

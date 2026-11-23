@@ -5,10 +5,10 @@ using Avalonia.Controls.Documents;
 using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
+using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
-using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -756,7 +756,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             if (weight[start] is 2 or 3)
             {
                 run.FontWeight = weight[start] == 2 ? FontWeight.Bold : FontWeight.SemiBold;
-                run[!Run.ForegroundProperty] = new DynamicResourceExtension("FcTextLink");
+                // The link color as the line's style says (ReviewText): on a list's chosen row (Undo's actions) the row's text color.
+                run.Bind(Run.ForegroundProperty, block.GetObservable(ReviewText.PathForegroundProperty,
+                    brush => brush is null ? BindingValue<IBrush?>.Unset : new BindingValue<IBrush?>(brush)));
             }
             block.Inlines.Add(run);
             start = end;

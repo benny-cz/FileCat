@@ -1,5 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:fc="using:FileCat.App.Controls">
   <!-- All colors come from semantic Fc* tokens supplied by ThemeManager (plan §18.2). -->
 
   <Style Selector="Window">
@@ -371,18 +372,30 @@
     <Setter Property="Foreground" Value="{DynamicResource FcOnAccent}" />
     <Setter Property="Opacity" Value="0.8" />
   </Style>
+  <!-- Status text in the palette's hue, made legible (4.5:1) on cards, dialog headers and lists, panels and the window. -->
   <Style Selector="TextBlock.error">
-    <Setter Property="Foreground" Value="{DynamicResource FcError}" />
+    <Setter Property="Foreground" Value="{DynamicResource FcErrorText}" />
   </Style>
   <Style Selector="TextBlock.warning">
-    <Setter Property="Foreground" Value="{DynamicResource FcWarning}" />
+    <Setter Property="Foreground" Value="{DynamicResource FcWarningText}" />
   </Style>
   <Style Selector="TextBox.warning">
-    <Setter Property="Foreground" Value="{DynamicResource FcWarning}" />
+    <Setter Property="Foreground" Value="{DynamicResource FcWarningText}" />
     <Setter Property="BorderBrush" Value="{DynamicResource FcWarning}" />
   </Style>
   <Style Selector="TextBlock.success">
-    <Setter Property="Foreground" Value="{DynamicResource FcSuccess}" />
+    <Setter Property="Foreground" Value="{DynamicResource FcSuccessText}" />
+  </Style>
+  <!-- Selected text reads as the accent's own text (the highlight is FcActiveAccent, set by ThemeManager). -->
+  <Style Selector="TextBox">
+    <Setter Property="SelectionForegroundBrush" Value="{DynamicResource FcOnAccent}" />
+  </Style>
+  <Style Selector="SelectableTextBlock">
+    <Setter Property="SelectionForegroundBrush" Value="{DynamicResource FcOnAccent}" />
+    <Setter Property="fc:ReviewText.PathForeground" Value="{DynamicResource FcTextLink}" />
+  </Style>
+  <Style Selector="ProgressBar">
+    <Setter Property="Foreground" Value="{DynamicResource FcProgress}" />
   </Style>
 
   <Style Selector="ListBox.choices">
@@ -413,6 +426,43 @@
   <Style Selector="ListBox.choices ListBoxItem:selected:pressed /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource FcFocusBackground}" />
     <Setter Property="Foreground" Value="{DynamicResource FcFocusText}" />
+  </Style>
+  <!-- A list inside a dialog (review targets and rules, Undo's actions, editors' entries): a well in the dialog's header
+       color, not Fluent's opaque gray, outlined where the header and card colors are the same (High Contrast, DOS
+       Commander); its chosen row like a chooser's. -->
+  <Style Selector="Border.card ListBox:not(.choices)">
+    <Setter Property="Background" Value="{DynamicResource FcHeader}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FcBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="Border.card ListBox:not(.choices) ListBoxItem">
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Border.card ListBox:not(.choices) ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FcFocusBackground}" />
+    <Setter Property="Foreground" Value="{DynamicResource FcFocusText}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FcFocusBorder}" />
+  </Style>
+  <Style Selector="Border.card ListBox:not(.choices) ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FcFocusBackground}" />
+    <Setter Property="Foreground" Value="{DynamicResource FcFocusText}" />
+  </Style>
+  <Style Selector="Border.card ListBox:not(.choices) ListBoxItem:selected:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FcFocusBackground}" />
+    <Setter Property="Foreground" Value="{DynamicResource FcFocusText}" />
+  </Style>
+  <!-- On a chosen row everything reads as the row does: muted details, status words and emphasized paths alike
+       (DOS Commander's muted cyan would vanish on its cyan bar). -->
+  <Style Selector="ListBox.choices ListBoxItem:selected TextBlock.muted, ListBox.choices ListBoxItem:selected TextBlock.error, ListBox.choices ListBoxItem:selected TextBlock.warning, ListBox.choices ListBoxItem:selected TextBlock.success, Border.card ListBox ListBoxItem:selected TextBlock.muted, Border.card ListBox ListBoxItem:selected TextBlock.error, Border.card ListBox ListBoxItem:selected TextBlock.warning, Border.card ListBox ListBoxItem:selected TextBlock.success">
+    <Setter Property="Foreground" Value="{DynamicResource FcFocusText}" />
+  </Style>
+  <Style Selector="ListBox.choices ListBoxItem:selected SelectableTextBlock, Border.card ListBox ListBoxItem:selected SelectableTextBlock">
+    <Setter Property="fc:ReviewText.PathForeground" Value="{DynamicResource FcFocusText}" />
+  </Style>
+  <!-- A chosen item of a combo box's list has an edge too (in the focus color): High Contrast's yellow box, not color alone. -->
+  <Style Selector="ComboBoxItem">
+    <Setter Property="BorderThickness" Value="1" />
   </Style>
 
   <Style Selector="Border.notification">

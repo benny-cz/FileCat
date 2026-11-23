@@ -179,6 +179,40 @@ public sealed class PermissionEditorRenderingTests
         }
     }
 
+    /// <summary>
+    /// The same surfaces through the whole theme audit: colors from the theme (no system accent, no Fluent gray wells),
+    /// chosen rows and fields that stand out, keyboard focus, and the same again after the theme changes while open.
+    /// </summary>
+    [AvaloniaFact]
+    public void Inspector_and_editors_take_every_theme_and_follow_a_live_switch()
+    {
+        string theme = ThemeManager.RequestedName;
+        var problems = new List<string>();
+        try
+        {
+            var all = ThemePalette.All;
+            for (int index = 0; index < all.Count; index++)
+            {
+                string name = all[index].Name, next = all[(index + 1) % all.Count].Name;
+                ThemeManager.Apply(name);
+                var (window, _, _) = Open(900);
+                try
+                {
+                    var card = window.GetVisualDescendants().OfType<DialogCard>().Single();
+                    problems.AddRange(ThemeAudit.Problems(card, name));
+                    problems.AddRange(ThemeAudit.FocusProblems(card, name));
+                    ThemeManager.Apply(next);
+                    Dispatcher.UIThread.RunJobs();
+                    window.UpdateLayout();
+                    problems.AddRange(ThemeAudit.Problems(card, $"{name}→{next}"));
+                }
+                finally { window.Close(); }
+            }
+        }
+        finally { ThemeManager.Apply(theme); }
+        Assert.True(problems.Count == 0, string.Join(Environment.NewLine, problems.Distinct().Take(60)));
+    }
+
     [AvaloniaFact]
     public void A_theme_and_density_change_keeps_the_invalid_draft_and_the_selected_rule()
     {

@@ -349,6 +349,22 @@ internal static class DialogLayout
     }
 }
 
+/// <summary>
+/// The color of the emphasized paths in a review line (OverlayDialogService.ReviewLine), set by style on the line: the
+/// theme's link color, and on a list's chosen row that row's text color. Styles do not reach a line's runs themselves.
+/// </summary>
+public sealed class ReviewText
+{
+    private ReviewText() { }
+
+    public static readonly AttachedProperty<IBrush?> PathForegroundProperty =
+        AvaloniaProperty.RegisterAttached<ReviewText, TextBlock, IBrush?>("PathForeground");
+
+    public static IBrush? GetPathForeground(TextBlock element) => element.GetValue(PathForegroundProperty);
+
+    public static void SetPathForeground(TextBlock element, IBrush? value) => element.SetValue(PathForegroundProperty, value);
+}
+
 /// <summary>Two related sections keep their reading order when a compact dialog stacks them.</summary>
 internal sealed class DialogColumns : Grid
 {
