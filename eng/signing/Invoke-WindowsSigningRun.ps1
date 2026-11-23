@@ -236,10 +236,15 @@ switch ($Phase) {
         $state = Read-State
         if ($state.Mode -ne 'ESigner') { throw 'Only ESigner runs go to a draft release; dry runs keep their outputs on the runner.' }
         if (-not $env:GH_TOKEN -or -not $env:GITHUB_RUN_ID) { throw 'Draft runs in GitHub Actions with GH_TOKEN.' }
+        # A release candidate's signed files go into the candidate's own draft, whose 24 files are the release contract;
+        # its signing records (they name the signer) go into a second private draft here. A pilot keeps both together.
+        $candidateTag = if ($state.CandidateRef) { $state.CandidateRef.Substring('refs/tags/'.Length) } else { $null }
         # Whatever the run produced goes in, so a run that stopped part-way can still be examined privately.
         $assets = [System.Collections.Generic.List[string]]::new()
-        Get-ChildItem -LiteralPath $artifacts -File | Where-Object { $_.Name -like '*-setup.exe' -or $_.Name -like '*.zip' -or $_.Name -like 'sbom-*.spdx.json' } |
-            Sort-Object Name | ForEach-Object { $assets.Add($_.FullName) }
+        if (-not $candidateTag) {
+            Get-ChildItem -LiteralPath $artifacts -File | Where-Object { $_.Name -like '*-setup.exe' -or $_.Name -like '*.zip' -or $_.Name -like 'sbom-*.spdx.json' } |
+                Sort-Object Name | ForEach-Object { $assets.Add($_.FullName) }
+        }
         # A release asset is named by its file name, so each runtime's signing manifests go in under names that hold it.
         $staged = Join-Path $WorkDirectory 'draft-records'
         [void][IO.Directory]::CreateDirectory($staged)
@@ -257,11 +262,19 @@ switch ($Phase) {
         foreach ($file in @(@($records) + @($manifestFile, $stateFile, (Join-Path $WorkDirectory 'verification.json')))) {
             if (Test-Path -LiteralPath $file) { $assets.Add($file) }
         }
-        $tag = "signing-pilot-$env:GITHUB_RUN_ID"
-        $title = "Signing pilot $env:GITHUB_RUN_ID - PRIVATE DRAFT, never publish (verification: $VerificationOutcome)"
-        $notes = "Private signing pilot of FileCat $($state.Version) at $($state.SourceCommit), workflow run $env:GITHUB_RUN_ID. " +
-            'It holds FileCat-signed files for the owner''s own verification (signatures, Smart App Control, installed bytes). ' +
-            'Do not publish it; delete it when the verification is recorded.'
+        if ($candidateTag) {
+            $tag = "signing-records-$candidateTag-$env:GITHUB_RUN_ID"
+            $title = "Signing records of $candidateTag, run $env:GITHUB_RUN_ID - PRIVATE DRAFT, never publish (verification: $VerificationOutcome)"
+            $notes = "Signing records of FileCat release candidate $candidateTag at $($state.SourceCommit), workflow run $env:GITHUB_RUN_ID: " +
+                'the unsigned-input and signed-output manifests, the Inno Setup receipts, run.json and the verification report. ' +
+                'The signed files are in the candidate''s own draft. Do not publish this one; it stays with the candidate''s evidence.'
+        } else {
+            $tag = "signing-pilot-$env:GITHUB_RUN_ID"
+            $title = "Signing pilot $env:GITHUB_RUN_ID - PRIVATE DRAFT, never publish (verification: $VerificationOutcome)"
+            $notes = "Private signing pilot of FileCat $($state.Version) at $($state.SourceCommit), workflow run $env:GITHUB_RUN_ID. " +
+                'It holds FileCat-signed files for the owner''s own verification (signatures, Smart App Control, installed bytes). ' +
+                'Do not publish it; delete it when the verification is recorded.'
+        }
         # No --target: a workflow token may not create a release at a commit whose workflow files differ from the default
         # branch, and main moves on while a run signs. A draft creates no tag, and its notes and run.json name the source.
         gh release create $tag --repo $env:GITHUB_REPOSITORY --draft --title $title --notes $notes @assets | Out-Null

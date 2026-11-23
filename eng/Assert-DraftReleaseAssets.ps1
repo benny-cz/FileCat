@@ -1,4 +1,5 @@
-<# Read-only preview preflight. This does not authorize publication or stable promotion. #>
+<# Read-only preflight of an unsigned preview's draft or, with -SignedCandidate, a signed release candidate's draft.
+   This does not authorize publication, candidate qualification or stable promotion. #>
 param(
     [Parameter(Mandatory)][string]$ManifestPath,
     [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{64}$')][string]$ManifestSHA256,
@@ -8,12 +9,19 @@ param(
     [string]$ReceiptPath,
     [switch]$VerifyUpload,
     [string]$UploadedAssetsJson,
-    [long]$ExpectedReleaseID
+    [long]$ExpectedReleaseID,
+    # The signed-candidate path: a v1.0.0-rc.N tag whose Windows files the signing job signed. Previews never take it.
+    [switch]$SignedCandidate
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $Policy = & (Join-Path $PSScriptRoot 'Assert-ProducerReference.ps1') -Reference $Reference -EventName push
-if ($Policy.Mode -cne 'prerelease' -or $Reference -cnotmatch '^refs/tags/v1\.0\.0-preview\.[1-9][0-9]*$') {
+if ($SignedCandidate) {
+    if ($Policy.Mode -cne 'prerelease' -or $Reference -cnotmatch '^refs/tags/v1\.0\.0-rc\.[1-9][0-9]*$') {
+        throw 'Signed-candidate asset upload requires a 1.0.0 RC tag; previews keep the unsigned draft path.'
+    }
+}
+elseif ($Policy.Mode -cne 'prerelease' -or $Reference -cnotmatch '^refs/tags/v1\.0\.0-preview\.[1-9][0-9]*$') {
     throw 'Draft asset upload requires a 1.0.0 preview tag; RC artifacts need the separate signed-candidate path.'
 }
 $Tag = $Reference.Substring('refs/tags/'.Length)
@@ -88,7 +96,9 @@ $ReleaseID = $null
 $Assets = [Collections.Generic.List[object]]::new()
 if ($Releases.Count -eq 1) {
     $Release = $Releases[0]
-    if ($Release.draft -ne $true -or $Release.prerelease -ne $true -or $Release.id -le 0) { throw 'Existing release is not an unsigned preview draft.' }
+    if ($Release.draft -ne $true -or $Release.prerelease -ne $true -or $Release.id -le 0) {
+        throw $(if ($SignedCandidate) { 'Existing release is not a signed-candidate draft.' } else { 'Existing release is not an unsigned preview draft.' })
+    }
     if ($Release.PSObject.Properties.Name -contains 'immutable' -and $Release.immutable) { throw 'Existing release is immutable.' }
     $ReleaseID = $Release.id
     for ($Page=1; $Page -le 100; $Page++) {
@@ -113,7 +123,7 @@ if ($Releases.Count -eq 1) {
 }
 $UploadedIDs = [Collections.Generic.HashSet[long]]::new()
 if ($VerifyUpload) {
-    if ($null -eq $ReleaseID -or $ExpectedReleaseID -le 0 -or $ReleaseID -ne $ExpectedReleaseID) { throw 'Uploaded release ID differs from the remote preview draft.' }
+    if ($null -eq $ReleaseID -or $ExpectedReleaseID -le 0 -or $ReleaseID -ne $ExpectedReleaseID) { throw 'Uploaded release ID differs from the remote draft.' }
     $Uploaded = ConvertFrom-Json -InputObject $UploadedAssetsJson -NoEnumerate
     if ($Uploaded -isnot [Array] -or $Uploaded.Count -ne $Pins.Count) { throw 'The action did not upload the complete selected asset set; a duplicate may have been skipped.' }
     foreach ($Pin in $Pins) {
@@ -127,6 +137,7 @@ if ($VerifyUpload) {
 }
 $Record = [ordered]@{
     UTC=[DateTime]::UtcNow.ToString('o');Repository=$Repository;Reference=$Reference;SourceCommit=$SourceCommit
+    Kind=$(if ($SignedCandidate) {'signed-candidate'} else {'unsigned-preview'})
     ManifestSHA256=$ManifestSHA256;Platform=$Manifest.Platform;SelectedAssets=$Pins;ExistingReleaseID=$ReleaseID
     ExistingAssetIDs=@($Assets | ForEach-Object {$_.id});ReadOnlyAPIPaths=@($Requests.ToArray())
     GuardSHA256=(Get-FileHash -LiteralPath $PSCommandPath).Hash.ToLowerInvariant()
