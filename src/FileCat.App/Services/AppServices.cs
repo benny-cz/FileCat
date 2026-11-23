@@ -61,6 +61,8 @@ public sealed class AppServices : IDisposable
             }
         }
         Settings.Terminal.Upgrade();
+        DialogSizeMemory.Normalize(Settings);
+        DialogSizes = new(Settings, SaveSettings);
         History = JsonFileStore.Load(paths.HistoryFile, StateJsonContext.Default.HistoryState, HistoryState.CurrentSchema,
             () => new HistoryState(), out var historyStatus);
         HistoryStatus = historyStatus;
@@ -338,6 +340,8 @@ public sealed class AppServices : IDisposable
 
     public AppPaths Paths { get; }
     public AppSettings Settings { get; }
+    /// <summary>The sizes the user gave resizable dialogs, kept with <see cref="Settings"/>.</summary>
+    internal DialogSizeStore DialogSizes { get; }
 
     /// <summary>Public keys FileCat trusts for signatures beside files (minisign's .pub files), in the profile.</summary>
     public string KeyDirectory => Paths.KeysDirectory;

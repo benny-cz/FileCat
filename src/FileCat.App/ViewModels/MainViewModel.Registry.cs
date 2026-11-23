@@ -132,7 +132,7 @@ public sealed partial class MainViewModel
         } };
         var result = await Dialogs.ShowCustomAsync("Review Registry import", body,
             [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Import changes", "import", IsDefault: true)],
-            resizable: true);
+            resizable: true, behavior: new DialogBehavior { SizeKey = "registry.import-review" });
         if (result as string != "import") return;
         var job = Services.Jobs.Submit(new JobRequest
         {

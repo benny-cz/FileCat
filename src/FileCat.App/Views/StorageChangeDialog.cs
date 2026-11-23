@@ -122,7 +122,8 @@ internal sealed class StorageChangeDialog : IDisposable
                 [new DialogButton("Cancel", "cancel", IsDefault: _efs, IsCancel: true),
                  new DialogButton("Queue", "queue") { IsAvailable = CanApprove, Validate = Freeze },
                  new DialogButton("Choose action", "start", IsDefault: !_efs) { Presentation = _primary, IsAvailable = CanApprove, Validate = Freeze }],
-                _firstAction, closer: _closer, resizable: true, behavior: new DialogBehavior { KeepOperationsUsable = true });
+                _firstAction, closer: _closer, resizable: true,
+                behavior: new DialogBehavior { KeepOperationsUsable = true, SizeKey = _efs ? "storage.efs" : "storage.compression" });
             _initialRegistration = _initial.Register(() => Dispatcher.UIThread.Post(() => { if (!_milestone && _open) _closer.Close("cancel"); }));
             _shutdownRegistration = _stop.Token.Register(() => Dispatcher.UIThread.Post(() => { if (_open) _closer.Close("cancel"); }));
             _resourceTimer.Start();

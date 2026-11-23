@@ -101,7 +101,7 @@ internal static class AnalysisRecipeDialog
         var actions = new List<DialogButton> { new("Close", false, IsDefault: true, IsCancel: true) };
         if (hasPrivateStore) actions.Add(new("Saved recipes…", new Choice.Saved()));
         return await dialogs.ShowCustomAsync("Candidate recipes", body, actions,
-            initialFocus: recipe, closer: closer, resizable: true) as Choice;
+            initialFocus: recipe, closer: closer, resizable: true, behavior: new DialogBehavior { SizeKey = "analysis.recipes" }) as Choice;
     }
 
     internal static async Task<ImmutableArray<ulong>> ShowAsync(IDialogService dialogs, AnalysisRecipePreview preview, ImmutableArray<RootBinding> roots,
@@ -263,7 +263,8 @@ internal static class AnalysisRecipeDialog
         try
         {
             var result = await dialogs.ShowCustomAsync(preview.Definition.Title, body,
-                [new DialogButton("Close preview", false, IsDefault: true, IsCancel: true)], closer: closer, resizable: true);
+                [new DialogButton("Close preview", false, IsDefault: true, IsCancel: true)], closer: closer, resizable: true,
+                behavior: new DialogBehavior { SizeKey = "analysis.recipe-preview" });
             return result is ImmutableArray<ulong> paths ? paths : [];
         }
         finally

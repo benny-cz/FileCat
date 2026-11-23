@@ -156,7 +156,7 @@ public sealed partial class DiskSpaceWindow
             var completion = dialogs.ShowCustomAsync(title, body,
                 [new("Cancel / Keep files", false, IsDefault: true, IsCancel: true),
                  new(choices[initialChoice].Confirmation, true) { Presentation = confirm, IsAvailable = CanChooseCopyFolder }],
-                closer: closer, resizable: true);
+                closer: closer, resizable: true, behavior: new DialogBehavior { SizeKey = "analysis.cleanup-review" });
             pageWork = LoadPageAsync(0);
             var countsWork = ReadVisibilityAsync();
             var totalsWork = ReadTotalsAsync();

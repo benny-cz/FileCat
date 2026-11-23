@@ -107,7 +107,7 @@ public sealed partial class DiskSpaceWindow : Window
                 services.SaveSettings();
             });
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (IOException) { }
-        _dialogs = new(_overlay, () => _tabs);
+        _dialogs = new(_overlay, () => _tabs) { Sizes = services?.DialogSizes };
         AutomationProperties.SetName(_tabs, "Analysis tabs");
         // Up to eight modeless sessions must stay reachable on a narrow screen. Wrap their
         // headers instead of letting the theme's compact dialog tabs clip the later sessions.

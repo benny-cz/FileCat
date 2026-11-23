@@ -194,7 +194,8 @@ internal static class FindDialogs
         Validate();
         var answer = await dialogs.ShowCustomAsync("Advanced criteria", body,
             [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("OK", "ok", IsDefault: true)],
-            attributes[0].Box, canConfirm: () => Read(out _) is not null, resizable: true);
+            attributes[0].Box, canConfirm: () => Read(out _) is not null, resizable: true,
+            behavior: new DialogBehavior { SizeKey = "find.advanced" });
         return answer as string == "ok" ? Read(out _) : null;
     }
 
@@ -378,7 +379,8 @@ internal static class FindDialogs
         actions.HorizontalAlignment = HorizontalAlignment.Right;
         Grid.SetRow(actions, 3); body.Children.Add(actions);
         var answer = await dialogs.ShowCustomAsync("Ignored folders", body,
-            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("OK", "ok", IsDefault: true)], add, resizable: true);
+            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("OK", "ok", IsDefault: true)], add, resizable: true,
+            behavior: new DialogBehavior { SizeKey = "find.ignored-folders" });
         return answer as string == "ok" ? [.. entries] : null;
     }
 

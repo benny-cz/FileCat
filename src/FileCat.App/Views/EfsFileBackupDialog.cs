@@ -80,7 +80,7 @@ internal static class EfsFileBackupDialog
             [new DialogButton("Back up selected key…", true) { IsAvailable = CanBackUp, Validate = CanBackUp, Presentation = backupLabel },
              new DialogButton("Done", false, IsDefault: true, IsCancel: true)],
             initialFocus: review.Keys.IsEmpty ? files : choose, resizable: true,
-            behavior: new DialogBehavior { KeepOperationsUsable = true });
+            behavior: new DialogBehavior { KeepOperationsUsable = true, SizeKey = "storage.efs-key-backup" });
         return answer is true && CanBackUp() ? Selected()!.CertificateSha1 : null;
     }
 

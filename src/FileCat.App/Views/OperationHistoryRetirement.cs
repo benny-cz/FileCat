@@ -94,7 +94,7 @@ internal sealed class OperationHistoryRetirement
         return await main.Dialogs.ShowCustomAsync("Remove operation history", body,
             [new("Keep history", false, IsDefault: true, IsCancel: true) { HelpText = spokenConsequence },
              new(action, true, IsDanger: true)], rows,
-            resizable: true) is true;
+            resizable: true, behavior: new DialogBehavior { SizeKey = "operations.remove-history" }) is true;
     }
 
     private static string Describe(Job job)

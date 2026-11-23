@@ -10,6 +10,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 namespace FileCat.App.Controls;
@@ -135,20 +136,26 @@ internal sealed class DialogCard : Border
         LiveRegions.Repeat(_titleText);
     }
 
-    /// <summary>Optional pointer and keyboard size control for substantial search dialogs.</summary>
-    internal void EnableResizing(Panel host, Size? preferredSize = null)
+    /// <summary>
+    /// Optional pointer and keyboard size control for substantial search dialogs. A dialog that remembers its size opens at
+    /// <paramref name="savedSize"/> and gives <paramref name="remember"/> the size each resize ends with (a drag released,
+    /// arrow keys paused or the grip left), or null once the grip restored the default size.
+    /// </summary>
+    internal void EnableResizing(Panel host, Size? preferredSize = null, Size? savedSize = null, Action<Size?>? remember = null)
     {
         _resizable = true;
         MaxWidth = double.PositiveInfinity;
-        _requestedSize = preferredSize ?? new Size(700, 560);
+        Size defaultSize = preferredSize ?? new Size(700, 560);
+        _requestedSize = savedSize ?? defaultSize;
         _layout.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         var gripRow = new Grid { Height = 24 };
         var thumb = new ResizeGrip { Name = "DialogResizeGrip", Width = 32, Height = 24,
             HorizontalAlignment = HorizontalAlignment.Right, Focusable = true, Background = Brushes.Transparent,
             Template = new FuncControlTemplate<Thumb>((_, _) => new Border { Background = Brushes.Transparent }) };
         AutomationProperties.SetName(thumb, "Resize dialog");
-        AutomationProperties.SetHelpText(thumb, "Drag to resize, or use arrow keys. Hold Shift for larger steps.");
-        ToolTip.SetTip(thumb, "Drag or use arrow keys to resize · Shift for larger steps");
+        AutomationProperties.SetHelpText(thumb,
+            "Drag to resize, or use arrow keys. Hold Shift for larger steps. Double-click or press Home to restore the default size.");
+        ToolTip.SetTip(thumb, "Drag or use arrow keys to resize · Shift for larger steps · Double-click or Home to restore the default size");
         gripRow.Children.Add(new TextBlock { Text = "◢", FontSize = 18, HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 7, 0), IsHitTestVisible = false });
         gripRow.Children.Add(thumb);
@@ -162,15 +169,55 @@ internal sealed class DialogCard : Border
             Width = Math.Clamp(_requestedSize.Width, Math.Min(400, maxWidth), maxWidth);
             Height = Math.Clamp(_requestedSize.Height, Math.Min(280, maxHeight), maxHeight);
         }
+        // Only the user's resizing is reported, once it ends: never each drag step, and never a fit to a smaller window.
+        bool resized = false, dragging = false, ignoreDrag = false;
+        var keysPaused = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        void Report()
+        {
+            keysPaused.Stop();
+            if (!resized) return;
+            resized = false;
+            remember?.Invoke(new Size(Width, Height));
+        }
+        keysPaused.Tick += (_, _) => Report();
         void Resize(double dx, double dy)
         {
             if (!double.IsFinite(dx) || !double.IsFinite(dy)) return;
+            double width = Width, height = Height;
             _requestedSize = new Size(Math.Max(1, Width + dx), Math.Max(1, Height + dy));
             ClampSize();
+            resized |= Width != width || Height != height;
         }
-        thumb.DragDelta += (_, e) => Resize(e.Vector.X, e.Vector.Y);
+        void RestoreDefault()
+        {
+            keysPaused.Stop();
+            resized = false;
+            _requestedSize = defaultSize;
+            ClampSize();
+            remember?.Invoke(null);
+        }
+        thumb.DragStarted += (_, _) => { dragging = true; ignoreDrag = false; };
+        thumb.DragDelta += (_, e) => { if (!ignoreDrag) Resize(e.Vector.X, e.Vector.Y); };
+        thumb.DragCompleted += (_, _) =>
+        {
+            dragging = ignoreDrag = false;
+            Report();
+        };
+        thumb.DoubleTapped += (_, e) =>
+        {
+            // The second press starts a drag too: a slight movement before its release must not move off the default size.
+            ignoreDrag = dragging;
+            RestoreDefault();
+            e.Handled = true;
+        };
         thumb.KeyDown += (_, e) =>
         {
+            if (e.Key == Key.Home && e.KeyModifiers == KeyModifiers.None)
+            {
+                RestoreDefault();
+                e.Handled = true;
+                return;
+            }
             double step = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? 48 : 16;
             (double x, double y) = e.Key switch
             {
@@ -179,10 +226,18 @@ internal sealed class DialogCard : Border
             };
             if (x == 0 && y == 0) return;
             Resize(x, y);
+            // Held arrow keys repeat; their size is reported once, when they pause.
+            keysPaused.Stop();
+            keysPaused.Start();
             e.Handled = true;
         };
+        thumb.LostFocus += (_, _) => Report();
         host.SizeChanged += OnHostSizeChanged;
-        DetachedFromVisualTree += (_, _) => host.SizeChanged -= OnHostSizeChanged;
+        DetachedFromVisualTree += (_, _) =>
+        {
+            host.SizeChanged -= OnHostSizeChanged;
+            Report();
+        };
         void OnHostSizeChanged(object? _, SizeChangedEventArgs __) => ClampSize();
         ClampSize();
     }

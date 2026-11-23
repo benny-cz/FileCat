@@ -167,7 +167,7 @@ internal static class FileListDialog
             format, () => FileListExport.Validate(Current()) is null &&
                 (scope.SelectedIndex != 1 || tab.Listing.HasMarks ||
                  tab.Listing.TryGetFocused(out var focused) && focused.Kind != EntryKind.Parent), resizable: true,
-            behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Size(700, 520) });
+            behavior: new DialogBehavior { DismissOnBackdrop = false, PreferredSize = new Size(700, 520), SizeKey = "file-list.create" });
         return result is true ? new FileListDialogResult(Current(), scope.SelectedIndex == 1,
             (FileListDestination)Math.Max(0, destination.SelectedIndex)) : null;
     }

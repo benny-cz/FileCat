@@ -1486,6 +1486,7 @@ public partial class PanelView : UserControl
         };
         AutomationProperties.SetName(text, "Full values of focused item");
         await vm.Dialogs.ShowCustomAsync("Inspect focused item", text,
-            [new DialogButton("Close", "close", IsDefault: true, IsCancel: true)], text, resizable: true);
+            [new DialogButton("Close", "close", IsDefault: true, IsCancel: true)], text, resizable: true,
+            behavior: new DialogBehavior { SizeKey = "panel.inspect-item" });
     }
 }

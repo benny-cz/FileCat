@@ -64,6 +64,15 @@ public sealed class ColumnSetting
     public bool Visible { get; set; } = true;
 }
 
+/// <summary>The size the user last gave one resizable dialog, in logical pixels (see <see cref="DialogSizeMemory"/>).</summary>
+public sealed class DialogSizeSetting
+{
+    /// <summary>The dialog's stable id, such as "find.advanced".</summary>
+    public string Key { get; set; } = string.Empty;
+    public double Width { get; set; }
+    public double Height { get; set; }
+}
+
 public sealed class AppSettings : IVersionedState
 {
     public const int CurrentSchema = 1;
@@ -147,6 +156,11 @@ public sealed class AppSettings : IVersionedState
     /// <summary>Last user-sized Disk usage window dimensions in logical pixels.</summary>
     public double? DiskUsageWidth { get; set; }
     public double? DiskUsageHeight { get; set; }
+    /// <summary>
+    /// Sizes the user gave resizable dialogs, the most recently resized first; omitted until a dialog is resized. Read and
+    /// changed only through <see cref="DialogSizeMemory"/>, which bounds the list and ignores unusable entries.
+    /// </summary>
+    public List<DialogSizeSetting>? DialogSizes { get; set; }
     /// <summary>Files up to this size are checked against the checksums and signatures beside them when shown (D-57); larger ones on request.</summary>
     public int VerifyAutomaticallyUpToMiB { get; set; } = 256;
     /// <summary>Thumbnails in quick view and programs' own icons from Windows Shell handlers, run in the restricted helper (TV-16).</summary>

@@ -44,7 +44,8 @@ internal static class OperationIssueDialog
         if (issue.Cause is { } cause) AddFact("Error class", cause);
 
         return main.Dialogs.ShowCustomAsync("Operation issue details", body,
-            [new DialogButton("Close", "close", IsDefault: true, IsCancel: true)], resizable: true);
+            [new DialogButton("Close", "close", IsDefault: true, IsCancel: true)], resizable: true,
+            behavior: new DialogBehavior { SizeKey = "operations.issue-details" });
 
         void AddFact(string label, string value)
         {
