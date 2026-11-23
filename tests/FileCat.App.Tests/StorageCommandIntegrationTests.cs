@@ -139,7 +139,7 @@ public sealed class StorageCommandIntegrationTests
     /// native private evidence store, which refuses a namespace other identities can change (an inherited temp ACL may grant
     /// that). The state directory is therefore an explicit invoking-user namespace, as in the storage history fixtures.
     /// </summary>
-    private static (AppServices Services, MainViewModel Vm, MainWindow Window, string Root, string State) OpenForJobs(Adapter adapter)
+    internal static (AppServices Services, MainViewModel Vm, MainWindow Window, string Root, string State) OpenForJobs(Adapter adapter)
     {
         string state = Directory.CreateTempSubdirectory("filecat-storage-jobs-").FullName;
         var paths = FileCat.Core.State.AppPaths.Resolve(overrideRoot: state);
@@ -155,14 +155,14 @@ public sealed class StorageCommandIntegrationTests
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(statePaths: paths, storageTransforms: adapter);
         return (services, vm, window, root, state);
     }
-    private static void CloseForJobs(AppServices services, Window window, string root, string state)
+    internal static void CloseForJobs(AppServices services, Window window, string root, string state)
     {
         AccessibilityTests.Close(services, window, root);
         try { Directory.Delete(state, recursive: true); } catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
     }
-    private static Button Primary(Visual root, string text) => Assert.Single(root.GetVisualDescendants().OfType<Button>(),
+    internal static Button Primary(Visual root, string text) => Assert.Single(root.GetVisualDescendants().OfType<Button>(),
         button => button is not RadioButton && button.Content as string == text);
-    private static async Task ApproveCompression(Visual host)
+    internal static async Task ApproveCompression(Visual host)
     {
         await Until(() => host.GetVisualDescendants().OfType<RadioButton>().Any(button => AutomationProperties.GetName(button) == "Compress"));
         host.GetVisualDescendants().OfType<RadioButton>().Single(button => AutomationProperties.GetName(button) == "Compress").IsChecked = true;
@@ -179,7 +179,7 @@ public sealed class StorageCommandIntegrationTests
         return set;
     }
     /// <summary>Find over the fixture folder. Its originals are real local paths, which only Windows admits for storage capture.</summary>
-    private static async Task<FindWindow> OpenSettledFind(MainViewModel vm)
+    internal static async Task<FindWindow> OpenSettledFind(MainViewModel vm)
     {
         Assert.True(vm.ActiveTab?.Location?.IsFileSystem, "Find opens on the active local folder.");
         Assert.Empty(FindWindow.OpenWindows);
@@ -190,7 +190,7 @@ public sealed class StorageCommandIntegrationTests
         return find;
     }
     /// <summary>A failed Find fixture must not leave its window to the next test.</summary>
-    private static void CloseFindWindows() { foreach (var open in FindWindow.OpenWindows.ToList()) open.Close(); }
+    internal static void CloseFindWindows() { foreach (var open in FindWindow.OpenWindows.ToList()) open.Close(); }
     private static Job ResultJob(IReadOnlyList<ItemRef> items, StorageAction action, string outcome = "partial")
     {
         bool efs = action == StorageAction.DecryptEfs;

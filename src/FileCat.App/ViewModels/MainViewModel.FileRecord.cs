@@ -31,7 +31,7 @@ public sealed partial class MainViewModel
     internal IFileRecords? FileRecordsForTests { get; set; }
 
     /// <summary>The selected panel item and context-menu paths share one exact-path report route.</summary>
-    private bool ShowFileRecordForPath(string path)
+    internal bool ShowFileRecordForPath(string path)
     {
         var records = FileRecordsForTests ?? Services.Platform.FileRecords;
         if (!records.IsSupported) return false;
@@ -39,11 +39,16 @@ public sealed partial class MainViewModel
         string device = Services.Providers.For(subject).GetDeviceKey(subject);
         var reader = new FileDetailsReader(records, Services.Io, device, path);
         var destination = View;
+        // The optional compression link (I-DETAILS-C), only where this build offers NTFS compression at all.
+        var compression = Services.Jobs.CompressionUnavailable is null ? new DetailsCompressionLink(DetailsCompressionUnavailable, async (directory, report) =>
+        {
+            if (await ReviewDetailsCompressionAsync(path, directory, report)) destination = _view;
+        }) : null;
         var window = new ReportWindow(path, reader, Services.Platform.HiddenData.IsSupported ? () =>
         {
             OpenHiddenDataForPath(path, newWorkspaceTab: true);
             destination = _view;
-        } : null, OpenTargetAsync, PermissionsUnavailable, OpenPermissionsAsync);
+        } : null, OpenTargetAsync, compression, PermissionsUnavailable, OpenPermissionsAsync);
         string? PermissionsUnavailable(FileDetailsSnapshot? snapshot)
         {
             if (PermissionProcessRefusal() is { } refusal) return refusal;
@@ -150,5 +155,87 @@ public sealed partial class MainViewModel
         if (device.Length != 2 || !uint.TryParse(device[0], out uint major) || !uint.TryParse(device[1], out uint minor) ||
             !ulong.TryParse(id.Object, out ulong inode)) return null;
         return new(((ulong)major << 32) | minor, $"{inode:X16}0000000000000000");
+    }
+
+    /// <summary>Why the main window cannot host a compression review for a details report now, or null when it can.</summary>
+    private string? DetailsCompressionUnavailable()
+    {
+        if (Services.Io.IsStopped) return "FileCat is closing.";
+        if (Services.Jobs.CompressionUnavailable is { } problem) return problem.Message;
+        if (_view?.TopLevel is not Avalonia.Controls.Window { IsVisible: true }) return "The main window is unavailable.";
+        if (_dialogs.IsOpen) return "Close the dialog in the main window first.";
+        return null;
+    }
+
+    /// <summary>
+    /// I-DETAILS-C: one NTFS compression review for the item a details report was opened for. The item is captured once, from
+    /// the report's own path; no panel, selection, Find or listing generation is consulted, so a report that outlives the Find
+    /// or panel it came from still reviews exactly its item. The main window hosts the review with its own dialog service (not
+    /// a Find window's while one runs a command there) and reads the item afresh, as for a panel selection. Until the review is
+    /// actionable, closing the report, canceling the review or shutting down retires it; from then on the review, and the job
+    /// it submits, belong to the main window. The job has no listing origin: no panel's marks are cleared, and completion
+    /// refreshes the affected folders as for every job. True when a job was submitted.
+    /// </summary>
+    private async Task<bool> ReviewDetailsCompressionAsync(string path, bool directory, CancellationToken report)
+    {
+        if (DetailsCompressionUnavailable() is { } unavailable) { Notify(unavailable, true); return false; }
+        if (_view.TopLevel is not Avalonia.Controls.Window main) return false;
+        if (Path.GetDirectoryName(path) is not { Length: > 0 } parent)
+        {
+            Notify("NTFS compression is reviewed for files and folders, not a whole drive.", true);
+            return false;
+        }
+        var item = new ItemRef(Location.FileSystem(parent), Path.GetFileName(path), directory ? EntryKind.Directory : EntryKind.File);
+        var dialogs = _dialogs;
+        using var preparation = new DetachedPreparation(report, Services.Io.StoppingToken);
+        // The review opens in the main window: bring it forward, as navigation from the report does.
+        if (main.WindowState == Avalonia.Controls.WindowState.Minimized) main.WindowState = Avalonia.Controls.WindowState.Normal;
+        main.Activate();
+        try
+        {
+            if (await StorageRejectedSelectionDialog.ShowIfRejectedAsync(dialogs, [item], [false])) return false;
+            preparation.Token.ThrowIfCancellationRequested();
+            using var review = Services.Jobs.CaptureStorageSelection([item]);
+            string device = Services.Providers.For(item.Parent).GetDeviceKey(item.Parent);
+            using var form = new StorageChangeDialog(review, Services.Io, device, [false], preparation.Token, preparation.Detach, detailsItem: true);
+            using var choice = await form.ShowAsync(dialogs);
+            if (choice is null)
+            {
+                if (form.RequestedOperation is { } blocker && main is MainWindow owner) owner.RevealStorageBlocker(blocker);
+                return false;
+            }
+            _ = Operations; // Subscribe to terminal events before the manager can schedule this job.
+            // No listing origin to register: completion unmarks nothing, and RefreshAffected still refreshes its folders.
+            Services.Jobs.SubmitStorage(choice.Roots, choice.Approval, static _ => { }, choice.Mode);
+            return true;
+        }
+        catch (OperationCanceledException) { return false; }
+        catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            Notify("Could not prepare NTFS compression. " + error.Message, true);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// The preparation of one detached review: canceled by its report's closing or by shutdown until the review is actionable
+    /// (<see cref="Detach"/>, which the review calls then), and only by shutdown afterwards.
+    /// </summary>
+    private sealed class DetachedPreparation : IDisposable
+    {
+        private readonly CancellationTokenSource _stop;
+        private CancellationTokenRegistration _report;
+        public DetachedPreparation(CancellationToken report, CancellationToken shutdown)
+        {
+            _stop = CancellationTokenSource.CreateLinkedTokenSource(shutdown);
+            _report = report.Register(() => { try { _stop.Cancel(); } catch (ObjectDisposedException) { } });
+        }
+        public CancellationToken Token => _stop.Token;
+        public void Detach() => _report.Dispose();
+        public void Dispose()
+        {
+            _report.Dispose();
+            _stop.Dispose();
+        }
     }
 }

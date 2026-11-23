@@ -5,6 +5,13 @@ using FileCat.Core.Records;
 
 namespace FileCat.App.Views;
 
+/// <summary>
+/// The details window's optional "NTFS compression for this item…" link (I-DETAILS-C). <see cref="Unavailable"/> says why the
+/// main window cannot host a review now, or null when it can. <see cref="Open"/> runs one review there for the item the report
+/// was opened for, given whether it is a folder and this report's lifetime, and returns once that review has closed.
+/// </summary>
+public sealed record DetailsCompressionLink(Func<string?> Unavailable, Func<bool, CancellationToken, Task> Open);
+
 public sealed partial class ReportWindow
 {
     private FileDetailsReader? _detailsReader;
@@ -24,9 +31,14 @@ public sealed partial class ReportWindow
     private Func<FileDetailsSnapshot?, string?>? _permissionsUnavailable;
     private Func<FileDetailsSnapshot, Func<bool>, CancellationToken, Task>? _openPermissions;
     private bool _openingPermissions;
+    private DetailsCompressionLink? _compression;
+    private readonly Button _compress = new() { Content = "NTFS compression for this item…", IsVisible = false };
+    private Task? _compressing;
+    private const string CompressHelp = "Opens a review of this item's NTFS compression in the main window: its current state, " +
+        "the change to make and the job that makes it. The item is read again there, and nothing changes until you approve it.";
 
     public ReportWindow(string subject, FileDetailsReader reader, Action? openExtraData = null,
-        Func<string, CancellationToken, Task<FileDetailsTargetCheck>>? openTarget = null,
+        Func<string, CancellationToken, Task<FileDetailsTargetCheck>>? openTarget = null, DetailsCompressionLink? compression = null,
         Func<FileDetailsSnapshot?, string?>? permissionsUnavailable = null,
         Func<FileDetailsSnapshot, Func<bool>, CancellationToken, Task>? openPermissions = null)
         : this("File-system details", subject, _ => throw new InvalidOperationException("Details require the owned metadata reader."))
@@ -34,6 +46,7 @@ public sealed partial class ReportWindow
         _detailsReader = reader;
         _openExtraData = openExtraData;
         _openTarget = openTarget;
+        _compression = compression;
         _permissionsUnavailable = permissionsUnavailable;
         _openPermissions = openPermissions;
         Width = 840; Height = 640; MinWidth = 240; MinHeight = 280;
@@ -57,15 +70,21 @@ public sealed partial class ReportWindow
         if (openPermissions is not null) _actions.Children.Add(_permissions);
         _actions.Children.Add(_copyTarget);
         _actions.Children.Add(_navigateTarget);
+        _actions.Children.Add(_compress);
         _copyTarget.Click += async (_, _) => await CopyStoredTargetAsync();
         _navigateTarget.Click += async (_, _) => await NavigateTargetAsync();
+        _compress.Click += async (_, _) => await OpenCompressionReviewAsync();
         _tier.Click += async (_, _) => await SwitchDetailsTierAsync();
         _extraData.Click += (_, _) => _openExtraData?.Invoke();
         _permissions.Click += async (_, _) => await OpenDetailsPermissionsAsync();
         AutomationProperties.SetHelpText(_extraData, "Opens the captured item's names, kinds and lengths in a new workspace tab. Values are read only through an explicit action; Windows extended attributes require separate admission.");
+        ToolTip.SetShowOnDisabled(_compress, true);
         AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
         SetDetailsActions();
-        Closed += (_, _) => { _openExtraData = null; _openTarget = null; _permissionsUnavailable = null; _openPermissions = null; };
+        // The main window's state (a dialog open there, closing) decides whether the link can open a review: look again
+        // whenever the user comes back to this window.
+        Activated += (_, _) => { if (!_closing.IsCancellationRequested) SetDetailsActions(); };
+        Closed += (_, _) => { _openExtraData = null; _openTarget = null; _compression = null; _permissionsUnavailable = null; _openPermissions = null; };
     }
 
     private bool CanPublishDetails => _detailsReader is null || _detailsObservation is not null;
@@ -90,6 +109,12 @@ public sealed partial class ReportWindow
         _navigateTarget.Content = network ? "Open target location (network)" : "Open target location";
         _tier.Content = _detailsTier == FileDetailsTier.Full ? "Show summary"
             : _detailsObservation?.Full is not null ? "Show full record" : "Read full record";
+        // Shown wherever the build offers compression; a reason says why it cannot open a review now.
+        _compress.IsVisible = _compression is not null && _detailsObservation is not null;
+        string? blocked = CompressionBlocked();
+        _compress.IsEnabled = blocked is null;
+        ToolTip.SetTip(_compress, blocked ?? CompressHelp);
+        AutomationProperties.SetHelpText(_compress, blocked ?? CompressHelp);
     }
 
     private async Task OpenDetailsPermissionsAsync()
@@ -117,6 +142,44 @@ public sealed partial class ReportWindow
             if (!_closing.IsCancellationRequested) SetDetailsActions();
         }
     }
+
+    /// <summary>
+    /// Why the compression link cannot open a review now, or null. The observation only says what it is plainly not for (not
+    /// a file or folder, not on NTFS); the review reads the item afresh and decides, as it does for a panel's selection.
+    /// </summary>
+    private string? CompressionBlocked()
+    {
+        if (_compression is not { } link || _detailsObservation is not { } observation) return "The item has not been read yet.";
+        if (_compressing is not null) return "A compression review for this item is open in the main window.";
+        var summary = observation.Summary;
+        if (summary.Kind is not (FileObjectKind.File or FileObjectKind.Directory)) return "NTFS compression applies to files and folders.";
+        if (summary.FileSystem is { State: FactState.Known, Value: { } format } && !format.Equals("NTFS", StringComparison.OrdinalIgnoreCase))
+            return $"NTFS compression needs an NTFS drive; this item is on {format}.";
+        return link.Unavailable();
+    }
+
+    /// <summary>
+    /// One review at a time, for the item this report was opened for. It belongs to this report until it is actionable (closing
+    /// the report before then closes it); from then on it belongs to the main window, and closing the report changes nothing.
+    /// </summary>
+    private async Task OpenCompressionReviewAsync()
+    {
+        if (_closing.IsCancellationRequested || _compression is not { } link || _detailsObservation is not { } observation ||
+            CompressionBlocked() is not null) return;
+        var review = link.Open(observation.Summary.Kind == FileObjectKind.Directory, _closing.Token);
+        _compressing = review;
+        SetDetailsActions();
+        try { await review; }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            if (ReferenceEquals(_compressing, review)) _compressing = null;
+            if (!_closing.IsCancellationRequested) SetDetailsActions();
+        }
+    }
+
+    internal Task OpenCompressionReviewForTestAsync() => OpenCompressionReviewAsync();
+    internal Button CompressionLinkForTest => _compress;
 
     private async Task SwitchDetailsTierAsync()
     {
