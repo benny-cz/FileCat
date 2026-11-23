@@ -91,7 +91,8 @@ internal static class AnalysisSavedRecipeDialog
         using var close = cancellation.Register(() => Dispatcher.UIThread.Post(() => closer.Close(null)));
         cancellation.ThrowIfCancellationRequested();
         return await dialogs.ShowCustomAsync("Save a custom recipe", body, [new("Close", false, IsDefault: true, IsCancel: true)],
-            initialFocus: name, closer: closer, resizable: true) as AnalysisSavedRecipe;
+            initialFocus: name, closer: closer, resizable: true,
+            behavior: new DialogBehavior { SizeKey = "analysis.saved-recipe" }) as AnalysisSavedRecipe;
     }
 
     private static TextBlock Text(string value) => new() { Text = value, TextWrapping = TextWrapping.Wrap };

@@ -112,7 +112,7 @@ public sealed partial class DiskSpaceWindow
         var choice = await dialogs.ShowCustomAsync("Confirm reviewed copy", body,
             [new("Cancel / Keep files", false, IsDefault: true, IsCancel: true),
              new("Queue reviewed copy", true) { Presentation = confirm, IsAvailable = CanQueue }],
-            closer: closer, resizable: true);
+            closer: closer, resizable: true, behavior: new DialogBehavior { SizeKey = "analysis.reviewed-copy" });
         return choice is true && CanQueue() ? included.ToImmutableHashSet() : null;
 
         bool HasDuplicateName() => rows.Where(row => included.Contains(row.PathId)).GroupBy(row => row.Name, StringComparer.OrdinalIgnoreCase)

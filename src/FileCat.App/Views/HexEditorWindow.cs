@@ -231,7 +231,7 @@ public sealed class HexEditorWindow : Window
         main.Children.Add(hexSurface);
         var overlayHost = new Panel { IsVisible = false };
         Content = ThemeLayers.Over(new IntrinsicBoundedGrid { Children = { main, overlayHost } }, hexSurface);
-        _dialogs = new OverlayDialogService(overlayHost, () => _hex);
+        _dialogs = new OverlayDialogService(overlayHost, () => _hex) { Sizes = _services.DialogSizes };
 
         _save.Click += async (_, _) => await SaveAsync();
         _saveAs.Click += async (_, _) => await SaveAsAsync();

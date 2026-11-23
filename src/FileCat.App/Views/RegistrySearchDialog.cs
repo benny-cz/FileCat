@@ -151,7 +151,7 @@ public static class RegistrySearchDialog
                 new DialogButton("Close", "close", IsCancel: true),
                 new DialogButton("Go to selected", "go") { IsAvailable = () => results.SelectedItem is Row },
                 new DialogButton("Show in panel", "show") { IsAvailable = () => set is not null },
-            ], term, closer: closer, resizable: true);
+            ], term, closer: closer, resizable: true, behavior: new DialogBehavior { SizeKey = "registry.find" });
         if (result as string == "go" && results.SelectedItem is Row selected)
         {
             running?.Cancel();

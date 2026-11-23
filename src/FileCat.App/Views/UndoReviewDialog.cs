@@ -69,6 +69,6 @@ internal static class UndoReviewDialog
         }
         return await vm.Dialogs.ShowCustomAsync(mostRecentUndoable ? "Review most recent undoable operation" : "Review Undo", content,
             [new("Cancel", false, IsDefault: true, IsCancel: true), new("Run these inverse actions", true, IsDanger: true)], actions,
-            resizable: true) is true;
+            resizable: true, behavior: new DialogBehavior { SizeKey = "undo.review" }) is true;
     }
 }

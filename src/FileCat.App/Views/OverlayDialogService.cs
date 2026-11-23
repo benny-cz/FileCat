@@ -49,6 +49,13 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
 
     /// <summary>The operation center that a dialog with <see cref="DialogBehavior.KeepOperationsUsable"/> leaves interactive.</summary>
     public Control? OperationsRegion { get; set; }
+
+    /// <summary>
+    /// Where resizable dialogs with a <see cref="DialogBehavior.SizeKey"/> keep the size the user gives them across sessions.
+    /// Without it (a window without settings) every dialog opens at its own size.
+    /// </summary>
+    internal Services.DialogSizeStore? Sizes { get; init; }
+
     private int? _operationsZIndex;
     /// <summary>True while the topmost dialog leaves the operation center usable.</summary>
     public bool OperationsUsable => _sessions.Count > 0 && _sessions[^1].KeepOperationsUsable && OperationsRegion is not null;
@@ -919,7 +926,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             }
             var card = Card(title, content, ButtonRow(btns), 760, pinnedReview);
             shownCard = card;
-            if (resizable) card.EnableResizing(host, behavior?.PreferredSize);
+            if (resizable && behavior?.SizeKey is { } sizeKey && Sizes is { } sizes)
+                card.EnableResizing(host, behavior.PreferredSize, sizes.Find(sizeKey), size => sizes.Remember(sizeKey, size));
+            else if (resizable) card.EnableResizing(host, behavior?.PreferredSize);
             // Enter confirms as soon as the dialog would: whether the default button may act is asked when Enter is pressed,
             // not only when the 200 ms re-check last enabled it, so Enter right after typing is not lost. A button or a
             // multi-line box that used Enter keeps it; a focused list item takes Enter for itself, and in a dialog Enter
