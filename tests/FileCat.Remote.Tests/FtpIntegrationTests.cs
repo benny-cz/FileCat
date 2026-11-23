@@ -299,6 +299,18 @@ internal sealed class TestFtpServer : IDisposable
         return (process, int.Parse(line[6..]));
     }
 
+    /// <summary>
+    /// The commands the server logged. The server keeps the log open for writing, which Windows lets another
+    /// process read only when that reader shares write access too (File.ReadAllText does not).
+    /// </summary>
+    public string CommandLog()
+    {
+        using var stream = new FileStream(Path.Combine(Path.GetDirectoryName(Root)!, "ftp-permissions.log"), FileMode.Open,
+            FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
     public RemoteProfile Profile(string protocol) => new()
     {
         Name = "test",
@@ -427,7 +439,7 @@ public sealed class FtpIntegrationTests : IDisposable
         Assert.Equal(PermissionReadStatus.Gone, result[4].Mode.Status);
         Assert.Equal(PermissionReadStatus.Unsupported, result[5].Mode.Status);
         Assert.Equal("a", File.ReadAllText(Path.Combine(server.Root, "zero.txt")));
-        string commands = File.ReadAllText(Path.Combine(Path.GetDirectoryName(server.Root)!, "ftp-permissions.log"));
+        string commands = server.CommandLog();
         Assert.Contains("MLSD /", commands);
         Assert.DoesNotContain("SITE CHMOD", commands, StringComparison.OrdinalIgnoreCase);
         if (protocol == RemoteProtocols.Ftp) Assert.Equal(1, interaction.PlainQuestions);
@@ -757,7 +769,7 @@ public sealed class FtpIntegrationTests : IDisposable
         var result = Assert.Single(provider.InspectFtpPermissions(location, [subject], TestContext.Current.CancellationToken));
         Assert.Equal(PermissionReadStatus.Failed, result.Mode.Status);
         Assert.Contains("unambiguous absolute path", result.BindingProblem);
-        string commands = File.ReadAllText(Path.Combine(Path.GetDirectoryName(server.Root)!, "ftp-permissions.log"));
+        string commands = server.CommandLog();
         Assert.DoesNotContain("MLSD", commands);
         Assert.DoesNotContain("LIST", commands);
     }
