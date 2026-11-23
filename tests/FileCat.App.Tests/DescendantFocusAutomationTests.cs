@@ -388,6 +388,54 @@ public sealed class DescendantFocusAutomationTests
         finally { NativeLiveRegionBridges.UseMacBridge = mac; }
     }
 
+    /// <summary>
+    /// VoiceOver moves its cursor to a dialog that opens or grows and asks to focus what it reached: the dialog card or
+    /// its resize grip took the keyboard from the group chooser or the Discard button FileCat had just focused. Under the
+    /// macOS bridge those requests leave the keyboard where it is while it is in the dialog.
+    /// </summary>
+    [AvaloniaFact]
+    public void Under_the_macOS_bridge_the_dialog_card_and_grip_keep_the_keyboard_on_the_focused_field()
+    {
+        var host = new Grid();
+        var window = new FocusWindow { Content = host, Width = 800, Height = 600 };
+        window.Show();
+        bool mac = NativeLiveRegionBridges.UseMacBridge;
+        NativeLiveRegionBridges.UseMacBridge = true;
+        var dialogs = new OverlayDialogService(host, () => null);
+        try
+        {
+            var chooser = new ComboBox { ItemsSource = new[] { "20", "12" }, SelectedIndex = 0 };
+            AutomationProperties.SetName(chooser, "Assignable group ID");
+            _ = dialogs.ShowCustomAsync("Change group and mode", new StackPanel { Children = { chooser } },
+                [new DialogButton("Cancel", "cancel", IsCancel: true)], initialFocus: chooser, resizable: true);
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(chooser.IsFocused);
+            var card = host.GetVisualDescendants().OfType<DialogCard>().Single();
+            var grip = card.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.Thumb>().Single(thumb => thumb.Name == "DialogResizeGrip");
+            var cardPeer = ControlAutomationPeer.CreatePeerForElement(card);
+            var gripPeer = ControlAutomationPeer.CreatePeerForElement(grip);
+            Assert.Equal(AutomationControlType.Group, cardPeer.GetAutomationControlType());
+            Assert.Equal(AutomationControlType.Thumb, gripPeer.GetAutomationControlType());
+
+            // What VoiceOver asks when its cursor reaches the card or the grip.
+            cardPeer.SetFocus();
+            gripPeer.SetFocus();
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(chooser.IsFocused);
+
+            // Off the macOS bridge the request is carried out, as before.
+            NativeLiveRegionBridges.UseMacBridge = false;
+            gripPeer.SetFocus();
+            Assert.True(grip.IsFocused);
+        }
+        finally
+        {
+            NativeLiveRegionBridges.UseMacBridge = mac;
+            window.Close();
+        }
+    }
+
     [AvaloniaFact]
     public void Linux_attachment_reaches_a_field_inside_a_container_that_was_hidden()
     {

@@ -143,7 +143,7 @@ internal sealed class DialogCard : Border
         _requestedSize = preferredSize ?? new Size(700, 560);
         _layout.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         var gripRow = new Grid { Height = 24 };
-        var thumb = new Thumb { Name = "DialogResizeGrip", Width = 32, Height = 24,
+        var thumb = new ResizeGrip { Name = "DialogResizeGrip", Width = 32, Height = 24,
             HorizontalAlignment = HorizontalAlignment.Right, Focusable = true, Background = Brushes.Transparent,
             Template = new FuncControlTemplate<Thumb>((_, _) => new Border { Background = Brushes.Transparent }) };
         AutomationProperties.SetName(thumb, "Resize dialog");
@@ -188,6 +188,40 @@ internal sealed class DialogCard : Border
     }
 
     protected override Type StyleKeyOverride => typeof(Border);
+
+    // VoiceOver moves its cursor to a dialog that opens or grows and, keeping keyboard focus with its cursor, asks for
+    // focus there: the card or its resize grip took the keyboard from the field or button FileCat had just focused.
+    protected override AutomationPeer OnCreateAutomationPeer() => new CardPeer(this);
+
+    /// <summary>
+    /// Under the macOS bridge, an assistive request to focus the card or its grip is ignored while the keyboard is
+    /// already in this dialog, its open choice lists included; the keyboard stays where it is.
+    /// </summary>
+    internal static bool KeepsKeyboard(DialogCard card) =>
+        NativeLiveRegionBridges.UseMacBridge && TopLevel.GetTopLevel(card)?.FocusManager?.GetFocusedElement() is Visual focused &&
+        Views.OverlayDialogService.IsInCardOrPopup(focused, card);
+
+    private sealed class CardPeer(DialogCard owner) : NoneAutomationPeer(owner)
+    {
+        protected override void SetFocusCore()
+        {
+            if (!KeepsKeyboard(owner)) base.SetFocusCore();
+        }
+    }
+
+    private sealed class ResizeGrip : Thumb
+    {
+        protected override Type StyleKeyOverride => typeof(Thumb);
+        protected override AutomationPeer OnCreateAutomationPeer() => new GripPeer(this);
+    }
+
+    private sealed class GripPeer(ResizeGrip owner) : Avalonia.Controls.Automation.Peers.ThumbAutomationPeer(owner)
+    {
+        protected override void SetFocusCore()
+        {
+            if (owner.FindAncestorOfType<DialogCard>() is not { } card || !KeepsKeyboard(card)) base.SetFocusCore();
+        }
+    }
 
     protected override Size MeasureOverride(Size availableSize)
     {
