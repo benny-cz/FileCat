@@ -121,10 +121,12 @@ public sealed class ChangeMonitorCadenceTests
         string folder = Directory.CreateDirectory(Path.Combine(dir.Path, "busy")).FullName;
         var clock = Stopwatch.StartNew();
         var reads = new List<double>();
+        var fired = new List<DateTime>();
         int churnChanges = 0;
         using var monitor = new ChangeMonitor(folder, () => { lock (reads) reads.Add(clock.Elapsed.TotalSeconds); })
         {
             ChurnInterval = TimeSpan.FromSeconds(1), ChurnWindow = TimeSpan.FromSeconds(5), CalmAfter = TimeSpan.FromSeconds(1.5),
+            Fired = time => { lock (fired) fired.Add(time); },
         };
         monitor.ChurnChanged += () => Interlocked.Increment(ref churnChanges);
         if (!monitor.IsActive) Assert.Skip("This folder cannot be watched here.");
@@ -145,12 +147,17 @@ public sealed class ChangeMonitorCadenceTests
             await Task.Delay(400, ct);
         }
         Assert.True(monitor.IsChurning, $"rereads: {string.Join(", ", Reads().Select(t => t.ToString("F2")))}");
-        double[] busy = Reads();
-        int first = Array.FindIndex(busy, t => t >= busy[ChangeMonitor.ChurnRereads - 1]);
-        var gaps = busy.Skip(first).Zip(busy.Skip(first + 1), (a, b) => b - a).ToArray();
-        TestContext.Current.TestOutputHelper?.WriteLine($"rereads: {string.Join(", ", busy.Select(t => t.ToString("F2")))}");
+        // From the reread that made the folder count as busy (the third), on the monitor's own clock: the interval counts
+        // from the time a reread was taken at. The times its callbacks ran at add the runner's scheduling (on Windows on Arm
+        // in CI two of them ran 0.87 s apart). A timer may fall due a system timer tick (15.6 ms) early. Without the
+        // interval these rereads come 0.4 s apart.
+        DateTime[] taken;
+        lock (fired) taken = [.. fired.Order()];
+        var gaps = taken.Skip(ChangeMonitor.ChurnRereads - 1).Zip(taken.Skip(ChangeMonitor.ChurnRereads), (a, b) => (b - a).TotalSeconds).ToArray();
+        TestContext.Current.TestOutputHelper?.WriteLine(
+            $"rereads: {string.Join(", ", Reads().Select(t => t.ToString("F2")))}; taken apart while busy: {string.Join(", ", gaps.Select(g => g.ToString("F3")))}");
         Assert.NotEmpty(gaps);
-        Assert.All(gaps, gap => Assert.True(gap >= 0.9, $"rereads {gap:F2} s apart while the folder counted as busy"));
+        Assert.All(gaps, gap => Assert.True(gap >= 0.95, $"rereads taken {gap:F3} s apart while the folder counted as busy"));
 
         // Quiet for longer than CalmAfter: no longer busy, and a change is read again within the usual quarter second.
         await Until(() => !monitor.IsChurning, TimeSpan.FromSeconds(5));
