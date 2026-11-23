@@ -90,10 +90,12 @@ public sealed partial class PermissionJobTests
 
     // G-MAC (ordinary, D1) a write dispatched to a File Provider item under the fetch sentinel: in the writable fixture
     // domain (FILECAT_TEST_MAC_PROVIDER_WRITABLE_ROOT) the harness downloads writable.txt first and leaves sentinel.bin a
-    // placeholder. With downloads disabled, each Darwin writer route runs a mode job that adds owner execute to the
-    // downloaded file and another that removes it again, and each job verifies on the same object. The file keeps its
-    // identity, the sentinel stays a dataless placeholder with its identity, and the caller's materialization policy is
-    // restored. The harness reads the provider's log: the changes reach the provider as modify requests carrying the
+    // placeholder. With downloads disabled, mode jobs alternately add and remove owner execute on the downloaded file,
+    // each verified on the same object: the checked-parent service adds it, the descriptor service (which opens only
+    // folders and executable files) removes it, and the combined service adds it through the checked parent and removes
+    // it through the descriptor. A pause after each job lets the system pass the change to the provider. The file keeps
+    // its identity, the sentinel stays a dataless placeholder with its identity, and the caller's materialization policy
+    // is restored. The harness reads the provider's log: the changes reach the provider as modify requests carrying the
     // file-system flags, and nothing is fetched.
     [Fact]
     public async Task Live_Mac_File_Provider_mode_jobs_change_a_downloaded_item_without_fetching()
@@ -111,29 +113,36 @@ public sealed partial class PermissionJobTests
         int policy = MacMaterializationPolicy.Get();
         var original = (ushort)((int)File.GetUnixFileMode(file) & 0xfff);
         Assert.Equal(0, original & 0x40);
-        foreach (var (parent, descriptor) in new[] { (true, false), (false, true), (true, true) })
+        var executable = (ushort)(original | 0x40);
+        (bool Parent, bool Descriptor, ushort Mode, DarwinBindingRoute Route)[] jobs =
+        [
+            (true, false, executable, DarwinBindingRoute.ParentRelative),
+            (false, true, original, DarwinBindingRoute.Descriptor),
+            (true, true, executable, DarwinBindingRoute.ParentRelative),
+            (true, true, original, DarwinBindingRoute.Descriptor),
+        ];
+        foreach (var (parent, descriptor, mode, route) in jobs)
         {
-            foreach (ushort mode in new[] { (ushort)(original | 0x40), original })
-            {
-                using var fixture = DarwinJournalFixture(); // one job per fixture
-                var (item, subject) = TreeSubject(file, EntryKind.File);
-                var service = new DarwinPermissionService(qualifyParentWrites: parent, qualifyDescriptorWrites: descriptor);
-                using var inspection = service.Inspect(subject, DarwinSections, ct);
-                Assert.Null(DarwinPermissionService.ModeRefusal(inspection.Snapshot));
-                using var review = DarwinPermissionService.Prepare(inspection, item,
-                    new(PermissionScope.Objects, [new ChangePermissionMode(mode, 0xfff)]), false, ct).Review;
-                var job = fixture.Manager.SubmitPermissions(review);
-                await fixture.Finish(job);
-                var result = Assert.Single(job.PermissionResults);
-                string steps = $"{job.State}; {JobIssue.Summarize(job.Issues)}; " +
-                    string.Join(" | ", result.Components.Select(step => $"{step.Verdict} {step.NativeCall} {step.NativeError} {step.Detail}"));
-                TestContext.Current.SendDiagnosticMessage($"parent {parent}, descriptor {descriptor}, route " +
-                    $"{inspection.Snapshot.Binding?.DarwinRoute}: {Convert.ToString(mode, 8)} -> {result.Verdict}: {steps}");
-                Assert.True(result.Verdict is PermissionVerdict.Verified or PermissionVerdict.AppliedWithFolderDrift, steps);
-                Assert.All(result.Components, component => Assert.Equal(PermissionVerification.SameObject, component.Verification));
-                Assert.Equal(mode, (ushort)((int)File.GetUnixFileMode(file) & 0xfff));
-                Assert.Equal(policy, MacMaterializationPolicy.Get());
-            }
+            using var fixture = DarwinJournalFixture(); // one job per fixture
+            var (item, subject) = TreeSubject(file, EntryKind.File);
+            var service = new DarwinPermissionService(qualifyParentWrites: parent, qualifyDescriptorWrites: descriptor);
+            using var inspection = service.Inspect(subject, DarwinSections, ct);
+            Assert.Null(DarwinPermissionService.ModeRefusal(inspection.Snapshot));
+            Assert.Equal(route, inspection.Snapshot.Binding?.DarwinRoute);
+            using var review = DarwinPermissionService.Prepare(inspection, item,
+                new(PermissionScope.Objects, [new ChangePermissionMode(mode, 0xfff)]), false, ct).Review;
+            var job = fixture.Manager.SubmitPermissions(review);
+            await fixture.Finish(job);
+            var result = Assert.Single(job.PermissionResults);
+            string steps = $"{job.State}; {JobIssue.Summarize(job.Issues)}; " +
+                string.Join(" | ", result.Components.Select(step => $"{step.Verdict} {step.NativeCall} {step.NativeError} {step.Detail}"));
+            TestContext.Current.SendDiagnosticMessage($"parent {parent}, descriptor {descriptor}, route {route}: " +
+                $"{Convert.ToString(mode, 8)} -> {result.Verdict}: {steps}");
+            Assert.True(result.Verdict is PermissionVerdict.Verified or PermissionVerdict.AppliedWithFolderDrift, steps);
+            Assert.All(result.Components, component => Assert.Equal(PermissionVerification.SameObject, component.Verification));
+            Assert.Equal(mode, (ushort)((int)File.GetUnixFileMode(file) & 0xfff));
+            Assert.Equal(policy, MacMaterializationPolicy.Get());
+            await Task.Delay(TimeSpan.FromSeconds(5), ct);
         }
         var fileAfter = State(file);
         Assert.Equal(fileBefore.Identity, fileAfter.Identity);
