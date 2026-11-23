@@ -97,7 +97,11 @@ $script:result = [ordered]@{ Passed = $false; Expect = $Expect; Stage = 'startin
 try {
     $script:app = Start-Process -FilePath $appPath -WorkingDirectory (Split-Path $appPath) -PassThru -WindowStyle Normal `
         -ArgumentList @('--new-instance', '--data', $data, '--left', $left, '--right', $right)
-    Await { $script:app.Refresh(); $script:app.MainWindowHandle -ne [IntPtr]::Zero } 'owned app window' 60 | Out-Null
+    # A first launch after an install can take minutes on a Windows on Arm guest (and longer for an emulated x64 copy).
+    $launched = [Diagnostics.Stopwatch]::StartNew()
+    Await { $script:app.Refresh(); if ($script:app.HasExited) { throw "FileCat exited with $($script:app.ExitCode)." }
+        $script:app.MainWindowHandle -ne [IntPtr]::Zero } 'owned app window' 300 | Out-Null
+    $script:result.WindowSeconds = [math]::Round($launched.Elapsed.TotalSeconds, 1)
     Start-Sleep -Seconds 4
     $list = Await { @(All (Main) | Where-Object { $_.Current.ClassName -eq 'FileList' })[0] } 'the file list' 30
     $list.SetFocus(); Start-Sleep -Milliseconds 400
