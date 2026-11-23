@@ -28,7 +28,7 @@ internal sealed class TestFtpServer : IDisposable
     }
 
     private const string Script = """
-        import logging, os, sys
+        import logging, os, sys, time
         # FILECAT_FTP_LOG names a file for the server's command log (diagnostics); otherwise only warnings.
         log = os.environ.get("FILECAT_FTP_LOG")
         logging.basicConfig(level=logging.DEBUG if log else logging.WARNING, filename=log or None)
@@ -61,9 +61,17 @@ internal sealed class TestFtpServer : IDisposable
                 keyfile = None
                 ssl_context = None
             data_context = DataContextSource.get_ssl_context()
+            # FILECAT_FTP_DATA_CLOSE_DELAY: seconds a data connection's close waits, as on a loaded server. pyftpdlib sends
+            # the transfer's final reply (226 or 426) from close(), and its event loop answers nothing else meanwhile.
+            close_delay = float(os.environ.get("FILECAT_FTP_DATA_CLOSE_DELAY") or 0)
             class DataHandler(TLS_DTPHandler):
                 def secure_connection(self, ssl_context):
                     return super().secure_connection(data_context)
+                def close(self):
+                    if close_delay and not getattr(self, "filecat_delayed", False):
+                        self.filecat_delayed = True
+                        time.sleep(close_delay)
+                    return super().close()
             Handler.dtp_handler = DataHandler
         late_name = os.environ.get("FILECAT_FTP_MUTATE_RNFR")
         fail_name = os.environ.get("FILECAT_FTP_FAIL_AFTER_BACKUP_RNTO")
@@ -224,10 +232,12 @@ internal sealed class TestFtpServer : IDisposable
         string? mutateOnRename = null, string? failAfterBackupRename = null, string? failAfterStagePublish = null,
         string? failAfterBackupCleanup = null, int virtualListingCount = 0, bool virtualSelfLines = false, bool emptyFolders550 = false,
         (int Lines, int Length)? virtualPadding = null, string? permissionListing = null, string? dataCertificatePem = null,
-        string? workingFolderReply = null)
+        string? workingFolderReply = null, double dataCloseDelaySeconds = 0)
     {
         if (dataCertificatePem is not null && certificatePem is null)
             throw new ArgumentException("A data certificate requires a control certificate.", nameof(dataCertificatePem));
+        if (dataCloseDelaySeconds > 0 && dataCertificatePem is null)
+            throw new ArgumentException("A data close delay applies to the data-certificate server only.", nameof(dataCloseDelaySeconds));
         if (implicitTls && certificatePem is null) throw new ArgumentException("Implicit TLS requires a test certificate.", nameof(certificatePem));
         if (mutateOnRename is not null && mutateOnRename != "late.bin")
             throw new ArgumentException("Only the owned late.bin fixture may be changed during rename.", nameof(mutateOnRename));
@@ -276,6 +286,8 @@ internal sealed class TestFtpServer : IDisposable
             File.WriteAllText(dataCert, dataCertificatePem);
             start.Environment["FILECAT_FTP_DATA_CERT"] = dataCert;
             start.Environment["FILECAT_FTP_LOG"] = Path.Combine(dir, "ftp-data-certificate.log");
+            if (dataCloseDelaySeconds > 0)
+                start.Environment["FILECAT_FTP_DATA_CLOSE_DELAY"] = dataCloseDelaySeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
         if (workingFolderReply is not null) start.Environment["FILECAT_FTP_PWD"] = workingFolderReply;
         var launched = Launch(start);
@@ -798,6 +810,37 @@ public sealed class FtpIntegrationTests : IDisposable
             using var read = lease.Channel.OpenRead("/present.txt");
             read.ReadByte();
         });
+        Assert.Empty(interaction.CertificateQuestions);
+    }
+
+    // A refused data connection still owes the command that opened it a final reply (226 or 426), which the server sends
+    // only once the data connection closes, and late when it is loaded. FileCat reads that reply before the refusal leaves
+    // the connection, so the next command gets its own answer. Under load, the MLST after a refused listing once read the
+    // listing's late 226 and reported a file that was there as missing ("The file is not on the server.").
+    [Fact]
+    public void FTPS_refused_data_connection_leaves_no_late_reply_for_the_next_command()
+    {
+        var (pem, sha) = TestFtpServer.SelfSigned("FileCat control");
+        var (data, _) = TestFtpServer.SelfSigned("FileCat data");
+        var ct = TestContext.Current.CancellationToken;
+        using var server = TestFtpServer.TryStart(pem, dataCertificatePem: data, dataCloseDelaySeconds: 0.5);
+        if (server is null) Assert.Skip("No FTPS test server here (pip install pyftpdlib pyopenssl, or set FILECAT_PYTHON).");
+        File.WriteAllText(Path.Combine(server.Root, "present.txt"), "server content");
+        var profile = server.Profile(RemoteProtocols.FtpExplicitTls);
+        File.WriteAllText(Path.Combine(_state, "trusted_certificates"), $"127.0.0.1:{server.Port} {sha}\n");
+        var interaction = new FtpInteraction { CertificateAnswer = HostKeyDecision.AcceptOnce };
+        using var connections = Connections(profile, interaction);
+        using var lease = connections.Lease(profile.Id, ct);
+        Assert.Throws<CertificateRejectedException>(() => lease.Channel.List("/", ct));
+        var present = lease.Channel.Stat("/present.txt");
+        Assert.NotNull(present);
+        Assert.Equal("server content".Length, present.Value.Size);
+        Assert.Throws<CertificateRejectedException>(() =>
+        {
+            using var read = lease.Channel.OpenRead("/present.txt");
+            read.ReadByte();
+        });
+        Assert.NotNull(lease.Channel.Stat("/present.txt"));
         Assert.Empty(interaction.CertificateQuestions);
     }
 
