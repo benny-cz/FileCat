@@ -66,6 +66,11 @@ public sealed partial class MainViewModel
         }
         switch (id)
         {
+            case CommandIds.PermissionsOwnership:
+                if (PermissionProcessRefusal() is { } permissionsRefusal) return CommandAvailability.No(permissionsRefusal);
+                if (Scope?.StorageAvailability?.Invoke() is { Enabled: false })
+                    return CommandAvailability.No("Wait for the results to finish before inspecting permissions.");
+                return tab is not null && hasItem ? CommandAvailability.Yes : CommandAvailability.No("Focus or mark objects to inspect their permissions.");
             case CommandIds.StorageAttributes:
                 if (Scope?.StorageAvailability?.Invoke() is { Enabled: false } storageGate) return storageGate;
                 if (Services.Jobs.CompressionUnavailable is { } storageUnavailable) return CommandAvailability.No(storageUnavailable.Message);
@@ -157,6 +162,10 @@ public sealed partial class MainViewModel
                        Services.Providers.For(openLoc).GetChildLocation(openLoc, openItem) is not null
                     ? CommandAvailability.Yes
                     : CommandAvailability.No("The focused item is not a folder.");
+            case CommandIds.Delete or CommandIds.DeletePermanent when loc?.Scheme == Schemes.HiddenData &&
+                tab?.Listing.SupplementaryInventory is not { CanDelete: true, Identity: not null }:
+                return CommandAvailability.No(tab?.Listing.SupplementaryInventory?.Notice ??
+                    "Deleting supplementary data requires a current bound inventory. Refresh the inventory and try again.");
             // What the location itself cannot do is dimmed with its reason (the key bar, the palette), not offered and refused.
             case CommandIds.Delete or CommandIds.DeletePermanent when loc is not null && loc.Scheme != Schemes.ResultSet && (caps & LocationCapabilities.Delete) == 0:
                 return CommandAvailability.No(Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.Delete));
@@ -577,6 +586,9 @@ public sealed partial class MainViewModel
             case CommandIds.Properties:
                 if (PropertiesPathForFocus() is { } pp) ShowPropertiesForPath(pp);
                 else Notify("Select a file, folder, or drive to show its properties.");
+                break;
+            case CommandIds.PermissionsOwnership:
+                if (tab is { Location: not null }) await InspectPermissionsAsync(CapturePermissionsSelection(tab));
                 break;
             case CommandIds.HiddenData:
                 OpenHiddenData();

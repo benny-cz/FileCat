@@ -1,0 +1,13 @@
+{
+  "commit": "44642d1141a7e79a3b71e6b2885532173165e446",
+  "architecture": "Arm64",
+  "operatingSystem": "Microsoft Windows 11 Enterprise",
+  "build": "26200",
+  "filesystem": "NTFS",
+  "server": "impacket 0.13.1 smbserver.py on 127.0.0.1:4445",
+  "serverPython": "ARM64 3.12.10",
+  "smbDialect": "2.0.2",
+  "mapped": "Z:\\",
+  "unc": "\\\\127.0.0.1\\FILECATCASE",
+  "testAssembly": "D1B5C61C0F7351B84F75241E79FA1CAA18360C31AF896BCB682B62166BBCEB2B"
+}

@@ -7,13 +7,19 @@ using FileCat.Platform.Windows.Shell;
 
 namespace FileCat.App.Services;
 
-/// <summary>The forward-only clipboard format for open local folders and the panel layout.</summary>
-internal sealed record WorkspaceTransfer(WorkspaceTransfer.Panel[] Panels, WorkspaceTransfer.Node Layout, int ActivePanel)
+/// <summary>
+/// The forward-only clipboard format for open local folders, the panel layout and, from version 2, the column profiles
+/// and the profile each tab shows.
+/// </summary>
+internal sealed record WorkspaceTransfer(WorkspaceTransfer.Panel[] Panels, WorkspaceTransfer.Node Layout, int ActivePanel,
+    ColumnProfile[]? ColumnProfiles = null)
 {
     internal const int MaxCharacters = 64 * 1024;
     private const int MaxTabs = 512;
+    private const int MaxColumnsPerProfile = 64;
     private const string Header = "FileCat-Workspace-";
     private const string Prefix = Header + "1 ";
+    private const string ColumnsPrefix = Header + "2 ";
     private static readonly WorkspaceTransferJsonContext Json = new(new JsonSerializerOptions
     {
         AllowDuplicateProperties = false,
@@ -21,27 +27,31 @@ internal sealed record WorkspaceTransfer(WorkspaceTransfer.Panel[] Panels, Works
         MaxDepth = 24,
     });
 
-    internal sealed record Panel(string[] Folders, int ActiveTab, int? Target);
+    /// <summary>A panel's local-folder tabs; with column profiles, <paramref name="Profiles"/> holds each tab's profile.</summary>
+    internal sealed record Panel(string[] Folders, int ActiveTab, int? Target, int[]? Profiles = null);
     internal sealed record Node(int? Panel, bool Stacked, double Size, Node[] Children);
 
     internal static bool HasHeader(string? text) => text.AsSpan().TrimStart().StartsWith(Header, StringComparison.Ordinal);
 
-    internal static WorkspaceTransfer Capture(WorkspaceViewModel workspace)
+    internal static WorkspaceTransfer Capture(WorkspaceViewModel workspace, Controls.ColumnProfileSet? columns = null)
     {
         var panels = workspace.Panels;
+        ColumnProfile[]? profiles = columns?.ToSettings().ToArray();
         if (panels.Count == 0) throw new IOException("There are no panels to copy.");
         var ids = panels.Select((p, i) => (p.Id, i)).ToDictionary(x => x.Id, x => x.i, StringComparer.Ordinal);
         var layout = PanelLayout.Matches(workspace.LayoutTree, ids.Keys)
             ? workspace.LayoutTree : PanelLayout.Default(panels.Select(p => p.Id).ToArray());
         return new(panels.Select(p =>
         {
-            var folders = p.Tabs.Select(t => t.Location is { IsFileSystem: true, Container: null, Session: null } loc
-                && IsFolderPath(loc.Path) && IsLocalDrive(loc.Path) ? loc.Path : null).ToArray();
-            int active = folders.Take(Math.Max(0, p.ActiveTab is { } tab ? p.Tabs.IndexOf(tab) : 0)).Count(path => path is not null);
-            string[] local = folders.OfType<string>().ToArray();
+            var tabs = p.Tabs.Select(t => (Path: t.Location is { IsFileSystem: true, Container: null, Session: null } loc
+                && IsFolderPath(loc.Path) && IsLocalDrive(loc.Path) ? loc.Path : null, t.ColumnProfile)).ToArray();
+            int active = tabs.Take(Math.Max(0, p.ActiveTab is { } tab ? p.Tabs.IndexOf(tab) : 0)).Count(t => t.Path is not null);
+            var local = tabs.Where(t => t.Path is not null).ToArray();
+            int[]? tabProfiles = profiles is null ? null
+                : local.Select(t => Math.Clamp(t.ColumnProfile, 0, profiles.Length - 1)).ToArray();
             int? target = p.TargetPanelId is { } id && ids.TryGetValue(id, out int index) ? index : null;
-            return new Panel(local, Math.Min(active, Math.Max(0, local.Length - 1)), target);
-        }).ToArray(), CaptureLayout(layout, ids), workspace.ActivePanel is { } active ? ids[active.Id] : 0);
+            return new Panel(local.Select(t => t.Path!).ToArray(), Math.Min(active, Math.Max(0, local.Length - 1)), target, tabProfiles);
+        }).ToArray(), CaptureLayout(layout, ids), workspace.ActivePanel is { } active ? ids[active.Id] : 0, profiles);
     }
 
     private static Node CaptureLayout(PanelLayoutNode node, Dictionary<string, int> ids) => node.PanelId is { } id
@@ -51,7 +61,7 @@ internal sealed record WorkspaceTransfer(WorkspaceTransfer.Panel[] Panels, Works
     internal string Encode()
     {
         if (!IsValid()) throw new IOException($"Copying a workspace supports up to {MaxTabs} local-folder tabs.");
-        string text = Prefix + JsonSerializer.Serialize(this, Json.WorkspaceTransfer);
+        string text = (ColumnProfiles is null ? Prefix : ColumnsPrefix) + JsonSerializer.Serialize(this, Json.WorkspaceTransfer);
         if (text.Length > MaxCharacters) throw new IOException("This workspace is too large to copy. Close some tabs and try again.");
         return text;
     }
@@ -60,11 +70,13 @@ internal sealed record WorkspaceTransfer(WorkspaceTransfer.Panel[] Panels, Works
     {
         if (text is null || text.Length > MaxCharacters) return null;
         text = text.Trim();
-        if (!text.StartsWith(Prefix, StringComparison.Ordinal)) return null;
+        // Version 1 carries folders and layout only; version 2 also carries the column profiles.
+        bool columns = text.StartsWith(ColumnsPrefix, StringComparison.Ordinal);
+        if (!columns && !text.StartsWith(Prefix, StringComparison.Ordinal)) return null;
         try
         {
-            var transfer = JsonSerializer.Deserialize(text[Prefix.Length..], Json.WorkspaceTransfer);
-            return transfer?.IsValid() == true ? transfer : null;
+            var transfer = JsonSerializer.Deserialize(text[(columns ? ColumnsPrefix : Prefix).Length..], Json.WorkspaceTransfer);
+            return transfer?.IsValid() == true && (transfer.ColumnProfiles is not null) == columns ? transfer : null;
         }
         catch (JsonException) { return null; }
     }
@@ -73,6 +85,7 @@ internal sealed record WorkspaceTransfer(WorkspaceTransfer.Panel[] Panels, Works
     {
         if (Panels is not { Length: > 0 and <= WorkspaceViewModel.MaxPanels } || ActivePanel < 0 || ActivePanel >= Panels.Length)
             return false;
+        if (ColumnProfiles is { } profiles && !ValidProfiles(profiles)) return false;
         int total = 0;
         for (int i = 0; i < Panels.Length; i++)
         {
@@ -82,10 +95,22 @@ internal sealed record WorkspaceTransfer(WorkspaceTransfer.Panel[] Panels, Works
                 return false;
             total += folders.Length;
             if (total > MaxTabs || folders.Any(path => !IsFolderPath(path))) return false;
+            // Every tab names a transferred profile, and only when profiles were transferred.
+            if (ColumnProfiles is null ? panel.Profiles is not null
+                : panel.Profiles is not { } tabs || tabs.Length != folders.Length || tabs.Any(p => p < 0 || p >= ColumnProfiles.Length))
+                return false;
         }
         var seen = new HashSet<int>();
         return ValidateLayout(Layout, seen, 1) && seen.Count == Panels.Length;
     }
+
+    /// <summary>Bounds the transferred text; the profile set's own validation applies again when the profiles are shown.</summary>
+    private static bool ValidProfiles(ColumnProfile[] profiles) =>
+        profiles.Length is > 0 and <= Controls.ColumnProfileSet.MaxProfiles && profiles.All(profile =>
+            profile?.Name is { Length: <= 128 } name && !name.Any(char.IsControl) &&
+            profile.Columns is { Count: > 0 and <= MaxColumnsPerProfile } columns && columns.All(column =>
+                column?.Field is { Length: > 0 and <= 128 } field && !field.Any(char.IsControl) &&
+                double.IsFinite(column.Width) && column.Width is >= 0 and <= 100_000));
 
     private bool ValidateLayout(Node? node, HashSet<int> seen, int depth)
     {
@@ -157,7 +182,7 @@ internal sealed record WorkspaceTransfer(WorkspaceTransfer.Panel[] Panels, Works
                     string path = source.Folders[tab];
                     if (!CanOpen(path)) { prepared.Skipped++; continue; }
                     if (tab < source.ActiveTab) panel.ActiveTab++;
-                    panel.Tabs.Add(new TabState { Location = Location.FileSystem(path) });
+                    panel.Tabs.Add(new TabState { Location = Location.FileSystem(path), ColumnProfile = source.Profiles?[tab] ?? 0 });
                 }
                 if (panel.Tabs.Count == 0)
                 {

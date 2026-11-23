@@ -46,12 +46,11 @@ public partial class App : Application
         Controls.ComboBoxAnnouncements.Install();
         Controls.ToolTipNames.Install();
         Controls.SyntheticModifierKeys.Install();
+        Controls.MacLayoutNotices.Install();
         if (PlatformSettings is { } ps)
         {
-            ps.ColorValuesChanged += (_, _) =>
-            {
-                if (services.Settings.Theme == "System") Dispatcher.UIThread.Post(() => ThemeManager.Apply("System"));
-            };
+            // System follows dark mode and high contrast; any other theme gives way to high contrast while it is on.
+            ps.ColorValuesChanged += (_, _) => Dispatcher.UIThread.Post(ThemeManager.PlatformColorsChanged);
         }
         services.Icons.Native = NativeIconSource.TryCreate(services.Shell, () => services.AllowedShellPictures) ?? MacIconSource.TryCreate() ?? FreedesktopIconSource.TryCreate();
 

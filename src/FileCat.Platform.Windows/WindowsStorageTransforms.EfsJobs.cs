@@ -28,7 +28,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         {
             if (!StorageJournalPolicy.IsEfs(action)) return adapter.Unavailable(action);
             return SupportsHost(adapter._qualifyNativeArm64) && EfsEdition.Value ? null : Problem(StorageReasonKind.WindowsLimitation, "efs-build",
-                "This EFS candidate requires a qualified Windows 11 Pro, Enterprise or Education host.");
+                EfsEditionReason);
         }
 
         public StorageProblem? ScopeUnavailable(StorageScope scope) => Enum.IsDefined(scope) ? null

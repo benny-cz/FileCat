@@ -1,0 +1,196 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="fac7e982-4450-45e6-af89-993cb749ba70" name="runneradmin@runnervmjtlf1 2026-11-21 10:27:14" runUser="runnervmjtlf1\runneradmin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-21T10:27:14.9233789-08:00" queuing="2026-11-21T10:27:14.9233794-08:00" start="2026-11-21T10:27:12.0371170-08:00" finish="2026-11-21T10:27:15.7630245-08:00" />
+  <TestSettings name="default" id="a378e5e0-0d38-4fcf-93c8-542ae335b2e0">
+    <Deployment runDeploymentRoot="runneradmin_runnervmjtlf1_2026-11-21_10_27_14" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="7088c8de-afc1-4b29-969d-74d0793a4f40" testId="b7a9b6c8-a0d0-1ef7-0122-6fcb3b5775d1" testName="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: &quot;FILECAT_STORAGE_NATIVE_READONLY_TARGET&quot;, expectedFormat: &quot;NTFS&quot;)" computerName="runnervmjtlf1" duration="00:00:00.0010000" startTime="2026-11-21T10:27:14.8771809-08:00" endTime="2026-11-21T10:27:14.8796639-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7088c8de-afc1-4b29-969d-74d0793a4f40">
+      <Output>
+        <ErrorInfo>
+          <Message>Set FILECAT_STORAGE_NATIVE_READONLY_TARGET to a file on the prepared volume.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="80c52165-f830-4901-b230-538260223eba" testId="8ed337a6-8e83-ce43-3b60-78cfbe6852e1" testName="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: &quot;FILECAT_STORAGE_NATIVE_EXFAT_TARGET&quot;, expectedFormat: &quot;exFAT&quot;)" computerName="runnervmjtlf1" duration="00:00:00.0007125" startTime="2026-11-21T10:27:14.8800162-08:00" endTime="2026-11-21T10:27:14.8807612-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="80c52165-f830-4901-b230-538260223eba" />
+    <UnitTestResult executionId="c3000b24-2945-46d7-8082-7244bab00422" testId="24be6154-ecc5-0e82-8195-c245c5844d2d" testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Case_distinct_and_255_unit_names_are_listed_exactly_on_both_routes" computerName="runnervmjtlf1" duration="00:00:00.0103049" startTime="2026-11-21T10:27:15.6476668-08:00" endTime="2026-11-21T10:27:15.6580232-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c3000b24-2945-46d7-8082-7244bab00422" />
+    <UnitTestResult executionId="c63f669b-f921-4d24-9ee6-af873fc4991b" testId="8f456be0-3728-1a33-2895-89319c88979b" testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.A_folder_that_cannot_be_listed_fails_the_same_way_on_both_routes_before_publication" computerName="runnervmjtlf1" duration="00:00:00.0790358" startTime="2026-11-21T10:27:14.7794300-08:00" endTime="2026-11-21T10:27:14.8707369-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c63f669b-f921-4d24-9ee6-af873fc4991b" />
+    <UnitTestResult executionId="6337fa9a-af34-43fa-9055-6c250278500a" testId="982aca4c-54dc-59dd-6ed4-6963289781e2" testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: &quot;FILECAT_STORAGE_NATIVE_EXFAT_TARGET&quot;)" computerName="runnervmjtlf1" duration="00:00:00.3157005" startTime="2026-11-21T10:27:15.2458207-08:00" endTime="2026-11-21T10:27:15.5616624-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6337fa9a-af34-43fa-9055-6c250278500a" />
+    <UnitTestResult executionId="3e61e152-09e6-4339-85d8-43fa7af2fcd8" testId="50cab26f-cae1-e008-811f-ee1159e4d29d" testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Container_detection_marks_the_same_files_on_both_routes" computerName="runnervmjtlf1" duration="00:00:00.0038947" startTime="2026-11-21T10:27:15.6628956-08:00" endTime="2026-11-21T10:27:15.6668440-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3e61e152-09e6-4339-85d8-43fa7af2fcd8" />
+    <UnitTestResult executionId="b4f50573-de57-4ba3-85d7-11f1771c1cf9" testId="489c0088-33d8-2929-eb1b-cc050e9743ae" testName="FileCat.Platform.Windows.Tests.WindowsDetailsNativeGapTests.A_new_name_with_the_same_size_and_time_stays_cached_until_expiry_and_Get_and_Compute_then_read_again" computerName="runnervmjtlf1" duration="00:00:00.1717992" startTime="2026-11-21T10:27:14.7794503-08:00" endTime="2026-11-21T10:27:14.9625444-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b4f50573-de57-4ba3-85d7-11f1771c1cf9" />
+    <UnitTestResult executionId="ff605f49-2934-46df-a4f4-669b9bec666f" testId="c991a136-913d-9a56-03ea-02294e8b7dfd" testName="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: &quot;FILECAT_STORAGE_NATIVE_FAT_TARGET&quot;, expectedFormat: &quot;FAT32&quot;)" computerName="runnervmjtlf1" duration="00:00:00.0004164" startTime="2026-11-21T10:27:14.8814269-08:00" endTime="2026-11-21T10:27:14.8818761-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ff605f49-2934-46df-a4f4-669b9bec666f" />
+    <UnitTestResult executionId="99d83e18-ef76-455c-af20-56ee65239ce6" testId="05623620-63a6-6f39-1157-bf27a3c0fa0b" testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.The_system_drive_root_lists_the_same_names_kinds_and_attributes" computerName="runnervmjtlf1" duration="00:00:00.0038632" startTime="2026-11-21T10:27:15.6585016-08:00" endTime="2026-11-21T10:27:15.6624295-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="99d83e18-ef76-455c-af20-56ee65239ce6" />
+    <UnitTestResult executionId="5bb8184b-6976-4837-93b0-39ca2a4f598a" testId="e0f3d3f2-8485-5246-0f40-343ee390f5f5" testName="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests.Metadata_reports_carry_no_resident_slack_stream_or_EA_value_sentinel" computerName="runnervmjtlf1" duration="00:00:00.0068819" startTime="2026-11-21T10:27:14.8950211-08:00" endTime="2026-11-21T10:27:14.9020298-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="5bb8184b-6976-4837-93b0-39ca2a4f598a" />
+    <UnitTestResult executionId="3487b1af-54a1-493a-99e7-f68bd72e764d" testId="d69d7cb0-c49a-533f-554e-cf9c6ec075d8" testName="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: &quot;FILECAT_STORAGE_NATIVE_REFS_TARGET&quot;, expectedFormat: &quot;ReFS&quot;)" computerName="runnervmjtlf1" duration="00:00:00.0780951" startTime="2026-11-21T10:27:14.7794414-08:00" endTime="2026-11-21T10:27:14.8707239-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3487b1af-54a1-493a-99e7-f68bd72e764d" />
+    <UnitTestResult executionId="740127f8-5e82-4310-9d37-ff2ce5ba8552" testId="ea31e33b-350c-5d4e-4fb3-3edb9ce5d87f" testName="FileCat.Platform.Windows.Tests.WindowsDetailsLongNameTests.Details_describe_a_255_unit_name_beyond_MAX_PATH" computerName="runnervmjtlf1" duration="00:00:00.0902000" startTime="2026-11-21T10:27:14.7794276-08:00" endTime="2026-11-21T10:27:14.8810613-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="740127f8-5e82-4310-9d37-ff2ce5ba8552" />
+    <UnitTestResult executionId="02e8dd5a-452f-4687-8f3b-957aa15e8cd4" testId="18247ffd-3993-d062-59a7-06004932a43b" testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: &quot;FILECAT_STORAGE_NATIVE_NOFILTER_ROOT&quot;)" computerName="runnervmjtlf1" duration="00:00:00.0010000" startTime="2026-11-21T10:27:15.6463406-08:00" endTime="2026-11-21T10:27:15.6467078-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="02e8dd5a-452f-4687-8f3b-957aa15e8cd4">
+      <Output>
+        <ErrorInfo>
+          <Message>Set FILECAT_STORAGE_NATIVE_NOFILTER_ROOT to an item on the prepared volume.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="2305ff78-be60-457f-b16e-e50d830adb75" testId="1bf08cf7-7d7d-a92d-176e-90fae860719d" testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: &quot;FILECAT_STORAGE_NATIVE_FAT_TARGET&quot;)" computerName="runnervmjtlf1" duration="00:00:00.0830888" startTime="2026-11-21T10:27:15.5623130-08:00" endTime="2026-11-21T10:27:15.6454876-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2305ff78-be60-457f-b16e-e50d830adb75" />
+    <UnitTestResult executionId="67ae37f0-1a4e-4297-aa25-816399b6c5b6" testId="8534f71f-baef-70c1-d2d6-ff7be447079c" testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.A_compatibility_junction_that_refuses_listing_names_the_same_listable_target_on_both_routes" computerName="runnervmjtlf1" duration="00:00:00.0044759" startTime="2026-11-21T10:27:15.6672854-08:00" endTime="2026-11-21T10:27:15.6717994-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="67ae37f0-1a4e-4297-aa25-816399b6c5b6" />
+    <UnitTestResult executionId="05ba0e96-a870-439c-8bec-9183df1a53f8" testId="4447582b-a2c8-74f3-1f23-22b673da9787" testName="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: &quot;FILECAT_STORAGE_NATIVE_64K_TARGET&quot;, expectedFormat: &quot;NTFS&quot;)" computerName="runnervmjtlf1" duration="00:00:00.0010000" startTime="2026-11-21T10:27:14.8810703-08:00" endTime="2026-11-21T10:27:14.8812206-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="05ba0e96-a870-439c-8bec-9183df1a53f8">
+      <Output>
+        <ErrorInfo>
+          <Message>Set FILECAT_STORAGE_NATIVE_64K_TARGET to a file on the prepared volume.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="4276b816-e34d-45c9-be33-5ce23734e96e" testId="c2537ece-1ffb-4a8c-4f57-68221cc35f3f" testName="FileCat.Platform.Windows.Tests.WindowsDetailsNativeGapTests.Native_columns_report_allocation_names_and_reparse_types_for_files_links_sparse_files_and_folders" computerName="runnervmjtlf1" duration="00:00:00.0550525" startTime="2026-11-21T10:27:14.9644435-08:00" endTime="2026-11-21T10:27:15.0196986-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4276b816-e34d-45c9-be33-5ce23734e96e">
+      <Output>
+        <StdOut>sparse allocation while its only write was cached: 0 B; cluster 4,096 B&#xD;
+plain      allocated    Available   12,288 B                   key=12288&#xD;
+plain      hard-links   Available   1                          key=1&#xD;
+plain      reparse-type Absent      -                          key=none&#xD;
+linked     allocated    Available   12,288 B                   key=12288&#xD;
+linked     hard-links   Available   2                          key=2&#xD;
+linked     reparse-type Absent      -                          key=none&#xD;
+other name allocated    Available   12,288 B                   key=12288&#xD;
+other name hard-links   Available   2                          key=2&#xD;
+other name reparse-type Absent      -                          key=none&#xD;
+sparse     allocated    Available   65,536 B                   key=65536&#xD;
+sparse     hard-links   Available   1                          key=1&#xD;
+sparse     reparse-type Absent      -                          key=none&#xD;
+folder     allocated    Available   0 B                        key=0&#xD;
+folder     hard-links   Absent      -                          key=none&#xD;
+folder     reparse-type Absent      -                          key=none&#xD;
+junction   allocated    Available   0 B                        key=0&#xD;
+junction   hard-links   Absent      -                          key=none&#xD;
+junction   reparse-type Available   Junction or volume mount   key=Junction or volume mount&#xD;
+file link  allocated    Available   0 B                        key=0&#xD;
+file link  hard-links   Unsupported -                          key=none&#xD;
+file link  reparse-type Available   Symbolic link              key=Symbolic link</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="cf5cf6be-3afc-455a-a6c3-c5dc0e3ff61e" testId="eaa5a1be-b2ec-2fcf-b6fd-2026d6c7f15b" testName="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: &quot;FILECAT_STORAGE_NATIVE_REFS_TARGET&quot;)" computerName="runnervmjtlf1" duration="00:00:00.3622088" startTime="2026-11-21T10:27:14.8828458-08:00" endTime="2026-11-21T10:27:15.2451171-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="cf5cf6be-3afc-455a-a6c3-c5dc0e3ff61e" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: &quot;FILECAT_STORAGE_NATIVE_REFS_TARGET&quot;, expectedFormat: &quot;ReFS&quot;)" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="d69d7cb0-c49a-533f-554e-cf9c6ec075d8">
+      <Execution id="3487b1af-54a1-493a-99e7-f68bd72e764d" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests" name="Native_details_describe_owned_files_on_their_actual_volumes" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsDetailsNativeGapTests.A_new_name_with_the_same_size_and_time_stays_cached_until_expiry_and_Get_and_Compute_then_read_again" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="489c0088-33d8-2929-eb1b-cc050e9743ae">
+      <Execution id="b4f50573-de57-4ba3-85d7-11f1771c1cf9" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsDetailsNativeGapTests" name="A_new_name_with_the_same_size_and_time_stays_cached_until_expiry_and_Get_and_Compute_then_read_again" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: &quot;FILECAT_STORAGE_NATIVE_64K_TARGET&quot;, expectedFormat: &quot;NTFS&quot;)" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="4447582b-a2c8-74f3-1f23-22b673da9787">
+      <Execution id="05ba0e96-a870-439c-8bec-9183df1a53f8" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests" name="Native_details_describe_owned_files_on_their_actual_volumes" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsDetailsLongNameTests.Details_describe_a_255_unit_name_beyond_MAX_PATH" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="ea31e33b-350c-5d4e-4fb3-3edb9ce5d87f">
+      <Execution id="740127f8-5e82-4310-9d37-ff2ce5ba8552" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsDetailsLongNameTests" name="Details_describe_a_255_unit_name_beyond_MAX_PATH" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests.Metadata_reports_carry_no_resident_slack_stream_or_EA_value_sentinel" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="e0f3d3f2-8485-5246-0f40-343ee390f5f5">
+      <Execution id="5bb8184b-6976-4837-93b0-39ca2a4f598a" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsHiddenDataTests" name="Metadata_reports_carry_no_resident_slack_stream_or_EA_value_sentinel" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: &quot;FILECAT_STORAGE_NATIVE_REFS_TARGET&quot;)" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="eaa5a1be-b2ec-2fcf-b6fd-2026d6c7f15b">
+      <Execution id="cf5cf6be-3afc-455a-a6c3-c5dc0e3ff61e" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="Prepared_volumes_list_the_same_entries_on_both_routes" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.A_folder_that_cannot_be_listed_fails_the_same_way_on_both_routes_before_publication" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="8f456be0-3728-1a33-2895-89319c88979b">
+      <Execution id="c63f669b-f921-4d24-9ee6-af873fc4991b" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="A_folder_that_cannot_be_listed_fails_the_same_way_on_both_routes_before_publication" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: &quot;FILECAT_STORAGE_NATIVE_NOFILTER_ROOT&quot;)" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="18247ffd-3993-d062-59a7-06004932a43b">
+      <Execution id="02e8dd5a-452f-4687-8f3b-957aa15e8cd4" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="Prepared_volumes_list_the_same_entries_on_both_routes" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Case_distinct_and_255_unit_names_are_listed_exactly_on_both_routes" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="24be6154-ecc5-0e82-8195-c245c5844d2d">
+      <Execution id="c3000b24-2945-46d7-8082-7244bab00422" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="Case_distinct_and_255_unit_names_are_listed_exactly_on_both_routes" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.A_compatibility_junction_that_refuses_listing_names_the_same_listable_target_on_both_routes" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="8534f71f-baef-70c1-d2d6-ff7be447079c">
+      <Execution id="67ae37f0-1a4e-4297-aa25-816399b6c5b6" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="A_compatibility_junction_that_refuses_listing_names_the_same_listable_target_on_both_routes" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: &quot;FILECAT_STORAGE_NATIVE_FAT_TARGET&quot;, expectedFormat: &quot;FAT32&quot;)" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="c991a136-913d-9a56-03ea-02294e8b7dfd">
+      <Execution id="ff605f49-2934-46df-a4f4-669b9bec666f" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests" name="Native_details_describe_owned_files_on_their_actual_volumes" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsDetailsNativeGapTests.Native_columns_report_allocation_names_and_reparse_types_for_files_links_sparse_files_and_folders" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="c2537ece-1ffb-4a8c-4f57-68221cc35f3f">
+      <Execution id="4276b816-e34d-45c9-be33-5ce23734e96e" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsDetailsNativeGapTests" name="Native_columns_report_allocation_names_and_reparse_types_for_files_links_sparse_files_and_folders" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: &quot;FILECAT_STORAGE_NATIVE_FAT_TARGET&quot;)" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="1bf08cf7-7d7d-a92d-176e-90fae860719d">
+      <Execution id="2305ff78-be60-457f-b16e-e50d830adb75" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="Prepared_volumes_list_the_same_entries_on_both_routes" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Container_detection_marks_the_same_files_on_both_routes" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="50cab26f-cae1-e008-811f-ee1159e4d29d">
+      <Execution id="3e61e152-09e6-4339-85d8-43fa7af2fcd8" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="Container_detection_marks_the_same_files_on_both_routes" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: &quot;FILECAT_STORAGE_NATIVE_EXFAT_TARGET&quot;)" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="982aca4c-54dc-59dd-6ed4-6963289781e2">
+      <Execution id="6337fa9a-af34-43fa-9055-6c250278500a" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="Prepared_volumes_list_the_same_entries_on_both_routes" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: &quot;FILECAT_STORAGE_NATIVE_READONLY_TARGET&quot;, expectedFormat: &quot;NTFS&quot;)" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="b7a9b6c8-a0d0-1ef7-0122-6fcb3b5775d1">
+      <Execution id="7088c8de-afc1-4b29-969d-74d0793a4f40" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests" name="Native_details_describe_owned_files_on_their_actual_volumes" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.The_system_drive_root_lists_the_same_names_kinds_and_attributes" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="05623620-63a6-6f39-1157-bf27a3c0fa0b">
+      <Execution id="99d83e18-ef76-455c-af20-56ee65239ce6" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests" name="The_system_drive_root_lists_the_same_names_kinds_and_attributes" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: &quot;FILECAT_STORAGE_NATIVE_EXFAT_TARGET&quot;, expectedFormat: &quot;exFAT&quot;)" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="8ed337a6-8e83-ce43-3b60-78cfbe6852e1">
+      <Execution id="80c52165-f830-4901-b230-538260223eba" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsFileDetailsTests" name="Native_details_describe_owned_files_on_their_actual_volumes" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="b7a9b6c8-a0d0-1ef7-0122-6fcb3b5775d1" executionId="7088c8de-afc1-4b29-969d-74d0793a4f40" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8ed337a6-8e83-ce43-3b60-78cfbe6852e1" executionId="80c52165-f830-4901-b230-538260223eba" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="24be6154-ecc5-0e82-8195-c245c5844d2d" executionId="c3000b24-2945-46d7-8082-7244bab00422" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8f456be0-3728-1a33-2895-89319c88979b" executionId="c63f669b-f921-4d24-9ee6-af873fc4991b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="982aca4c-54dc-59dd-6ed4-6963289781e2" executionId="6337fa9a-af34-43fa-9055-6c250278500a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="50cab26f-cae1-e008-811f-ee1159e4d29d" executionId="3e61e152-09e6-4339-85d8-43fa7af2fcd8" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="489c0088-33d8-2929-eb1b-cc050e9743ae" executionId="b4f50573-de57-4ba3-85d7-11f1771c1cf9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c991a136-913d-9a56-03ea-02294e8b7dfd" executionId="ff605f49-2934-46df-a4f4-669b9bec666f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="05623620-63a6-6f39-1157-bf27a3c0fa0b" executionId="99d83e18-ef76-455c-af20-56ee65239ce6" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e0f3d3f2-8485-5246-0f40-343ee390f5f5" executionId="5bb8184b-6976-4837-93b0-39ca2a4f598a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d69d7cb0-c49a-533f-554e-cf9c6ec075d8" executionId="3487b1af-54a1-493a-99e7-f68bd72e764d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ea31e33b-350c-5d4e-4fb3-3edb9ce5d87f" executionId="740127f8-5e82-4310-9d37-ff2ce5ba8552" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="18247ffd-3993-d062-59a7-06004932a43b" executionId="02e8dd5a-452f-4687-8f3b-957aa15e8cd4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1bf08cf7-7d7d-a92d-176e-90fae860719d" executionId="2305ff78-be60-457f-b16e-e50d830adb75" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8534f71f-baef-70c1-d2d6-ff7be447079c" executionId="67ae37f0-1a4e-4297-aa25-816399b6c5b6" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4447582b-a2c8-74f3-1f23-22b673da9787" executionId="05ba0e96-a870-439c-8bec-9183df1a53f8" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c2537ece-1ffb-4a8c-4f57-68221cc35f3f" executionId="4276b816-e34d-45c9-be33-5ce23734e96e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="eaa5a1be-b2ec-2fcf-b6fd-2026d6c7f15b" executionId="cf5cf6be-3afc-455a-a6c3-c5dc0e3ff61e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="18" executed="15" passed="15" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.15)&#xD;
+[xUnit.net 00:00:00.29]   Discovering: FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:01.84]   Discovered:  FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:02.09]   Starting:    FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:02.27]       Set FILECAT_STORAGE_NATIVE_READONLY_TARGET to a file on the prepared volume.&#xD;
+[xUnit.net 00:00:02.28]       Set FILECAT_STORAGE_NATIVE_64K_TARGET to a file on the prepared volume.&#xD;
+Test 'FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: "FILECAT_STORAGE_NATIVE_READONLY_TARGET", expectedFormat: "NTFS")' was skipped in the test run.&#xD;
+Test 'FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: "FILECAT_STORAGE_NATIVE_64K_TARGET", expectedFormat: "NTFS")' was skipped in the test run.&#xD;
+[xUnit.net 00:00:03.04]       Set FILECAT_STORAGE_NATIVE_NOFILTER_ROOT to an item on the prepared volume.&#xD;
+Test 'FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: "FILECAT_STORAGE_NATIVE_NOFILTER_ROOT")' was skipped in the test run.&#xD;
+[xUnit.net 00:00:03.07]   Finished:    FileCat.Platform.Windows.Tests (ID = 'a01939c32015dcf8cf76016c79755b847ab552dac5bad90e3e6dd7668fd98cae')&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="runnervmjtlf1" outcome="Warning" timestamp="2026-11-21T10:27:14.8848818-08:00">
+        <Text>[xUnit.net 00:00:02.27]     FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: "FILECAT_STORAGE_NATIVE_READONLY_TARGET", expectedFormat: "NTFS") [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="runnervmjtlf1" outcome="Warning" timestamp="2026-11-21T10:27:14.8870617-08:00">
+        <Text>[xUnit.net 00:00:02.28]     FileCat.Platform.Windows.Tests.WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes(variable: "FILECAT_STORAGE_NATIVE_64K_TARGET", expectedFormat: "NTFS") [SKIP]</Text>
+      </RunInfo>
+      <RunInfo computerName="runnervmjtlf1" outcome="Warning" timestamp="2026-11-21T10:27:15.6474538-08:00">
+        <Text>[xUnit.net 00:00:03.04]     FileCat.Platform.Windows.Tests.WindowsEnumerationParityTests.Prepared_volumes_list_the_same_entries_on_both_routes(variable: "FILECAT_STORAGE_NATIVE_NOFILTER_ROOT") [SKIP]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

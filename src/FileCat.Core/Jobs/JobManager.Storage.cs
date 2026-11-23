@@ -150,6 +150,42 @@ public sealed partial class JobManager
 
     public StorageSelectionReview CaptureStorageSelection(IReadOnlyList<ItemRef> sources) => new(_storageTransforms, sources);
 
+    /// <summary>
+    /// A fresh read-only observation of objects named by retained storage history, for its review. Each path is inspected
+    /// with no action through the ordinary owned review path and released at once, so the result grants nothing and a
+    /// failure is that object's own observation. Call on an owned I/O delegate, holding no evidence handles: it acquires
+    /// the native allowance for each inspection. At most 65 paths (64 roots and one call object) are observed.
+    /// </summary>
+    public IReadOnlyList<StorageCurrentObservation> ObserveStorageObjects(IReadOnlyList<(string Path, bool Directory)> objects, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(objects);
+        if (objects.Count > 65) throw new ArgumentException("Observe at most 64 roots and one call object.", nameof(objects));
+        var observed = new List<StorageCurrentObservation>(objects.Count);
+        var unavailable = _storageTransforms.Unavailable(StorageAction.Compress);
+        foreach (var (path, directory) in objects)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (unavailable is not null) { observed.Add(new(path, null, unavailable)); continue; }
+            ItemRef item;
+            try { item = ItemRef.ForFileSystemPath(path, directory ? EntryKind.Directory : EntryKind.File); }
+            catch (ArgumentException error) { observed.Add(new(path, null, new(StorageReasonKind.FileCatBoundary, "source-path", error.Message, false))); continue; }
+            if (StoragePaths.SourceProblem(item) is { } lexical) { observed.Add(new(path, null, lexical)); continue; }
+            try
+            {
+                using var review = ReviewedStorageRoots.Prepare(_storageTransforms, [item], action: null, ct);
+                observed.Add(new(path, review.Roots[0].Observation, review.Roots[0].Observation.Ineligible));
+            }
+            catch (StorageInspectionException refused) { observed.Add(new(path, null, refused.Problem)); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                var kind = error is UnauthorizedAccessException ? StorageReasonKind.PermissionOrPolicy
+                    : error is FileNotFoundException or DirectoryNotFoundException ? StorageReasonKind.IdentityChanged : StorageReasonKind.Unknown;
+                observed.Add(new(path, null, new(kind, "current-observation", error.Message, true)));
+            }
+        }
+        return observed;
+    }
+
     internal StorageProblem? EfsSelectionUnavailable => _storageTransforms is not IStorageEfsJobAdapter
         ? new(StorageReasonKind.FileCatBoundary, "efs-unavailable", "EFS changes are unavailable in this build.", false)
         : _storageTransforms.Unavailable(StorageAction.DecryptEfs) is null ? null : _storageTransforms.Unavailable(StorageAction.EncryptEfs);

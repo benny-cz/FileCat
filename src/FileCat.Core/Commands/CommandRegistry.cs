@@ -77,6 +77,7 @@ public static class CommandIds
     public const string Open = "file.open";
     public const string OpenWithSystem = "file.openWithSystem";
     public const string Properties = "file.properties";
+    public const string PermissionsOwnership = "file.permissionsOwnership";
     /// <summary>The focused item's alternate data streams and extended attributes (D-55).</summary>
     public const string HiddenData = "file.hiddenData";
     public const string FileRecord = "file.fileRecord";
@@ -327,6 +328,7 @@ public sealed class CommandRegistry
         Add(CommandIds.Open, "Open", F, null, CommandContext.Panel, "Enter");
         Add(CommandIds.OpenWithSystem, "Open with system application", F, null, CommandContext.Panel, "Shift+Enter");
         Add(CommandIds.Properties, "Properties", F, null, CommandContext.Panel, "Alt+Enter");
+        Add(CommandIds.PermissionsOwnership, "Permissions and ownership…", F);
         Add(CommandIds.HiddenData, OperatingSystem.IsWindows() ? "Streams and attributes" : OperatingSystem.IsMacOS() ? "Extended attributes and resource fork" : "Extended attributes", F, null, CommandContext.Panel, "Alt+Shift+Enter");
         Add(CommandIds.FileRecord, "File-system details…", F, null, CommandContext.Panel, "Ctrl+Alt+Enter");
         Add(CommandIds.ContextMenu, "Context menu", F, "Context", CommandContext.Panel, "Shift+F10", "Apps");
@@ -563,6 +565,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.MakeDirectory, "Creates a new folder in this panel's folder.");
         r.Describe(CommandIds.Delete, $"Moves the marked items (or the one under the cursor) to {FileCat.Core.Jobs.RecycleText.Destination}; Shift+Del deletes permanently.");
         r.Describe(CommandIds.Properties, "Shows the properties of the item under the cursor.");
+        r.Describe(CommandIds.PermissionsOwnership, "Inspect ownership and configured access on the selected filesystem objects.");
         r.Describe(CommandIds.FileRecord, "Shows metadata for the focused file or folder. Read full record adds qualified filesystem details. Use the supplementary-data tab to read stream, attribute and fork values.");
         r.Describe(CommandIds.HiddenData, "Lists supplementary-data names, categories and available lengths. F3 reads a selected value, F5 exports an allowed selection, and F8 requests deletion. Windows extended attribute inventory requires explicit approval.");
         r.Describe(CommandIds.Pack, "Packs the marked items (or the one under the cursor) into a new ZIP file.");
@@ -592,11 +595,11 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.Help, "Browse commands and their current keys; press F2 on a selected row to assign a key.");
         r.Describe(CommandIds.ChangeShortcut, "Choose a command, then assign or reset its keyboard shortcut.");
         K(CommandIds.ChangeJournal, "USN", "UsnJrnl", "$J", "journal", "recent changes", "what changed", "forensics", "timeline");
-        K(CommandIds.OpenAdministratorWindow, "admin", "elevate", "UAC", "permissions", "run as");
+        K(CommandIds.OpenAdministratorWindow, "admin", "elevate", "UAC", "run as");
         K(CommandIds.DiskSpace, "disk space", "analyze disk space", "storage usage", "largest files", "folder usage", "disk map");
         K(CommandIds.FindDeleted, "recover", "recovery", "undelete", "unerase", "restore deleted", "lost files", "deleted files", "find deleted files", "disk image", "scan drive");
         K(CommandIds.FindFiles, "search", "locate", "look for", "grep", "find in files");
-        K(CommandIds.Settings, "options", "preferences", "configuration", "configure", "setup", "columns", "owner");
+        K(CommandIds.Settings, "options", "preferences", "configuration", "configure", "setup", "columns");
         K(CommandIds.BulkRename, "multi rename", "mass rename", "batch rename", "renamer");
         K(CommandIds.CompareDirectories, "diff", "differences", "synchronize", "sync", "compare folders");
         K(CommandIds.CompareFiles, "diff", "differences", "compare two files", "same name", "text compare", "binary compare");
@@ -625,6 +628,7 @@ public sealed class CommandRegistry
         K(CommandIds.Move, "relocate", "rename");
         K(CommandIds.Rename, "rename file");
         K(CommandIds.Properties, "info", "details", "file properties");
+        K(CommandIds.PermissionsOwnership, "permissions", "security", "ACL", "owner", "ownership", "access", "inheritance");
         K(CommandIds.FileRecord, "MFT", "USN", "change journal", "timestomping", "inode", "forensics", "file ID", "hard links", "clusters", "fragments", "SDDL");
         K(CommandIds.HiddenData, "alternate data streams", "ADS", "xattr", "extended attributes", "resource fork", "Zone.Identifier", "Mark of the Web", "quarantine", "capabilities");
         K(CommandIds.Reveal, "explorer", "show in folder", "finder", "file manager");

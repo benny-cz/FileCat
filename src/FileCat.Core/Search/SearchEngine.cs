@@ -184,8 +184,10 @@ public sealed class SearchSession
     public long Matches;
     public long ExtraDataUnexamined;
     public long NativePredicateUnexamined;
+    private long _unexaminedScopes;
     public volatile string? CurrentFolder;
     public volatile bool Finished;
+    public volatile bool StoppedEarly;
     public volatile bool RegexTimedOut;
 
     /// <summary>Folders and files that could not be read.</summary>
@@ -283,14 +285,17 @@ public sealed class SearchSession
                     Walk(root, root, 0, ct);
                 }
             }
-            _results.IsComplete = !_truncated && ExtraDataUnexamined == 0 && NativePredicateUnexamined == 0;
+            _results.IsComplete = !_truncated && ExtraDataUnexamined == 0 && NativePredicateUnexamined == 0 &&
+                _unexaminedScopes == 0 && !RegexTimedOut;
         }
         catch (OperationCanceledException)
         {
+            StoppedEarly = true;
             _results.IsComplete = false;
         }
         finally
         {
+            StoppedEarly |= _truncated;
             Finished = true;
             lock (_logLock)
             {
@@ -317,6 +322,7 @@ public sealed class SearchSession
 
     private void AddLog(SearchLogKind kind, string path, string? detail = null, Location? parent = null, string? name = null)
     {
+        if (kind is SearchLogKind.Inaccessible or SearchLogKind.Skipped) Interlocked.Increment(ref _unexaminedScopes);
         lock (_logLock)
         {
             if (_log.Count < MaxLog) _log.Add(new SearchLogEntry(kind, path, detail, parent, name));
@@ -468,23 +474,32 @@ public sealed class SearchSession
                     skipCurrent = true;
                     break;
                 }
-                bool isDir = info is DirectoryInfo;
-                bool isLink = (info.Attributes & FileAttributes.ReparsePoint) != 0;
-                bool hidden = (info.Attributes & FileAttributes.Hidden) != 0;
-                if (hidden && !_query.IncludeHidden) continue;
-                if (isDir && !isLink && _query.Recursive && frame.Depth < _query.MaxDepth)
+                try
                 {
-                    if (IsIgnored(root, info.FullName)) AddLog(SearchLogKind.Ignored, info.FullName);
-                    else if (frame.Depth < MaxTraversalDepth) subdirs.Add(info.FullName);
-                    else
+                    bool isDir = info is DirectoryInfo;
+                    bool isLink = (info.Attributes & FileAttributes.ReparsePoint) != 0;
+                    bool hidden = (info.Attributes & FileAttributes.Hidden) != 0;
+                    if (hidden && !_query.IncludeHidden) continue;
+                    if (isDir && !isLink && _query.Recursive && frame.Depth < _query.MaxDepth)
                     {
-                        _truncated = true;
-                        AddLog(SearchLogKind.Warning, info.FullName, $"Search stopped at the {MaxTraversalDepth:N0}-folder depth limit.");
+                        if (IsIgnored(root, info.FullName)) AddLog(SearchLogKind.Ignored, info.FullName);
+                        else if (frame.Depth < MaxTraversalDepth) subdirs.Add(info.FullName);
+                        else
+                        {
+                            _truncated = true;
+                            AddLog(SearchLogKind.Warning, info.FullName, $"Search stopped at the {MaxTraversalDepth:N0}-folder depth limit.");
+                        }
                     }
+                    if (IsMatch(info, isDir, ct)) Add(root, info, isDir);
+                    if (!isDir && _query.Archives is { } archives && !_query.HasContent && archives.IsArchive(info.Name))
+                        SearchArchive(root, (FileInfo)info, archives, ct);
                 }
-                if (IsMatch(info, isDir, ct)) Add(root, info, isDir);
-                if (!isDir && _query.Archives is { } archives && !_query.HasContent && archives.IsArchive(info.Name))
-                    SearchArchive(root, (FileInfo)info, archives, ct);
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // A child can disappear or become unreadable after its parent was listed.
+                    // Keep searching siblings and record the unexamined child.
+                    AddLog(SearchLogKind.Inaccessible, info.FullName, ex.Message);
+                }
             }
             if (skipCurrent) continue;
             pending.Push((frame.Dir, frame.Depth, true));
@@ -506,10 +521,18 @@ public sealed class SearchSession
         CurrentFolder = archive.FullName;
         int listed = 0;
         var warnings = new HashSet<string>(StringComparer.Ordinal);
+        bool coverageUncertain = false;
         try
         {
             foreach (var member in archives.List(archive.FullName, issue =>
             {
+                // An archive-wide warning can describe damage after a usable prefix. Keep
+                // the prefix, but do not claim that every possible member was examined.
+                if (!coverageUncertain)
+                {
+                    coverageUncertain = true;
+                    Interlocked.Increment(ref _unexaminedScopes);
+                }
                 // Providers repeat archive-wide warnings in each member folder. Keep the search log useful and bounded.
                 if (warnings.Count < MaxLog && warnings.Add(issue))
                     AddLog(SearchLogKind.Warning, archive.FullName, issue, Location.FileSystem(archive.DirectoryName ?? root), archive.Name);
@@ -538,7 +561,12 @@ public sealed class SearchSession
         { UnexaminedMember(member); return false; }
         if ((_query.AttributesSet & FileAttributes.Directory) != 0 && !isDir) return false;
         if ((_query.AttributesClear & FileAttributes.Directory) != 0 && isDir) return false;
-        if (_query.CreatedAfterUtc is not null || _query.CreatedBeforeUtc is not null) return false;
+        if (_query.CreatedAfterUtc is not null || _query.CreatedBeforeUtc is not null)
+        {
+            AddLog(SearchLogKind.Inaccessible, member.ToString(),
+                "The archive member's creation time is unavailable; creation-time criteria cannot be checked.", member.Parent, member.Name);
+            return false;
+        }
         if (_query.Names is { } names && !names.IsMatch(member.Name, isDir))
         {
             if (names.RegexTimedOut) RegexTimedOut = true;
@@ -557,7 +585,12 @@ public sealed class SearchSession
         }
         if (_query.ModifiedAfterUtc is not null || _query.ModifiedBeforeUtc is not null)
         {
-            if (member.Modified <= 0) return false;
+            if (member.Modified <= 0 || member.Modified > DateTime.MaxValue.Ticks)
+            {
+                AddLog(SearchLogKind.Inaccessible, member.ToString(),
+                    "The archive member's modification time is unavailable or invalid; modification-time criteria cannot be checked.", member.Parent, member.Name);
+                return false;
+            }
             var modified = new DateTime(member.Modified, DateTimeKind.Utc);
             if (_query.ModifiedAfterUtc is { } after && modified < after) return false;
             if (_query.ModifiedBeforeUtc is { } before && modified > before) return false;
@@ -608,8 +641,21 @@ public sealed class SearchSession
         }
         if (_query.ModifiedAfterUtc is { } after && info.LastWriteTimeUtc < after) return false;
         if (_query.ModifiedBeforeUtc is { } before && info.LastWriteTimeUtc > before) return false;
-        if (_query.CreatedAfterUtc is { } createdAfter && info.CreationTimeUtc < createdAfter) return false;
-        if (_query.CreatedBeforeUtc is { } createdBefore && info.CreationTimeUtc > createdBefore) return false;
+        if (_query.CreatedAfterUtc is not null || _query.CreatedBeforeUtc is not null)
+        {
+            // Linux: the birth time, where the file system keeps one (.NET's is the earlier of the modification and status
+            // change times, a time the item may never have been made at).
+            long born = OperatingSystem.IsLinux() ? LinuxBirthTime.Ticks(info.FullName) : info.CreationTimeUtc.Ticks;
+            if (born <= 0)
+            {
+                AddLog(SearchLogKind.Inaccessible, info.FullName,
+                    "Its file system keeps no creation (birth) time; creation-time criteria cannot be checked.");
+                return false;
+            }
+            var created = new DateTime(born, DateTimeKind.Utc);
+            if (_query.CreatedAfterUtc is { } createdAfter && created < createdAfter) return false;
+            if (_query.CreatedBeforeUtc is { } createdBefore && created > createdBefore) return false;
+        }
         if (!isDir && _query.HasContent)
         {
             Interlocked.Increment(ref FilesExamined);
@@ -626,10 +672,8 @@ public sealed class SearchSession
         {
             var inventory = Records.FileObservationRequests.RunOwned(_observations ??= new DeviceIoScheduler(), PathUtil.GetDeviceKey(path), IoPriority.Background,
                 token => hidden.ReadInventory(path, new(ShowCompressionBacking: false), token), ct).GetAwaiter().GetResult();
-            if (inventory.Items.Any(i => HiddenData.HiddenSearch.Includes(i.Kind) && i.Role is HiddenData.HiddenMetadataRole.Ordinary &&
-                !HiddenData.DownloadMarks.IsDownloadMark(i, OperatingSystem.IsWindows(), OperatingSystem.IsMacOS()))) return true;
-            var scope = inventory.Categories.Where(c => HiddenData.HiddenSearch.Includes(c.Kind)).ToArray();
-            if (scope.Length > 0 && scope.All(c => c.State == HiddenData.HiddenInventoryState.Complete)) return false;
+            if (inventory.Items.Any(HiddenData.HiddenSearch.IsPositiveInOrdinaryView)) return true;
+            if (HiddenData.HiddenSearch.HasCompleteScope(inventory)) return false;
             reason = inventory.Description;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
@@ -823,16 +867,25 @@ public sealed class SearchSession
         AddResult(info, isDir, rel);
     }
 
+    /// <summary>
+    /// A match as a reference. A reparse point carries its tag, by which the results list tells a link from another
+    /// reparse point: an earlier result's tag while its metadata still agrees, else the tag read from the item itself
+    /// (never followed). The .NET listing the search walks reports no tags, and ordinary items need none, so they cost
+    /// no extra read. The tag only labels the result; traversal decides on the raw attributes alone.
+    /// </summary>
     private void AddResult(FileSystemInfo info, bool isDir, string relativeFolder, ItemRef? earlier = null)
     {
         var parentPath = Path.GetDirectoryName(info.FullName) ?? info.FullName;
         var kind = isDir ? EntryKind.Directory : EntryKind.File;
         long size = isDir ? -1 : ((FileInfo)info).Length, modified = info.LastWriteTimeUtc.Ticks;
-        uint refreshedAttributes = earlier is { NativeReparseTag: not 0 } ? (uint)info.Attributes : 0;
+        uint attributes = (uint)info.Attributes;
+        uint tag = earlier?.RetainReparseTag(kind, attributes, size, modified) ?? 0;
+        if (tag == 0 && (attributes & (uint)FileAttributes.ReparsePoint) != 0) tag = ReparseLinks.ReadTag(info.FullName);
         var item = new ItemRef(Location.FileSystem(parentPath), info.Name, kind, size, modified)
         {
-            NativeAttributes = refreshedAttributes,
-            NativeReparseTag = earlier?.RetainReparseTag(kind, refreshedAttributes, size, modified) ?? 0,
+            // The attributes travel with the tag: a refresh keeps the tag only while they still agree.
+            NativeAttributes = tag != 0 ? attributes : 0,
+            NativeReparseTag = tag,
         };
         _results.Add(item, relativeFolder);
         long m = Interlocked.Increment(ref Matches);

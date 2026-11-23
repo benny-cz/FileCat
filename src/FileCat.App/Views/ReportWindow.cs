@@ -631,7 +631,6 @@ public sealed partial class ReportWindow : Window
         string capturedText = _text;
         var capturedReader = _reader;
         var supplementary = _supplementaryReport;
-        bool details = _detailsReader is not null;
         string? startedOutput = null;
         try
         {
@@ -645,9 +644,11 @@ public sealed partial class ReportWindow : Window
             });
             if (ct.IsCancellationRequested || !ReferenceEquals(_reader, capturedReader) || picked?.TryGetLocalPath() is not { } target) return;
             string? verificationWarning = null;
-            if (details && OperatingSystem.IsWindows())
+            // General report replacement shares the Windows destination guard. The selected-value
+            // route below keeps its separate source-provenance refusal and CreateNew rule.
+            if (supplementary is null && OperatingSystem.IsWindows())
                 verificationWarning = await Task.Run(() => FileCat.Platform.Windows.WindowsMetadataReportOutput.Save(target, capturedText, () => startedOutput = target, ct), ct);
-            else if (!details && supplementary is null)
+            else if (_detailsReader is null && supplementary is null)
                 await File.WriteAllTextAsync(target, capturedText, new UTF8Encoding(true), ct);
             else await Task.Run(async () =>
             {

@@ -77,6 +77,20 @@ public sealed partial class OwnerColumnTests
     }
 
     [AvaloniaFact]
+    public async Task Analysis_discloses_an_unretainable_field_value_instead_of_claiming_a_complete_order()
+    {
+        using var f = new OwnerFixture();
+        f.Services.Metadata.Register(new MetadataField("mutable-result", "Mutable result", MetadataCost.Cheap,
+            _ => true, (path, _) => Sequence(path) == 1 ? new byte[8] : "safe", _ => "value"));
+        await f.Load();
+        await f.Tab.AnalyzeAsync("mutable-result");
+        Assert.Contains("Unsupported value or sort key could not be retained", f.Tab.Banner);
+        Assert.Contains("retains 119 of 120 items' results", f.Tab.Banner);
+        Assert.Equal(119, f.Tab.Listing.AppliedMetadataCoverage?.Count);
+        Assert.Equal(MetadataCapacity.UnsupportedPayload, f.Tab.Listing.AppliedMetadataCoverage?.Capacity);
+    }
+
+    [AvaloniaFact]
     public async Task Canceling_a_running_native_read_keeps_its_retained_buffer_reserved_until_return()
     {
         using var entered = new ManualResetEventSlim();

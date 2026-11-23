@@ -1,0 +1,11 @@
+
+Mandatory Label\Medium Mandatory Level                        Label            S-1-16-8192                   
+                                 
+OS architecture: Arm64
+xUnit.net v3 In-Process Runner v3.2.2+728c1dce01 (64-bit .NET 10.0.14)
+  Discovering: FileCat.Platform.Windows.Tests
+  Discovered:  FileCat.Platform.Windows.Tests
+  Starting:    FileCat.Platform.Windows.Tests
+  Finished:    FileCat.Platform.Windows.Tests (ID = '51f9326ed81dc9b4698c6b3c5bc50bb5c624f04529e25a8678ba9c52b0532519')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Platform.Windows.Tests  Total: 1, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 0.328s

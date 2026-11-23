@@ -12,12 +12,13 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void A_deleted_child_returns_a_failure_entry_without_losing_remaining_cursor_siblings()
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows 11 client NTFS fixture (x64, or native ARM64 when opted in).");
         string root = Directory.CreateTempSubdirectory("filecat-storage-entry-failure-").FullName;
         try
         {
             foreach (string name in new[] { "a", "b", "c" }) File.WriteAllText(Path.Join(root, name), "preserved bytes");
-            var adapter = new WindowsStorageTransforms(); var reviewed = Review(adapter, root, EntryKind.Directory, StorageAction.RemoveCompression);
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64); var reviewed = Review(adapter, root, EntryKind.Directory, StorageAction.RemoveCompression);
             using var review = reviewed.Review; using var owner = reviewed.Owner;
             using var native = StorageReviewResources.EnterNative(TestContext.Current.CancellationToken);
             using var traversal = adapter.OpenReviewedRoot(owner.Leases[0], StorageAction.RemoveCompression, TestContext.Current.CancellationToken);
@@ -114,13 +115,14 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void Overlap_planning_uses_held_native_ancestry_and_original_source_mappings_without_mutating_defaults()
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows 11 client NTFS fixture (x64, or native ARM64 when opted in).");
         string root = Directory.CreateTempSubdirectory("filecat-storage-overlap-").FullName;
         try
         {
             string parent = Directory.CreateDirectory(Path.Join(root, "parent")).FullName;
             string child = Path.Join(parent, "child"); File.WriteAllText(child, "preserved bytes");
-            var adapter = new WindowsStorageTransforms();
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
             var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), adapter, Path.Join(root, "unused-journal"));
             using var review = manager.PrepareStorageReview([ItemRef.ForFileSystemPath(child, EntryKind.File),
                 ItemRef.ForFileSystemPath(parent, EntryKind.Directory), ItemRef.ForFileSystemPath(parent, EntryKind.Directory)], StorageAction.Compress, TestContext.Current.CancellationToken);
@@ -420,14 +422,15 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void Discovered_reparse_entry_is_policy_skipped_without_mutating_its_target()
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows 11 client NTFS fixture (x64, or native ARM64 when opted in).");
         string root = Directory.CreateTempSubdirectory("filecat-storage-reparse-child-").FullName;
         try
         {
             string folder = Directory.CreateDirectory(Path.Join(root, "selected")).FullName;
             string outside = Path.Join(root, "outside"); File.WriteAllText(outside, "outside payload");
             File.CreateSymbolicLink(Path.Join(folder, "redirect"), outside);
-            var adapter = new WindowsStorageTransforms(); var prepared = Review(adapter, folder, EntryKind.Directory, StorageAction.Compress);
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64); var prepared = Review(adapter, folder, EntryKind.Directory, StorageAction.Compress);
             using var review = prepared.Review; using var owner = prepared.Owner;
             using var native = StorageReviewResources.EnterNative(TestContext.Current.CancellationToken);
             using var traversal = adapter.OpenReviewedRoot(owner.Leases[0], StorageAction.Compress, TestContext.Current.CancellationToken);
@@ -449,11 +452,12 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void Canceled_preparation_is_not_authority_for_a_call_and_admitted_call_has_no_cancellation_gap()
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows 11 client NTFS fixture (x64, or native ARM64 when opted in).");
         string path = Path.GetTempFileName();
         try
         {
-            var adapter = new WindowsStorageTransforms(); var prepared = Review(adapter, path, EntryKind.File, StorageAction.Compress);
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64); var prepared = Review(adapter, path, EntryKind.File, StorageAction.Compress);
             using var review = prepared.Review; using var owner = prepared.Owner;
             using var native = StorageReviewResources.EnterNative(TestContext.Current.CancellationToken);
             using var traversal = adapter.OpenReviewedRoot(owner.Leases[0], StorageAction.Compress, TestContext.Current.CancellationToken);
@@ -474,7 +478,8 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void Depth_limit_includes_ancestors_above_the_selected_root_and_refuses_further_descent()
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows 11 client NTFS fixture (x64, or native ARM64 when opted in).");
         string root = Directory.CreateTempSubdirectory("filecat-storage-depth-").FullName;
         try
         {
@@ -482,7 +487,7 @@ public sealed partial class WindowsStorageTraversalTests
             while (deepest.Split('\\', StringSplitOptions.RemoveEmptyEntries).Length < 64)
                 deepest = Directory.CreateDirectory(Path.Join(deepest, "d")).FullName;
             string over = Directory.CreateDirectory(Path.Join(deepest, "beyond")).FullName;
-            var adapter = new WindowsStorageTransforms();
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
             var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), adapter, Path.Join(root, "unused-journal"));
             var limit = Assert.Throws<StorageInspectionException>(() => manager.PrepareStorageReview([ItemRef.ForFileSystemPath(over, EntryKind.Directory)],
                 StorageAction.Compress, TestContext.Current.CancellationToken));

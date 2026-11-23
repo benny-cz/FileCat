@@ -31,7 +31,8 @@ internal static class StorageObjectCallRunner
             if (NoCall(before, request.Action) is { } noCall) return new(noCall);
             try { before = StorageExecutionRetry.Run(job, held.Path, () => held.PrepareMutation(request.Action, job.Token)); }
             catch (StorageInspectionException error)
-            { return new(new(before, null, error.Problem.Code == "sharing-skipped" ? StorageEffect.Skipped : StorageEffect.Failed, error.Problem)); }
+            { return new(new(before, null, error.Problem.Code is StorageExecutionRetry.SharingSkipped or StorageExecutionRetry.KeySkipped
+                ? StorageEffect.Skipped : StorageEffect.Failed, error.Problem)); }
             catch (IOException error)
             { return new(new(before, null, StorageEffect.Failed, Problem("preparation-failed", "The held mutation handle could not be prepared: " + error.Message))); }
             if (before.Identity != identity) return Refused(before, "prepared-identity-changed", "Preparation returned a different physical object; no call was attempted.");

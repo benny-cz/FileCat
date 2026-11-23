@@ -251,6 +251,61 @@ public sealed class StorageReviewAcknowledgmentTests
     }
 
     [Fact]
+    public void Crash_temporaries_left_by_an_earlier_process_are_reconciled_once_before_the_next_save()
+    {
+        using var evidence = Evidence(); Guid association = JournalRecovery.ReadStorageReview(evidence, Stop).AssociationId;
+        // No process-local failure latch knows these nonces: they are partial writes left by an earlier, crashed process.
+        string report = StorageReviewNames.Temporary(association, "report", Guid.NewGuid()), ack = StorageReviewNames.Temporary(association, "ack", Guid.NewGuid());
+        evidence.Files.Add(report, new(Encoding.UTF8.GetBytes("{\"version\":1,\"reportId\":")));
+        evidence.Files.Add(ack, new(new byte[4096]));
+        var status = Acknowledge(evidence);
+        Assert.False(status.ReviewPending); Assert.Empty(status.Issues);
+        Assert.False(evidence.Files.ContainsKey(report)); Assert.False(evidence.Files.ContainsKey(ack));
+        Assert.Equal(2, evidence.Files.Count); Assert.DoesNotContain(evidence.Files.Keys, leaf => leaf.StartsWith('.'));
+        Assert.Equal(2, evidence.Events.Count(e => e.StartsWith("delete-artifact", StringComparison.Ordinal)));
+        Assert.True(evidence.Events.FindLastIndex(e => e.StartsWith("delete-artifact", StringComparison.Ordinal)) <
+            evidence.Events.FindIndex(e => e.StartsWith("create-report", StringComparison.Ordinal))); // reconciled before the new save
+        Assert.Equal(2, evidence.Created);
+        Assert.Equal(status.Acknowledgment, Acknowledge(evidence).Acknowledgment); Assert.Equal(2, evidence.Created); // no new temporary on retry
+    }
+
+    [Fact]
+    public void An_earlier_crash_temporary_that_cannot_be_removed_stays_charged_until_a_later_reconciliation()
+    {
+        using var evidence = Evidence(); Guid association = JournalRecovery.ReadStorageReview(evidence, Stop).AssociationId;
+        string leftover = StorageReviewNames.Temporary(association, "report", Guid.NewGuid());
+        evidence.Files.Add(leftover, new(new byte[StorageJournalPolicy.ReviewWriteBytes - StorageReviewNames.AckBytes]));
+        evidence.At = phase => { if (phase == "delete-artifact") throw new IOException("Leftover deletion fixture."); };
+        var refused = Assert.Throws<IOException>(() => Acknowledge(evidence));
+        Assert.Contains("write allowance", refused.Message); // its retained bytes still count against this journal's review allowance
+        Assert.Equal(leftover, Assert.Single(evidence.Files).Key); Assert.Equal(0, evidence.Created);
+        Assert.True(JournalRecovery.ReadStorageReviewStatus(evidence, Stop).ReviewPending);
+        evidence.At = null;
+        var status = Acknowledge(evidence);
+        Assert.False(status.ReviewPending); Assert.False(evidence.Files.ContainsKey(leftover)); Assert.Equal(2, evidence.Files.Count);
+    }
+
+    [Fact]
+    public void Unprovable_associated_artifacts_are_retained_reported_and_counted_rather_than_assumed_free()
+    {
+        using var evidence = Evidence(); Guid association = JournalRecovery.ReadStorageReview(evidence, Stop).AssociationId;
+        string unknown = StorageReviewNames.Published(association, "report", Guid.NewGuid()); byte[] garbage = Encoding.UTF8.GetBytes("not a storage report");
+        string stuck = StorageReviewNames.Temporary(association, "ack", Guid.NewGuid());
+        evidence.Files.Add(unknown, new(garbage)); evidence.Files.Add(stuck, new(new byte[1024]));
+        evidence.At = phase => { if (phase == "delete-artifact") throw new IOException("Stuck leftover fixture."); };
+        var status = Acknowledge(evidence);
+        Assert.False(status.ReviewPending); Assert.Equal(2, status.Issues.Length); Assert.All(status.Issues, issue => Assert.Contains("retained", issue));
+        Assert.Equal(garbage, evidence.Files[unknown].Bytes.ToArray()); Assert.True(evidence.Files.ContainsKey(stuck)); Assert.Equal(4, evidence.Files.Count);
+
+        using var crowded = Evidence(); association = JournalRecovery.ReadStorageReview(crowded, Stop).AssociationId;
+        string large = StorageReviewNames.Published(association, "report", Guid.NewGuid());
+        crowded.Files.Add(large, new(new byte[StorageJournalPolicy.ReviewWriteBytes - StorageReviewNames.AckBytes]));
+        Assert.Contains("write allowance", Assert.Throws<IOException>(() => Acknowledge(crowded)).Message);
+        Assert.True(crowded.Files.ContainsKey(large)); Assert.Equal(0, crowded.Created);
+        Assert.True(JournalRecovery.ReadStorageReviewStatus(crowded, Stop).ReviewPending);
+    }
+
+    [Fact]
     public void Retained_pair_survives_journal_pruning_and_stays_protected_while_a_journal_exists()
     {
         using var evidence = Evidence(); var acknowledged = Acknowledge(evidence); using var retained = new Retained(evidence);

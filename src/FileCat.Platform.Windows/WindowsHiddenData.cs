@@ -12,7 +12,7 @@ namespace FileCat.Platform.Windows;
 /// with NtQueryEaFile, which also returns those only the kernel may write ($KERNEL.*, kept by Smart App Control and
 /// AppLocker) and WSL's ($LXUID, $LXGID, $LXMOD, LXATTRB).
 /// </summary>
-public sealed unsafe partial class WindowsHiddenData : IHiddenData, IHiddenValueOutput, IHiddenValueDeletion
+public sealed unsafe partial class WindowsHiddenData : IHiddenData, IHiddenValueOutput, IHiddenValueDeletion, IHiddenValueRead
 {
     private const uint FileReadEa = 0x0008, FileWriteEa = 0x0010;
     private const uint ShareAll = 0x7, OpenExisting = 3, BackupSemantics = 0x02000000, OpenReparsePoint = 0x00200000;
@@ -65,6 +65,12 @@ public sealed unsafe partial class WindowsHiddenData : IHiddenData, IHiddenValue
         ? new MemoryStream(Read(path, item, int.MaxValue), writable: false)
         : item.Kind == HiddenKind.Stream ? new FileStream(OpenExactStream(path, item, 1 /* FILE_READ_DATA */), FileAccess.Read, 1 << 16)
         : throw new NotSupportedException("This supplementary category does not belong to the Windows adapter.");
+
+    Stream IHiddenValueRead.OpenReviewedValue(string path, HiddenItem item, FileIdentity reviewed) => item.Kind == HiddenKind.NtfsAttribute
+        ? new MemoryStream(ReadExactEa(path, item, int.MaxValue, reviewed: reviewed), writable: false)
+        : item.Kind == HiddenKind.Stream
+            ? new FileStream(OpenExactStream(path, item, 1 /* FILE_READ_DATA */, reviewed: reviewed), FileAccess.Read, 1 << 16)
+            : throw new NotSupportedException("This supplementary category does not belong to the Windows adapter.");
 
     void IHiddenValueOutput.RequireClearSource(string path)
     {
@@ -224,6 +230,9 @@ public sealed unsafe partial class WindowsHiddenData : IHiddenData, IHiddenValue
 
     [LibraryImport("ntdll.dll")]
     private static partial int NtSetEaFile(SafeFileHandle file, out IoStatusBlock status, byte* buffer, uint length);
+
+    [LibraryImport("ntdll.dll")]
+    private static partial int NtQueryInformationFile(SafeFileHandle file, out IoStatusBlock status, void* buffer, uint length, int informationClass);
 
     [LibraryImport("ntdll.dll")]
     private static partial int RtlNtStatusToDosError(int status);

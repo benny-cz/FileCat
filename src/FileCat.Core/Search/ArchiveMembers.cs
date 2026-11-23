@@ -73,7 +73,8 @@ public sealed class ProviderArchiveMembers(ProviderRegistry providers) : IArchiv
             {
                 if (entry.Kind == EntryKind.Parent) continue;
                 yield return provider.GetItemRef(folder, entry);
-                if (entry.Kind == EntryKind.Directory && provider.GetChildLocation(folder, entry) is { } child && child.Scheme == folder.Scheme)
+                if (entry.Kind == EntryKind.Directory && !entry.Has(EntryFlags.Link) &&
+                    provider.GetChildLocation(folder, entry) is { } child && child.Scheme == folder.Scheme)
                     folders.Push(child);
             }
         }

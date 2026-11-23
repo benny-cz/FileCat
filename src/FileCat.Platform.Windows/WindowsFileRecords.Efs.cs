@@ -72,13 +72,18 @@ public sealed unsafe partial class WindowsFileRecords
             count = MaxEfsEntries;
         }
         var array = (EfsHashEntry**)header->Entries;
-        int empty = 0, badSid = 0, badHash = 0;
+        int empty = 0, shortEntry = 0, badSid = 0, badHash = 0, cutText = 0;
         for (int i = 0; i < count; i++)
         {
             var entry = array[i];
             if (entry == null)
             {
                 empty++;
+                continue;
+            }
+            if (entry->TotalLength < sizeof(EfsHashEntry))
+            {
+                shortEntry++;
                 continue;
             }
             string? sid = null;
@@ -94,17 +99,23 @@ public sealed unsafe partial class WindowsFileRecords
                 if (blob->Length is > 0 and <= MaxEfsHash && blob->Data != 0) thumbprint = Convert.ToHexString(new ReadOnlySpan<byte>((void*)blob->Data, (int)blob->Length));
                 else badHash++;
             }
-            entries.Add(new EfsEntry(sid, thumbprint, EfsText(entry->Display)));
+            else badHash++;
+            string? display = EfsText(entry->Display, out bool truncated);
+            if (truncated) cutText++;
+            entries.Add(new EfsEntry(sid, thumbprint, display));
         }
         if (empty > 0) problems.Add($"{empty:N0} of its entries are empty.");
+        if (shortEntry > 0) problems.Add($"{shortEntry:N0} of its entries are shorter than an EFS certificate record header.");
         if (badSid > 0) problems.Add($"{badSid:N0} of its entries name a SID that is not valid.");
         if (badHash > 0) problems.Add($"{badHash:N0} of its entries have no certificate hash, or one longer than {MaxEfsHash} bytes.");
+        if (cutText > 0) problems.Add($"{cutText:N0} of its certificate descriptions reached the {MaxEfsText:N0}-character display limit and may be cut.");
         return entries;
     }
 
     /// <summary>A NUL-terminated string the API returned, at most <see cref="MaxEfsText"/> characters, control characters shown as '?'.</summary>
-    private static string? EfsText(nint text)
+    private static string? EfsText(nint text, out bool truncated)
     {
+        truncated = false;
         if (text == 0) return null;
         var chars = (char*)text;
         int length = 0;
@@ -112,13 +123,28 @@ public sealed unsafe partial class WindowsFileRecords
         var span = new Span<char>(chars, length).ToArray();
         for (int i = 0; i < span.Length; i++)
             if (char.IsControl(span[i])) span[i] = '?';
-        return new string(span) + (length == MaxEfsText ? "…" : "");
+        truncated = length == MaxEfsText;
+        return new string(span) + (truncated ? "…" : "");
+    }
+
+    /// <summary>Keep a started query alive until return; skip presentation and the next query after cancellation.</summary>
+    internal static void ForEachEfsQuery<T>(CancellationToken ct, Func<bool, T> query, Action<bool, T> append)
+    {
+        foreach (bool users in (bool[])[true, false])
+        {
+            ct.ThrowIfCancellationRequested();
+            T result = query(users);
+            ct.ThrowIfCancellationRequested();
+            append(users, result);
+            ct.ThrowIfCancellationRequested();
+        }
     }
 
     private sealed partial class Reader
     {
         private InspectionSection? EfsSection()
         {
+            ct.ThrowIfCancellationRequested();
             if ((_attributes & 0x4000) == 0) return null;
             const string Title = "Encryption (EFS)";
             var fields = new List<(string, string)>
@@ -131,20 +157,26 @@ public sealed unsafe partial class WindowsFileRecords
             if (_remote) return new InspectionSection(Title, fields) { Lines = Wrap("Who can decrypt it is not asked: on a network file that would ask the server's EFS service.") };
             var lines = new List<string>();
             var rows = new List<string[]>();
-            foreach (bool users in (bool[])[true, false])
+            ForEachEfsQuery(ct, users =>
             {
                 var problems = new List<string>();
-                string role = users ? "user" : "recovery agent";
                 var (entries, failed) = QueryEfs(users, problems);
+                return (Entries: entries, Failed: failed, Problems: problems);
+            }, (users, result) =>
+            {
+                string role = users ? "user" : "recovery agent";
+                var (entries, failed, problems) = result;
                 // A folder's $EFS names whom it was encrypted for; files made in it get keys of their own.
                 fields.Add((users ? _isFolder ? "Encrypted for" : "Can decrypt it" : "Recovery agents", failed is not null
                     ? "not read: " + failed
+                    : problems.Count > 0 && entries.Count == 0 ? "not completely read"
                     : entries.Count == 0 ? "none"
-                    : $"{entries.Count:N0} {(users ? entries.Count == 1 ? "user" : "users" : entries.Count == 1 ? "agent" : "agents")}"));
+                    : $"{entries.Count:N0} {(users ? entries.Count == 1 ? "user" : "users" : entries.Count == 1 ? "agent" : "agents")}" +
+                      (problems.Count > 0 ? " shown (partial)" : "")));
                 foreach (var e in entries)
                     rows.Add([role, e.Thumbprint.Length > 0 ? e.Thumbprint : "—", e.Display ?? "—", Who(e.Sid)]);
                 foreach (var problem in problems) lines.AddRange(Wrap((users ? "Its users: " : "Its recovery agents: ") + problem, "• "));
-            }
+            });
             lines.InsertRange(0, Wrap("Each certificate (named by its thumbprint) unlocks its own copy of the item's key: a user's lets that user open it, a recovery agent's lets whoever holds that agent's key recover it. Read through the EFS API; nothing is decrypted."));
             return new InspectionSection(Title, fields)
             {
@@ -157,11 +189,18 @@ public sealed unsafe partial class WindowsFileRecords
         private (List<EfsEntry> Entries, string? Failed) QueryEfs(bool users, List<string> problems)
         {
             nint list = 0;
-            uint error;
-            string name = WindowsFileOperations.Long(path);
-            try { error = users ? QueryUsersOnEncryptedFile(name, out list) : QueryRecoveryAgentsOnEncryptedFile(name, out list); }
-            catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { return ([], "the EFS API is not available on this Windows"); }
-            try { return error != 0 ? ([], new Win32Exception((int)error).Message) : (ReadEfsList(list, problems), null); }
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                string name = WindowsFileOperations.Long(path);
+                uint error;
+                try { error = users ? QueryUsersOnEncryptedFile(name, out list) : QueryRecoveryAgentsOnEncryptedFile(name, out list); }
+                catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { return ([], "the EFS API is not available on this Windows"); }
+                ct.ThrowIfCancellationRequested();
+                var result = error != 0 ? (new List<EfsEntry>(), new Win32Exception((int)error).Message) : (ReadEfsList(list, problems), (string?)null);
+                ct.ThrowIfCancellationRequested();
+                return result;
+            }
             finally
             {
                 if (list != 0) FreeEncryptionCertificateHashList(list);

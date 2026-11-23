@@ -36,7 +36,7 @@ the runtime and relinks the AppImage with a modified libfuse.
 | Tmds.DBus.Protocol | 0.94.1 | MIT | Linux desktop integration (D-Bus) |
 | CommunityToolkit.Mvvm | 8.4.0 | MIT | MVVM source generators |
 | Microsoft.Web.WebView2 (Core API and loader) | 1.0.3179.45 | BSD-3-Clause | The viewer's web page view on Windows (D-51). FileCat uses an external WebView2 Runtime and does not redistribute that browser runtime |
-| SSH.NET | 2026.0.0 | MIT | SFTP and SSH (ADR-17) |
+| SSH.NET (FileCat build) | 2026.0.0 (commit 7b2fd3db) | MIT AND ISC | SFTP and SSH (ADR-17). Built from `src/ThirdParty/SshNet` with typed SFTP permissions requests. Copyright (c) Renci, Oleg Kapeljushnik, Gert Driesen and contributors. The BCrypt code retains its ISC notice and credits Damien Miller and Ryan D. Emerle. Full texts at `licenses/sshnet/LICENSE` and `licenses/sshnet/LICENSE-bcrypt`. |
 | BouncyCastle.Cryptography | 2.7.0 | MIT | Cryptography used by SSH.NET, and Ed25519 and BLAKE2b for minisign signatures beside files |
 | Microsoft.Extensions.Logging.Abstractions | 8.0.3 | MIT | Logging interfaces used by SSH.NET |
 | Microsoft.Extensions.DependencyInjection.Abstractions | 8.0.2 | MIT | Resolved App runtime dependency |

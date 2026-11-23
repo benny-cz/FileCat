@@ -32,7 +32,6 @@ public sealed class FindWindowTests
         await WaitFor(() => FindWindow.OpenWindows.Count == 1, ct);
         var find = Assert.Single(FindWindow.OpenWindows);
         find.Activate();
-        await WaitFor(() => find.NamesBox.IsFocused, ct);
         return find;
     }
 

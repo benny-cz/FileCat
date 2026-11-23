@@ -7,6 +7,33 @@ namespace FileCat.Platform.Windows.Tests;
 /// <summary>D-56: who can decrypt an EFS-encrypted item, read through the EFS API.</summary>
 public sealed partial class WindowsFileRecordsTests
 {
+    [Fact]
+    public async Task Canceling_a_started_EFS_user_query_waits_for_return_and_skips_recovery_query()
+    {
+        using var canceled = new CancellationTokenSource();
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var calls = new List<bool>();
+        var published = new List<bool>();
+        var read = Task.Run(() => WindowsFileRecords.ForEachEfsQuery(canceled.Token, users =>
+        {
+            calls.Add(users);
+            entered.Set();
+            Assert.True(release.Wait(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken), "The held EFS query was not released.");
+            return users;
+        }, (users, _) => published.Add(users)), TestContext.Current.CancellationToken);
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken), "The first EFS query did not start.");
+            canceled.Cancel();
+            Assert.False(read.IsCompleted);
+        }
+        finally { release.Set(); }
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => read);
+        Assert.Equal([true], calls);
+        Assert.Empty(published);
+    }
+
     /// <summary>Tests that change this computer's state beyond a temporary folder run only where asked, or on a disposable CI runner.</summary>
     private static bool Opted(string variable) =>
         Environment.GetEnvironmentVariable(variable) == "1" || Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true";
@@ -41,10 +68,10 @@ public sealed partial class WindowsFileRecordsTests
             *(WindowsFileRecords.EfsHashBlob*)p = new WindowsFileRecords.EfsHashBlob { Length = length, Data = data };
             return p;
         }
-        nint Entry(nint sid, nint hash, nint display)
+        nint Entry(nint sid, nint hash, nint display, uint length = 32)
         {
             nint p = Alloc(sizeof(WindowsFileRecords.EfsHashEntry));
-            *(WindowsFileRecords.EfsHashEntry*)p = new WindowsFileRecords.EfsHashEntry { TotalLength = 32, Sid = sid, Hash = hash, Display = display };
+            *(WindowsFileRecords.EfsHashEntry*)p = new WindowsFileRecords.EfsHashEntry { TotalLength = length, Sid = sid, Hash = hash, Display = display };
             return p;
         }
         nint HashList(uint count, params nint[] entries)
@@ -74,6 +101,12 @@ public sealed partial class WindowsFileRecordsTests
             Assert.Equal(new WindowsFileRecords.EfsEntry(null, "", null), entries[1]);
             Assert.Equal(["1 of its entries are empty.", "1 of its entries name a SID that is not valid.", "1 of its entries have no certificate hash, or one longer than 64 bytes."], problems);
 
+            // The API's declared entry length must cover the pointer fields before any are inspected.
+            problems.Clear();
+            Assert.Empty(WindowsFileRecords.ReadEfsList(HashList(1,
+                Entry(Bytes(sid), Blob(20, Bytes(hash)), Text("must not be read"), length: 4)), problems));
+            Assert.Contains("shorter than an EFS certificate record header", Assert.Single(problems), StringComparison.Ordinal);
+
             // A count beyond any real list is read only as far as the cap; a count with no array is said.
             problems.Clear();
             Assert.Empty(WindowsFileRecords.ReadEfsList(HashList(1_000_000, new nint[256]), problems));
@@ -84,10 +117,17 @@ public sealed partial class WindowsFileRecordsTests
             Assert.Contains("holds none", Assert.Single(problems), StringComparison.Ordinal);
             Assert.Empty(WindowsFileRecords.ReadEfsList(0, problems));
 
+            problems.Clear();
+            var missingHash = WindowsFileRecords.ReadEfsList(HashList(1, Entry(0, 0, Text("unnamed certificate"))), problems);
+            Assert.Empty(Assert.Single(missingHash).Thumbprint);
+            Assert.Contains("no certificate hash", Assert.Single(problems), StringComparison.Ordinal);
+
             // A text without its end within 1,024 characters is cut there.
             problems.Clear();
-            var cut = WindowsFileRecords.ReadEfsList(HashList(1, Entry(0, 0, Text(new string('x', 1100)))), problems);
+            var cut = WindowsFileRecords.ReadEfsList(HashList(1,
+                Entry(0, Blob(20, Bytes(hash)), Text(new string('x', 1100)))), problems);
             Assert.Equal(new string('x', 1024) + "…", Assert.Single(cut).Display);
+            Assert.Contains("display limit and may be cut", Assert.Single(problems), StringComparison.Ordinal);
         }
         finally
         {

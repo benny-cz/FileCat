@@ -48,6 +48,22 @@ public sealed class StorageEvidenceAccountingTests
     }
 
     [Fact]
+    public void A_crash_leftover_larger_than_the_review_reserve_is_charged_in_full_once_without_a_negative_reservation()
+    {
+        using var temp = new TempDir(); Guid pending = Guid.NewGuid(), finished = Guid.NewGuid();
+        Header(temp.Path, pending); Header(temp.Path, finished, clean: true);
+        string reviewed = Directory.CreateDirectory(Path.Join(temp.Path, "reviewed")).FullName;
+        long large = StorageJournalPolicy.ReviewWriteBytes + 4096;
+        using (var file = File.Create(Path.Join(reviewed, StorageReviewNames.Temporary(pending, "report", Guid.NewGuid())))) file.SetLength(large);
+        File.WriteAllBytes(Path.Join(reviewed, StorageReviewNames.Temporary(finished, "ack", Guid.NewGuid())), new byte[512]);
+        var account = JournalRecovery.AccountStorageHistory(temp.Path, TestContext.Current.CancellationToken);
+        Assert.True(account.Complete, account.Problem); Assert.Equal(2, account.Journals); Assert.Equal(1, account.PendingHistories); Assert.Equal(2, account.Artifacts);
+        Assert.Equal(0, account.ReservedReviewBytes); // the pending history's leftover already covers its whole review allowance
+        long journals = Directory.EnumerateFiles(temp.Path).Sum(p => new FileInfo(p).Length);
+        Assert.Equal(journals + large + 512, account.EvidenceBytes); Assert.Equal(account.EvidenceBytes, account.ChargedBytes);
+    }
+
+    [Fact]
     public void Duplicate_job_names_and_orphan_artifacts_cannot_make_accounting_eligible_for_admission()
     {
         using var temp = new TempDir(); Guid id = Guid.NewGuid(); string original = Header(temp.Path, id);

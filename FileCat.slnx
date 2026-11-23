@@ -14,6 +14,7 @@
   </Folder>
   <Folder Name="/src/ThirdParty/">
     <Project Path="src/ThirdParty/SharpCompress/FileCat.SharpCompress.csproj" />
+    <Project Path="src/ThirdParty/SshNet/FileCat.SshNet.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FileCat.App.Tests/FileCat.App.Tests.csproj" />

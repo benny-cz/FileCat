@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace FileCat.Remote.Sftp;
 
 /// <summary>
@@ -13,6 +15,7 @@ public interface IRemoteEntry
     bool IsLink { get; }
     long Size { get; }
     DateTime ModifiedUtc { get; }
+    RemoteSecurityAttributes? SecurityAttributes => null;
 
     /// <summary>
     /// How precisely the listing states <see cref="ModifiedUtc"/>: zero when exact; a minute or a day for an FTP server's
@@ -28,7 +31,29 @@ public interface IRemoteEntry
 }
 
 /// <summary>Attributes of an item with links followed (what reading its content would see).</summary>
-public readonly record struct RemoteStat(bool IsDirectory, bool IsLink, long Size, DateTime ModifiedUtc);
+public readonly record struct RemoteStat(bool IsDirectory, bool IsLink, long Size, DateTime ModifiedUtc)
+{
+    public RemoteSecurityAttributes? SecurityAttributes { get; init; }
+
+    // The common transfer tuple retains its existing equality. Security callers compare wire observations explicitly.
+    public bool Equals(RemoteStat other) =>
+        IsDirectory == other.IsDirectory && IsLink == other.IsLink && Size == other.Size && ModifiedUtc == other.ModifiedUtc;
+
+    public override int GetHashCode() => HashCode.Combine(IsDirectory, IsLink, Size, ModifiedUtc);
+
+    private bool PrintMembers(StringBuilder builder)
+    {
+        builder.Append("IsDirectory = ").Append(IsDirectory).Append(", IsLink = ").Append(IsLink)
+            .Append(", Size = ").Append(Size).Append(", ModifiedUtc = ").Append(ModifiedUtc);
+        return true;
+    }
+}
+
+public enum RemoteSecurityObservation { DirectoryEntry, FollowedStat, ExactLStat }
+
+/// <summary>Nullable fields represent omitted attributes. SFTP v3 sends user and group together.</summary>
+public readonly record struct RemoteSecurityAttributes(RemoteSecurityObservation Observation, uint Flags, ulong? Size,
+    uint? UserId, uint? GroupId, uint? Permissions, DateTime? ModifiedUtc);
 
 /// <summary>
 /// What FileCat asks of one SFTP connection: SSH.NET in the product, an in-memory server in tests. Paths are absolute

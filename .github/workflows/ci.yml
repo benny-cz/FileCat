@@ -11,6 +11,12 @@ on:
 permissions:
   contents: read
 
+# Keep one active main CI run and replace only superseded pending main runs.
+# Release tags, manual packaging runs, and pull requests retain distinct groups.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'main' || github.run_id }}
+  cancel-in-progress: false
+
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
@@ -101,9 +107,8 @@ jobs:
       # FTP and FTPS tests run against pyftpdlib (MIT); they skip where it is missing.
       - run: python -m pip install --quiet pyftpdlib pyopenssl
       - run: python tests/FileCat.NativeAcceptance/test_win_ftp_owned_stage.py
-      # Run the five inventories serially so project-level load cannot confound
-      # the App picture worker's 30-second limit. The preceding hosted failure's
-      # cause is unproven. Keep every TRX even when an earlier project fails.
+      # Run the three remaining inventories serially and keep every TRX even
+      # when an earlier project fails. App and Core have their own runners below.
       - name: Windows test projects, sequential with complete receipts
         shell: pwsh
         continue-on-error: true
@@ -158,6 +163,89 @@ jobs:
         shell: pwsh
         run: ./eng/validation/assert-windows-ci-tests.ps1 -EvidenceDirectory "$env:RUNNER_TEMP/filecat-windows-test-projects"
 
+  windows-app:
+    name: Windows x64 (App tests, ${{ matrix.shard }})
+    needs: producer-policy
+    runs-on: windows-2025-vs2026
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [focus, remainder]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ matrix.shard }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
+      - run: dotnet build tests/FileCat.App.Tests -c Release -p:RestoreLockedMode=true
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --quiet pyftpdlib pyopenssl
+      - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.App.Tests -LogFileName app-results.trx -Filter (./eng/validation/Get-AppCiShardFilter.ps1 -Shard '${{ matrix.shard }}') -BlameHang
+        shell: pwsh
+      - run: ./eng/validation/Assert-AppCiShardResult.ps1 -TrxPath tests/FileCat.App.Tests/TestResults/app-results.trx
+        shell: pwsh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: app-test-results-windows-x64-${{ matrix.shard }}
+          path: |
+            tests/FileCat.App.Tests/TestResults/*.trx
+            tests/FileCat.App.Tests/TestResults/**/Sequence_*.xml
+            tests/FileCat.App.Tests/TestResults/**/*.dmp
+
+  windows-core:
+    name: Windows x64 (Core tests)
+    needs: producer-policy
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
+      - run: dotnet build tests/FileCat.Core.Tests -c Release -p:RestoreLockedMode=true
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --quiet pyftpdlib pyopenssl
+      - name: Run medium-integrity Core test collections
+        shell: pwsh
+        run: |
+          . ./eng/validation/Enter-MediumIntegrityTestProcess.ps1
+          $threads = [Math]::Min(16, [Environment]::ProcessorCount)
+          dotnet test tests/FileCat.Core.Tests -c Release --no-build --logger 'trx;LogFileName=core-results.trx' --blame-hang-timeout 4m --blame-hang-dump-type mini -- "xUnit.MaxParallelThreads=$threads"
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: core-test-results-windows-x64
+          path: |
+            tests/FileCat.Core.Tests/TestResults/*.trx
+            tests/FileCat.Core.Tests/TestResults/**/Sequence_*.xml
+            tests/FileCat.Core.Tests/TestResults/**/*.dmp
+
   # D-48: FileCat for Windows on ARM64, built and tested natively; its package starts and draws with the ARM64 Skia.
   windows-arm64:
     name: Windows ARM64 (build, tests, package start)
@@ -200,8 +288,6 @@ jobs:
           if (-not ((whoami /groups /fo csv) -match 'S-1-16-12288')) { throw 'ARM64 high-integrity refusal control requires a high token.' }
           dotnet test tests/FileCat.Core.Tests -c Release --no-build --filter "FullyQualifiedName~Elevated_windows_process_refuses_even_an_owned_state_write" --results-directory "$env:RUNNER_TEMP/filecat-high-token-results" --logger "trx;LogFileName=high-state-results.trx"
           exit $LASTEXITCODE
-      - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Core.Tests -LogFileName core-results.trx
-        shell: pwsh
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
@@ -226,33 +312,6 @@ jobs:
             ${{ runner.temp }}/filecat-release-assets-controls/artifact-sbom/**
           if-no-files-found: error
       - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Platform.Windows.Tests -LogFileName platform-results.trx
-        shell: pwsh
-      # Use published ARM64 wheels for native TLS dependencies; pyftpdlib is pure Python.
-      - name: Install the owned FTP/TLS fixture
-        shell: pwsh
-        run: |
-          python -m pip --version
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -m pip install --only-binary=cryptography,cffi --report "$env:RUNNER_TEMP/filecat-ftp-python-install.json" pyftpdlib pyopenssl
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -m pip check
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -c "import platform, sys, importlib.metadata as m; from pyftpdlib.handlers import TLS_FTPHandler; import OpenSSL, cryptography; print(sys.version); print(platform.machine()); print({p: m.version(p) for p in ('pyftpdlib', 'pyOpenSSL', 'cryptography', 'cffi')})"
-          exit $LASTEXITCODE
-      - run: python tests/FileCat.NativeAcceptance/test_win_ftp_owned_stage.py
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        if: always()
-        with:
-          name: ftp-python-fixture-windows-arm64
-          path: ${{ runner.temp }}/filecat-ftp-python-install.json
-          if-no-files-found: warn
-      # The remote clients ship for ARM64 too (release records E-A02: no lane ran them there).
-      - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Remote.Tests -LogFileName remote-results.trx -BlameHang
-        shell: pwsh
-      - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.App.Tests -LogFileName app-results.trx -BlameHang
-        shell: pwsh
-      # Pixels drawn with Skia (scaled icons), read back.
-      - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Rendering.Tests -LogFileName rendering-results.trx -BlameHang
         shell: pwsh
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
@@ -293,6 +352,76 @@ jobs:
           name: windows-arm64-screenshot
           path: artifacts/screenshots/*.png
 
+  windows-arm64-app:
+    name: Windows ARM64 (App tests, ${{ matrix.shard }})
+    needs: producer-policy
+    runs-on: windows-11-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [focus, remainder]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ matrix.shard }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
+      - run: dotnet build tests/FileCat.App.Tests -c Release -p:RestoreLockedMode=true
+      - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.App.Tests -LogFileName app-results.trx -Filter (./eng/validation/Get-AppCiShardFilter.ps1 -Shard '${{ matrix.shard }}') -BlameHang
+        shell: pwsh
+      - run: ./eng/validation/Assert-AppCiShardResult.ps1 -TrxPath tests/FileCat.App.Tests/TestResults/app-results.trx
+        shell: pwsh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: app-test-results-windows-arm64-${{ matrix.shard }}
+          path: |
+            tests/FileCat.App.Tests/TestResults/*.trx
+            tests/FileCat.App.Tests/TestResults/**/Sequence_*.xml
+            tests/FileCat.App.Tests/TestResults/**/*.dmp
+
+  windows-arm64-core:
+    name: Windows ARM64 (Core tests)
+    needs: producer-policy
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
+      - run: dotnet build tests/FileCat.Core.Tests -c Release -p:RestoreLockedMode=true
+      - run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Core.Tests -LogFileName core-results.trx
+        shell: pwsh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: core-test-results-windows-arm64
+          path: |
+            tests/FileCat.Core.Tests/TestResults/*.trx
+            tests/FileCat.Core.Tests/TestResults/**/Sequence_*.xml
+            tests/FileCat.Core.Tests/TestResults/**/*.dmp
+
   portable:
     needs: producer-policy
     name: ${{ matrix.os }} (build, portable tests)
@@ -328,7 +457,6 @@ jobs:
           path: ${{ runner.temp }}/filecat-dependency-restore/**
           if-no-files-found: error
       - run: dotnet build FileCat.slnx -c Release
-      - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build --logger "trx;LogFileName=core-results.trx"
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
@@ -431,15 +559,16 @@ jobs:
             dotnet test tests/FileCat.Core.Tests -c Release --no-build --results-directory "$RUNNER_TEMP/root-results" --filter "FullyQualifiedName~UnixExt4RecordTests"
           sudo umount /mnt/fc-ext4
       # Real-server SFTP tests start a user-mode sshd (macOS ships one).
-      - run: python -m pip install --quiet pyftpdlib pyopenssl
-      - run: python tests/FileCat.NativeAcceptance/test_win_ftp_owned_stage.py
-      # A hang (a test server that never answers) fails in minutes with a dump of where, not at the job's time limit.
-      - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build --logger "trx;LogFileName=remote-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
-      # P9: the Linux UI runs headless. The macOS App suite runs in macos-app.
       - if: runner.os == 'Linux'
-        run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
+        run: python -m pip install --quiet pyftpdlib pyopenssl
+      - if: runner.os == 'Linux'
+        run: python tests/FileCat.NativeAcceptance/test_win_ftp_owned_stage.py
+      # A hang (a test server that never answers) fails in minutes with a dump of where, not at the job's time limit.
+      - if: runner.os == 'Linux'
+        run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build --logger "trx;LogFileName=remote-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
       # Pixels drawn with Skia (scaled icons), read back.
-      - run: dotnet test tests/FileCat.Rendering.Tests -c Release --no-build --logger "trx;LogFileName=rendering-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
+      - if: runner.os == 'Linux'
+        run: dotnet test tests/FileCat.Rendering.Tests -c Release --no-build --logger "trx;LogFileName=rendering-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
       # D-51: web pages drawn by WebKitGTK, on a virtual X display; a missing engine fails here instead of skipping.
       - if: runner.os == 'Linux'
         run: |
@@ -493,16 +622,141 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: ${{ runner.os == 'macOS' && format('portable-test-results-{0}', matrix.os) || format('app-test-results-{0}', matrix.os) }}
+          name: portable-test-results-${{ matrix.os }}
           path: |
             **/TestResults/*.trx
             **/TestResults/**/Sequence_*.xml
 
-  macos-app:
-    name: macos-26 (App tests)
+  remote-rendering:
+    name: ${{ matrix.os }} (Remote and Rendering tests)
     needs: producer-policy
-    runs-on: macos-26
-    # The App suite took 27–30 minutes in recent runs. Keep its per-test hang bounds.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-11-arm, macos-26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
+      - run: dotnet build tests/FileCat.Remote.Tests -c Release -p:RestoreLockedMode=true
+      - run: dotnet build tests/FileCat.Rendering.Tests -c Release -p:RestoreLockedMode=true
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      # ARM64 TLS dependencies require published native wheels; pyftpdlib is pure Python.
+      - name: Install the owned FTP/TLS fixture on ARM64
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python -m pip --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pip install --only-binary=cryptography,cffi --report "$env:RUNNER_TEMP/filecat-ftp-python-install.json" pyftpdlib pyopenssl
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pip check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -c "import platform, sys, importlib.metadata as m; from pyftpdlib.handlers import TLS_FTPHandler; import OpenSSL, cryptography; print(sys.version); print(platform.machine()); print({p: m.version(p) for p in ('pyftpdlib', 'pyOpenSSL', 'cryptography', 'cffi')})"
+          exit $LASTEXITCODE
+      - if: runner.os == 'macOS'
+        run: python -m pip install --quiet pyftpdlib pyopenssl
+      - run: python tests/FileCat.NativeAcceptance/test_win_ftp_owned_stage.py
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always() && runner.os == 'Windows'
+        with:
+          name: ftp-python-fixture-windows-arm64
+          path: ${{ runner.temp }}/filecat-ftp-python-install.json
+          if-no-files-found: warn
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Remote.Tests -LogFileName remote-results.trx -BlameHang
+      - if: runner.os == 'macOS'
+        run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build --logger "trx;LogFileName=remote-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Rendering.Tests -LogFileName rendering-results.trx -BlameHang
+      - if: runner.os == 'macOS'
+        run: dotnet test tests/FileCat.Rendering.Tests -c Release --no-build --logger "trx;LogFileName=rendering-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: remote-rendering-test-results-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            tests/FileCat.Remote.Tests/TestResults/*.trx
+            tests/FileCat.Remote.Tests/TestResults/**/Sequence_*.xml
+            tests/FileCat.Remote.Tests/TestResults/**/*.dmp
+            tests/FileCat.Rendering.Tests/TestResults/*.trx
+            tests/FileCat.Rendering.Tests/TestResults/**/Sequence_*.xml
+            tests/FileCat.Rendering.Tests/TestResults/**/*.dmp
+          if-no-files-found: warn
+
+  portable-core:
+    name: ${{ matrix.os }} (Core tests)
+    needs: producer-policy
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
+      - run: dotnet build tests/FileCat.Core.Tests -c Release -p:RestoreLockedMode=true
+      - if: runner.os == 'macOS'
+        run: dotnet test tests/FileCat.Core.Tests -c Release --no-build --filter "FullyQualifiedName!~SevenZip&FullyQualifiedName!~Rar&FullyQualifiedName!~ArchivePassword" --logger "trx;LogFileName=core-results.trx"
+      - if: runner.os == 'Linux'
+        run: dotnet test tests/FileCat.Core.Tests -c Release --no-build --logger "trx;LogFileName=core-results.trx"
+      - name: Require the macOS nonarchive Core partition
+        if: runner.os == 'macOS'
+        shell: pwsh
+        run: |
+          $reader = [Xml.XmlReader]::Create((Resolve-Path tests/FileCat.Core.Tests/TestResults/core-results.trx))
+          $total = 0
+          try {
+            while ($reader.Read()) {
+              if ($reader.NodeType -eq [Xml.XmlNodeType]::Element -and $reader.LocalName -eq 'Counters') {
+                $total = [int]$reader.GetAttribute('total')
+                break
+              }
+            }
+          } finally { $reader.Dispose() }
+          if ($total -lt 1000) {
+            throw 'The macOS nonarchive Core partition did not execute its expected test population.'
+          }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: portable-core-test-results-${{ matrix.os }}
+          path: tests/FileCat.Core.Tests/TestResults/*.trx
+
+  ubuntu-app:
+    name: ubuntu-24.04 (App tests)
+    needs: producer-policy
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -520,20 +774,122 @@ jobs:
           path: ${{ runner.temp }}/filecat-build-provenance/build.json
           if-no-files-found: error
       - run: dotnet build tests/FileCat.App.Tests -c Release -p:RestoreLockedMode=true
+      - name: Prepare Linux native test dependencies
+        timeout-minutes: 10
+        run: |
+          /usr/bin/python3 eng/validation/validate-linux-ci-mirror.py --evidence-dir "$RUNNER_TEMP/linux-dependency-controls-mirror"
+          sudo -n env GITHUB_ACTIONS="$GITHUB_ACTIONS" /usr/bin/python3 eng/validation/configure-linux-ci-mirror.py --evidence-file "$RUNNER_TEMP/linux-dependency-controls-mirror/native-source-rewrite.json"
+          /usr/bin/python3 eng/validation/validate-linux-ci-dependencies.py --evidence-dir "$RUNNER_TEMP/linux-dependency-controls"
+          bash eng/validation/prepare-linux-ci-dependencies.sh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: linux-dependency-launcher-controls-app
+          path: |
+            ${{ runner.temp }}/linux-dependency-controls
+            ${{ runner.temp }}/linux-dependency-controls-mirror
+          if-no-files-found: error
       - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: app-test-results-macos-26
+          name: app-test-results-ubuntu-24.04
           path: |
             tests/FileCat.App.Tests/TestResults/*.trx
             tests/FileCat.App.Tests/TestResults/**/Sequence_*.xml
             tests/FileCat.App.Tests/TestResults/**/*.dmp
 
+  macos-app:
+    name: macos-26 (App tests, ${{ matrix.shard }})
+    needs: producer-policy
+    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [focus, remainder]
+    # Each shard retains the per-test hang bound.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ matrix.shard }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
+      - run: dotnet build tests/FileCat.App.Tests -c Release -p:RestoreLockedMode=true
+      - shell: pwsh
+        run: |
+          $filter = ./eng/validation/Get-AppCiShardFilter.ps1 -Shard '${{ matrix.shard }}'
+          dotnet test tests/FileCat.App.Tests -c Release --no-build --filter $filter --logger 'trx;LogFileName=app-results.trx' --blame-hang-timeout 4m --blame-hang-dump-type mini
+          exit $LASTEXITCODE
+      - run: ./eng/validation/Assert-AppCiShardResult.ps1 -TrxPath tests/FileCat.App.Tests/TestResults/app-results.trx
+        shell: pwsh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: app-test-results-macos-26-${{ matrix.shard }}
+          path: |
+            tests/FileCat.App.Tests/TestResults/*.trx
+            tests/FileCat.App.Tests/TestResults/**/Sequence_*.xml
+            tests/FileCat.App.Tests/TestResults/**/*.dmp
+
+  macos-archive-core:
+    name: macos-26 (archive Core tests)
+    needs: producer-policy
+    runs-on: macos-26
+    # The 20 November macOS Core receipt ran 12,012 tests over 22 minutes; archive codecs included 2–5 minute cases.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
+      - run: dotnet build tests/FileCat.Core.Tests -c Release -p:RestoreLockedMode=true
+      - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build --filter "FullyQualifiedName~SevenZip|FullyQualifiedName~Rar|FullyQualifiedName~ArchivePassword" --logger "trx;LogFileName=core-archive-results.trx"
+      - name: Require the macOS archive Core partition
+        shell: pwsh
+        run: |
+          $reader = [Xml.XmlReader]::Create((Resolve-Path tests/FileCat.Core.Tests/TestResults/core-archive-results.trx))
+          $total = 0
+          try {
+            while ($reader.Read()) {
+              if ($reader.NodeType -eq [Xml.XmlNodeType]::Element -and $reader.LocalName -eq 'Counters') {
+                $total = [int]$reader.GetAttribute('total')
+                break
+              }
+            }
+          } finally { $reader.Dispose() }
+          if ($total -lt 100) {
+            throw 'The macOS archive Core partition did not execute its expected test population.'
+          }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: portable-archive-test-results-macos-26
+          path: tests/FileCat.Core.Tests/TestResults/*.trx
+
   package:
     name: Package (tags only)
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [producer-policy, windows, windows-arm64, portable, macos-app]
+    needs: [producer-policy, windows, windows-app, windows-core, windows-arm64, windows-arm64-app, windows-arm64-core, portable, remote-rendering, portable-core, ubuntu-app, macos-app, macos-archive-core]
     runs-on: windows-2025-vs2026
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
@@ -602,7 +958,7 @@ jobs:
   package-linux:
     name: Package Linux (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [producer-policy, windows, windows-arm64, portable, macos-app]
+    needs: [producer-policy, windows, windows-app, windows-core, windows-arm64, windows-arm64-app, windows-arm64-core, portable, remote-rendering, portable-core, ubuntu-app, macos-app, macos-archive-core]
     runs-on: ubuntu-24.04
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
@@ -672,7 +1028,7 @@ jobs:
   package-macos:
     name: Package macOS (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [producer-policy, windows, windows-arm64, portable, macos-app]
+    needs: [producer-policy, windows, windows-app, windows-core, windows-arm64, windows-arm64-app, windows-arm64-core, portable, remote-rendering, portable-core, ubuntu-app, macos-app, macos-archive-core]
     runs-on: macos-26
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
@@ -738,7 +1094,7 @@ jobs:
   draft-preview:
     name: Draft preview (consume this run's artifacts only)
     if: startsWith(github.ref, 'refs/tags/v1.0.0-preview.')
-    needs: [producer-policy, windows, windows-arm64, portable, package, package-linux, package-macos]
+    needs: [producer-policy, windows, windows-app, windows-core, windows-arm64, windows-arm64-app, windows-arm64-core, portable, portable-core, ubuntu-app, package, package-linux, package-macos]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     # DEC-09: the only job with release-write authority waits for the release owner's approval in the

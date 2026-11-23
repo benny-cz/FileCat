@@ -26,13 +26,56 @@ public static partial class ReparseLinks
     {
         if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0) return false;
         if (!OperatingSystem.IsWindows()) return true;
-        string full = Path.GetFullPath(path);
-        string native = full.Length >= 248 && !full.StartsWith(@"\\", StringComparison.Ordinal) ? @"\\?\" + full : full;
-        using var handle = CreateFile(native, ReadAttributes, FileShare.ReadWrite | FileShare.Delete, 0, OpenExisting,
-            BackupSemantics | OpenReparsePoint, 0);
-        if (handle.IsInvalid || !GetFileInformationByHandleEx(handle, AttributeTagInfo, out AttributeTag info, 8)) return true;
+        if (!TryReadAttributeTag(Path.GetFullPath(path), out var info)) return true;
         return (info.FileAttributes & (uint)FileAttributes.ReparsePoint) != 0 && IsLinkTag(info.ReparseTag);
     }
+
+    /// <summary>
+    /// The reparse tag of an existing item on Windows, read from the reparse point itself through a handle that may read
+    /// attributes only: neither the item's contents nor what it leads to are opened. Zero when the item is no reparse
+    /// point or its tag cannot be read (a pending delete refuses the open), and on Linux and macOS. A presentation hint
+    /// for results that come from no tag-bearing listing; never operation authority.
+    /// </summary>
+    internal static uint ReadTag(string fullPath) =>
+        OperatingSystem.IsWindows() && TryReadAttributeTag(fullPath, out var info) &&
+        (info.FileAttributes & (uint)FileAttributes.ReparsePoint) != 0 ? info.ReparseTag : 0;
+
+    private static bool TryReadAttributeTag(string full, out AttributeTag info)
+    {
+        info = default;
+        using var handle = OpenItself(full);
+        return !handle.IsInvalid && GetFileInformationByHandleEx(handle, AttributeTagInfo, out info, 8);
+    }
+
+    /// <summary>The item itself, never what it leads to, through a handle that may read attributes only.</summary>
+    private static SafeFileHandle OpenItself(string full)
+    {
+        string native = full.Length >= 248 && !full.StartsWith(@"\\", StringComparison.Ordinal) ? @"\\?\" + full : full;
+        return CreateFile(native, ReadAttributes, FileShare.ReadWrite | FileShare.Delete, 0, OpenExisting,
+            BackupSemantics | OpenReparsePoint, 0);
+    }
+
+    /// <summary>
+    /// Windows: the item's own reparse data, parsed (FSCTL_GET_REPARSE_POINT on a handle that neither follows the item nor
+    /// reads its content); null when it has none or it cannot be read. Its descriptive targets (an app execution alias's
+    /// program, a WSL link's Linux path) are for display, never paths to follow.
+    /// </summary>
+    public static ReparsePayload? ReadPayload(string path)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        using var handle = OpenItself(Path.GetFullPath(path));
+        if (handle.IsInvalid) return null;
+        byte[] buffer = new byte[16 * 1024];
+        if (!DeviceIoControl(handle, GetReparsePoint, 0, 0, buffer, buffer.Length, out int returned, 0) || returned < 8) return null;
+        return ReparsePayloadReader.Parse(buffer.AsSpan(0, returned));
+    }
+
+    private const uint GetReparsePoint = 0x000900A8; // FSCTL_GET_REPARSE_POINT
+
+    [LibraryImport("kernel32.dll", EntryPoint = "DeviceIoControl", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool DeviceIoControl(SafeFileHandle device, uint code, nint input, int inputLength, byte[] output,
+        int outputLength, out int returned, nint overlapped);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct AttributeTag

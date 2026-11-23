@@ -113,6 +113,54 @@ public sealed class ResultConsumerLifetimeTests
         }
     }
 
+    /// <summary>
+    /// F-FIND: live result forwarding never retargets. A tab showing one running search keeps that search's set, members
+    /// and completion while a later search is shown live in its own tab; neither consumer cancels either producer.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task A_live_consumer_stays_on_its_own_search_while_a_later_search_publishes()
+    {
+        using var scope = new Scope();
+        using var first = new CancellationTokenSource();
+        using var second = new CancellationTokenSource();
+        var earlier = scope.Services.ResultSets.Create("First search", "First live search");
+        var later = scope.Services.ResultSets.Create("Second search", "Second live search");
+        scope.Vm.OpenResultSet(earlier, first);
+        var earlierTab = scope.Vm.ActiveTab!;
+        var earlierLocation = earlierTab.Location;
+        try
+        {
+            await Until(() => earlierTab.Listing.State == ListingState.Complete, "the first set lists");
+            scope.Vm.OpenResultSet(later, second);
+            var laterTab = scope.Vm.ActiveTab!;
+            Assert.NotSame(earlierTab, laterTab);
+            await Until(() => laterTab.Listing.State == ListingState.Complete, "the second set lists");
+            var folder = new Location("owned-test", "folder");
+            later.Add(new ItemRef(folder, "later-only", EntryKind.File), "relative");
+            later.NotifyChanged();
+            later.IsComplete = true;
+            earlier.Add(new ItemRef(folder, "earlier-only", EntryKind.File), "relative");
+            earlier.NotifyChanged();
+            await Until(() => earlierTab.Listing.State == ListingState.Complete && earlierTab.Listing.VisibleCount == 1, "the first consumer refreshes");
+            await Until(() => laterTab.Banner == later.Provenance + " — complete" && laterTab.Listing.VisibleCount == 1, "the second consumer completes");
+            Assert.Equal("earlier-only", earlierTab.Listing.GetVisible(0).Name);
+            Assert.Equal("later-only", laterTab.Listing.GetVisible(0).Name);
+            Assert.Equal(earlierLocation, earlierTab.Location);
+            Assert.Same(earlier, scope.Services.ResultSets.Get(earlierTab.Location!));
+            Assert.NotEqual(earlier.Provenance + " — complete", earlierTab.Banner); // the later completion is not this tab's
+            earlier.IsComplete = true;
+            await Until(() => earlierTab.Banner == earlier.Provenance + " — complete", "the first consumer gets its own completion");
+            Assert.False(first.IsCancellationRequested);
+            Assert.False(second.IsCancellationRequested);
+        }
+        finally
+        {
+            first.Cancel();
+            second.Cancel();
+            await Task.Delay(550, TestContext.Current.CancellationToken);
+        }
+    }
+
     private static async Task Until(Func<bool> condition, string message)
     {
         for (int i = 0; i < 250 && !condition(); i++)

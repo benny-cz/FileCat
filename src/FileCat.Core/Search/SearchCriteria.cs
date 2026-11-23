@@ -141,6 +141,8 @@ public sealed class AdvancedSearchCriteria
             if ((AttributesSet & attribute) != 0) parts.Add(label);
             if ((AttributesClear & attribute) != 0) parts.Add("not " + label);
         }
+        if ((AttributesSet & AttributesClear) != 0)
+            parts.Add("conflicting attribute states — resolve in Advanced criteria");
         if (SizeAtLeast is { } least) parts.Add($"at least {least.ToString("0.##", CultureInfo.CurrentCulture)} {Unit(SizeAtLeastUnit)}");
         if (SizeAtMost is { } most) parts.Add($"at most {most.ToString("0.##", CultureInfo.CurrentCulture)} {Unit(SizeAtMostUnit)}");
         if (Modified.Describe() is { } modified) parts.Add("modified " + modified);

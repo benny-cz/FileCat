@@ -126,14 +126,18 @@ public sealed partial class TabViewModel
                         if (value.Value is Principal p)
                             name = names?.Answers.GetValueOrDefault(p) ?? new PrincipalName(NameStatus.NotRequested);
                         else if (field?.ObservationLane != true || value.Observation == MetadataObservation.Current)
-                            key ??= retained?.Values.Key(i) ?? field?.CaptureKey(value) ?? value.Value as IComparable;
+                            key ??= retained?.Values.Key(i) ?? field?.CaptureKey(value);
                     }
                     // Verification reports contain arbitrary detail/check graphs. Ordering retains only the
                     // existing scalar rank and observation state, never that report graph.
                     if (value.Value is Core.Verification.VerificationResult) value = value with { Value = null };
-                    if (!snapshot.TryAdd(i, value, key, name, comparison) && snapshot.Capacity != MetadataCapacity.None) break;
+                    if (!snapshot.TryAdd(i, value, key, name, comparison) && snapshot.IsStopped) break;
                 }
             }
+            // The retained analysis may have refused a mutable payload before the sort snapshot
+            // was captured. Carry that reason into the applied coverage, not only the banner.
+            if (retained is not null && retained.Values.Capacity != MetadataCapacity.None)
+                snapshot.Limit(retained.Values.Capacity);
             snapshot.NameSummary = DescribeNames(snapshot.PrincipalNames, fieldId == "group" ? "groups" : "owners");
             snapshot.Seal();
             return snapshot;
@@ -241,7 +245,10 @@ public sealed partial class TabViewModel
             if (capacity.HasFlag(MetadataCapacity.Rows)) limits.Add("Row");
             if (capacity.HasFlag(MetadataCapacity.Characters)) limits.Add("Character");
             if (capacity.HasFlag(MetadataCapacity.SharedMemory)) limits.Add("Shared-memory");
-            text += " " + string.Join("/", limits) + " limit reached; unretained items have unknown keys and sort last within their folder/file partition.";
+            if (limits.Count > 0) text += " " + string.Join("/", limits) + " limit reached.";
+            if (capacity.HasFlag(MetadataCapacity.UnsupportedPayload))
+                text += " Unsupported value or sort key could not be retained.";
+            text += " Unretained items have unknown keys and sort last within their folder/file partition.";
         }
         else if (r < counts.Completed) text += " Unretained items have unknown keys and sort last within their folder/file partition.";
         else if (outcomes.Count > 0) text += " Unavailable values sort last within their folder/file partition.";

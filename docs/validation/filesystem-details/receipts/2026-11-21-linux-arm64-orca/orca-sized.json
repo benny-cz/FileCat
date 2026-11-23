@@ -1,0 +1,192 @@
+{
+  "passed": true,
+  "appDllSha256": "3b6110a005af765fa2a2d1ab4ea90f8b5f43682fb9de31f092dfc2de50432fb6",
+  "fixture": "/home/runner/FileCatValidation/details-orca-unqykygr",
+  "propertiesShortcut": false,
+  "findResults": false,
+  "speechLog": "/home/runner/FileCatValidation/details-orca-unqykygr/orca-debug.log",
+  "input": "XTEST on dedicated Xvfb display",
+  "steps": [
+    {
+      "step": "Screen reader starts",
+      "heard": [
+        "Screen reader on."
+      ]
+    },
+    {
+      "step": "Native file panel opens on the owned source",
+      "heard": [
+        "source \u2014 FileCat \u2014 runner frame.",
+        "Panel 1, source, /home/runner/FileCatValidation/details-orca-unqykygr/source.",
+        "List with 3 items.",
+        "Go to parent location, parent navigation, 1 of 3.",
+        "not selected."
+      ]
+    },
+    {
+      "step": "Keyboard focuses the selected file",
+      "heard": [
+        "alpha-details.txt, file, 27 bytes, modified 11/21/2026 22:12:25, not marked, 2 of 3.",
+        "not selected."
+      ]
+    },
+    {
+      "step": "Details window opens from the keyboard",
+      "heard": [
+        "left control",
+        "left alt",
+        "return",
+        "Line 1 of 1. Reading file-system metadata\u2026",
+        "Line 1 of 42. File-system details",
+        "Summary \u00b7 observation 22:12:30 \u00b7 F5 reads this tier again"
+      ]
+    },
+    {
+      "step": "Tab reaches Read full record",
+      "heard": [
+        "alpha-details.txt \u00b7 File-system details \u2014 FileCat frame.",
+        "tab",
+        "tab",
+        "Find in the report entry Find (Ctrl+F)",
+        "Find (Ctrl+F)",
+        "tab",
+        "Aa check box not checked.",
+        "Match case.",
+        "tab",
+        "Wrap check box checked.",
+        "Wrap long lines (F2)",
+        "tab",
+        "Copy all push button.",
+        "Copy the complete original report text. Ctrl+C copies selected source text or the visible lines; Ctrl+Shift+C uses displayed text.",
+        "tab",
+        "Copy visible source text push button.",
+        "tab",
+        "Copy displayed text push button.",
+        "Copy selected text or visible lines with tabs expanded and controls shown as symbols. Visual wraps add no line endings.",
+        "tab",
+        "Save as\u2026 push button.",
+        "Save the report as a text file.",
+        "tab",
+        "Read full record push button."
+      ]
+    },
+    {
+      "step": "Orca announces the full record",
+      "heard": [
+        "space",
+        "Line 1 of 43. Previous observation \u00b7 reading\u2026 \u00b7 showing observation 2026-11-21T22:12:30.4265033+00:00",
+        "Line 1 of 64. File-system details",
+        "Full \u00b7 observation 22:12:44 \u00b7 F5 reads this tier again"
+      ]
+    },
+    {
+      "step": "Tab reaches Copy all",
+      "heard": [
+        "tab",
+        "Open attributes push button.",
+        "Opens the captured item's names, kinds and lengths in a new workspace tab. Values are read only through an explicit action; Windows extended attributes require separate admission.",
+        "tab",
+        "Next report line push button.",
+        "tab",
+        "File-system details read only entry File-system details\n\nItem\n  Path         /home/runner/FileCatValidation/details-orca-unqykygr/source/alpha-details.txt\n  Kind         File\n  Observed     2026-11-21T22:12:44.1661933+00:00\n  Scope        Focused item only; marked items are not included.\n  File system  ext4\n\nStorage\n  Logical size                   27 bytes.",
+        "No selection; Copy visible source text copies the visible lines; utf-8; wrapped.",
+        "tab",
+        "Refresh push button.",
+        "Read it again (F5)",
+        "tab",
+        "Find in the report entry Find (Ctrl+F)",
+        "Find (Ctrl+F)",
+        "tab",
+        "Aa check box not checked.",
+        "Match case.",
+        "tab",
+        "Wrap check box checked.",
+        "Wrap long lines (F2)",
+        "tab",
+        "Copy all push button.",
+        "Copy the complete original report text. Ctrl+C copies selected source text or the visible lines; Ctrl+Shift+C uses displayed text."
+      ]
+    },
+    {
+      "step": "Tab reaches Show summary",
+      "heard": [
+        "The whole report is on the clipboard.",
+        "tab",
+        "Copy visible source text push button.",
+        "tab",
+        "Copy displayed text push button.",
+        "Copy selected text or visible lines with tabs expanded and controls shown as symbols. Visual wraps add no line endings.",
+        "tab",
+        "Save as\u2026 push button.",
+        "Save the report as a text file.",
+        "tab",
+        "Show summary push button."
+      ]
+    },
+    {
+      "step": "Orca announces the summary",
+      "heard": [
+        "space",
+        "Line 1 of 42. File-system details",
+        "Summary \u00b7 observation 22:12:44 \u00b7 F5 reads this tier again"
+      ]
+    },
+    {
+      "step": "Tab reaches Show full record",
+      "heard": [
+        "tab",
+        "Open attributes push button.",
+        "Opens the captured item's names, kinds and lengths in a new workspace tab. Values are read only through an explicit action; Windows extended attributes require separate admission.",
+        "tab",
+        "Next report line push button.",
+        "tab",
+        "Dismiss copy result push button.",
+        "tab",
+        "Copy result and completeness read only entry Copied the complete original report: 2,550 characters. Tabs and logical line endings are preserved.",
+        "tab",
+        "File-system details read only entry File-system details\n\nItem\n  Path         /home/runner/FileCatValidation/details-orca-unqykygr/source/alpha-details.txt\n  Kind         File\n  Observed     2026-11-21T22:12:44.1661933+00:00\n  Scope        Focused item only; marked items are not included.",
+        "No selection; Copy visible source text copies the visible lines; utf-8; wrapped.",
+        "tab",
+        "Refresh push button.",
+        "Read it again (F5)",
+        "tab",
+        "Find in the report entry Find (Ctrl+F)",
+        "Find (Ctrl+F)",
+        "tab",
+        "Aa check box not checked.",
+        "Match case.",
+        "tab",
+        "Wrap check box checked.",
+        "Wrap long lines (F2)",
+        "tab",
+        "Copy all push button.",
+        "Copy the complete original report text. Ctrl+C copies selected source text or the visible lines; Ctrl+Shift+C uses displayed text.",
+        "tab",
+        "Copy visible source text push button.",
+        "tab",
+        "Copy displayed text push button.",
+        "Copy selected text or visible lines with tabs expanded and controls shown as symbols. Visual wraps add no line endings.",
+        "tab",
+        "Save as\u2026 push button.",
+        "Save the report as a text file.",
+        "tab",
+        "Show full record push button."
+      ]
+    },
+    {
+      "step": "Focus returns to the selected row",
+      "heard": [
+        "source \u2014 FileCat \u2014 runner frame.",
+        "escape",
+        "alpha-details.txt, file, 27 bytes, modified 11/21/2026 22:12:25, not marked, 2 of 3.",
+        "not selected."
+      ]
+    }
+  ],
+  "orca": "46.1",
+  "reportSize": [
+    520,
+    420
+  ],
+  "fullReportClipboardBytes": 2678
+}

@@ -60,6 +60,31 @@ internal static unsafe partial class NtFile
         out SafeFileHandle handle, uint fileAttributes = 0, ReadOnlySpan<byte> securityDescriptor = default, bool caseSensitive = false)
     {
         if (name.Length == 0 || name.Length > 32766) throw new ArgumentException("Invalid name.", nameof(name));
+        return TryOpenCore(root, name, access, share, disposition, options, out handle, fileAttributes, securityDescriptor, caseSensitive);
+    }
+
+    // A zero-length relative name opens the held object itself. The directory flag keeps this a directory-only access request.
+    internal static int TryReopenDirectoryForListing(SafeFileHandle directory, out SafeFileHandle handle) =>
+        TryOpenCore(directory, string.Empty, ListDirectory | ReadAttributes | Synchronize, ShareAll, Open, DirectoryFile | OpenReparsePoint,
+            out handle, 0, default, caseSensitive: true);
+
+    /// <summary>
+    /// Opens a metadata or security handle without SYNCHRONIZE, which synchronous I/O needs but neither NTFS's
+    /// parent-granted FILE_READ_ATTRIBUTES nor an owner's implicit READ_CONTROL and WRITE_DAC include. The handle
+    /// serves information and security calls that complete synchronously; it never reads or writes file data.
+    /// </summary>
+    internal static int TryOpenWithoutSynchronize(SafeHandle? root, string name, uint access, uint options, out SafeFileHandle handle,
+        bool caseSensitive)
+    {
+        if (name.Length == 0 || name.Length > 32766) throw new ArgumentException("Invalid name.", nameof(name));
+        if ((access & (Synchronize | ReadData | WriteData | AddSubdirectory | GenericRead | GenericWrite)) != 0)
+            throw new ArgumentException("A handle without SYNCHRONIZE serves metadata and security calls only.", nameof(access));
+        return TryOpenCore(root, name, access, ShareAll, Open, options, out handle, 0, default, caseSensitive, synchronous: false);
+    }
+
+    private static int TryOpenCore(SafeHandle? root, string name, uint access, uint share, uint disposition, uint options,
+        out SafeFileHandle handle, uint fileAttributes, ReadOnlySpan<byte> securityDescriptor, bool caseSensitive, bool synchronous = true)
+    {
         bool added = false;
         try
         {
@@ -78,7 +103,7 @@ internal static unsafe partial class NtFile
                 };
                 IoStatusBlock io;
                 int status = NtCreateFile(out nint raw, access, &attributes, &io, null, fileAttributes, share, disposition,
-                    options | SynchronousIo, null, 0);
+                    options | (synchronous ? SynchronousIo : 0), null, 0);
                 handle = new SafeFileHandle(status >= 0 ? raw : 0, ownsHandle: true);
                 return status;
             }

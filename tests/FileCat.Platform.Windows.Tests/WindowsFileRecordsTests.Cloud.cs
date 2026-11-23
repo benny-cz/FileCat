@@ -2,9 +2,11 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
+using FileCat.Core.Permissions;
 using FileCat.Core.Records;
 using FileCat.Core.Resources;
 using FileCat.Core.State;
+using FileCat.Platform.Windows.Permissions;
 using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows.Tests;
@@ -22,13 +24,19 @@ public sealed partial class WindowsFileRecordsTests
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static void Fetched(nint info, nint parameters) => Interlocked.Increment(ref _fetches);
 
-    [Fact]
-    public unsafe void A_cloud_placeholder_reads_its_state_without_being_downloaded()
+    // Providers differ mainly in when the platform asks them for data: each CF_HYDRATION_POLICY, with folders complete.
+    // ALWAYS_FULL refuses a placeholder that is not downloaded (0x8007017C on Windows 11 26200), so it has no such case.
+    [Theory]
+    [InlineData((ushort)0, "partial (")]
+    [InlineData((ushort)1, "progressive (")]
+    [InlineData((ushort)2, "full (")]
+    public unsafe void A_cloud_placeholder_reads_its_state_without_being_downloaded(ushort hydration, string downloads)
     {
         Assert.SkipWhen(!OperatingSystem.IsWindows(), "Cloud Files are Windows'.");
         // Registering a sync root writes this user's sync-root registration (removed at the end): only where that is wanted.
         if (!Opted("FILECAT_TEST_CLOUD_FILES")) Assert.Skip("Set FILECAT_TEST_CLOUD_FILES=1 to register a temporary Cloud Files sync root in a test folder.");
-        string root = NewFolder();
+        string envelope = NewFolder();
+        string root = Directory.CreateDirectory(Path.Combine(envelope, "provider")).FullName;
         var identity = "filecat-identity-1"u8.ToArray();
         bool registered = false, connected = false;
         long connection = 0;
@@ -52,8 +60,8 @@ public sealed partial class WindowsFileRecordsTests
                     StructSize = (uint)sizeof(CfSyncRegistration), ProviderName = (nint)name, ProviderVersion = (nint)version,
                     SyncRootIdentity = (nint)rootIdentity, SyncRootIdentityLength = 17, ProviderId = Guid.NewGuid(),
                 };
-                // Full downloads, folders always complete (no listing is ever asked of the provider), in-sync kept as set.
-                var policies = new CfSyncPolicies { StructSize = (uint)sizeof(CfSyncPolicies), HydrationPrimary = 2, PopulationPrimary = 3 };
+                // The theory's downloads, folders always complete (no listing is ever asked of the provider), in-sync kept as set.
+                var policies = new CfSyncPolicies { StructSize = (uint)sizeof(CfSyncPolicies), HydrationPrimary = hydration, PopulationPrimary = 3 };
                 int registeredResult = CfRegisterSyncRoot(root, &registration, &policies, 0x2 | 0x4 /* no population on the root, root in sync */);
                 Assert.True(registeredResult >= 0, $"CfRegisterSyncRoot: 0x{registeredResult:X8}");
                 registered = true;
@@ -84,6 +92,34 @@ public sealed partial class WindowsFileRecordsTests
             CheckDetailsAndStorageAdmission(root, file);
             RequireNoFetch("File-system details and storage admission");
 
+            // Test the placeholder and a regular file whose parent is a registered sync root.
+            string local = Path.Combine(root, "local-permissions.txt");
+            File.WriteAllText(local, "fixture");
+            var permissions = new WindowsPermissionService();
+            var authority = new PermissionAuthority(PermissionAuthorityKind.Local, "cloud-fixture", 0);
+            foreach (string candidate in new[] { file, local })
+            {
+                var subject = new PermissionSubject(Location.FileSystem(root), candidate, candidate, authority,
+                    PermissionObjectKind.File, PermissionLinkPolicy.NoFollow);
+                using var observation = permissions.Inspect(subject, PermissionSections.Ordinary, TestContext.Current.CancellationToken);
+                Assert.Null(observation.Snapshot.Binding);
+                Assert.Equal(PermissionReadStatus.Unsupported, observation.Snapshot.Access.Status);
+                Assert.NotNull(WindowsPermissionService.EditRefusal(observation.Snapshot));
+            }
+            RequireNoFetch("Permissions admission in the registered sync root");
+            var ordinaryParent = new PermissionSubject(Location.FileSystem(Path.GetDirectoryName(envelope)!), envelope, envelope,
+                authority, PermissionObjectKind.Directory, PermissionLinkPolicy.NoFollow);
+            var ct = TestContext.Current.CancellationToken;
+            using (var observation = permissions.Inspect(ordinaryParent, PermissionSections.None, ct))
+            {
+                Assert.True(observation.Snapshot.Binding is not null, observation.Snapshot.BindingProblem);
+                var refusal = Assert.Throws<NotSupportedException>(() =>
+                    WindowsPermissionService.CapturePropagationBoundary(observation.Snapshot, ct));
+                Assert.True(refusal.Message.Contains("reparse point", StringComparison.OrdinalIgnoreCase) ||
+                    refusal.Message.Contains("cloud sync root", StringComparison.OrdinalIgnoreCase), refusal.Message);
+            }
+            RequireNoFetch("Propagation boundary inspection above the registered sync root");
+
             bool[] modes = Environment.IsPrivilegedProcess ? [false, true] : [false];
             foreach (bool privileged in modes)
             {
@@ -103,7 +139,7 @@ public sealed partial class WindowsFileRecordsTests
                 Assert.StartsWith($"0x{(ulong)sequence << 48 | (ulong)record:X16} ", Field(cloud, "File ID"), StringComparison.Ordinal);
                 Assert.EndsWith($"· file ID 0x{(ulong)rootSequence << 48 | (ulong)rootRecord:X16}", Field(cloud, "Sync root"), StringComparison.Ordinal);
                 Assert.StartsWith("FileCat test 1.0 · ", Field(cloud, "Provider"), StringComparison.Ordinal);
-                Assert.StartsWith("full (", Field(cloud, "Downloads"), StringComparison.Ordinal);
+                Assert.StartsWith(downloads, Field(cloud, "Downloads"), StringComparison.Ordinal);
                 Assert.StartsWith("always full (", Field(cloud, "Folders"), StringComparison.Ordinal);
                 Assert.Equal($"{identity.Length} bytes: its provider's own name for it (below)", Field(cloud, "Its identity"));
                 Assert.Contains(cloud.Lines, l => l.Contains("filecat-identity", StringComparison.Ordinal));
@@ -130,7 +166,7 @@ public sealed partial class WindowsFileRecordsTests
                 if (connected) CfDisconnectSyncRoot(connection);
                 if (registered) CfUnregisterSyncRoot(root);
                 NativeMemory.Free(table);
-                Directory.Delete(root, recursive: true);
+                Directory.Delete(envelope, recursive: true);
             }
         }
     }

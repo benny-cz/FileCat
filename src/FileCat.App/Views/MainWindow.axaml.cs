@@ -301,14 +301,23 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         try
         {
             var dir = _vm.Services.Paths.JournalDirectory;
-            var interrupted = await Task.Run(() => Core.Jobs.JournalRecovery.Scan(dir));
+            var interrupted = await Task.Run(() =>
+            {
+                var ordinary = Core.Jobs.JournalRecovery.Scan(dir);
+                try { return ordinary.Concat(_vm.Services.ScanPermissionHistory()).ToArray(); }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException)
+                {
+                    Core.Diagnostics.AppLog.Warn("Private permissions history could not be inspected", error);
+                    return ordinary.ToArray();
+                }
+            });
             if (!_vm.EditSessionsActive) return;
             var messages = new List<string>();
-            if (interrupted.Count > 0)
+            if (interrupted.Length > 0)
             {
                 _vm.Operations.LoadInterrupted(interrupted);
                 _vm.Operations.IsOpen = true;
-                messages.Add($"{Formatters.Plural(interrupted.Count, "operation was", "operations were")} interrupted when FileCat last closed. Review them in the operations pane.");
+                messages.Add($"{Formatters.Plural(interrupted.Length, "operation was", "operations were")} interrupted when FileCat last closed. Review them in the operations pane.");
             }
             try
             {

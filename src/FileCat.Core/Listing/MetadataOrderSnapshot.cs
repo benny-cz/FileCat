@@ -5,7 +5,7 @@ using System.Globalization;
 namespace FileCat.Core.Listing;
 
 [Flags]
-public enum MetadataCapacity { None = 0, Rows = 1, Characters = 2, SharedMemory = 4 }
+public enum MetadataCapacity { None = 0, Rows = 1, Characters = 2, SharedMemory = 4, UnsupportedPayload = 8 }
 public sealed record MetadataOrderCoverage(int Count, MetadataCapacity Capacity, string? Names);
 
 /// <summary>Append during capture, then memory-only lookups. Storage grows only for admitted store indices.
@@ -41,6 +41,7 @@ public sealed class MetadataOrderSnapshot : IDisposable
 
     public int Count { get; private set; }
     public MetadataCapacity Capacity { get; private set; }
+    public bool IsStopped => _stopped;
     public long ReservedBytes => _bytes;
     public int RetainedCharacters => _chars;
     public void Limit(MetadataCapacity capacity) => Stop(capacity);
@@ -59,7 +60,13 @@ public sealed class MetadataOrderSnapshot : IDisposable
         if (_stopped) return false;
         if (Count >= _maxRows) return Stop(MetadataCapacity.Rows);
         if (!Payload(value.Value, out long valueBytes, out long valueChars) ||
-            !Payload(key, out long keyBytes, out long keyChars)) return false;
+            !Payload(key, out long keyBytes, out long keyChars))
+        {
+            // A custom field can return a mutable graph or comparison object. Keep the row unknown
+            // and report incomplete retention; later safe rows may still be captured.
+            Capacity |= MetadataCapacity.UnsupportedPayload;
+            return false;
+        }
         if (key is string) keyBytes += 64;
         PrincipalOrderKey? capturedPrincipal = null;
         bool newPrincipal = false;
@@ -213,7 +220,7 @@ public sealed class MetadataOrderSnapshot : IDisposable
                 {
                     if ((i & 255) == 0) ct.ThrowIfCancellationRequested();
                     var key = input(store, i, id);
-                    if (key is not null && !snapshot.TryAdd(i, default, key) && snapshot.Capacity != MetadataCapacity.None) break;
+                    if (key is not null && !snapshot.TryAdd(i, default, key) && snapshot.IsStopped) break;
                 }
             snapshot.Seal();
             return snapshot;

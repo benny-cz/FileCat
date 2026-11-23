@@ -1,0 +1,9 @@
+# Linux current-main details and supplementary regression
+
+On 20 November 2026, an isolated source-only archive of `3126e90fe` was built on the disposable Ubuntu 24.04 x64 VM. The archive SHA-256 was `0DE02657CD8D44D9A9EA5F9116B42A388C8892017B073C47B0BC7F80C108C27C`; it contained the tracked `src`, `tests`, `eng` and root build inputs, without unrelated validation archives or the other worker's checkout. The guest ran Linux `7.0.0-43-generic`, .NET SDK 10.0.101, with its root on ext4. No other `dotnet`, MSBuild or testhost process was present before either test batch.
+
+The Release Core run selected `UnixFileDetailsNativeTests` and `UnixHiddenInventoryNativeTests`, with `FILECAT_TEST_LINUX_FIEMAP=1`. It passed **56**, failed **0**, skipped **20**. The enabled FIEMAP case exercised the held inode after its pathname became a FIFO. [Core TRX](receipts/2026-11-20-linux-current-main/core-details-extra.trx) SHA-256: `AB9BE513FB0CE2745F635966DD74F92E0BEE1033EB1805486BCA67C2CB2A7B58`; Core test assembly SHA-256: `744801EF786B68E6AC5D071F8974D3946F7D6EE6738325BE959D0DFA5C4B9F4F`.
+
+The Release headless App run selected `FileDetailsWindowTests` and `HiddenDataUiTests`. It passed **8**, failed **0**, skipped **3**. [App TRX](receipts/2026-11-20-linux-current-main/app-details-extra.trx) SHA-256: `2550E6A409807945A3FE50690A81A13BCF670B186EFF0726028708DFA836C27E`; App test assembly SHA-256: `30853A0E20B6670459D39B99D060BF7698657AD93493A3F807443D2B3D1243FB`.
+
+These are current-main regression results for the tested Linux x64 ext4 and headless UI routes. The conditional skips include Mac-only cases and Linux Btrfs, XFS, ZFS, ext4 restriction/casefold/capability and fscrypt fixtures that were not prepared in this run. They are not passes for those filesystems or native screen-reader UX. The separate live Mac File Provider receipt covers its prepared route.

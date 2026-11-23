@@ -107,7 +107,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         QueryVolume(file, 4 /* FileFsDeviceInformation */, device, ct);
         uint characteristics = BinaryPrimitives.ReadUInt32LittleEndian(device[4..]);
         if ((characteristics & remoteDevice) != 0)
-            throw Refuse("remote-volume", "FileCat changes compression only on local drives; this drive is remote.");
+            throw Refuse("remote-volume", "FileCat changes compression and EFS protection only on local drives; this drive is remote.");
         QueryVolume(file, 3 /* FileFsSizeInformation */, size, ct);
         ulong unit = (ulong)BinaryPrimitives.ReadUInt32LittleEndian(size[16..]) * BinaryPrimitives.ReadUInt32LittleEndian(size[20..]);
         char* fs = stackalloc char[64];
@@ -117,8 +117,22 @@ internal sealed unsafe partial class WindowsStorageTransforms
         if (!new string(fs).Equals("NTFS", StringComparison.OrdinalIgnoreCase)) throw Refuse("filesystem", "This change requires a local NTFS volume.");
         if ((characteristics & removableMedia) != 0)
             throw Refuse("removable-media-unqualified", "Storage changes are unavailable on this removable NTFS media.");
-        return new(ActualVolumeBinding(file, rootOnly: true, ct), flags, unit);
+        string binding = ActualVolumeBinding(file, rootOnly: true, ct);
+        ct.ThrowIfCancellationRequested();
+        if (AttachmentProblem(WindowsStorageDevice.Describe(binding)) is { } attachment) throw new StorageInspectionException(attachment);
+        ct.ThrowIfCancellationRequested();
+        return new(binding, flags, unit);
     }
+
+    /// <summary>Hot-plug transports and unknown attachments stay outside the qualified device-loss scope.</summary>
+    internal static StorageProblem? AttachmentProblem(WindowsStorageDevice.Description device) => device.Attachment switch
+    {
+        WindowsStorageDevice.Attachment.Fixed => null,
+        WindowsStorageDevice.Attachment.HotPlug => Problem(StorageReasonKind.FileCatBoundary, "hot-plug-unqualified",
+            "Storage changes are unavailable on a drive connected by USB, FireWire or a card reader, even when Windows reports it as fixed."),
+        _ => Problem(StorageReasonKind.Unknown, "device-attachment-unknown",
+            "The drive's connection type could not be established; storage changes are unavailable."),
+    };
 
     internal static string ActualVolumeBinding(SafeFileHandle file, bool rootOnly, CancellationToken ct)
     {
@@ -162,13 +176,38 @@ internal sealed unsafe partial class WindowsStorageTransforms
         ct.ThrowIfCancellationRequested();
     }
 
-    internal static StorageProblem? SyncRootProblem(SafeFileHandle file, CancellationToken ct)
+    /// <summary>Strict membership for a held object without a held no-follow ancestor walk: only an explicit answer admits it.</summary>
+    internal static StorageProblem? SyncRootProblem(SafeFileHandle file, CancellationToken ct) =>
+        SyncRootProblem(WindowsStorageCloudQuery.Query(file, ct), volumeBinding: null, registeredRootVolumes: null, ct);
+
+    /// <summary>Membership for an object reached by the held no-follow walk or held traversal (see the overload below).</summary>
+    internal static StorageProblem? SyncRootProblemAfterHeldWalk(SafeFileHandle file, string volumeBinding, CancellationToken ct) =>
+        SyncRootProblem(WindowsStorageCloudQuery.Query(file, ct), volumeBinding, WindowsStorageSyncRoots.RegisteredRootVolumes, ct);
+
+    /// <summary>
+    /// Membership of the held object. Only the Cloud Files filter can answer for the object itself. When no filter
+    /// instance answers on its volume (ERROR_INVALID_FUNCTION) and the caller supplies the held volume binding, every
+    /// component from the volume root to the object was held without following reparse points and refused when it was
+    /// reparse-backed or carried cloud attributes, and every sync root's own directory is a Cloud Files reparse point.
+    /// The object is then admitted only when no registered sync root of any account is on the same volume. Without a
+    /// binding (no held walk) the unanswered query keeps refusing.
+    /// </summary>
+    internal static StorageProblem? SyncRootProblem(int result, string? volumeBinding, Func<IReadOnlySet<string>?>? registeredRootVolumes,
+        CancellationToken ct)
     {
-        int result = WindowsStorageCloudQuery.Query(file, ct);
         ct.ThrowIfCancellationRequested();
         if (result == 0) return Problem(StorageReasonKind.FileCatBoundary, "cloud-sync-root", "This item is inside a registered cloud sync root, including hydrated or pinned content.");
         if (result == unchecked((int)0x80070186) /* ERROR_CLOUD_FILE_NOT_UNDER_SYNC_ROOT (390) */) return null;
-        return Problem(StorageReasonKind.Unknown, "cloud-query-" + ((uint)result).ToString("X8"), "Cloud sync-root membership could not be ruled out; storage changes are unavailable.");
+        if (result != unchecked((int)0x80070001) /* ERROR_INVALID_FUNCTION: no filter instance answered */ ||
+            volumeBinding is null || registeredRootVolumes is null)
+            return Problem(StorageReasonKind.Unknown, "cloud-query-" + ((uint)result).ToString("X8"), "Cloud sync-root membership could not be ruled out; storage changes are unavailable.");
+        var volumes = registeredRootVolumes();
+        ct.ThrowIfCancellationRequested();
+        if (volumes is null)
+            return Problem(StorageReasonKind.Unknown, "cloud-registrations-unknown", "Windows Cloud Files did not answer for this drive and its registered sync roots could not be read; storage changes are unavailable.");
+        return volumes.Contains(volumeBinding)
+            ? Problem(StorageReasonKind.Unknown, "cloud-sync-root-volume", "A cloud sync root is registered on this drive, but Windows Cloud Files did not answer for this item; storage changes are unavailable.")
+            : null;
     }
 
     [StructLayout(LayoutKind.Sequential)] private struct IoStatus { public nint Status, Information; }

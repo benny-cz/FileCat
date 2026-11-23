@@ -1,0 +1,22 @@
+== backup of the installed version 1
+Identifier=org.filecat.validation.nativeprovider.ready
+TeamIdentifier=not set
+== stage version 2
+/Users/benny/FileCatValidation/filecat-mac-provider-12760a2e-v2/stage/FileCatProviderFixture.app/Contents/PlugIns/FileCatProviderFixture.appex: replacing existing signature
+/Users/benny/FileCatValidation/filecat-mac-provider-12760a2e-v2/stage/FileCatProviderFixture.app: replacing existing signature
+== install version 2
++    org.filecat.validation.nativeprovider.ready.extension(1.0)	4B3F4270-838D-4D03-AD5E-CE063BB52269	2026-11-21 19:46:49 +0000	/Applications/FileCatProviderFixture.app/Contents/PlugIns/FileCatProviderFixture.appex
+ (1 plug-in)
+root: /Users/benny/Library/CloudStorage/FileCatProviderFixture-FileCatNativeFixture12760a2eD
+FILECAT_FIXTURE_OK
+total 0
+-r--------@     1 benny  staff  uchg,compressed,dataless      36 Nov 20 21:00 dataless-file.bin
+dr-x------@     3 benny  staff  uchg                          96 Nov 20 21:00 dataless-folder
+dr-x------@ 65535 benny  staff  uchg,compressed,dataless 2097120 Nov 21 20:46 unvisited-folder
+dr-x------@ 65535 benny  staff  uchg,compressed,dataless 2097120 Nov 21 20:46 unvisited.bundle
+== provider log
+Timestamp               Ty Process[PID:TID]
+2026-11-21 20:46:50.194 Df FCFixtureProvider[98032:5323ff] [org.filecat.validation.nativeprovider:fixture] launch fixture-12760a2e-d
+2026-11-21 20:46:50.216 Df FCFixtureProvider[98032:53241d] [org.filecat.validation.nativeprovider:fixture] init fixture-12760a2e-d
+2026-11-21 20:46:52.522 Df FCFixtureProvider[98032:53241e] [org.filecat.validation.nativeprovider:fixture] changes-from-1 NSFileProviderWorkingSetContainerItemIdentifier
+FINAL OK

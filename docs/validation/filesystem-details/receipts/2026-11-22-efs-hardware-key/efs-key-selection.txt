@@ -1,0 +1,28 @@
+EFS key selection for the card certificate (SetUserFileEncryptionKey, Windows 11 x64 build 26340).
+
+1. Certificate bound to the CNG Microsoft Smart Card Key Storage Provider:
+SetUserFileEncryptionKey 6022 (0x00001786)
+EFS certificate thumbprint for computer DESKTOP-A60F1NE:
+  D9C2 2D87 CE9C A6C9 7B57 9DF9 46A8 60F7 12CC 48AB 
+HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\EFS\CurrentKeys
+    CertificateHash    REG_BINARY    D9C22D87CE9CA6C97B579DF946A860F712CC48AB
+    Capabilities    REG_DWORD    0x27bd
+    NumBackupAttempts    REG_DWORD    0x1
+
+2. Same card key, certificate re-bound to the CryptoAPI Microsoft Base Smart Card Crypto Provider:
+binding bound
+SetUserFileEncryptionKey 2148073506 (0x80090022)
+EFS certificate thumbprint for computer DESKTOP-A60F1NE:
+  D9C2 2D87 CE9C A6C9 7B57 9DF9 46A8 60F7 12CC 48AB 
+HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\EFS\CurrentKeys
+    CertificateHash    REG_BINARY    D9C22D87CE9CA6C97B579DF946A860F712CC48AB
+    Capabilities    REG_DWORD    0x27bd
+    NumBackupAttempts    REG_DWORD    0x1
+
+3. After the owner selected the certificate in Windows' file encryption certificate wizard and typed the PIN:
+EFS certificate thumbprint for computer DESKTOP-A60F1NE:
+  98F6 864B 08FE 1E43 66CB 76BA 93D5 1FF0 D3C2 21CB 
+HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\EFS\CurrentKeys
+    CertificateHash    REG_BINARY    98F6864B08FE1E4366CB76BA93D51FF0D3C221CB
+    Capabilities    REG_DWORD    0x25fb
+    NumBackupAttempts    REG_DWORD    0x0

@@ -728,7 +728,8 @@ public sealed partial class WindowsEfsJobTests
 
     private static bool IsEncrypted(string path) => File.GetAttributes(path).HasFlag(FileAttributes.Encrypted);
 
-    private static Job Run(JobManager manager, StorageAction action, IReadOnlyList<ItemRef> targets, StorageScope scope = StorageScope.SelectedItems)
+    private static Job Run(JobManager manager, StorageAction action, IReadOnlyList<ItemRef> targets, StorageScope scope = StorageScope.SelectedItems,
+        TimeSpan? wait = null)
     {
         using var review = manager.PrepareStorageReview(targets, action, Ct);
         Assert.All(review.Roots, root => Assert.True(root.Observation.Ineligible is null,
@@ -740,7 +741,7 @@ public sealed partial class WindowsEfsJobTests
         {
             var approval = review.ApproveEfs(action, scope, new(true, action == StorageAction.EncryptEfs));
             var job = manager.SubmitStorage(review, approval, _ => { });
-            Assert.True(finished.Wait(TimeSpan.FromSeconds(45), Ct));
+            Assert.True(finished.Wait(wait ?? TimeSpan.FromSeconds(45), Ct));
             Assert.False(review.OwnsPins);
             return job;
         }

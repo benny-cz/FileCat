@@ -140,6 +140,53 @@ public sealed class HiddenInventoryTests
         Assert.Contains("kept growing", result.Reason);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Shrinking_Unix_attribute_names_never_publish_an_exact_complete_count(bool retainOne)
+    {
+        byte[] probed = "user.one\0user.two\0"u8.ToArray();
+        byte[] returned = retainOne ? "user.one\0"u8.ToArray() : [];
+        int lengthQueries = 0;
+        var result = UnixHiddenData.CollectInventory("fixture", (buffer, _) =>
+        {
+            if (buffer is null) return probed.Length;
+            returned.CopyTo(buffer, 0);
+            return returned.Length;
+        }, _ => { lengthQueries++; return 4; }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HiddenInventoryState.Changed, result.State);
+        Assert.Equal(retainOne ? new[] { "user.one" } : Array.Empty<string>(), result.Items.Select(item => item.Name));
+        Assert.Equal(0, lengthQueries);
+        var inventory = new HiddenInventory("fixture", DateTimeOffset.UtcNow, result.Items,
+            [new(HiddenKind.Attribute, result.State, result.Items.Length, "fixture")], "fixture");
+        Assert.Null(inventory.ExactCount);
+    }
+
+    /// <summary>
+    /// The Extra data column's text: exact where every category is, a lower bound where a category knows of more than it
+    /// lists, and otherwise what kept the count unknown, never a bare "Not inspected" for an access or read problem.
+    /// </summary>
+    [Theory]
+    [InlineData(HiddenInventoryState.Complete, 0, 0, "0")]
+    [InlineData(HiddenInventoryState.Complete, 0, 2, "2")]
+    [InlineData(HiddenInventoryState.NotInspected, 0, 0, "Not inspected")]
+    [InlineData(HiddenInventoryState.NotInspected, 0, 2, "2+")]
+    [InlineData(HiddenInventoryState.NotInspected, 1, 0, "1+")]
+    [InlineData(HiddenInventoryState.NotInspected, 1, 2, "3+")]
+    [InlineData(HiddenInventoryState.Denied, 0, 0, "no access")]
+    [InlineData(HiddenInventoryState.Failed, 0, 0, "error")]
+    [InlineData(HiddenInventoryState.Changed, 0, 0, "changed")]
+    [InlineData(HiddenInventoryState.Unsupported, 0, 0, "—")]
+    public void A_count_is_exact_a_lower_bound_or_says_what_kept_it_unknown(HiddenInventoryState eas, int eaCount, int streams, string text)
+    {
+        ImmutableArray<HiddenItem> items = [.. Enumerable.Range(0, streams).Select(i => new HiddenItem("stream" + i, HiddenKind.Stream, 1))];
+        var inventory = new HiddenInventory("fixture", DateTimeOffset.UtcNow, items,
+            [new(HiddenKind.Stream, HiddenInventoryState.Complete, streams, "fixture"), new(HiddenKind.NtfsAttribute, eas, eaCount, "fixture")], "fixture");
+        Assert.Equal(text, inventory.CountText);
+        Assert.Equal(eas == HiddenInventoryState.Complete ? streams : null, inventory.ExactCount);
+    }
+
     [Fact]
     public void Mac_attribute_length_that_requires_materialization_refuses_the_whole_inventory()
     {
@@ -176,6 +223,27 @@ public sealed class HiddenInventoryTests
         Assert.False(DownloadMarks.IsDownloadMark(ea, windows: true, mac: false));
         Assert.True(DownloadMarks.IsDownloadMark(ea with { Kind = HiddenKind.Stream }, windows: true, mac: false));
         Assert.False(DownloadMarks.IsDownloadMark(new("user.xdg.origin.url", HiddenKind.Attribute, 0), windows: false, mac: true));
+    }
+
+    [Fact]
+    public void Decmpfs_header_shorter_than_sixteen_bytes_never_declares_a_method_or_size()
+    {
+        byte[] header = new byte[16]; "fpmc"u8.CopyTo(header);
+        BitConverter.TryWriteBytes(header.AsSpan(4), 11u); BitConverter.TryWriteBytes(header.AsSpan(8), 4096ul);
+        Assert.StartsWith("Header declares LZFSE", HiddenDataDecoder.Describe(new("com.apple.decmpfs", HiddenKind.Attribute, 16), header).Summary);
+        for (int length = 0; length < 16; length++)
+        {
+            var (summary, details) = HiddenDataDecoder.Describe(new("com.apple.decmpfs", HiddenKind.Attribute, length), header.AsSpan(0, length));
+            Assert.DoesNotContain("declares", summary);
+            Assert.DoesNotContain("LZFSE", summary);
+            Assert.DoesNotContain("uncompressed", summary);
+            Assert.DoesNotContain("Compressed by", summary);
+            if (length < 4) continue; // not even a decmpfs magic: ordinary bounded text/binary evidence
+            Assert.Equal("Truncated decmpfs header; representation not interpreted", summary);
+            Assert.Equal([Convert.ToHexString(header, 0, length).ToLowerInvariant()], details);
+        }
+        // A short value with a different magic is not interpreted as decmpfs at all.
+        Assert.DoesNotContain("decmpfs", HiddenDataDecoder.Describe(new("com.apple.decmpfs", HiddenKind.Attribute, 8), "cmpf\0\0\0\0"u8).Summary);
     }
 
     [Theory]

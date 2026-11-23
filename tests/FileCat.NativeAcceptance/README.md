@@ -52,6 +52,18 @@ criteria dialog under a private NVDA configuration, reaches its resize grip by
 Tab, requires NVDA to speak the grip's name and arrow-key help, widens the
 dialog with three Right arrows and closes it with Escape.
 
+`win-nvda-audit-consent.ps1 -Role Launch -NvdaPath <signed portable nvda.exe>
+-ReportPath <fresh guest JSON> [-ReaderLevel Medium|High] [-Journeys approve,cancel,unavailable]` hears the
+authorized-inspection flow, the elevated helper's consent task dialogs and the Edit audit rules editor of an
+installed FileCat (with `FileCat.PrivilegedHost.exe`). Copy the script into an Administrators-only folder below
+`C:\FileCatValidation` and start it from an elevated guest shell with the user signed in and no FileCat, helper,
+reader or .NET test process running. It builds an Administrators-owned audited, Medium-labelled fixture the user's
+ordinary token can read, then runs NVDA, an elevated consent worker and the ordinary-token reader as one-shot
+interactive scheduled tasks, and removes them. The worker answers only the helper's dialogs, after the reader has
+heard them, and presses NVDA+Tab and NVDA+B for it: keys from an ordinary token never reach NVDA while an elevated
+window has the foreground. A portable NVDA at the user's level reads only that dialog's title and focused button;
+`-ReaderLevel High` runs it elevated in place of an installed NVDA's UIAccess. Where UAC prompts, approve it by hand.
+
 `win-nvda-places.ps1 -AppPath <Git-built FileCat.exe> -NvdaPath <signed
 portable nvda.exe> -ReportPath <fresh guest JSON>` requires FileCat at 144 DPI
 (set 150% first with `win-ax-display-scale.ps1`). It maximizes the window,

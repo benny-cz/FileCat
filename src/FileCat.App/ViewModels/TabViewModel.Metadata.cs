@@ -12,7 +12,8 @@ internal sealed record MetadataRowContext(EntryStore Store, int StoreIndex, stri
     string? Path, string DeviceKey, bool SlowLocation);
 
 internal readonly record struct MetadataCellPresentation(MetadataState State, string Text, string Detail,
-    bool Applicable = true, bool NeedsExplanation = false, string? InspectionOverride = null)
+    bool Applicable = true, bool NeedsExplanation = false, string? InspectionOverride = null, bool Quiet = false,
+    bool DetailLines = false)
 {
     public static MetadataCellPresentation Inapplicable => new(MetadataState.Absent, "", "", Applicable: false);
     public const string NotRead = "(not read yet: bring the row into view and scroll the column into view, or use View → Analyze folder)";
@@ -26,8 +27,14 @@ public sealed partial class TabViewModel
     private void PreparingMetadataStore(Location location, EntryStore store)
     {
         RetireMetadataAnalysis();
-        if (_ownershipLocation is { IsFileSystem: true } old && old != location) RetireOwnershipFolder(old.Path);
-        if (location.IsFileSystem) RetireOwnershipFolder(location.Path);
+        bool sameFolder = _ownershipLocation == location;
+        if (_ownershipLocation is { IsFileSystem: true } old && !sameFolder) RetireOwnershipFolder(old.Path);
+        // A folder entered afresh, or read again because the user asked (Refresh, Ctrl+R), drops what was read before, so a
+        // read started for the old list cannot publish into the new one. A reread the folder's own changes started keeps
+        // it: values are cached by each item's size and time, so a changed item is read again while an unchanged one keeps
+        // its value instead of showing "…" (in a folder that keeps changing, every column flashed once a second), and each
+        // field still reads its value again after its own interval.
+        if (location.IsFileSystem && (!sameFolder || _loudRefresh)) RetireOwnershipFolder(location.Path);
         _ownershipLocation = location;
         _ownershipDemandStore = store;
     }
@@ -89,12 +96,19 @@ public sealed partial class TabViewModel
         if (context is null) return new(MetadataState.NotRequested, "", "");
         capturedContext = context;
         if (context.Path is not { } path)
-            return new(MetadataState.Unsupported, "", "", InspectionOverride: "(not available for items in this location)");
+            // A dash that says why, not a blank a neighbouring column's values could be read into.
+            return new(MetadataState.Unsupported, "—", "Not available for items in this location: this column reads files on disk.",
+                NeedsExplanation: true, InspectionOverride: "(not available for items in this location)");
         var captured = context;
         var value = demand ? Services.Metadata.Get(fieldId, path, entry, context.DeviceKey, context.SlowLocation,
             () => ReferenceEquals(captured.Store, Listing.Store) && VisibleStoreIndices.Contains(storeIndex) &&
                 (!ownership || ReferenceEquals(captured.Store, _ownershipDemandStore)))
             : Services.Metadata.Peek(fieldId, path, entry, context.SlowLocation);
+        // A value past its interval is read again as soon as the list draws it (Get schedules that). Meanwhile it shows
+        // as it was, so every 20 seconds a column does not flash "(last known)" through each row; a peek (inspection,
+        // which reads nothing) still says the value is last known, as does a read that failed.
+        if (demand && value is { State: MetadataState.Available, Observation: MetadataObservation.LastKnown, Detail: MetadataService.ExpiredDetail })
+            value = value with { Observation = MetadataObservation.Current, Detail = "Being read again; this is the value read before." };
         string text = value.State switch
         {
             MetadataState.Available => field.Format(value.Value) + (value.Observation == MetadataObservation.LastKnown ? " (last known)" : ""),
@@ -104,14 +118,19 @@ public sealed partial class TabViewModel
             MetadataState.Failed => "error",
             _ => "",
         };
+        // A field whose explanations are FileCat's own lines keeps them, each escaped. A value's detail may quote an
+        // exception, and so a name, so it is escaped whole, line feeds included.
         var detail = new List<string>(2);
         if (value.State == MetadataState.Available && field.Detail?.Invoke(value.Value) is { Length: > 0 } fieldDetail)
-            detail.Add(Formatters.SafeName(fieldDetail));
+            detail.Add(field.DetailLines
+                ? string.Join('\n', fieldDetail.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => Formatters.SafeName(line)))
+                : Formatters.SafeName(fieldDetail));
         if (value.Detail is { Length: > 0 } reason) detail.Add(Formatters.SafeName(reason));
         else if (value.State == MetadataState.Pending) detail.Add("Being read.");
         bool explain = value.State is MetadataState.Denied or MetadataState.Unsupported or MetadataState.Failed ||
             value.State == MetadataState.Available && (value.Observation == MetadataObservation.LastKnown ||
                 !string.IsNullOrEmpty(value.Detail) || field.NeedsExplanation?.Invoke(value.Value) == true);
-        return new(value.State, text, string.Join('\n', detail), NeedsExplanation: explain);
+        return new(value.State, text, string.Join('\n', detail), NeedsExplanation: explain,
+            Quiet: value.State == MetadataState.Available && field.Quiet?.Invoke(value.Value) == true, DetailLines: field.DetailLines);
     }
 }

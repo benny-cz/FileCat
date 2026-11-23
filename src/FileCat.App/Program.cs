@@ -8,8 +8,6 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        if (args.Length > 0 && args[0] == Services.UnixPermissionApproval.Argument)
-            return Services.UnixPermissionApproval.RunHelper(args);
         if (TryRunStorageCloudQueryWorker(args) is { } workerExit) return workerExit;
         if (args.Length > 0 && Services.ArchiveWorker.IsArgument(args[0])) return Services.ArchiveWorker.Run(args);
         if (args.Length > 0 && Services.ArchiveWorker.IsLinuxArgument(args[0])) return Services.ArchiveWorker.RunLinux(args);

@@ -50,6 +50,9 @@ public static class FileListExport
         HashSet<ItemRef>? only = selected is null ? null : new(selected);
         if (only is { Count: 0 }) throw new InvalidOperationException("Select or focus a file or folder first.");
         pending.Push((root, string.Empty, 0, only));
+        // A Linux folder lists its items' birth times only when asked (one more call per item).
+        bool created = false;
+        Parse(rule.Template, token => { created |= token.Equals("created", StringComparison.OrdinalIgnoreCase); return string.Empty; });
         while (pending.Count > 0)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -57,7 +60,7 @@ public static class FileListExport
             var provider = providers.For(folder);
             if ((provider.GetCapabilities(folder) & LocationCapabilities.Enumerate) == 0)
                 throw new NotSupportedException("This folder cannot be listed completely.");
-            var sink = new Collector(cancellationToken);
+            var sink = new Collector(cancellationToken) { IncludeBirthTimes = created };
             await provider.EnumerateAsync(folder, sink, cancellationToken).ConfigureAwait(false);
             if (sink.Issues.Count > 0)
                 throw new IOException("The list was not exported because a folder could not be read: " + sink.Issues[0]);
@@ -149,6 +152,7 @@ public static class FileListExport
     private sealed class Collector(CancellationToken cancellationToken) : IEnumerationSink
     {
         public bool Whole => true;
+        public bool IncludeBirthTimes { get; init; }
         public List<EntryData> Entries { get; } = [];
         public List<string> Issues { get; } = [];
         public void AddBatch(ReadOnlySpan<EntryData> entries)

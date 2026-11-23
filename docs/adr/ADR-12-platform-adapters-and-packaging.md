@@ -32,3 +32,14 @@
 - Every push builds and tests FileCat on a Windows ARM64 runner, starts the ARM64 package, and has it draw its window
   (a screenshot artifact); physical ARM64 devices (TV-13) stay a release gate.
 - Shell extensions that exist only as x64 DLLs cannot load into an ARM64 FileCat, as in Explorer on ARM64.
+
+## Addendum (2026-11-22): Linux permissions mechanism
+
+- The qualification `.deb` (built with `FILECAT_LINUX_PERMISSIONS_QUALIFICATION=1`) adds a root-owned native mechanism,
+  `/opt/filecat/FileCat.Permissions.Linux`, started by D-Bus system activation through a systemd unit, with its bus
+  policy and two polkit actions (inspect and apply, `auth_admin` for active sessions) as dpkg-owned files. The
+  maintainer scripts enable activation only after configuration, and stop the mechanism on upgrade and removal.
+- The mechanism accepts requests only from the installed FileCat client, checks the caller's process, mount namespace
+  and the exact ext4 subject, builds the polkit message itself, and serves one request per authorization.
+- The tarball and AppImage carry no mechanism and refuse the authorization entry; installing the `.deb` is the
+  prerequisite. The permissions plan records the GNOME journeys on Ubuntu 24.04 and 26.04 and the recorded residuals.

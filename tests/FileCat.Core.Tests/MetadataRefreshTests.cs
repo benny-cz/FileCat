@@ -239,6 +239,31 @@ public sealed class MetadataRefreshTests
         Assert.Equal(1, calls);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Analysis_cost_never_starts_a_visible_row_read_but_displays_explicit_results(bool slow)
+    {
+        using var io = new DeviceIoScheduler();
+        long now = 0;
+        using var metadata = new MetadataService(io, () => Interlocked.Read(ref now));
+        int calls = 0;
+        metadata.Register(Field(() => Interlocked.Increment(ref calls), MetadataCost.Analysis));
+
+        Assert.Equal(MetadataState.NotRequested, metadata.Get(FieldId, PathName, Entry, "owned", slow).State);
+        Assert.Equal(MetadataState.NotRequested, metadata.Peek(FieldId, PathName, Entry, slow).State);
+        Assert.Equal(0, Volatile.Read(ref calls));
+
+        Assert.Equal(1, metadata.Compute(FieldId, PathName, Entry, TestContext.Current.CancellationToken, slow).Value);
+        Assert.Equal(1, metadata.Get(FieldId, PathName, Entry, "owned", slow).Value);
+        Assert.Equal(1, metadata.Peek(FieldId, PathName, Entry, slow).Value);
+
+        Interlocked.Exchange(ref now, slow ? 30_000 : 5_000);
+        Assert.Equal(1, metadata.Get(FieldId, PathName, Entry, "owned", slow).Value);
+        Assert.Equal(2, metadata.Compute(FieldId, PathName, Entry, TestContext.Current.CancellationToken, slow).Value);
+        Assert.Equal(2, metadata.Peek(FieldId, PathName, Entry, slow).Value);
+    }
+
     [Fact]
     public async Task Expiry_requests_repaint_but_only_new_demand_starts_work()
     {

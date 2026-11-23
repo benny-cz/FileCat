@@ -13,6 +13,7 @@ namespace FileCat.Core.Analysis;
 public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivateDirectory
 {
     private readonly bool _mac = OperatingSystem.IsMacOS();
+    private readonly bool _permissionJournal;
     private readonly uint _owner;
     private readonly List<(string Name, OwnedHandle Handle, UnixStat Identity)> _chain = [];
     private bool _disposed;
@@ -23,19 +24,25 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
     /// <param name="parent">An existing, absolute local directory. No symlink component is followed.</param>
     /// <param name="name">One application-owned private directory name, not an inventory-supplied locator.</param>
     public UnixAnalysisPrivateDirectory(string parent, string name)
+        : this(parent, name, permissionJournal: false)
+    {
+    }
+
+    private UnixAnalysisPrivateDirectory(string parent, string name, bool permissionJournal)
     {
         if (!OperatingSystem.IsLinux() && !_mac) throw new PlatformNotSupportedException();
         if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
         if (!Path.IsPathFullyQualified(parent) || parent.Contains('\0') || !AnalysisPrivateInventoryStore.WellFormedText(parent) ||
             parent.Split('/').Any(p => p is "." or "..") || !AnalysisNames.IsOrdinaryChild(name, windows: true))
             throw new ArgumentException("An absolute local parent and a single private directory name are required.");
+        _permissionJournal = permissionJournal;
         _owner = GetEuid();
         try
         {
             Add("/", OpenOwned(null, "/", DirectoryFlags, 0));
             foreach (string component in parent.Split('/', StringSplitOptions.RemoveEmptyEntries))
                 Add(component, OpenOwned(Root, component, DirectoryFlags, 0));
-            _ = ReadSpace(Root, _mac);
+            _ = ReadSpace(Root, _mac, _permissionJournal);
             if (MkdirAt(Root, name, 0x1c0) != 0 && Marshal.GetLastPInvokeError() != 17) // 0700; EEXIST
                 throw Error("The private analysis directory could not be created.");
             Add(name, OpenOwned(Root, name, DirectoryFlags, 0));
@@ -81,9 +88,9 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
 
     internal override (UInt128 Capacity, UInt128 Available) Space()
     {
-        return ReadSpace(Root, _mac);
+        return ReadSpace(Root, _mac, _permissionJournal);
     }
-    private static (UInt128 Capacity, UInt128 Available) ReadSpace(SafeHandle root, bool mac)
+    private static (UInt128 Capacity, UInt128 Available) ReadSpace(SafeHandle root, bool mac, bool permissionJournal = false)
     {
         byte* fs = stackalloc byte[4096]; new Span<byte>(fs, 4096).Clear();
         int result = mac && RuntimeInformation.ProcessArchitecture != Architecture.Arm64
@@ -100,8 +107,11 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
         }
         else
         {
-            if (*(ulong*)fs is not (0xEF53 or 0x58465342))
-                throw new IOException("Private analysis publication is unavailable on this filesystem.");
+            ulong type = *(ulong*)fs;
+            bool btrfsJournal = permissionJournal && type == 0x9123683e && RuntimeInformation.ProcessArchitecture == Architecture.X64;
+            if (type is not (0xEF53 or 0x58465342) && !btrfsJournal)
+                throw new IOException(permissionJournal ? "Private permissions history is unavailable on this filesystem."
+                    : "Private analysis publication is unavailable on this filesystem.");
             blockSize = *(ulong*)(fs + 8); blocks = *(ulong*)(fs + 16); available = *(ulong*)(fs + 32);
         }
         if (blockSize == 0) throw new IOException("Private destination capacity is unknown.");
@@ -257,11 +267,13 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
         private readonly OwnedHandle _owned;
         private readonly FileStream _stream;
         private readonly bool _writable;
+        private readonly string? _permissionJournalName;
         private bool _published;
         private string? _publishedIdentity;
-        public PrivateFile(UnixAnalysisPrivateDirectory directory, OwnedHandle owned, bool writable)
+        public PrivateFile(UnixAnalysisPrivateDirectory directory, OwnedHandle owned, bool writable, string? permissionJournalName = null)
         {
             _directory = directory; _owned = owned; _writable = writable;
+            _permissionJournalName = permissionJournalName;
             _stream = owned.Handle.OpenStream(writable ? FileAccess.ReadWrite : FileAccess.Read);
         }
         public override Stream Stream => _stream;
@@ -280,7 +292,11 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
             }
             throw new IOException("Private profile capacity locking was repeatedly interrupted.");
         }
-        public override void Verify() => _directory.Private(_owned.Handle, false, _writable ? _published && !_directory._mac ? 1u : 0u : 1u);
+        public override void Verify()
+        {
+            _directory.Private(_owned.Handle, false, _writable ? _published && !_directory._mac ? 1u : 0u : 1u);
+            if (_permissionJournalName is { } name) _directory.VerifyPermissionJournalName(_owned.Handle, name);
+        }
         public override void Flush()
         {
             _stream.Flush(flushToDisk: true);

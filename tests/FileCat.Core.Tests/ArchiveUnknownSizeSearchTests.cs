@@ -39,7 +39,7 @@ public sealed class ArchiveUnknownSizeSearchTests : IDisposable
     }
 
     private (ResultSet Results, SearchSession Session) Search(string criterion,
-        List<(ItemRef Item, string Relative)>? original)
+        List<(ItemRef Item, string Relative)>? original, bool expectedComplete = true)
     {
         var criteria = new SearchCriteria
         {
@@ -56,7 +56,7 @@ public sealed class ArchiveUnknownSizeSearchTests : IDisposable
         var session = new SearchSession(query!, result);
         session.Run(TestContext.Current.CancellationToken);
         Assert.True(session.Finished);
-        Assert.True(result.IsComplete);
+        Assert.Equal(expectedComplete, result.IsComplete);
         return (result, session);
     }
 
@@ -82,7 +82,7 @@ public sealed class ArchiveUnknownSizeSearchTests : IDisposable
             .Select(i => (Item: i, Relative: "original relative folder")).ToList();
         var original = Assert.Single(members).Item;
         Assert.Equal(-1, original.Size);
-        var (result, session) = Search(criterion, narrowed ? members : null);
+        var (result, session) = Search(criterion, narrowed ? members : null, expectedComplete: criterion == "none");
         if (criterion == "none")
         {
             var match = Assert.Single(result.Snapshot());

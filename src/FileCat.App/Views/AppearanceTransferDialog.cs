@@ -100,10 +100,18 @@ internal static class AppearanceTransferDialog
                 changes.Add(panel.Folders.Length == 0 ? $"Panel {i + 1} · Home" : $"Panel {i + 1}");
                 changes.AddRange(panel.Folders);
             }
+            if (transfer.ColumnProfiles is { } profiles)
+            {
+                changes.Add("Column profiles: " + string.Join(", ", profiles.Select(p => p.Name)));
+                if (Controls.ColumnProfileSet.ForElevatedSession(profiles).Withheld is { Length: > 0 } withheld)
+                    changes.Add("Not shown here, because they read file contents: " + string.Join(", ", withheld));
+            }
             string subject = appearance is null ? "workspace" : "appearance and workspace";
             string description = appearance is null
                 ? "Replace the panels and tabs in this administrator session."
                 : "Apply the appearance and replace the panels and tabs in this administrator session.";
+            if (transfer.ColumnProfiles is not null)
+                description += " The column profiles come too, with the columns that read file-system metadata, and each tab keeps its profile.";
             description += " Only available local folders open. You can restore the previous workspace.";
             if (paths.DataRoot is not null)
                 description += " This launch uses --data. The transfer applies for this session only.";
@@ -193,7 +201,7 @@ internal static class AppearanceTransferDialog
                 try
                 {
                     var appearance = AppearanceTransferV1.Capture(services.NormalAppearanceSettings.ReadSaved(), ThemeManager.Names);
-                    var transfer = new CombinedTransfer(appearance, WorkspaceTransfer.Capture(vm.Workspace));
+                    var transfer = new CombinedTransfer(appearance, WorkspaceTransfer.Capture(vm.Workspace, services.Columns));
                     ShowCopy(transfer.Encode(), "Appearance and workspace", UseBoth);
                 }
                 catch (FileNotFoundException)
@@ -210,7 +218,7 @@ internal static class AppearanceTransferDialog
                 ClearCopy();
                 try
                 {
-                    ShowCopy(WorkspaceTransfer.Capture(vm.Workspace).Encode(), "Workspace", UseWorkspace);
+                    ShowCopy(WorkspaceTransfer.Capture(vm.Workspace, services.Columns).Encode(), "Workspace", UseWorkspace);
                 }
                 catch (Exception ex) when (IsSettingsError(ex)) { status.Text = "Could not copy the workspace. " + ex.Message; }
             };

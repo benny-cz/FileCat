@@ -76,6 +76,20 @@ public sealed partial class WindowsRetrievalDetailsTests
     }
 
     [Fact]
+    public void Empty_success_requires_the_requested_starting_VCN()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var valid = WindowsFileRecords.ReadRetrievalPointers((cursor, output) => (0, Page(output, cursor, 0)), ct);
+        Assert.Equal(FactState.Known, valid.State);
+        Assert.Empty(valid.Value!);
+
+        var moved = WindowsFileRecords.ReadRetrievalPointers((_, output) => (0, Page(output, 7, 0)), ct);
+        Assert.Equal(FactState.Failed, moved.State);
+        Assert.Empty(moved.Value!);
+        Assert.Contains("previous record boundary", moved.Reason);
+    }
+
+    [Fact]
     public void Each_query_advances_and_the_query_count_is_bounded_independently_of_records()
     {
         int calls = 0;

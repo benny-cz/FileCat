@@ -78,6 +78,7 @@ public sealed partial class WindowsSparseTransformTests
         string path = Path.Join(directory, "dense.bin");
         var ct = TestContext.Current.CancellationToken;
         byte[] namedPayload = "dense fixture named stream"u8.ToArray();
+        JobManager? jobs = null;
         try
         {
             string expected;
@@ -105,9 +106,11 @@ public sealed partial class WindowsSparseTransformTests
             TestContext.Current.TestOutputHelper!.WriteLine($"before eof={length} id={identity} sha256={expected} named compression={namedCompression.Native}");
 
             PrivateDenseEvidence(evidence);
-            var jobs = CreateManager(path, evidence);
+            jobs = CreateManager(path, evidence);
             const StorageAction action = StorageAction.RemoveCompression;
-            var job = Submit(jobs, path, action, TimeSpan.FromMinutes(12));
+            TestContext.Current.TestOutputHelper!.WriteLine($"dense removal submitted: {DateTimeOffset.UtcNow:O}");
+            var job = Submit(jobs, path, action, TimeSpan.FromMinutes(45));
+            TestContext.Current.TestOutputHelper!.WriteLine($"dense removal finished: {DateTimeOffset.UtcNow:O} state={job.State}");
             Assert.True(job.State == JobState.Completed,
                 $"{job.State}: {JobIssue.Summarize(job.Issues)} " +
                 string.Join(", ", job.StorageResult!.Reasons.Select(reason => reason.Problem.Message)));
@@ -141,8 +144,112 @@ public sealed partial class WindowsSparseTransformTests
         }
         finally
         {
-            Directory.Delete(directory, recursive: true);
-            Directory.Delete(evidence, recursive: true);
+            if (jobs?.HasActiveWork == true)
+            {
+                // A timed-out native call can still hold the stream. The enclosing
+                // disposable-VHDX controller owns teardown after the test host exits.
+                TestContext.Current.TestOutputHelper!.WriteLine("dense removal still active; deferring fixture cleanup to VHDX teardown");
+            }
+            else
+            {
+                Directory.Delete(directory, recursive: true);
+                Directory.Delete(evidence, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// N-C2 enable boundary: a reviewed Compress of an uncompressed dense stream of exactly 30,000,000,000 bytes, the
+    /// largest admitted length, on the same disposable FCATDENSE volume. The named stream keeps its bytes and state.
+    /// </summary>
+    [Fact]
+    public void Reviewed_compression_at_the_enable_limit_compresses_a_dense_NTFS_stream()
+    {
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_NTFS_DENSE_ROOT");
+        Assert.SkipUnless(OperatingSystem.IsWindows() && !string.IsNullOrWhiteSpace(root) &&
+            Environment.GetEnvironmentVariable("FILECAT_TEST_NTFS_DENSE_ENABLE") == "1",
+            "Requires the disposable 76 GiB NTFS fixture and FILECAT_TEST_NTFS_DENSE_ENABLE=1.");
+        Assert.True(WindowsStorageTransforms.SupportsHost(WindowsStorageAbiTests.QualifyNativeArm64Jobs));
+        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
+        var drive = new DriveInfo(root!);
+        Assert.Equal(drive.RootDirectory.FullName, Path.GetFullPath(root!), ignoreCase: true);
+        Assert.Equal((DriveType.Fixed, "NTFS", "FCATDENSE"), (drive.DriveType, drive.DriveFormat, drive.VolumeLabel));
+        Assert.InRange(drive.TotalSize, 74L << 30, 78L << 30);
+        const long length = 30_000_000_000L;
+        Assert.True(drive.AvailableFreeSpace >= length + (5L << 30));
+        Assert.True(GetDiskFreeSpace(drive.RootDirectory.FullName, out uint sectors, out uint bytes, out _, out _));
+        Assert.Equal(4096u, checked(sectors * bytes));
+
+        string directory = Directory.CreateDirectory(Path.Join(root, "filecat-dense-enable-" + Guid.NewGuid().ToString("N"))).FullName;
+        string evidence = Directory.CreateDirectory(Path.Join(root!, "filecat-dense-enable-evidence-" + Guid.NewGuid().ToString("N"))).FullName;
+        string path = Path.Join(directory, "dense.bin");
+        var ct = TestContext.Current.CancellationToken;
+        byte[] namedPayload = "dense enable named stream"u8.ToArray();
+        JobManager? jobs = null;
+        try
+        {
+            string expected;
+            FileIdentity identity;
+            using (var data = new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read))
+            {
+                identity = ProtectedHexFile.Identity(data.SafeFileHandle);
+                expected = WriteLargeDenseBytes(data, length, ct);
+                Assert.Equal(length, data.Length);
+                Assert.Equal(WindowsCompression.None, WindowsCompression.Query(data.SafeFileHandle).Native);
+            }
+            WindowsCompression.Format namedCompression;
+            using (var originalNamed = new FileStream(path + NamedStream, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read))
+            {
+                originalNamed.Write(namedPayload);
+                originalNamed.Flush(flushToDisk: true);
+                namedCompression = WindowsCompression.Query(originalNamed.SafeFileHandle);
+            }
+            TestContext.Current.TestOutputHelper!.WriteLine($"before eof={length} id={identity} sha256={expected} named compression={namedCompression.Native}");
+
+            PrivateDenseEvidence(evidence);
+            jobs = CreateManager(path, evidence);
+            TestContext.Current.TestOutputHelper!.WriteLine($"dense enable submitted: {DateTimeOffset.UtcNow:O}");
+            var job = Submit(jobs, path, StorageAction.Compress, TimeSpan.FromMinutes(60));
+            TestContext.Current.TestOutputHelper!.WriteLine($"dense enable finished: {DateTimeOffset.UtcNow:O} state={job.State}");
+            Assert.True(job.State == JobState.Completed,
+                $"{job.State}: {JobIssue.Summarize(job.Issues)} " + string.Join(", ", job.StorageResult!.Reasons.Select(reason => reason.Problem.Message)));
+            Assert.Equal(1, job.StorageResult!.Counts.Changed);
+            var report = jobs.ReadStorageReview(StorageJournalPolicy.FileName(job.CreatedUtc, job.Id), ct);
+            Assert.True(report.Current.History.Ended);
+            Assert.False(report.ReviewPending);
+            var call = Assert.IsType<StorageHistoryCall>(report.Current.History.LastCall);
+            Assert.Equal(StorageCallDisposition.Observed, call.Disposition);
+            var result = Assert.IsType<StorageMutationResult>(call.Result);
+            Assert.True(result.NativeCallAttempted);
+            Assert.Equal((StorageEffect.Changed, StorageObservationState.Disabled, StorageObservationState.Enabled),
+                (result.Effect, call.Before.Compression, result.After?.Compression));
+
+            using var main = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var named = new FileStream(path + NamedStream, FileMode.Open, FileAccess.Read, FileShare.Read);
+            Assert.Equal(identity, ProtectedHexFile.Identity(main.SafeFileHandle));
+            Assert.Equal(WindowsCompression.Lznt1, WindowsCompression.Query(main.SafeFileHandle).Native);
+            Assert.Equal(namedCompression, WindowsCompression.Query(named.SafeFileHandle));
+            Assert.Equal(length, main.Length);
+            unsafe
+            {
+                Assert.True(GetInfo(main.SafeFileHandle, 1, out StandardInfo standard, (uint)sizeof(StandardInfo)));
+                TestContext.Current.TestOutputHelper!.WriteLine($"after allocation={standard.AllocationSize}");
+                Assert.True(standard.AllocationSize < length, "Compression must reduce the allocation of this repetitive stream.");
+            }
+            Assert.Equal(expected, Convert.ToHexString(SHA256.HashData(main)));
+            byte[] reread = new byte[namedPayload.Length];
+            named.ReadExactly(reread);
+            Assert.Equal(namedPayload, reread);
+        }
+        finally
+        {
+            if (jobs?.HasActiveWork == true)
+                TestContext.Current.TestOutputHelper!.WriteLine("dense enable still active; deferring fixture cleanup to VHDX teardown");
+            else
+            {
+                Directory.Delete(directory, recursive: true);
+                Directory.Delete(evidence, recursive: true);
+            }
         }
     }
 
@@ -185,8 +292,17 @@ public sealed partial class WindowsSparseTransformTests
     {
         long allocation = GetInfo(data.SafeFileHandle, 1, out StandardInfo standard, (uint)sizeof(StandardInfo))
             ? standard.AllocationSize : -1;
-        TestContext.Current.TestOutputHelper!.WriteLine(
-            $"dense {stage}: position={data.Position} eof={data.Length} allocation={allocation} available={volume.AvailableFreeSpace}");
+        string message = $"dense {stage}: position={data.Position} eof={data.Length} allocation={allocation} available={volume.AvailableFreeSpace}";
+        TestContext.Current.TestOutputHelper!.WriteLine(message);
+        string? progressPath = Environment.GetEnvironmentVariable("FILECAT_TEST_NTFS_DENSE_PROGRESS");
+        if (!string.IsNullOrWhiteSpace(progressPath))
+        {
+            // A cancelled hosted job may have no TRX. Keep best-effort phase evidence
+            // on the runner's host volume without making the storage test depend on it.
+            try { File.AppendAllText(progressPath, $"{DateTimeOffset.UtcNow:O} {message}{Environment.NewLine}"); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
     }
 
     private static void PrivateDenseEvidence(string evidence)

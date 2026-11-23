@@ -53,6 +53,14 @@ internal static partial class ConsentDialog
     public static bool Ask(string instruction, string content, IReadOnlyList<string> pages, string footer)
         => AskCore(instruction, content, pages, footer, consentIsCurrent: null);
 
+    internal static bool AskFileSecurity(string instruction, string content, IReadOnlyList<string> pages, string footer, Func<bool> isCurrent)
+    {
+        bool change = instruction == ElevationPlanCodec.FileSecurityChangeTitle;
+        return AskCore(instruction, content, pages, footer, isCurrent,
+            change ? "FileCat — change security metadata" : "FileCat — inspect security metadata",
+            change ? "Apply security change" : "Inspect security");
+    }
+
     internal static bool AskMetadata(string instruction, string content, IReadOnlyList<string> pages, string footer,
         Func<bool> isCurrent, Func<bool> stopRequested)
     {
@@ -73,7 +81,7 @@ internal static partial class ConsentDialog
     }
 
     private static unsafe bool AskCore(string instruction, string content, IReadOnlyList<string> pages, string footer,
-        Func<bool>? consentIsCurrent)
+        Func<bool>? consentIsCurrent, string? windowTitle = null, string? buttonText = null)
     {
         bool metadata = consentIsCurrent is not null;
         instruction = ElevationConsent.DisplayText(instruction);
@@ -100,7 +108,7 @@ internal static partial class ConsentDialog
                     new() { Id = LaterButton, Text = S("Later steps") },
                     new() { Id = RunButton, Text = S("Run as administrator") },
                 }
-                : stackalloc TaskDialogButton[] { new() { Id = RunButton, Text = S(metadata ? "Read metadata" : "Run as administrator") } };
+                : stackalloc TaskDialogButton[] { new() { Id = RunButton, Text = S(buttonText ?? (metadata ? "Read metadata" : "Run as administrator")) } };
             fixed (TaskDialogButton* first = buttons)
             {
                 var config = new TaskDialogConfig
@@ -108,7 +116,7 @@ internal static partial class ConsentDialog
                     Size = (uint)sizeof(TaskDialogConfig),
                     Flags = AllowCancellation | ExpandedByDefault | SizeToContent | (metadata ? CallbackTimer : 0),
                     CommonButtons = CancelButtonFlag,
-                    WindowTitle = S(metadata ? "FileCat — read NTFS metadata" : "FileCat — administrator operation"),
+                    WindowTitle = S(windowTitle ?? (metadata ? "FileCat — read NTFS metadata" : "FileCat — administrator operation")),
                     MainIcon = ShieldIcon,
                     MainInstruction = S(instruction),
                     Content = S(content),

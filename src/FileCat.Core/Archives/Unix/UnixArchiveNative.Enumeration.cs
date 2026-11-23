@@ -17,9 +17,22 @@ internal static unsafe partial class UnixArchiveNative
             facts.IsRegular ? ArchiveSelectionKind.File : ArchiveSelectionKind.Special, facts.Identity.ToString());
     }
 
+    internal static void EnumerateSelection(SafeFileHandle parent, Action<ArchiveSelectionEntry> visit, CancellationToken ct) =>
+        EnumerateSelectionNames(parent, (name, inode) =>
+        {
+            if (name is null) { visit(new("", ArchiveSelectionKind.UnrepresentableName, "")); return; }
+            try { ArchiveWritePolicy.ValidateName(name); Leaf(name); }
+            catch (Exception ex) when (ex is ArgumentException || ex is ArchiveWriteException { Reason: ArchiveWriteReason.InvalidRequest })
+            { visit(new(name, ArchiveSelectionKind.UnrepresentableName, "")); return; }
+            var facts = UnixFiles.StatChild(parent, name) ?? throw ArchiveCapturedSelection.Changed();
+            if (inode != facts.Inode) throw ArchiveCapturedSelection.Changed();
+            visit(new(name, facts.IsLink ? ArchiveSelectionKind.Link : facts.IsDirectory ? ArchiveSelectionKind.Directory :
+                facts.IsRegular ? ArchiveSelectionKind.File : ArchiveSelectionKind.Special, facts.Identity.ToString()));
+        }, ct);
+
     // The supported 64-bit glibc/musl dirent ABI uses name offset 19; Darwin's inode64 ABI uses 21.
     // A separate open file description avoids sharing a directory cursor with other observations.
-    internal static void EnumerateSelection(SafeFileHandle parent, Action<ArchiveSelectionEntry> visit, CancellationToken ct)
+    internal static void EnumerateSelectionNames(SafeFileHandle parent, Action<string?, ulong> visit, CancellationToken ct)
     {
         using var cursor = Handle(OpenAt(Fd(parent), ".", SafeOpen | DirectoryFlag, 0));
         nint stream = FdOpenDir(Fd(cursor));
@@ -47,18 +60,10 @@ internal static unsafe partial class UnixArchiveNative
                 if (end <= 0 || end > (Mac ? 1023 : 255) || Mac && end != BinaryPrimitives.ReadUInt16LittleEndian(new ReadOnlySpan<byte>(record + 18, 2)))
                     throw ArchiveCapturedSelection.Changed();
                 var rawName = available[..end]; if (rawName.SequenceEqual("."u8) || rawName.SequenceEqual(".."u8)) continue;
-                string leaf;
+                string? leaf;
                 try { leaf = Utf8.GetString(rawName); }
-                catch (DecoderFallbackException) { visit(new("", ArchiveSelectionKind.UnrepresentableName, "")); continue; }
-                // Unsupported archive spellings can be excluded without opening a device or following any link.
-                try { ArchiveWritePolicy.ValidateName(leaf); Leaf(leaf); }
-                catch (Exception ex) when (ex is ArgumentException || ex is ArchiveWriteException { Reason: ArchiveWriteReason.InvalidRequest })
-                { visit(new(leaf, ArchiveSelectionKind.UnrepresentableName, "")); continue; }
-                var facts = UnixFiles.StatChild(parent, leaf) ?? throw ArchiveCapturedSelection.Changed();
-                ulong inode = BinaryPrimitives.ReadUInt64LittleEndian(new ReadOnlySpan<byte>(record, 8));
-                if (inode != facts.Inode) throw ArchiveCapturedSelection.Changed();
-                visit(new(leaf, facts.IsLink ? ArchiveSelectionKind.Link : facts.IsDirectory ? ArchiveSelectionKind.Directory :
-                    facts.IsRegular ? ArchiveSelectionKind.File : ArchiveSelectionKind.Special, facts.Identity.ToString()));
+                catch (DecoderFallbackException) { leaf = null; }
+                visit(leaf, BinaryPrimitives.ReadUInt64LittleEndian(new ReadOnlySpan<byte>(record, 8)));
             }
         }
         catch (Exception ex) { failure = ex; throw; }

@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+using System.Security.Cryptography;
 using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
 
@@ -15,8 +17,15 @@ internal static partial class WindowsSparseCopy
     {
         if (!OperatingSystem.IsWindows() || length < MinimumLength) return false;
         if (source.Length != length) throw new IOException("The source file changed size before its copy began.");
+        string? sourceRevision = SourceChangeToken.FromHandle(source.SafeFileHandle);
+        if (sourceRevision is null)
+            throw new IOException("The source file's change token is unavailable for a sparse copy.");
 
         var ranges = new AllocatedRange[256];
+        using var copiedRanges = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        Span<byte> lengthBytes = stackalloc byte[sizeof(long)];
+        BinaryPrimitives.WriteInt64LittleEndian(lengthBytes, length);
+        copiedRanges.AppendData(lengthBytes);
         long done = 0;
         bool prepared = false;
         while (done < length)
@@ -63,6 +72,7 @@ internal static partial class WindowsSparseCopy
                 // NTFS can round the query start down. Do not copy or report an extent twice.
                 start = Math.Max(start, done);
                 if (end <= start) continue;
+                AppendRange(copiedRanges, start, end);
                 if (start > done) { done = start; advance(done); }
                 source.Position = start;
                 destination.Position = start;
@@ -85,8 +95,70 @@ internal static partial class WindowsSparseCopy
                 throw new IOException("The source file's allocated-range listing did not advance.");
         }
         if (source.Length != length) throw new IOException("The source file changed size during its copy.");
+        // A writer can allocate a previously skipped hole after the first range query without changing EOF.
+        // A second bounded pass rejects a range-map change observed before publication; the change token
+        // also catches writes to already allocated extents when the filesystem reports them.
+        if (!copiedRanges.GetHashAndReset().AsSpan().SequenceEqual(RangeDigest(source, length, ct)) ||
+            source.Length != length || (File.GetAttributes(source.SafeFileHandle) & FileAttributes.SparseFile) == 0)
+            throw new IOException("The source file's allocated ranges changed during its copy.");
+        if (!SourceChangeToken.Holds(SourceChangeToken.FromHandle(source.SafeFileHandle), sourceRevision))
+            throw new IOException("The source file changed during its sparse copy.");
+        ct.ThrowIfCancellationRequested();
         destination.SetLength(length); // includes a trailing hole and all-hole files
         return true;
+    }
+
+    private static unsafe byte[] RangeDigest(FileStream source, long length, CancellationToken ct)
+    {
+        using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        Span<byte> lengthBytes = stackalloc byte[sizeof(long)];
+        BinaryPrimitives.WriteInt64LittleEndian(lengthBytes, length);
+        digest.AppendData(lengthBytes);
+        var ranges = new AllocatedRange[256];
+        long done = 0;
+        while (done < length)
+        {
+            ct.ThrowIfCancellationRequested();
+            var query = new AllocatedRange(done, length - done);
+            uint returned;
+            bool ok;
+            fixed (AllocatedRange* output = ranges)
+                ok = DeviceIoControl(source.SafeFileHandle, QueryAllocatedRanges, &query, (uint)sizeof(AllocatedRange),
+                    output, (uint)(ranges.Length * sizeof(AllocatedRange)), out returned, 0);
+            int error = ok ? 0 : Marshal.GetLastPInvokeError();
+            if (!ok && error != MoreData)
+                throw new IOException($"The source file's allocated ranges could not be verified (Windows error {error}).");
+            if (returned % sizeof(AllocatedRange) != 0 || returned > ranges.Length * sizeof(AllocatedRange))
+                throw new IOException("The source file returned malformed allocated ranges during verification.");
+            int count = (int)(returned / sizeof(AllocatedRange));
+            if (!ok && count == 0)
+                throw new IOException("The source file returned no progress while verifying allocated ranges.");
+            long before = done;
+            for (int i = 0; i < count; i++)
+            {
+                long start = ranges[i].Offset;
+                long rangeLength = ranges[i].Length;
+                if (start < 0 || rangeLength <= 0 || start >= length || rangeLength > long.MaxValue - start)
+                    throw new IOException("The source file returned an invalid allocated range during verification.");
+                long end = Math.Min(length, start + rangeLength);
+                start = Math.Max(start, done);
+                if (end <= start) continue;
+                AppendRange(digest, start, end);
+                done = end;
+            }
+            if (ok) break;
+            if (done <= before)
+                throw new IOException("The source file's allocated-range verification did not advance.");
+        }
+        return digest.GetHashAndReset();
+    }
+
+    private static void AppendRange(IncrementalHash digest, long start, long end)
+    {
+        Span<byte> bytes = stackalloc byte[2 * sizeof(long)];
+        BinaryPrimitives.WriteInt64LittleEndian(bytes, start);
+        BinaryPrimitives.WriteInt64LittleEndian(bytes[sizeof(long)..], end);
+        digest.AppendData(bytes);
     }
 
     [StructLayout(LayoutKind.Sequential)]

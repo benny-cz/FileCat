@@ -1,0 +1,32 @@
+{
+ "Disk": {
+  "Number": 1,
+  "FriendlyName": "QEMU QEMU HARDDISK",
+  "BusType": "USB",
+  "PartitionStyle": "GPT",
+  "Size": 2147483648,
+  "IsBoot": false,
+  "IsSystem": false,
+  "IsRemovable": null
+ },
+ "PhysicalDisk": {
+  "FriendlyName": "QEMU QEMU HARDDISK",
+  "BusType": "USB",
+  "MediaType": "Unspecified",
+  "CanPool": false
+ },
+ "Volume": {
+  "DriveLetter": "F",
+  "FileSystem": "NTFS",
+  "FileSystemLabel": "FCHotPlug",
+  "DriveType": "Fixed",
+  "Size": 2130636800,
+  "AllocationUnitSize": 4096
+ },
+ "DriveInfo": {
+  "DriveType": "Fixed",
+  "Format": "NTFS"
+ },
+ "Folder": "F:\\hotplug-fixture",
+ "File": "F:\\hotplug-fixture\\payload.txt"
+}

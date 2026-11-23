@@ -122,6 +122,14 @@ internal static class AdvancedTextFileExchange
         byte[] bytes = Utf8.GetBytes(text);
         if (bytes.Length > MaxBytes) throw new InvalidDataException("The text exceeds the 8 MiB file-exchange limit.");
         string target = Path.GetFullPath(path);
+        if (OperatingSystem.IsWindows())
+        {
+            // File lists and Settings text can replace an existing file. A clear temporary file
+            // must not silently replace a Windows EFS destination.
+            await Task.Run(() => FileCat.Platform.Windows.WindowsMetadataReportOutput.Save(target, text, () => { },
+                cancellation, includeBom: false, atomicOutput: true), cancellation);
+            return;
+        }
         string temp = Path.Combine(Path.GetDirectoryName(target)!, $".{Path.GetFileName(target)}.{Guid.NewGuid():N}.tmp");
         try
         {

@@ -37,7 +37,8 @@ public sealed class AttributeLinkTests : IDisposable
         {
             Kind = JobKind.Attributes,
             Sources = [ItemRef.ForFileSystemPath(link, EntryKind.File)],
-            Attributes = new AttributeChangeSet(FileAttributes.ReadOnly, 0, new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc), null, Recursive: false),
+            Attributes = new AttributeChangeSet(OperatingSystem.IsWindows() ? FileAttributes.ReadOnly : 0, 0,
+                new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc), null, Recursive: false),
         });
         while (!job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
 

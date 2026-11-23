@@ -72,9 +72,9 @@ public sealed class TestDispatcher : IUiDispatcher, IDisposable
 /// <summary>A disposable temporary directory tree.</summary>
 public sealed class TempDir : IDisposable
 {
-    public TempDir()
+    public TempDir(string? root = null)
     {
-        Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "filecat-tests", Guid.NewGuid().ToString("N")[..10]);
+        Path = System.IO.Path.Combine(root ?? System.IO.Path.GetTempPath(), "filecat-tests", Guid.NewGuid().ToString("N")[..10]);
         Directory.CreateDirectory(Path);
     }
 

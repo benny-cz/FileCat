@@ -67,6 +67,198 @@ public sealed partial class WindowsEfsCopyTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    [Theory]
+    [InlineData(JobKind.Copy, false)]
+    [InlineData(JobKind.Move, false)]
+    [InlineData(JobKind.Copy, true)]
+    [InlineData(JobKind.Move, true)]
+    public async Task Sparse_EFS_source_replacement_preserves_holes_or_refuses_an_EFS_target(
+        JobKind kind, bool protectedTarget)
+    {
+        RequireEfs();
+        const int mainLength = 8 * 1024 * 1024, namedLength = 4 * 1024 * 1024;
+        string root = Directory.CreateTempSubdirectory("filecat-efs-sparse-replace-").FullName;
+        try
+        {
+            Assert.Equal("NTFS", new DriveInfo(Path.GetPathRoot(root)!).DriveFormat);
+            string destination = Directory.CreateDirectory(Path.Join(root, "destination")).FullName;
+            string source = Path.Join(root, "sparse.bin"), target = Path.Join(destination, "sparse.bin");
+            using (var main = new FileStream(source, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
+            {
+                MarkSparse(main);
+                main.SetLength(mainLength);
+                main.Position = 64 * 1024;
+                main.Write(RandomNumberGenerator.GetBytes(4096));
+                main.Position = mainLength - 4096;
+                main.Write(RandomNumberGenerator.GetBytes(4096));
+            }
+            using (var named = new FileStream(source + ":proof", FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
+            {
+                MarkSparse(named);
+                named.SetLength(namedLength);
+                named.Position = namedLength / 4;
+                named.Write(RandomNumberGenerator.GetBytes(4096));
+            }
+            File.Encrypt(source);
+            var files = new WindowsFileOperations();
+            string sourceId = Assert.IsType<string>(files.GetFileIdentity(source));
+            var sourceMain = ObserveSparseStream(source);
+            var sourceNamed = ObserveSparseStream(source + ":proof");
+            Assert.True(sourceMain.Attributes.HasFlag(FileAttributes.SparseFile));
+            Assert.True(sourceNamed.Attributes.HasFlag(FileAttributes.SparseFile));
+            Assert.True(sourceMain.Ranges.Sum(range => range.Length) < mainLength / 2);
+            Assert.True(sourceNamed.Ranges.Sum(range => range.Length) < namedLength / 2);
+            WriteSparse("replacement source main", sourceMain);
+            WriteSparse("replacement source named", sourceNamed);
+
+            byte[] previousMain = [0xA1, 0xB2, 0xC3], previousNamed = [0xD4, 0xE5];
+            File.WriteAllBytes(target, previousMain);
+            File.WriteAllBytes(target + ":proof", previousNamed);
+            if (protectedTarget) File.Encrypt(target);
+            string targetId = Assert.IsType<string>(files.GetFileIdentity(target));
+            var (job, questions) = await Run(root, files, kind, [source], destination,
+                request => request is ConflictRequest conflict && conflict.CanReplace
+                    ? new(DecisionAction.Replace) : new(DecisionAction.Skip),
+                new TransferOptions { Conflicts = ConflictPolicy.Replace });
+
+            if (protectedTarget)
+            {
+                Assert.Contains(questions, question => question is ConflictRequest { CanReplace: false });
+                Assert.Equal(targetId, files.GetFileIdentity(target));
+                Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+                Assert.Equal(previousMain, File.ReadAllBytes(target));
+                Assert.Equal(previousNamed, File.ReadAllBytes(target + ":proof"));
+                Assert.Equal(sourceId, files.GetFileIdentity(source));
+                AssertSparseCopy(sourceMain, ObserveSparseStream(source));
+                AssertSparseCopy(sourceNamed, ObserveSparseStream(source + ":proof"));
+            }
+            else
+            {
+                Assert.Equal(JobState.Completed, job.State);
+                Assert.DoesNotContain(questions, question => question is ConfirmRequest { ConfirmClass: "decrypt" });
+                Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+                var targetMain = ObserveSparseStream(target);
+                var targetNamed = ObserveSparseStream(target + ":proof");
+                WriteSparse("replacement target main", targetMain);
+                WriteSparse("replacement target named", targetNamed);
+                AssertSparseCopy(sourceMain, targetMain);
+                AssertSparseCopy(sourceNamed, targetNamed);
+                Assert.Equal(kind == JobKind.Copy, File.Exists(source));
+                if (kind == JobKind.Copy)
+                {
+                    Assert.Equal(sourceId, files.GetFileIdentity(source));
+                    AssertSparseCopy(sourceMain, ObserveSparseStream(source));
+                    AssertSparseCopy(sourceNamed, ObserveSparseStream(source + ":proof"));
+                }
+            }
+            Assert.Equal([target], Directory.GetFiles(destination));
+            Assert.DoesNotContain(Directory.EnumerateFileSystemEntries(destination),
+                item => Path.GetFileName(item).StartsWith(JournalRecovery.StagedPrefix, StringComparison.Ordinal));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData(JobKind.Copy, false, false)]
+    [InlineData(JobKind.Move, false, false)]
+    [InlineData(JobKind.Copy, true, false)]
+    [InlineData(JobKind.Move, true, false)]
+    [InlineData(JobKind.Copy, false, true)]
+    [InlineData(JobKind.Move, false, true)]
+    [InlineData(JobKind.Copy, true, true)]
+    [InlineData(JobKind.Move, true, true)]
+    public async Task Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(
+        JobKind kind, bool sourceOnUsb, bool replaceExisting)
+    {
+        RequireEfs();
+        string? removableRoot = Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_USB_ROOT");
+        Assert.SkipUnless(!string.IsNullOrWhiteSpace(removableRoot) && Directory.Exists(removableRoot),
+            "Requires a prepared removable NTFS destination owned by the native fixture.");
+        string removable = Path.GetFullPath(removableRoot!);
+        var drive = new DriveInfo(Path.GetPathRoot(removable)!);
+        Assert.Equal(DriveType.Removable, drive.DriveType);
+        Assert.Equal("NTFS", drive.DriveFormat);
+        string root = Directory.CreateTempSubdirectory("filecat-efs-sparse-usb-source-").FullName;
+        Assert.Equal("NTFS", new DriveInfo(Path.GetPathRoot(root)!).DriveFormat);
+        string usbFixture = Path.Combine(removable, "filecat-efs-sparse-usb-" + Guid.NewGuid().ToString("N"));
+        Assert.Equal(removable, Path.GetDirectoryName(usbFixture));
+        string destination = sourceOnUsb ? Path.Combine(root, "destination") : usbFixture;
+        try
+        {
+            Directory.CreateDirectory(usbFixture);
+            Directory.CreateDirectory(destination);
+            const int mainLength = 8 * 1024 * 1024, namedLength = 4 * 1024 * 1024;
+            string source = Path.Combine(sourceOnUsb ? usbFixture : root, "sparse-usb.bin");
+            using (var main = new FileStream(source, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
+            {
+                MarkSparse(main);
+                main.SetLength(mainLength);
+                main.Position = 0;
+                main.Write(RandomNumberGenerator.GetBytes(4096));
+                main.Position = mainLength / 2;
+                main.Write(RandomNumberGenerator.GetBytes(4096));
+            }
+            using (var named = new FileStream(source + ":proof", FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
+            {
+                MarkSparse(named);
+                named.SetLength(namedLength);
+                named.Position = namedLength / 4;
+                named.Write(RandomNumberGenerator.GetBytes(4096));
+                named.Position = namedLength - 4096;
+                named.Write(RandomNumberGenerator.GetBytes(4096));
+            }
+            File.Encrypt(source);
+            string originalId = Assert.IsType<string>(new WindowsFileOperations().GetFileIdentity(source));
+            var beforeMain = ObserveSparseStream(source);
+            var beforeNamed = ObserveSparseStream(source + ":proof");
+            Assert.True(beforeMain.Ranges.Sum(range => range.Length) < mainLength / 2);
+            Assert.True(beforeNamed.Ranges.Sum(range => range.Length) < namedLength / 2);
+            WriteSparse("usb source main", beforeMain);
+            WriteSparse("usb source named", beforeNamed);
+
+            string target = Path.Combine(destination, "sparse-usb.bin");
+            if (replaceExisting)
+            {
+                File.WriteAllBytes(target, [0x10, 0x20, 0x30]);
+                File.WriteAllBytes(target + ":proof", [0x40, 0x50]);
+            }
+            var (job, questions) = await Run(root, new WindowsFileOperations(), kind, [source], destination,
+                request => request is ConflictRequest { CanReplace: true }
+                    ? new(DecisionAction.Replace) : new(DecisionAction.CancelJob),
+                replaceExisting ? new TransferOptions { Conflicts = ConflictPolicy.Replace } : null);
+            Assert.DoesNotContain(questions, question => question is ConfirmRequest { ConfirmClass: "decrypt" });
+            if (!replaceExisting) Assert.Empty(questions);
+            Assert.Equal(JobState.Completed, job.State);
+            Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+            var afterMain = ObserveSparseStream(target);
+            var afterNamed = ObserveSparseStream(target + ":proof");
+            WriteSparse("usb copy main", afterMain);
+            WriteSparse("usb copy named", afterNamed);
+            AssertSparseCopy(beforeMain, afterMain);
+            AssertSparseCopy(beforeNamed, afterNamed);
+            Assert.Equal([target], Directory.GetFiles(destination));
+            Assert.DoesNotContain(Directory.EnumerateFileSystemEntries(destination),
+                item => Path.GetFileName(item).StartsWith(JournalRecovery.StagedPrefix, StringComparison.Ordinal));
+            if (kind == JobKind.Move)
+            {
+                Assert.False(File.Exists(source));
+                Assert.False(File.Exists(source + ":proof"));
+            }
+            else
+            {
+                Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+                Assert.Equal(originalId, new WindowsFileOperations().GetFileIdentity(source));
+                AssertSparseCopy(beforeMain, ObserveSparseStream(source));
+                AssertSparseCopy(beforeNamed, ObserveSparseStream(source + ":proof"));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(usbFixture)) Directory.Delete(usbFixture, recursive: true);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static void AssertSparseCopy(SparseStream before, SparseStream after)
     {
         Assert.Equal(before.Length, after.Length);

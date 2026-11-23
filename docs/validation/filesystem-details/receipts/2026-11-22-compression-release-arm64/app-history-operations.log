@@ -1,0 +1,9 @@
+xUnit.net v3 In-Process Runner v3.2.2+728c1dce01 (64-bit .NET 10.0.14)
+  Discovering: FileCat.App.Tests
+  Discovered:  FileCat.App.Tests
+  Starting:    FileCat.App.Tests
+    FileCat.App.Tests.OperationReportTests.Windows_operation_report_does_not_replace_an_Efs_destination [SKIP]
+      Requires an opt-in Windows EFS fixture.
+  Finished:    FileCat.App.Tests (ID = '00b77b2f887fbdc56e94da73526927124384f1179942e9fd342cd1b91724f8df')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.App.Tests  Total: 43, Errors: 0, Failed: 0, Skipped: 1, Not Run: 0, Time: 11.812s

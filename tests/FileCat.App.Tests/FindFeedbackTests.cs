@@ -25,19 +25,19 @@ public sealed class FindFeedbackTests
     [Fact]
     public void Stopped_search_never_claims_complete_coverage()
     {
-        var stopped = Feedback(finished: true, complete: false);
+        var stopped = Feedback(finished: true, complete: false, stoppedEarly: true);
         Assert.Equal("Stopped · no results yet · Only part of the scope was searched", stopped.Headline);
         Assert.Contains("Only part of the scope", stopped.EmptyExplanation);
         Assert.Equal("Stopped · partial results · Only part of the scope was searched",
-            Feedback(finished: true, complete: false, resultCount: 2).Headline);
+            Feedback(finished: true, complete: false, resultCount: 2, stoppedEarly: true).Headline);
     }
 
     [Fact]
     public void Access_failures_and_deliberate_ignores_have_different_qualifications()
     {
-        var denied = Feedback(finished: true, complete: true,
+        var denied = Feedback(finished: true, complete: false,
             log: [new SearchLogEntry(SearchLogKind.Inaccessible, "C:\\work\\private", "Access denied")]);
-        Assert.Equal("No matches in searched portion", denied.Headline);
+        Assert.Equal("No matches in examined portion · coverage limited", denied.Headline);
         Assert.Contains("1 not searched (1 inaccessible)", denied.Qualifications);
         Assert.True(denied.HasLog);
 
@@ -51,7 +51,7 @@ public sealed class FindFeedbackTests
     [Fact]
     public void Skips_warnings_missing_items_and_regex_timeouts_are_visible()
     {
-        var feedback = Feedback(finished: true, complete: true, resultCount: 1, regexTimedOut: true,
+        var feedback = Feedback(finished: true, complete: false, resultCount: 1, regexTimedOut: true,
             log:
             [
                 new SearchLogEntry(SearchLogKind.Skipped, "C:\\work\\skip"),
@@ -81,6 +81,8 @@ public sealed class FindFeedbackTests
     }
 
     private static FindFeedback Feedback(bool finished, bool complete, int resultCount = 0,
-        IReadOnlyList<SearchLogEntry>? log = null, bool regexTimedOut = false, string? currentFolder = null) =>
-        FindFeedback.Create(finished, complete, resultCount, 2, 3, resultCount, currentFolder, log ?? [], regexTimedOut, Scope);
+        IReadOnlyList<SearchLogEntry>? log = null, bool regexTimedOut = false, string? currentFolder = null,
+        bool stoppedEarly = false) =>
+        FindFeedback.Create(finished, complete, resultCount, 2, 3, resultCount, currentFolder, log ?? [], regexTimedOut, Scope,
+            stoppedEarly: stoppedEarly);
 }

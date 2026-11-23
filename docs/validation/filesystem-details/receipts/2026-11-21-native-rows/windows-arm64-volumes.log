@@ -1,0 +1,3 @@
+fixture fat fs FAT32 unit 4096 letter D
+fixture exfat fs exFAT unit 32768 letter E
+fixture refs fs ReFS unit 4096 letter F

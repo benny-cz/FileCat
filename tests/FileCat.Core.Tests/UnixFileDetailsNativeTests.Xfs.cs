@@ -10,8 +10,8 @@ public sealed partial class UnixFileDetailsNativeTests
     [Fact]
     public void Linux_XFS_reports_reflink_sharing_sparse_ranges_and_unwritten_extents()
     {
-        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64,
-            "Requires Linux x64 XFS.");
+        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture is Architecture.X64 or Architecture.Arm64,
+            "Requires Linux x64 or ARM64 XFS.");
         string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_LINUX_XFS_EXTENTS_ROOT");
         if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires a prepared XFS extent fixture.");
 

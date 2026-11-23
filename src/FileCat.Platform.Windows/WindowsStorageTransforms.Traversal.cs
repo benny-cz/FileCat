@@ -228,7 +228,8 @@ internal sealed unsafe partial class WindowsStorageTransforms
                     // The caller has durably recorded intent and atomically admitted this call. No cancellation token intervenes.
                     attempted = true;
                     var call = WindowsCompression.InvokeAdmitted(_handle.File, action,
-                        Owner._adapter._compressionSetReturnedForQualification, Owner._adapter._compressionSetPendingForQualification);
+                        Owner._adapter._compressionSetReturnedForQualification, Owner._adapter._compressionSetPendingForQualification,
+                        Owner._adapter._compressionSetStartingForQualification);
                     var after = Observe(CancellationToken.None);
                     var afterSparse = after.IsDirectory ? null : ReadSparseLayout(_handle.File, CancellationToken.None);
                     if (!SparseLayout.SameHoles(beforeSparse, afterSparse))

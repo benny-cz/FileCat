@@ -274,45 +274,61 @@ public sealed class UnixPermissionTests : IDisposable
         return output.Replace("\r\n", "\n").Trim();
     }
 
-    [Fact]
-    public async Task A_recursive_change_reaches_folders_last_and_leaves_links_and_documents_alone()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Legacy_mode_and_Unix_read_only_are_refused_even_when_combined_with_a_timestamp(bool recursive)
     {
         if (OperatingSystem.IsWindows()) Assert.Skip("POSIX permissions are a Linux and macOS feature.");
-        var root = _dir.Dir("site");
-        var inner = _dir.Dir("site/inner");
-        var page = _dir.File("site/inner/page.html", "<p>");
-        var script = _dir.File("site/run.sh", "#!/bin/sh");
-        var outside = _dir.File("outside.txt", "keep");
-        File.SetUnixFileMode(page, (UnixFileMode)0x1B6); // rw-rw-rw-
-        File.SetUnixFileMode(script, (UnixFileMode)0x1C0); // rwx------
-        File.SetUnixFileMode(outside, (UnixFileMode)0x1B6);
-        File.CreateSymbolicLink(Path.Combine(root, "to-outside"), outside);
-        // Take write away from group and others; let everyone read, and run what is runnable (a+rX, go-w).
-        var set = UnixFileMode.GroupRead | UnixFileMode.OtherRead | UnixPermissions.AnyExecute;
-        var clear = UnixFileMode.GroupWrite | UnixFileMode.OtherWrite;
-        var job = await WaitAsync(Jobs().Submit(new JobRequest
+        string file = _dir.File("site/document", "unchanged");
+        File.SetUnixFileMode(file, (UnixFileMode)0x180);
+        DateTime original = File.GetLastWriteTimeUtc(file);
+        DateTime changed = new(2021, 4, 5, 6, 7, 8, DateTimeKind.Utc);
+        var jobs = Jobs();
+        foreach (var attributes in new AttributeChangeSet[]
         {
-            Kind = JobKind.Attributes,
-            Sources = [Item(root)],
-            Attributes = new AttributeChangeSet(0, 0, null, null, Recursive: true, set, clear),
-        }));
-        Assert.Equal(JobState.Completed, job.State);
-        Assert.Equal((UnixFileMode)0x1A4, File.GetUnixFileMode(page)); // rw-r--r--: a document stays a document
-        Assert.Equal((UnixFileMode)0x1ED, File.GetUnixFileMode(script)); // rwxr-xr-x
-        Assert.Equal((UnixFileMode)0x1ED, File.GetUnixFileMode(inner));
-        Assert.Equal((UnixFileMode)0x1B6, File.GetUnixFileMode(outside)); // the link's target is untouched
+            new(0, 0, changed, null, recursive, ModeSet: UnixFileMode.GroupRead),
+            new(FileAttributes.ReadOnly, 0, changed, null, recursive),
+            new(0, FileAttributes.ReadOnly, changed, null, recursive)
+        })
+        {
+            Assert.Throws<NotSupportedException>(() => jobs.Submit(new JobRequest
+            {
+                Kind = JobKind.Attributes,
+                Sources = [Item(recursive ? Path.GetDirectoryName(file)! : file)],
+                Attributes = attributes,
+            }));
+        }
+        Assert.Empty(jobs.Jobs);
+        Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(file));
+        Assert.Equal(original, File.GetLastWriteTimeUtc(file));
+    }
 
-        // Taking the owner's own access away works because each folder changes after everything inside it.
-        job = await WaitAsync(Jobs().Submit(new JobRequest
+    /// <summary>
+    /// A folder that may be listed but not searched (r without x) names its items, yet nothing about them can be read: the
+    /// Permissions column says "no access" and why, where it showed a blank. An item gone since the list was read says so.
+    /// </summary>
+    [Fact]
+    public void Permissions_that_cannot_be_read_say_why()
+    {
+        if (OperatingSystem.IsWindows()) Assert.Skip("Unix permissions.");
+        if (UnixPermissions.CurrentUserId == 0) Assert.Skip("Root looks items up in any folder.");
+        var ct = TestContext.Current.CancellationToken;
+        string folder = Directory.CreateDirectory(Path.Combine(_dir.Path, "listable")).FullName;
+        string file = Path.Combine(folder, "inside.txt");
+        File.WriteAllText(file, "x");
+        Assert.IsType<UnixFileMode>(BuiltInFields.Permissions.Produce(file, ct));
+        File.SetUnixFileMode(folder, UnixFileMode.UserRead);
+        try
         {
-            Kind = JobKind.Attributes,
-            Sources = [Item(root)],
-            Attributes = new AttributeChangeSet(0, 0, null, null, Recursive: true, 0, UnixFileMode.UserRead | UnixFileMode.UserExecute),
-        }));
-        Assert.Equal(JobState.Completed, job.State);
-        File.SetUnixFileMode(root, (UnixFileMode)0x1ED);
-        File.SetUnixFileMode(inner, (UnixFileMode)0x1ED);
-        Assert.Equal((UnixFileMode)0xA4, File.GetUnixFileMode(page)); // -w-r--r--
-        Assert.Equal((UnixFileMode)0xAD, File.GetUnixFileMode(script)); // -w-r-xr-x
+            var denied = Assert.IsType<MetadataValue>(BuiltInFields.Permissions.Produce(file, ct));
+            Assert.Equal(MetadataState.Denied, denied.State);
+            Assert.Contains("no search permission", denied.Detail);
+        }
+        finally { File.SetUnixFileMode(folder, (UnixFileMode)0x1C0); }
+        File.Delete(file);
+        var gone = Assert.IsType<MetadataValue>(BuiltInFields.Permissions.Produce(file, ct));
+        Assert.Equal(MetadataState.Failed, gone.State);
+        Assert.StartsWith("The item is gone", gone.Detail);
     }
 }

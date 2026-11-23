@@ -1,0 +1,249 @@
+name: Details ARM64 qualification
+
+# File-system details and native listing fixtures that need ARM64 hardware. The hosted ARM64 runners are the only ARM64
+# machines available:
+# - linux-arm64 package: Unix details on ubuntu-24.04-arm, including an ext4 inline_data volume and the prepared
+#   ext4 restriction, case-folding and ext2/ext3/ext4 flag fixtures, Btrfs properties and Btrfs and XFS extents;
+# - Windows on Arm: owned FAT32, exFAT and ReFS (Dev Drive) volumes and a temporary Cloud Files sync root on
+#   windows-11-arm, at medium integrity;
+# - Windows on Arm SMB client: a case-distinct share from a throwaway loopback SMB server on an alternative port,
+#   because the Windows SMB server refuses to list names that differ only in case;
+# - linux-arm64 screen reader: the File-system details journey through Orca on an isolated Xvfb display with XTEST
+#   keys (X11 lets the harness give FileCat focus; the hosted Windows desktop does not).
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Which jobs to run
+        type: choice
+        default: all
+        options: [all, linux, linux-orca, windows, windows-smb]
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  linux-arm64:
+    name: Linux ARM64 (Unix details)
+    if: inputs.scope == 'all' || inputs.scope == 'linux'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - run: dotnet build tests/FileCat.Core.Tests -c Release -p:RestoreLockedMode=true
+      - name: Prepare an owned ext4 inline_data volume
+        run: |
+          uname -a
+          ldd --version | head -n 1
+          truncate -s 64M "$RUNNER_TEMP/inline.img"
+          mkfs.ext4 -q -F -O inline_data "$RUNNER_TEMP/inline.img"
+          sudo mkdir -p /mnt/fc-inline
+          sudo mount -o loop "$RUNNER_TEMP/inline.img" /mnt/fc-inline
+          sudo chown "$(id -u):$(id -g)" /mnt/fc-inline
+          echo probe > /mnt/fc-inline/probe
+          lsattr /mnt/fc-inline/probe
+          rm /mnt/fc-inline/probe
+      - name: Prepare the ext-family, Btrfs and XFS fixtures
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq btrfs-progs xfsprogs > /dev/null
+          bash eng/validation/prepare-linux-details-fixtures.sh "$RUNNER_TEMP/fc-details"
+      - name: Run the Unix details classes
+        env:
+          FILECAT_TEST_EXT4_INLINE_ROOT: /mnt/fc-inline
+        run: >-
+          dotnet test tests/FileCat.Core.Tests -c Release --no-build
+          --filter "FullyQualifiedName~UnixFileDetailsNativeTests|FullyQualifiedName~UnixFileDetailsColumnsNativeTests|FullyQualifiedName~FileDetailsTests|FullyQualifiedName~FileDetailsOwnershipTests|FullyQualifiedName~UnixHiddenInventoryNativeTests|FullyQualifiedName~HiddenInventoryTests|FullyQualifiedName~HiddenDataTests|FullyQualifiedName~HiddenSearchTests|FullyQualifiedName~SearchTraversalPredicateTests|FullyQualifiedName~ReparsePresentationTests"
+          --logger "trx;LogFileName=linux-arm64-details.trx"
+      - name: Remove the inline_data volume and the fixtures
+        if: always()
+        run: |
+          sudo umount /mnt/fc-inline || true
+          bash eng/validation/prepare-linux-details-fixtures.sh "$RUNNER_TEMP/fc-details" --remove || true
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: details-linux-arm64
+          path: tests/FileCat.Core.Tests/TestResults/*.trx
+
+  windows-arm64-volumes:
+    name: Windows ARM64 (prepared volumes)
+    if: inputs.scope == 'all' || inputs.scope == 'windows'
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - run: dotnet build tests/FileCat.Platform.Windows.Tests -c Release -p:RestoreLockedMode=true
+      - name: Prepare owned FAT32, exFAT and ReFS volumes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'fc-volumes'
+          New-Item -ItemType Directory -Force $root | Out-Null
+          $log = Join-Path $root 'volumes.log'
+          function New-Fixture([string]$Name, [string]$FileSystem, [switch]$DevDrive) {
+              # FAT32 needs 512-byte sectors, which a .vhd provides.
+              $image = Join-Path $root ("$Name." + $(if ($FileSystem -eq 'FAT32') { 'vhd' } else { 'vhdx' }))
+              $size = if ($DevDrive) { 51200 } else { 1024 }
+              "create vdisk file=`"$image`" maximum=$size type=expandable" | Set-Content (Join-Path $root "$Name-dp.txt") -Encoding ascii
+              & diskpart.exe /s (Join-Path $root "$Name-dp.txt") | Out-File (Join-Path $root "$Name-dp.log")
+              if (!(Test-Path $image)) { throw "vdisk creation failed: $Name" }
+              Mount-DiskImage -ImagePath $image -NoDriveLetter | Out-Null
+              $disk = Get-DiskImage -ImagePath $image | Get-Disk
+              if ($disk.PartitionStyle -ne 'RAW' -or $disk.IsBoot -or $disk.IsSystem) { throw "unexpected fixture disk: $Name" }
+              $disk | Initialize-Disk -PartitionStyle GPT
+              $part = $disk | New-Partition -UseMaximumSize -AssignDriveLetter
+              $label = 'FC' + $Name.ToUpperInvariant()
+              if ($DevDrive) { $vol = Format-Volume -Partition $part -DevDrive -NewFileSystemLabel $label -Confirm:$false }
+              else { $vol = Format-Volume -Partition $part -FileSystem $FileSystem -NewFileSystemLabel $label -Confirm:$false }
+              $letter = (Get-Partition -DiskNumber $disk.Number -PartitionNumber $part.PartitionNumber).DriveLetter
+              Add-Content $log "fixture $Name fs $($vol.FileSystem) unit $($vol.AllocationUnitSize) letter $letter"
+              $target = "${letter}:\filecat-fixture.txt"
+              Set-Content -LiteralPath $target -Value 'Owned volume fixture' -Encoding ascii
+              return $target
+          }
+          "FILECAT_STORAGE_NATIVE_FAT_TARGET=$(New-Fixture 'fat' 'FAT32')" | Add-Content $env:GITHUB_ENV
+          "FILECAT_STORAGE_NATIVE_EXFAT_TARGET=$(New-Fixture 'exfat' 'exFAT')" | Add-Content $env:GITHUB_ENV
+          try { "FILECAT_STORAGE_NATIVE_REFS_TARGET=$(New-Fixture 'refs' 'ReFS' -DevDrive)" | Add-Content $env:GITHUB_ENV }
+          catch { Add-Content $log "ReFS Dev Drive unavailable: $_" }
+          Get-Content $log
+          [System.Environment]::OSVersion.VersionString
+          $env:PROCESSOR_ARCHITECTURE
+      - name: Run the details and listing fixtures at medium integrity
+        shell: pwsh
+        run: |
+          $filter = @(
+              'FullyQualifiedName~WindowsFileDetailsTests.Native_details_describe_owned_files_on_their_actual_volumes'
+              'FullyQualifiedName~WindowsEnumerationParityTests'
+              'FullyQualifiedName~WindowsDetailsLongNameTests'
+              'FullyQualifiedName~WindowsHiddenDataTests.Metadata_reports_carry_no_resident_slack_stream_or_EA_value_sentinel'
+              'FullyQualifiedName~WindowsDetailsNativeGapTests'
+          ) -join '|'
+          ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Platform.Windows.Tests -LogFileName windows-arm64-volumes.trx -Filter $filter
+      # Cloud placeholder exposure (X-ARM64): a temporary sync root served by the test process, read and operated on
+      # from a child process in Windows's default disguised mode.
+      - name: Run the Cloud Files exposure fixtures at medium integrity
+        if: always()
+        shell: pwsh
+        env:
+          FILECAT_TEST_CLOUD_FILES: '1'
+        run: |
+          $filter = @(
+              'FullyQualifiedName~PlaceholderViewTests'
+              'FullyQualifiedName~WindowsFileRecordsTests.Another_process_describes_placeholders_as_cloud_files_and_operates_on_them_as_ordinary_ones'
+              'FullyQualifiedName~WindowsFileRecordsTests.Listing_a_sync_root_opens_none_of_its_placeholders_on_either_route'
+              'FullyQualifiedName~WindowsFileRecordsTests.A_cloud_placeholder_reads_its_state_without_being_downloaded'
+          ) -join '|'
+          ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Platform.Windows.Tests -LogFileName windows-arm64-cloud.trx -Filter $filter
+      - name: Detach the fixture volumes
+        if: always()
+        shell: pwsh
+        run: |
+          Get-ChildItem (Join-Path $env:RUNNER_TEMP 'fc-volumes') -Include *.vhd, *.vhdx -Recurse -ErrorAction SilentlyContinue |
+              ForEach-Object { try { Dismount-DiskImage -ImagePath $_.FullName | Out-Null } catch { } }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: details-windows-arm64-volumes
+          path: |
+            tests/FileCat.Platform.Windows.Tests/TestResults/**/*.trx
+            ${{ runner.temp }}/fc-volumes/*.log
+
+  windows-arm64-smb:
+    name: Windows ARM64 (case-distinct SMB listing)
+    if: inputs.scope == 'all' || inputs.scope == 'windows-smb'
+    runs-on: windows-11-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - run: dotnet build tests/FileCat.Platform.Windows.Tests -c Release -p:RestoreLockedMode=true
+      # The throwaway SMB server runs under x64 emulation, where its dependencies have wheels. The client is native.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        id: server-python
+        with:
+          python-version: "3.12"
+          architecture: x64
+      - run: python -m pip install --quiet impacket==0.13.1
+      - name: List a case-distinct share natively at medium integrity
+        shell: pwsh
+        run: >-
+          ./eng/validation/Test-NativeSmbCaseListing.ps1
+          -TestBinary tests/FileCat.Platform.Windows.Tests/bin/Release/net10.0/FileCat.Platform.Windows.Tests.dll
+          -EvidenceDirectory "$env:RUNNER_TEMP/fc-smb-case" -Architecture Arm64
+          -ServerPython "${{ steps.server-python.outputs.python-path }}"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: details-windows-arm64-smb-case
+          path: |
+            ${{ runner.temp }}/fc-smb-case/*.trx
+            ${{ runner.temp }}/fc-smb-case/*.json
+            ${{ runner.temp }}/fc-smb-case/*.txt
+            ${{ runner.temp }}/fc-smb-case/smbserver.*
+
+  linux-arm64-orca:
+    name: Linux ARM64 (Orca details journey)
+    if: inputs.scope == 'all' || inputs.scope == 'linux-orca'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Install the isolated screen-reader session
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq orca speech-dispatcher espeak-ng xvfb xauth xdotool xclip dbus-x11 at-spi2-core > /dev/null
+          orca --version
+      # The harness accepts only a checkout and reports below ~/FileCatValidation.
+      - name: Build FileCat in an owned checkout
+        run: |
+          mkdir -p ~/FileCatValidation/checkout
+          cp -a "$GITHUB_WORKSPACE/." ~/FileCatValidation/checkout/
+          cd ~/FileCatValidation/checkout
+          dotnet build src/FileCat.App -c Release -p:RestoreLockedMode=true -nodeReuse:false
+      - name: Run the details journey with Orca on an isolated display
+        run: |
+          cd ~/FileCatValidation/checkout
+          status=0
+          run() {
+            name=$1; shift
+            FILECAT_ORCA_ISOLATED_DISPLAY=1 timeout 600 dbus-run-session -- xvfb-run -a -s "-screen 0 1280x1024x24"               /usr/bin/python3 tests/FileCat.NativeAcceptance/linux-orca-filesystem-details.py               ~/FileCatValidation/checkout ~/FileCatValidation/orca-$name.json "$@" || status=1
+            python3 -c "import json, sys; r = json.load(open(sys.argv[1])); print(sys.argv[1], 'passed' if r.get('passed') else 'FAILED', r.get('error', ''))" ~/FileCatValidation/orca-$name.json || status=1
+          }
+          run details
+          run sized --report-size 520 420
+          run properties --properties
+          run find --find-results --supplementary
+          exit $status
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: details-linux-arm64-orca
+          path: |
+            ~/FileCatValidation/orca-*.json
+            ~/FileCatValidation/details-orca-*/orca-debug.log
+            ~/FileCatValidation/details-orca-*/*.err
+            ~/FileCatValidation/details-orca-*/app.log

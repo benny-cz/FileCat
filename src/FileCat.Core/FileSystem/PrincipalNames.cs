@@ -12,7 +12,7 @@ public sealed class PrincipalNames : IDisposable
     private readonly object _gate = new();
     private readonly IOwnership _source;
     private readonly Func<long> _clock;
-    private readonly int _maxEntries, _maxChars, _maxQueued;
+    private readonly int _maxEntries, _maxChars, _maxQueued, _maxWorkers;
     private readonly long _slowAfter;
     private readonly Dictionary<Principal, Entry> _cache = [];
     private readonly LinkedList<Entry> _recent = [];
@@ -39,16 +39,19 @@ public sealed class PrincipalNames : IDisposable
     public PrincipalNames(IOwnership source) : this(source, () => Environment.TickCount64) { }
 
     internal PrincipalNames(IOwnership source, Func<long> clock, int maxEntries = 4096, int maxChars = 262_144,
-        int maxQueued = 256, TimeSpan? slowAfter = null)
+        int maxQueued = 256, TimeSpan? slowAfter = null, int maxWorkers = 4)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(maxEntries, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxChars, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxQueued, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxWorkers, 2);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(maxWorkers, 4);
         _source = source;
         _clock = clock;
         _maxEntries = maxEntries;
         _maxChars = maxChars;
         _maxQueued = maxQueued;
+        _maxWorkers = maxWorkers;
         _slowAfter = (long)(slowAfter ?? TimeSpan.FromSeconds(3)).TotalMilliseconds;
         _watchdog = new Timer(_ => ExpandSlowWorkers(), null, Timeout.Infinite, Timeout.Infinite);
     }
@@ -156,7 +159,7 @@ public sealed class PrincipalNames : IDisposable
     private void ExpandSlowWorkers()
     {
         lock (_gate)
-            if (!_disposed && _queue.Count > 0 && _workers < 4 && _running.Any(e => _clock() - e.Started >= _slowAfter))
+            if (!_disposed && _queue.Count > 0 && _workers < _maxWorkers && _running.Any(e => _clock() - e.Started >= _slowAfter))
                 StartWorker();
     }
 

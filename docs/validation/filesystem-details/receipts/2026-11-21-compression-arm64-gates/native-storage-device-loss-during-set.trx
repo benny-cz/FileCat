@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="7fff884c-a03e-4037-874e-e129e31a92c3" name="runneradmin@runnervmjtlf1 2026-11-21 14:47:12" runUser="runnervmjtlf1\runneradmin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-21T14:47:12.1006388-08:00" queuing="2026-11-21T14:47:12.1006389-08:00" start="2026-11-21T14:45:30.1573263-08:00" finish="2026-11-21T14:47:12.1058861-08:00" />
+  <TestSettings name="default" id="c75920c8-efde-4aba-a22e-0fe2841b19f9">
+    <Deployment runDeploymentRoot="runneradmin_runnervmjtlf1_2026-11-21_14_47_12" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="b825e6dd-85cd-4d7e-9147-40fa9da8c7c3" testId="2baeba75-b84f-764d-deeb-7833c11b6517" testName="FileCat.Platform.Windows.Tests.WindowsStorageExecutorTests.Detaching_while_native_compression_is_pending_retains_uncertainty_without_replay" computerName="runnervmjtlf1" duration="00:01:39.3511198" startTime="2026-11-21T14:45:32.6072572-08:00" endTime="2026-11-21T14:47:11.9680239-08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b825e6dd-85cd-4d7e-9147-40fa9da8c7c3">
+      <Output>
+        <StdOut>native SET returned: False; compressed after remount: True</StdOut>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsStorageExecutorTests.Detaching_while_native_compression_is_pending_retains_uncertainty_without_replay" storage="c:\a\filecat\filecat\tests\filecat.platform.windows.tests\bin\release\net10.0\filecat.platform.windows.tests.dll" id="2baeba75-b84f-764d-deeb-7833c11b6517">
+      <Execution id="b825e6dd-85cd-4d7e-9147-40fa9da8c7c3" />
+      <TestMethod codeBase="C:\a\FileCat\FileCat\tests\FileCat.Platform.Windows.Tests\bin\Release\net10.0\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsStorageExecutorTests" name="Detaching_while_native_compression_is_pending_retains_uncertainty_without_replay" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="2baeba75-b84f-764d-deeb-7833c11b6517" executionId="b825e6dd-85cd-4d7e-9147-40fa9da8c7c3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="1" executed="1" passed="1" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.15)&#xD;
+[xUnit.net 00:00:00.25]   Discovering: FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:01.71]   Discovered:  FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:01.93]   Starting:    FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:01:41.38]   Finished:    FileCat.Platform.Windows.Tests (ID = 'a01939c32015dcf8cf76016c79755b847ab552dac5bad90e3e6dd7668fd98cae')&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

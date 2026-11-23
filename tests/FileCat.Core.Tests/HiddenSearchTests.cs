@@ -7,6 +7,22 @@ namespace FileCat.Core.Tests;
 
 public sealed class HiddenSearchTests
 {
+    [Fact]
+    public void Visible_managed_metadata_matches_Find_without_gaining_a_deletion_route()
+    {
+        var kind = OperatingSystem.IsWindows() ? HiddenKind.Stream : HiddenKind.Attribute;
+        foreach (var role in new[] { HiddenMetadataRole.StorageBacking, HiddenMetadataRole.StoragePolicy,
+                     HiddenMetadataRole.SecurityMetadata, HiddenMetadataRole.RequiredMetadata, HiddenMetadataRole.Unqualified })
+        {
+            var item = new HiddenItem("visible.metadata", kind, 8) { Role = role };
+            Assert.True(HiddenSearch.IsPositiveInOrdinaryView(item));
+            Assert.NotNull(HiddenMetadataRoles.DeleteRefusal(item));
+        }
+        var mark = new HiddenItem(OperatingSystem.IsWindows() ? "Zone.Identifier" : OperatingSystem.IsMacOS() ? "com.apple.quarantine" : "user.xdg.origin.url", kind, 8)
+        { Role = HiddenMetadataRole.Ordinary };
+        Assert.False(HiddenSearch.IsPositiveInOrdinaryView(mark));
+    }
+
     private sealed class Data : IHiddenData
     {
         public bool IsSupported => true;
@@ -26,12 +42,32 @@ public sealed class HiddenSearchTests
             ImmutableArray<HiddenItem> items = name switch
             {
                 "positive" => [new("ordinary.payload", kind, 8)],
+                "fork" when OperatingSystem.IsMacOS() => [new("com.apple.ResourceFork", HiddenKind.ResourceFork, 8) { Role = HiddenMetadataRole.Unqualified }],
                 "mark" => [new(OperatingSystem.IsWindows() ? "Zone.Identifier" : OperatingSystem.IsMacOS() ? "com.apple.quarantine" : "user.xdg.origin.url", kind, 8)],
                 "wrong-category" => [new("ordinary.payload", OperatingSystem.IsWindows() ? HiddenKind.NtfsAttribute : HiddenKind.Stream, 8)],
                 _ => [],
             };
-            return new(path, DateTimeOffset.UtcNow, items, [new(kind, state, items.Length, "test", state == HiddenInventoryState.Partial ? "test bound reached" : null)], "test");
+            var categories = ImmutableArray.CreateBuilder<HiddenCategoryInventory>();
+            categories.Add(new(kind, state, items.Count(item => item.Kind == kind), "test", state == HiddenInventoryState.Partial ? "test bound reached" : null));
+            if (OperatingSystem.IsMacOS() && name != "missing-category")
+                categories.Add(new(HiddenKind.ResourceFork, state, items.Count(item => item.Kind == HiddenKind.ResourceFork), "test"));
+            return new(path, DateTimeOffset.UtcNow, items, categories.ToImmutable(), "test");
         }
+    }
+
+    [Fact]
+    public void Darwin_ordinary_fork_matches_but_a_missing_fork_category_cannot_prove_a_negative()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "Darwin ordinary-view category semantics.");
+        using var dir = new TempDir();
+        dir.File("fork"); dir.File("missing-category"); dir.File("clear");
+        var data = new Data(); var results = new ResultSet("hidden", "hidden", "test");
+        var session = new SearchSession(new SearchQuery { Roots = [dir.Path], CarriesHiddenData = data }, results);
+        session.Run(TestContext.Current.CancellationToken);
+        Assert.Equal(["fork"], results.Snapshot().Select(item => item.Item.Name));
+        Assert.Equal(1, session.ExtraDataUnexamined);
+        Assert.False(results.IsComplete);
+        Assert.Equal(0, data.Values); Assert.Equal(0, data.CompressionViews);
     }
 
     [Fact]

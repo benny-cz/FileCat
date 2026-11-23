@@ -128,10 +128,11 @@ The installed broker handles plans that fit its operations. Portable FileCat rev
 a separate administrator window, which also handles transfers that need the original conflict prompts.
 Canceling that review makes the original retry available again in Operations.
 
-On Linux and macOS, **Permissions and times → Review permissions as administrator** asks the
-system to approve mode changes to selected files and folders. It supports read, write, execute
-and sticky permissions on those items. **Tools → Recover deleted files → Authorize and scan**
-requests read-only access to the selected device.
+In an ordinary FileCat window, **File → Inspect → Permissions and ownership** shows the
+selected item's permissions and available review actions. A local mode change requires a verified
+binding to the selected object. **Change attributes and times…** also offers independent
+timestamp and Finder Hidden changes where available. **Tools → Recover deleted files →
+Authorize and scan** requests read-only access to the selected device on Linux and macOS.
 
 Untrusted content crosses narrower boundaries where implemented: pictures decode in a worker,
 HTML Page preview has scripts and network requests disabled, and Windows Shell extensions run
@@ -227,11 +228,11 @@ connected-glass header. They do not establish installed-package or native-intera
 
 For 1.0.0, **Windows 11 x64 is the planned stable tier**. Windows 11 ARM64,
 Ubuntu 24.04/26.04 x64 with GNOME, and macOS 26+ on Apple silicon are planned previews.
-The public preview packages are unsigned; these labels describe the validation targets for
-stable 1.0.0. Windows
-provides MTP, Registry and native Shell actions; the Unix builds use their own trash,
-permission, keyring and device-authorization paths. [What works where](docs/CAPABILITIES.md)
-lists the differences by platform and location.
+The public preview packages are unsigned. These labels describe the validation targets for
+stable 1.0.0. The x64 installer also accepts Windows Server 2016 (build 14393) with Desktop Experience.
+Windows provides MTP, Registry and native Shell actions. The Unix builds use their own trash,
+permission, keyring and device-authorization paths. See [what works where](docs/CAPABILITIES.md)
+for differences by platform and location.
 
 ## Development and validation
 

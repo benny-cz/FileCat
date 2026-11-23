@@ -1,0 +1,104 @@
+<TestRun id="142088ec-73bf-41a4-a553-3630a762563e" name="benny@unknown 2026-11-21T16:41:15.1078369+00:00" runUser="benny" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-21T16:41:15.1078369+00:00" queuing="2026-11-21T16:41:15.1078369+00:00" start="2026-11-21T16:41:15.1078369+00:00" finish="2026-11-21T17:41:15.2265846+01:00" />
+  <TestSettings name="default" id="6c4d5628-128d-4c3b-a1a4-ab366a4594ad" />
+  <Results>
+    <UnitTestResult testName="FileCat.Core.Tests.UnixFileDetailsNativeTests.Metadata_reports_carry_no_inline_data_or_xattr_value_sentinel_on_ext4" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="92e270cb-4727-4079-b43e-e140a7f65a7e" executionId="92e270cb-4727-4079-b43e-e140a7f65a7e" computerName="unknown" duration="00:00:00.0860950" startTime="2026-11-21T16:41:15.1078369+00:00" endTime="2026-11-21T16:41:15.2047104+00:00">
+      <Output>
+        <TextMessages>
+          <Message>File-system details
+
+Item
+  Path         /mnt/fc-inline/fc-omission-b70b3f586972462387c603b284a5b056/carrier.bin
+  Kind         File
+  Observed     2026-11-21T16:41:15.1592892+00:00
+  Scope        Focused item only; marked items are not included.
+  File system  ext4
+
+Storage
+  Logical size                   16 bytes
+  Allocated                      512 bytes · Entry · statx on O_PATH descriptor
+  File compression               Unsupported: Recorded flags are separate. File compression behavior is not implemented by this filesystem.
+  Recorded file encryption flag  Off
+  Sparse indication              NotInspected: No qualified observation was requested.
+
+  Allocated space is not a deletion-saving estimate or proof of exclusive ownership.
+
+Sharing
+  Names for this file  1
+  Extent sharing       Not inspected
+
+Access
+  Recorded mode          664
+  Owner ID               1000
+  Group ID               1000
+  Recorded restrictions  No returned restriction flag is set.
+
+  ACLs, directory search rights, mount options, identity and policy also affect effective access.
+
+Extra data
+  Streams, EAs, xattrs and forks  Not inspected
+
+Location
+  Volume/dataset encryption  Not inspected
+  Identity evidence          7:16 / 13
+
+  FileCat requests metadata, not content. Providers may still perform network or OS activity.
+  Only the final component is inspected without following links; parent resolution can traverse mounts or providers.
+  Allocation is inode-reported blocks × 512, not exclusive storage or recursive contents.
+  statx field mask: 0x1FFF; attribute mask: 0x303874; raw attributes: 0x0.
+  Additional filesystem policies, xattrs and effective access were not queried.
+
+Full record · metadata only
+⚠ Not acquired: general supplementary-data values and previews, raw volumes and journals, ACL values, and hard-link names.
+
+Native statx metadata
+  Returned mask           0x1FFF
+  Attribute support mask  0x303874
+  Raw attributes          0x0
+
+ext4 inode flags
+  Recorded flags  0x10000000 · ------------------N--- · inline data
+  Observation     FS_IOC_GETFLAGS on the held ext4 inode
+
+fscrypt policy
+  Status  Unsupported
+  Scope   Regular file
+  Source  FS_IOC_GET_ENCRYPTION_POLICY_EX on the held ext4 object
+
+  The policy query returned errno 95.
+  Item access also depends on permissions and active file handles. Other policies and volume encryption were not assessed.
+
+File capabilities
+  Recorded execution attributes  None returned
+  Observation                    security.capability from fgetxattr on the held ext4 file
+
+Main-stream extent records
+  Returned extent records  1
+  Inventory                Complete
+  Extent sharing           No returned record reports sharing
+  Source                   FIEMAP on the held regular file with sync disabled
+
+  Logical bytes  Length  Physical bytes                 FIEMAP flags
+  ─────────────  ──────  ─────────────────────────────  ────────────
+              0      16  Physical location unavailable  0x301</Message>
+        </TextMessages>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Core.Tests.UnixFileDetailsNativeTests.Metadata_reports_carry_no_inline_data_or_xattr_value_sentinel_on_ext4" id="92e270cb-4727-4079-b43e-e140a7f65a7e" storage="/home/benny/FileCatValidation/fc-s2-inline/core/FileCat.Core.Tests.dll">
+      <Execution id="92e270cb-4727-4079-b43e-e140a7f65a7e" />
+      <TestMethod codeBase="/home/benny/FileCatValidation/fc-s2-inline/core/FileCat.Core.Tests.dll" className="FileCat.Core.Tests.UnixFileDetailsNativeTests" name="Metadata_reports_carry_no_inline_data_or_xattr_value_sentinel_on_ext4" adapterTypeName="executor://142088ec-73bf-41a4-a553-3630a762563e/xunit.v3/3.2.2" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="92e270cb-4727-4079-b43e-e140a7f65a7e" executionId="92e270cb-4727-4079-b43e-e140a7f65a7e" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="1" executed="1" passed="1" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+  </ResultSummary>
+</TestRun>

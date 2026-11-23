@@ -1,0 +1,13 @@
+{
+  "OsVersion": "10.0.26200.0",
+  "VolumeId": "\\\\?\\Volume{295db85e-a8c1-45a5-a6d7-7c9c6493cc1c}\\",
+  "AllocationUnitSize": 4096,
+  "TestAssemblySha256": "0FAD8FDF627AF10ADFCEF5A33ED5C066778DEE161DEB034317FB5F6138BFB632",
+  "XmlSha256": "C354A8DAE62716214ACF665740D7446F462BEDE8877ED5A770405AE16840333E",
+  "PartialPresent": true,
+  "PartialLength": 4194304,
+  "ProgressBeforeDetach": 4194304,
+  "Passed": 1,
+  "Failed": 0,
+  "Skipped": 0
+}

@@ -118,6 +118,13 @@ public static partial class UnixWorkerIdentity
         catch (UnauthorizedAccessException) { return false; }
     }
 
+    /// <summary>
+    /// No permitted, effective or ambient capability: the thread holds no capability authority, now or after execve.
+    /// The inheritable set must be present and well formed but may be non-empty. Ubuntu 26.04's user manager gives every
+    /// desktop session process CAP_WAKE_ALARM there, and an inheritable bit grants nothing by itself: it reaches a new
+    /// program only through that program file's own inheritable capabilities, which only root can set, as with any file
+    /// that carries capabilities.
+    /// </summary>
     internal static bool CapabilitiesClear(string status)
     {
         string[] names = ["CapInh:", "CapPrm:", "CapEff:", "CapAmb:"];
@@ -132,7 +139,7 @@ public static partial class UnixWorkerIdentity
                 string value = line[names[index].Length..].Trim();
                 if (value.Length is < 1 or > 16 ||
                     !ulong.TryParse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out ulong capabilities) ||
-                    capabilities != 0) return false;
+                    capabilities != 0 && index != 0) return false;
                 seen |= bit;
             }
         }

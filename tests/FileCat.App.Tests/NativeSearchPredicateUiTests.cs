@@ -50,6 +50,46 @@ public sealed class NativeSearchPredicateUiTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Saved_conflicting_attribute_masks_require_an_explicit_choice_or_removal(bool remove)
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            window.Styles.Add(new StyleInclude(new Uri("avares://FileCat/")) { Source = new Uri("avares://FileCat/Themes/Styles.axaml") });
+            var criteria = new AdvancedSearchCriteria
+            { AttributesSet = FileAttributes.Hidden, AttributesClear = FileAttributes.Hidden };
+            var pending = FindDialogs.AdvancedAsync(vm.Dialogs, criteria);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var overlay = window.FindControl<Panel>("OverlayHost")!;
+            await Until(() => overlay.GetVisualDescendants().OfType<Button>().Any(b => b.Content as string == "OK"));
+            var hidden = Assert.Single(overlay.GetVisualDescendants().OfType<CheckBox>(),
+                c => c.Content as string == NativeSearchPredicates.Name(FileAttributes.Hidden));
+            var ok = overlay.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "OK");
+            Assert.True(hidden.IsChecked);
+            Assert.False(ok.IsEffectivelyEnabled);
+            if (remove)
+            {
+                var button = Assert.Single(overlay.GetVisualDescendants().OfType<Button>(),
+                    b => AutomationProperties.GetName(b) == "Remove this criterion: " + NativeSearchPredicates.Name(FileAttributes.Hidden));
+                button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            }
+            else hidden.IsChecked = false;
+            await Until(() => ok.IsEffectivelyEnabled);
+            ok.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var accepted = await pending;
+            Assert.NotNull(accepted);
+            Assert.Equal((FileAttributes)0, accepted.AttributesSet);
+            Assert.Equal(remove ? (FileAttributes)0 : FileAttributes.Hidden, accepted.AttributesClear);
+            Assert.Equal(FileAttributes.Hidden, criteria.AttributesSet);
+            Assert.Equal(FileAttributes.Hidden, criteria.AttributesClear);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [Fact]
     public void Finished_unexamined_scope_has_exact_coverage_wording_without_calling_it_canceled()
     {

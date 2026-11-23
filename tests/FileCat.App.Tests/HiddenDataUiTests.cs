@@ -101,6 +101,9 @@ public sealed class HiddenDataUiTests
             {
                 Assert.Contains("Compression backing: not inventoried", tab.SupplementaryInventoryText);
                 Assert.True(payloadRow.Has(EntryFlags.Unavailable));
+                tab.Listing.SetFocus(Rows(tab).FindIndex(e => e.Name == payload) + (tab.Listing.HasParentRow ? 1 : 0));
+                Assert.False(vm.GetAvailability(CommandIds.Delete).Enabled);
+                Assert.False(vm.GetAvailability(CommandIds.DeletePermanent).Enabled);
                 Assert.Throws<NotSupportedException>(() => services.Providers.For(tab.Location!).OpenContent(
                     services.Providers.For(tab.Location!).GetItemRef(tab.Location!, payloadRow)));
                 return;
@@ -152,15 +155,66 @@ public sealed class HiddenDataUiTests
     }
 
     [AvaloniaFact]
-    public async Task Delete_confirmation_keeps_the_file_identity_from_before_a_refresh()
+    public async Task Mac_held_directory_attribute_can_be_reported_copied_and_deleted()
     {
-        Assert.SkipUnless(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), "Requires a bound supplementary-data adapter.");
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "Requires the held macOS directory xattr adapter.");
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
         {
-            string file = Path.Combine(root, "files", "reviewed.bin");
-            string previous = Path.Combine(root, "files", "previous.bin");
-            string name = OperatingSystem.IsWindows() ? "payload" : "user.filecat.payload";
+            const string name = "org.filecat.payload";
+            string directory = Directory.CreateDirectory(Path.Combine(root, "files", "held")).FullName;
+            string destination = Directory.CreateDirectory(Path.Combine(root, "out")).FullName;
+            Assert.Equal(0, SetAttribute(directory, name, "held directory value"u8.ToArray()));
+            var sourcePanel = vm.Workspace.Panels[0];
+            var tab = sourcePanel.ActiveTab!;
+            vm.Workspace.Panels[1].ActiveTab!.Navigate(Location.FileSystem(destination));
+            tab.Navigate(HiddenDataProvider.Of(directory));
+            vm.Workspace.Activate(sourcePanel);
+            await Until(() => tab.Listing.State == ListingState.Complete && Rows(tab).Any(row => row.Name == name),
+                () => "the held directory attribute is listed. " + tab.SupplementaryInventoryText);
+            Assert.True(tab.Listing.SupplementaryInventory!.CanDelete);
+            Assert.True(Assert.IsType<HiddenDataProvider>(tab.Listing.Provider)
+                .GetCapabilities(tab.Location!).HasFlag(LocationCapabilities.Delete));
+            var row = Assert.Single(Rows(tab), candidate => candidate.Name == name);
+            Assert.False(row.Has(EntryFlags.Unavailable));
+            tab.Listing.SetFocus(Rows(tab).FindIndex(candidate => candidate.Name == name) + (tab.Listing.HasParentRow ? 1 : 0));
+            Assert.True(vm.GetAvailability(CommandIds.Delete).Enabled);
+            var report = await OpenSelectedValueReport(window);
+            try { Assert.Contains("held directory value", report.Text); }
+            finally { report.Close(); }
+
+            vm.Execute(CommandIds.Copy);
+            await Click(window, "Copy");
+            await Until(() => services.Jobs.Jobs.Count > 0 && services.Jobs.Jobs[^1].State.IsFinished(),
+                "the held directory attribute copy finishes");
+            Assert.Equal(JobState.Completed, services.Jobs.Jobs[^1].State);
+            Assert.Equal("held directory value", File.ReadAllText(Path.Combine(destination, name)));
+            Assert.Equal("held directory value", Encoding.UTF8.GetString(new UnixHiddenData().Read(directory,
+                new HiddenItem(name, HiddenKind.Attribute, -1), 64)));
+            await Until(() => !((OverlayDialogService)vm.Dialogs).IsOpen, "the copy dialog closed");
+            tab.Listing.SetFocus(Rows(tab).FindIndex(candidate => candidate.Name == name) + (tab.Listing.HasParentRow ? 1 : 0));
+            window.KeyPress(Key.Delete, RawInputModifiers.None, PhysicalKey.Delete, null);
+            await Click(window, "Delete");
+            await Until(() => tab.Listing.State == ListingState.Complete && !tab.Listing.IsRefreshing &&
+                Rows(tab).All(candidate => candidate.Name != name),
+                () => "the held directory attribute is gone. " + vm.Notification);
+            Assert.Empty(new UnixHiddenData().ReadInventory(directory, new(), TestContext.Current.CancellationToken).Items);
+            Assert.Equal("held directory value", File.ReadAllText(Path.Combine(destination, name)));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Delete_confirmation_keeps_the_source_identity_from_before_a_refresh()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(),
+            "Requires a bound supplementary-data adapter.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string file = Path.Combine(root, "files", OperatingSystem.IsMacOS() ? "reviewed" : "reviewed.bin");
+            string previous = Path.Combine(root, "files", OperatingSystem.IsMacOS() ? "previous" : "previous.bin");
+            string name = OperatingSystem.IsWindows() ? "payload" : OperatingSystem.IsMacOS() ? "org.filecat.payload" : "user.filecat.payload";
             IHiddenData adapter = OperatingSystem.IsWindows() ? new FileCat.Platform.Windows.WindowsHiddenData() : new UnixHiddenData();
             if (OperatingSystem.IsWindows()) services.Providers.Register(new HiddenDataProvider(adapter));
             WriteFixture("original");
@@ -174,13 +228,15 @@ public sealed class HiddenDataUiTests
             window.KeyPress(Key.Delete, RawInputModifiers.None, PhysicalKey.Delete, null);
             await Until(() => ((OverlayDialogService)vm.Dialogs).IsOpen, "the delete confirmation is open");
 
-            File.Move(file, previous);
+            if (OperatingSystem.IsMacOS()) Directory.Move(file, previous);
+            else File.Move(file, previous);
             WriteFixture("replacement");
             tab.Refresh();
             await Until(() => HasPayload() && tab.Listing.SupplementaryInventory!.Identity != original,
                 "the inventory refreshed to the replacement file while confirmation was open");
             await Click(window, "Delete");
-            await Until(() => vm.Notification?.Contains("different file", StringComparison.Ordinal) == true,
+            await Until(() => vm.Notification?.Contains(OperatingSystem.IsMacOS() ? "different directory" : "different file",
+                    StringComparison.Ordinal) == true,
                 "the stale delete was refused");
 
             var item = new HiddenItem(name, OperatingSystem.IsWindows() ? HiddenKind.Stream : HiddenKind.Attribute, -1);
@@ -192,7 +248,8 @@ public sealed class HiddenDataUiTests
 
             void WriteFixture(string value)
             {
-                File.WriteAllText(file, value + " main bytes");
+                if (OperatingSystem.IsMacOS()) Directory.CreateDirectory(file);
+                else File.WriteAllText(file, value + " main bytes");
                 if (OperatingSystem.IsWindows()) File.WriteAllText(file + ":" + name, value);
                 else Assert.Equal(0, SetAttribute(file, name, Encoding.UTF8.GetBytes(value)));
             }

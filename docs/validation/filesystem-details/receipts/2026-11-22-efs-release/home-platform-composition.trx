@@ -1,0 +1,35 @@
+<TestRun id="247e170f-a9f8-4b31-bfcc-5431d37d2a6a" name="admin@FC-WINHOME 2026-11-22T20:53:28.8600951+00:00" runUser="admin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-22T20:53:28.8600951+00:00" queuing="2026-11-22T20:53:28.8600951+00:00" start="2026-11-22T20:53:28.8600951+00:00" finish="2026-11-22T21:53:29.3529682+01:00" />
+  <TestSettings name="default" id="6c4d5628-128d-4c3b-a1a4-ab366a4594ad" />
+  <Results>
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsStorageAdmissionTests.The_App_release_composition_adds_EFS_only_on_a_qualified_edition" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0104dc14-671d-4402-ae69-ae22e4078f03" executionId="0104dc14-671d-4402-ae69-ae22e4078f03" computerName="FC-WINHOME" duration="00:00:00.4456963" startTime="2026-11-22T20:53:28.8600951+00:00" endTime="2026-11-22T20:53:29.3108525+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsStorageAdmissionTests.The_release_composition_is_compression_only_and_needs_the_qualified_normal_process" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="635c09d7-7b16-4829-bdf3-1bdcceb5543a" executionId="635c09d7-7b16-4829-bdf3-1bdcceb5543a" computerName="FC-WINHOME" duration="00:00:00.0015061" startTime="2026-11-22T20:53:29.3153380+00:00" endTime="2026-11-22T20:53:29.3169877+00:00" />
+    <UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsStorageAdmissionTests.Without_a_qualified_EFS_edition_EFS_review_is_refused_before_any_object_is_opened" outcome="Passed" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="9d2c1c54-fa0f-44d6-bbcb-b0bcd2c8ce37" executionId="9d2c1c54-fa0f-44d6-bbcb-b0bcd2c8ce37" computerName="FC-WINHOME" duration="00:00:00.0288800" startTime="2026-11-22T20:53:29.3171886+00:00" endTime="2026-11-22T20:53:29.3461572+00:00" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsStorageAdmissionTests.The_App_release_composition_adds_EFS_only_on_a_qualified_edition" id="0104dc14-671d-4402-ae69-ae22e4078f03" storage="C:\fc-run\t4\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="0104dc14-671d-4402-ae69-ae22e4078f03" />
+      <TestMethod codeBase="C:\fc-run\t4\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsStorageAdmissionTests" name="The_App_release_composition_adds_EFS_only_on_a_qualified_edition" adapterTypeName="executor://247e170f-a9f8-4b31-bfcc-5431d37d2a6a/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsStorageAdmissionTests.The_release_composition_is_compression_only_and_needs_the_qualified_normal_process" id="635c09d7-7b16-4829-bdf3-1bdcceb5543a" storage="C:\fc-run\t4\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="635c09d7-7b16-4829-bdf3-1bdcceb5543a" />
+      <TestMethod codeBase="C:\fc-run\t4\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsStorageAdmissionTests" name="The_release_composition_is_compression_only_and_needs_the_qualified_normal_process" adapterTypeName="executor://247e170f-a9f8-4b31-bfcc-5431d37d2a6a/xunit.v3/3.2.2" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsStorageAdmissionTests.Without_a_qualified_EFS_edition_EFS_review_is_refused_before_any_object_is_opened" id="9d2c1c54-fa0f-44d6-bbcb-b0bcd2c8ce37" storage="C:\fc-run\t4\FileCat.Platform.Windows.Tests.dll">
+      <Execution id="9d2c1c54-fa0f-44d6-bbcb-b0bcd2c8ce37" />
+      <TestMethod codeBase="C:\fc-run\t4\FileCat.Platform.Windows.Tests.dll" className="FileCat.Platform.Windows.Tests.WindowsStorageAdmissionTests" name="Without_a_qualified_EFS_edition_EFS_review_is_refused_before_any_object_is_opened" adapterTypeName="executor://247e170f-a9f8-4b31-bfcc-5431d37d2a6a/xunit.v3/3.2.2" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="0104dc14-671d-4402-ae69-ae22e4078f03" executionId="0104dc14-671d-4402-ae69-ae22e4078f03" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="635c09d7-7b16-4829-bdf3-1bdcceb5543a" executionId="635c09d7-7b16-4829-bdf3-1bdcceb5543a" />
+    <TestEntry testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" testId="9d2c1c54-fa0f-44d6-bbcb-b0bcd2c8ce37" executionId="9d2c1c54-fa0f-44d6-bbcb-b0bcd2c8ce37" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="3" executed="3" passed="3" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+  </ResultSummary>
+</TestRun>

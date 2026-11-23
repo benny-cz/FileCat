@@ -35,6 +35,12 @@ internal sealed partial class OutputEfsObservation
         ObserveContributor(UnixFiles.Stat(file)?.Identity, SourceChangeToken.FromHandle(file), ClearSeen);
     }
 
+    internal void ObserveOpenedMac(SafeFileHandle directory)
+    {
+        if (!OperatingSystem.IsMacOS()) throw new PlatformNotSupportedException();
+        ObserveContributor(UnixFiles.Stat(directory)?.Identity, SourceChangeToken.FromHandle(directory), ClearSeen);
+    }
+
     private void ObserveContributor(FileIdentity? identity, string? revision, int state)
     {
         lock (_contributorLock)

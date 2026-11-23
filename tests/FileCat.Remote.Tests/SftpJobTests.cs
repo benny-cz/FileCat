@@ -24,6 +24,12 @@ public sealed class SftpJobTests : IDisposable
     {
         public Dictionary<string, string> Marks { get; } = [];
         public Action<string, string>? AfterMove { get; set; }
+        public bool ReportEncryptedOpenedSource { get; set; }
+        public string? ReportOpenedSourceIdentity { get; set; }
+        public override FileAttributes GetOpenedFileAttributes(Microsoft.Win32.SafeHandles.SafeFileHandle file) =>
+            base.GetOpenedFileAttributes(file) | (ReportEncryptedOpenedSource ? FileAttributes.Encrypted : 0);
+        public override string? GetOpenedFileIdentity(Microsoft.Win32.SafeHandles.SafeFileHandle file) =>
+            ReportOpenedSourceIdentity ?? base.GetOpenedFileIdentity(file);
         public override string? ReadOriginMark(string path) => Marks.GetValueOrDefault(path);
         public override bool WriteOriginMark(string path, string mark)
         {
@@ -85,6 +91,89 @@ public sealed class SftpJobTests : IDisposable
     }
 
     private IEnumerable<string> Names(string folder) => _server.Lookup(folder, true)!.Children.Keys;
+
+    [Fact]
+    public async Task Windows_publication_keeps_a_read_handle_that_excludes_exclusive_source_open()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "This is the Windows source-sharing boundary.");
+        string source = LocalFile("held-publish.txt", "source content");
+        _server.Dir("/up");
+        bool exclusiveRefused = false;
+        _server.AfterRename = () =>
+        {
+            try
+            {
+                using var exclusive = new FileStream(source, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException) { exclusiveRefused = true; }
+        };
+        var job = await RunAsync(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = Remote("/up"),
+        });
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.True(exclusiveRefused);
+        Assert.Equal("source content", _server.Read("/up/held-publish.txt"));
+    }
+
+    [Theory]
+    [InlineData(VerifyMode.Native)]
+    [InlineData(VerifyMode.ReadBack)]
+    public async Task A_late_efs_flip_with_unchanged_size_and_time_keeps_the_remote_stage_unpublished(VerifyMode verify)
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Opened-file EFS attributes are a Windows output boundary.");
+        string source = LocalFile("late-efs.bin", "stable payload");
+        long length = new FileInfo(source).Length;
+        DateTime modified = File.GetLastWriteTimeUtc(source);
+        _server.Dir("/up");
+        int flips = 0;
+        _server.BeforeStat = path =>
+        {
+            if (!path.StartsWith("/up/.fc-", StringComparison.Ordinal)) return;
+            _ops.ReportEncryptedOpenedSource = true;
+            flips++;
+            _server.BeforeStat = null;
+        };
+        var job = await RunAsync(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = Remote("/up"),
+            Options = new TransferOptions { Verify = verify },
+        });
+        Assert.Equal(1, flips);
+        Assert.Equal(length, new FileInfo(source).Length);
+        Assert.Equal(modified, File.GetLastWriteTimeUtc(source));
+        Assert.Empty(Names("/up"));
+        Assert.NotEqual(JobState.Completed, job.State);
+        Assert.Contains(job.Issues, issue => issue.Message.Contains("EFS-protected without a matching approval", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_late_opened_source_identity_change_keeps_the_remote_stage_unpublished()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Opened-file identity is checked at the Windows output boundary.");
+        string source = LocalFile("late-identity.bin", "stable payload");
+        _ops.ReportOpenedSourceIdentity = "reviewed-file";
+        _server.Dir("/up");
+        _server.BeforeStat = path =>
+        {
+            if (!path.StartsWith("/up/.fc-", StringComparison.Ordinal)) return;
+            _ops.ReportOpenedSourceIdentity = "replacement-file";
+            _server.BeforeStat = null;
+        };
+        var job = await RunAsync(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+            Destination = Remote("/up"),
+        });
+        Assert.Empty(Names("/up"));
+        Assert.NotEqual(JobState.Completed, job.State);
+        Assert.Contains(job.Issues, issue => issue.Message.Contains("changed identity", StringComparison.Ordinal));
+    }
 
     /// <summary>"Resume where safe" (P6): a dropped upload continues where the server's copy ends, once it is checked.</summary>
     [Fact]

@@ -219,26 +219,66 @@ public static class ColumnProfiles
 public sealed record ColumnChoice(string Key, string Title, bool RightAlign, double DefaultWidth,
     double FillShare = ColumnProfiles.DefaultFillShare, string? Description = null);
 
+/// <summary>A column header's tooltip beyond its title: a lead sentence, a legend of terms, and hints.</summary>
+public sealed record HeaderHelp(string? Lead, IReadOnlyList<(string Term, string Meaning)> Legend, IReadOnlyList<string> Hints);
+
 /// <summary>One field description shared by the add box and the Analyze chooser.</summary>
 public static class ColumnDescriptions
 {
-    public static string For(string fieldId) => fieldId switch
+    public static string For(string fieldId) => Known(fieldId) ?? "A column's value for every item";
+
+    /// <summary>
+    /// What a column header's tooltip says beyond its title, or null for a column whose title says it all: a lead, a legend
+    /// of the values to expect (Attr's letters, the commonest reparse types), and hints on where to look further.
+    /// <paramref name="detailsGesture"/> is the current shortcut of File-system details, which shows an item's reparse data.
+    /// </summary>
+    public static HeaderHelp? HeaderHelpFor(ColumnSpec column, bool windows, string? detailsGesture, bool linux = false) => column.Field switch
+    {
+        ColumnField.Created when linux => new(
+            "When the item was made. For an item on disk: its birth time, as its file system records it; blank where the file system keeps none.",
+            [],
+            ["Programs can set the modification time but not the birth time, so a copy is born when it was copied.",
+             "File → File-system details…" + (detailsGesture is { Length: > 0 } ? $" ({detailsGesture})" : "") +
+             " shows all four of an item's times."]),
+        ColumnField.Metadata when column.MetadataId == Core.Metadata.FileDetailsFields.ReparseType => new(
+            "What Windows does when the item is opened: follow a link, or let a filter supply the data.",
+            [("Symbolic link", "points to another file or folder, on any drive or computer"),
+             ("Junction or volume mount", "opens another folder, or a drive, in its place"),
+             ("Cloud-managed item", "a sync app such as OneDrive supplies the data"),
+             ("Data Deduplication", "the data is kept in the volume's chunk store"),
+             ("App execution alias", "runs an app installed from a package"),
+             ("none", "not a reparse point; files WOF compresses show none too, as WOF hides its tag")],
+            ["Point at a value for what it means, its tag number and its Windows name.",
+             "File → File-system details…" + (detailsGesture is { Length: > 0 } ? $" ({detailsGesture})" : "") +
+             " shows an item's reparse data and WOF backing."]),
+        ColumnField.Metadata when column.MetadataId is { } id && Known(id) is { } description => new(description, [], []),
+        ColumnField.Attributes => new(null, windows
+            ? [("R", "read-only"), ("H", "hidden"), ("S", "system"), ("A", "archive: marked for backup"), ("C", "compressed by NTFS"),
+               ("E", "encrypted by EFS"), ("L", "link: a symbolic link, junction or WSL link"),
+               ("P", "another reparse point; Reparse type says which"), ("O", "offline: its data is not on this computer")]
+            : [("R", "read-only"), ("H", "hidden"), ("L", "symbolic link"), ("O", "offline: its data is not on this computer")], []),
+        _ => null,
+    };
+
+    private static string? Known(string fieldId) => fieldId switch
     {
         "version" => "Program and library versions (.exe, .dll, and similar)",
         "dimensions" => "Picture sizes in pixels",
-        "linkTarget" => "Where links and junctions point",
+        "linkTarget" => "Where links and junctions point; on Windows also the program an app alias starts and a WSL link's path",
         "zone" => "Where files came from (downloaded from the internet, say)",
         "permissions" => "The mode bits: what owner, group, and others may read, write, and run. ACLs, where present, are not shown",
         "owner" => OperatingSystem.IsWindows()
             ? "The account each item belongs to (a user, group, or service; not who created or last changed it)"
             : "The user account each item belongs to (not who created or last changed it)",
         "group" => "The group each item belongs to",
-        "hidden" => "Bounded supplementary inventory by category and API view; partial counts are lower bounds, and Windows EAs require explicit admission",
+        "hidden" => (OperatingSystem.IsWindows() ? "Alternate data streams and extended attributes"
+            : OperatingSystem.IsMacOS() ? "Extended attributes and resource forks" : "Extended attributes (xattrs)") +
+            " beside each item's contents; 2+ means at least two",
         Core.Metadata.FileDetailsFields.Allocated => "Reported allocation of the file or directory object; not recursive contents, exclusive ownership or deletion savings",
         Core.Metadata.FileDetailsFields.HardLinks => "Observed names for a regular file; does not measure shared extents",
-        Core.Metadata.FileDetailsFields.ReparseType => "Observed Windows reparse type; a mount-point tag alone does not distinguish junctions from volume mounts",
+        Core.Metadata.FileDetailsFields.ReparseType => "Links, junctions and filter-managed items (cloud files, WOF compression, deduplication) by their Windows reparse type; none for ordinary items",
         "verified" => "Whether files match the checksums and signatures beside them (large ones wait for File → Verify)",
-        _ => "A column's value for every item",
+        _ => null,
     };
 }
 
@@ -294,7 +334,8 @@ public sealed class ColumnProfileSet
             f.Id == Core.Metadata.BuiltInFields.LinkTarget.Id ? ColumnProfiles.LinkTargetFillShare : ColumnProfiles.DefaultFillShare,
             ColumnDescriptions.For(f.Id))),
         .. Core.Metadata.FileDetailsFields.Create(new Core.Records.NoFileRecords(), OperatingSystem.IsWindows()).Select(f =>
-            new ColumnChoice("meta:" + f.Id, f.Title, f.Id != Core.Metadata.FileDetailsFields.ReparseType, 110,
+            new ColumnChoice("meta:" + f.Id, f.Title, f.Id != Core.Metadata.FileDetailsFields.ReparseType,
+                f.Id == Core.Metadata.FileDetailsFields.ReparseType ? 170 : 110, // "Junction or volume mount" fits
                 ColumnProfiles.DefaultFillShare, ColumnDescriptions.For(f.Id))),
     ];
 
@@ -332,6 +373,50 @@ public sealed class ColumnProfileSet
             list.Zip(_profiles).All(p => p.First.Name == p.Second.Name && ReferenceEquals(p.First.Columns, p.Second.Columns))) return;
         _profiles = list;
         Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// The columns an administrator session shows from copied profiles: the built-in columns and fields that read
+    /// file-system metadata only. Columns that read file contents (version resources, image headers, the origin stream,
+    /// verification) are not run with administrator rights as files are listed, and neither is any column not listed here.
+    /// </summary>
+    public static readonly IReadOnlySet<string> ElevatedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "name", "ext", "size", "modified", "created", "attr",
+        "meta:linkTarget", "meta:permissions", "meta:owner", "meta:group", "meta:hidden",
+        "meta:" + Core.Metadata.FileDetailsFields.Allocated, "meta:" + Core.Metadata.FileDetailsFields.HardLinks,
+        "meta:" + Core.Metadata.FileDetailsFields.ReparseType,
+    };
+
+    /// <summary>
+    /// Copied profiles as an administrator session shows them: only <see cref="ElevatedKeys"/> columns, plus the titles of
+    /// the columns it leaves in the user's own session.
+    /// </summary>
+    public static (List<ColumnProfile> Profiles, string[] Withheld) ForElevatedSession(IReadOnlyList<ColumnProfile> profiles)
+    {
+        var withheld = new SortedSet<string>(StringComparer.CurrentCultureIgnoreCase);
+        var kept = profiles.Select(profile => new ColumnProfile
+        {
+            Name = profile.Name,
+            Columns = [.. profile.Columns.Where(column =>
+            {
+                if (ElevatedKeys.Contains(column.Field)) return true;
+                if (column.Visible) withheld.Add(Choices.FirstOrDefault(c => string.Equals(c.Key, column.Field, StringComparison.OrdinalIgnoreCase))?.Title ?? column.Field);
+                return false;
+            })],
+        }).ToList();
+        return (kept, [.. withheld]);
+    }
+
+    /// <summary>
+    /// Replaces all profiles with saved or transferred ones, validated as saved settings are: unknown fields are dropped
+    /// and every profile keeps a Name column. False, with nothing changed, when none of them is usable.
+    /// </summary>
+    public bool ReplaceFromSettings(IReadOnlyList<ColumnProfile> saved)
+    {
+        if (Parse(saved) is not { } parsed) return false;
+        Replace(parsed);
+        return true;
     }
 
     /// <summary>

@@ -8,6 +8,7 @@ using FileCat.Core.Diagnostics;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Listing;
+using FileCat.Core.Permissions;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 using FileCat.Core.State;
@@ -688,6 +689,8 @@ public sealed partial class MainViewModel
     {
         Operations.UpdateSummary();
         if (job.Kind == JobKind.StorageTransform && _storageOrigins.Remove(job, out var storageOrigin)) storageOrigin.UnmarkCompleted(job);
+        if (job.Kind == JobKind.Permissions && _permissionOrigins.Remove(job, out var permissionOrigin))
+            _ = UnmarkVerifiedPermissionsAsync(permissionOrigin, job);
         if (_jobOrigins.Remove(job, out var origin))
         {
             var tab = origin.Tab;
@@ -710,7 +713,7 @@ public sealed partial class MainViewModel
             catch (ObjectDisposedException) { }
         }
         // Permissions change without a new modification time: shown values are read again.
-        if (job.Kind == JobKind.Attributes) Services.Metadata.Invalidate();
+        if (job.Kind is JobKind.Attributes or JobKind.Permissions) Services.Metadata.Invalidate();
         else if (job.Kind is not (JobKind.VerifyChecksums or JobKind.VerifyBeside or JobKind.ArchiveTest))
             foreach (var field in Services.Metadata.Fields.Where(f => f.ObservationLane)) Services.Metadata.ForgetField(field.Id);
         // Verifying only reads: nothing to list again (the rows of the files it read ask for their new results).
@@ -729,6 +732,9 @@ public sealed partial class MainViewModel
         }
         else if (job.Kind == JobKind.Undo)
             Notify($"{Formatters.SafeName(job.Title)}: {job.Summary}. Open Undo report in Operations (Ctrl+J) for every outcome.", job.ItemsFailed > 0);
+        else if (job.PermissionReviewScope == PermissionScope.NativePropagation)
+            Notify($"{Formatters.SafeName(job.Title)} · {job.State.Describe()} · {PermissionOperationReport.DescribePropagation(job.PermissionResults.FirstOrDefault())}",
+                job.State == JobState.Failed || job.ItemsFailed > 0);
         else if (job.Kind is JobKind.VerifyChecksums or JobKind.VerifyBeside) _ = OnVerifyFinishedAsync(job);
         else switch (job.State)
         {

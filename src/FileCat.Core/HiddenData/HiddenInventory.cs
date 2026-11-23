@@ -17,15 +17,30 @@ public sealed record HiddenInventory(string Path, DateTimeOffset ObservedAt, Imm
     public bool BoundToObject { get; init; }
     public bool ActionsAvailable { get; init; } = true;
     public bool CanAct => BoundToObject && ActionsAvailable;
+    public bool DeletionAvailable { get; init; } = true;
+    public bool CanDelete => CanAct && DeletionAvailable;
     public bool ValueBearingQueryIssued { get; init; }
     public string? Notice { get; init; }
     public bool IsComplete => Categories.Length > 0 && Categories.All(c => c.State == HiddenInventoryState.Complete);
     public int? ExactCount => IsComplete ? Items.Length : null;
+    /// <summary>At least this many: the listed items, or the categories' counts where a category knows of more than it lists.</summary>
+    public int LowerBound => Math.Max(Items.Length, Categories.Sum(c => c.Count));
+    /// <summary>
+    /// An exact count, a lower bound ("2+"), or what kept a count from being known: no category qualified here ("—"),
+    /// access denied, a failed read, a change while it was read, or a category deliberately left unread ("Not inspected").
+    /// </summary>
     public string CountText => ExactCount is { } n ? n.ToString(System.Globalization.CultureInfo.CurrentCulture)
-        : Items.Length > 0 ? Items.Length.ToString(System.Globalization.CultureInfo.CurrentCulture) + "+" : "Not inspected";
-    public string Description => string.Join("; ", Categories.Select(c => c.State == HiddenInventoryState.Complete
+        : LowerBound > 0 ? LowerBound.ToString(System.Globalization.CultureInfo.CurrentCulture) + "+"
+        : Categories.Any(c => c.State == HiddenInventoryState.Denied) ? "no access"
+        : Categories.Any(c => c.State == HiddenInventoryState.Failed) ? "error"
+        : Categories.Any(c => c.State == HiddenInventoryState.Changed) ? "changed"
+        : Categories.Length > 0 && Categories.All(c => c.State is HiddenInventoryState.Unsupported or HiddenInventoryState.Complete) ? "—"
+        : "Not inspected";
+    public string Description => string.Join("; ", DescriptionLines);
+    /// <summary>Each category on a line of its own, a reason kept to one line: what the Extra data tooltip lists.</summary>
+    public IEnumerable<string> DescriptionLines => Categories.Select(c => c.State == HiddenInventoryState.Complete
         ? $"{c.Count} {CategoryName(c.Kind)} ({c.Scope})"
-        : $"{CategoryName(c.Kind)}: {StateText(c.State)}{(c.Count > 0 ? $", at least {c.Count}" : "")}{(c.Reason is { } reason ? " — " + reason : "")}"));
+        : $"{CategoryName(c.Kind)}: {StateText(c.State)}{(c.Count > 0 ? $", at least {c.Count}" : "")}{(c.Reason is { } reason ? " — " + reason.ReplaceLineEndings(" ") : "")}");
     public static string CategoryName(HiddenKind kind) => kind switch
     { HiddenKind.Stream => "named streams", HiddenKind.NtfsAttribute => "extended attributes", HiddenKind.ResourceFork => "resource forks", _ => "attributes" };
     public static string StateText(HiddenInventoryState state) => state switch

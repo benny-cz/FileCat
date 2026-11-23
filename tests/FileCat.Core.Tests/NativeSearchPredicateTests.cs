@@ -38,6 +38,19 @@ public sealed class NativeSearchPredicateTests
         }
     }
 
+    [Fact]
+    public void Saved_criteria_reject_conflicting_set_and_clear_before_search_admission()
+    {
+        var criteria = new SearchCriteria { LookIn = Path.Join(Path.GetTempPath(), "missing-native-search-root") };
+        criteria.Advanced.AttributesSet = FileAttributes.Hidden;
+        criteria.Advanced.AttributesClear = FileAttributes.Hidden;
+
+        Assert.False(criteria.TryBuildQuery(DateTime.UtcNow, [], null, out var query, out var error));
+        Assert.Null(query);
+        Assert.Contains("both required and excluded", error);
+        Assert.Contains("conflicting attribute states", criteria.Advanced.Summary());
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

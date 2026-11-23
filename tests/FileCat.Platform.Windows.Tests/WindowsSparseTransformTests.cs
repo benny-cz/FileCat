@@ -567,7 +567,11 @@ public sealed partial class WindowsSparseTransformTests
         try
         {
             var job = jobs.SubmitStorage(review, selection, _ => { });
-            Assert.True(finished.Wait(timeout ?? TimeSpan.FromSeconds(45), ct));
+            if (!finished.Wait(timeout ?? TimeSpan.FromSeconds(45), ct))
+            {
+                job.Cancel();
+                throw new TimeoutException($"Storage job {job.Id} did not finish within {timeout ?? TimeSpan.FromSeconds(45)}; cancellation requested.");
+            }
             return job;
         }
         finally { jobs.JobFinished -= OnFinished; }

@@ -258,6 +258,192 @@ public sealed class DescendantFocusAutomationTests
         finally { window.Close(); }
     }
 
+    /// <summary>
+    /// VoiceOver did not follow Tab into an in-window dialog's body on macOS 27: tracking the body's live region walked up
+    /// its automation parents while Avalonia was still attaching the body, and Avalonia then dropped the link from the
+    /// body's content to the dialog. Every control in the body reported parents that ended outside the window.
+    /// </summary>
+    [AvaloniaFact]
+    public void A_dialog_body_with_a_live_region_stays_linked_to_its_window_under_the_macOS_bridge()
+    {
+        var host = new Panel();
+        var window = new FocusWindow { Width = 800, Height = 600, Content = host };
+        window.Show();
+        bool mac = NativeLiveRegionBridges.UseMacBridge;
+        NativeLiveRegionBridges.UseMacBridge = true;
+        try
+        {
+            var root = ControlAutomationPeer.CreatePeerForElement(window);
+            _ = new NativeElementsStandIn(root);
+            var status = new TextBlock { Text = "Copied." };
+            AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
+            LiveRegions.Watch(status);
+            var copy = new Button { Content = "Copy exact path" };
+            host.Children.Add(new DialogCard("Permissions and ownership", new StackPanel { Children = { copy, status } }, null, 560));
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+
+            // Nothing in the body has focus, so no focus report relinks it: the links are the attachment's own.
+            Assert.False(copy.IsFocused);
+            foreach (var control in new Control[] { copy, status })
+                Assert.True(AutomationPaths.Reaches(ControlAutomationPeer.CreatePeerForElement(control), root),
+                    $"{control.GetType().Name} in the dialog body has no parent chain to the window.");
+        }
+        finally
+        {
+            NativeLiveRegionBridges.UseMacBridge = mac;
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// A walk up the automation parents while Avalonia attaches a subtree leaves the subtree's root without a parent: Avalonia
+    /// drops the link the walk made, and the parent keeps listing the root. Focus reported on macOS links such a chain to the
+    /// window again before the native bridge is told, so VoiceOver finds the focused element in its window.
+    /// </summary>
+    [AvaloniaFact]
+    public void Focus_reported_under_the_macOS_bridge_relinks_a_body_whose_parent_link_Avalonia_dropped()
+    {
+        var host = new Panel();
+        var window = new FocusWindow { Width = 800, Height = 600, Content = host };
+        window.Show();
+        bool mac = NativeLiveRegionBridges.UseMacBridge;
+        NativeLiveRegionBridges.UseMacBridge = true;
+        try
+        {
+            var root = Assert.IsType<DescendantFocusWindowAutomationPeer>(ControlAutomationPeer.CreatePeerForElement(window));
+            var provider = (IRootProvider)root;
+            var copy = new Button { Content = "Copy exact path" };
+            var peer = ControlAutomationPeer.CreatePeerForElement(copy);
+            // Stands in for any walk made during the attachment, as live-region tracking made one.
+            copy.AttachedToVisualTree += (_, _) => AutomationPaths.FromWindow(root, peer);
+            host.Children.Add(new DialogCard("Permissions and ownership", new StackPanel { Children = { copy } }, null, 560));
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(AutomationPaths.Reaches(peer, root),
+                "Avalonia kept the link; if it no longer drops it, NativeLiveRegionBridges.Relink may be unnecessary.");
+
+            // The native bridge reads the focused element's parents when it is told, so the links must be back by then.
+            var reported = new List<(AutomationPeer? Focus, bool Linked)>();
+            provider.FocusChanged += (_, _) => reported.Add((provider.GetFocus(), AutomationPaths.Reaches(peer, root)));
+            copy.Focus();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(((AutomationPeer?)peer, true), Assert.Single(reported));
+            // The window is what the native bridge resolves as the focused element's top-level element and window.
+            Assert.Same(root, peer.GetAutomationRoot());
+        }
+        finally
+        {
+            NativeLiveRegionBridges.UseMacBridge = mac;
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// VoiceOver read an ACL row as a bare "table row": it says a row's position and the list's size only for a row whose
+    /// parent is its list, and Avalonia's list box reaches its rows through its template. Under the macOS bridge a counted
+    /// list's rows are its own children, in item order, each naming the list as its parent; elsewhere it is a list box.
+    /// </summary>
+    [AvaloniaFact]
+    public void A_counted_list_owns_its_rows_in_order_under_the_macOS_bridge()
+    {
+        bool mac = NativeLiveRegionBridges.UseMacBridge;
+        NativeLiveRegionBridges.UseMacBridge = true;
+        var list = new CountedListBox { ItemsSource = new[] { "Deny · everyone · Write data", "Allow · everyone · Read data" },
+            ItemsPanel = PermissionInspectorView.AllRows() };
+        AutomationProperties.SetName(list, "Access now");
+        var window = new FocusWindow { Width = 400, Height = 300, Content = list };
+        window.Show();
+        try
+        {
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            var root = ControlAutomationPeer.CreatePeerForElement(window);
+            var listPeer = ControlAutomationPeer.CreatePeerForElement(list);
+            Assert.Equal(AutomationControlType.List, listPeer.GetAutomationControlType());
+            var rows = listPeer.GetChildren();
+            Assert.Equal(["Deny · everyone · Write data", "Allow · everyone · Read data"], rows.Select(row => row.GetName()));
+            Assert.All(rows, row =>
+            {
+                Assert.Equal(AutomationControlType.ListItem, row.GetAutomationControlType());
+                Assert.Same(listPeer, row.GetParent());
+                Assert.True(AutomationPaths.Reaches(row, root));
+            });
+
+            // New items are listed again once their rows are prepared.
+            list.ItemsSource = new[] { "Only rule" };
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(["Only rule"], listPeer.GetChildren().Select(row => row.GetName()));
+        }
+        finally
+        {
+            NativeLiveRegionBridges.UseMacBridge = mac;
+            window.Close();
+        }
+
+        // Without the macOS bridge the list keeps Avalonia's own peer and template children.
+        NativeLiveRegionBridges.UseMacBridge = false;
+        try { Assert.IsType<ListBoxAutomationPeer>(ControlAutomationPeer.CreatePeerForElement(new CountedListBox())); }
+        finally { NativeLiveRegionBridges.UseMacBridge = mac; }
+    }
+
+    /// <summary>
+    /// VoiceOver moves its cursor to a dialog that opens or grows and asks to focus what it reached: the dialog card or
+    /// its resize grip took the keyboard from the group chooser or the Discard button FileCat had just focused. Under the
+    /// macOS bridge those requests leave the keyboard where it is while it is in the dialog.
+    /// </summary>
+    [AvaloniaFact]
+    public void Under_the_macOS_bridge_the_dialog_card_and_grip_keep_the_keyboard_on_the_focused_field()
+    {
+        var host = new Grid();
+        var window = new FocusWindow { Content = host, Width = 800, Height = 600 };
+        window.Show();
+        bool mac = NativeLiveRegionBridges.UseMacBridge;
+        NativeLiveRegionBridges.UseMacBridge = true;
+        var dialogs = new OverlayDialogService(host, () => null);
+        try
+        {
+            var chooser = new ComboBox { ItemsSource = new[] { "20", "12" }, SelectedIndex = 0 };
+            AutomationProperties.SetName(chooser, "Assignable group ID");
+            _ = dialogs.ShowCustomAsync("Change group and mode", new StackPanel { Children = { chooser } },
+                [new DialogButton("Cancel", "cancel", IsCancel: true)], initialFocus: chooser, resizable: true);
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(chooser.IsFocused);
+            var card = host.GetVisualDescendants().OfType<DialogCard>().Single();
+            var grip = card.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.Thumb>().Single(thumb => thumb.Name == "DialogResizeGrip");
+            var cardPeer = ControlAutomationPeer.CreatePeerForElement(card);
+            var gripPeer = ControlAutomationPeer.CreatePeerForElement(grip);
+            Assert.Equal(AutomationControlType.Group, cardPeer.GetAutomationControlType());
+            Assert.Equal(AutomationControlType.Thumb, gripPeer.GetAutomationControlType());
+
+            // What VoiceOver asks when its cursor reaches the card or the grip.
+            cardPeer.SetFocus();
+            gripPeer.SetFocus();
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(chooser.IsFocused);
+
+            // Off the macOS bridge the request is carried out, as before.
+            NativeLiveRegionBridges.UseMacBridge = false;
+            gripPeer.SetFocus();
+            Assert.True(grip.IsFocused);
+        }
+        finally
+        {
+            NativeLiveRegionBridges.UseMacBridge = mac;
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// The macOS layout notices replace Avalonia.Native's two methods only where the native classes and methods exist
+    /// with the expected signatures. Without them, as in a headless process or on another system, nothing is replaced.
+    /// </summary>
+    [AvaloniaFact]
+    public void Layout_notices_replace_nothing_without_Avalonia_Natives_methods() =>
+        Assert.False(MacLayoutNotices.Install());
+
     [AvaloniaFact]
     public void Linux_attachment_reaches_a_field_inside_a_container_that_was_hidden()
     {
@@ -582,6 +768,26 @@ public sealed class DescendantFocusAutomationTests
     private sealed class FocusWindow : Window
     {
         protected override AutomationPeer OnCreateAutomationPeer() => new DescendantFocusWindowAutomationPeer(this);
+    }
+
+    /// <summary>
+    /// Does what Avalonia's macOS bridge does with the peers it has native elements for, from the window down: lists a
+    /// peer's children again as soon as they change, and gives each listed child its own element.
+    /// </summary>
+    private sealed class NativeElementsStandIn
+    {
+        private readonly HashSet<AutomationPeer> _elements = new(ReferenceEqualityComparer.Instance);
+
+        public NativeElementsStandIn(AutomationPeer root) => Add(root);
+
+        private void Add(AutomationPeer peer)
+        {
+            if (!_elements.Add(peer)) return;
+            peer.ChildrenChanged += (_, _) =>
+            {
+                foreach (var child in peer.GetChildren()) Add(child);
+            };
+        }
     }
 
     /// <summary>Stands in for Avalonia's internal AT-SPI server with the same member shapes.</summary>

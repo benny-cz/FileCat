@@ -5,10 +5,10 @@ using Avalonia.Controls.Documents;
 using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
+using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
-using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -521,6 +521,10 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 AutomationProperties.SetHelpText(danger ? cancel : ok,
                     "Key points: " + string.Join("; ", spokenPoints));
         }
+        // As for an alert: a screen reader reads the focused button, not the message beside it (NVDA and VoiceOver said
+        // only "Discard changes? dialog, Discard button"), so the button that starts focused carries the message.
+        else if (!string.IsNullOrWhiteSpace(message))
+            AutomationProperties.SetHelpText(danger ? cancel : ok, SpokenMessage(message));
         var text = highlights is { Count: > 0 }
             ? HighlightedReviewBody(highlights, message, summaryHeading, detailsHeading, collapseDetails, warnings) : MessageBody(message);
         Session? session = null;
@@ -553,6 +557,17 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     /// in wrapped text, so Environment.NewLine from callers becomes a plain line feed.
     /// </summary>
     private static string OneLineBreak(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+
+    /// <summary>A message as one spoken line, bounded: screen readers read a focused button's description whole.</summary>
+    internal static string SpokenMessage(string message)
+    {
+        const int Limit = 600;
+        string text = string.Join(" ", OneLineBreak(message).Split('\n').Select(line => line.Trim()).Where(line => line.Length > 0));
+        if (text.Length <= Limit) return text;
+        int cut = Limit - 1;
+        if (char.IsHighSurrogate(text[cut - 1])) cut--;
+        return text[..cut].TrimEnd() + "…";
+    }
 
     /// <summary>
     /// A message as selectable text, a block per line, with space where a blank line separated paragraphs: a line
@@ -741,7 +756,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             if (weight[start] is 2 or 3)
             {
                 run.FontWeight = weight[start] == 2 ? FontWeight.Bold : FontWeight.SemiBold;
-                run[!Run.ForegroundProperty] = new DynamicResourceExtension("FcTextLink");
+                // The link color as the line's style says (ReviewText): on a list's chosen row (Undo's actions) the row's text color.
+                run.Bind(Run.ForegroundProperty, block.GetObservable(ReviewText.PathForegroundProperty,
+                    brush => brush is null ? BindingValue<IBrush?>.Unset : new BindingValue<IBrush?>(brush)));
             }
             block.Inlines.Add(run);
             start = end;
@@ -764,6 +781,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         message = OneLineBreak(message);
         var tcs = new TaskCompletionSource();
         var ok = new Button { Content = "OK", IsDefault = true, Classes = { "primary" } };
+        // Focus starts on OK, and a screen reader reads that button, not the message beside it: NVDA said only
+        // "Authorized inspection unavailable dialog, OK button". The message is the alert, so OK carries it.
+        Avalonia.Automation.AutomationProperties.SetHelpText(ok, SpokenMessage(message));
         Session? session = null;
         void Finish()
         {
@@ -784,13 +804,20 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     {
         var tcs = new TaskCompletionSource<object?>();
         Session? session = null;
+        DialogCard? shownCard = null;
         DispatcherTimer? requery = null;
         var presentationSubscriptions = new List<(DialogButtonPresentation Source, Action Changed)>();
         bool presentationClosed = false;
+        bool running = false;
+        bool hasAsyncAction = buttons.Any(button => button.InvokeAsync is not null);
+        Action? requeryButtons = null;
+        Action? refreshClose = null;
+        Action<object?>? closerActivation = null;
         void RetirePresentation()
         {
             presentationClosed = true;
             requery?.Stop();
+            if (closerActivation is not null) closer?.Detach(closerActivation);
             foreach (var (source, changed) in presentationSubscriptions) source.Changed -= changed;
             presentationSubscriptions.Clear();
         }
@@ -801,14 +828,51 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             Close(session!);
             tcs.TrySetResult(r);
         }
+        async void Activate(DialogButton button, Func<bool>? available)
+        {
+            if (!IsCurrent(session) || presentationClosed || running || available?.Invoke() == false || button.Validate?.Invoke() == false) return;
+            if (button.InvokeAsync is not { } action) { Finish(button.Result); return; }
+
+            running = true;
+            var invoker = TopLevel.GetTopLevel(host)?.FocusManager?.GetFocusedElement() as Control;
+            SetActionPresentation();
+            // The invoking button is unavailable while its action runs, so focus fell to the window: NVDA then named
+            // nothing after "Apply with authorization", and Tab started outside the dialog. The dialog keeps focus
+            // instead; Enter there waits for the action, and Tab still reaches its controls and Close.
+            if (invoker is { IsEffectivelyEnabled: false } && shownCard is { } dialogCard && dialogCard.IsVisualAncestorOf(invoker) && IsCurrent(session))
+                dialogCard.Focus();
+            try { await action(); }
+            catch (OperationCanceledException) { }
+            catch (Exception error)
+            {
+                if (IsCurrent(session)) await AlertAsync("Action could not finish", Services.Formatters.SafeName(error.Message));
+            }
+            finally
+            {
+                running = false;
+                if (!presentationClosed) SetActionPresentation();
+            }
+        }
+
+        void SetActionPresentation()
+        {
+            requeryButtons?.Invoke();
+            refreshClose?.Invoke();
+            if (session is null) return;
+            session.KeepOperationsUsable = behavior?.KeepOperationsUsable == true || running && behavior?.KeepOperationsUsableDuringAction == true;
+            UpdateOperationsRegion();
+        }
+
         try
         {
-            var gated = new List<(Button Button, Func<bool> Available)>();
+            var gated = new List<(Button Button, Func<bool>? Available)>();
+            var activate = new List<(DialogButton Definition, Func<bool>? Available)>();
             DialogButton? confirm = null;
             Func<bool>? confirmAvailable = null;
             var btns = buttons.Select(b =>
             {
-                var btn = new Button { Content = b.Text, IsDefault = b.IsDefault, IsCancel = b.IsCancel };
+                // The explicit Enter handlers own asynchronous activation, including options and lists.
+                var btn = new Button { Content = b.Text, IsDefault = b.IsDefault && b.InvokeAsync is null, IsCancel = b.IsCancel };
                 if (!string.IsNullOrWhiteSpace(b.HelpText))
                     AutomationProperties.SetHelpText(btn, b.HelpText);
                 if (b.IsDanger) btn.Classes.Add("danger");
@@ -816,7 +880,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 var available = b.IsDefault && canConfirm is not null
                     ? b.IsAvailable is { } own ? () => own() && canConfirm() : canConfirm
                     : b.IsAvailable;
-                if (available is not null) gated.Add((btn, available));
+                if (available is not null || hasAsyncAction) gated.Add((btn, available));
+                activate.Add((b, available));
                 if (b.Presentation is { } presentation)
                 {
                     void ApplyPresentation()
@@ -827,8 +892,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                         AutomationProperties.SetName(btn, snapshot.AccessibleName ?? snapshot.Text);
                         AutomationProperties.SetHelpText(btn, snapshot.HelpText ?? b.HelpText ?? string.Empty);
                         // Text and eligibility must describe the same action, including an immediate Enter.
-                        btn.IsEnabled = available?.Invoke() != false;
-                        foreach (var (button, predicate) in gated) button.IsEnabled = predicate();
+                        btn.IsEnabled = !running && available?.Invoke() != false;
+                        requeryButtons?.Invoke();
                     }
                     void Changed()
                     {
@@ -840,22 +905,20 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                     ApplyPresentation();
                 }
                 if (b.IsDefault && confirm is null) (confirm, confirmAvailable) = (b, available);
-                btn.Click += (_, _) => { if (IsCurrent(session) && available?.Invoke() != false && b.Validate?.Invoke() != false) Finish(b.Result); };
+                btn.Click += (_, _) => Activate(b, available);
                 return btn;
             }).ToArray();
             // Buttons show whether they would do anything (the predicates are cheap and side-effect free).
             if (gated.Count > 0)
             {
-                void Requery()
-                {
-                    foreach (var (button, available) in gated) button.IsEnabled = available();
-                }
-                Requery();
+                requeryButtons = () => { foreach (var (button, available) in gated) button.IsEnabled = !running && available?.Invoke() != false; };
+                requeryButtons();
                 requery = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
-                requery.Tick += (_, _) => Requery();
+                requery.Tick += (_, _) => requeryButtons?.Invoke();
                 requery.Start();
             }
             var card = Card(title, content, ButtonRow(btns), 760, pinnedReview);
+            shownCard = card;
             if (resizable) card.EnableResizing(host, behavior?.PreferredSize);
             // Enter confirms as soon as the dialog would: whether the default button may act is asked when Enter is pressed,
             // not only when the 200 ms re-check last enabled it, so Enter right after typing is not lost. A button or a
@@ -865,20 +928,65 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             {
                 if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || tcs.Task.IsCompleted || !IsCurrent(session) || e.Source is not Visual source) return;
                 bool inListItem = source.FindAncestorOfType<ListBoxItem>(includeSelf: true) is { } item && card.IsVisualAncestorOf(item);
-                if (e.Handled && !inListItem || confirm is null || confirmAvailable?.Invoke() == false) return;
+                if (inListItem && behavior?.ConfirmOnListItemEnter == false || e.Handled && !inListItem || confirm is null) return;
+                if (!running && confirmAvailable?.Invoke() == false) return;
                 e.Handled = true;
-                if (confirm.Validate?.Invoke() != false) Finish(confirm.Result);
+                Activate(confirm, confirmAvailable);
             }, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
             // Enter on a check box or an option confirms, as in Windows dialogs (Space toggles it): Avalonia would click it.
             card.AddHandler(InputElement.KeyDownEvent, (_, e) =>
             {
                 if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || tcs.Task.IsCompleted || !IsCurrent(session) || e.Source is not (CheckBox or RadioButton)) return;
                 e.Handled = true;
-                if (confirm is not null && confirmAvailable?.Invoke() != false && confirm.Validate?.Invoke() != false) Finish(confirm.Result);
+                if (behavior?.ConfirmOnOptionEnter != false && confirm is not null) Activate(confirm, confirmAvailable);
             }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
             var cancel = buttons.FirstOrDefault(b => b.IsCancel);
-            session = Show(card, initialFocus ?? btns.FirstOrDefault(b => b.IsDefault), top: false, () => Finish(cancel?.Result), behavior);
-            closer?.Attach(Finish);
+            var defaultIndex = activate.FindIndex(entry => entry.Definition.IsDefault);
+            var presentation = behavior?.ClosePresentation;
+            if (hasAsyncAction)
+            {
+                var chosen = behavior ?? new DialogBehavior();
+                behavior = chosen with { OnImplicitDismiss = () =>
+                {
+                    if (running || chosen.OnImplicitDismiss is null) Finish(cancel?.Result);
+                    else chosen.OnImplicitDismiss();
+                } };
+            }
+            session = Show(card, initialFocus ?? (defaultIndex >= 0 ? btns[defaultIndex] : null), top: false, () => Finish(cancel?.Result), behavior);
+            if (hasAsyncAction || presentation is not null)
+            {
+                var close = card.CloseButton;
+                string ordinaryName = AutomationProperties.GetName(close) ?? "Close dialog";
+                string ordinaryHelp = AutomationProperties.GetHelpText(close) ?? string.Empty;
+                refreshClose = () =>
+                {
+                    if (presentationClosed) return;
+                    var snapshot = running ? new DialogButtonSnapshot("Close and detach", HelpText: "Close this dialog and follow the action in Operations.")
+                        : presentation?.Snapshot;
+                    AutomationProperties.SetName(close, snapshot?.AccessibleName ?? snapshot?.Text ?? ordinaryName);
+                    AutomationProperties.SetHelpText(close, snapshot?.HelpText ?? ordinaryHelp);
+                    ToolTip.SetTip(close, (snapshot?.Text ?? ordinaryName) + " (Esc)");
+                };
+                if (presentation is not null)
+                {
+                    void Changed()
+                    {
+                        if (Dispatcher.UIThread.CheckAccess()) refreshClose?.Invoke();
+                        else Dispatcher.UIThread.Post(() => refreshClose?.Invoke());
+                    }
+                    presentation.Changed += Changed;
+                    presentationSubscriptions.Add((presentation, Changed));
+                }
+                refreshClose();
+            }
+            closerActivation = hasAsyncAction ? result =>
+            {
+                if (running || !IsCurrent(session)) return;
+                var action = activate.FirstOrDefault(entry => Equals(entry.Definition.Result, result));
+                if (action.Definition?.InvokeAsync is not null) Activate(action.Definition, action.Available);
+                else Finish(result);
+            } : Finish;
+            closer?.Attach(closerActivation);
             return tcs.Task;
         }
         catch { RetirePresentation(); throw; }

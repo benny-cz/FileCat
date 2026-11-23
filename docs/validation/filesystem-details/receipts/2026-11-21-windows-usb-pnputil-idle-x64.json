@@ -1,0 +1,26 @@
+{
+    "RemovalExit":  0,
+    "RemovalOutput":  [
+                          "Microsoft PnP Utility",
+                          "",
+                          "Removing device:          USBSTOR\\Disk\u0026Ven_UFD_2.0\u0026Prod_Silicon-Power8G\u0026Rev_DL17\\220191330237F00268148C7D586\u00260",
+                          "Device removed successfully.",
+                          ""
+                      ],
+    "VolumeAbsent":  true,
+    "ScanExit":  0,
+    "ScanOutput":  [
+                       "Microsoft PnP Utility",
+                       "",
+                       "Scanning for device hardware changes.",
+                       "Scan complete.",
+                       ""
+                   ],
+    "Restored":  true,
+    "RootEntries":  [
+                        "filler.bin",
+                        "new.bin",
+                        "System Volume Information"
+                    ],
+    "Error":  null
+}

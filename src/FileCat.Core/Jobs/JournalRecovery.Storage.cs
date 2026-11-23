@@ -5,6 +5,8 @@ using FileCat.Core.State;
 namespace FileCat.Core.Jobs;
 
 public sealed record StorageHistoryRoot(int SourceIndex, int PinIndex, string Path, StorageObservation Observation);
+/// <summary>A current read-only observation for a history review; never evidence of what a recorded call did.</summary>
+public sealed record StorageCurrentObservation(string Path, StorageObservation? Observation, StorageProblem? Problem);
 public sealed record StorageHistoryCall(long Call, int SourceIndex, string Path, StorageObjectIdentity Identity,
     StorageObservation Before, StorageObservationState Desired, StorageCallDisposition? Disposition, StorageNoCallReason? NoCallReason,
     StorageMutationResult? Result)

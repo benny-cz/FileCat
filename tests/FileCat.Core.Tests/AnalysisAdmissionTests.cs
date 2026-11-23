@@ -22,6 +22,8 @@ public sealed class AnalysisAdmissionTests
         string status = "Uid: 1000 1000 1000 1000\nGid: 1000 1000 1000 1000\n" + Caps;
         Assert.False(AnalysisAdmission.OrdinaryLinuxStatus(status + "Uid: 1000 1000 1000 0\n"));
         Assert.False(AnalysisAdmission.OrdinaryLinuxStatus(status.Replace("CapPrm:\t0000000000000000", "CapPrm:\t0000000000000001")));
+        // An Ubuntu 26.04 desktop session's inheritable CAP_WAKE_ALARM is not retained authority.
+        Assert.True(AnalysisAdmission.OrdinaryLinuxStatus(status.Replace("CapInh:\t0000000000000000", "CapInh:\t0000000800000000")));
     }
 
     [Theory]

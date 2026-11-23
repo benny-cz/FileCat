@@ -34,18 +34,59 @@ public sealed unsafe partial class WindowsHiddenData
         {
             var eas = ReadEaInventory(file, ct);
             acquired = eas.Acquired;
-            int bytes = items.Sum(i => i.Name.Length * 2 + 64) + eas.Items.Sum(i => i.Name.Length * 2 + 64);
-            if (items.Length + eas.Items.Length <= HiddenInventory.MaxEntries && bytes <= HiddenInventory.MaxNameBytes) items = items.AddRange(eas.Items);
-            else eas = eas with { Items = [], State = HiddenInventoryState.Partial, Problem = "The combined 1,024-entry/1 MiB metadata limit was reached." };
+            (items, eas) = MergeInventoryParts(streams, eas);
             categories.Add(new(HiddenKind.NtfsAttribute, eas.State, eas.Items.Length, "held object; native EA buffer includes values", eas.Problem));
         }
-        else categories.Add(new(HiddenKind.NtfsAttribute, HiddenInventoryState.NotInspected, 0, "EA query returns names and values", "Use Read extended attributes to admit that query."));
+        else categories.Add(EaSizeCategory(file));
         ct.ThrowIfCancellationRequested();
         return new(path, DateTimeOffset.UtcNow, items, categories.ToImmutable(), "FileStreamInfo / NtQueryEaFile on one no-follow metadata handle")
         { Identity = identity, BoundToObject = true, ValueBearingQueryIssued = acquired };
     }
 
+    /// <summary>
+    /// Without admission no EA name or value is read. FileEaInformation reports only the total size of the object's EA
+    /// set, so an object without EAs is complete with none, and one with EAs counts as at least one.
+    /// </summary>
+    private static HiddenCategoryInventory EaSizeCategory(SafeFileHandle file)
+    {
+        const string Admission = "Use Read extended attributes to admit the EA query, which returns names and values.";
+        uint size = 0;
+        int status = NtQueryInformationFile(file, out var io, &size, sizeof(uint), 7 /* FileEaInformation */);
+        if (status < 0 || io.Information != sizeof(uint))
+            return new(HiddenKind.NtfsAttribute, HiddenInventoryState.NotInspected, 0, "EA query returns names and values", Admission);
+        return size == 0
+            ? new(HiddenKind.NtfsAttribute, HiddenInventoryState.Complete, 0, "held object; FileEaInformation reports none")
+            : new(HiddenKind.NtfsAttribute, HiddenInventoryState.NotInspected, 1, "held object; FileEaInformation size only",
+                $"FileEaInformation reports {size:N0} bytes of them. {Admission}");
+    }
+
     internal sealed record InventoryPart(ImmutableArray<HiddenItem> Items, HiddenInventoryState State, string? Problem = null, bool Acquired = false);
+
+    internal static (ImmutableArray<HiddenItem> Items, InventoryPart Ea) MergeInventoryParts(InventoryPart streams, InventoryPart eas)
+    {
+        var combined = streams.Items.ToBuilder();
+        int retainedBytes = streams.Items.Sum(item => item.Name.Length * 2 + 64);
+        int included = 0;
+        foreach (var item in eas.Items)
+        {
+            int cost = item.Name.Length * 2 + 64;
+            if (combined.Count == HiddenInventory.MaxEntries || cost > HiddenInventory.MaxNameBytes - retainedBytes) break;
+            combined.Add(item);
+            retainedBytes += cost;
+            included++;
+        }
+        if (included != eas.Items.Length)
+        {
+            const string limit = "The combined 1,024-entry/1 MiB metadata limit was reached.";
+            eas = eas with
+            {
+                Items = eas.Items.Take(included).ToImmutableArray(),
+                State = eas.State == HiddenInventoryState.Complete ? HiddenInventoryState.Partial : eas.State,
+                Problem = string.IsNullOrWhiteSpace(eas.Problem) ? limit : eas.Problem + " " + limit,
+            };
+        }
+        return (combined.ToImmutable(), eas);
+    }
 
     internal static InventoryPart ReadStreamInventory(SafeFileHandle file, CancellationToken ct)
     {
@@ -58,6 +99,8 @@ public sealed unsafe partial class WindowsHiddenData
             int error = success ? 0 : Marshal.GetLastPInvokeError();
             ct.ThrowIfCancellationRequested();
             if (success) return ParseStreamInventory(buffer);
+            // A folder without named streams has no stream record at all: the query ends at once (ERROR_HANDLE_EOF).
+            if (error == 38) return new([], HiddenInventoryState.Complete);
             if (error is 122 or 234 && attempt < 2) continue;
             return new([], error is 122 or 234 ? HiddenInventoryState.Partial : error == 5 ? HiddenInventoryState.Denied : error is 1 or 50 or 87 ? HiddenInventoryState.Unsupported : HiddenInventoryState.Failed,
                 error is 122 or 234 ? "Stream metadata exceeded the bounded resize allowance." : new System.ComponentModel.Win32Exception(error).Message);
@@ -73,15 +116,18 @@ public sealed unsafe partial class WindowsHiddenData
         while (at <= bytes.Length - 24)
         {
             uint next = BinaryPrimitives.ReadUInt32LittleEndian(bytes[at..]), length = BinaryPrimitives.ReadUInt32LittleEndian(bytes[(at + 4)..]);
-            if (length == 0 || (length & 1) != 0 || length > 65532 || length > bytes.Length - at - 24 || next != 0 && (next < 24 + length || next > bytes.Length - at || (next & 7) != 0))
+            if ((length & 1) != 0 || length > 65532 || length > bytes.Length - at - 24 || next != 0 && (next < 24 + length || next > bytes.Length - at || (next & 7) != 0))
                 return new(items.ToImmutable(), HiddenInventoryState.Failed, "Malformed stream metadata record.");
+            if (length == 0 && (at != 0 || next != 0))
+                return new(items.ToImmutable(), HiddenInventoryState.Failed, "An unnamed default stream cannot appear with other stream records.");
             string raw;
             try { raw = new UnicodeEncoding(false, false, true).GetString(bytes.Slice(at + 24, (int)length)); }
             catch (DecoderFallbackException) { return new(items.ToImmutable(), HiddenInventoryState.Failed, "Stream name is not valid UTF-16; actions are unavailable."); }
             long size = BinaryPrimitives.ReadInt64LittleEndian(bytes[(at + 8)..]);
-            if (size < 0 || !raw.StartsWith(':') || !raw.EndsWith(":$DATA", StringComparison.OrdinalIgnoreCase))
+            // FILE_STREAM_INFORMATION also permits an empty name for the unnamed default stream.
+            if (size < 0 || length != 0 && (!raw.StartsWith(':') || !raw.EndsWith(":$DATA", StringComparison.OrdinalIgnoreCase)))
                 return new(items.ToImmutable(), HiddenInventoryState.Failed, "Unqualified stream record or size.");
-            if (!raw.Equals("::$DATA", StringComparison.OrdinalIgnoreCase))
+            if (length != 0 && !raw.Equals("::$DATA", StringComparison.OrdinalIgnoreCase))
             {
                 string name = raw[1..^6];
                 if (name.Length == 0 || name.IndexOfAny(['\0', ':', '/', '\\']) >= 0 || !names.Add(name))

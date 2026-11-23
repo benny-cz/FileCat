@@ -21,7 +21,7 @@ public static class ContextMenuFactory
         bool canCreate = location.Scheme is Schemes.FileSystem or Schemes.Zip or Schemes.Archive or Schemes.Sftp or Schemes.Mtp &&
                          (caps & LocationCapabilities.CreateDirectory) != 0 && unavailable is null;
         var items = new List<Control>();
-        void Add(string id, bool enabled, string? reason = null)
+        void Add(string id, bool enabled, string? reason = null, Func<Task>? action = null)
         {
             var def = vm.Services.Commands.Get(id)!;
             var item = new MenuItem { Header = def.Title, Icon = MenuIconFactory.Create(id), IsEnabled = enabled };
@@ -33,7 +33,7 @@ public static class ContextMenuFactory
                 ToolTip.SetShowOnDisabled(item, true);
                 AutomationProperties.SetHelpText(item, reason);
             }
-            item.Click += async (_, _) => await vm.ExecuteLocationContextAsync(id, panel, tab, location);
+            item.Click += async (_, _) => await (action?.Invoke() ?? vm.ExecuteLocationContextAsync(id, panel, tab, location));
             items.Add(item);
         }
         Add(CommandIds.PasteFromClipboard, canPaste,
@@ -46,6 +46,18 @@ public static class ContextMenuFactory
                 : "Create a folder in a file-system, archive, SFTP, or device location."));
         items.Add(new Separator());
         Add(CommandIds.Refresh, true);
+        int generation = tab.Listing.Generation;
+        long navigation = tab.NavigationGeneration;
+        string? permissionRefusal = MainViewModel.PermissionProcessRefusal();
+        Add(CommandIds.PermissionsOwnership, permissionRefusal is null, permissionRefusal, () =>
+        {
+            if (!panel.Tabs.Contains(tab) || tab.NavigationGeneration != navigation)
+            {
+                vm.Notify("The location changed. Open its permissions again.");
+                return Task.CompletedTask;
+            }
+            return vm.InspectFolderPermissionsAsync(tab, location, generation);
+        });
         if (location.IsFileSystem) Add(CommandIds.OpenTerminal, true);
         var copy = new MenuItem
         {
@@ -63,7 +75,7 @@ public static class ContextMenuFactory
         CommandIds.Copy, CommandIds.Move, CommandIds.Rename, CommandIds.Delete, "-",
         CommandIds.CutToClipboard, CommandIds.CopyToClipboard, CommandIds.PasteFromClipboard, "-",
         CommandIds.OpenInTarget, CommandIds.Reveal, CommandIds.CopyPaths, "-",
-        CommandIds.Properties, CommandIds.HiddenData, CommandIds.FileRecord, "more",
+        CommandIds.Properties, CommandIds.PermissionsOwnership, CommandIds.HiddenData, CommandIds.FileRecord, "more",
     ];
 
     private static readonly string[] MoreItems =
@@ -72,9 +84,13 @@ public static class ContextMenuFactory
         CommandIds.CopyNames, CommandIds.OpenInNewTab, CommandIds.OpenTerminal, CommandIds.Checksum, CommandIds.VerifyChecksums, CommandIds.StorageAttributes,
     ];
 
-    public static ContextMenu Build(MainViewModel vm, string? invokedAnalysisRoot = null, IReadOnlyList<string>? markedAnalysisRoots = null)
+    public static ContextMenu Build(MainViewModel vm, string? invokedAnalysisRoot = null, IReadOnlyList<string>? markedAnalysisRoots = null) =>
+        Build(vm, invokedAnalysisRoot, markedAnalysisRoots, vm.ActiveTab is { Location: not null } tab ? MainViewModel.CapturePermissionsSelection(tab) : null);
+
+    internal static ContextMenu Build(MainViewModel vm, string? invokedAnalysisRoot, IReadOnlyList<string>? markedAnalysisRoots,
+        MainViewModel.PermissionSelection? permissions)
     {
-        var items = BuildItems(vm, Items);
+        var items = BuildItems(vm, Items, permissions);
         if (invokedAnalysisRoot is not null || markedAnalysisRoots is { Count: > 0 })
         {
             var analysis = new List<Control>();
@@ -120,7 +136,7 @@ public static class ContextMenuFactory
         return item;
     }
 
-    private static List<Control> BuildItems(MainViewModel vm, IReadOnlyList<string> items)
+    private static List<Control> BuildItems(MainViewModel vm, IReadOnlyList<string> items, MainViewModel.PermissionSelection? permissions = null)
     {
         var list = new List<Control>();
         foreach (var id in items)
@@ -139,6 +155,20 @@ public static class ContextMenuFactory
             }
             var def = vm.Services.Commands.Get(id);
             if (def is null) continue;
+            if (id == CommandIds.PermissionsOwnership && permissions is { } captured)
+            {
+                string? refusal = MainViewModel.PermissionProcessRefusal() ?? captured.Refusal;
+                var permissionItem = new MenuItem { Header = def.Title, Icon = MenuIconFactory.Create(id), IsEnabled = refusal is null };
+                if (refusal is not null)
+                {
+                    ToolTip.SetTip(permissionItem, refusal);
+                    ToolTip.SetShowOnDisabled(permissionItem, true);
+                    AutomationProperties.SetHelpText(permissionItem, refusal);
+                }
+                permissionItem.Click += async (_, _) => await vm.InspectPermissionsAsync(captured);
+                list.Add(permissionItem);
+                continue;
+            }
             var a = vm.GetAvailability(id);
             if (!a.Enabled) continue;
             var mi = new MenuItem { Header = def.Title, Icon = MenuIconFactory.Create(id) };

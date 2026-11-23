@@ -29,10 +29,80 @@ public sealed partial class UnixFileDetailsNativeTests
             var full = reader.ReadFull(path, FileDetailsPolicy.MetadataOnly, ct);
             Assert.Equal(before.Identity.Value, full.Summary.Identity.Value);
             Assert.Contains(full.Summary.Notes, note => note.Contains("dataless", StringComparison.OrdinalIgnoreCase));
-            Assert.Empty(full.Technical.Sections);
+            Assert.Collection(full.Technical.Sections,
+                section => Assert.Equal("Native getattrlist metadata", section.Title));
 
             var inventory = hidden.ReadInventory(path, new(ShowCompressionBacking: false), ct);
             Assert.False(inventory.BoundToObject);
+            Assert.Equal(priorPolicy, MacMaterializationPolicy.Get());
+
+            var after = reader.ReadSummary(path, ct);
+            Assert.Equal(before.Identity.Value, after.Identity.Value);
+            Assert.Equal(FactState.Known, after.NativeAttributes.State);
+            Assert.NotEqual(0UL, after.NativeAttributes.Value & MacMaterializationPolicy.DatalessFlag);
+            Assert.Equal(priorPolicy, MacMaterializationPolicy.Get());
+        }
+    }
+
+    [Fact]
+    public void Live_Mac_File_Provider_directory_metadata_keeps_the_prepared_folder_bound()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "Requires a prepared macOS File Provider domain.");
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_MAC_PROVIDER_ROOT");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Set FILECAT_TEST_MAC_PROVIDER_ROOT to an owned, enabled File Provider root with dataless-folder.");
+
+        string path = Path.Join(root, "dataless-folder");
+        var reader = new UnixFileRecords();
+        var ct = TestContext.Current.CancellationToken;
+        int priorPolicy = MacMaterializationPolicy.Get();
+        var before = reader.ReadSummary(path, ct);
+        Assert.Equal(FileObjectKind.Directory, before.Kind);
+        Assert.Equal(FactState.Known, before.Identity.State);
+        Assert.Equal(priorPolicy, MacMaterializationPolicy.Get());
+
+        var full = reader.ReadFull(path, FileDetailsPolicy.MetadataOnly, ct);
+        Assert.Equal(FileObjectKind.Directory, full.Summary.Kind);
+        Assert.Equal(before.Identity.Value, full.Summary.Identity.Value);
+        Assert.Equal(priorPolicy, MacMaterializationPolicy.Get());
+
+        var after = reader.ReadSummary(path, ct);
+        Assert.Equal(before.Identity.Value, after.Identity.Value);
+        Assert.Equal(priorPolicy, MacMaterializationPolicy.Get());
+    }
+
+    [Fact]
+    public void Live_Mac_File_Provider_metadata_keeps_unvisited_folders_and_packages_dataless()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "Requires a prepared macOS File Provider domain.");
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_MAC_PROVIDER_ROOT");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Set FILECAT_TEST_MAC_PROVIDER_ROOT to an owned, enabled File Provider root with the dataless unvisited-folder and unvisited.bundle.");
+
+        var reader = new UnixFileRecords();
+        var hidden = new UnixHiddenData();
+        var ct = TestContext.Current.CancellationToken;
+        int priorPolicy = MacMaterializationPolicy.Get();
+        // A folder and a package that nothing has listed are dataless directories: listing them would ask the provider.
+        foreach (string path in new[] { Path.Join(root, "unvisited-folder"), Path.Join(root, "unvisited.bundle") })
+        {
+            var before = reader.ReadSummary(path, ct);
+            Assert.Equal(FileObjectKind.Directory, before.Kind);
+            Assert.Equal(FactState.Known, before.Identity.State);
+            Assert.Equal(FactState.Known, before.NativeAttributes.State);
+            Assert.NotEqual(0UL, before.NativeAttributes.Value & MacMaterializationPolicy.DatalessFlag);
+            Assert.Contains(before.Notes, note => note.Contains("dataless", StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(priorPolicy, MacMaterializationPolicy.Get());
+
+            var full = reader.ReadFull(path, FileDetailsPolicy.MetadataOnly, ct);
+            Assert.Equal(FileObjectKind.Directory, full.Summary.Kind);
+            Assert.Equal(before.Identity.Value, full.Summary.Identity.Value);
+            Assert.Contains(full.Summary.Notes, note => note.Contains("dataless", StringComparison.OrdinalIgnoreCase));
+            Assert.Collection(full.Technical.Sections,
+                section => Assert.Equal("Native getattrlist metadata", section.Title));
+            Assert.Equal(priorPolicy, MacMaterializationPolicy.Get());
+
+            // The names-only inventory either binds the directory itself or is refused; it never lists the folder.
+            try { Assert.False(hidden.ReadInventory(path, new(ShowCompressionBacking: false), ct).ValueBearingQueryIssued); }
+            catch (IOException refused) when (refused.HResult == MacMaterializationPolicy.Required) { }
             Assert.Equal(priorPolicy, MacMaterializationPolicy.Get());
 
             var after = reader.ReadSummary(path, ct);

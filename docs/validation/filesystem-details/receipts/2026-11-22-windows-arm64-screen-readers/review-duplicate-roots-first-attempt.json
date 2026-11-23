@@ -1,0 +1,18 @@
+{
+ "Passed": false,
+ "Stage": "launch",
+ "Error": "Timed out waiting for the populated source list.",
+ "Session": 2,
+ "Controls": {
+  "failure": []
+ },
+ "Speech": {},
+ "Fixture": "session-6dea586a",
+ "HighContrastPictures": false,
+ "VerifyDuplicateRoots": true,
+ "VerifyOperationsRecovery": false,
+ "ReviewedOriginals": {},
+ "FileCatDllSHA256": "4BBF357159AB71399086749BA59969E77F3FA8C4D5385D3CEDAB1E4313AED71F",
+ "WindowsDllSHA256": "D510A0F1055AF35CC038A9D30B5F57154EF641925FF34C3336FA3304F3C3813F",
+ "NvdaVersion": "2026.3.1"
+}

@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Globalization;
 using FileCat.Core.Jobs;
+using FileCat.Core.Permissions;
 
 namespace FileCat.App.Services;
 
@@ -17,6 +18,7 @@ internal static partial class OperationReport
         long DataBytesProcessed, TimeSpan ElapsedSinceStart)
     {
         internal StorageResultSnapshot? Storage { get; init; }
+        internal IReadOnlyList<PermissionResult> Permissions { get; init; } = [];
         internal string[] StorageRootPaths { get; init; } = [];
     }
 
@@ -25,6 +27,7 @@ internal static partial class OperationReport
         job.DataBytesProcessed, job.ElapsedSinceStart)
     {
         Storage = job.StorageResult,
+        Permissions = job.PermissionResults,
         StorageRootPaths = job.Kind == JobKind.StorageTransform ? job.Request.Sources.Select(s => s.Parent.Path.TrimEnd('\\') + "\\" + s.Name).ToArray() : [],
     };
 
@@ -55,6 +58,12 @@ internal static partial class OperationReport
         if (snapshot.Job.Kind == JobKind.StorageTransform)
         {
             WriteStorage(snapshot, Line);
+            return;
+        }
+        if (snapshot.Job.Kind == JobKind.Permissions)
+        {
+            PermissionOperationReport.Write(snapshot.State, snapshot.Job.PermissionReviewScope, snapshot.Job.Request.Sources.Count,
+                snapshot.Permissions, Line, snapshot.Job.ReviewedTreeSummary, snapshot.Job.PermissionTreeTemplate, snapshot.Job.PermissionUsesServerPath);
             return;
         }
         Line("FileCat operation report");
@@ -133,7 +142,7 @@ internal static partial class OperationReport
             Line($"Report warning: only {Count(written)} of {Count(snapshot.Issues.Retained)} retained details were readable at export time.");
     }
 
-    internal static void SaveAtomic(string destination, Snapshot snapshot, CancellationToken cancellationToken)
+    internal static string? SaveAtomic(string destination, Snapshot snapshot, CancellationToken cancellationToken)
     {
         if (!Path.IsPathFullyQualified(destination)) throw new ArgumentException("A local absolute report path is required.", nameof(destination));
         string directory = Path.GetDirectoryName(destination)!;
@@ -148,7 +157,10 @@ internal static partial class OperationReport
                 stream.Flush(flushToDisk: true);
             }
             cancellationToken.ThrowIfCancellationRequested();
+            if (OperatingSystem.IsWindows())
+                return FileCat.Platform.Windows.WindowsMetadataReportOutput.PublishStaged(destination, temp, cancellationToken);
             File.Move(temp, destination, overwrite: true);
+            return null;
         }
         finally
         {

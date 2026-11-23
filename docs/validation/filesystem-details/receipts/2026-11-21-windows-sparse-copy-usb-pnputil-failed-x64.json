@@ -1,0 +1,9 @@
+{
+    "Error":  "USB restoration failed: The original USB volume was not restored.",
+    "RemovalMethod":  "PnPUtilRemove",
+    "RemovalAttempted":  true,
+    "RemovalExit":  3010,
+    "RestoreExit":  0,
+    "DeviceAbsent":  false,
+    "Restored":  false
+}

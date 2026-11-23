@@ -217,14 +217,6 @@
         "resolved": "8.0.2",
         "contentHash": "3iE7UF7MQkCv1cxzCahz+Y/guQbTqieyxyaWKhrRO91itI9cOKO76OHeQDahqG4MmW5umr3CcCvGmK92lWNlbg=="
       },
-      "Microsoft.Extensions.Logging.Abstractions": {
-        "type": "Transitive",
-        "resolved": "8.0.3",
-        "contentHash": "dL0QGToTxggRLMYY4ZYX5AMwBb+byQBd/5dMiZE07Nv73o6I5Are3C7eQTh7K2+A4ct0PVISSr7TZANbiNb2yQ==",
-        "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.2"
-        }
-      },
       "SkiaSharp": {
         "type": "Transitive",
         "resolved": "3.119.4",
@@ -307,8 +299,8 @@
         "type": "Project",
         "dependencies": {
           "FileCat.Core": "[0.1.0-preview, )",
-          "FluentFTP": "[55.0.0, )",
-          "SSH.NET": "[2026.0.0, )"
+          "FileCat.SshNet": "[2026.0.0, )",
+          "FluentFTP": "[55.0.0, )"
         }
       },
       "filecat.sharpcompress": {
@@ -318,6 +310,13 @@
         "type": "Project",
         "dependencies": {
           "FileCat.Platform.Windows": "[0.1.0-preview, )"
+        }
+      },
+      "filecat.sshnet": {
+        "type": "Project",
+        "dependencies": {
+          "BouncyCastle.Cryptography": "[2.7.0, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[8.0.3, )"
         }
       },
       "BouncyCastle.Cryptography": {
@@ -351,21 +350,20 @@
           "LTRData.DiscUtils.Iso9660": "1.0.89"
         }
       },
+      "Microsoft.Extensions.Logging.Abstractions": {
+        "type": "CentralTransitive",
+        "requested": "[8.0.3, )",
+        "resolved": "8.0.3",
+        "contentHash": "dL0QGToTxggRLMYY4ZYX5AMwBb+byQBd/5dMiZE07Nv73o6I5Are3C7eQTh7K2+A4ct0PVISSr7TZANbiNb2yQ==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.2"
+        }
+      },
       "Microsoft.Web.WebView2": {
         "type": "CentralTransitive",
         "requested": "[1.0.3179.45, )",
         "resolved": "1.0.3179.45",
         "contentHash": "3pokSH5CnN0G6rGhGFo1y87inxYhNxBQ2Vdf0wlvBj99KHxQJormjDACmqRnFeUsmuNFIhWwfAL1ztq7wD5qRA=="
-      },
-      "SSH.NET": {
-        "type": "CentralTransitive",
-        "requested": "[2026.0.0, )",
-        "resolved": "2026.0.0",
-        "contentHash": "Yu9dirPq8l3oaat0+OQ7K0nUf5MmYltpia5UGqsApTG4zTPvBC1cxbNnC3NERij26dUST0A3Ef1QdHSn5ArbWQ==",
-        "dependencies": {
-          "BouncyCastle.Cryptography": "2.7.0",
-          "Microsoft.Extensions.Logging.Abstractions": "8.0.3"
-        }
       },
       "System.Management": {
         "type": "CentralTransitive",

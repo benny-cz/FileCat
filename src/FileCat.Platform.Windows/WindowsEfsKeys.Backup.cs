@@ -48,7 +48,7 @@ internal sealed unsafe partial class WindowsEfsKeys
 
         var interaction = invokeProviderOwner is not null && !association.CurrentUserKeys.IsDefaultOrEmpty &&
             association.CurrentUserKeys.Any(key => key.InvokerSid == association.InvokerSid &&
-                key.CertificateSha1 == certificateSha1 && NeedsParentedCngAccess(key))
+                key.CertificateSha1 == certificateSha1 && NeedsParentedCngBackupAccess(key))
             ? new CngInteraction(ownerWindow, invokeProviderOwner) : null;
         BackupResult? result = null;
         var evidence = InspectAssociatedCertificate(association.InvokerSid, certificateSha1, ct, (fresh, backupProblem) =>
@@ -112,6 +112,12 @@ internal sealed unsafe partial class WindowsEfsKeys
             BackupState.Canceled => new(backup.State, backup.Error, null),
             _ => Refused("efs-backup-wizard", "Windows did not report completion of the EFS private-key export.", backup.Error),
         };
+
+    // Recovery review records a successful interactive comparison as MatchedAvailable. The
+    // subsequent export still needs an owned window for a fresh comparison of that same key.
+    internal static bool NeedsParentedCngBackupAccess(StorageEfsKeyEvidence key) =>
+        key is { Provider: StorageEfsKeyProvider.Cng, CertificatePresent: true, ProviderAssociationPresent: true,
+            State: StorageEfsKeyState.InteractionRequired or StorageEfsKeyState.MatchedAvailable };
 
     private static uint OwnedWindowThread(nint window)
     {

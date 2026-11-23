@@ -200,6 +200,32 @@ public sealed class StorageOperationsUiTests
         return new(new(job.Id, "private-directory", "job-storage-history.fcj", new("exact-evidence-id", 1024, "digest"), history), null, true, []);
     }
 
+    [Fact]
+    public void History_review_shows_the_current_observation_apart_from_the_recorded_history()
+    {
+        var status = HistoryStatus(); var h = status.Current.History;
+        var root = h.Roots[0]; var call = h.LastCall!;
+        var now = new DateTime(2026, 11, 21, 12, 0, 0, DateTimeKind.Utc);
+        var current = new StorageCurrentObservation[]
+        {
+            new(root.Path, root.Observation with { Compression = StorageObservationState.Enabled }, null),
+            new(call.Path, null, new(StorageReasonKind.IdentityChanged, "open-status-C0000034", "The object is gone.", true)),
+        };
+        string report = StorageHistoryReport.Format(status, current, now);
+        string section = report[report.IndexOf("Current observation", StringComparison.Ordinal)..];
+        Assert.Contains("(UTC 2026-11-21T12:00:00.0000000Z)", section);
+        Assert.Contains("not evidence of what a recorded call did", section);
+        Assert.Contains("Selected root [1]: " + JsonSerializer.Serialize(root.Path) + ": main data compressed; not EFS encrypted; same volume and object ID as recorded (not proof of continuity)", section);
+        Assert.Contains("Last call object: " + JsonSerializer.Serialize(call.Path) + ": unavailable now - \"open-status-C0000034\"", section);
+        // The recorded facts above it are unchanged by the observation.
+        Assert.Equal(StorageHistoryReport.Format(status)[..report.IndexOf("Current observation", StringComparison.Ordinal)].TrimEnd(),
+            report[..report.IndexOf("Current observation", StringComparison.Ordinal)].TrimEnd());
+        var replaced = new StorageCurrentObservation[] { new(root.Path, root.Observation with
+            { Identity = root.Observation.Identity with { ObjectId = "replacement" } }, null) };
+        Assert.Contains("a different object or volume from the recorded one", StorageHistoryReport.Format(status, replaced, now));
+        Assert.DoesNotContain("Current observation", StorageHistoryReport.Format(status));
+    }
+
     [Theory]
     [InlineData(StorageAction.Compress, "Compress", null)]
     [InlineData(StorageAction.EncryptEfs, "Encrypt with EFS", "Removal of compression from all main/named streams")]

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
+<policyconfig>
+  <vendor>FileCat</vendor>
+  <!-- Keep each message in one XML text chunk. Polkit 124 retains only the last character-data callback. -->
+  <action id="org.filecat.permissions.inspect">
+    <description>Inspect FileCat security metadata</description>
+    <message>Allow FileCat to inspect this object's security?$(filecat.requester)$(filecat.target)$(filecat.scope)$(filecat.changes)</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+  </action>
+  <action id="org.filecat.permissions.apply">
+    <description>Apply a reviewed FileCat security change</description>
+    <message>Allow FileCat to apply this security change?$(filecat.requester)$(filecat.target)$(filecat.scope)$(filecat.changes)</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+  </action>
+</policyconfig>

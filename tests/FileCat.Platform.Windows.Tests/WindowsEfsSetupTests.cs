@@ -31,6 +31,28 @@ public sealed class WindowsEfsSetupTests
         return directory;
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Failed_or_canceled_setup_records_a_retained_artifact_even_without_a_recovery_dialog(bool canceled)
+    {
+        var job = new Job(new JobRequest { Kind = JobKind.StorageTransform }, "EFS setup", "local", [], []);
+        const string retained = @"C:\owned\FileCat.EfsSetup\setup-retained.tmp";
+        var setup = new StorageEfsSetupResult(null, true, canceled,
+            new(StorageReasonKind.Unknown, canceled ? "efs-setup-canceled" : "efs-setup-streams", "Setup stopped.", true),
+            new(StorageReasonKind.Unknown, "efs-setup-cleanup", "The setup artifact could not be removed.", true),
+            retained, new StorageObjectIdentity(7, "held-object"));
+        WindowsStorageTransforms.RecordSetupCleanupIssue(job, setup);
+        var issue = Assert.Single(job.ReadIssues(0, 1));
+        Assert.Equal(retained, issue.Path);
+        Assert.Equal("efs-setup-cleanup", issue.Cause);
+        Assert.Equal(StepOutcome.PartiallyApplied, issue.Outcome);
+        Assert.Equal(IssueSeverity.Error, issue.Severity);
+        Assert.Contains("could not be removed", issue.Message);
+        Assert.Contains("held-object", issue.Certainty);
+        Assert.Equal(1, job.IssueTotals.Error);
+    }
+
     [Fact]
     public void Setup_requires_explicit_consent_before_resolving_a_workspace_or_claiming_native_capacity()
     {
@@ -61,6 +83,40 @@ public sealed class WindowsEfsSetupTests
             Assert.Null(result.RetainedSetupPath); Assert.Null(result.RetainedSetupIdentity); Assert.NotNull(observed); Assert.False(File.Exists(observed));
             Assert.Empty(Directory.EnumerateFiles(Path.Join(directory, "FileCat.EfsSetup")));
             TestContext.Current.TestOutputHelper?.WriteLine($"EFS_ZERO_SETUP users={result.Association.Users.Length} matchedKeys={result.Association.CurrentUserKeys.Length} cleanup=True");
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    /// <summary>
+    /// A fresh Windows without an active sync provider can have the Cloud Files filter loaded but attached to no drive.
+    /// The setup namespace then follows the held-walk rule: it is admitted when no sync root of any account is registered
+    /// on the drive. Runs only where the filter does not answer for the setup drive.
+    /// </summary>
+    [Fact]
+    public void Setup_runs_on_a_drive_where_no_Cloud_Files_filter_answers_and_no_sync_root_is_registered()
+    {
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        NativeFixture(arm64); string directory = Namespace();
+        try
+        {
+            string probe = Path.Join(directory, "probe.txt");
+            File.WriteAllText(probe, "probe");
+            int query;
+            using (var held = File.OpenHandle(probe, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                query = WindowsStorageCloudQuery.Query(held, Ct);
+            File.Delete(probe);
+            Assert.SkipUnless(query == unchecked((int)0x80070001), $"The Cloud Files filter answers on this drive (0x{query:X8}); the attached case is covered elsewhere.");
+            string volume = WindowsStorageSyncRoots.VolumeOf(directory) ?? throw new InvalidOperationException("The setup volume did not resolve.");
+            Assert.DoesNotContain(volume, WindowsStorageSyncRoots.RegisteredRootVolumes() ?? throw new InvalidOperationException("Sync roots unreadable."));
+            var adapter = new WindowsStorageTransforms(efsSetupBaseDirectory: () => directory, qualifyNativeArm64: arm64);
+            using var native = StorageReviewResources.EnterNative(Ct);
+            var result = adapter.InspectEfsSetup(Sid, Consent(), true, Ct);
+            Assert.True(result.ProvisioningAttempted); Assert.False(result.Canceled);
+            Assert.Null(result.Problem); Assert.Null(result.CleanupProblem);
+            Assert.NotNull(result.Association); Assert.True(result.Association.HasMatchedCurrentUserKey);
+            Assert.Null(result.RetainedSetupPath);
+            Assert.Empty(Directory.EnumerateFiles(Path.Join(directory, "FileCat.EfsSetup")));
+            TestContext.Current.TestOutputHelper?.WriteLine($"EFS_SETUP_NO_CLOUD_FILTER volume={volume} query=0x{query:X8} matched=True");
         }
         finally { Directory.Delete(directory, true); }
     }

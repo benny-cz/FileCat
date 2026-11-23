@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="5b64dc76-a26c-4f0b-9575-29e19b7371e3" name="@Mareks-MacBook-Pro 2026-11-20 20:36:25" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-20T20:36:25.6308020+01:00" queuing="2026-11-20T20:36:25.6308020+01:00" start="2026-11-20T20:36:23.8754570+01:00" finish="2026-11-20T20:36:28.3732900+01:00" />
+  <TestSettings name="default" id="96035663-d8f6-4449-b5d2-d32458430994">
+    <Deployment runDeploymentRoot="_Mareks-MacBook-Pro_2026-11-20_20_36_25" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="88c2cc91-854d-4a9a-b795-cf7d92fdd52f" testId="b53a93dc-e59f-d124-7975-288d559a69cd" testName="FileCat.App.Tests.HiddenDataUiTests.Mac_held_directory_attribute_can_be_reported_copied_and_deleted" computerName="Mareks-MacBook-Pro" duration="00:00:01.7075844" startTime="2026-11-20T20:36:25.5284180+01:00" endTime="2026-11-20T20:36:27.2369720+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="88c2cc91-854d-4a9a-b795-cf7d92fdd52f" />
+    <UnitTestResult executionId="ab543f88-595b-46db-b550-ec0fae9cdf53" testId="39fc716d-fbea-a1d4-8693-d3aa1029e3ea" testName="FileCat.App.Tests.HiddenDataUiTests.Copying_a_protected_stream_refuses_before_creating_any_output" computerName="Mareks-MacBook-Pro" duration="00:00:00.0010000" startTime="2026-11-20T20:36:25.5102810+01:00" endTime="2026-11-20T20:36:25.5239470+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ab543f88-595b-46db-b550-ec0fae9cdf53">
+      <Output>
+        <ErrorInfo>
+          <Message>Requires a disposable Windows VM with EFS enabled.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="6cb0100c-a77c-4cc9-b476-f5e53ec25b96" testId="b7859dce-13f0-4c06-cd09-0210a13996b6" testName="FileCat.App.Tests.HiddenDataUiTests.A_files_streams_and_attributes_open_as_a_list_are_copied_out_and_deleted" computerName="Mareks-MacBook-Pro" duration="00:00:00.5822937" startTime="2026-11-20T20:36:27.2391040+01:00" endTime="2026-11-20T20:36:27.8214270+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6cb0100c-a77c-4cc9-b476-f5e53ec25b96" />
+    <UnitTestResult executionId="f541f307-44fb-4f9a-ad93-1b185895b2df" testId="f75e1284-e042-7839-7c08-7b22402d7d68" testName="FileCat.App.Tests.HiddenDataUiTests.Delete_confirmation_keeps_the_source_identity_from_before_a_refresh" computerName="Mareks-MacBook-Pro" duration="00:00:00.5122346" startTime="2026-11-20T20:36:27.8230170+01:00" endTime="2026-11-20T20:36:28.3352900+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f541f307-44fb-4f9a-ad93-1b185895b2df" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.App.Tests.HiddenDataUiTests.Delete_confirmation_keeps_the_source_identity_from_before_a_refresh" storage="/users/benny/filecat-mac-delete-probe-20261120/tests/filecat.app.tests/bin/release/net10.0/filecat.app.tests.dll" id="f75e1284-e042-7839-7c08-7b22402d7d68">
+      <Execution id="f541f307-44fb-4f9a-ad93-1b185895b2df" />
+      <TestMethod codeBase="/Users/benny/FileCat-mac-delete-probe-20261120/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.HiddenDataUiTests" name="Delete_confirmation_keeps_the_source_identity_from_before_a_refresh" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.HiddenDataUiTests.Mac_held_directory_attribute_can_be_reported_copied_and_deleted" storage="/users/benny/filecat-mac-delete-probe-20261120/tests/filecat.app.tests/bin/release/net10.0/filecat.app.tests.dll" id="b53a93dc-e59f-d124-7975-288d559a69cd">
+      <Execution id="88c2cc91-854d-4a9a-b795-cf7d92fdd52f" />
+      <TestMethod codeBase="/Users/benny/FileCat-mac-delete-probe-20261120/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.HiddenDataUiTests" name="Mac_held_directory_attribute_can_be_reported_copied_and_deleted" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.HiddenDataUiTests.A_files_streams_and_attributes_open_as_a_list_are_copied_out_and_deleted" storage="/users/benny/filecat-mac-delete-probe-20261120/tests/filecat.app.tests/bin/release/net10.0/filecat.app.tests.dll" id="b7859dce-13f0-4c06-cd09-0210a13996b6">
+      <Execution id="6cb0100c-a77c-4cc9-b476-f5e53ec25b96" />
+      <TestMethod codeBase="/Users/benny/FileCat-mac-delete-probe-20261120/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.HiddenDataUiTests" name="A_files_streams_and_attributes_open_as_a_list_are_copied_out_and_deleted" />
+    </UnitTest>
+    <UnitTest name="FileCat.App.Tests.HiddenDataUiTests.Copying_a_protected_stream_refuses_before_creating_any_output" storage="/users/benny/filecat-mac-delete-probe-20261120/tests/filecat.app.tests/bin/release/net10.0/filecat.app.tests.dll" id="39fc716d-fbea-a1d4-8693-d3aa1029e3ea">
+      <Execution id="ab543f88-595b-46db-b550-ec0fae9cdf53" />
+      <TestMethod codeBase="/Users/benny/FileCat-mac-delete-probe-20261120/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.App.Tests.HiddenDataUiTests" name="Copying_a_protected_stream_refuses_before_creating_any_output" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="b53a93dc-e59f-d124-7975-288d559a69cd" executionId="88c2cc91-854d-4a9a-b795-cf7d92fdd52f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="39fc716d-fbea-a1d4-8693-d3aa1029e3ea" executionId="ab543f88-595b-46db-b550-ec0fae9cdf53" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b7859dce-13f0-4c06-cd09-0210a13996b6" executionId="6cb0100c-a77c-4cc9-b476-f5e53ec25b96" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f75e1284-e042-7839-7c08-7b22402d7d68" executionId="f541f307-44fb-4f9a-ad93-1b185895b2df" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="4" executed="3" passed="3" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.12)
+[xUnit.net 00:00:00.29]   Discovering: FileCat.App.Tests
+[xUnit.net 00:00:01.15]   Discovered:  FileCat.App.Tests
+[xUnit.net 00:00:01.30]   Starting:    FileCat.App.Tests
+[xUnit.net 00:00:01.40]       Requires a disposable Windows VM with EFS enabled.
+Test 'FileCat.App.Tests.HiddenDataUiTests.Copying_a_protected_stream_refuses_before_creating_any_output' was skipped in the test run.
+[xUnit.net 00:00:04.22]   Finished:    FileCat.App.Tests (ID = '129b864eb4d658d5223d2f8d37b867ec22518dc5c1bd92c25e067fd43a2f2475')
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="Mareks-MacBook-Pro" outcome="Warning" timestamp="2026-11-20T20:36:25.5257420+01:00">
+        <Text>[xUnit.net 00:00:01.40]     FileCat.App.Tests.HiddenDataUiTests.Copying_a_protected_stream_refuses_before_creating_any_output [SKIP]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

@@ -1,13 +1,15 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using FileCat.Core.FileSystem;
 using FileCat.Core.HiddenData;
+using FileCat.Core.Resources;
 
 namespace FileCat.Core.Tests;
 
 public sealed partial class UnixHiddenInventoryNativeTests
 {
     [Fact]
-    public void Mac_directory_inventory_uses_a_held_compression_visible_view_without_enabling_values()
+    public void Mac_directory_inventory_and_value_report_bind_to_a_held_directory()
     {
         Assert.SkipWhen(!OperatingSystem.IsMacOS(), "Mac held-directory xattr fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-mac-inventory-").FullName;
@@ -19,27 +21,80 @@ public sealed partial class UnixHiddenInventoryNativeTests
             var compression = hidden.ReadInventory(root, new(ShowCompressionBacking: true), TestContext.Current.CancellationToken);
             Assert.True(compression.IsComplete);
             Assert.True(compression.BoundToObject);
-            Assert.False(compression.CanAct);
+            Assert.True(compression.CanAct);
+            Assert.True(compression.CanDelete);
             Assert.NotNull(compression.Identity);
             Assert.Contains("compression-visible", compression.Categories[0].Scope);
             Assert.Contains("included in the requested API view", compression.Notice);
             var item = Assert.Single(compression.Items, i => i.Name == "com.filecat.bound-probe");
             Assert.Equal(payload.Length, item.Size);
-            Assert.Throws<NotSupportedException>(() => hidden.Read(root, item, 32));
+            Assert.Equal(payload, hidden.Read(root, item, 32));
+            using (var value = hidden.Open(root, item))
+            {
+                using var bytes = new MemoryStream();
+                value.CopyTo(bytes);
+                Assert.Equal(payload, bytes.ToArray());
+            }
+            var provider = new HiddenDataProvider(hidden);
+            Assert.True(provider.GetCapabilities(HiddenDataProvider.Of(root)).HasFlag(LocationCapabilities.Delete));
+            var selected = new ItemRef(HiddenDataProvider.Of(root), item.Name, EntryKind.File)
+                { Ordinal = HiddenIdentities.Ordinal(HiddenKind.Attribute), SupplementarySourceIdentity = compression.Identity };
+            var report = provider.ReadValueReport(selected, compression.Identity!.Value, TestContext.Current.CancellationToken);
+            Assert.True(report.CanPublish);
+            Assert.Equal(compression.Identity, Assert.Single(report.Origin.Contributors).Identity);
+            Assert.Contains("directory-marker", report.Text);
+            var output = (IUnprotectedContentOutput)provider;
+            output.RequireClearOutputSource(HiddenDataProvider.Of(root), ContentOutputKind.Extraction);
+            using (var source = output.OpenUnprotectedOutput(selected, ContentOutputKind.Extraction, out var provenance)!)
+            {
+                byte[] exported = new byte[payload.Length];
+                Assert.Equal(exported.Length, source.Read(0, exported));
+                Assert.Equal(payload, exported);
+                Assert.NotNull(provenance);
+                var receipt = provenance.Freeze();
+                Assert.False(receipt.HasUnknownInput);
+                Assert.Equal(compression.Identity, Assert.Single(receipt.Contributors).Identity);
+            }
+
+            provider.DeleteReviewedValue(selected, compression.Identity!.Value, TestContext.Current.CancellationToken);
+            Assert.Empty(hidden.ReadInventory(root, new(), TestContext.Current.CancellationToken).Items);
 
             var ordinary = hidden.ReadInventory(root, new(ShowCompressionBacking: false), TestContext.Current.CancellationToken);
             Assert.True(ordinary.IsComplete);
             Assert.True(ordinary.BoundToObject);
-            Assert.False(ordinary.CanAct);
+            Assert.True(ordinary.CanAct);
+            Assert.False(ordinary.CanDelete);
             Assert.Contains("ordinary view", ordinary.Categories[0].Scope);
             Assert.Contains("not requested", ordinary.Notice);
 
             string fifo = Path.Combine(root, "fifo"), link = Path.Combine(root, "directory-link");
             Assert.Equal(0, Fifo(fifo, 0x180));
             string nested = Directory.CreateDirectory(Path.Combine(root, "real-directory")).FullName;
+            Assert.Equal(0, MacSet(nested, item.Name, "must-not-read"u8.ToArray(), "must-not-read"u8.Length, 0, 0));
             File.CreateSymbolicLink(link, nested);
             Assert.False(hidden.ReadInventory(fifo, new(), TestContext.Current.CancellationToken).BoundToObject);
             Assert.False(hidden.ReadInventory(link, new(), TestContext.Current.CancellationToken).BoundToObject);
+            Assert.True(Record.Exception(() => hidden.Read(link, item, 32)) is IOException or NotSupportedException,
+                "A symlink must be refused before its target attribute can be read.");
+
+            string selectedPath = Directory.CreateDirectory(Path.Combine(root, "selected")).FullName;
+            Assert.Equal(0, MacSet(selectedPath, "com.filecat.bound-probe", payload, payload.Length, 0, 0));
+            var original = hidden.ReadInventory(selectedPath, new(), TestContext.Current.CancellationToken);
+            var selectedRef = new ItemRef(HiddenDataProvider.Of(selectedPath), item.Name, EntryKind.File)
+                { Ordinal = HiddenIdentities.Ordinal(HiddenKind.Attribute), SupplementarySourceIdentity = original.Identity };
+            Directory.Move(selectedPath, Path.Combine(root, "previous"));
+            Directory.CreateDirectory(selectedPath);
+            byte[] replacement = "replacement-marker"u8.ToArray();
+            Assert.Equal(0, MacSet(selectedPath, "com.filecat.bound-probe", replacement, replacement.Length, 0, 0));
+            Assert.Contains("different directory", Assert.Throws<IOException>(() =>
+                provider.ReadValueReport(selectedRef, original.Identity!.Value, TestContext.Current.CancellationToken)).Message);
+            Assert.Contains("different directory", Assert.Throws<IOException>(() => provider.OpenContent(selectedRef)).Message);
+            Assert.Contains("different directory", Assert.Throws<IOException>(() =>
+                output.OpenUnprotectedOutput(selectedRef, ContentOutputKind.Extraction)).Message);
+            Assert.Contains("different directory", Assert.Throws<IOException>(() =>
+                provider.DeleteReviewedValue(selectedRef, original.Identity!.Value, TestContext.Current.CancellationToken)).Message);
+            Assert.Contains(hidden.ReadInventory(selectedPath, new(), TestContext.Current.CancellationToken).Items,
+                observed => observed.Name == "com.filecat.bound-probe");
         }
         finally { Directory.Delete(root, true); }
     }

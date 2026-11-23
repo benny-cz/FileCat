@@ -10,12 +10,15 @@ namespace FileCat.Platform.Windows;
 
 public sealed unsafe partial class WindowsFileRecords
 {
-    public FileDetailsSnapshot ReadSummary(string path, CancellationToken ct) => ReadDetails(path, fullReport: false, ct).Summary;
+    // Both tiers read with Cloud Files placeholders exposed on this thread, so another provider's placeholder is described
+    // as one (FILECAT_CLOUD_PLACEHOLDER_EXPOSURE_PLAN.md); the reads themselves are unchanged and request no data.
+    public FileDetailsSnapshot ReadSummary(string path, CancellationToken ct) =>
+        PlaceholderView.Exposed(() => ReadDetails(path, fullReport: false, ct)).Summary;
 
     public FileDetailsReport ReadFull(string path, FileDetailsPolicy policy, CancellationToken ct)
     {
         if (policy != FileDetailsPolicy.MetadataOnly) throw new NotSupportedException("This details route supports metadata only.");
-        return ReadDetails(path, fullReport: true, ct);
+        return PlaceholderView.Exposed(() => ReadDetails(path, fullReport: true, ct));
     }
 
     private static FileDetailsReport ReadDetails(string path, bool fullReport, CancellationToken ct)

@@ -1,0 +1,18 @@
+
+ Compressing files in C:\a\_temp\filecat-release-wof\
+
+wof-backed.txt        1000000 :     69632 = 14.4 to 1 [OK]
+
+1 files within 1 directories were compressed.
+1,000,000 total bytes of data are stored in 69,632 bytes.
+The compression ratio is 14.4 to 1.
+
+ Listing C:\a\_temp\filecat-release-wof\
+ New files added to this directory will not be compressed.
+
+
+Of 1 files within 1 directories
+1 are compressed and 0 are not compressed.
+1,000,000 total bytes of data are stored in 69,632 bytes.
+The compression ratio is 14.4 to 1.
+

@@ -11,9 +11,7 @@ $platform = 'tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests
 $pageViews = 'FullyQualifiedName~FileCat.Platform.Windows.Tests.PageViewTests'
 $projects = @(
     $platform,
-    'tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj',
     'tests/FileCat.Remote.Tests/FileCat.Remote.Tests.csproj',
-    'tests/FileCat.App.Tests/FileCat.App.Tests.csproj',
     'tests/FileCat.Rendering.Tests/FileCat.Rendering.Tests.csproj'
 )
 $results = [Collections.Generic.List[object]]::new()
@@ -46,15 +44,7 @@ try {
     foreach ($project in $projects) {
         $started = [DateTimeOffset]::UtcNow
         Write-Host "::group::Windows tests: $project"
-        # Core tests run independent job and filesystem fixtures in parallel.
-        # Bound them to this runner's actual processors; a small hosted runner
-        # must not schedule the workstation's sixteen concurrent collections.
-        if ($project -like '*FileCat.Core.Tests*') {
-            $coreThreads = [Math]::Min(16, [Environment]::ProcessorCount)
-            Write-Host "Core test collections: $coreThreads parallel threads on $([Environment]::ProcessorCount) processors"
-            & dotnet test $project -c Release --no-build --logger 'trx;LogFileName=results.trx' --blame-hang-timeout 4m --blame-hang-dump-type mini -- "xUnit.MaxParallelThreads=$coreThreads"
-        }
-        elseif ($project -eq $platform) {
+        if ($project -eq $platform) {
             & dotnet test $project -c Release --no-build --filter "FullyQualifiedName!~FileCat.Platform.Windows.Tests.PageViewTests" --logger 'trx;LogFileName=results.trx' --blame-hang-timeout 4m --blame-hang-dump-type mini
         }
         else {

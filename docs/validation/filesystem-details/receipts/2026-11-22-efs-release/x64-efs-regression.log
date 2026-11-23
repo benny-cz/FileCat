@@ -1,0 +1,89 @@
+xUnit.net v3 In-Process Runner v3.2.2+728c1dce01 (64-bit .NET 10.0.14)
+  Discovering: FileCat.Platform.Windows.Tests
+  Discovered:  FileCat.Platform.Windows.Tests
+  Starting:    FileCat.Platform.Windows.Tests
+    FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.A_real_key_change_after_setup_requires_review_after_the_current_file_is_encrypted [SKIP]
+      Use only a separately prepared disposable account whose current EFS key can be changed.
+    FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Efs_jobs_encrypt_and_decrypt_with_the_reviewed_smart_card_key [SKIP]
+      Requires the owner's smart-card EFS certificate with the card present.
+    FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Managed_recovery_agent_decrypts_the_original_under_an_independent_account [SKIP]
+      Requires the isolated two-account managed EFS recovery fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Copy, sourceOnUsb: False) [SKIP]
+      Requires a prepared removable NTFS destination owned by the native fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Move, sourceOnUsb: False) [SKIP]
+      Requires a prepared removable NTFS destination owned by the native fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Copy, sourceOnUsb: True) [SKIP]
+      Requires a prepared removable NTFS destination owned by the native fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Move, sourceOnUsb: True) [SKIP]
+      Requires a prepared removable NTFS destination owned by the native fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.First_use_in_a_deliberately_fresh_identity_creates_an_actual_key_only_after_explicit_setup [SKIP]
+      Requires a separately prepared fresh disposable account with no existing EFS certificate.
+    FileCat.Platform.Windows.Tests.WindowsEfsSetupTests.Setup_runs_on_a_drive_where_no_Cloud_Files_filter_answers_and_no_sync_root_is_registered [SKIP]
+      The Cloud Files filter answers on this drive (0x80070186); the attached case is covered elsewhere.
+    FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.A_smart_card_key_is_compared_without_a_prompt_and_refused_for_PFX_backup_before_the_wizard [SKIP]
+      Requires the owner's smart-card EFS certificate with the card present.
+    FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.A_staged_clear_copy_reviews_the_temporary_and_final_names [SKIP]
+      Requires a prepared destination where CopyFile2 cannot preserve EFS.
+    FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Replacing_the_output_folder_during_approval_produces_no_clear_payload [SKIP]
+      Requires a prepared destination where CopyFile2 cannot preserve EFS.
+    FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Copy, sourceOnUsb: False, replaceExisting: False) [SKIP]
+      Requires a prepared removable NTFS destination owned by the native fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Move, sourceOnUsb: False, replaceExisting: False) [SKIP]
+      Requires a prepared removable NTFS destination owned by the native fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Copy, sourceOnUsb: True, replaceExisting: False) [SKIP]
+      Requires a prepared removable NTFS destination owned by the native fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Move, sourceOnUsb: True, replaceExisting: False) [SKIP]
+      Requires a prepared removable NTFS destination owned by the native fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Copy, sourceOnUsb: False, replaceExisting: True) [SKIP]
+      Requires a prepared removable NTFS destination owned by the native fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Move, sourceOnUsb: False, replaceExisting: True) [SKIP]
+      Requires a prepared removable NTFS destination owned by the native fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Copy, sourceOnUsb: True, replaceExisting: True) [SKIP]
+      Requires a prepared removable NTFS destination owned by the native fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Native_cross_volume_copy_and_move_between_fixed_and_removable_ntfs_preserve_efs_and_sparse_holes(kind: Move, sourceOnUsb: True, replaceExisting: True) [SKIP]
+      Requires a prepared removable NTFS destination owned by the native fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Without_the_card_explicit_access_is_not_offered_and_a_forced_request_stays_cancellable [SKIP]
+      Requires the owner's smart-card EFS certificate with the card absent.
+    FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Copy_and_cross_volume_move_preserve_efs_on_a_capable_fat32_volume(kind: Copy) [SKIP]
+      Requires the prepared FAT32 or exFAT export fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.Copy_and_cross_volume_move_preserve_efs_on_a_capable_fat32_volume(kind: Move) [SKIP]
+      Requires the prepared FAT32 or exFAT export fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.A_destination_that_cannot_encrypt_needs_a_fresh_choice_for_each_file(kind: Copy, empty: False) [SKIP]
+      Requires a prepared destination where CopyFile2 cannot preserve EFS.
+    FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.A_destination_that_cannot_encrypt_needs_a_fresh_choice_for_each_file(kind: Copy, empty: True) [SKIP]
+      Requires a prepared destination where CopyFile2 cannot preserve EFS.
+    FileCat.Platform.Windows.Tests.WindowsEfsCopyTests.A_destination_that_cannot_encrypt_needs_a_fresh_choice_for_each_file(kind: Move, empty: False) [SKIP]
+      Requires a prepared destination where CopyFile2 cannot preserve EFS.
+    FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Without_the_smart_card_the_silent_check_cannot_authorize_new_encryption [SKIP]
+      Requires the owner's smart-card EFS certificate with the card absent.
+    FileCat.Platform.Windows.Tests.WindowsEfsKeyTests.Unsupported_hosts_do_not_report_missing_certificates_or_open_a_key_owner [SKIP]
+      This negative host case is exercised on unqualified platforms.
+    FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Without_the_smart_card_decryption_asks_before_Windows_waits_and_a_skip_leaves_the_file_encrypted [SKIP]
+      Requires the owner's smart-card EFS certificate with the card absent.
+    FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Detaching_after_native_Efs_encryption_retains_the_reviewed_key_and_uncertain_effect [SKIP]
+      Requires the isolated NTFS virtual disk device-loss fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsJobTests.A_file_whose_only_key_names_a_smart_card_is_asked_about_before_Windows_waits_for_a_reader [SKIP]
+      Requires a disposable EFS account on a Windows host with no smart card reader connected.
+    FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Efs_round_trips_on_a_prepared_64_KiB_NTFS_volume_without_compression_support [SKIP]
+      Set FILECAT_STORAGE_NATIVE_EFS_FRESH_64K_TARGET to a file on the newly formatted 64 KiB NTFS volume.
+    FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Another_users_file_with_allowed_ntfs_access_cannot_be_decrypted_without_an_efs_key [SKIP]
+      Requires the disposable two-user NTFS fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsJobTests.An_exact_recipient_key_does_not_override_the_native_efs_access_check [SKIP]
+      Requires an isolated, prepared EFS recipient fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Managed_recovery_fixture_encrypts_with_a_reviewed_user_key [SKIP]
+      Requires the isolated two-account managed EFS recovery fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Detaching_after_native_Efs_decryption_retains_an_uncertain_effect_without_key_evidence [SKIP]
+      Requires the isolated NTFS virtual disk device-loss fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Efs_refuses_a_prepared_Wof_backed_file [SKIP]
+      Set FILECAT_STORAGE_NATIVE_WOF_TARGET to an owned WOF-backed file.
+    FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Without_the_smart_card_new_encryption_stops_before_any_native_intent [SKIP]
+      Requires the owner's smart-card EFS certificate with the card absent.
+    FileCat.Platform.Windows.Tests.WindowsEfsJobTests.A_restored_fixture_key_can_decrypt_the_same_file_under_an_independent_windows_account [SKIP]
+      Requires the isolated backup and restore fixture.
+    FileCat.Platform.Windows.Tests.WindowsEfsJobTests.Files_encrypted_with_distinct_real_Efs_keys_keep_independent_backup_choices [SKIP]
+      Requires a disposable account that allows changing its default EFS certificate.
+    FileCat.Platform.Windows.Tests.WindowsEfsJobTests.An_unexpected_real_key_stops_the_selected_job_and_retains_the_exact_call [SKIP]
+      Use only a disposable account whose current EFS key may change.
+  Finished:    FileCat.Platform.Windows.Tests (ID = '7b8b161719e40b9b2e7972e688a8d8987693810e76cd236918348ae2e9c93f8f')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Platform.Windows.Tests  Total: 111, Errors: 0, Failed: 0, Skipped: 41, Not Run: 0, Time: 8,500s

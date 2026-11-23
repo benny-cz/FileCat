@@ -109,10 +109,19 @@ public class LocalFileSystemProvider : ResourceProvider
         var batch = new EntryData[BatchSize];
         int n = 0;
         FileSystemEnumerable<EntryData> enumerable;
+        // Linux: each item's birth time, asked by name in the folder opened once (ToEntry leaves Created unknown there).
+        using var births = OperatingSystem.IsLinux() && sink.IncludeBirthTimes ? LinuxBirthTime.OpenFolder(location.Path) : null;
         try
         {
             // The folder is opened here, so a refusal to list it comes before any entry.
-            enumerable = new FileSystemEnumerable<EntryData>(location.Path, ToEntry, ListOptions);
+            enumerable = births is { } folder
+                ? new FileSystemEnumerable<EntryData>(location.Path, (ref FileSystemEntry fe) =>
+                {
+                    var entry = ToEntry(ref fe);
+                    entry.Created = LinuxBirthTime.Ticks(folder, fe.FileName);
+                    return entry;
+                }, ListOptions)
+                : new FileSystemEnumerable<EntryData>(location.Path, ToEntry, ListOptions);
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -199,7 +208,9 @@ public class LocalFileSystemProvider : ResourceProvider
             Kind = fe.IsDirectory ? EntryKind.Directory : EntryKind.File,
             Size = fe.IsDirectory ? -1 : fe.Length,
             Modified = fe.LastWriteTimeUtc.UtcTicks,
-            Created = fe.CreationTimeUtc.UtcTicks,
+            // Not .NET's on Linux, which is the earlier of the modification and status change times: the birth time,
+            // when the list asks for it (IEnumerationSink.IncludeBirthTimes), else unknown.
+            Created = OperatingSystem.IsLinux() ? 0 : fe.CreationTimeUtc.UtcTicks,
             Attributes = (uint)attrs,
             Flags = MapFlags(attrs),
         };

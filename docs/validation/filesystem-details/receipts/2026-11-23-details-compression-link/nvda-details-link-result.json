@@ -1,0 +1,132 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "complete",
+    "Session":  1,
+    "OS":  "10.0.26340.0",
+    "AppDllSHA256":  "995662098A7074CCF68AE1D5A1705B6A67BB845405A9C1C32868BEDC59494B69",
+    "NvdaVersion":  "2026.3.1",
+    "NarrowHighContrast":  false,
+    "ShortNarrow":  false,
+    "PictureView":  false,
+    "FindResults":  false,
+    "VerifyNativeProperties":  false,
+    "CompressionLink":  true,
+    "Fixture":  "fixture-98145520",
+    "Steps":  [
+                  {
+                      "Speech":  [
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Loading NVDA. Please wait...\u0027]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027FileCat — left-long-path-long-path-long-path-long-path-long-path-long-path- — Admin (administrator, not elevated)\u0027, \u0027window\u0027, CancellableSpeech (still valid)]"
+                                 ],
+                      "Action":  "the active FileCat window"
+                  },
+                  {
+                      "Speech":  [
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027alpha-details.txt\u0027, \u0027not selected\u0027, \u0027file, 33 bytes, modified 23.11.2026 10:04:42, not marked, 2 of 3\u0027, CancellableSpeech (still valid)]"
+                                 ],
+                      "Action":  "the focused file"
+                  },
+                  {
+                      "Speech":  [
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027alpha-details.txt · File-system details — FileCat\u0027, \u0027window\u0027, CancellableSpeech (still valid)]"
+                                 ],
+                      "Action":  "the details window"
+                  },
+                  {
+                      "Speech":  [
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Read full record\u0027, \u0027button\u0027, CancellableSpeech (still valid)]"
+                                 ],
+                      "Action":  "Read full record"
+                  },
+                  {
+                      "Speech":  [
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Line 1 of 57. File-system details\u0027]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Full · observation 10:05:22 · F5 reads this tier again\u0027]"
+                                 ],
+                      "Action":  "the full observation"
+                  },
+                  {
+                      "Speech":  [
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Find in the report\u0027, \u0027edit\u0027, \u0027Find (Ctrl+F)\u0027, CancellableSpeech (still valid)]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Aa\u0027, \u0027check box\u0027, \u0027not checked\u0027, \u0027Match case\u0027, CancellableSpeech (still valid)]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Wrap\u0027, \u0027check box\u0027, \u0027checked\u0027, \u0027Wrap long lines (F2)\u0027, CancellableSpeech (still valid)]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Copy all\u0027, \u0027button\u0027, \u0027Copy the complete original report text. Ctrl+C copies selected source text or the visible lines; Ctrl+Shift+C uses displayed text.\u0027, CancellableSpeech (still valid)]"
+                                 ],
+                      "Action":  "Copy all"
+                  },
+                  {
+                      "Speech":  [
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Show summary\u0027, \u0027button\u0027, CancellableSpeech (still valid)]"
+                                 ],
+                      "Action":  "Show summary"
+                  },
+                  {
+                      "Speech":  [
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Line 1 of 41. File-system details\u0027]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Summary · observation 10:05:22 · F5 reads this tier again\u0027]"
+                                 ],
+                      "Action":  "the summary observation"
+                  },
+                  {
+                      "Speech":  [
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Show full record\u0027, \u0027button\u0027, CancellableSpeech (still valid)]"
+                                 ],
+                      "Action":  "Show full record"
+                  },
+                  {
+                      "Speech":  [
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Line 1 of 57. File-system details\u0027]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Full · observation 10:05:22 · F5 reads this tier again\u0027]"
+                                 ],
+                      "Action":  "the cached full observation"
+                  },
+                  {
+                      "Speech":  [
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027NTFS compression for this item…\u0027, \u0027button\u0027, \"Opens a review of this item\u0027s NTFS compression in the main window: its current state, the change to make and the job that makes it. The item is read again there, and nothing changes until you approve it.\", CancellableSpeech (still valid)]"
+                                 ],
+                      "Action":  "NTFS compression for this item…"
+                  },
+                  {
+                      "Speech":  [
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027FileCat — left-long-path-long-path-long-path-long-path-long-path-long-path- — Admin (administrator, not elevated)\u0027, CancellableSpeech (still valid)]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Choose an action to continue.\u0027]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027FileCat — left-long-path-long-path-long-path-long-path-long-path-long-path- — Admin (administrator, not elevated)\u0027, \u0027window\u0027, CancellableSpeech (still valid)]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027NTFS compression… dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]"
+                                 ],
+                      "Action":  "the review in the main window"
+                  },
+                  {
+                      "Speech":  [
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Compress\u0027, \u0027radio button\u0027, \u0027checked\u0027, CancellableSpeech (still valid)]"
+                                 ],
+                      "Action":  "the chosen action"
+                  },
+                  {
+                      "Speech":  [
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\detlink-probe\\\\fixture-98145520\\\\left-long-path-long-path-long-path-long-path-long-path-long-path-\u0027, \u0027list\u0027, \u00273 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027alpha-details.txt\u0027, \u0027unavailable\u0027, \u0027This item belongs to a previous listing and cannot be acted on.\u0027, CancellableSpeech (still valid)]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027alpha-details.txt\u0027, \u0027unavailable\u0027, \u0027This item belongs to a previous listing and cannot be acted on.\u0027, CancellableSpeech (still valid)]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Compress \"alpha-details.txt\" · selected items only: 1 changed, 0 already satisfied, 0 skipped, 0 failed, 0 uncertain, 0 not processed. The requested scope was fully checked.\u0027]"
+                                 ],
+                      "Action":  "the job outcome"
+                  },
+                  {
+                      "Speech":  [
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027NTFS compression for this item…\u0027, \u0027button\u0027, \"Opens a review of this item\u0027s NTFS compression in the main window: its current state, the change to make and the job that makes it. The item is read again there, and nothing changes until you approve it.\", CancellableSpeech (still valid)]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027FileCat — left-long-path-long-path-long-path-long-path-long-path-long-path- — Admin (administrator, not elevated)\u0027, \u0027window\u0027, CancellableSpeech (still valid)]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027Panel 1, source, C:\\\\Users\\\\admin\\\\AppData\\\\Local\\\\FileCatValidation\\\\detlink-probe\\\\fixture-98145520\\\\left-long-path-long-path-long-path-long-path-long-path-long-path-\u0027, \u0027list\u0027, \u00273 visible rows, 2 items. No marked items. Commands use the focused item. No filter. Sort: Name, ascending. The Review marked items command opens the complete selection, including hidden and offscreen marks. Up and Down move focus. Shift with movement marks or unmarks; Insert toggles the focused mark.\u0027, CancellableSpeech (still valid)]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027alpha-details.txt\u0027, \u0027not selected\u0027, \u0027file, 33 bytes, modified 23.11.2026 10:04:42, not marked, 2 of 3\u0027, CancellableSpeech (still valid)]",
+                                     "[LangChangeCommand (\u0027en_US\u0027), \u0027FileCat — left-long-path-long-path-long-path-long-path-long-path-long-path- — Admin (administrator, not elevated)\u0027, CancellableSpeech (still valid)]"
+                                 ],
+                      "Action":  "focus returning to the same file"
+                  }
+              ],
+    "Error":  null,
+    "Dpi":  96,
+    "WindowSizeDip":  [
+                          506,
+                          413
+                      ],
+    "ClipboardBytes":  2325,
+    "Compressed":  true
+}

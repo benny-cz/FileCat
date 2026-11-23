@@ -21,6 +21,7 @@ namespace FileCat.App.Controls;
 internal sealed class DialogCard : Border
 {
     internal event Action? CloseRequested;
+    internal Button CloseButton { get; }
 
     private readonly Border _bodyBorder;
     private readonly Control _body;
@@ -45,11 +46,11 @@ internal sealed class DialogCard : Border
         ClipToBounds = true;
         Styles.Add(new Style(s => s.OfType<CheckBox>())
         {
-            Setters = { new Setter(ContentControl.ContentTemplateProperty, DialogLayout.WrappingText) },
+            Setters = { new Setter(ContentControl.ContentTemplateProperty, DialogLayout.StringContentTemplate()) },
         });
         Styles.Add(new Style(s => s.OfType<RadioButton>())
         {
-            Setters = { new Setter(ContentControl.ContentTemplateProperty, DialogLayout.WrappingText) },
+            Setters = { new Setter(ContentControl.ContentTemplateProperty, DialogLayout.StringContentTemplate()) },
         });
         var titleLine = new Grid { ColumnDefinitions = new ColumnDefinitions("4,*,Auto"), ColumnSpacing = 10 };
         titleLine.Children.Add(new Border { Classes = { "dialogAccent" }, Height = 20, VerticalAlignment = VerticalAlignment.Center });
@@ -67,6 +68,7 @@ internal sealed class DialogCard : Border
             Width = 30, Height = 30,
             HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
         };
+        CloseButton = close;
         AutomationProperties.SetName(close, "Close dialog");
         AutomationProperties.SetHelpText(close, "Cancel this dialog without applying changes. Esc also closes it.");
         ToolTip.SetTip(close, "Close dialog (Esc)");
@@ -141,7 +143,7 @@ internal sealed class DialogCard : Border
         _requestedSize = preferredSize ?? new Size(700, 560);
         _layout.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         var gripRow = new Grid { Height = 24 };
-        var thumb = new Thumb { Name = "DialogResizeGrip", Width = 32, Height = 24,
+        var thumb = new ResizeGrip { Name = "DialogResizeGrip", Width = 32, Height = 24,
             HorizontalAlignment = HorizontalAlignment.Right, Focusable = true, Background = Brushes.Transparent,
             Template = new FuncControlTemplate<Thumb>((_, _) => new Border { Background = Brushes.Transparent }) };
         AutomationProperties.SetName(thumb, "Resize dialog");
@@ -186,6 +188,40 @@ internal sealed class DialogCard : Border
     }
 
     protected override Type StyleKeyOverride => typeof(Border);
+
+    // VoiceOver moves its cursor to a dialog that opens or grows and, keeping keyboard focus with its cursor, asks for
+    // focus there: the card or its resize grip took the keyboard from the field or button FileCat had just focused.
+    protected override AutomationPeer OnCreateAutomationPeer() => new CardPeer(this);
+
+    /// <summary>
+    /// Under the macOS bridge, an assistive request to focus the card or its grip is ignored while the keyboard is
+    /// already in this dialog, its open choice lists included; the keyboard stays where it is.
+    /// </summary>
+    internal static bool KeepsKeyboard(DialogCard card) =>
+        NativeLiveRegionBridges.UseMacBridge && TopLevel.GetTopLevel(card)?.FocusManager?.GetFocusedElement() is Visual focused &&
+        Views.OverlayDialogService.IsInCardOrPopup(focused, card);
+
+    private sealed class CardPeer(DialogCard owner) : NoneAutomationPeer(owner)
+    {
+        protected override void SetFocusCore()
+        {
+            if (!KeepsKeyboard(owner)) base.SetFocusCore();
+        }
+    }
+
+    private sealed class ResizeGrip : Thumb
+    {
+        protected override Type StyleKeyOverride => typeof(Thumb);
+        protected override AutomationPeer OnCreateAutomationPeer() => new GripPeer(this);
+    }
+
+    private sealed class GripPeer(ResizeGrip owner) : Avalonia.Controls.Automation.Peers.ThumbAutomationPeer(owner)
+    {
+        protected override void SetFocusCore()
+        {
+            if (owner.FindAncestorOfType<DialogCard>() is not { } card || !KeepsKeyboard(card)) base.SetFocusCore();
+        }
+    }
 
     protected override Size MeasureOverride(Size availableSize)
     {
@@ -336,6 +372,17 @@ internal static class DialogLayout
     internal static readonly IDataTemplate WrappingText = new FuncDataTemplate<string>((text, _) =>
         new AccessText { Text = text, TextWrapping = TextWrapping.Wrap });
 
+    /// <summary>
+    /// <see cref="WrappingText"/> for a string label only: a label that is already a control (a wrapping TextBlock) shows as
+    /// itself. Set for every label, the template met a control it does not match and the presenter fell back to the control's
+    /// type name: the folder choices of the NTFS compression review read "Avalonia.Controls.TextBlock".
+    /// </summary>
+    internal static Avalonia.Data.Binding StringContentTemplate() => new(nameof(ContentControl.Content))
+    {
+        RelativeSource = new Avalonia.Data.RelativeSource(Avalonia.Data.RelativeSourceMode.Self),
+        Converter = new Avalonia.Data.Converters.FuncValueConverter<object?, IDataTemplate?>(content => content is string ? WrappingText : null),
+    };
+
     internal static readonly IDataTemplate WrappingListText = new FuncDataTemplate<string>((text, _) =>
         new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap });
 
@@ -345,6 +392,22 @@ internal static class DialogLayout
         foreach (var control in controls) row.Children.Add(control);
         return row;
     }
+}
+
+/// <summary>
+/// The color of the emphasized paths in a review line (OverlayDialogService.ReviewLine), set by style on the line: the
+/// theme's link color, and on a list's chosen row that row's text color. Styles do not reach a line's runs themselves.
+/// </summary>
+public sealed class ReviewText
+{
+    private ReviewText() { }
+
+    public static readonly AttachedProperty<IBrush?> PathForegroundProperty =
+        AvaloniaProperty.RegisterAttached<ReviewText, TextBlock, IBrush?>("PathForeground");
+
+    public static IBrush? GetPathForeground(TextBlock element) => element.GetValue(PathForegroundProperty);
+
+    public static void SetPathForeground(TextBlock element, IBrush? value) => element.SetValue(PathForegroundProperty, value);
 }
 
 /// <summary>Two related sections keep their reading order when a compact dialog stacks them.</summary>

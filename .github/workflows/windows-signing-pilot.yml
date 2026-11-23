@@ -1,0 +1,126 @@
+name: Windows signing pilot
+
+# Signs FileCat's win-x64 payload, Setup and uninstaller with FileCat's own SSL.com eSigner certificate. It verifies
+# them against Windows' trusted roots with revocation checks, a silent install round trip and negative controls.
+# - Approval: the signing job waits for the owner's approval of the protected `signing` environment, which
+#   eng/signing/Assert-SigningEnvironment.ps1 checks first.
+# - Cost: about 57 eSigner signings, with one canary signature checked against the pinned certificate before the rest.
+# - Credential isolation: the credentials reach only the two signing steps, on a machine that never ran the build.
+# - Privacy: the signed files, manifests and report go only into a private draft release. Nothing signed is uploaded
+#   as a workflow artifact, and the logs show counts, not the signer.
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: windows-signing-pilot
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Check the signing environment and build the unsigned payload
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    outputs:
+      payload_manifest_sha256: ${{ steps.build.outputs.payload_manifest_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Refuse an unprotected signing environment
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./eng/signing/Assert-SigningEnvironment.ps1 -Repository $env:GITHUB_REPOSITORY -Environment signing
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Publish the unsigned payload and its manifest
+        id: build
+        shell: pwsh
+        run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase Build -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run') -Version "0.0.0-signing-pilot.$env:GITHUB_RUN_NUMBER"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: unsigned-payload-win-x64
+          path: |
+            ${{ runner.temp }}/signing-run/payload-manifest.json
+            ${{ runner.temp }}/signing-run/artifacts/publish/
+          retention-days: 1
+          if-no-files-found: error
+
+  sign:
+    name: Sign with FileCat's certificate and verify win-x64
+    needs: build
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 60
+    environment: signing
+    permissions:
+      contents: write   # the private draft release only
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Refuse an unprotected signing environment
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./eng/signing/Assert-SigningEnvironment.ps1 -Repository $env:GITHUB_REPOSITORY -Environment signing
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: unsigned-payload-win-x64
+          path: ${{ runner.temp }}/signing-run
+      - name: Check the payload against the build job's manifest and prepare the tools
+        shell: pwsh
+        env:
+          PAYLOAD_MANIFEST_SHA256: ${{ needs.build.outputs.payload_manifest_sha256 }}
+        run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase Prepare -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run') -Mode ESigner -PayloadManifestSha256 $env:PAYLOAD_MANIFEST_SHA256
+      - name: Sign the payload with FileCat's certificate
+        id: sign-payload
+        shell: pwsh
+        env:
+          FILECAT_ESIGNER_USERNAME: ${{ secrets.ESIGNER_USERNAME }}
+          FILECAT_ESIGNER_PASSWORD: ${{ secrets.ESIGNER_PASSWORD }}
+          FILECAT_ESIGNER_CREDENTIAL_ID: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
+          FILECAT_ESIGNER_TOTP_SECRET: ${{ secrets.ESIGNER_TOTP_SECRET }}
+          FILECAT_EXPECTED_SIGNER_SHA256: ${{ secrets.ESIGNER_CERT_SHA256 }}
+        run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase SignPayload -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run')
+      - name: Write SBOMs and archives of the signed payload
+        shell: pwsh
+        run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase Package -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run')
+      - name: Sign Setup and its uninstaller with FileCat's certificate
+        shell: pwsh
+        env:
+          FILECAT_ESIGNER_USERNAME: ${{ secrets.ESIGNER_USERNAME }}
+          FILECAT_ESIGNER_PASSWORD: ${{ secrets.ESIGNER_PASSWORD }}
+          FILECAT_ESIGNER_CREDENTIAL_ID: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
+          FILECAT_ESIGNER_TOTP_SECRET: ${{ secrets.ESIGNER_TOTP_SECRET }}
+          FILECAT_EXPECTED_SIGNER_SHA256: ${{ secrets.ESIGNER_CERT_SHA256 }}
+        run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase SignInstaller -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run')
+      - name: Verify against Windows' roots with revocation, a silent install and the negative controls
+        id: verify
+        shell: pwsh
+        run: |
+          $work = Join-Path $env:RUNNER_TEMP 'signing-run'
+          $run = Get-Content -LiteralPath (Join-Path $work 'run.json') -Raw | ConvertFrom-Json
+          $verify = @{
+            Path = @($run.Outputs.Payload) + @($run.Outputs.Zips) + @($run.Outputs.Installer)
+            ExpectedSignerSha256 = $run.ExpectedSignerSHA256
+            SigningManifest = @(Join-Path $work 'artifacts/signing/win-x64/signed-outputs.json')
+            Installer = $run.Outputs.Installer
+            ReportPath = Join-Path $work 'verification.json'
+          }
+          ./eng/signing/Test-WindowsSignatures.ps1 @verify -CheckRevocation -PrivateIdentity
+      - name: Put the signed files in a private draft release
+        if: always() && steps.sign-payload.outcome == 'success'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFICATION_OUTCOME: ${{ steps.verify.outcome }}
+        run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase Draft -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run') -VerificationOutcome $env:VERIFICATION_OUTCOME

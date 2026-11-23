@@ -85,6 +85,8 @@ public sealed record DialogButton(string Text, object Result, bool IsDefault = f
 
     /// <summary>Runs only on an explicit activation. False keeps this dialog open so field validation can retain the draft and focus.</summary>
     public Func<bool>? Validate { get; init; }
+    /// <summary>Runs an explicitly activated action and leaves the dialog open for its result.</summary>
+    public Func<Task>? InvokeAsync { get; init; }
 }
 
 public sealed record DialogButtonSnapshot(string Text, string? AccessibleName = null, string? HelpText = null);
@@ -110,6 +112,7 @@ public sealed class DialogCloser
     private Action<object?>? _close;
 
     internal void Attach(Action<object?> close) => _close = close;
+    internal void Detach(Action<object?> close) { if (ReferenceEquals(_close, close)) _close = null; }
 
     /// <summary>Ends the dialog with <paramref name="result"/>; nothing happens once it has ended.</summary>
     public void Close(object? result) => _close?.Invoke(result);
@@ -129,6 +132,10 @@ public sealed record DialogBehavior
     /// its shortcut), for example during a format scan. Panel commands remain blocked.
     /// </summary>
     public bool KeepOperationsUsable { get; init; }
+    public bool KeepOperationsUsableDuringAction { get; init; }
+    public bool ConfirmOnOptionEnter { get; init; } = true;
+    public bool ConfirmOnListItemEnter { get; init; } = true;
+    public DialogButtonPresentation? ClosePresentation { get; init; }
 }
 
 /// <summary>Overlay dialogs owned by the main window. Enter confirms; Esc follows each dialog's close behavior.</summary>

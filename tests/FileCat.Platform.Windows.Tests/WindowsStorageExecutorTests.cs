@@ -14,7 +14,7 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed class WindowsStorageJobEvidenceCollection;
 
 [Collection("Windows storage job evidence")]
-public sealed class WindowsStorageExecutorTests
+public sealed partial class WindowsStorageExecutorTests
 {
     private static CancellationToken Stop => TestContext.Current.CancellationToken;
     private static void RequireNormal(bool qualifyNativeArm64 = false)
@@ -294,7 +294,7 @@ public sealed class WindowsStorageExecutorTests
     [Fact]
     public void Removing_compression_with_insufficient_volume_capacity_retains_payload_and_reports_the_native_failure()
     {
-        RequireNormal();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs; RequireNormal(qualifyNativeArm64);
         string? canary = Environment.GetEnvironmentVariable("FILECAT_STORAGE_NATIVE_FULL_TARGET");
         if (string.IsNullOrWhiteSpace(canary)) Assert.Skip("Set FILECAT_STORAGE_NATIVE_FULL_TARGET to a canary on a small disposable NTFS fixture volume.");
         Assert.True(File.Exists(canary));
@@ -311,7 +311,7 @@ public sealed class WindowsStorageExecutorTests
             string target = Path.Join(owned, "compressed.bin");
             File.WriteAllBytes(target, []);
             var source = ItemRef.ForFileSystemPath(target, EntryKind.File);
-            var manager = Manager(evidence);
+            var manager = Manager(evidence, qualifyNativeArm64: qualifyNativeArm64);
             var buffer = new byte[1024 * 1024];
             buffer.AsSpan().Fill(0x71);
             const int logicalMiB = 32;
@@ -491,12 +491,12 @@ public sealed class WindowsStorageExecutorTests
     [InlineData(false)]
     public void Sharing_conflict_can_retry_the_same_held_file_or_skip_without_any_native_intent(bool retry)
     {
-        RequireNormal(); string temp = Directory.CreateTempSubdirectory("filecat-storage-job-sharing-").FullName;
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs; RequireNormal(qualifyNativeArm64); string temp = Directory.CreateTempSubdirectory("filecat-storage-job-sharing-").FullName;
         try
         {
             string file = Path.Join(temp, "file"); File.WriteAllText(file, "preserved sharing bytes");
             using var blocker = File.OpenHandle(file, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
-            var manager = Manager(temp); int decisions = 0;
+            var manager = Manager(temp, qualifyNativeArm64: qualifyNativeArm64); int decisions = 0;
             manager.DecisionRequested += pending =>
             {
                 decisions++; if (retry) blocker.Dispose(); pending.Resolve(new(retry ? DecisionAction.Retry : DecisionAction.Skip));

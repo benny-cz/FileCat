@@ -1,5 +1,6 @@
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Recovery.Unix;
@@ -15,7 +16,7 @@ internal static unsafe partial class UnixNative
 {
     private const int SolSocketLinux = 1, SolSocketMac = 0xFFFF, ScmRights = 1, MsgCmsgCloexec = 0x40000000;
     private const nuint Fioclex = 0x20006601; // macOS: _IO('f', 1), close on exec, no argument
-    private const int Eintr = 4;
+    private const int Eintr = 4, LinuxDontWait = 0x40, LinuxNoSignal = 0x4000;
 
     /// <summary>
     /// Receives up to <paramref name="buffer"/>.Length bytes from a connected local socket, and any file descriptors sent
@@ -61,6 +62,7 @@ internal static unsafe partial class UnixNative
             while (n < 0 && Marshal.GetLastPInvokeError() == Eintr);
             if (n < 0) throw new IOException($"Reading from the local socket failed (error {Marshal.GetLastPInvokeError()}).");
             long controlLength = mac ? *(uint*)(message + 40) : *(long*)(message + 40);
+            int firstReceived = fds.Count;
             // struct cmsghdr: len (size_t on Linux, socklen_t on macOS), level, type, then the data (aligned to 8 or 4).
             int header = mac ? 12 : 16, align = mac ? 4 : 8, solSocket = mac ? SolSocketMac : SolSocketLinux;
             for (long at = 0; at + header <= controlLength;)
@@ -77,22 +79,45 @@ internal static unsafe partial class UnixNative
                     }
                 at += (length + align - 1) / align * align;
             }
+            int flags = *(int*)(message + (mac ? 44 : 48));
+            if ((flags & (mac ? 0x30 : 0x28)) != 0) // MSG_TRUNC | MSG_CTRUNC
+            {
+                for (int i = firstReceived; i < fds.Count; i++) Close(fds[i]);
+                fds.RemoveRange(firstReceived, fds.Count - firstReceived);
+                throw new IOException("The local socket truncated a message or its descriptors.");
+            }
             return (int)n;
         }
     }
 
     /// <summary>Sends one byte and a file descriptor over a local socket (tests stand in for UDisks2 and authopen with it).</summary>
-    public static void SendFd(int socket, int fd)
+    public static void SendFd(int socket, int fd) => _ = SendWithFd(socket, [1], fd);
+
+    internal static int SendWithFd(Socket socket, ReadOnlySpan<byte> bytes, SafeFileHandle descriptor)
+    {
+        bool socketReference = false, descriptorReference = false;
+        var handle = socket.SafeHandle;
+        try
+        {
+            handle.DangerousAddRef(ref socketReference);
+            descriptor.DangerousAddRef(ref descriptorReference);
+            return SendWithFd((int)handle.DangerousGetHandle(), bytes, (int)descriptor.DangerousGetHandle());
+        }
+        finally
+        {
+            if (descriptorReference) descriptor.DangerousRelease();
+            if (socketReference) handle.DangerousRelease();
+        }
+    }
+
+    private static int SendWithFd(int socket, ReadOnlySpan<byte> bytes, int fd)
     {
         bool mac = OperatingSystem.IsMacOS();
         byte* message = stackalloc byte[64];
         byte* control = stackalloc byte[64];
         long* iov = stackalloc long[2];
-        byte one = 1;
         new Span<byte>(message, 64).Clear();
         new Span<byte>(control, 64).Clear();
-        iov[0] = (long)&one;
-        iov[1] = 1;
         *(long*)(message + 16) = (long)iov;
         if (mac) *(int*)(message + 24) = 1;
         else *(long*)(message + 24) = 1;
@@ -113,7 +138,34 @@ internal static unsafe partial class UnixNative
             *(int*)(control + 12) = ScmRights;
         }
         *(int*)(control + header) = fd;
-        if (SendMsg(socket, message, 0) < 0) throw new IOException($"Sending a descriptor failed (error {Marshal.GetLastPInvokeError()}).");
+        fixed (byte* data = bytes)
+        {
+            iov[0] = (long)data;
+            iov[1] = bytes.Length;
+            long sent;
+            do sent = SendMsg(socket, message, mac ? 0x80000 : LinuxNoSignal);
+            while (sent < 0 && Marshal.GetLastPInvokeError() == Eintr);
+            if (sent <= 0) throw new IOException($"Sending a descriptor failed (error {Marshal.GetLastPInvokeError()}).");
+            return (int)sent;
+        }
+    }
+
+    internal static void EchoLinuxChallenge(SafeFileHandle endpoint, ReadOnlySpan<byte> token)
+    {
+        if (token.Length != 32) throw new IOException("The permissions broker sent an invalid request token.");
+        Span<byte> challenge = stackalloc byte[33];
+        fixed (byte* data = challenge)
+        {
+            nint received;
+            do received = RecvPacket(endpoint, data, (nuint)challenge.Length, LinuxDontWait);
+            while (received < 0 && Marshal.GetLastPInvokeError() == Eintr);
+            if (received != token.Length || !CryptographicOperations.FixedTimeEquals(challenge[..token.Length], token))
+                throw new IOException("The permissions broker's descriptor challenge did not match this request.");
+            nint sent;
+            do sent = SendPacket(endpoint, data, (nuint)token.Length, LinuxDontWait | LinuxNoSignal);
+            while (sent < 0 && Marshal.GetLastPInvokeError() == Eintr);
+            if (sent != token.Length) throw new IOException("The permissions broker's descriptor challenge could not be answered.");
+        }
     }
 
     /// <summary>A connected pair of local stream sockets.</summary>
@@ -213,6 +265,12 @@ internal static unsafe partial class UnixNative
 
     [LibraryImport("libc", EntryPoint = "sendmsg", SetLastError = true)]
     private static partial long SendMsg(int socket, byte* message, int flags);
+
+    [LibraryImport("libc", EntryPoint = "recv", SetLastError = true)]
+    private static partial nint RecvPacket(SafeFileHandle socket, byte* data, nuint length, int flags);
+
+    [LibraryImport("libc", EntryPoint = "send", SetLastError = true)]
+    private static partial nint SendPacket(SafeFileHandle socket, byte* data, nuint length, int flags);
 
     [LibraryImport("libc", EntryPoint = "socketpair", SetLastError = true)]
     private static partial int SocketPairNative(int domain, int type, int protocol, int* pair);

@@ -1,0 +1,11 @@
+{
+  "Phase": "during-set",
+  "AllocationUnit": 4096,
+  "PayloadSHA256": "0F1A4A388EDA063F59AEFDAA6ED18B7F59DBBDDDEA93368217BAA8CAFE343526",
+  "NativeSetSucceeded": "failure",
+  "DetachStartedUtc": "2026-11-21T22:45:34.4298755Z",
+  "NativeReturnUtc": "2026-11-21T22:45:34.6396146Z",
+  "Test": "Detaching_while_native_compression_is_pending_retains_uncertainty_without_replay",
+  "InterruptedJournalSHA256": "517F430BF6D31AB78AB4AF07DFDAA0FCCDE5961A94463C00F1E44D8A86E2F4BD",
+  "FreshRetryJournalSHA256": "93B3FFC541799C86C1530717F2207340A109AB2CE7D9327E433A4084BAC7A344"
+}

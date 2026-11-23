@@ -344,6 +344,7 @@ public sealed partial class MainViewModel
     internal async Task<bool> CleanupInterruptedAsync(InterruptedJob job)
     {
         if (job.IsReviewedAnalysisCopy) { Notify("Use Review report to inspect the copy. A fresh approval is required for any new job."); return false; }
+        if (job.IsPermissions) { Notify("Open the permission changes report, then inspect the current object before reviewing a change."); return false; }
         if (job.IsStorageTransform) { Notify("Use Review storage changes. Storage history cannot authorize partial-file cleanup."); return false; }
         if (!TryBeginRecoveryAction(job, out var scope)) return false;
         InterruptedReview? reviewed = null;
@@ -487,6 +488,22 @@ public sealed partial class MainViewModel
     internal async Task<ReportWindow?> ShowInterruptedReportAsync(InterruptedJob job)
     {
         if (job.IsStorageTransform) return await ShowStorageHistoryReportAsync(job);
+        if (job.IsPermissions)
+        {
+            if (PermissionProcessRefusal() is not null) return null;
+            var window = new ReportWindow("Interrupted permissions", "Permissions and ownership",
+                _ => Task.FromResult(PermissionOperationReport.Interrupted(job)));
+            if (job.PermissionReview is { ServerPath: false } evidence)
+            {
+                var targets = evidence.Calls.GroupBy(call => call.Target)
+                    .Where(group => group.Key >= 0 && group.Key < job.Sources.Count && group.Select(call => call.IdentityDigest).Distinct().Count() == 1)
+                    .Select(group => (group.Key, Path.GetFileName(Path.TrimEndingDirectorySeparator(job.Sources[group.Key])))).ToArray();
+                window.AddPermissionReviewTargets(targets, (index, ct) => InspectRecoveredPermissionsAsync(
+                    job.Sources[index], evidence.Calls.First(call => call.Target == index).IdentityDigest, ct));
+            }
+            window.Show();
+            return window;
+        }
         if (!TryBeginRecoveryAction(job, out var scope)) return null;
         try
         {
@@ -512,6 +529,7 @@ public sealed partial class MainViewModel
     internal async Task<bool> MarkInterruptedReviewedAsync(InterruptedJob job)
     {
         if (job.IsStorageTransform) { Notify("Use Review storage changes to inspect and acknowledge the exact retained history."); return false; }
+        if (job.IsPermissions) { Notify("Use Review permission changes to inspect the retained call outcomes."); return false; }
         if (Dialogs.IsOpen)
         {
             Notify("Finish or cancel the open dialog before marking this recovery reviewed.");

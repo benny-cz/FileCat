@@ -12,6 +12,8 @@ public abstract class AnalysisPrivateDirectory : IDisposable
     // Temporary files have no publication operation and disappear when their last native handle closes.
     internal virtual AnalysisPrivateScratchFile CreateScratch() => throw new NotSupportedException("Private analysis scratch is unavailable.");
     internal abstract AnalysisPrivateFile OpenRead(string name);
+    internal virtual AnalysisPrivateFile OpenPermissionJournal(string name) => throw new NotSupportedException("Private permissions history is unavailable.");
+    internal virtual AnalysisPrivateFile OpenPermissionJournalMaintenance(string name) => throw new NotSupportedException("Private permissions retention is unavailable.");
     internal virtual AnalysisPrivateFile OpenMaintenance(string name) => throw new NotSupportedException("Guarded private-store maintenance is unavailable.");
     internal virtual AnalysisPrivateFile OpenReplacementFile(string name) => throw new NotSupportedException("Atomic private inventory replacement is unavailable.");
     internal virtual string[] Entries(CancellationToken cancellation) => throw new NotSupportedException("Private catalog enumeration is unavailable.");

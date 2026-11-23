@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="4b8cf5ce-f55d-471c-87a4-6a7c8cc82b4e" name="@Mareks-MacBook-Pro 2026-11-21 02:53:14" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-21T02:53:14.2765050+01:00" queuing="2026-11-21T02:53:14.2765050+01:00" start="2026-11-21T02:53:09.7377530+01:00" finish="2026-11-21T02:53:14.2798790+01:00" />
+  <TestSettings name="default" id="073698b5-a790-4a62-8f89-78ff7edef74c">
+    <Deployment runDeploymentRoot="_Mareks-MacBook-Pro_2026-11-21_02_53_14" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="f30944e9-ad43-49b0-9e49-cf81b6bc868b" testId="01e1f4d3-234b-0f68-7246-b9a466aa65e8" testName="FileCat.Core.Tests.HiddenSearchTests.Search_requires_complete_negative_coverage_keeps_known_positives_and_never_reads_EA_values" computerName="Mareks-MacBook-Pro" duration="00:00:00.0031318" startTime="2026-11-21T02:53:14.1831010+01:00" endTime="2026-11-21T02:53:14.1862820+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f30944e9-ad43-49b0-9e49-cf81b6bc868b" />
+    <UnitTestResult executionId="170ca502-27bc-47dd-8e6a-68894673e2eb" testId="4c75906d-5870-ed98-c33c-e48f81165463" testName="FileCat.Core.Tests.HiddenSearchTests.Darwin_ordinary_fork_matches_but_a_missing_fork_category_cannot_prove_a_negative" computerName="Mareks-MacBook-Pro" duration="00:00:00.0426198" startTime="2026-11-21T02:53:14.1326860+01:00" endTime="2026-11-21T02:53:14.1801850+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="170ca502-27bc-47dd-8e6a-68894673e2eb" />
+    <UnitTestResult executionId="2f2e67d3-92e1-4bbd-a9a4-ad7c3f6f8728" testId="7a9f8b4f-8340-fa1a-7c85-a58a60b04004" testName="FileCat.Core.Tests.HiddenSearchTests.Visible_managed_metadata_matches_Find_without_gaining_a_deletion_route" computerName="Mareks-MacBook-Pro" duration="00:00:00.0006499" startTime="2026-11-21T02:53:14.1865340+01:00" endTime="2026-11-21T02:53:14.1872030+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2f2e67d3-92e1-4bbd-a9a4-ad7c3f6f8728" />
+    <UnitTestResult executionId="ffbc726c-0387-4b77-bfde-a7dfb81bde6e" testId="c7d3cb4d-434e-e6d0-6a81-638436818b37" testName="FileCat.Core.Tests.HiddenSearchTests.Saved_broad_or_other_platform_criterion_requires_explicit_replacement_or_clearing" computerName="Mareks-MacBook-Pro" duration="00:00:00.0033557" startTime="2026-11-21T02:53:14.1873050+01:00" endTime="2026-11-21T02:53:14.1906800+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ffbc726c-0387-4b77-bfde-a7dfb81bde6e" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Core.Tests.HiddenSearchTests.Saved_broad_or_other_platform_criterion_requires_explicit_replacement_or_clearing" storage="/users/benny/filecatvalidation/codex-find-ca5169193/tests/filecat.core.tests/bin/release/net10.0/filecat.core.tests.dll" id="c7d3cb4d-434e-e6d0-6a81-638436818b37">
+      <Execution id="ffbc726c-0387-4b77-bfde-a7dfb81bde6e" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/codex-find-ca5169193/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.HiddenSearchTests" name="Saved_broad_or_other_platform_criterion_requires_explicit_replacement_or_clearing" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.HiddenSearchTests.Search_requires_complete_negative_coverage_keeps_known_positives_and_never_reads_EA_values" storage="/users/benny/filecatvalidation/codex-find-ca5169193/tests/filecat.core.tests/bin/release/net10.0/filecat.core.tests.dll" id="01e1f4d3-234b-0f68-7246-b9a466aa65e8">
+      <Execution id="f30944e9-ad43-49b0-9e49-cf81b6bc868b" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/codex-find-ca5169193/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.HiddenSearchTests" name="Search_requires_complete_negative_coverage_keeps_known_positives_and_never_reads_EA_values" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.HiddenSearchTests.Darwin_ordinary_fork_matches_but_a_missing_fork_category_cannot_prove_a_negative" storage="/users/benny/filecatvalidation/codex-find-ca5169193/tests/filecat.core.tests/bin/release/net10.0/filecat.core.tests.dll" id="4c75906d-5870-ed98-c33c-e48f81165463">
+      <Execution id="170ca502-27bc-47dd-8e6a-68894673e2eb" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/codex-find-ca5169193/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.HiddenSearchTests" name="Darwin_ordinary_fork_matches_but_a_missing_fork_category_cannot_prove_a_negative" />
+    </UnitTest>
+    <UnitTest name="FileCat.Core.Tests.HiddenSearchTests.Visible_managed_metadata_matches_Find_without_gaining_a_deletion_route" storage="/users/benny/filecatvalidation/codex-find-ca5169193/tests/filecat.core.tests/bin/release/net10.0/filecat.core.tests.dll" id="7a9f8b4f-8340-fa1a-7c85-a58a60b04004">
+      <Execution id="2f2e67d3-92e1-4bbd-a9a4-ad7c3f6f8728" />
+      <TestMethod codeBase="/Users/benny/FileCatValidation/codex-find-ca5169193/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Core.Tests.HiddenSearchTests" name="Visible_managed_metadata_matches_Find_without_gaining_a_deletion_route" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="01e1f4d3-234b-0f68-7246-b9a466aa65e8" executionId="f30944e9-ad43-49b0-9e49-cf81b6bc868b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4c75906d-5870-ed98-c33c-e48f81165463" executionId="170ca502-27bc-47dd-8e6a-68894673e2eb" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7a9f8b4f-8340-fa1a-7c85-a58a60b04004" executionId="2f2e67d3-92e1-4bbd-a9a4-ad7c3f6f8728" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c7d3cb4d-434e-e6d0-6a81-638436818b37" executionId="ffbc726c-0387-4b77-bfde-a7dfb81bde6e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="4" executed="4" passed="4" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.12)
+[xUnit.net 00:00:00.67]   Discovering: FileCat.Core.Tests
+[xUnit.net 00:00:03.71]   Discovered:  FileCat.Core.Tests
+[xUnit.net 00:00:03.92]   Starting:    FileCat.Core.Tests
+[xUnit.net 00:00:04.02]   Finished:    FileCat.Core.Tests (ID = 'd788591e3d3e2fe91dd5c5b2be78ea6f5b15750cec7c818ba91d0e17e7fcaec5')
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

@@ -42,7 +42,7 @@ internal static class FindDialogs
         foreach (var (_, box) in attributes) attributeRow.Children.Add(box);
         var unavailableCriteria = new StackPanel { Spacing = 4 };
         FileAttributes offered = attributes.Aggregate((FileAttributes)0, (mask, a) => mask | a.Attribute);
-        FileAttributes unmappedSet = 0, unmappedClear = 0;
+        FileAttributes unmappedSet = 0, unmappedClear = 0, unresolvedConflicts = 0;
 
         TextBox Number(string name) => new() { Width = 90, HorizontalContentAlignment = HorizontalAlignment.Right, [Avalonia.Automation.AutomationProperties.NameProperty] = name };
         ComboBox Units(string[] units, string name) => new() { ItemsSource = units, Width = 110, [Avalonia.Automation.AutomationProperties.NameProperty] = name };
@@ -78,6 +78,7 @@ internal static class FindDialogs
         {
             unmappedSet = c.AttributesSet & ~offered;
             unmappedClear = c.AttributesClear & ~offered;
+            unresolvedConflicts = c.AttributesSet & c.AttributesClear;
             foreach (var (attribute, box) in attributes)
                 box.IsChecked = (c.AttributesSet & attribute) != 0 ? true : (c.AttributesClear & attribute) != 0 ? false : null;
             atLeast.Text = c.SizeAtLeast?.ToString("0.##", CultureInfo.CurrentCulture) ?? string.Empty;
@@ -99,6 +100,8 @@ internal static class FindDialogs
             problem = null;
             var c = new AdvancedSearchCriteria { CarriesHiddenData = hidden.IsChecked == true, HiddenDataScope = hiddenScope,
                 AttributesSet = unmappedSet, AttributesClear = unmappedClear };
+            if (unresolvedConflicts != 0)
+                problem = "A saved attribute is both required and excluded. Choose one state or use Remove this criterion below.";
             if (c.CarriesHiddenData && hiddenScope != Core.HiddenData.HiddenSearch.ScopeId)
                 problem = "This older criterion needs replacement. Uncheck the extra-data criterion and check it again to choose the displayed scope, or leave it cleared.";
             foreach (var (attribute, box) in attributes)
@@ -129,18 +132,27 @@ internal static class FindDialogs
             FileAttributes active = unmappedSet | unmappedClear;
             foreach (var (attribute, box) in attributes) if (box.IsChecked is not null) active |= attribute;
             unavailableCriteria.Children.Clear();
-            foreach (var issue in NativeSearchPredicates.Issues(active, OperatingSystem.IsWindows(), nativeScope))
+            var issues = NativeSearchPredicates.Issues(active, OperatingSystem.IsWindows(), nativeScope);
+            void AddRemoval(FileAttributes attribute, string name, string reason)
             {
-                var remove = new Button { Content = "Remove this criterion: " + issue.Name, HorizontalAlignment = HorizontalAlignment.Left };
-                Avalonia.Automation.AutomationProperties.SetName(remove, "Remove this criterion: " + issue.Name);
+                var remove = new Button { Content = "Remove this criterion: " + name, HorizontalAlignment = HorizontalAlignment.Left };
+                Avalonia.Automation.AutomationProperties.SetName(remove, "Remove this criterion: " + name);
                 remove.Click += (_, _) =>
                 {
-                    unmappedSet &= ~issue.Attribute; unmappedClear &= ~issue.Attribute;
-                    attributes.FirstOrDefault(a => a.Attribute == issue.Attribute).Box?.SetCurrentValue(CheckBox.IsCheckedProperty, null);
+                    unmappedSet &= ~attribute; unmappedClear &= ~attribute; unresolvedConflicts &= ~attribute;
+                    attributes.FirstOrDefault(a => a.Attribute == attribute).Box?.SetCurrentValue(CheckBox.IsCheckedProperty, null);
                     Validate();
                 };
-                unavailableCriteria.Children.Add(Muted(issue.Name + ": " + issue.Reason));
+                unavailableCriteria.Children.Add(Muted(name + ": " + reason));
                 unavailableCriteria.Children.Add(remove);
+            }
+            foreach (var issue in issues) AddRemoval(issue.Attribute, issue.Name, issue.Reason);
+            for (int bit = 0; bit < 32; bit++)
+            {
+                var attribute = (FileAttributes)(1u << bit);
+                if ((unresolvedConflicts & attribute) == 0 || issues.Any(i => i.Attribute == attribute)) continue;
+                AddRemoval(attribute, NativeSearchPredicates.Name(attribute),
+                    "The saved criterion both requires and excludes this attribute. Choose one state or remove it.");
             }
             Read(out var problem);
             error.Text = problem ?? string.Empty;
@@ -149,7 +161,11 @@ internal static class FindDialogs
 
         Load(current);
         hidden.IsCheckedChanged += (_, _) => { hiddenScope = hidden.IsChecked == true ? Core.HiddenData.HiddenSearch.ScopeId : null; hidden.IsEnabled = nativeScope || hidden.IsChecked == true; Validate(); };
-        foreach (var (_, box) in attributes) box.IsCheckedChanged += (_, _) => Validate();
+        foreach (var (attribute, box) in attributes) box.IsCheckedChanged += (_, _) =>
+        {
+            unresolvedConflicts &= ~attribute; // A deliberate three-state choice resolves the saved conflict.
+            Validate();
+        };
         foreach (var box in new[] { atLeast, atMost }) box.TextChanged += (_, _) => Validate();
         foreach (var combo in new[] { atLeastUnit, atMostUnit }) combo.SelectionChanged += (_, _) => Validate();
         modified.Changed += Validate;

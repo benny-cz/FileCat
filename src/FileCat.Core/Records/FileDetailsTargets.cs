@@ -6,8 +6,15 @@ namespace FileCat.Core.Records;
 public static class FileDetailsTargets
 {
     public static bool IsOrdinaryNavigationTarget(FileDetailsSnapshot snapshot, bool windows) =>
-        (snapshot.Kind is FileObjectKind.File or FileObjectKind.Directory) &&
-        (!windows || snapshot.ReparseTag.State == FactState.NotApplicable);
+        (snapshot.Kind is FileObjectKind.File or FileObjectKind.Directory) && (!windows || IsOrdinaryWindowsEntry(snapshot));
+
+    /// <summary>
+    /// Windows: no reparse point, or a Cloud Files placeholder. Operations treat a placeholder as an ordinary file or folder
+    /// (Windows disguises another provider's placeholders as such for FileCat); details expose its tag only to describe it.
+    /// </summary>
+    public static bool IsOrdinaryWindowsEntry(FileDetailsSnapshot snapshot) =>
+        snapshot.ReparseTag.State == FactState.NotApplicable ||
+        snapshot.ReparseTag is { State: FactState.Known, Value: var tag } && ReparsePresentation.IsCloudTag(tag);
 
     public static bool TryResolve(FileDetailsSnapshot snapshot, bool windows, out string path, out bool network)
     {

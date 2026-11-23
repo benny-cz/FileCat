@@ -342,6 +342,8 @@ try
                 + "This does not make the separate LGPL RAR 1.5 assembly a writing-worker dependency or qualify a writer profile."),
             "filecat.archives.rar15" => ("LGPL-2.1-or-later",
                 "Copyright (c) 2017-present MacPaw Way Ltd. (XADMaster); C# port Copyright (c) 2026 Marek Střihavka <marek.strihavka@gmail.com> and FileCat contributors", null),
+            "filecat.sshnet" => ("MIT AND ISC", "Copyright (c) Renci, Oleg Kapeljushnik, Gert Driesen and contributors; BCrypt code copyright (c) 2006 Damien Miller and copyright (c) 2010 Ryan D. Emerle",
+                "SSH.NET 2026.0.0 (github.com/sshnet/SSH.NET commit 7b2fd3dbf2c86a80a7b06cea020aa5f821c9902e) with FileCat's typed SFTP permissions requests. License texts: licenses/sshnet/LICENSE and licenses/sshnet/LICENSE-bcrypt."),
             "filecat.sharpcompress" => ("MIT AND Apache-2.0 AND MS-PL AND BSD-2-Clause AND BSD-3-Clause AND Zlib",
                 "Copyright (c) 2014 Adam Hathcock and SharpCompress contributors; the copyrights of its parts from other projects are in "
                 + "licenses/sharpcompress/COMPONENTS.md; FileCat's changes Copyright (c) 2026 Marek Střihavka <marek.strihavka@gmail.com> and FileCat contributors",

@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="3cc91939-d822-4277-83d7-ffa1b5608022" name="Admin@DESKTOP-A60F1NE 2026-11-20 19:00:45" runUser="DESKTOP-A60F1NE\Admin" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-20T19:00:45.6251645+01:00" queuing="2026-11-20T19:00:45.6251709+01:00" start="2026-11-20T19:00:39.7502872+01:00" finish="2026-11-20T19:00:47.1580312+01:00" />
+  <TestSettings name="default" id="3178ff56-aeff-4035-b9c0-48696af08343">
+    <Deployment runDeploymentRoot="Admin_DESKTOP-A60F1NE_2026-11-20_19_00_45" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="eb76e3a8-92e2-4f64-ba9d-3872ca5356b2" testId="64e4f05e-0a09-6c79-dc4b-e86431706bc5" testName="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Copy, sourceOnUsb: True)" computerName="DESKTOP-A60F1NE" duration="00:00:01.2217198" startTime="2026-11-20T19:00:45.8210503+01:00" endTime="2026-11-20T19:00:47.0429507+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="eb76e3a8-92e2-4f64-ba9d-3872ca5356b2" />
+    <UnitTestResult executionId="688ac595-d2bb-4f98-b1cf-ed86c7e96b28" testId="52a74a2b-1085-7a81-4d85-e4f5f0c03215" testName="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Move, sourceOnUsb: False)" computerName="DESKTOP-A60F1NE" duration="00:00:00.5834482" startTime="2026-11-20T19:00:44.0881964+01:00" endTime="2026-11-20T19:00:44.6863133+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="688ac595-d2bb-4f98-b1cf-ed86c7e96b28" />
+    <UnitTestResult executionId="94204fe6-a309-45c6-8262-cc704994226f" testId="ea8f5749-33e4-4cde-c422-3f0fbf816461" testName="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Copy, sourceOnUsb: False)" computerName="DESKTOP-A60F1NE" duration="00:00:00.3360436" startTime="2026-11-20T19:00:45.4840420+01:00" endTime="2026-11-20T19:00:45.8202373+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="94204fe6-a309-45c6-8262-cc704994226f" />
+    <UnitTestResult executionId="1dc74a5b-7b4e-4f1f-9dc5-0aa66c3ac493" testId="5703af35-7cfd-261f-75fa-91d289214256" testName="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Move, sourceOnUsb: True)" computerName="DESKTOP-A60F1NE" duration="00:00:00.7857110" startTime="2026-11-20T19:00:44.6973417+01:00" endTime="2026-11-20T19:00:45.4832426+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1dc74a5b-7b4e-4f1f-9dc5-0aa66c3ac493" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Copy, sourceOnUsb: False)" storage="c:\users\admin\appdata\local\temp\filecat-efs-usb-replace-e06\filecat.platform.windows.tests.dll" id="ea8f5749-33e4-4cde-c422-3f0fbf816461">
+      <Execution id="94204fe6-a309-45c6-8262-cc704994226f" />
+      <TestMethod codeBase="C:\Users\Admin\AppData\Local\Temp\filecat-efs-usb-replace-e06\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests" name="Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Move, sourceOnUsb: True)" storage="c:\users\admin\appdata\local\temp\filecat-efs-usb-replace-e06\filecat.platform.windows.tests.dll" id="5703af35-7cfd-261f-75fa-91d289214256">
+      <Execution id="1dc74a5b-7b4e-4f1f-9dc5-0aa66c3ac493" />
+      <TestMethod codeBase="C:\Users\Admin\AppData\Local\Temp\filecat-efs-usb-replace-e06\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests" name="Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Copy, sourceOnUsb: True)" storage="c:\users\admin\appdata\local\temp\filecat-efs-usb-replace-e06\filecat.platform.windows.tests.dll" id="64e4f05e-0a09-6c79-dc4b-e86431706bc5">
+      <Execution id="eb76e3a8-92e2-4f64-ba9d-3872ca5356b2" />
+      <TestMethod codeBase="C:\Users\Admin\AppData\Local\Temp\filecat-efs-usb-replace-e06\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests" name="Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file" />
+    </UnitTest>
+    <UnitTest name="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests.Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file(kind: Move, sourceOnUsb: False)" storage="c:\users\admin\appdata\local\temp\filecat-efs-usb-replace-e06\filecat.platform.windows.tests.dll" id="52a74a2b-1085-7a81-4d85-e4f5f0c03215">
+      <Execution id="688ac595-d2bb-4f98-b1cf-ed86c7e96b28" />
+      <TestMethod codeBase="C:\Users\Admin\AppData\Local\Temp\filecat-efs-usb-replace-e06\FileCat.Platform.Windows.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="FileCat.Platform.Windows.Tests.WindowsEfsReplacementTests" name="Physical_usb_cross_volume_efs_destination_refuses_replace_without_changing_either_file" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="64e4f05e-0a09-6c79-dc4b-e86431706bc5" executionId="eb76e3a8-92e2-4f64-ba9d-3872ca5356b2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="52a74a2b-1085-7a81-4d85-e4f5f0c03215" executionId="688ac595-d2bb-4f98-b1cf-ed86c7e96b28" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ea8f5749-33e4-4cde-c422-3f0fbf816461" executionId="94204fe6-a309-45c6-8262-cc704994226f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5703af35-7cfd-261f-75fa-91d289214256" executionId="1dc74a5b-7b4e-4f1f-9dc5-0aa66c3ac493" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="4" executed="4" passed="4" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.15)&#xD;
+[xUnit.net 00:00:01.43]   Discovering: FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:03.22]   Discovered:  FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:03.49]   Starting:    FileCat.Platform.Windows.Tests&#xD;
+[xUnit.net 00:00:06.56]   Finished:    FileCat.Platform.Windows.Tests (ID = 'a9333f472e111678907fc036eb48ff59860849bad7be7866c227c65e5fb6550d')&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

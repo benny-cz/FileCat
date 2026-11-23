@@ -42,3 +42,30 @@ This is a draft for the owner; it has **not** been sent. Do not attach identity 
 4. Build the frozen candidate from an approved immutable ref, verify the downloaded unsigned hashes, perform attended signing, independently verify every final signed and packaged byte, signatures, chain, timestamps, metadata, loader behavior and Smart App Control on the specified GA Windows tier. Reconcile every other release gate and obtain the owner's separate exact stable GO.
 
 **Stop:** no RC tag, signed-asset claim, `REL-SIGN-WINDOWS` acceptance or stable publication until a compatible provider/certificate is actually issued and the protected candidate controls pass. The Foundation refusal does not justify weakening the current release criteria.
+
+## 2026-11-20 addendum: SSL.com certificate and hosted signing dry run
+
+The owner obtained an SSL.com individual-validated code-signing certificate on 2026-11-20. Since June 2023, SSL.com issues such keys only in its eSigner cloud HSM or on a FIPS hardware token. The owner has not yet confirmed which one holds this key.
+
+- **eSigner custody makes hosted signing possible.** SSL.com [documents unattended signing](https://www.ssl.com/how-to/automate-esigner-ev-code-signing/) with the account's TOTP secret. Jsign's `ESIGNER` keystore supports it and sends only digests. This replaces, for eSigner custody only, the Certum-based conclusion above that hosted jobs can't sign unattended. A token-held key still needs the attended route.
+- **Cost.** SSL.com's [eSigner IV/OV pricing](https://www.ssl.com/guide/esigner-pricing-for-code-signing/) lists Tier 1 at $180 a year for 240 signings and Tier 2 at $765 a year for 1,200; the first 30 days are free with unlimited signings. One win-x64 package build costs 57 signings ([E-SIGN-DRYRUN](evidence/E-SIGN-DRYRUN-20261120.md)).
+- **The hosted pipeline is built and passes with a throwaway test certificate.** Payloads, Setup and the uninstaller are signed inside packaging, and every PE file is verified independently with negative controls.
+
+Steps 1–3 were done on 2026-11-20: custody is eSigner with an OTP-app second factor, the environment and secrets exist, and [pilot run 44822592170](evidence/E-SIGN-DRYRUN-20261120.md#real-identity-esigner-pilot) passed. Before the first real-identity signature, which the [Windows signing pilot](../../../.github/workflows/windows-signing-pilot.yml) makes:
+
+1. The owner confirms eSigner custody and keeps the TOTP secret (the secret code shown with the eSigner QR code) and the credential ID.
+2. The owner creates the `signing` environment:
+   - **Reviewer:** the owner as required reviewer, with self-review allowed.
+   - **Bypass:** administrator bypass turned off.
+   - **Deployments:** only the `main` branch and `v*` tags.
+   - **Secrets:** `ESIGNER_USERNAME`, `ESIGNER_PASSWORD`, `ESIGNER_CREDENTIAL_ID`, `ESIGNER_TOTP_SECRET`, and `ESIGNER_CERT_SHA256`, which is the SHA-256 of the issued certificate and pins it.
+
+   The existing `release` environment stays unchanged. The pilot's first step refuses any weaker setup.
+3. The owner starts the pilot from `main` and approves the `signing` deployment. One run costs about 57 eSigner signings. The signed files land in a private draft release, which the owner deletes once the result is recorded.
+
+Before any public signed release, as well (both decided on 2026-11-20 as [DEC-13 and DEC-12](evidence/E-DEC-2026-11-20-signing-decisions.md)):
+
+4. The owner decides that signatures may show the certificate subject (the owner's legal name and city).
+5. The owner approves replacing the SignPath-specific D-40/section 10.4 contract with this route.
+
+Agents use the owner's GitHub token but never approve a signing deployment. Because this repository is public, real-identity signed bytes go only to a private draft release, never to workflow artifacts or logs. The stop rule above is unchanged.

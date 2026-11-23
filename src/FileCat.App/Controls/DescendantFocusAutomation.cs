@@ -130,6 +130,9 @@ internal sealed class DescendantFocusWindowAutomationPeer : WindowAutomationPeer
         if (!always && ReferenceEquals(focus, _reported)) return;
         _reported = focus;
         AtSpi?.Attach(this, focus);
+        // VoiceOver ignores a focused element whose parents do not lead to its window (see NativeLiveRegionBridges.Relink).
+        if (NativeLiveRegionBridges.UseMacBridge && focus is not null && !ReferenceEquals(focus, this))
+            NativeLiveRegionBridges.Relink(this, focus);
         TrackValue(focus);
         _focusChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -215,9 +218,10 @@ internal static class ComboBoxAnnouncements
 /// an element's UI Automation node, and the macOS bridge its native element, on first visit, while the AT-SPI bridge
 /// has no live regions at all. Notices, Find results and validation errors were therefore silent until a reader
 /// happened to visit them. When a live control is attached to a window, this makes the bridge track it: Windows gets
-/// the element's node, macOS gets native elements from the window down to it, and on Linux each name change is sent
-/// as an AT-SPI announcement from the window. A validation message typically gets its new text just before it is
-/// shown, so text that changed while its control was hidden is spoken once the shown control is laid out.
+/// the element's node, macOS gets native elements from the window down to it once the attachment is complete, and on
+/// Linux each name change is sent as an AT-SPI announcement from the window. A validation message typically gets its
+/// new text just before it is shown, so text that changed while its control was hidden is spoken once the shown
+/// control is laid out.
 /// </summary>
 internal static class LiveRegions
 {
@@ -244,7 +248,13 @@ internal static class LiveRegions
             var watched = region;
             control.AttachedToVisualTree += (_, _) =>
             {
-                Track(control, watched.Peer);
+                // Avalonia raises this while it attaches a subtree, before the subtree's root is told its new visual
+                // parent. The macOS bridge walks up the parents, so tracking now linked that root to its parent just
+                // before Avalonia dropped the link for good: every control in an in-window dialog's body lost its
+                // window, and VoiceOver did not follow Tab into the body. The macOS bridge waits for the attachment.
+                if (NativeLiveRegionBridges.UseMacBridge)
+                    Dispatcher.UIThread.Post(() => Track(control, watched.Peer), DispatcherPriority.Loaded);
+                else Track(control, watched.Peer);
                 // A dialog can prepare its first result before being attached.
                 // Its name change was deferred while it had no window; publish
                 // the final text after its native element has a visible parent.
@@ -273,8 +283,8 @@ internal static class LiveRegions
         if (AutomationProperties.GetLiveSetting(control) == AutomationLiveSetting.Off ||
             TopLevel.GetTopLevel(control) is not Window window)
             return;
-        if (OperatingSystem.IsWindows()) NativeLiveRegionBridges.TrackOnWindows(peer);
-        else if (OperatingSystem.IsMacOS()) NativeLiveRegionBridges.TrackOnMac(ControlAutomationPeer.CreatePeerForElement(window), peer);
+        if (NativeLiveRegionBridges.UseMacBridge) NativeLiveRegionBridges.TrackOnMac(ControlAutomationPeer.CreatePeerForElement(window), peer);
+        else if (OperatingSystem.IsWindows()) NativeLiveRegionBridges.TrackOnWindows(peer);
     }
 
     private static string? Text(Region region) =>
@@ -336,8 +346,9 @@ internal static class LiveRegions
 /// The two bridge members live regions need on Windows and macOS. Windows: Avalonia's public
 /// <c>AutomationNode.GetOrCreate</c> on its internal UI Automation node type, which subscribes the node to the peer.
 /// macOS: the protected <c>ControlAutomationPeer.InvalidateChildren</c>, whose children change makes the native
-/// bridge create elements for a peer's children; applied from the window down, it creates the live element. Each
-/// disables itself if its member is missing or fails, leaving Avalonia's unmodified behavior.
+/// bridge create elements for a peer's children; applied from the window down, it creates the live element, and
+/// applied to one ancestor, it restores that ancestor's links to its children (<see cref="Relink"/>). Each disables
+/// itself if its member is missing or fails, leaving Avalonia's unmodified behavior.
 /// </summary>
 internal static class NativeLiveRegionBridges
 {
@@ -346,7 +357,44 @@ internal static class NativeLiveRegionBridges
     internal const string InvalidateChildrenMethod = "InvalidateChildren";
     private static readonly Lazy<MethodInfo?> s_uiaNode = new(() => UiaNodeMember(Type.GetType(UiaNodeType)));
     private static readonly MethodInfo? s_invalidateChildren = InvalidateChildrenMember();
-    private static bool s_uiaDisabled, s_macDisabled;
+    private static bool s_uiaDisabled, s_macDisabled, s_relinkDisabled;
+
+    /// <summary>Whether the macOS bridge serves this process; tests switch it on to run that route on any system.</summary>
+    internal static bool UseMacBridge { get; set; } = OperatingSystem.IsMacOS();
+
+    /// <summary>
+    /// Restores the parent links between a peer and its window; true when the peer's parents then lead to the window.
+    /// Avalonia links a peer to its parent only while that parent lists its children anew, and drops the link when the
+    /// peer's control gets a new visual parent. A parent that listed the control before the drop (a walk up the parents
+    /// during the control's attachment) or a lookup while an ancestor was hidden leaves the peer without a parent while
+    /// its parent still lists it. On macOS every element below such a peer reported a parent chain ending at the
+    /// application, no window and an empty frame, and VoiceOver ignored focus on it. Each ancestor whose child on the
+    /// window's path has lost its link lists its children anew, which links them all to it again.
+    /// </summary>
+    internal static bool Relink(AutomationPeer root, AutomationPeer peer)
+    {
+        if (s_relinkDisabled) return false;
+        try
+        {
+            if (AutomationPaths.Reaches(peer, root)) return true;
+            if (s_invalidateChildren is not { } invalidate) throw new MissingMethodException(nameof(ControlAutomationPeer), InvalidateChildrenMethod);
+            if (AutomationPaths.FromWindow(root, peer) is not { } path) return false;
+            path.Add(peer);
+            for (int i = 1; i < path.Count; i++)
+            {
+                if (ReferenceEquals(path[i].GetParent(), path[i - 1]) || path[i - 1] is not ControlAutomationPeer parent) continue;
+                invalidate.Invoke(parent, null);
+                parent.GetChildren();
+            }
+            return AutomationPaths.Reaches(peer, root);
+        }
+        catch (Exception ex)
+        {
+            s_relinkDisabled = true;
+            Core.Diagnostics.AppLog.Warn("Focus links on macOS fall back to Avalonia's default behavior: " + (ex.InnerException?.Message ?? ex.Message));
+            return false;
+        }
+    }
 
     internal static MethodInfo? UiaNodeMember(Type? nodeType) =>
         nodeType?.GetMethod(UiaNodeMethod, BindingFlags.Public | BindingFlags.Static, [typeof(AutomationPeer)]) is { } method &&

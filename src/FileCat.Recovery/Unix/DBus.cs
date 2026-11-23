@@ -1,13 +1,34 @@
 using System.Buffers.Binary;
 using System.Net.Sockets;
 using System.Text;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Recovery.Unix;
 
 /// <summary>A D-Bus error reply: its name (org.freedesktop.UDisks2.Error.NotAuthorized, say) and message.</summary>
 public sealed class DBusException(string name, string message) : IOException(message)
 {
+    internal DBusException(string name, string message, string sender) : this(name, message) => Sender = sender;
     public string Name { get; } = name;
+    internal string Sender { get; } = "";
+
+    /// <summary>
+    /// A refusal from FileCat's Linux permissions service in words, with the system's own text kept for diagnosis.
+    /// The service answers with errno names (System.Error.EXDEV); their raw texts ("Invalid cross-device link") say
+    /// nothing about what to do.
+    /// </summary>
+    public string PermissionsRefusal => Name switch
+    {
+        "System.Error.EXDEV" => "The permissions service sees a different mount for this item than FileCat does, for example " +
+            $"because FileCat runs in another mount namespace or container, or the file system changed. Start FileCat from your desktop session and inspect the item again. ({Message})",
+        "System.Error.EOPNOTSUPP" => $"The permissions service does not change items on this kind of mount, such as an ID-mapped mount. ({Message})",
+        "System.Error.EACCES" or "System.Error.EPERM" =>
+            $"The permissions service did not accept this FileCat process or request. Use the installed FileCat from your desktop session. ({Message})",
+        "System.Error.ESTALE" => $"The item changed after FileCat reviewed it. Inspect it again. ({Message})",
+        "System.Error.EROFS" => $"The item is on a read-only mount. ({Message})",
+        "System.Error.EMLINK" => $"Another name refers to this file, so only a change that removes access can be approved. ({Message})",
+        _ => Message,
+    };
 }
 
 /// <summary>A value to marshal: a string, a boolean, or a dictionary of strings to variants (a{sv}).</summary>
@@ -19,15 +40,13 @@ internal abstract record DBusValue
 }
 
 /// <summary>A reply: its body's bytes (read with <see cref="DBusReader"/>) and the file descriptors that came with it.</summary>
-internal sealed record DBusReply(byte[] Message, int BodyStart, string Signature, List<int> Fds)
+internal sealed record DBusReply(byte[] Message, int BodyStart, string Signature, string Sender, List<int> Fds)
 {
     public DBusReader Body() => new(Message, BodyStart);
 }
 
 /// <summary>
-/// A minimal D-Bus client (D-47): one connection to the system bus, authenticated as this user, making method calls with
-/// strings, booleans, and a{sv} dictionaries, and taking replies with strings, integers, and file descriptors. That is
-/// what asking UDisks2 for a drive needs; nothing else of D-Bus is spoken. Little-endian messages only.
+/// A minimal synchronous D-Bus client for UDisks2 and the Linux permissions broker. Little-endian messages only.
 /// </summary>
 internal sealed class DBusConnection : IDisposable
 {
@@ -36,9 +55,14 @@ internal sealed class DBusConnection : IDisposable
     public const byte AllowInteractiveAuthorization = 0x4;
 
     private readonly Socket _socket;
+    private readonly int _maximumBodyBytes;
     private uint _serial;
 
-    private DBusConnection(Socket socket) => _socket = socket;
+    private DBusConnection(Socket socket, int maximumBodyBytes)
+    {
+        _socket = socket;
+        _maximumBodyBytes = maximumBodyBytes;
+    }
 
     public string UniqueName { get; private set; } = "";
 
@@ -53,20 +77,21 @@ internal sealed class DBusConnection : IDisposable
     }
 
     /// <summary>Connects to the bus listening at <paramref name="path"/> (a session bus in tests).</summary>
-    public static DBusConnection Connect(string path)
+    public static DBusConnection Connect(string path, int maximumBodyBytes = 64 * 1024 * 1024, CancellationToken cancellation = default)
     {
         var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+        var bus = new DBusConnection(socket, maximumBodyBytes);
+        using var cancel = cancellation.Register(bus.Dispose);
         try
         {
             socket.Connect(new UnixDomainSocketEndPoint(path));
-            var bus = new DBusConnection(socket);
             bus.Authenticate();
             bus.UniqueName = bus.Call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", []).Body().String();
             return bus;
         }
         catch
         {
-            socket.Dispose();
+            bus.Dispose();
             throw;
         }
     }
@@ -82,7 +107,18 @@ internal sealed class DBusConnection : IDisposable
         Send("BEGIN\r\n");
     }
 
-    private void Send(string text) => _socket.Send(Encoding.ASCII.GetBytes(text));
+    private void Send(string text) => SendBytes(Encoding.ASCII.GetBytes(text));
+
+    private void SendBytes(ReadOnlySpan<byte> bytes, SafeFileHandle? descriptor = null)
+    {
+        int offset = descriptor is null ? 0 : UnixNative.SendWithFd(_socket, bytes, descriptor);
+        while (offset < bytes.Length)
+        {
+            int written = _socket.Send(bytes[offset..]);
+            if (written <= 0) throw new IOException("The system bus closed the connection.");
+            offset += written;
+        }
+    }
 
     private string ReadLine()
     {
@@ -104,22 +140,41 @@ internal sealed class DBusConnection : IDisposable
     public DBusReply Call(string destination, string path, string @interface, string member, IReadOnlyList<DBusValue> arguments, byte flags = 0)
     {
         uint serial = ++_serial;
-        _socket.Send(MethodCallMessage(serial, destination, path, @interface, member, arguments, flags));
+        SendBytes(MethodCallMessage(serial, destination, path, @interface, member, arguments, flags));
+        return AwaitReply(serial, null);
+    }
+
+    internal DBusReply CallRaw(string destination, string path, string @interface, string member, string signature, DBusWriter body,
+        SafeFileHandle? descriptor = null, string? expectedSender = null)
+    {
+        uint serial = ++_serial;
+        SendBytes(MethodCallMessage(serial, destination, path, @interface, member, signature, body, 0, descriptor is not null), descriptor);
+        return AwaitReply(serial, expectedSender);
+    }
+
+    private DBusReply AwaitReply(uint serial, string? expectedSender)
+    {
         while (true)
         {
             var reply = Receive();
-            if (reply.ReplySerial != serial)
+            if (reply.ReplySerial != serial || reply.Type is not (Error or MethodReturn))
             {
                 foreach (int fd in reply.Fds) UnixNative.Close(fd); // signals, and replies to nothing asked
                 continue;
+            }
+            if (expectedSender is not null && reply.Sender != expectedSender &&
+                !(reply.Type == Error && reply.Sender == "org.freedesktop.DBus"))
+            {
+                foreach (int fd in reply.Fds) UnixNative.Close(fd);
+                throw new IOException("The D-Bus method reply did not come from the expected sender.");
             }
             if (reply.Type == Error)
             {
                 foreach (int fd in reply.Fds) UnixNative.Close(fd);
                 string text = reply.Signature.StartsWith('s') ? new DBusReader(reply.Message, reply.BodyStart).String() : reply.ErrorName;
-                throw new DBusException(reply.ErrorName, text);
+                throw new DBusException(reply.ErrorName, text, reply.Sender);
             }
-            if (reply.Type == MethodReturn) return new DBusReply(reply.Message, reply.BodyStart, reply.Signature, reply.Fds);
+            return new DBusReply(reply.Message, reply.BodyStart, reply.Signature, reply.Sender, reply.Fds);
         }
     }
 
@@ -133,6 +188,12 @@ internal sealed class DBusConnection : IDisposable
             signature.Append(Signature(argument));
             body.Value(argument);
         }
+        return MethodCallMessage(serial, destination, path, @interface, member, signature.ToString(), body, flags, false);
+    }
+
+    private static byte[] MethodCallMessage(uint serial, string destination, string path, string @interface, string member,
+        string signature, DBusWriter body, byte flags, bool hasDescriptor)
+    {
         var header = new DBusWriter();
         header.Byte((byte)'l');
         header.Byte(MethodCall);
@@ -153,7 +214,14 @@ internal sealed class DBusConnection : IDisposable
         Field(6, 's', destination);
         Field(2, 's', @interface);
         Field(3, 's', member);
-        if (signature.Length > 0) Field(8, 'g', signature.ToString());
+        if (signature.Length > 0) Field(8, 'g', signature);
+        if (hasDescriptor)
+        {
+            header.Pad(8);
+            header.Byte(9); // UNIX_FDS header field
+            header.Signature("u");
+            header.UInt32(1);
+        }
         header.EndArray(fields);
         header.Pad(8);
         return [.. header.Bytes, .. body.Bytes];
@@ -167,25 +235,37 @@ internal sealed class DBusConnection : IDisposable
         _ => throw new NotSupportedException(),
     };
 
-    private sealed record Incoming(byte Type, uint ReplySerial, string ErrorName, string Signature, byte[] Message, int BodyStart, List<int> Fds);
+    private sealed record Incoming(byte Type, uint ReplySerial, string ErrorName, string Signature, string Sender,
+        byte[] Message, int BodyStart, List<int> Fds);
 
     private Incoming Receive()
     {
         var fds = new List<int>();
+        try { return ReceiveMessage(fds); }
+        catch
+        {
+            foreach (int fd in fds) UnixNative.Close(fd);
+            throw;
+        }
+    }
+
+    private Incoming ReceiveMessage(List<int> fds)
+    {
         var fixedPart = new byte[16];
         Fill(fixedPart, fds);
         if (fixedPart[0] != (byte)'l') throw new IOException("The system bus sent a big-endian message, which FileCat does not read.");
         uint bodyLength = BinaryPrimitives.ReadUInt32LittleEndian(fixedPart.AsSpan(4));
         uint fieldsLength = BinaryPrimitives.ReadUInt32LittleEndian(fixedPart.AsSpan(12));
-        if (bodyLength > 64 * 1024 * 1024 || fieldsLength > 64 * 1024) throw new IOException("The system bus sent an oversized message.");
+        if (bodyLength > (uint)_maximumBodyBytes || fieldsLength > 64 * 1024) throw new IOException("The system bus sent an oversized message.");
         int headerEnd = (int)((16 + fieldsLength + 7) / 8 * 8);
         var message = new byte[headerEnd + bodyLength];
         fixedPart.CopyTo(message, 0);
         Fill(message.AsSpan(16), fds);
-        var reader = new DBusReader(message, 0) { Position = 16 };
-        uint replySerial = 0;
-        string errorName = "", signature = "";
-        while (reader.Position < 16 + fieldsLength)
+        int fieldsEnd = 16 + (int)fieldsLength;
+        var reader = new DBusReader(message, 16, fieldsEnd);
+        uint replySerial = 0, descriptorCount = 0;
+        string errorName = "", signature = "", sender = "";
+        while (reader.Position < fieldsEnd)
         {
             reader.Pad(8);
             byte code = reader.Byte();
@@ -195,10 +275,12 @@ internal sealed class DBusConnection : IDisposable
                 case "u":
                     uint u = reader.UInt32();
                     if (code == 5) replySerial = u;
+                    if (code == 9) descriptorCount = u;
                     break;
                 case "s" or "o":
                     string s = reader.String();
                     if (code == 4) errorName = s;
+                    if (code == 7) sender = s;
                     break;
                 case "g":
                     string g = reader.Signature();
@@ -208,7 +290,8 @@ internal sealed class DBusConnection : IDisposable
                     throw new IOException($"The system bus sent a header field of type {type}, which FileCat does not read.");
             }
         }
-        return new Incoming(fixedPart[1], replySerial, errorName, signature, message, headerEnd, fds);
+        if (descriptorCount != (uint)fds.Count) throw new IOException("The D-Bus message's descriptor count did not match its payload.");
+        return new Incoming(fixedPart[1], replySerial, errorName, signature, sender, message, headerEnd, fds);
     }
 
     private void Fill(Span<byte> buffer, List<int> fds)
@@ -222,7 +305,13 @@ internal sealed class DBusConnection : IDisposable
         }
     }
 
-    public void Dispose() => _socket.Dispose();
+    public void Dispose()
+    {
+        // A blocking recvmsg owns a SafeHandle reference. Shutdown releases it even when another thread cancels.
+        try { _socket.Shutdown(SocketShutdown.Both); }
+        catch (Exception ex) when (ex is SocketException or ObjectDisposedException) { }
+        finally { _socket.Dispose(); }
+    }
 }
 
 /// <summary>Marshals values the D-Bus way: little-endian, each aligned to its size from the start of the message part.</summary>
@@ -246,6 +335,28 @@ internal sealed class DBusWriter
         Span<byte> b = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32LittleEndian(b, value);
         _bytes.AddRange(b.ToArray());
+    }
+
+    public void UInt16(ushort value)
+    {
+        Pad(2);
+        Span<byte> b = stackalloc byte[2];
+        BinaryPrimitives.WriteUInt16LittleEndian(b, value);
+        _bytes.AddRange(b.ToArray());
+    }
+
+    public void UInt64(ulong value)
+    {
+        Pad(8);
+        Span<byte> b = stackalloc byte[8];
+        BinaryPrimitives.WriteUInt64LittleEndian(b, value);
+        _bytes.AddRange(b.ToArray());
+    }
+
+    public void ByteArray(ReadOnlySpan<byte> value)
+    {
+        UInt32((uint)value.Length);
+        _bytes.AddRange(value.ToArray());
     }
 
     public void String(string value)
@@ -306,27 +417,57 @@ internal sealed class DBusWriter
 }
 
 /// <summary>Reads marshalled values from a message part, aligned from the start of the message.</summary>
-internal sealed class DBusReader(byte[] message, int start)
+internal sealed class DBusReader(byte[] message, int start, int? limit = null)
 {
+    private readonly int _end = limit ?? message.Length;
     public int Position { get; set; } = start;
+    public int Remaining => _end - Position;
 
     public void Pad(int align) => Position = (Position + align - 1) / align * align;
 
-    public byte Byte() => Position < message.Length ? message[Position++] : throw new IOException("A D-Bus message ended early.");
+    public byte Byte() => Position < _end ? message[Position++] : throw new IOException("A D-Bus message ended early.");
 
     public uint UInt32()
     {
         Pad(4);
-        if (Position + 4 > message.Length) throw new IOException("A D-Bus message ended early.");
+        if (Remaining < 4) throw new IOException("A D-Bus message ended early.");
         uint value = BinaryPrimitives.ReadUInt32LittleEndian(message.AsSpan(Position));
         Position += 4;
         return value;
     }
 
+    public ushort UInt16()
+    {
+        Pad(2);
+        if (Remaining < 2) throw new IOException("A D-Bus message ended early.");
+        ushort value = BinaryPrimitives.ReadUInt16LittleEndian(message.AsSpan(Position));
+        Position += 2;
+        return value;
+    }
+
+    public ulong UInt64()
+    {
+        Pad(8);
+        if (Remaining < 8) throw new IOException("A D-Bus message ended early.");
+        ulong value = BinaryPrimitives.ReadUInt64LittleEndian(message.AsSpan(Position));
+        Position += 8;
+        return value;
+    }
+
+    public ReadOnlySpan<byte> ByteArray(int maximum)
+    {
+        uint length = UInt32();
+        if (length > (uint)maximum || Remaining < 0 || length > (uint)Remaining)
+            throw new IOException("A D-Bus byte array was incomplete or exceeded its limit.");
+        var data = message.AsSpan(Position, (int)length);
+        Position += (int)length;
+        return data;
+    }
+
     public string String()
     {
         int length = (int)UInt32();
-        if (length < 0 || Position + length + 1 > message.Length) throw new IOException("A D-Bus message ended early.");
+        if (length < 0 || length >= Remaining || message[Position + length] != 0) throw new IOException("A D-Bus message ended early.");
         string value = Encoding.UTF8.GetString(message, Position, length);
         Position += length + 1;
         return value;
@@ -335,7 +476,7 @@ internal sealed class DBusReader(byte[] message, int start)
     public string Signature()
     {
         int length = Byte();
-        if (Position + length + 1 > message.Length) throw new IOException("A D-Bus message ended early.");
+        if (length >= Remaining || message[Position + length] != 0) throw new IOException("A D-Bus message ended early.");
         string value = Encoding.ASCII.GetString(message, Position, length);
         Position += length + 1;
         return value;

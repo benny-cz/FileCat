@@ -5,6 +5,7 @@ using FileCat.App.Services;
 using FileCat.Core.Jobs;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Listing;
+using FileCat.Core.Permissions;
 using FileCat.Core.Resources;
 using TaskbarProgressState = FileCat.Platform.Windows.TaskbarProgressState;
 
@@ -132,7 +133,7 @@ public sealed partial class JobViewModel : ObservableObject
     [ObservableProperty] private string _graphCaption = string.Empty;
     private readonly OperationSpeedHistory _speedHistorySamples = new();
     private bool MeasuresItems => Job.Kind is JobKind.Delete or JobKind.Recycle or JobKind.CreateDirectory or
-        JobKind.CreateFile or JobKind.Rename or JobKind.Attributes or JobKind.Registry or JobKind.CreateLink or JobKind.ApplyCommand or JobKind.Undo;
+        JobKind.CreateFile or JobKind.Rename or JobKind.Attributes or JobKind.Permissions or JobKind.Registry or JobKind.CreateLink or JobKind.ApplyCommand or JobKind.Undo;
 
     /// <summary>A large file gets a bar of its own; a small one is done before a bar would help.</summary>
     private const long OwnBarFrom = 16L << 20;
@@ -180,8 +181,9 @@ public sealed partial class JobViewModel : ObservableObject
         }
         ShowsOverallProgress = true;
 
+        bool propagation = j.PermissionReviewScope == PermissionScope.NativePropagation;
         long bt = j.BytesTotal, bd = j.BytesDone, it = j.ItemsTotal, id = j.ItemsDone + j.ItemsSkipped + j.ItemsFailed;
-        IsIndeterminate = IsActive && !j.TotalsFinal && bt == 0 && it == 0;
+        IsIndeterminate = IsActive && (propagation || !j.TotalsFinal && bt == 0 && it == 0);
         // The fraction tracks settled work, including skips, not physically copied bytes or a successful outcome.
         var estimate = _progress.Update(new ProgressSample(System.Diagnostics.Stopwatch.GetElapsedTime(_clockStart),
             j.WorkBytesDone, j.WorkBytesTotal, id, it, j.TotalsFinal, j.State == JobState.Running && !j.IsPaused));
@@ -234,7 +236,8 @@ public sealed partial class JobViewModel : ObservableObject
             if (bd > 0) parts.Add($"{Formatters.SizeWithUnit(bd)} planned bytes accounted for");
             if (j.Kind == JobKind.Undo || j.State != JobState.Completed || j.ItemsSkipped + j.ItemsFailed > 0) parts.Add(j.Summary);
         }
-        DetailText = Formatters.SafeName(string.Join(" · ", parts));
+        DetailText = propagation ? PermissionOperationReport.DescribePropagation(j.PermissionResults.FirstOrDefault()) :
+            Formatters.SafeName(string.Join(" · ", parts));
         // The worker can advance from a verification label to the next file while this view refreshes.
         // Use one snapshot for both the visible name and its phase, or a shorter next name can be
         // sliced using the previous name's verification suffix.
@@ -249,15 +252,17 @@ public sealed partial class JobViewModel : ObservableObject
     /// <summary>The richer view of a running operation (release issue I30).</summary>
     private void Describe(Job j, ProgressEstimate estimate, long bd, long bt, long id, long it, string currentItem)
     {
+        bool propagation = j.PermissionReviewScope == PermissionScope.NativePropagation;
         bool running = j.State == JobState.Running && !j.IsPaused;
         const string verifyingSuffix = " (verifying)";
         bool verifying = currentItem.EndsWith(verifyingSuffix, StringComparison.Ordinal);
-        PercentText = IsActive && !IsIndeterminate ? $"{Math.Floor(Percent):0}%"
+        PercentText = propagation ? string.Empty : IsActive && !IsIndeterminate ? $"{Math.Floor(Percent):0}%"
             : IsFinished && j.State == JobState.Completed ? "100%" : string.Empty;
         var archivePhase = j.Kind == JobKind.ArchiveUpdate ? j.ArchivePhase : null;
         bool deferred = j.CancellationDeferred && !j.State.IsFinished();
         CanCancel = !deferred;
-        CancelTooltip = deferred ? FinishingSafelyHelp : DefaultCancelTooltip(SyncGroup);
+        CancelTooltip = propagation ? "Stop before the Windows call starts. Once it starts, FileCat waits for it to return."
+            : deferred ? FinishingSafelyHelp : DefaultCancelTooltip(SyncGroup);
         if (archivePhase != _announcedPhase && j.State == JobState.Running)
         {
             _announcedPhase = archivePhase;
@@ -273,6 +278,7 @@ public sealed partial class JobViewModel : ObservableObject
             JobState.Running when j.IsPaused => "Pausing",
             JobState.Running when archivePhase is { } phase => ArchivePhaseText(phase),
             JobState.Running when verifying => "Verifying",
+            JobState.Running when propagation => "Applying Windows inheritance and verifying the selected root",
             JobState.Running when estimate.Note == ProgressNote.Finishing => "Finishing",
             JobState.Running when !j.TotalsFinal && bd == 0 && id == 0 => "Counting what to do",
             JobState.Running => j.Kind switch
@@ -306,7 +312,7 @@ public sealed partial class JobViewModel : ObservableObject
                 ? $"{name} · verifying, {Math.Floor(CurrentFilePercent):0}%"
                 : $"{name} · {Formatters.SizeWithUnit(copied)} of {Formatters.SizeWithUnit(big.Size)}";
         }
-        TimeLeftText = !IsActive ? string.Empty : estimate switch
+        TimeLeftText = !IsActive || propagation ? string.Empty : estimate switch
         {
             { Likely: { } likely, Pessimistic: { } pessimistic } => Formatters.TimeSpanRange(likely, pessimistic),
             { Note: ProgressNote.Measuring } => "estimating…",
@@ -319,7 +325,7 @@ public sealed partial class JobViewModel : ObservableObject
         ElapsedText = j.StartedUtc is not null ? Duration(elapsed) : string.Empty;
         TimingText = IsFinished ? (ElapsedText.Length > 0 ? "Took " + ElapsedText : string.Empty)
             : string.Join(" · ", new[] { TimeLeftText.Length > 0 ? "Time left: " + TimeLeftText : "", ElapsedText.Length > 0 ? "running for " + ElapsedText : "" }.Where(t => t.Length > 0));
-        ItemsText = it > 0 || id > 0
+        ItemsText = propagation ? PermissionOperationReport.PropagationScope : it > 0 || id > 0
             ? $"{id:N0} of {it:N0}{(j.TotalsFinal ? "" : "+")} items" + (j.ItemsSkipped > 0 ? $" · {j.ItemsSkipped:N0} skipped" : "") + (j.ItemsFailed > 0 ? $" · {j.ItemsFailed:N0} failed" : "")
             : (j.State is JobState.Canceled or JobState.Failed or JobState.Interrupted) && !j.TotalsFinal
                 ? "Remaining item scope was not fully counted" : string.Empty;
@@ -328,6 +334,11 @@ public sealed partial class JobViewModel : ObservableObject
               (j.DataBytesProcessed > 0 ? $" · {Formatters.SizeWithUnit(j.DataBytesProcessed)} data bytes copied or read" : "") +
               (j.VerifyBytesTotal > 0 ? $" · verified {Formatters.SizeWithUnit(j.VerifyBytesDone / 2)} of {Formatters.SizeWithUnit(j.VerifyBytesTotal / 2)}" : "")
             : string.Empty;
+        if (propagation)
+        {
+            SpeedText = string.Empty;
+            return;
+        }
         // The pace, once a second and over the last 90 seconds. Logical byte credit for a same-volume rename or a
         // skipped copy is excluded; only actual copied data, verification reads or completed items move this graph.
         var now = System.Diagnostics.Stopwatch.GetElapsedTime(_clockStart);
@@ -378,6 +389,7 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job, bool arc
         : $"{Formatters.SafeName(Job.Title)} (interrupted {Job.CreatedUtc.ToLocalTime():g})";
     public string Details => IsStorage ? "Result not confirmed. Review the recorded storage changes and uncertainty before acknowledging this history. Historical paths are evidence; this action does not replay changes or delete user files."
         : Job.IsReviewedAnalysisCopy ? "Inspect the recorded output paths to confirm what was published. A new copy requires a fresh analysis review."
+        : Job.IsPermissions ? "Review the recorded permission calls, then inspect the current values before preparing a new change."
         : Job.ArchiveTransactions.HasRecords ? ArchiveDetails
         : Job.HasLegacyZipRecovery ? InterruptedRecoveryReport.LegacyZipReviewWarning :
         $"{Job.SourceCount:N0} source items · " + (Job.OpenIntents.Count == 0
@@ -402,15 +414,15 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job, bool arc
         : Job.OpenIntents.Any(i => i.Operation == JobJournal.RenameViaOp) ? "Finish renaming…"
         : InterruptedRecoveryReport.HasUnreviewedRemoteUpload(Job) ? "Review local cleanup…"
         : "Clean up partial files";
-    public string ReportButtonText => IsStorage ? "Review storage changes" : "Review report";
+    public string ReportButtonText => IsStorage ? "Review storage changes" : Job.IsPermissions ? "Review permission changes" : "Review report";
     public string MarkReviewedButtonText => IsStorage ? "Acknowledge reviewed history…" : "Mark reviewed…";
     public string ReviewReportLabel => (IsStorage ? "Review storage changes for " : "Review retained recovery report for ") + Formatters.SafeName(Job.Title);
     public string MarkReviewedLabel => (IsStorage ? "Acknowledge reviewed storage history for " : "Mark interrupted recovery reviewed for ") + Formatters.SafeName(Job.Title);
     public string HideLabel => "Hide interrupted recovery notice for " + Formatters.SafeName(Job.Title);
-    public bool CanCleanup => !IsStorage && !Job.IsReviewedAnalysisCopy && !Job.HasLegacyZipRecovery &&
+    public bool CanCleanup => !IsStorage && !Job.IsReviewedAnalysisCopy && !Job.IsPermissions && !Job.HasLegacyZipRecovery &&
         (!Job.ArchiveTransactions.HasRecords || archiveCleanupAvailable);
     public bool CanReviewArchiveCleanup => Job.ArchiveTransactions.HasRecords && archiveCleanupAvailable;
-    public bool CanMarkReviewed => !IsStorage && !Job.ArchiveTransactions.RequiresReview;
+    public bool CanMarkReviewed => !IsStorage && !Job.IsPermissions && !Job.ArchiveTransactions.RequiresReview;
 
     /// <summary>Continuation requires complete, supported original meaning as well as known source paths.</summary>
     public bool CanRunAgain => !Job.ArchiveTransactions.HasRecords && Job.CanContinueTransfer;

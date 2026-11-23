@@ -121,7 +121,7 @@ public sealed partial class MainViewModel
         Services.Ui.Post(() =>
         {
             if (!isOpen() || tab.Location?.Session != set.Id) return;
-            tab.Banner = set.Provenance + (set.IsComplete ? " — complete" : " — stopped before completion") + (set.Issues.Count > 0 ? $"; {set.Issues.Count} location(s) could not be searched" : "");
+            tab.Banner = set.Provenance + (set.IsComplete ? " — complete" : " — incomplete") + (set.Issues.Count > 0 ? $"; {set.Issues.Count} location(s) could not be searched" : "");
             // A small search can finish before OpenResultSet subscribes to Changed. In that case its
             // first enumeration may have read an empty set and never receive another notification.
             tab.Refresh();
@@ -620,6 +620,8 @@ public sealed partial class MainViewModel
         var sel = tab?.Listing.GetSelection();
         if (tab is null || sel is null || sel.Count == 0) return;
         using var scope = new PreparationScope(tab, Services.Io, sel);
+        if (tab.Location is not { } location) return;
+        var origin = new PermissionSelection(tab, location, tab.NavigationGeneration, tab.Listing.Generation, tab.Listing.MarkRevision, []);
         AttributeMetadata metadata;
         try { metadata = await ReadAttributeMetadataAsync(sel, scope); }
         catch (OperationCanceledException) { return; }
@@ -630,7 +632,7 @@ public sealed partial class MainViewModel
         }
         if (!OperatingSystem.IsWindows())
         {
-            await ChangeUnixAttributesAsync(tab, sel, metadata, scope);
+            await ChangeUnixAttributesAsync(origin, sel, metadata, scope);
             return;
         }
         bool? State(FileAttributes a) => metadata.State(a);

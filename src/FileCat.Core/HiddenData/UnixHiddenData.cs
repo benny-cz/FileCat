@@ -16,7 +16,7 @@ public sealed partial class UnixHiddenData : IHiddenData, IHiddenValueOutput, IH
     private const int MaxValue = 16 << 20;
 
     public bool IsSupported => OperatingSystem.IsLinux() || OperatingSystem.IsMacOS();
-    bool IHiddenValueOutput.SupportsValueReports => OperatingSystem.IsLinux();
+    bool IHiddenValueOutput.SupportsValueReports => OperatingSystem.IsLinux() || OperatingSystem.IsMacOS();
 
     public IReadOnlyList<HiddenItem> List(string path)
     {
@@ -39,6 +39,7 @@ public sealed partial class UnixHiddenData : IHiddenData, IHiddenValueOutput, IH
     public byte[] Read(string path, HiddenItem item, int max)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(max);
+        if (OperatingSystem.IsMacOS()) return ReadMacDirectoryValue(path, item, max, null, null);
         return ReadBoundAttribute(path, item, max);
     }
 
@@ -49,12 +50,23 @@ public sealed partial class UnixHiddenData : IHiddenData, IHiddenValueOutput, IH
 
     void IHiddenValueOutput.RequireClearSource(string path)
     {
+        if (OperatingSystem.IsMacOS())
+        {
+            _ = MacMaterializationPolicy.Run(default, () =>
+            {
+                using var directory = OpenMacActionDirectory(path, default);
+                return new object();
+            }, (failure, reason) => throw new IOException(reason));
+            return;
+        }
         if (!OperatingSystem.IsLinux()) throw new NotSupportedException("A bound supplementary value adapter is unavailable on this system.");
         using var file = OpenInventoryFile(path, default);
     }
 
     Stream IHiddenValueOutput.OpenClearValue(string path, HiddenItem item, OutputEfsObservation observation, FileIdentity? reviewed)
     {
+        if (OperatingSystem.IsMacOS())
+            return new MemoryStream(ReadMacDirectoryValue(path, item, MaxValue, observation, reviewed), writable: false);
         using var file = OpenActionFile(path, item);
         if (reviewed is { } expected && UnixFiles.Stat(file)?.Identity != expected)
             throw new IOException("The supplementary value belongs to a different file. Refresh the inventory and try again.");
@@ -71,6 +83,11 @@ public sealed partial class UnixHiddenData : IHiddenData, IHiddenValueOutput, IH
 
     private static void DeleteCore(string path, HiddenItem item, FileIdentity? reviewed, CancellationToken ct)
     {
+        if (OperatingSystem.IsMacOS())
+        {
+            DeleteMacDirectoryValue(path, item, reviewed, ct);
+            return;
+        }
         using var file = OpenActionFile(path, item, ct);
         if (reviewed is { } expected && UnixFiles.Stat(file)?.Identity != expected)
             throw new IOException("The supplementary value belongs to a different file. Refresh the inventory and try again.");

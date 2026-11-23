@@ -133,7 +133,7 @@ internal sealed class StorageTransformExecutor(Job job, IStorageTransforms adapt
                     break;
                 }
                 var problem = entry.Problem ?? new(StorageReasonKind.Unknown, "child-unavailable", "A discovered child could not be admitted.", true);
-                _account.Outcome(frame.Owners, entry.Path, problem.Code == "sharing-skipped" ? StorageEffect.Skipped : StorageEffect.Failed, problem, false);
+                _account.Outcome(frame.Owners, entry.Path, problem.Code == StorageExecutionRetry.SharingSkipped ? StorageEffect.Skipped : StorageEffect.Failed, problem, false);
                 _account.Incomplete(frame.Owners, entry.IsDirectory != false); frame.Complete = false; Publish(); continue;
             }
             if (entry.Problem is not null || entry.Path != held.Path)
@@ -157,7 +157,7 @@ internal sealed class StorageTransformExecutor(Job job, IStorageTransforms adapt
                 return current;
             });
         }
-        catch (StorageInspectionException skipped) when (skipped.Problem.Code == "sharing-skipped") { return entry with { Problem = skipped.Problem, Retry = null }; }
+        catch (StorageInspectionException skipped) when (skipped.Problem.Code == StorageExecutionRetry.SharingSkipped) { return entry with { Problem = skipped.Problem, Retry = null }; }
     }
 
     private void Begin(Frame frame)

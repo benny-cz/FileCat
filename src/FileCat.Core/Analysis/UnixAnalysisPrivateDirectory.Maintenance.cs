@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using FileCat.Core.Jobs;
 
 namespace FileCat.Core.Analysis;
 
@@ -8,9 +9,13 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory
         => OpenMaintenanceCore(name, replacement: false);
     internal override AnalysisPrivateFile OpenReplacementFile(string name)
         => OpenMaintenanceCore(name, replacement: true);
-    private AnalysisPrivateFile OpenMaintenanceCore(string name, bool replacement)
+    internal override AnalysisPrivateFile OpenPermissionJournalMaintenance(string name)
+        => OpenMaintenanceCore(name, replacement: false, permissionsJournal: true);
+    private AnalysisPrivateFile OpenMaintenanceCore(string name, bool replacement, bool permissionsJournal = false)
     {
-        if (replacement) AnalysisPrivateNames.ReplacementData(name); else AnalysisPrivateNames.Maintenance(name);
+        if (permissionsJournal) PermissionJournalNames.Require(name);
+        else if (replacement) AnalysisPrivateNames.ReplacementData(name);
+        else AnalysisPrivateNames.Maintenance(name);
         Verify();
         var owned = OpenOwned(Root, name, FileFlags, 0);
         try

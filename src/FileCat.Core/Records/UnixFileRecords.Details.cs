@@ -75,8 +75,11 @@ public sealed unsafe partial class UnixFileRecords
                     Identity: { State: FactState.Known, Value: { } identity } } summary)
             {
                 bool x64 = RuntimeInformation.ProcessArchitecture == Architecture.X64;
-                bool extInodeFlags = x64 && ext;
-                bool btrfs = fullReport && x64 && format == "btrfs";
+                // The inode-flag, case-folding and Btrfs queries use the generic ioctl encodings and layouts, qualified with
+                // native fixtures on x64 and ARM64. fscrypt, file capabilities and ZFS are qualified on x64 only.
+                bool flagQueries = x64 || RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
+                bool extInodeFlags = flagQueries && ext;
+                bool btrfs = fullReport && flagQueries && format == "btrfs";
                 bool fileExtents = fullReport && summary.Kind == FileObjectKind.File;
                 if (fullReport && x64 && zfsMount is not null)
                     report = AddLinuxZfsDataset(report, fd, zfsMount, ct);
@@ -90,7 +93,8 @@ public sealed unsafe partial class UnixFileRecords
                         report = AddLinuxExtInodeFlags(report, flags, format!, fullReport);
                         if (fullReport && format == "ext4")
                         {
-                            report = AddLinuxFscrypt(report, file, state, reason, ct);
+                            if (x64)
+                                report = AddLinuxFscrypt(report, file, state, reason, ct);
                             if (summary.Kind == FileObjectKind.Directory)
                                 report = AddExt4DirectoryNamespace(report, flags);
                         }
@@ -199,8 +203,12 @@ public sealed unsafe partial class UnixFileRecords
         {
             Kind = kind,
             Identity = Field(0x100, LinuxIdentity(bytes), FactScope.Entry),
-            LogicalSize = rawSize <= long.MaxValue ? Field(0x200, (long)rawSize, FactScope.Entry) : ObservedFact<long>.Unavailable(FactState.Failed, FactScope.Entry, Source, "Size overflow."),
-            Allocated = blocks <= long.MaxValue / 512 ? Field(0x400, (long)blocks * 512, FactScope.Entry) : ObservedFact<long>.Unavailable(FactState.Failed, FactScope.Entry, Source, "Allocation overflow."),
+            LogicalSize = (mask & 0x200) == 0 ? Field(0x200, 0L, FactScope.Entry)
+                : rawSize <= long.MaxValue ? Field(0x200, (long)rawSize, FactScope.Entry)
+                : ObservedFact<long>.Unavailable(FactState.Failed, FactScope.Entry, Source, "Size overflow."),
+            Allocated = (mask & 0x400) == 0 ? Field(0x400, 0L, FactScope.Entry)
+                : blocks <= long.MaxValue / 512 ? Field(0x400, (long)blocks * 512, FactScope.Entry)
+                : ObservedFact<long>.Unavailable(FactState.Failed, FactScope.Entry, Source, "Allocation overflow."),
             LinkCount = Field(4, BinaryPrimitives.ReadUInt32LittleEndian(bytes[16..]), FactScope.Entry),
             NativeAttributes = ObservedFact<ulong>.Known(attrs & supported, FactScope.Entry, Source + " · supported mask only"),
             UnixMode = Field(2, mode & 0xFFF, FactScope.Entry),
@@ -342,7 +350,7 @@ public sealed unsafe partial class UnixFileRecords
         catch (Exception ex) when (ex is IOException or InvalidDataException) { return Unavailable(FactState.Failed, "The second link sample failed."); }
     }
 
-    private static bool HasMacIdentityTimestamps(ReadOnlySpan<byte> fields)
+    internal static bool HasMacIdentityTimestamps(ReadOnlySpan<byte> fields)
     {
         // Creation and change times occupy bytes 32–47 and 64–79 of the packed result.
         const uint timestamps = 0x200 | 0x800; // ATTR_CMN_CRTIME | ATTR_CMN_CHGTIME

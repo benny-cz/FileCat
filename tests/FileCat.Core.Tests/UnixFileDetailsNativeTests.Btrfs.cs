@@ -28,8 +28,8 @@ public sealed partial class UnixFileDetailsNativeTests
     [Fact]
     public void Linux_full_report_reads_Btrfs_policy_and_subvolume_from_the_held_object()
     {
-        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64,
-            "Requires Linux x64 Btrfs.");
+        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture is Architecture.X64 or Architecture.Arm64,
+            "Requires Linux x64 or ARM64 Btrfs.");
         string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_LINUX_BTRFS_ROOT");
         if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires a disposable Btrfs mount with a prepared nested subvolume.");
         string? nestedId = Environment.GetEnvironmentVariable("FILECAT_TEST_LINUX_BTRFS_SUBVOLUME_ID");
@@ -96,8 +96,8 @@ public sealed partial class UnixFileDetailsNativeTests
     [Fact]
     public void Linux_FIEMAP_reports_Btrfs_reflink_sharing_and_omits_the_encoded_physical_locations()
     {
-        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64,
-            "Requires Linux x64 Btrfs.");
+        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture is Architecture.X64 or Architecture.Arm64,
+            "Requires Linux x64 or ARM64 Btrfs.");
         string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_LINUX_BTRFS_EXTENTS_ROOT");
         if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires a prepared Btrfs extent fixture.");
 

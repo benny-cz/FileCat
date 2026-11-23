@@ -14,9 +14,12 @@ namespace FileCat.Platform.Windows;
 /// envelope. It never borrows the storage worker allowance, follows a reparse point, or operates on a historical user path.</summary>
 internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEvidence
 {
-    internal static bool IsSupportedHost => WindowsStorageTransforms.IsQualifiedHost && !WindowsTokenAuthority.IsHighIntegrity;
+    internal static bool IsSupportedHost => WindowsStorageTransforms.IsReleaseHost && !WindowsTokenAuthority.IsHighIntegrity;
     internal static readonly StorageEvidenceBackend Backend = CreateBackend(qualifyNativeArm64: false);
     internal static readonly StorageEvidenceBackend Arm64QualificationBackend = CreateBackend(qualifyNativeArm64: true);
+    /// <summary>The released backend for this process: the native Arm64 one on Windows on Arm, else the x64 one.</summary>
+    internal static StorageEvidenceBackend ReleaseBackend =>
+        WindowsStorageTransforms.IsNativeArm64QualificationHost ? Arm64QualificationBackend : Backend;
 
     private static StorageEvidenceBackend CreateBackend(bool qualifyNativeArm64) => new(
         (directory, leaf, ct) => Open(directory, leaf, ct, qualifyNativeArm64),
@@ -108,6 +111,10 @@ internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEviden
 
     internal static StorageJournalFile CreateArm64QualificationJournal(string directory, string leaf, CancellationToken ct) =>
         CreateJournal(directory, leaf, ct, qualifyNativeArm64: true);
+
+    /// <summary>The released journal factory for this process, paired with <see cref="ReleaseBackend"/>.</summary>
+    internal static StorageJournalFile CreateReleaseJournal(string directory, string leaf, CancellationToken ct) =>
+        CreateJournal(directory, leaf, ct, qualifyNativeArm64: WindowsStorageTransforms.IsNativeArm64QualificationHost);
 
     /// <summary>The worker creates its journal through its own scratch capacity, never waits for the evidence envelope.</summary>
     private static StorageJournalFile CreateJournal(string directory, string leaf, CancellationToken ct, bool qualifyNativeArm64)
@@ -328,7 +335,10 @@ internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEviden
     {
         ct.ThrowIfCancellationRequested(); WindowsArchiveNative.SourceDirectory(file);
         uint attributes = NtFile.GetBasic(file).FileAttributes;
-        if ((attributes & (0x1000u | 0x580000u | (uint)FileAttributes.Encrypted)) != 0 || WindowsStorageTransforms.SyncRootProblem(file, ct) is not null)
+        // Every evidence directory is reached by the held no-follow walk from its volume root (Walk), which refuses
+        // reparse-backed, cloud-attributed and encrypted components before descending.
+        if ((attributes & (0x1000u | 0x580000u | (uint)FileAttributes.Encrypted)) != 0 ||
+            WindowsStorageTransforms.SyncRootProblemAfterHeldWalk(file, WindowsStorageTransforms.ActualVolumeBinding(file, ct).Identity, ct) is not null)
             throw new IOException("Storage evidence cannot use an encrypted, cloud-managed or unavailable directory.");
     }
     private static void RequireNamespace(SafeFileHandle file, string owner, CancellationToken ct)
@@ -350,7 +360,8 @@ internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEviden
     {
         ct.ThrowIfCancellationRequested(); WindowsArchiveNative.Regular(file, long.MaxValue, artifact: true, mayRename: false);
         WindowsArchiveNative.RequirePrivateSecurity(file, owner);
-        if ((NtFile.GetBasic(file).FileAttributes & (0x1000u | 0x580000u | 0x40000u)) != 0 || WindowsStorageTransforms.SyncRootProblem(file, ct) is not null)
+        if ((NtFile.GetBasic(file).FileAttributes & (0x1000u | 0x580000u | 0x40000u)) != 0 ||
+            WindowsStorageTransforms.SyncRootProblemAfterHeldWalk(file, binding, ct) is not null)
             throw new IOException("Managed or unavailable storage evidence is not read or changed.");
         if (WindowsStorageTransforms.ActualVolumeBinding(file, false, ct) != binding) throw new IOException("Storage evidence crossed its held volume binding.");
         WindowsArchiveNative.RequireOnlyDataStream(file, RandomAccess.GetLength(file));

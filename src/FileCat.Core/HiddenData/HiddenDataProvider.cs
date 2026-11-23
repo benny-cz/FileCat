@@ -8,7 +8,7 @@ using FileCat.Core.Resources;
 namespace FileCat.Core.HiddenData;
 
 /// <summary>A stream or attribute in a hidden-data listing: what it is, and what it says.</summary>
-public sealed record HiddenEntryTag(HiddenItem Item, string Summary, IReadOnlyList<string> Details) : IDisplayDetails
+public sealed record HiddenEntryTag(HiddenItem Item, string Summary, IReadOnlyList<string> Details, FileIdentity? SourceIdentity = null) : IDisplayDetails
 {
     public string KindText => Item.KindText + (Item.Namespace is { } space ? $" ({space})" : "");
     public string DetailsText => Summary;
@@ -83,14 +83,15 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
             string summary = "Not read — F3 to view";
             if (item.NativeFlags != 0) summary += $" · native flags 0x{item.NativeFlags:X2}";
             if (HiddenMetadataRoles.DeleteRefusal(item) is { } reason) summary += " · " + reason;
-            sink.AddBatch([new EntryData(item.Name, EntryKind.File, item.Size) { Tag = new HiddenEntryTag(item, summary, []),
+            sink.AddBatch([new EntryData(item.Name, EntryKind.File, item.Size) { Tag = new HiddenEntryTag(item, summary, [], inventory.CanAct ? inventory.Identity : null),
                 Flags = inventory.CanAct ? EntryFlags.None : EntryFlags.Unavailable }]);
         }
         return Task.CompletedTask;
     }
 
     public override ItemRef GetItemRef(Location listing, in EntryData entry) => entry.Tag is HiddenEntryTag tag
-        ? new ItemRef(listing, entry.Name, entry.Kind, entry.Size, entry.Modified) { Ordinal = HiddenIdentities.Ordinal(tag.Item.Kind), Flags = entry.Flags }
+        ? new ItemRef(listing, entry.Name, entry.Kind, entry.Size, entry.Modified)
+            { Ordinal = HiddenIdentities.Ordinal(tag.Item.Kind), Flags = entry.Flags, SupplementarySourceIdentity = tag.SourceIdentity }
         : throw new InvalidOperationException("Supplementary row category is unavailable; refresh required.");
 
     public override Location? GetChildLocation(Location parent, in EntryData entry) => null;
@@ -112,7 +113,15 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
     }
 
     public override IContentSource? OpenContent(ItemRef item)
-        => new HiddenContentSource(hidden, FileOf(item.Parent), RequestedValue(item));
+    {
+        string file = FileOf(item.Parent);
+        var value = RequestedValue(item);
+        if (hidden is UnixHiddenData)
+            return OpenBoundOutput(file, value, new OutputEfsObservation(), ReviewedSourceIdentity(item));
+        if (hidden is IHiddenValueRead reviewed)
+            return new HiddenContentSource(reviewed.OpenReviewedValue(file, value, ReviewedSourceIdentity(item)), file, value, null);
+        return new HiddenContentSource(hidden, file, value);
+    }
 
     void IUnprotectedContentOutput.RequireClearOutputSource(Location location, ContentOutputKind kind)
     {
@@ -128,9 +137,11 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
     private IContentSource? OpenForOutput(ItemRef item, out OutputEfsObservation? provenance)
     {
         provenance = new OutputEfsObservation();
-        if (!OperatingSystem.IsWindows()) return OpenContent(item);
-        return OpenBoundOutput(FileOf(item.Parent), RequestedValue(item), provenance, reviewed: null);
+        return OpenBoundOutput(FileOf(item.Parent), RequestedValue(item), provenance, ReviewedSourceIdentity(item));
     }
+
+    private static FileIdentity ReviewedSourceIdentity(ItemRef item) => item.SupplementarySourceIdentity
+        ?? throw new NotSupportedException("The supplementary source identity is unavailable; refresh the inventory and try again.");
 
     private HiddenContentSource OpenBoundOutput(string file, HiddenItem value, OutputEfsObservation provenance, FileIdentity? reviewed) =>
         new(OutputAdapter().OpenClearValue(file, value, provenance, reviewed), file, value, provenance);
@@ -207,6 +218,12 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
 internal interface IHiddenValueDeletion
 {
     void DeleteReviewedValue(string path, HiddenItem item, FileIdentity reviewed, CancellationToken ct);
+}
+
+/// <summary>Viewer read from the listed native object; Windows EFS values remain viewable in memory.</summary>
+internal interface IHiddenValueRead
+{
+    Stream OpenReviewedValue(string path, HiddenItem item, FileIdentity reviewed);
 }
 
 internal interface IHiddenValueOutput

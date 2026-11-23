@@ -42,7 +42,7 @@ public sealed partial class FindWindow : Window, IViewActions
     [
         CommandIds.View, CommandIds.ViewAlternate, CommandIds.Edit, CommandIds.HexEdit, CommandIds.Copy, CommandIds.Move,
         CommandIds.Delete, CommandIds.DeletePermanent, CommandIds.Properties, CommandIds.UserMenu, CommandIds.OpenWithSystem,
-        CommandIds.FileRecord, CommandIds.HiddenData, CommandIds.StorageAttributes,
+        CommandIds.FileRecord, CommandIds.HiddenData, CommandIds.StorageAttributes, CommandIds.PermissionsOwnership,
         CommandIds.Reveal, CommandIds.CopyNames, CommandIds.CopyPaths, CommandIds.CopyUncPaths, CommandIds.CopyToClipboard,
         CommandIds.CutToClipboard, CommandIds.MarkToggleDown, CommandIds.MarkAll, CommandIds.MarkNone, CommandIds.MarkInvert,
         CommandIds.MarkInvertAll, CommandIds.MarkSelectMask, CommandIds.MarkUnselectMask, CommandIds.MarkSameExt,
@@ -540,7 +540,7 @@ public sealed partial class FindWindow : Window, IViewActions
         CommandItem(CommandIds.View), CommandItem(CommandIds.ViewAlternate), CommandItem(CommandIds.Edit), new Separator(),
         CommandItem(CommandIds.Copy), CommandItem(CommandIds.Move), CommandItem(CommandIds.Delete), CommandItem(CommandIds.DeletePermanent),
         new Separator(),
-        CommandItem(CommandIds.Properties), CommandItem(CommandIds.FileRecord), CommandItem(CommandIds.HiddenData),
+        CommandItem(CommandIds.Properties), CommandItem(CommandIds.PermissionsOwnership), CommandItem(CommandIds.FileRecord), CommandItem(CommandIds.HiddenData),
         CommandItem(CommandIds.UserMenu), CommandItem(CommandIds.Checksum), CommandItem(CommandIds.StorageAttributes), CommandItem(CommandIds.Pack),
         new Separator(),
         CommandItem(CommandIds.CopyNames), CommandItem(CommandIds.CopyPaths), CommandItem(CommandIds.CopyToClipboard),
@@ -1099,7 +1099,8 @@ public sealed partial class FindWindow : Window, IViewActions
         var log = s.Log;
         bool complete = _refineScratch?.IsComplete ?? _set.IsComplete;
         var feedback = FindFeedback.Create(s.Finished, complete, _set.Count, s.FoldersVisited, s.FilesExamined,
-            s.Matches, s.CurrentFolder, log, s.RegexTimedOut, _searchScope, s.NativePredicateUnexamined + s.ExtraDataUnexamined);
+            s.Matches, s.CurrentFolder, log, s.RegexTimedOut, _searchScope, s.NativePredicateUnexamined + s.ExtraDataUnexamined,
+            stoppedEarly: s.StoppedEarly);
         // Announce the outcome once. The rapidly changing folder and counters stay out of the live region.
         AutomationProperties.SetLiveSetting(_status, s.Finished ? AutomationLiveSetting.Polite : AutomationLiveSetting.Off);
         AutomationProperties.SetLiveSetting(_qualifications, s.Finished ? AutomationLiveSetting.Polite : AutomationLiveSetting.Off);

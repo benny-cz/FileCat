@@ -19,12 +19,12 @@ public sealed class FindCriteriaTests : IDisposable
         return path;
     }
 
-    private (List<string> Found, SearchSession Session) Run(SearchQuery query)
+    private (List<string> Found, SearchSession Session) Run(SearchQuery query, bool expectedComplete = true)
     {
         var set = new ResultSet("t", "t", "t");
         var session = new SearchSession(query, set);
         session.Run(TestContext.Current.CancellationToken);
-        Assert.True(set.IsComplete);
+        Assert.Equal(expectedComplete, set.IsComplete);
         return ([.. set.Snapshot().Select(i => Path.GetRelativePath(_dir.Path, i.Item.FileSystemPath!).Replace('\\', '/')).Order()], session);
     }
 
@@ -92,7 +92,7 @@ public sealed class FindCriteriaTests : IDisposable
         Write("runaway.txt", new string('a', 40) + "c");
         Write("quick.txt", "xx ab yy");
         var clock = System.Diagnostics.Stopwatch.StartNew();
-        var (found, session) = Run(new SearchQuery { Roots = [_dir.Path], Text = "(a+)+b", Regex = true, IncludeDirectories = false });
+        var (found, session) = Run(new SearchQuery { Roots = [_dir.Path], Text = "(a+)+b", Regex = true, IncludeDirectories = false }, expectedComplete: false);
         Assert.Equal(["quick.txt"], found);
         Assert.True(session.RegexTimedOut);
         Assert.True(clock.Elapsed < TimeSpan.FromSeconds(30), $"took {clock.Elapsed}");
@@ -100,7 +100,7 @@ public sealed class FindCriteriaTests : IDisposable
         Write(new string('a', 40) + "c.txt", "x");
         Assert.True(Selection.Mask.TryParse("/(a+)+b/", out var mask, out _));
         clock.Restart();
-        var (named, nameSession) = Run(new SearchQuery { Roots = [_dir.Path], Names = mask, IncludeDirectories = false });
+        var (named, nameSession) = Run(new SearchQuery { Roots = [_dir.Path], Names = mask, IncludeDirectories = false }, expectedComplete: false);
         Assert.Empty(named);
         Assert.True(nameSession.RegexTimedOut);
         Assert.True(clock.Elapsed < TimeSpan.FromSeconds(30), $"took {clock.Elapsed}");

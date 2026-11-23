@@ -60,6 +60,8 @@ cp -a "$PUB/." "$APP/Contents/MacOS/"
 # executable or launcher anyone but its owner can change. Folders and executables 755, other files 644 (before signing).
 chmod -R u=rwX,go=rX "$APP"
 cp "$ROOT/LICENSE" "$ROOT/THIRD-PARTY-NOTICES.md" "$APP/Contents/Resources/"
+mkdir -p "$APP/Contents/Resources/licenses/sshnet"
+cp "$ROOT/licenses/sshnet/LICENSE" "$ROOT/licenses/sshnet/LICENSE-bcrypt" "$APP/Contents/Resources/licenses/sshnet/"
 dotnet run --project "$ROOT/eng/DependencyNotices" -c Release -- \
   "$ROOT/licenses/dependencies" "$ROOT/src/FileCat.App/packages.lock.json" "$PUB" "$APP/Contents/Resources/licenses/dependencies"
 # FileCat.Archives.Rar15.dll is LGPL-2.1-or-later (ported XADMaster code): its full license text ships with it.

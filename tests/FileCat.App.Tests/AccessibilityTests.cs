@@ -11,6 +11,7 @@ using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
+using FileCat.Core.Permissions;
 using FileCat.Core.Platform;
 using FileCat.Core.State;
 using Location = FileCat.Core.Resources.Location;
@@ -50,7 +51,8 @@ public sealed class AccessibilityTests
         FileCat.Core.Archives.ArchiveJobBackends? archiveBackends = null,
         Func<AppPaths,FileCat.Core.FileSystem.IFileSystemOperations,FileCat.Core.Edit.EditSessionStore>? editSessionFactory = null,
         bool realTemporaryPath = false, FileCat.Core.FileSystem.IStorageTransforms? storageTransforms = null,
-        Action<string>? prepareFiles = null, bool qualifyNativeArm64Storage = false)
+        Action<string>? prepareFiles = null, bool qualifyNativeArm64Storage = false, Core.Permissions.IPermissionService? permissionService = null,
+        string? linuxPermissionBrokerSocket = null)
     {
         // macOS reaches its temporary folder through /var, a link; native edit storage holds its folder without following
         // links, so tests of that store ask for the real path (/private/var), as a real home folder is.
@@ -69,8 +71,11 @@ public sealed class AccessibilityTests
         {
             if (nativeWindowsOriginMarks && OperatingSystem.IsWindows())
                 PlatformFactory.WindowsFactory = () => new WindowsMarkPlatform();
-            var paths = statePaths ?? AppPaths.Resolve(overrideRoot: root);
-            services = storageTransforms is not null ? AppServices.CreateForPathsWithStorageTransforms(paths, storageTransforms, qualifyNativeArm64Storage)
+            string dataRoot = permissionService is DarwinPermissionService ? DarwinPermissionDataRoot(root) ?? root : root;
+            var paths = statePaths ?? AppPaths.Resolve(overrideRoot: dataRoot);
+            services = linuxPermissionBrokerSocket is not null ? AppServices.CreateForPathsWithLinuxPermissionBroker(paths, linuxPermissionBrokerSocket)
+                : permissionService is not null ? AppServices.CreateForPathsWithPermissions(paths, permissionService)
+                : storageTransforms is not null ? AppServices.CreateForPathsWithStorageTransforms(paths, storageTransforms, qualifyNativeArm64Storage)
                 : editSessionFactory is not null ? AppServices.CreateForPathsWithEditSessions(paths,editSessionFactory,sftp,archiveBackends)
                 : archiveBackends is null ? AppServices.CreateForPaths(paths, sftp)
                 : AppServices.CreateForPathsWithArchiveBackends(paths, archiveBackends, sftp);
@@ -98,7 +103,19 @@ public sealed class AccessibilityTests
         if (window.DataContext is MainViewModel vm)
             foreach (var tab in vm.Workspace.Panels.SelectMany(p => p.Tabs).ToList()) tab.Dispose();
         services.Dispose();
-        try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        // Best-effort cleanup of the test's own temporary tree. At normal integrity a recursive delete that meets a junction
+        // can fail with UnauthorizedAccessException rather than IOException; neither may fail the test it cleans up after.
+        try { Directory.Delete(root, recursive: true); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        if (DarwinPermissionDataRoot(root) is { } dataRoot && services.Paths.DataRoot == dataRoot && dataRoot != root)
+            try { Directory.Delete(dataRoot, recursive: true); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+    }
+
+    private static string? DarwinPermissionDataRoot(string root)
+    {
+        // The test files can be on HFS+ while the app must keep its permission history on APFS.
+        string? journal = Environment.GetEnvironmentVariable("FILECAT_TEST_DARWIN_JOURNAL_ROOT");
+        return OperatingSystem.IsMacOS() && journal is not null && Path.IsPathFullyQualified(journal)
+            ? Path.GetFullPath(Path.Combine(journal, "filecat-app-tests", Path.GetFileName(root))) : null;
     }
 
     [AvaloniaFact]

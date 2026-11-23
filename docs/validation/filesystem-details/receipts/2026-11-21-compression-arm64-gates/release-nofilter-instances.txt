@@ -1,0 +1,10 @@
+Instances for D: volume:
+
+Filter                  Altitude        Instance Name       Frame   SprtFtrs  VlStatus
+--------------------  ------------  ----------------------  -----   --------  --------
+FsDepends                407000     FsDepends                 0     0000000f  
+UCPD                     385250.5   UCPD - Top Instance       0     0000000f  
+WdFilter                 328010     WdFilter Instance         0     0000000f  
+bfs                      150000     bfs                       0     0000000f  
+Wof                       40700     Wof Instance              0     0000000f  
+FileInfo                  40500     FileInfo                  0     0000000f  

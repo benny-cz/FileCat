@@ -213,13 +213,16 @@ public static class ThemeManager
     public static string Description(string name) =>
         name == "System" ? "Follows the system: light or dark, and high contrast." : ThemePalette.Find(name)?.Description ?? "";
 
+    /// <summary>Where the operating system's colors are read (tests stand in for the operating system).</summary>
+    internal static Func<IPlatformSettings?> Platform { get; set; } = () => Application.Current?.PlatformSettings;
+
     /// <summary>Applies a theme by name; "System" follows the OS light/dark and high-contrast settings.</summary>
     public static void Apply(string name)
     {
         var app = Application.Current;
         if (app is null) return;
         RequestedName = name;
-        var palette = Resolve(name, app.PlatformSettings);
+        var palette = Resolve(name, Platform());
         // Windows can repeat color notifications when a popup opens. Rebuilding unchanged resources/chrome
         // detaches the menu that just opened; keep it, while still remembering "System" versus an explicit theme.
         if (_current is not null && palette == Current && app.Resources.MergedDictionaries.Contains(_current)) return;
@@ -232,7 +235,13 @@ public static class ThemeManager
         ThemeChanged?.Invoke();
     }
 
-    /// <summary>The theme <paramref name="step"/> places on in the list (1: next, -1: previous), round the end.</summary>
+    /// <summary>
+    /// The operating system's colors changed (dark mode, high contrast, accent): the requested theme is applied again. System
+    /// follows light, dark and high contrast; any other theme gives way to high contrast while it is on, as it does at
+    /// startup (plan §18.2), open dialogs included. A theme being previewed (the theme picker, Settings) stays previewed.
+    /// </summary>
+    public static void PlatformColorsChanged() => Apply(RequestedName);
+
     /// <summary>WCAG's contrast ratio between two solid colors, from 1 to 21.</summary>
     internal static double Contrast(Color a, Color b)
     {
@@ -254,6 +263,7 @@ public static class ThemeManager
         return Color.FromRgb(Mix(over.R, under.R), Mix(over.G, under.G), Mix(over.B, under.B));
     }
 
+    /// <summary>The theme <paramref name="step"/> places on in the list (1: next, -1: previous), round the end.</summary>
     public static string CycleThemeName(string current, int step)
     {
         int i = Names.ToList().FindIndex(n => n.Equals(current, StringComparison.OrdinalIgnoreCase));
@@ -346,6 +356,16 @@ public static class ThemeManager
             }
             return OnColor(surface.ToString());
         }
+        // Error, warning and success text: on a dialog's card, its header (review boxes and lists use it too) and footer, on a
+        // panel, a tooltip and the window. Steampunk's and DOS Commander's reds read at about 4.2:1 on their cards, so text
+        // takes the palette's own hue just light (or dark) enough for 4.5:1 everywhere; fills and edges keep FcError.
+        var window = Color.Parse(p.Window);
+        var card = Opaque(Color.Parse(p.Card), window);
+        Color[] textSurfaces = [window, card, Opaque(Color.Parse(p.Header), card), Opaque(Color.Parse(p.StatusBackground), card),
+            Opaque(Color.Parse(p.StatusBackground), window), panel, tip];
+        Add("ErrorText", Legible(p.Error, textSurfaces).ToString());
+        Add("WarningText", Legible(p.Warning, textSurfaces).ToString());
+        Add("SuccessText", Legible(p.Success, textSurfaces).ToString());
         // A tooltip's key in the accent color where that reads as text does (WCAG's 4.5:1), else in the text color.
         var key = Opaque(Color.Parse(p.ActiveAccent), tip);
         d["FcTipKey"] = new SolidColorBrush(Contrast(key, tip) >= 4.5 ? key : Color.Parse(p.Text));
@@ -416,9 +436,61 @@ public static class ThemeManager
         }
         d["TextControlBorderBrushFocused"] = selection;
         d["SystemControlRevealFocusVisualBrush"] = selection;
+        // The rest of what Fluent draws in the system accent and FileCat's dialogs show: links, a pressed-in toggle (a
+        // review's "Hide details"), selected text, and a combo box's keyboard focus, list and chosen item. A chosen item
+        // looks like a list's chosen row (High Contrast: yellow text and edge on black); the list floats like a tooltip.
+        var link = new SolidColorBrush(Color.Parse(p.TextLink));
+        foreach (var state in new[] { "", "PointerOver", "Pressed", "Visited", "VisitedPointerOver", "VisitedPressed" })
+            d["HyperlinkButtonForeground" + state] = link;
+        foreach (var state in new[] { "Checked", "CheckedPointerOver", "CheckedPressed" })
+        {
+            d["ToggleButtonBackground" + state] = selection;
+            d["ToggleButtonBorderBrush" + state] = selection;
+            d["ToggleButtonForeground" + state] = onSelection;
+        }
+        d["TextControlSelectionHighlightColor"] = selection;
+        var focusFill = new SolidColorBrush(Color.Parse(p.FocusBackground));
+        var focusText = new SolidColorBrush(Color.Parse(p.FocusText));
+        var focusEdge = new SolidColorBrush(Color.Parse(p.FocusBorder));
+        d["ComboBoxBackgroundUnfocused"] = focusFill;
+        d["ComboBoxBackgroundBorderBrushUnfocused"] = focusEdge;
+        d["ComboBoxBackgroundBorderBrushFocused"] = focusEdge;
+        foreach (var focused in new[] { "ComboBoxForegroundFocused", "ComboBoxForegroundFocusedPressed", "ComboBoxDropDownGlyphForegroundFocused",
+                     "ComboBoxDropDownGlyphForegroundFocusedPressed", "ComboBoxPlaceHolderForegroundFocusedPressed" })
+            d[focused] = focusText;
+        d["ComboBoxDropDownBackground"] = new SolidColorBrush(tip);
+        d["ComboBoxDropDownBorderBrush"] = new SolidColorBrush(Color.Parse(p.Border));
+        foreach (var state in new[] { "Selected", "SelectedPointerOver", "SelectedPressed" })
+        {
+            d["ComboBoxItemBackground" + state] = focusFill;
+            d["ComboBoxItemForeground" + state] = focusText;
+            d["ComboBoxItemBorderBrush" + state] = focusEdge;
+        }
         d["FcThemeName"] = p.Name;
         d["FcFontFamily"] = p.FontFamily is { } font ? new FontFamily(font) : FontFamily.Default;
         return d;
+    }
+
+    /// <summary>
+    /// <paramref name="hex"/> as text on every one of <paramref name="surfaces"/>: unchanged where it reads at WCAG's 4.5:1,
+    /// else blended toward white (on dark surfaces) or black (on light ones) by the smallest step that reads everywhere, so
+    /// the palette's hue stays recognizable.
+    /// </summary>
+    internal static Color Legible(string hex, IReadOnlyList<Color> surfaces)
+    {
+        var color = Color.Parse(hex);
+        bool Reads(Color ink) => surfaces.All(surface => Contrast(Opaque(ink, surface), surface) >= 4.5);
+        if (Reads(color)) return color;
+        var toward = surfaces.Min(surface => Contrast(Colors.White, surface)) >= surfaces.Min(surface => Contrast(Colors.Black, surface))
+            ? Colors.White : Colors.Black;
+        for (int step = 1; step <= 40; step++)
+        {
+            double f = step / 40.0;
+            byte Mix(byte from, byte to) => (byte)Math.Round(from + (to - from) * f);
+            var mixed = Color.FromArgb(255, Mix(color.R, toward.R), Mix(color.G, toward.G), Mix(color.B, toward.B));
+            if (Reads(mixed)) return mixed;
+        }
+        return toward;
     }
 
     /// <summary>White or black text on a color, by WCAG contrast; white unless black is clearly better.</summary>
