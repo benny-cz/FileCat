@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "mode": "report_only",
+  "automatic_cleanup": false,
+  "repository_root": "E:\\FileCat",
+  "report_parent": "E:\\FileCat\\.tmp\\evidence-retention-reports",
+  "roots": [
+    {"id": "artifacts", "path": "V:\\FileCat\\artifacts", "role": "evidence"},
+    {"id": "workspace_tmp", "path": "E:\\FileCat\\.tmp", "role": "staging"},
+    {"id": "independent_backup", "path": "E:\\FileCatEvidenceBackup", "role": "backup"}
+  ],
+  "aliases": [
+    {"path": "E:\\FileCat\\artifacts", "target": "V:\\FileCat\\artifacts"}
+  ],
+  "excluded_directory_names": [".git"],
+  "reference_directories": ["docs/release", "docs/validation", "docs/security"],
+  "duplicate_minimum_bytes": 2097152,
+  "primary_archive_root": "V:\\FileCat\\artifacts\\retained-archives",
+  "retention_days": {
+    "staging": 2,
+    "routine_success": 90,
+    "closed_failure": 180
+  },
+  "proposed_limits_only": {
+    "expanded_staging_bytes": 25000000000,
+    "restore_scratch_bytes": 2000000000,
+    "expanded_evidence_bytes": 50000000000,
+    "primary_archive_library_bytes": 50000000000,
+    "independent_backup_bytes": 50000000000,
+    "archive_review_at_bytes": 40000000000
+  },
+  "volume_limits": {
+    "V:": {"warning_bytes": 300000000000, "floor_bytes": 200000000000},
+    "E:": {"warning_bytes": 100000000000, "floor_bytes": 50000000000}
+  },
+  "expected_keepers": 37,
+  "keeper_package_id": "primary",
+  "archive_packages": [
+    {
+      "id": "primary",
+      "root": "V:\\FileCat\\artifacts\\retained-archives\\vendor-duplicates-20261116-v1",
+      "manifest_sha256": "c1db274dff49215b0ed10a95dfcb536f01b27c6a14e5c9c3e00ace2e1d1994d6",
+      "sealed_content_files": 1019
+    },
+    {
+      "id": "independent_backup",
+      "root": "E:\\FileCatEvidenceBackup\\vendor-duplicates-20261116-v1",
+      "manifest_sha256": "c1db274dff49215b0ed10a95dfcb536f01b27c6a14e5c9c3e00ace2e1d1994d6",
+      "sealed_content_files": 1019
+    }
+  ],
+  "retirement_packet": {
+    "root": "V:\\FileCat\\artifacts\\retained-archives\\vendor-duplicates-20261116-v1-retirement-20261116T200455Z",
+    "manifest_sha256": "5dd5b2d5ac74b0291347ff603d9f5103cec274d317021c28ea7a1d8cc502c886"
+  },
+  "protected_prefixes": [
+    "E:\\FileCat\\.tmp\\evidence-retention-tool-tests",
+    "E:\\FileCat\\.tmp\\cleanup-dry-run-20261116T170307Z",
+    "E:\\FileCat\\.tmp\\staging-cleanup-execution-20261116T174343Z",
+    "E:\\FileCat\\.tmp\\artifact-consolidation-plan-20261116T180531Z",
+    "E:\\FileCat\\.tmp\\artifact-consolidation-pilot-20261116",
+    "E:\\FileCat\\.tmp\\artifact-archive-execution-20261116T185530Z",
+    "E:\\FileCat\\.tmp\\artifact-retirement-20261116T200455Z",
+    "V:\\FileCat\\artifacts\\retained-archives\\vendor-duplicates-20261116-v1",
+    "E:\\FileCatEvidenceBackup\\vendor-duplicates-20261116-v1",
+    "V:\\FileCat\\artifacts\\retained-archives\\vendor-duplicates-20261116-v1-retirement-20261116T200455Z"
+  ]
+}
