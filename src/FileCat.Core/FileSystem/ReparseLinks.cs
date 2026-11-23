@@ -43,10 +43,16 @@ public static partial class ReparseLinks
     private static bool TryReadAttributeTag(string full, out AttributeTag info)
     {
         info = default;
-        string native = full.Length >= 248 && !full.StartsWith(@"\\", StringComparison.Ordinal) ? @"\\?\" + full : full;
-        using var handle = CreateFile(native, ReadAttributes, FileShare.ReadWrite | FileShare.Delete, 0, OpenExisting,
-            BackupSemantics | OpenReparsePoint, 0);
+        using var handle = OpenItself(full);
         return !handle.IsInvalid && GetFileInformationByHandleEx(handle, AttributeTagInfo, out info, 8);
+    }
+
+    /// <summary>The item itself, never what it leads to, through a handle that may read attributes only.</summary>
+    private static SafeFileHandle OpenItself(string full)
+    {
+        string native = full.Length >= 248 && !full.StartsWith(@"\\", StringComparison.Ordinal) ? @"\\?\" + full : full;
+        return CreateFile(native, ReadAttributes, FileShare.ReadWrite | FileShare.Delete, 0, OpenExisting,
+            BackupSemantics | OpenReparsePoint, 0);
     }
 
     /// <summary>
@@ -57,10 +63,7 @@ public static partial class ReparseLinks
     public static ReparsePayload? ReadPayload(string path)
     {
         if (!OperatingSystem.IsWindows()) return null;
-        string full = Path.GetFullPath(path);
-        string native = full.Length >= 248 && !full.StartsWith(@"\\", StringComparison.Ordinal) ? @"\\?\" + full : full;
-        using var handle = CreateFile(native, ReadAttributes, FileShare.ReadWrite | FileShare.Delete, 0, OpenExisting,
-            BackupSemantics | OpenReparsePoint, 0);
+        using var handle = OpenItself(Path.GetFullPath(path));
         if (handle.IsInvalid) return null;
         byte[] buffer = new byte[16 * 1024];
         if (!DeviceIoControl(handle, GetReparsePoint, 0, 0, buffer, buffer.Length, out int returned, 0) || returned < 8) return null;
