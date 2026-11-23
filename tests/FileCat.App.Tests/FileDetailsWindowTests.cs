@@ -440,7 +440,7 @@ public sealed class FileDetailsWindowTests
         public void Delete(string path, Core.HiddenData.HiddenItem item) => throw new InvalidOperationException("No deletion in this fixture.");
     }
 
-    private sealed class AdapterPlatform : Core.Platform.PortablePlatform
+    internal sealed class AdapterPlatform : Core.Platform.PortablePlatform
     {
         public AdapterPlatform(IFileRecords records, Core.HiddenData.IHiddenData? hidden)
         {

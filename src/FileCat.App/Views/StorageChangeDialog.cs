@@ -46,8 +46,10 @@ internal sealed class StorageChangeDialog : IDisposable
     private readonly CancellationToken _initial;
     private readonly Action? _onReady;
 
+    /// <param name="detailsItem">The review is for the one item a File-system details report was opened for (I-DETAILS-C),
+    /// not a panel's selection: it says so, and speaks of this item and this folder rather than selected items and marks.</param>
     internal StorageChangeDialog(StorageSelectionReview review, DeviceIoScheduler io, string device,
-        IReadOnlyList<bool> hidden, CancellationToken initial = default, Action? onReady = null, bool efs = false)
+        IReadOnlyList<bool> hidden, CancellationToken initial = default, Action? onReady = null, bool efs = false, bool detailsItem = false)
     {
         if (hidden.Count != review.Targets.Length) throw new ArgumentException("Hidden-mark facts must match the immutable capture.", nameof(hidden));
         _review = review; _io = io; _device = device; _hidden = hidden.ToImmutableArray(); _initial = initial; _onReady = onReady;
@@ -59,12 +61,14 @@ internal sealed class StorageChangeDialog : IDisposable
         _firstAction = ActionOption(efs ? StorageAction.EncryptEfs : StorageAction.Compress, actionGroup);
         _secondAction = ActionOption(efs ? StorageAction.DecryptEfs : StorageAction.RemoveCompression, actionGroup);
         string group = "storage-scope-" + Guid.NewGuid().ToString("N");
-        _selectedOnly = new RadioButton { Content = Text("Selected items only"), GroupName = group, IsChecked = true };
-        _contents = new RadioButton { Content = Text("Selected folders and their existing contents"), GroupName = group };
+        string selectedOnly = detailsItem ? "This folder only" : "Selected items only";
+        string withContents = detailsItem ? "This folder and its existing contents" : "Selected folders and their existing contents";
+        _selectedOnly = new RadioButton { Content = Text(selectedOnly), GroupName = group, IsChecked = true };
+        _contents = new RadioButton { Content = Text(withContents), GroupName = group };
         _selectedOnly.IsCheckedChanged += (_, _) => { if (_selectedOnly.IsChecked == true) { _scope = StorageScope.SelectedItems; Request(); } };
         _contents.IsCheckedChanged += (_, _) => { if (_contents.IsChecked == true) { _scope = StorageScope.ExistingDescendants; Request(); } };
-        AutomationProperties.SetName(_selectedOnly, "Selected items only");
-        AutomationProperties.SetName(_contents, "Selected folders and their existing contents");
+        AutomationProperties.SetName(_selectedOnly, selectedOnly);
+        AutomationProperties.SetName(_contents, withContents);
         _retry = new Button { Content = "Retry inspection" };
         _retry.Click += (_, _) => Request(retry: true);
         _showBlocker.Click += (_, _) =>
@@ -78,14 +82,16 @@ internal sealed class StorageChangeDialog : IDisposable
         AutomationProperties.SetName(_search, "Search selected items by name or original location");
         AutomationProperties.SetName(_items, "Selected items and original locations, select text to copy");
         _search.TextChanged += (_, _) => RenderItems(_review.State);
-        _disclosure = new Expander { Header = $"Selected items ({review.Targets.Length})", HorizontalAlignment = HorizontalAlignment.Stretch,
-            Content = new StackPanel { Spacing = 6, Children = { _search, _items } } };
-        AutomationProperties.SetName(_disclosure, $"All {review.Targets.Length} selected items, including hidden marks");
+        _disclosure = new Expander { Header = detailsItem ? "Item and its location" : $"Selected items ({review.Targets.Length})",
+            HorizontalAlignment = HorizontalAlignment.Stretch, Content = new StackPanel { Spacing = 6, Children = { _search, _items } } };
+        AutomationProperties.SetName(_disclosure, detailsItem ? "The item and its original location"
+            : $"All {review.Targets.Length} selected items, including hidden marks");
         AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
         int hiddenCount = _hidden.Count(value => value);
         Body = new StackPanel { Spacing = 10, Children =
         {
-            Text($"{review.Targets.Length} selected items. Includes {hiddenCount} marked items hidden by the filter."),
+            Text(detailsItem ? "The item File-system details was opened for, and nothing else: no marks or selection are included."
+                : $"{review.Targets.Length} selected items. Includes {hiddenCount} marked items hidden by the filter."),
             _counts, Text("Current state of selected items. Folder contents have not been inspected."),
             Text("Choose action"), _firstAction, _secondAction, _help,
         } };

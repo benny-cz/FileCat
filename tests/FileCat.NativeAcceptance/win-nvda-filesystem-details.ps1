@@ -6,12 +6,15 @@ param(
     [switch]$ShortNarrow,
     [switch]$PictureView,
     [switch]$FindResults,
-    [switch]$VerifyNativeProperties
+    [switch]$VerifyNativeProperties,
+    # I-DETAILS-C: the report's "NTFS compression for this item..." link, reviewed and approved in the main window.
+    [switch]$CompressionLink
 )
 
 $ErrorActionPreference = 'Stop'
 if ($FindResults -and $PictureView) { throw 'Choose the Find list fixture or the panel picture fixture.' }
 if ($ShortNarrow -and !$NarrowHighContrast) { throw 'ShortNarrow requires NarrowHighContrast.' }
+if ($CompressionLink -and $FindResults) { throw 'An approved review returns focus to the main window, not Find: run CompressionLink without FindResults.' }
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type @'
@@ -135,6 +138,16 @@ function Hear([string]$label, [string]$pattern) {
     throw "NVDA did not speak $label."
 }
 
+function Front($window) {
+    $handle = [IntPtr]$window.Current.NativeWindowHandle
+    for ($attempt = 0; $attempt -lt 6 -and [DetailsNativeInput]::GetForegroundWindow() -ne $handle; $attempt++) {
+        [DetailsNativeInput]::Send(@(0x12), $false) # an Alt tap lets this process move the foreground
+        [void][DetailsNativeInput]::SetForegroundWindow($handle)
+        Start-Sleep -Milliseconds 300
+    }
+    if ([DetailsNativeInput]::GetForegroundWindow() -ne $handle) { throw 'The window could not be brought to the front.' }
+}
+
 function Tab-To($window, [string]$name) {
     for ($index = 0; $index -lt 24; $index++) {
         [void](Take-Speech)
@@ -185,6 +198,7 @@ $result = [ordered]@{
     PictureView = [bool]$PictureView
     FindResults = [bool]$FindResults
     VerifyNativeProperties = [bool]$VerifyNativeProperties
+    CompressionLink = [bool]$CompressionLink
     Fixture = Split-Path $fixture -Leaf; Steps = @(); Error = $null
 }
 try {
@@ -307,6 +321,39 @@ try {
     [void](Take-Speech)
     Send-Key $details @(0x0D)
     Hear 'the cached full observation' 'Full.{0,20}observation'
+
+    if ($CompressionLink) {
+        $result.Stage = 'compression link'
+        $link = "NTFS compression for this item$([char]0x2026)"
+        Tab-To $details $link
+        # NVDA reads the link's description with its name: a review in the main window, and nothing changes before approval.
+        if (($result.Steps[-1].Speech -join ' ') -notmatch 'Opens a review of this item.s NTFS compression in the main window') {
+            throw 'NVDA did not read the link description.'
+        }
+        [void](Take-Speech)
+        Send-Key $details @(0x0D)
+        $mainHandle = [IntPtr]$main.Current.NativeWindowHandle
+        Await { [DetailsNativeInput]::GetForegroundWindow() -eq $mainHandle } 'the main window in front' | Out-Null
+        Hear 'the review in the main window' 'NTFS compression.{0,80}dialog'
+        Await { $ui::FocusedElement.Current.Name -eq 'Compress' } 'focus on the first action' | Out-Null
+        [void](Take-Speech)
+        Send-Key $main @(0x20) # Space chooses Compress.
+        Hear 'the chosen action' 'Compress'
+        Await {
+            $main.FindAll($scope::Descendants, $all) | Where-Object {
+                $_.Current.Name -eq 'Compress' -and $_.Current.ControlType.ProgrammaticName -eq 'ControlType.Button' -and $_.Current.IsEnabled
+            } | Select-Object -First 1
+        } 'the Compress button' | Out-Null
+        [void](Take-Speech)
+        Send-Key $main @(0x0D) # Enter approves through the default button.
+        Await { ([IO.File]::GetAttributes($file) -band [IO.FileAttributes]::Compressed) -ne 0 } 'the compressed file' 30 | Out-Null
+        Hear 'the job outcome' '1 changed'
+        $result.Compressed = $true
+        Front $details
+        Await {
+            $details.FindAll($scope::Descendants, $all) | Where-Object { $_.Current.Name -eq $link -and $_.Current.IsEnabled } | Select-Object -First 1
+        } 'the link available again' | Out-Null
+    }
 
     $result.Stage = 'return to focused row'
     [void](Take-Speech)
