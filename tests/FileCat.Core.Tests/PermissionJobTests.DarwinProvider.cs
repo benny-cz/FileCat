@@ -1,4 +1,5 @@
 using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
 using FileCat.Core.Permissions;
 using FileCat.Core.Records;
 using FileCat.Core.Resources;
@@ -124,7 +125,8 @@ public sealed partial class PermissionJobTests
                 var job = fixture.Manager.SubmitPermissions(review);
                 await fixture.Finish(job);
                 var result = Assert.Single(job.PermissionResults);
-                string steps = string.Join(" | ", result.Components.Select(step => $"{step.Verdict} {step.NativeCall} {step.NativeError} {step.Detail}"));
+                string steps = $"{job.State}; {JobIssue.Summarize(job.Issues)}; " +
+                    string.Join(" | ", result.Components.Select(step => $"{step.Verdict} {step.NativeCall} {step.NativeError} {step.Detail}"));
                 TestContext.Current.SendDiagnosticMessage($"parent {parent}, descriptor {descriptor}, route " +
                     $"{inspection.Snapshot.Binding?.DarwinRoute}: {Convert.ToString(mode, 8)} -> {result.Verdict}: {steps}");
                 Assert.True(result.Verdict is PermissionVerdict.Verified or PermissionVerdict.AppliedWithFolderDrift, steps);
