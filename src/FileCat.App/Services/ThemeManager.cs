@@ -213,13 +213,16 @@ public static class ThemeManager
     public static string Description(string name) =>
         name == "System" ? "Follows the system: light or dark, and high contrast." : ThemePalette.Find(name)?.Description ?? "";
 
+    /// <summary>Where the operating system's colors are read (tests stand in for the operating system).</summary>
+    internal static Func<IPlatformSettings?> Platform { get; set; } = () => Application.Current?.PlatformSettings;
+
     /// <summary>Applies a theme by name; "System" follows the OS light/dark and high-contrast settings.</summary>
     public static void Apply(string name)
     {
         var app = Application.Current;
         if (app is null) return;
         RequestedName = name;
-        var palette = Resolve(name, app.PlatformSettings);
+        var palette = Resolve(name, Platform());
         // Windows can repeat color notifications when a popup opens. Rebuilding unchanged resources/chrome
         // detaches the menu that just opened; keep it, while still remembering "System" versus an explicit theme.
         if (_current is not null && palette == Current && app.Resources.MergedDictionaries.Contains(_current)) return;
@@ -232,7 +235,13 @@ public static class ThemeManager
         ThemeChanged?.Invoke();
     }
 
-    /// <summary>The theme <paramref name="step"/> places on in the list (1: next, -1: previous), round the end.</summary>
+    /// <summary>
+    /// The operating system's colors changed (dark mode, high contrast, accent): the requested theme is applied again. System
+    /// follows light, dark and high contrast; any other theme gives way to high contrast while it is on, as it does at
+    /// startup (plan §18.2), open dialogs included. A theme being previewed (the theme picker, Settings) stays previewed.
+    /// </summary>
+    public static void PlatformColorsChanged() => Apply(RequestedName);
+
     /// <summary>WCAG's contrast ratio between two solid colors, from 1 to 21.</summary>
     internal static double Contrast(Color a, Color b)
     {
@@ -254,6 +263,7 @@ public static class ThemeManager
         return Color.FromRgb(Mix(over.R, under.R), Mix(over.G, under.G), Mix(over.B, under.B));
     }
 
+    /// <summary>The theme <paramref name="step"/> places on in the list (1: next, -1: previous), round the end.</summary>
     public static string CycleThemeName(string current, int step)
     {
         int i = Names.ToList().FindIndex(n => n.Equals(current, StringComparison.OrdinalIgnoreCase));

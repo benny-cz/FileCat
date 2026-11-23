@@ -349,6 +349,81 @@ public sealed class DialogThemeTests(ITestOutputHelper output)
         Assert.True(problems.Count == 0, string.Join(Environment.NewLine, problems.Distinct().Take(80)));
     }
 
+    /// <summary>The operating system's colors as a test sets them: light or dark, high contrast on or off.</summary>
+    private sealed class SystemColors(Avalonia.Platform.IPlatformSettings inner) : Avalonia.Platform.IPlatformSettings
+    {
+        public bool Dark { get; set; }
+        public bool HighContrast { get; set; }
+        public Size GetTapSize(Avalonia.Input.PointerType type) => inner.GetTapSize(type);
+        public Size GetDoubleTapSize(Avalonia.Input.PointerType type) => inner.GetDoubleTapSize(type);
+        public TimeSpan GetDoubleTapTime(Avalonia.Input.PointerType type) => inner.GetDoubleTapTime(type);
+        public TimeSpan HoldWaitDuration => inner.HoldWaitDuration;
+        public Avalonia.Input.Platform.PlatformHotkeyConfiguration HotkeyConfiguration => inner.HotkeyConfiguration;
+        public Avalonia.Platform.PlatformColorValues GetColorValues() => inner.GetColorValues() with
+        {
+            ThemeVariant = Dark ? Avalonia.Platform.PlatformThemeVariant.Dark : Avalonia.Platform.PlatformThemeVariant.Light,
+            ContrastPreference = HighContrast ? Avalonia.Platform.ColorContrastPreference.High : Avalonia.Platform.ColorContrastPreference.NoPreference,
+        };
+        public event EventHandler<Avalonia.Platform.PlatformColorValues>? ColorValuesChanged { add { } remove { } }
+    }
+
+    /// <summary>
+    /// High contrast turned on while a dialog is open takes over whatever the theme (System included), and the theme comes
+    /// back when it is turned off; a theme being previewed stays the one previewed. The dialog reads in each.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task An_open_dialog_follows_the_system_turning_high_contrast_on_and_off_whatever_the_theme()
+    {
+        string before = ThemeManager.RequestedName;
+        var platform = ThemeManager.Platform;
+        var system = new SystemColors(Application.Current!.PlatformSettings!);
+        ThemeManager.Platform = () => system;
+        var fallback = new TextBox { Text = "fallback" };
+        var host = new Grid();
+        var window = new Window { Width = 1000, Height = 800, Content = new Grid { Children = { fallback, host } } };
+        window.Styles.Add(ThemeAudit.ProductStyles());
+        window.Show();
+        var dialogs = new OverlayDialogService(host, () => fallback);
+        var problems = new List<string>();
+        try
+        {
+            foreach (var (theme, dark, expected) in new[] { ("System", false, "Classic"), ("System", true, "ClassicDark"), ("Cyberpunk", false, "Cyberpunk"), ("DosCommander", true, "DosCommander") })
+            {
+                (system.Dark, system.HighContrast) = (dark, false);
+                ThemeManager.Apply(theme);
+                Assert.Equal(expected, ThemeManager.Current.Name);
+                var pending = dialogs.ChooseAsync(new ChoiceOptions("Go to", [new ChoiceItem(@"C:\", "Local disk", "Alt+1"), new ChoiceItem(@"D:\", "Backup")]) { SelectedIndex = 1 });
+                Settle(window);
+                system.HighContrast = true;
+                ThemeManager.PlatformColorsChanged();
+                Assert.Equal(ThemePalette.HighContrast.Name, ThemeManager.Current.Name);
+                Assert.Equal(theme, ThemeManager.RequestedName);
+                Settle(window);
+                problems.AddRange(ThemeAudit.Problems(TopCard(window), $"{theme} under high contrast"));
+                system.HighContrast = false;
+                ThemeManager.PlatformColorsChanged();
+                Assert.Equal(expected, ThemeManager.Current.Name);
+                Settle(window);
+                problems.AddRange(ThemeAudit.Problems(TopCard(window), $"{theme} after high contrast"));
+                dialogs.CancelAll();
+                await pending.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            }
+            // A preview (the theme picker) is what the system's change applies again, not the saved theme.
+            ThemeManager.Apply("Steampunk");
+            ThemeManager.PlatformColorsChanged();
+            Assert.Equal("Steampunk", ThemeManager.Current.Name);
+        }
+        finally
+        {
+            dialogs.CancelAll();
+            Dispatcher.UIThread.RunJobs();
+            window.Close();
+            ThemeManager.Platform = platform;
+            ThemeManager.Apply(before);
+        }
+        Assert.True(problems.Count == 0, string.Join(Environment.NewLine, problems.Distinct().Take(40)));
+    }
+
     /// <summary>
     /// About dresses its header in the theme: the effect themes draw their art behind the name, which the brush audit
     /// cannot see. The words are measured over that art as FileCat draws it (Skia, the psychedelic light across its cycle),
