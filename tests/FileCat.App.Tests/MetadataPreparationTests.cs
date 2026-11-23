@@ -78,8 +78,12 @@ public sealed class MetadataPreparationTests(ITestOutputHelper output)
         if (change == "selection") f.Left.Listing.FocusName("second.txt");
         else if (change == "source") f.Left.Navigate(Location.FileSystem(f.Root));
         else f.Right.Navigate(Location.FileSystem(f.Root));
-        f.Click("Apply"); await task.WaitAsync(TimeSpan.FromSeconds(10));
+        f.Click("Apply"); await Wait(() => f.Services.Jobs.Jobs.Count == 1);
         var job = Assert.Single(f.Services.Jobs.Jobs); await Wait(() => job.State.IsFinished());
+        // Windows closes its attributes dialog on Apply. On Linux and macOS, permissions and times share one dialog that stays
+        // open with the job's result until it is closed.
+        if (!OperatingSystem.IsWindows()) { await Wait(() => f.Button("Close") is not null); f.Click("Close"); }
+        await task.WaitAsync(TimeSpan.FromSeconds(10));
         Emit("approved-attributes", f, new { change, state = job.State.ToString(), sources = job.Request.Sources.Select(s => s.FileSystemPath).ToArray() });
         Assert.Equal(FileCat.Core.Jobs.JobState.Completed, job.State); Assert.Equal(f.Archive, Assert.Single(job.Request.Sources).FileSystemPath);
         var expected = DateTime.Parse("2020-02-03 04:05:06").ToUniversalTime(); Assert.InRange(Math.Abs((File.GetLastWriteTimeUtc(f.Archive) - expected).TotalSeconds), 0, 1);
