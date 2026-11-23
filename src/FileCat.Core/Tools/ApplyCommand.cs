@@ -276,7 +276,7 @@ internal sealed class ApplyCommandExecutor(Job job, IFileSystemOperations fs, Jo
         Process process;
         try
         {
-            process = Process.Start(psi) ?? throw new InvalidOperationException("No process was started.");
+            process = ProgramStart.Start(psi) ?? throw new InvalidOperationException("No process was started.");
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
