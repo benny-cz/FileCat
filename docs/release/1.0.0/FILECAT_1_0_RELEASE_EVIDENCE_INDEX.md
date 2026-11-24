@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**1025 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
+**1029 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -11,6 +11,10 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 
 | ID | What | Source | Class | Record | Issues |
 |---|---|---|---|---|---|
+| E-I665-I667-CI-FLAKES | Three tests that fail intermittently on hosted runners | Hosted CI runs listed in E-REL-SYNC-20261124 and rc.3's integration runs 45445858172 and 45476564759 | CI observations, open, Low; causes proposed, not yet shown. | [Record](evidence/E-I665-I667-ci-flaky-tests.md) | I665/I666/I667/I661 |
+| E-I664-GRID-TILES | The picture grid exposes fewer tiles to screen readers than it draws | rc.2's tarball on the Ubuntu 24.04.5 VM, AT-SPI (harness row a18) | Native observation, open, Low. | [I664 record](evidence/E-I664-picture-grid-accessible-tiles.md) | I664 |
+| E-I663-PANEL-NUMBERS | Panel numbers keep the startup theme's colors after a theme change | rc.2's tarball on the Ubuntu 24.04.5 VM (harness row a14 and a separate probe) | Native observation, open, Low. | [I663 record](evidence/E-I663-panel-number-theme-colors.md) | I663 |
+| E-I662-SOURCE-ROOT | Linux File-system details no longer show a bind mount's source root (I612 regression) | rc.2's tarball on the Ubuntu 24.04.5 VM (harness row a4), three fresh FileCats; `MainViewModel.FileRecord.cs` since `4364d1b37` | Native observation, open, Low; undoes I612. | [I662 record](evidence/E-I662-linux-details-source-root-regression.md) | I662/I612 |
 | E-I661-PLACE-BAR-WIDTH | A place on the Places bar can be laid out past the bar's edge | `PlaceBarPanel.cs` at `7269ec61`; integration 3's CI run 45467009793 (macOS App tests, remainder); a direct headless test | CI failure and direct reproduction, open, Low. | [I661 record](evidence/E-I661-place-bar-arrange-width.md) | I661 |
 | E-I660-ARCHIVE-OPENX-COMMENT | A security comment in the macOS archive writer blames the wrong refusal | `UnixArchiveNative.cs` at `7269ec61`; XNU's open rule as found by I646's macOS fix (`bada5da1d`) | Source review, open, Low. No behaviour change proposed. | [I660 record](evidence/E-I660-archive-openx-comment.md) | I660/I646 |
 | E-I659-GIT-CODE-PAGE | Git badges lose files whose names are not ASCII | `GitStatusReader.cs` at `7269ec61`; found and fixed by PR #38 (`3df37718d`) | Observation and fix, open, Medium. | [I659 record](evidence/E-I659-git-output-code-page.md) | I659/I657/I647 |
