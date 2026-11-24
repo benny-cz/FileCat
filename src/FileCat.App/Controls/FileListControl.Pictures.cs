@@ -65,7 +65,7 @@ public sealed partial class FileListControl
         var visible = new HashSet<int>();
         int count = listing.VisibleCount;
         int first = Math.Max(0, _topRow);
-        int last = Math.Min(count, first + VisibleRowCapacity + _pictureColumns);
+        int last = Math.Min(count, first + DrawnItemCapacity);
         double width = _horizontalViewport > 0 ? _horizontalViewport : bounds.Width;
         using (dc.PushClip(new Rect(0, 0, width, bounds.Height)))
         {
