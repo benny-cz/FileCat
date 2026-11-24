@@ -5508,3 +5508,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - c23 in the qualification VM: the case-sensitive repository's badges match Git (`PROOF.txt` clean, `proof.txt` changed). In an ordinary repository, a case-only spelling change left the row "Git changed" while Git said clean.
 - I647 (open, Medium): reproduced with Git alone. The badge run skips Git for Windows' system settings (I150), and with them the default `core.autocrlf=true`; a CRLF file whose time changed reads `M` until Git refreshes its index. [I647](evidence/E-I647-git-badges-without-line-ending-settings.md).
+
+## 2026-11-24 — I648: a Markdown Page sometimes stays blank
+
+- c10 in the qualification VM: every link kind draws, and about 60 Pages drew within 3 s in repeated runs, but two stayed blank with Refresh disabled. PR #27's Windows CI job hit the same fault in `PageViewTests`: no navigation completion within 55 s although both page requests were answered. [I648](evidence/E-I648-markdown-page-navigation-never-completes.md).

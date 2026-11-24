@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**1011 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
+**1012 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -11,6 +11,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 
 | ID | What | Source | Class | Record | Issues |
 |---|---|---|---|---|---|
+| E-I648-PAGE-NAVIGATION | A Markdown Page sometimes stays blank because WebView2 never reports completion | rc.2 installed in the Windows 11 25H2 qualification VM (batches 21 to 21e); PR #27's CI run 45417241533 | Native and CI observations, open, Medium. Cause not established. | [I648 record](evidence/E-I648-markdown-page-navigation-never-completes.md) | I648/I25/c10 |
 | E-I647-GIT-LINE-ENDINGS | Git badges ignore Git's line-ending settings and call clean files changed | rc.2 installed in the Windows 11 25H2 qualification VM with Git for Windows 2.54.0; `GitStatusReader.cs` at `7269ec61` | Native observation and Git-only reproduction, open, Medium. Git LFS repositories not tried. | [I647 record](evidence/E-I647-git-badges-without-line-ending-settings.md) | I647/I608/I150 |
 | E-I646-LINUX-ROOT-CENSUS | The Linux root process census opens an executable path another account can replace | `RecoveryProcessCensus.cs` and `SingleInstance.cs` at `7269ec61`; dotnet/runtime v10.0.12's process module name | Source finding, open, Medium. Not run on Linux. | [I646 record](evidence/E-I646-linux-root-census-opens-replaceable-path.md) | I646/I641 |
 | E-I645-ELEVATED-TEMP-SWEEPS | An elevated FileCat sweeps the account's temporary folders and follows links there | `AppServices.cs`, `DragStaging.cs`, `ClipboardVirtualStaging.cs` and `AppPaths.cs` at `7269ec61`; the B12 review's elevated probe on owned fixtures | Source finding with a method-level probe, open, High. FileCat itself and the redirection to an arbitrary file were not run. | [I645 record](evidence/E-I645-elevated-temp-sweeps-follow-links.md) | I645/I641 |
