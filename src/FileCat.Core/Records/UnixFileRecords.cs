@@ -79,7 +79,7 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             if (mount is { } m)
             {
                 item.Add(("Volume", $"{m.MountPoint} · {m.Type} · {m.Source}"));
-                if (m.Root != "/" && path == m.MountPoint) item.Add(("Source root", m.Root));
+                if (LinuxSourceRoot(m, IsLinuxMountRoot(attributes, known, path, m)) is { } root) item.Add(("Source root", RecordText.Visible(root)));
             }
             item.Add(("Device", $"{devMajor}:{devMinor}"));
             item.Add(("Inode", inode.ToString("N0", CultureInfo.CurrentCulture)));
@@ -106,8 +106,6 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             return $"File-system record · {mount?.Type ?? "Linux"}";
         }
 
-        private sealed record MountInfo(string MountPoint, string Type, string Source, string Root, string Options, string DeviceNumber);
-
         /// <summary>
         /// True for FAT and exFAT mount types (the kernel's, or a FUSE subtype such as "fuseblk.exfat"); false for FUSE
         /// block mounts that do not say (exfat-fuse, ntfs-3g), whose boot sector tells; null for everything else.
@@ -124,7 +122,7 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
         /// The item's raw directory entry on a FAT or exFAT volume, read from its device (root only). With
         /// <paramref name="sniff"/>, the volume is first asked whether it is FAT at all (nothing is said when it is not).
         /// </summary>
-        private InspectionSection? FatSection(MountInfo mount, bool sniff)
+        private InspectionSection? FatSection(LinuxMount mount, bool sniff)
         {
             string relative = Path.GetRelativePath(mount.MountPoint, path);
             if (relative == ".") return null;
@@ -147,39 +145,19 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             finally { Close(fd); }
         }
 
-        /// <summary>The mount with this ID in /proc/self/mountinfo: ID, parent, major:minor, root, mount point, options, …, "-", type, source, super options.</summary>
-        private static MountInfo? Mount(ulong id)
+        /// <summary>The mount with this ID in /proc/self/mountinfo, read as the details read it (<see cref="ParseLinuxMount"/>).</summary>
+        private static LinuxMount? Mount(ulong id)
         {
             try
             {
                 foreach (string line in File.ReadLines("/proc/self/mountinfo"))
                 {
                     var fields = line.Split(' ');
-                    if (fields.Length < 10 || fields[0] != id.ToString(CultureInfo.InvariantCulture)) continue;
-                    int dash = Array.IndexOf(fields, "-");
-                    if (dash < 0 || dash + 3 >= fields.Length) return null;
-                    return new MountInfo(Unescape(fields[4]), fields[dash + 1], Unescape(fields[dash + 2]), Unescape(fields[3]), fields[5] + "; " + fields[dash + 3], fields[2]);
+                    if (fields[0] == id.ToString(CultureInfo.InvariantCulture)) return ParseLinuxMount(fields);
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
             return null;
-        }
-
-        /// <summary>mountinfo writes space, tab, newline, and backslash as octal escapes.</summary>
-        private static string Unescape(string field)
-        {
-            if (!field.Contains('\\')) return field;
-            var sb = new StringBuilder();
-            for (int i = 0; i < field.Length; i++)
-            {
-                if (field[i] == '\\' && i + 3 < field.Length && int.TryParse(field.AsSpan(i + 1, 3), NumberStyles.None, CultureInfo.InvariantCulture, out _))
-                {
-                    sb.Append((char)Convert.ToInt32(field.Substring(i + 1, 3), 8));
-                    i += 3;
-                }
-                else sb.Append(field[i]);
-            }
-            return sb.ToString();
         }
 
         private sealed record InodeInfo(string Text, uint? Generation, uint? Project, string? Problem, List<(long Logical, long Physical, long Length, uint Flags)>? Extents);
@@ -248,16 +226,9 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             return extents;
         }
 
-        private InspectionSection VolumeSection(MountInfo mount)
+        private InspectionSection VolumeSection(LinuxMount mount)
         {
-            var fields = new List<(string, string)>
-            {
-                ("Mounted at", mount.MountPoint),
-                ("File system", mount.Type),
-                ("Source", mount.Source),
-                ("Options", mount.Options),
-            };
-            if (mount.Root != "/") fields.Insert(3, ("Root within source", mount.Root));
+            var fields = LinuxVolumeFields(mount);
             var children = new List<InspectionSection>();
             // ext4 (and ext3): its journal's statistics, and the file system's own counters.
             string? device = BlockDeviceName(mount.DeviceNumber);

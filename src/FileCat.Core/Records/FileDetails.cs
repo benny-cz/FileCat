@@ -47,6 +47,13 @@ public sealed record FileDetailsSnapshot(string Path, DateTimeOffset ObservedAt,
     public ObservedFact<uint> UnixMode { get; init; } = Unknown<uint>(FactScope.Entry);
     public ObservedFact<uint> Owner { get; init; } = Unknown<uint>(FactScope.Entry);
     public ObservedFact<uint> Group { get; init; } = Unknown<uint>(FactScope.Entry);
+
+    /// <summary>
+    /// Linux (I612): the item is the root of a mount that does not show the whole of its source file system (a bind mount of
+    /// a folder, a Btrfs subvolume), and this is the part it shows: mountinfo's root field, as findmnt's FSROOT. Null for
+    /// every other item.
+    /// </summary>
+    public ObservedFact<string>? SourceRoot { get; init; }
     public ImmutableArray<string> Notes { get; init; } = [];
 
     public static ObservedFact<T> Unknown<T>(FactScope scope, string reason = "No qualified observation was requested.") =>
@@ -58,11 +65,10 @@ public sealed record FileDetailsSnapshot(string Path, DateTimeOffset ObservedAt,
     {
         string kind = ReparseTag.State == FactState.Known ? ReparsePresentation.Describe(ReparseTag.Value).Label
             : ReparseTag.Source == "FileAttributeTagInfo" ? "Reparse point · type unavailable" : Kind.ToString();
-        var sections = new List<InspectionSection>
-        {
-            new("Item", [("Path", Path), ("Kind", kind), ("Observed", ObservedAt.ToString("O")),
-                ("Scope", "Focused item only; marked items are not included."), ("File system", FileSystem.Describe())]),
-        };
+        var item = new List<(string, string)> { ("Path", Path), ("Kind", kind), ("Observed", ObservedAt.ToString("O")),
+            ("Scope", "Focused item only; marked items are not included."), ("File system", FileSystem.Describe()) };
+        if (SourceRoot is { } sourceRoot) item.Add(("Source root", sourceRoot.Describe(RecordText.Visible)));
+        var sections = new List<InspectionSection> { new("Item", item) };
         if (Target.State == FactState.Known && Target.Value is { } target)
         {
             string calculated = FileDetailsTargets.TryResolve(this, OperatingSystem.IsWindows(), out string path, out _) ? path : "Unavailable";

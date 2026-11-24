@@ -321,6 +321,13 @@ public sealed partial class FileListControl : Control
     public int VisibleRowCapacity => PictureMode
         ? _pictureColumns * Math.Max(1, (int)((_layoutHeight > 0 ? _layoutHeight : Bounds.Height) / PictureTileHeight))
         : Math.Max(1, (int)(((_layoutHeight > 0 ? _layoutHeight : Bounds.Height) - _headerHeight - (_hbar.IsVisible ? HorizontalBarHeight : 0)) / _rowHeight));
+
+    /// <summary>
+    /// How many items, from the top one, the view draws: the whole rows and the partly shown row after them. In the list
+    /// that row is one item; in the picture grid it is a row of tiles, one per column. Drawing and the accessibility tree
+    /// both use it, so every drawn tile is exposed and nothing more than one row past the view (I664).
+    /// </summary>
+    internal int DrawnItemCapacity => VisibleRowCapacity + (PictureMode ? _pictureColumns : 1);
     internal double HorizontalOffset => _horizontalOffset;
     internal double HorizontalExtent => PictureMode ? _horizontalViewport : _contentExtent;
     internal double HorizontalViewport => _horizontalViewport;
@@ -1232,7 +1239,7 @@ public sealed partial class FileListControl : Control
         using (dc.PushClip(new Rect(0, _headerHeight, contentWidth,
                    Math.Max(0, bounds.Height - _headerHeight - (_hbar.IsVisible ? HorizontalBarHeight : 0)))))
         {
-            int cap = VisibleRowCapacity + 1;
+            int cap = DrawnItemCapacity;
             // Scrolling must not keep every page it passed: a few pages of cells, so cached text dies young (GC).
             if (_textCache.Count > cap * _columns.Length * 3) ClearTextCache();
             int focused = listing.FocusedIndex;
