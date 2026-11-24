@@ -379,8 +379,8 @@ public sealed class CompareTextInteractionTests
                 AutomationProperties.GetAutomationId(c) == "Comparison match status");
             // A click on a row's line number gives that row the keyboard, as in I637's observation.
             int clicked = window.CurrentRow - 3;
-            var container = rows.ContainerFromIndex(clicked)!;
-            Click(window, container, new Point(20, container.Bounds.Height / 2));
+            rows.ScrollIntoView(clicked);
+            await Click(window, () => rows.ContainerFromIndex(clicked), LineNumber);
             Assert.Equal((clicked, clicked), (window.CurrentRow, FocusedRow(window, rows)));
 
             window.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, null);
@@ -397,7 +397,7 @@ public sealed class CompareTextInteractionTests
             Assert.True(search.IsFocused);
             window.KeyPress(Key.F3, RawInputModifiers.None, PhysicalKey.F3, null);
             Assert.Equal(149, window.CurrentRow); // line 150, Find's first match
-            Click(window, window.GetVisualDescendants().OfType<Button>().Single(b =>
+            await Click(window, () => window.GetVisualDescendants().OfType<Button>().Single(b =>
                 AutomationProperties.GetName(b) == "Close comparison Find bar"));
             Assert.False(search.IsEffectivelyVisible);
             Assert.Equal("line 150", search.Text);
@@ -513,19 +513,41 @@ public sealed class CompareTextInteractionTests
             $"The match is at {shown.Y} in a {viewport.Bounds.Height} high view {when}.");
     }
 
-    // A click where the user makes it: the pointer must land on the target (or a part of it) at that point.
-    private static void Click(Window window, Control target, Point? at = null)
+    /// <summary>
+    /// A click as the user makes it, on the control <paramref name="find"/> returns, at the point <paramref name="at"/>
+    /// gives in it (its centre by default), once the pointer reaches that control there. The hit test can lag the layout:
+    /// Ubuntu CI once computed the same point as Windows and hit the list behind the row laid out there. So each try lays
+    /// out, renders a frame, and finds the control and its point anew.
+    /// </summary>
+    private static async Task Click(Window window, Func<Control?> find, Func<Control, Point>? at = null)
     {
-        Layout(window);
-        var point = target.TranslatePoint(at ?? new Point(target.Bounds.Width / 2, target.Bounds.Height / 2), window)!.Value;
-        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-        var hit = window.InputHitTest(point) as Visual;
-        Assert.True(ReferenceEquals(hit, target) || hit?.GetVisualAncestors().Contains(target) == true,
-            $"The click at {point} lands on {hit?.GetType().Name}, not on {target.GetType().Name}.");
+        Control? target = null;
+        Point point = default;
+        Visual? hit = null;
+        bool Reachable()
+        {
+            Layout(window);
+            using (window.CaptureRenderedFrame()) { }
+            target = find();
+            if (target?.TranslatePoint(at?.Invoke(target) ?? new Point(target.Bounds.Width / 2, target.Bounds.Height / 2), window) is not { } shown)
+                return false;
+            point = shown;
+            hit = window.InputHitTest(point) as Visual;
+            return ReferenceEquals(hit, target) || hit?.GetVisualAncestors().Contains(target) == true;
+        }
+        for (int i = 0; i < 500 && !Reachable(); i++) await Task.Delay(20, TestContext.Current.CancellationToken);
+        Assert.True(Reachable(), $"The click at {point} lands on {hit?.GetType().Name ?? "nothing"}, not on " +
+            $"{target?.GetType().Name ?? "the target, which is not laid out"} at {target?.TranslatePoint(default, window)} ({target?.Bounds.Size}).");
         window.MouseMove(point);
         window.MouseDown(point, MouseButton.Left);
         window.MouseUp(point, MouseButton.Left);
     }
+
+    /// <summary>The middle of a comparison row's left line number, in the row's container (outside it until the row is laid out).</summary>
+    private static Point LineNumber(Control container) =>
+        container.GetVisualDescendants().OfType<CompareTextRow>().FirstOrDefault()?.Children.OfType<TextBlock>().FirstOrDefault() is { } number &&
+        number.TranslatePoint(new Point(number.Bounds.Width / 2, number.Bounds.Height / 2), container) is { } middle
+            ? middle : new Point(-1, -1);
 
     private static void Layout(Window window)
     {
