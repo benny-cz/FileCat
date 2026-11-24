@@ -112,6 +112,124 @@ public sealed class RootProfileStateUiTests
         }
     }
 
+    /// <summary>
+    /// The record's finite check, on a disposable Linux or macOS machine with passwordless sudo: FILECAT_TEST_CALLER_HOME
+    /// is never set on a workstation, because "seed" and "check" write the account's real profile. "seed", as the ordinary
+    /// user, saves a setting, a history entry and a log line in the usual profile. "root", started with sudo -E and that
+    /// user's HOME, must find its own folders outside that profile, show the defaults, change nothing there and own
+    /// nothing there, also when it is given the profile's folders. "check", as the ordinary user again, must own every
+    /// file, read the setting, and save a change.
+    /// </summary>
+    [AvaloniaFact]
+    public void A_root_FileCat_with_the_callers_HOME_keeps_out_of_the_callers_profile()
+    {
+        string? mode = Environment.GetEnvironmentVariable("FILECAT_TEST_CALLER_HOME");
+        if (mode is null || OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Runs on a disposable Linux or macOS machine with passwordless sudo (FILECAT_TEST_CALLER_HOME=seed, root, check).");
+            return;
+        }
+        const string Seeded = "yyyy-MM-dd 'I655'";
+        // The usual profile as HOME and the XDG folders lead to it, worked out without making anything.
+        var caller = AppPaths.Usual();
+        string[] profile = [caller.SettingsDirectory, caller.LocalDirectory, Path.GetDirectoryName(caller.ListingScratchDirectory)!];
+        try
+        {
+            switch (mode)
+            {
+                case "seed":
+                    Assert.False(Environment.IsPrivilegedProcess);
+                    var paths = AppPaths.Resolve();
+                    Assert.Equal(caller.SettingsFile, paths.SettingsFile);
+                    using (var services = AppServices.CreateForPaths(paths))
+                    {
+                        services.Settings.DateFormat = Seeded;
+                        services.SaveSettings();
+                        services.History.Masks.Add("*.i655");
+                        services.SaveHistory();
+                        AppLog.Info("I655 seeded by the ordinary user");
+                    }
+                    Assert.Contains(Seeded, File.ReadAllText(caller.SettingsFile), StringComparison.Ordinal);
+                    break;
+                case "root":
+                    Assert.True(Environment.IsPrivilegedProcess);
+                    Assert.True(ProcessAuthority.IsElevatedOrRoot);
+                    byte[] settings = File.ReadAllBytes(caller.SettingsFile), history = File.ReadAllBytes(caller.HistoryFile);
+                    byte[] log = File.ReadAllBytes(Path.Combine(caller.LogDirectory, "filecat.log"));
+                    // Everything is done first and checked after, so that a FileCat that does not keep out (before the fix)
+                    // leaves its traces for the check step to meet.
+                    var own = AppPaths.Resolve();
+                    string[] inProfile = [.. own.WriteFolders.Select(f => f.Folder)
+                        .Where(folder => profile.Any(mine => folder == mine || folder.StartsWith(mine + "/", StringComparison.Ordinal)))];
+                    string ownFormat;
+                    using (var services = AppServices.CreateForPaths(own))
+                    {
+                        ownFormat = services.Settings.DateFormat;
+                        services.Settings.DateFormat = "dd";
+                        services.SaveSettings();
+                        services.SaveHistory();
+                    }
+                    // Given the profile's own folders, as a root FileCat took them before the fix, it still reads and saves nothing.
+                    StateLoadStatus status;
+                    string format;
+                    bool masked;
+                    int sessions, journals;
+                    using (var services = AppServices.CreateForPaths(caller))
+                    {
+                        (status, format, masked) = (services.SettingsStatus, services.Settings.DateFormat, services.History.Masks.Contains("*.i655"));
+                        sessions = services.EditSessions.LoadAll().Count;
+                        journals = JournalRecovery.Scan(caller.JournalDirectory).Count;
+                        services.Settings.DateFormat = "dd";
+                        services.SaveSettings();
+                        services.History.Masks.Add("*.root");
+                        services.SaveHistory();
+                        AppLog.Info("I655 root log line");
+                    }
+                    Assert.Empty(inProfile);
+                    Assert.Equal(new AppSettings().DateFormat, ownFormat);
+                    Assert.Equal(StateLoadStatus.UnavailableReadOnly, status);
+                    Assert.Equal(new AppSettings().DateFormat, format);
+                    Assert.False(masked);
+                    Assert.Equal(0, sessions);
+                    Assert.Equal(0, journals);
+                    Assert.Equal(settings, File.ReadAllBytes(caller.SettingsFile));
+                    Assert.Equal(history, File.ReadAllBytes(caller.HistoryFile));
+                    Assert.Equal(log, File.ReadAllBytes(Path.Combine(caller.LogDirectory, "filecat.log")));
+                    AssertNothingOwnedByRoot(profile);
+                    break;
+                case "check":
+                    Assert.False(Environment.IsPrivilegedProcess);
+                    AssertNothingOwnedByRoot(profile);
+                    using (var services = AppServices.CreateForPaths(AppPaths.Resolve()))
+                    {
+                        Assert.Equal(Seeded, services.Settings.DateFormat);
+                        Assert.Contains("*.i655", services.History.Masks);
+                        services.Settings.DateFormat = "yyyy";
+                        services.SaveSettings();
+                    }
+                    using (var services = AppServices.CreateForPaths(AppPaths.Resolve()))
+                        Assert.Equal("yyyy", services.Settings.DateFormat);
+                    break;
+                default:
+                    Assert.Fail("FILECAT_TEST_CALLER_HOME is seed, root or check.");
+                    break;
+            }
+        }
+        finally
+        {
+            // The log is the process's: leave it pointing nowhere.
+            using (ElevatedOrRoot(assumed: true)) AppLog.Initialize(caller.LogDirectory);
+        }
+    }
+
+    private static void AssertNothingOwnedByRoot(IEnumerable<string> folders)
+    {
+        var options = new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = 0, IgnoreInaccessible = false };
+        foreach (string folder in folders.Where(Directory.Exists))
+            foreach (string entry in Directory.EnumerateFileSystemEntries(folder, "*", options).Prepend(folder))
+                Assert.True(Core.FileSystem.UnixFiles.Stat(entry) is not { Owner: 0 }, "Owned by root: " + entry);
+    }
+
     [Fact]
     public void Notices_on_Linux_and_macOS_say_root_and_how_to_start_FileCat_as_the_usual_user()
     {
