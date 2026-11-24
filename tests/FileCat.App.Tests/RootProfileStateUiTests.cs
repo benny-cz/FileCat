@@ -149,7 +149,8 @@ public sealed class RootProfileStateUiTests
                         services.SaveHistory();
                         AppLog.Info("I655 seeded by the ordinary user");
                     }
-                    Assert.Contains(Seeded, File.ReadAllText(caller.SettingsFile), StringComparison.Ordinal);
+                    Assert.Equal(Seeded, JsonFileStore.Load(caller.SettingsFile, StateJsonContext.Default.AppSettings, AppSettings.CurrentSchema,
+                        () => new AppSettings(), out _).DateFormat);
                     break;
                 case "root":
                     Assert.True(Environment.IsPrivilegedProcess);
@@ -289,7 +290,7 @@ public sealed class RootProfileStateUiTests
             using (ElevatedOrRoot(assumed))
             {
                 App.NotifyAdministratorNotice(vm);
-                Assert.Equal(App.AdministratorNotice(OperatingSystem.IsWindows(), transfers: false), vm.Notification);
+                Assert.Equal(App.AdministratorNotice(OperatingSystem.IsWindows(), vm.Services.AdministratorTransfers is not null), vm.Notification);
                 var admit = typeof(MainViewModel).GetMethod("AdmitConfiguredExternalTool", BindingFlags.Instance | BindingFlags.NonPublic)!;
                 Assert.False((bool)admit.Invoke(vm, [new ToolDefinition { Name = "Configured", Executable = "/bin/true" }])!);
                 Assert.EndsWith($"{(OperatingSystem.IsWindows() ? "Reopen FileCat without elevation" : "Start FileCat as your usual user")} to use it.",
