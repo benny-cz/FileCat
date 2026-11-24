@@ -40,11 +40,15 @@ public static partial class SingleInstance
     /// <param name="enumerate">Tests: the inventory, otherwise every process.</param>
     /// <param name="identify">Tests: decides each process of the inventory in place of every check by name or image.</param>
     /// <param name="additionallyExcludedProcessId">A process not to count, such as the FileCat that asked a root census.</param>
-    /// <param name="diagnostic">Receives each process that is FileCat or cannot be told, with the reason.</param>
+    /// <param name="diagnostic">Receives each process that is FileCat or cannot be told, with the reason; and on Linux, as
+    /// process 0, why /proc may leave processes out.</param>
     /// <param name="inspectInventory">Tests: inspect a supplied inventory as production inspects every process, instead
     /// of counting each of its processes as FileCat.</param>
+    /// <param name="listingLimit">Tests: why the inventory may leave processes out, in place of what Linux's /proc says
+    /// (<see cref="LinuxProcessListingLimit()"/>), which production asks of every census that finds no FileCat.</param>
     internal static bool? OtherFileCatRunning(Func<Process[]>? enumerate, Func<Process, bool?>? identify = null,
-        int? additionallyExcludedProcessId = null, Action<int, string, string>? diagnostic = null, bool inspectInventory = false)
+        int? additionallyExcludedProcessId = null, Action<int, string, string>? diagnostic = null, bool inspectInventory = false,
+        Func<string?>? listingLimit = null)
     {
         var snapshot = new List<Process>();
         var inspectedImages = new Dictionary<string, bool?>(StringComparer.OrdinalIgnoreCase);
@@ -138,7 +142,15 @@ public static partial class SingleInstance
                 }
                 finally { linux?.Dispose(); }
             }
-            return unknown ? null : false;
+            if (unknown) return null;
+            // I658: processes this census cannot see may be FileCat, so it cannot say that none is.
+            listingLimit ??= enumerate is null && OperatingSystem.IsLinux() ? LinuxProcessListingLimit : null;
+            if (listingLimit?.Invoke() is { } limit)
+            {
+                diagnostic?.Invoke(0, "/proc", limit);
+                return null;
+            }
+            return false;
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or NotSupportedException)
         {

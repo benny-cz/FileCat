@@ -455,6 +455,58 @@ public sealed class RecoverySafetyTests
         }
     }
 
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "kill", SetLastError = true)]
+    private static extern int Kill(int pid, int signal);
+
+    // I658: while another account runs a process, an ordinary census must not answer that no FileCat runs. With the default
+    // /proc it sees the process and cannot read its image. With /proc mounted hidepid=invisible or ptraceable it does not see
+    // it at all, and with noaccess .NET leaves it out of its list, as it cannot read its /proc entry. Set
+    // FILECAT_TEST_OTHER_ACCOUNT_PROCESS to such a process's ID, and remount /proc in each mode (I658's record).
+    [Fact]
+    public void A_census_beside_another_accounts_process_does_not_answer_none()
+    {
+        if (!OperatingSystem.IsLinux()) { Assert.Skip("Linux accounts and /proc."); return; }
+        if (!int.TryParse(Environment.GetEnvironmentVariable("FILECAT_TEST_OTHER_ACCOUNT_PROCESS"), System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out int other))
+        {
+            Assert.Skip("Set FILECAT_TEST_OTHER_ACCOUNT_PROCESS to the ID of a process that another account runs.");
+            return;
+        }
+        // The premise: the process runs and is not this account's, as signal 0 to it is refused (EPERM).
+        Assert.True(Kill(other, 0) != 0 && System.Runtime.InteropServices.Marshal.GetLastPInvokeError() == 1,
+            $"Process {other} is not another account's running process.");
+        var all = System.Diagnostics.Process.GetProcesses();
+        bool listed;
+        try { listed = all.Any(process => process.Id == other); }
+        finally { foreach (var process in all) process.Dispose(); }
+        var reasons = new List<string>();
+        bool? running = SingleInstance.OtherFileCatRunning(null, null, null, (pid, name, reason) => reasons.Add($"{pid} {name}: {reason}"));
+        TestContext.Current.TestOutputHelper?.WriteLine(
+            $"Process {other} listed: {listed}; {all.Length} processes listed; census: {running switch { true => "running", false => "none", null => "unknown" }}; " +
+            string.Join("; ", reasons));
+        Assert.NotEqual(false, running);
+    }
+
+    // I658: in a PID namespace of its own, such as a container's, /proc shows none of the processes outside it, by any
+    // account, root included. Set FILECAT_TEST_OWN_PID_NAMESPACE=1 where that holds, as in a container (I658's record).
+    [Fact]
+    public void A_census_in_a_PID_namespace_of_its_own_does_not_answer_none()
+    {
+        if (!OperatingSystem.IsLinux()) { Assert.Skip("Linux PID namespaces."); return; }
+        if (Environment.GetEnvironmentVariable("FILECAT_TEST_OWN_PID_NAMESPACE") != "1")
+        {
+            Assert.Skip("Set FILECAT_TEST_OWN_PID_NAMESPACE=1 in a PID namespace other than the system's.");
+            return;
+        }
+        string? space = new FileInfo("/proc/self/ns/pid").LinkTarget;
+        Assert.NotEqual("pid:[4026531836]", space); // The system's own PID namespace has this fixed inode number.
+        var reasons = new List<string>();
+        bool? running = SingleInstance.OtherFileCatRunning(null, null, null, (pid, name, reason) => reasons.Add($"{pid} {name}: {reason}"));
+        TestContext.Current.TestOutputHelper?.WriteLine(
+            $"PID namespace {space}; census: {running switch { true => "running", false => "none", null => "unknown" }}; " + string.Join("; ", reasons));
+        Assert.NotEqual(false, running);
+    }
+
     [Fact]
     public void The_Windows_idle_accounting_entry_is_skipped_before_its_inaccessible_liveness_query()
     {
