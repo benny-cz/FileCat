@@ -61,7 +61,7 @@ Status: **done** (with the record's section), **partial**, **open**, or **blocke
 | c31 | I621 | Ignored Folders: Enter on blank text keeps the editor, Enter on text adds one entry, Add/Remove enablement, Cancel keeps the saved list | GUI | done |
 | c32 | I622 | Analyze folder again opens the chooser with the last metadata field; Cancel keeps the order; another field sorts | GUI | done; Origin keeps no order, [I636](evidence/E-I636-analysis-unretained-record-values.md) |
 | c33 | I623 | Pictures: thumbnails, select/mark/drag/menu, sort/filter, narrow scrolling; F3 Space/Backspace in one window to both ends; archive or remote folder; damaged picture; over 64 MiB uses the preview fallback | GUI; pictures | done (fourth round) |
-| c34 | I624 | Many pictures: redraw, unchanged-folder events and Reread don't reload thumbnails; one changed picture updates its tile; the 512-entry/96-MiB cache; OneDrive online-only placeholders stay labelled and never download in the background | GUI; OneDrive online-only files | blocked (OneDrive account in the VM) |
+| c34 | I624 | Many pictures: redraw, unchanged-folder events and Reread don't reload thumbnails; one changed picture updates its tile; the 512-entry/96-MiB cache; OneDrive online-only placeholders stay labelled and never download in the background | GUI; OneDrive online-only files | ready: OneDrive signed in for the test account on 2026-11-24 (runs on rc.3) |
 | c35 | I627 | Create file list: one recursive rule, three destinations, saved rule reuse, Cancel writes nothing, unreadable child gives no partial output, links not entered, compact dialog fits | GUI | done |
 | c36 | I629 step 2 | Elevated `--native-context-menu --background X Y FOLDER` and `--probe-new NewFolder FOLDER` exit 1 with no READY and create nothing; ordinary `--probe --background FOLDER` exits 0; `--probe-new` NewFolder and `.txt` print READY, INVOKE and `FILECAT_CONTEXT_CREATED`, exit 19; a removed folder gives exit 1 and one error line | command line; elevated and ordinary prompts | done |
 | c37 | I629 step 3, I556, REL-I16 | Windows' folder menu on empty space with "FileCat actions…"; Shift adds extended commands; New → Folder or Text Document starts a rename that a move or key within 5 s cancels; Paste moves an item cut in Explorer; Properties; elevated FileCat starts no helper | GUI | partial: menu, Shift, New and rename, Properties, FileCat actions and the elevated FileCat pass; no Paste, [I642](evidence/E-I642-folder-menu-without-paste.md) |
@@ -134,31 +134,31 @@ Status: **done** (with the record's section), **partial**, **open**, or **blocke
 | b24 | I611 | PDF as c26 | GUI | done (Mac harness rehearsal) |
 | b25 | I615 | A copied Finder tag shows its name in Streams and attributes | GUI | open: fails, [I651](evidence/E-I651-macos-attribute-value-f3-silent.md) |
 | b26 | I616 | Sparse copy: bytes and length; allocation only where the volume makes a sparse source | GUI | open: fails, [I652](evidence/E-I652-macos-sparse-copy-fills-holes.md) |
-| b27 | I619 | TARGET and Set as target centred, unclipped, same click area | GUI | partial: the AX parts pass; the pixel parts need Screen Recording |
+| b27 | I619 | TARGET and Set as target centred, unclipped, same click area | GUI | partial: the AX parts pass; the pixel parts move to the FileCatCapture helper, which has had Screen Recording since 2026-10-20 |
 | b28 | I620 | Minimum-size dialogs as c30 | GUI | partial: every dialog fits at 640 × 448; larger text needs a display-scaling change |
 | b29 | I621 | Ignored Folders as c31 | GUI | done (Mac harness rehearsal) |
 | b30 | I622 | Analyze folder as c32 | GUI | done (Mac harness rehearsal); Origin also shows [I636](evidence/E-I636-analysis-unretained-record-values.md) |
-| b31 | I623 | Pictures as c33 | GUI | partial: the AX parts pass; the pixel parts need Screen Recording |
-| b32 | I625, I626 | "Review decision…" on a waiting conflict; Include folders checked by default in Select by mask | GUI | partial: the AX parts pass; the pixel parts need Screen Recording |
+| b31 | I623 | Pictures as c33 | GUI | partial: the AX parts pass; the pixel parts move to the FileCatCapture helper, which has had Screen Recording since 2026-10-20 |
+| b32 | I625, I626 | "Review decision…" on a waiting conflict; Include folders checked by default in Select by mask | GUI | partial: the AX parts pass; the pixel parts move to the FileCatCapture helper, which has had Screen Recording since 2026-10-20 |
 | b33 | I627 | Create file list as c35 | GUI | done (Mac harness rehearsal) |
-| b34 | I630 | No attribute name colors on ordinary files | GUI | partial: the AX parts pass; the pixel parts need Screen Recording |
+| b34 | I630 | No attribute name colors on ordinary files | GUI | partial: the AX parts pass; the pixel parts move to the FileCatCapture helper, which has had Screen Recording since 2026-10-20 |
 | b35 | REL-I106-RECOVERY | A second physical disk's scan; authopen approve and refuse; a device change | GUI; a USB disk; authopen (owner) | blocked (owner and media) |
 
 ## Blocked on people, hardware or an owner decision
 
 | # | IDs | What remains | Blocked by |
 |---|---|---|---|
-| d1 | REL-WIN-GA, REL-SIGN-WINDOWS, I02, I04 | A physical GA Windows 11 PC: clean install, launch, use and removal, and Smart App Control enforcing with the candidate's components loaded | ENV-03 |
+| d1 | REL-WIN-GA, REL-SIGN-WINDOWS, I02, I04 | A physical GA Windows 11 PC: clean install, launch, use and removal, and Smart App Control enforcing with the candidate's components loaded | ENV-03: the owner provides a GA PC (DEC-14) |
 | d2 | REL-SIGN-WINDOWS, I611, I623, I634 | ARM64: install the ARM64 Setup, signatures, About, PDF, pictures, Smart App Control | ENV-02 (not mandatory under DEC-02); a Windows on Arm VM on the Mac could cover it |
-| d3 | REL-PERFORMANCE (I07, I42) | Fixed workloads on the reference machine | ENV-08 and numeric targets |
-| d4 | REL-I06-AGGREGATE | Whole-process memory accounting against fixed limits | Owner limits; reference machine |
-| d5 | REL-HUMAN-UX | Unprompted tasks by Commander users, newcomers and platform users | PPL-01 |
-| d6 | REL-HUMAN-AT, I583 | Experienced screen-reader users | PPL-02 |
-| d7 | REL-CONSENT-ATTEST | A person attests UAC, polkit, authopen and TCC prompts and device identity | PPL-03 |
-| d8 | REL-I17-BROKER, I310, I324 | Real consent under default UAC read by a person; remaining helper loading, connection and lifetime work | PPL-03; scope |
+| d3 | REL-PERFORMANCE (I07, I42) | Fixed workloads on the reference machine | Waived for 1.0.0 (DEC-14) |
+| d4 | REL-I06-AGGREGATE | Whole-process memory accounting against fixed limits | Closes by scope on rc.3's results (DEC-14) |
+| d5 | REL-HUMAN-UX | Unprompted tasks by Commander users, newcomers and platform users | Waived for 1.0.0 (DEC-14) |
+| d6 | REL-HUMAN-AT, I583 | Experienced screen-reader users | Waived for 1.0.0 (DEC-14); the automated NVDA, Orca and VoiceOver runs stand in |
+| d7 | REL-CONSENT-ATTEST | A person attests UAC, polkit, authopen and TCC prompts and device identity | PPL-03: the owner attests on rc.3 (DEC-14) |
+| d8 | REL-I17-BROKER, I310, I324 | Real consent under default UAC read by a person; remaining helper loading, connection and lifetime work | PPL-03: the owner's attestation (DEC-14); scope |
 | d9 | REL-I106-RECOVERY, I495, I496, I519 | Other media and layouts, installed consent, the physical USB stick repeat, the installed helper end to end, a hostile GPT disk | Physical media; PPL-03; scope |
-| d10 | REL-I08-CONTAINMENT, REL-I16-LAUNCH, I493, I546, I549, I550, I552 | Whole-process memory, remaining parser, Shell and helper-launch routes, installed containment | Owner scope decision |
-| d11 | REL-FQ-CORE and older open-ended issues | 232 statuses from I300 to I556 that say only "candidate remains", with no fixed step; AC-11's real-phone Move | Owner scope decision; an MTP phone |
+| d10 | REL-I08-CONTAINMENT, REL-I16-LAUNCH, I493, I546, I549, I550, I552 | Whole-process memory, remaining parser, Shell and helper-launch routes, installed containment | Closes by scope on rc.3's full CI and installed checks (DEC-14) |
+| d11 | REL-FQ-CORE and older open-ended issues | 232 statuses from I300 to I556 that say only "candidate remains", with no fixed step; AC-11's real-phone Move | Closes by scope on rc.3's results (DEC-14); AC-11 waits for the owner's MTP phone |
 | d12 | REL-FQ-CANDIDATE | Every row Accepted, skips and failures reconciled, evidence sealed | Everything above |
 | d13 | REL-REP-CUSTODY | Seal the evidence read-only under DEC-10 and check its manifest independently | After FQ |
 | d14 | REL-PIPELINE | A negative and positive test of manifest-only promotion to stable | Owner-gated GitHub |
