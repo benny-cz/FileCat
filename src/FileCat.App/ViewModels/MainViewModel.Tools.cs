@@ -300,11 +300,14 @@ public sealed partial class MainViewModel
             return;
         }
         int leftGeneration = left.Listing.Generation, rightGeneration = right.Listing.Generation;
-        using var stop = new CancellationTokenSource();
+        var stop = new CancellationTokenSource();
+        var startLeft = left.Location;
+        var startRight = right.Location;
+        bool closed = false;
         bool Current() => !left.Listing.IsDisposed && !right.Listing.IsDisposed &&
             left.Listing.Generation == leftGeneration && right.Listing.Generation == rightGeneration && !Services.Io.IsStopped;
         void Changed(object? sender, ListingChange change) { if (!Current()) stop.Cancel(); }
-        void Closed() => stop.Cancel();
+        void Closed() { closed = true; stop.Cancel(); }
         left.Listing.Changed += Changed; right.Listing.Changed += Changed;
         left.Closed += Closed; right.Closed += Closed;
         try
@@ -321,7 +324,25 @@ public sealed partial class MainViewModel
                 new TextBlock { Text = "Names always match; folders compare by presence. Without subfolders, items that differ or exist on one side only are marked in both panels.", Classes = { "muted", "small" }, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
             } };
             var go = await Dialogs.ShowCustomAsync("Compare directories", body, [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Compare", "ok", IsDefault: true)]);
-            if (go as string != "ok" || !Current() || stop.IsCancellationRequested) return;
+            if (go as string != "ok") return;
+            if (!Current() || stop.IsCancellationRequested)
+            {
+                // A folder read again in place while the dialog was open (a change notice, Reread): Compare was chosen for
+                // what the panels show now, and that is compared. Before, the chosen Compare silently did nothing (I668).
+                // A closed tab, another folder or a closing FileCat still ends it, as before.
+                if (closed || left.Listing.IsDisposed || right.Listing.IsDisposed || Services.Io.IsStopped ||
+                    left.Location != startLeft || right.Location != startRight) return;
+                if (left.Listing.State != ListingState.Complete || right.Listing.State != ListingState.Complete || left.Listing.IsRefreshing ||
+                    right.Listing.IsRefreshing || left.Listing.Issues.Count != 0 || right.Listing.Issues.Count != 0)
+                {
+                    Notify("Compare needs two complete listings without read errors. Reread both folders first.");
+                    return;
+                }
+                leftGeneration = left.Listing.Generation;
+                rightGeneration = right.Listing.Generation;
+                stop.Dispose();
+                stop = new CancellationTokenSource();
+            }
             var criteria = (size.IsChecked == true ? CompareCriteria.Size : 0) | (time.IsChecked == true ? CompareCriteria.Time : 0) | (content.IsChecked == true ? CompareCriteria.Content : 0);
             var fs = Services.Platform.FileOperations;
             var leftEntries = Snapshot(left.Listing);
@@ -380,6 +401,7 @@ public sealed partial class MainViewModel
         {
             left.Listing.Changed -= Changed; right.Listing.Changed -= Changed;
             left.Closed -= Closed; right.Closed -= Closed;
+            stop.Dispose();
         }
     }
 

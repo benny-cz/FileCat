@@ -115,7 +115,7 @@ internal static partial class Program
 
         var pages = ElevationConsent.Pages(plan);
         string content = $"Requested by {ElevationPlanCodec.DisplayName(plan.UserSid)} from FileCat at {plan.CreatedUtc.ToLocalTime():t}. " +
-                         $"This approval covers only these {ElevationConsent.Kinds(plan)}; the helper exits when they finish." +
+                         ElevationConsent.Coverage(plan) +
                          (pages.Count > 1 ? $" The steps are shown {ElevationConsent.PageSize} at a time: Later steps and Earlier steps show every one of them." : "");
         bool reading = plan.Steps is [{ Verb: ElevatedVerb.ReadDevice }];
         string footer = metadata ? "This read-only scan may include names and metadata you cannot normally access. Approval grants no cleanup or modification rights."
