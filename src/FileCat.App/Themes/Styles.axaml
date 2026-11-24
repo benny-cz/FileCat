@@ -431,6 +431,14 @@
   <Style Selector="ProgressBar">
     <Setter Property="Foreground" Value="{DynamicResource FcProgress}" />
   </Style>
+  <!-- Every number box's spin buttons (NumericUpDown's ButtonSpinner): Fluent draws them as icons, and a button named by
+       nothing else is named after its content, so a screen reader read "Avalonia.Controls.PathIcon" (I653). -->
+  <Style Selector="ButtonSpinner /template/ RepeatButton#PART_IncreaseButton">
+    <Setter Property="AutomationProperties.Name" Value="Increase" />
+  </Style>
+  <Style Selector="ButtonSpinner /template/ RepeatButton#PART_DecreaseButton">
+    <Setter Property="AutomationProperties.Name" Value="Decrease" />
+  </Style>
 
   <Style Selector="ListBox.choices">
     <Setter Property="Background" Value="Transparent" />

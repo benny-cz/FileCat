@@ -90,6 +90,13 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// A value is read only when asked (F3, F5), one named like a picture too, so the picture grid draws these rows as
+    /// plain tiles (I649).
+    /// </summary>
+    public override string? ExplainNoThumbnails(Location location) =>
+        (OperatingSystem.IsWindows() ? "Streams and attributes" : "Attributes") + " are read only when asked (F3), so they show as plain tiles.";
+
     public override ItemRef GetItemRef(Location listing, in EntryData entry) => entry.Tag is HiddenEntryTag tag
         ? new ItemRef(listing, entry.Name, entry.Kind, entry.Size, entry.Modified)
             { Ordinal = HiddenIdentities.Ordinal(tag.Item.Kind), Flags = entry.Flags, SupplementarySourceIdentity = tag.SourceIdentity }

@@ -85,6 +85,10 @@ public sealed partial class AnalysisRenderingTests
             Assert.Equal(1UL, root.Path.Id); list.SelectedItem = root; Click(window, "Explore selected folder");
             await Until(() => IndexedReady(window, explorer, 1)); Frame(window);
             Assert.Equal(128, list.ItemCount); Assert.True(explorer.Page!.Children.HasMore);
+            // I653: a row is named by the cells it shows, never by the captured row's record text ("AnalysisHierarchyRow { Path = …").
+            var rowNames = list.GetRealizedContainers().Select(item => Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(item).GetName() ?? "").ToArray();
+            Assert.NotEmpty(rowNames);
+            Assert.All(rowNames, name => Assert.False(name.Length == 0 || name.Contains(nameof(AnalysisHierarchyRow), StringComparison.Ordinal), $"A row is named \"{name}\"."));
             var firstIds = list.Items.OfType<AnalysisHierarchyRow>().Select(row => row.Path.Id).ToArray();
             Click(window, "Next entries"); await Until(() => explorer.Page!.Children.Offset != 0 && IndexedReady(window, explorer, 1)); Frame(window);
             Assert.DoesNotContain(list.Items.OfType<AnalysisHierarchyRow>(), row => firstIds.Contains(row.Path.Id));

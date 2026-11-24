@@ -65,7 +65,8 @@ public sealed partial class TabViewModel
     {
         if (Location is not { } location) return null;
         var provider = Services.Providers.For(location);
-        var item = provider.GetItemRef(location, entry);
+        // Asked while the list draws its metadata columns: a row the provider can no longer describe stays unread.
+        if (ItemForDrawing(provider, location, entry) is not { } item) return null;
         string? path = HasFilesystemMetadataOrigin(location, entry) ? item.FileSystemPath : null;
         string device = path is null ? "" : Services.Providers.For(item.Parent).GetDeviceKey(item.Parent);
         return new(Listing.Store, storeIndex, entry.Name, entry.Kind, path, device, path is not null && SlowMetadataOrigin(path, device));
