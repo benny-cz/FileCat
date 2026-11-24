@@ -112,6 +112,8 @@ public sealed class CompareWindow : Window
     private bool _checkingInputs;
     private bool _closed, _reopening, _binaryForced, _settingOptions, _settingDifference, _searching, _contentFocused, _findOpen;
     private int _view;
+    /// <summary>The view whose first difference was shown (-1 before the first); see <see cref="FocusFirstView"/>.</summary>
+    private int _shownView = -1;
     private int _findRequest, _matchIndex = -1;
     private CancellationTokenSource? _findStop;
     private IReadOnlyList<CompareTextMatch> _matches = [];
@@ -205,7 +207,7 @@ public sealed class CompareWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(_findToggle, "Show or hide comparison Find bar");
         Avalonia.Automation.AutomationProperties.SetName(_closeFind, "Close comparison Find bar");
         ToolTip.SetTip(_closeFind, "Close Find (Esc); the query stays for next time");
-        _closeFind.Click += (_, _) => { SetFindOpen(false); _rows.Focus(); };
+        _closeFind.Click += (_, _) => CloseFind();
         Avalonia.Automation.AutomationProperties.SetName(_findSide, "Comparison search source scope");
         Avalonia.Automation.AutomationProperties.SetAutomationId(_findStatus, "Comparison match status");
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_findStatus, Avalonia.Automation.AutomationLiveSetting.Polite);
@@ -332,7 +334,21 @@ public sealed class CompareWindow : Window
         // Navigation keys work wherever the focus is (the list and the difference box have their own uses for arrows).
         AddHandler(KeyDownEvent, OnNavigationKey, RoutingStrategies.Tunnel);
         KeyDown += OnKey;
-        Activated += (_, _) => CheckInputs();
+        Activated += (_, _) =>
+        {
+            CheckInputs();
+            // A first view shown before this window became active (another window was, or the activation came after the
+            // comparison) takes the keys now, unless something here has them already: that choice stands.
+            if (!_contentFocused)
+                Dispatcher.UIThread.Post(() =>
+                {
+                    // A view still being shown takes the keys itself, once its first difference is shown.
+                    if (_contentFocused || _closed || _shownView != _view || !IsActive) return;
+                    var focused = FocusManager?.GetFocusedElement();
+                    if (focused is null || ReferenceEquals(focused, this)) FocusFirstView();
+                    else _contentFocused = true;
+                }, DispatcherPriority.Loaded);
+        };
         ThemeManager.ThemeChanged += RefreshIcons;
         Closed += (_, _) =>
         {
@@ -436,8 +452,7 @@ public sealed class CompareWindow : Window
         if (_findOpen && FocusManager?.GetFocusedElement() is Visual findControl &&
             _findBar.IsVisualAncestorOf(findControl))
         {
-            SetFindOpen(false);
-            _rows.Focus();
+            CloseFind();
             e.Handled = true;
             return;
         }
@@ -686,13 +701,22 @@ public sealed class CompareWindow : Window
             if (view != _view || _closed) return;
             // Unless a difference was chosen meanwhile: the user's choice stands.
             if (_current < 0 && _pastListed is null && (_shown == Shown.Text ? _differenceRows.Count > 0 : _differences.Count > 0)) GoTo(0);
-            if (!_contentFocused && IsActive)
-            {
-                // The first view takes the keys (arrows and Page Down scroll); later ones leave the focus where it is.
-                _contentFocused = true;
-                (_shown == Shown.Text ? (Control)_rows : _hex).Focus();
-            }
+            _shownView = view;
+            FocusFirstView();
         }, DispatcherPriority.Loaded);
+    }
+
+    /// <summary>
+    /// The first view shown in the active window takes the keys (arrows and Page Down scroll); later ones leave the focus
+    /// where it is. The text gives them to its current row (I637). A first view shown before the window became active
+    /// takes them on activation (see the constructor).
+    /// </summary>
+    private void FocusFirstView()
+    {
+        if (_contentFocused || !IsActive || _closed || _shown == Shown.Nothing) return;
+        _contentFocused = true;
+        if (_shown == Shown.Text) FocusCurrentRow();
+        else _hex.Focus();
     }
 
     /// <summary>Goes to the listed difference <paramref name="index"/> (the difference box's choice).</summary>
@@ -848,6 +872,23 @@ public sealed class CompareWindow : Window
         _findBar.IsVisible = open && _shown == Shown.Text;
         _findToggle.Content = open ? "Hide Find" : "Find…";
         if (open) _findText.Focus();
+    }
+
+    /// <summary>Closes Find, keeping its query for next time, and gives the keyboard back to the current row (I569, I637).</summary>
+    private void CloseFind()
+    {
+        SetFindOpen(false);
+        FocusCurrentRow();
+    }
+
+    /// <summary>
+    /// Gives the keyboard to the text comparison's current row, or to its first row when none is current (I637). The
+    /// rows' list cannot take the keyboard itself; its rows can, and from a row the arrows and Page Down act on the
+    /// comparison. A row out of view is brought into view first. An open dialog keeps the keyboard.
+    /// </summary>
+    private void FocusCurrentRow()
+    {
+        if (!_closed && !_dialogs.IsOpen && _shown == Shown.Text) ListKeys.Focus(_rows);
     }
 
     private async Task RunFindAsync(IReadOnlyList<object> rows, string term, int scope, bool changedOnly,
