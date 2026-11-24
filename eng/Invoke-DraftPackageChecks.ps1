@@ -27,7 +27,8 @@ if($SignedCandidate){
 elseif($Policy.Mode -cne 'prerelease' -or $Reference -cnotmatch '^refs/tags/v1\.0\.0-preview\.[1-9][0-9]*$'){
     throw 'Draft package checks require a 1.0.0 preview tag; RC artifacts need the separate signed-candidate path.'
 }
-$Version=$Reference.Substring('refs/tags/v'.Length)
+# A candidate's packages are FileCat 1.0.0 built from its RC tag (I634); a preview's carry the preview's own version.
+$Version=if($SignedCandidate){'1.0.0'}else{$Reference.Substring('refs/tags/v'.Length)}
 $Root=[IO.Path]::GetFullPath($ArtifactDirectory)
 if($Root -match '[\r\n\[\]{}()*?!]'){throw 'Artifact root cannot contain action glob metacharacters or newlines.'}
 $Specifications=@(

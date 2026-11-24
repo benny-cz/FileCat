@@ -36,8 +36,8 @@ $Observations=[Collections.Generic.List[object]]::new()
 function Invoke-RestMethod($Uri,$Headers,$Method,$TimeoutSec){
     if($Method -cne 'Get' -or $Headers.Authorization -cne 'Bearer synthetic-control-token'){throw 'Unexpected transport contract.'}
     $Suffix=$Uri.Substring('https://api.github.com/repos/owned/fixture/'.Length);$Calls.Add($Suffix)
-    if($Suffix -ceq "git/ref/tags/v$CaseVersion"){return [pscustomobject]@{object=[pscustomobject]@{type='commit';sha=$Source}}}
-    if($Suffix -ceq 'releases?per_page=100&page=1'){return @([pscustomobject]@{id=51;tag_name="v$CaseVersion";draft=$true;prerelease=$true;immutable=$false})}
+    if($Suffix -ceq "git/ref/tags/$CaseTag"){return [pscustomobject]@{object=[pscustomobject]@{type='commit';sha=$Source}}}
+    if($Suffix -ceq 'releases?per_page=100&page=1'){return @([pscustomobject]@{id=51;tag_name=$CaseTag;draft=$true;prerelease=$true;immutable=$false})}
     if($Suffix -ceq 'releases/51/assets?per_page=100&page=1'){
         if($Case.ContainsKey('Verify')){return $Remote}
         if($Base -eq 'existing-last-platform'){return @($Remote | Where-Object {$_.name -ceq "FileCat-$CaseVersion-osx-arm64.zip"})}
@@ -49,13 +49,15 @@ try{
     $env:GH_TOKEN='synthetic-control-token'
     foreach($Case in $Cases){
         $IsCandidate=$Case.ContainsKey('Candidate');$Base=$Case.Name -replace '^candidate-',''
-        $CaseVersion=if($IsCandidate){'1.0.0-rc.1'}else{$Version}
+        # A candidate's packages are named 1.0.0 and selected with the RC tag that built them (I634).
+        $CaseVersion=if($IsCandidate){'1.0.0'}else{$Version};$CaseTag=if($IsCandidate){'v1.0.0-rc.1'}else{"v$Version"}
+        $CandidateSelection=if($IsCandidate){@{CandidateRef="refs/tags/$CaseTag"}}else{@{}}
         $Directory=Join-Path $Root $Case.Name;[void][IO.Directory]::CreateDirectory($Directory)
         $Hashes=@{};$Uploaded=[Collections.Generic.List[object]]::new();$ExpectedPaths=[Collections.Generic.List[string]]::new()
         foreach($Platform in @('windows','linux','macos')){
             $PlatformRoot=Join-Path $Directory $Platform;[void][IO.Directory]::CreateDirectory($PlatformRoot)
             foreach($Name in @($Contract[$Platform] | ForEach-Object {$_.Replace('1.0.0-preview.3',$CaseVersion)})){[IO.File]::WriteAllText((Join-Path $PlatformRoot $Name),"owned external package set: $Name")}
-            $Selection=& (Join-Path $Eng 'Select-ReleaseAssets.ps1') -Platform $Platform -Version $CaseVersion -SourceCommit $Source -ArtifactDirectory $PlatformRoot
+            $Selection=& (Join-Path $Eng 'Select-ReleaseAssets.ps1') -Platform $Platform -Version $CaseVersion -SourceCommit $Source -ArtifactDirectory $PlatformRoot @CandidateSelection
             $Hashes[$Platform]=(Get-FileHash -LiteralPath $Selection.ManifestPath).Hash.ToLowerInvariant()
             foreach($FilePath in $Selection.Files){
                 $File=Get-Item -LiteralPath $FilePath
@@ -73,7 +75,7 @@ try{
         if($Base -eq 'upload-cross-platform-name'){$Uploaded[13].name=$Uploaded[0].name}
         if($Base -eq 'upload-wrong-platform'){$Uploaded[13].name='wrong-platform.zip'}
         if($Base -eq 'upload-remote-last-platform-hash'){$Remote[-1].digest='sha256:'+('0'*64)}
-        $Arguments=@{ArtifactDirectory=$Directory;SourceCommit=$Source;Reference=$(if($Base -eq 'stable-ref'){'refs/tags/v1.0.0'}elseif($Base -eq 'rc-ref'){'refs/tags/v1.0.0-rc.1'}elseif($Base -eq 'preview-ref'){"refs/tags/v$Version"}else{"refs/tags/v$CaseVersion"});SignedCandidate=$IsCandidate;Repository='owned/fixture';WindowsManifestSHA256=$Hashes.windows;LinuxManifestSHA256=$Hashes.linux;MacOSManifestSHA256=$Hashes.macos;ReceiptDirectory=(Join-Path $Directory 'receipts')}
+        $Arguments=@{ArtifactDirectory=$Directory;SourceCommit=$Source;Reference=$(if($Base -eq 'stable-ref'){'refs/tags/v1.0.0'}elseif($Base -eq 'rc-ref'){'refs/tags/v1.0.0-rc.1'}elseif($Base -eq 'preview-ref'){"refs/tags/v$Version"}else{"refs/tags/$CaseTag"});SignedCandidate=$IsCandidate;Repository='owned/fixture';WindowsManifestSHA256=$Hashes.windows;LinuxManifestSHA256=$Hashes.linux;MacOSManifestSHA256=$Hashes.macos;ReceiptDirectory=(Join-Path $Directory 'receipts')}
         $Output=Join-Path $Directory 'github-output.txt'
         if($Case.ContainsKey('Verify')){$Arguments.VerifyUpload=$true;$Arguments.ExpectedReleaseID=51;$Arguments.UploadedAssetsJson=ConvertTo-Json -InputObject @($Uploaded.ToArray()) -Depth 7}
         else{$Arguments.GitHubOutputPath=$Output}

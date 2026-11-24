@@ -944,6 +944,19 @@ jobs:
           # Unsigned bytes only; a week leaves room for the owner's approval of the signing job.
           retention-days: 7
           if-no-files-found: error
+      # After the upload, so nothing this start could leave behind reaches the payload the signing job checks.
+      - name: The candidate calls itself FileCat 1.0.0 (RC tags, I634)
+        if: startsWith(github.ref, 'refs/tags/v1.0.0-rc.')
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:RUNNER_TEMP 'signing-run/artifacts/publish/win-x64/FileCat.exe'
+          $out = Join-Path $env:RUNNER_TEMP 'candidate-version.txt'
+          $p = Start-Process $exe -ArgumentList '--version' -Wait -PassThru -RedirectStandardOutput $out
+          $text = (Get-Content -LiteralPath $out -Raw).Trim()
+          $informational = (Get-Item -LiteralPath $exe).VersionInfo.ProductVersion
+          if ($p.ExitCode -ne 0 -or $text -cne 'FileCat 1.0.0' -or $informational -cne "1.0.0+$env:GITHUB_SHA") {
+            throw "The candidate payload reports '$text' and product version '$informational', not FileCat 1.0.0 at $env:GITHUB_SHA."
+          }
       - name: Publish portable, framework-dependent, and installer payloads (x64 and ARM64, D-48)
         if: ${{ !startsWith(github.ref, 'refs/tags/v1.0.0-rc.') }}
         shell: pwsh
@@ -1023,14 +1036,19 @@ jobs:
           ./eng/package-linux.sh "$v" linux-x64 "$product" "$candidate_ref"
       - name: Install and start each package
         run: |
+          # Each package calls itself what it is: a candidate FileCat 1.0.0 (I634), anything else its own version.
+          v="${GITHUB_REF_NAME#v}"
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then v="1.0.0-dev.${GITHUB_RUN_NUMBER}"; fi
+          if [[ "$GITHUB_REF" =~ ^refs/tags/v1\.0\.0-rc\.[1-9][0-9]*$ ]]; then v="1.0.0"; fi
           sudo apt-get update -qq
           sudo apt-get install -y -qq ./artifacts/filecat_*.deb
-          filecat --version
+          test "$(filecat --version)" = "FileCat $v"
+          test "$(dpkg-query -W -f='${Version}' filecat)" = "${v/-/\~}"
           # The icon at every size it is drawn for, so a desktop need not shrink the large artwork.
           for s in 16 24 32 48 64 128 256; do test -s "/usr/share/icons/hicolor/${s}x${s}/apps/filecat.png"; done
-          APPIMAGE_EXTRACT_AND_RUN=1 ./artifacts/FileCat-*-x86_64.AppImage --version
-          mkdir unpacked && tar -xzf artifacts/FileCat-*-linux-x64.tar.gz -C unpacked
-          unpacked/FileCat-*/FileCat --version
+          test "$(APPIMAGE_EXTRACT_AND_RUN=1 "./artifacts/FileCat-$v-x86_64.AppImage" --version)" = "FileCat $v"
+          mkdir unpacked && tar -xzf "artifacts/FileCat-$v-linux-x64.tar.gz" -C unpacked
+          test "$(unpacked/FileCat-$v/FileCat --version)" = "FileCat $v"
           # The AppImage runtime's corresponding source (EXT-04) unpacks and matches its own checksums.
           mkdir runtime-source && tar -xzf artifacts/FileCat-*-linux-x64-appimage-runtime-source.tar.gz -C runtime-source
           (cd runtime-source/appimage-runtime-source && sha256sum -c --strict SHA256SUMS && bash -n rebuild.sh)
@@ -1042,7 +1060,10 @@ jobs:
           PACKAGE_REF_NAME: ${{ github.ref_name }}
         run: |
           $v = if ($env:PACKAGE_REF.StartsWith('refs/tags/v')) { $env:PACKAGE_REF_NAME.Substring(1) } else { "1.0.0-dev.$env:GITHUB_RUN_NUMBER" }
-          ./eng/Select-ReleaseAssets.ps1 -Platform linux -Version $v -SourceCommit $env:GITHUB_SHA -GitHubOutputPath $env:GITHUB_OUTPUT
+          # A candidate's packages are FileCat 1.0.0, selected with the tag that built them (I634).
+          $candidate = @{}
+          if ($env:PACKAGE_REF -cmatch '^refs/tags/v1\.0\.0-rc\.[1-9][0-9]*$') { $v = '1.0.0'; $candidate.CandidateRef = $env:PACKAGE_REF }
+          ./eng/Select-ReleaseAssets.ps1 -Platform linux -Version $v -SourceCommit $env:GITHUB_SHA -GitHubOutputPath $env:GITHUB_OUTPUT @candidate
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: filecat-linux
@@ -1093,9 +1114,13 @@ jobs:
           ./eng/package-macos.sh "$v" "$product" "$candidate_ref"
       - name: Start the packaged app
         run: |
-          mkdir unpacked && ditto -x -k artifacts/FileCat-*-osx-arm64.zip unpacked
+          # The app calls itself what it is: a candidate FileCat 1.0.0 (I634), anything else its own version.
+          v="${GITHUB_REF_NAME#v}"
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then v="1.0.0-dev.${GITHUB_RUN_NUMBER}"; fi
+          if [[ "$GITHUB_REF" =~ ^refs/tags/v1\.0\.0-rc\.[1-9][0-9]*$ ]]; then v="1.0.0"; fi
+          mkdir unpacked && ditto -x -k "artifacts/FileCat-$v-osx-arm64.zip" unpacked
           codesign --verify --deep --strict unpacked/FileCat.app
-          unpacked/FileCat.app/Contents/MacOS/FileCat --version
+          test "$(unpacked/FileCat.app/Contents/MacOS/FileCat --version)" = "FileCat $v"
           # The icon at every size macOS asks for, the small ones from the frames drawn for them.
           iconutil -c iconset unpacked/FileCat.app/Contents/Resources/FileCat.icns -o icon-check.iconset
           test "$(ls icon-check.iconset | wc -l)" -eq 7
@@ -1107,7 +1132,10 @@ jobs:
           PACKAGE_REF_NAME: ${{ github.ref_name }}
         run: |
           $v = if ($env:PACKAGE_REF.StartsWith('refs/tags/v')) { $env:PACKAGE_REF_NAME.Substring(1) } else { "1.0.0-dev.$env:GITHUB_RUN_NUMBER" }
-          ./eng/Select-ReleaseAssets.ps1 -Platform macos -Version $v -SourceCommit $env:GITHUB_SHA -GitHubOutputPath $env:GITHUB_OUTPUT
+          # A candidate's package is FileCat 1.0.0, selected with the tag that built it (I634).
+          $candidate = @{}
+          if ($env:PACKAGE_REF -cmatch '^refs/tags/v1\.0\.0-rc\.[1-9][0-9]*$') { $v = '1.0.0'; $candidate.CandidateRef = $env:PACKAGE_REF }
+          ./eng/Select-ReleaseAssets.ps1 -Platform macos -Version $v -SourceCommit $env:GITHUB_SHA -GitHubOutputPath $env:GITHUB_OUTPUT @candidate
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: filecat-macos
@@ -1262,12 +1290,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERIFICATION_OUTCOME: ${{ steps.verify.outcome }}
         run: ./eng/signing/Invoke-WindowsSigningRun.ps1 -Phase Draft -WorkDirectory (Join-Path $env:RUNNER_TEMP 'signing-run') -VerificationOutcome $env:VERIFICATION_OUTCOME
+      # The candidate's Windows files are FileCat 1.0.0, selected with the tag that built them (I634).
       - name: Select the signed Windows release assets
         id: windows-assets
         shell: pwsh
-        env:
-          PACKAGE_VERSION: ${{ github.ref_name }}
-        run: ./eng/Select-ReleaseAssets.ps1 -Platform windows -Version $env:PACKAGE_VERSION.Substring(1) -SourceCommit $env:GITHUB_SHA -ArtifactDirectory (Join-Path $env:RUNNER_TEMP 'signing-run/artifacts') -GitHubOutputPath $env:GITHUB_OUTPUT
+        run: ./eng/Select-ReleaseAssets.ps1 -Platform windows -Version 1.0.0 -CandidateRef $env:GITHUB_REF -SourceCommit $env:GITHUB_SHA -ArtifactDirectory (Join-Path $env:RUNNER_TEMP 'signing-run/artifacts') -GitHubOutputPath $env:GITHUB_OUTPUT
       - name: Stage the signed Windows assets beside the other platforms
         shell: pwsh
         env:

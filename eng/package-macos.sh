@@ -28,7 +28,11 @@ if [[ -n "$CANDIDATE_REF" ]]; then
     echo "The RC ref and source must match the checked-out GitHub event." >&2; exit 2
   fi
   VERSION_ARGS=(-p:Version="$PRODUCT_VERSION" -p:VersionPrefix="$PRODUCT_VERSION" \
-    -p:InformationalVersion="$VERSION+$SOURCE_COMMIT" -p:IncludeSourceRevisionInInformationalVersion=false)
+    -p:InformationalVersion="$PRODUCT_VERSION+$SOURCE_COMMIT" -p:IncludeSourceRevisionInInformationalVersion=false)
+  # A candidate is FileCat 1.0.0 built from its RC reference, and its bytes say so throughout (I634): the app's
+  # informational version and every file name carry 1.0.0, so the qualified ZIP can be published as 1.0.0 unchanged.
+  # The reference stays in the producer manifest and the candidate's draft.
+  VERSION="$PRODUCT_VERSION"
 elif [[ "$VERSION" == 1.0.0-rc.* || "$PRODUCT_VERSION" != "$VERSION" ]]; then
   echo "An RC package requires an explicit candidate ref and product version; other packages cannot override their version." >&2; exit 2
 else

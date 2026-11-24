@@ -4,10 +4,25 @@ param(
     [Parameter(Mandatory)][ValidatePattern('^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$')][string]$Version,
     [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{40}$')][string]$SourceCommit,
     [string]$ArtifactDirectory = (Join-Path (Split-Path $PSScriptRoot -Parent) 'artifacts'),
-    [string]$GitHubOutputPath
+    [string]$GitHubOutputPath,
+    # A release candidate's packages are FileCat 1.0.0 built from its v1.0.0-rc.N tag (I634): they are selected as
+    # -Version 1.0.0 with that tag's reference, which the manifest records. Without one, a release version or an RC-named
+    # set is refused.
+    [string]$CandidateRef
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+if (-not [string]::IsNullOrEmpty($CandidateRef)) {
+    if ($CandidateRef -cnotmatch '^refs/tags/v1\.0\.0-rc\.[1-9][0-9]*$' -or $Version -cne '1.0.0') {
+        throw 'A candidate is selected as version 1.0.0 with its exact v1.0.0-rc.N reference.'
+    }
+}
+elseif ($Version -cnotmatch '-') {
+    throw 'A release-version package set needs its candidate reference.'
+}
+elseif ($Version -cmatch '^1\.0\.0-rc\.') {
+    throw 'Candidate packages are named 1.0.0 and selected with their candidate reference (I634).'
+}
 $Root = [IO.Path]::GetFullPath($ArtifactDirectory)
 if ($Root -match '[\r\n\[\]{}()*?!]') { throw 'Artifact root cannot contain action glob metacharacters or newlines.' }
 $Current = Get-Item -LiteralPath $Root -Force
@@ -59,10 +74,13 @@ $ManifestPath = Join-Path $Root $ManifestName
 if (Test-Path -LiteralPath $ManifestPath) { throw 'An asset manifest already exists; preserve its original bytes.' }
 $Manifest = [ordered]@{
     SourceCommit=$SourceCommit; Platform=$Platform; Version=$Version
-    SelectorSHA256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
-    Files=@($Files); CandidateQualified=$false; SigningVerified=$false
-    InstallerVersionSuffixPreserved=($Platform -ne 'windows' -or $Version -eq $NumericVersion)
 }
+if (-not [string]::IsNullOrEmpty($CandidateRef)) { $Manifest.CandidateRef = $CandidateRef }
+$Manifest.SelectorSHA256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$Manifest.Files = @($Files)
+$Manifest.CandidateQualified = $false
+$Manifest.SigningVerified = $false
+$Manifest.InstallerVersionSuffixPreserved = ($Platform -ne 'windows' -or $Version -eq $NumericVersion)
 $Utf8 = [Text.UTF8Encoding]::new($false)
 $Stream = [IO.File]::Open($ManifestPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
 try {
