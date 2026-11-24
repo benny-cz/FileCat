@@ -21,7 +21,7 @@ public sealed class AppServices : IDisposable
         Func<AppPaths,IFileSystemOperations,Core.Edit.EditSessionStore>? editSessionFactory = null, IOwnership? ownershipOverride = null,
         int metadataCacheSize = 50_000, Func<long>? metadataClock = null, IStorageTransforms? storageTransforms = null,
         FileCat.Platform.Windows.AdministratorTransferRegistry? administratorRegistry = null, bool qualifyNativeArm64Storage = false,
-        IPermissionService? permissionService = null, LinuxPermissionBroker? linuxPermissionBroker = null)
+        IPermissionService? permissionService = null, LinuxPermissionBroker? linuxPermissionBroker = null, bool? elevatedOrRoot = null)
     {
         Paths = paths;
         AppLog.Initialize(paths.LogDirectory);
@@ -149,13 +149,8 @@ public sealed class AppServices : IDisposable
         Archives = new FileCat.Archives.ArchiveProvider(paths.TempDirectory, Providers) { GetSourceIdentity = ArchiveIdentity, GetOpenedSourceIdentity = OpenedArchiveIdentity };
         Providers.Register(Archives);
         // Files staged for dragging out of archives are taken by other programs long before a day passes; members spooled
-        // for viewing that a crash left behind (Linux, macOS) go after a day as well.
-        Task.Run(() =>
-        {
-            Core.Operations.DragStaging.Sweep(paths.TempDirectory, TimeSpan.FromDays(1));
-            ClipboardVirtualStaging.Sweep(paths.TempDirectory, TimeSpan.FromDays(1));
-            paths.SweepTemporaryLeftovers(TimeSpan.FromDays(1));
-        });
+        // for viewing that a crash left behind (Linux, macOS) go after a day as well. Not when elevated or root (I645).
+        StartupSweep = SweepTemporaryFolders(paths, elevatedOrRoot ?? Shell.IsElevated);
         // Deleted items of disk images, read-only (P10).
         Recovery = new FileCat.Recovery.RecoveryProvider { GetSourceIdentity = ArchiveIdentity, GetOpenedSourceIdentity = OpenedArchiveIdentity };
         if (OperatingSystem.IsWindows())
@@ -251,6 +246,29 @@ public sealed class AppServices : IDisposable
             if (!_applyingTransferredColumns) SaveSettings();
         };
         RegisterSavedFilters();
+    }
+
+    /// <summary>The start-up sweeps of the temporary folder; already complete when they were not run.</summary>
+    internal Task StartupSweep { get; }
+
+    /// <summary>
+    /// Removes what earlier sessions left in the profile's temporary folder, a day on: staged drags, pasted virtual files
+    /// and spooled archive members. Never in an elevated or root FileCat (I645, <see cref="IShellServices.IsElevated"/>):
+    /// its temporary folder is the ordinary account's, which every program of that account can change, so a link planted
+    /// there could make the sweeps change or delete what only an administrator may. An elevated Windows FileCat leaves
+    /// nothing there to sweep (it refuses drags out of archives and virtual pastes, and keeps archive members in memory).
+    /// What a root FileCat leaves there (staged drags, and spooled members after a crash) waits for an ordinary FileCat of
+    /// the same profile.
+    /// </summary>
+    internal static Task SweepTemporaryFolders(AppPaths paths, bool elevatedOrRoot)
+    {
+        if (elevatedOrRoot) return Task.CompletedTask;
+        return Task.Run(() =>
+        {
+            Core.Operations.DragStaging.Sweep(paths.TempDirectory, TimeSpan.FromDays(1));
+            ClipboardVirtualStaging.Sweep(paths.TempDirectory, TimeSpan.FromDays(1));
+            paths.SweepTemporaryLeftovers(TimeSpan.FromDays(1));
+        });
     }
 
     /// <summary>Mask prompt suggestions: saved filters first (as <c>@name</c>), then recent masks.</summary>
@@ -380,6 +398,13 @@ public sealed class AppServices : IDisposable
 
     internal static AppServices CreateForPathsWithLinuxPermissionBroker(AppPaths paths, string busSocket) =>
         new(paths, linuxPermissionBroker: new(busSocket));
+
+    /// <summary>
+    /// Tests (I645): a composition that takes this process to be elevated or root, or not, for its start-up sweeps of the
+    /// temporary folder only; everything else asks the token itself.
+    /// </summary>
+    internal static AppServices CreateForPathsWithStartupAuthority(AppPaths paths, bool elevatedOrRoot) =>
+        new(paths, elevatedOrRoot: elevatedOrRoot);
 
     internal static AppServices CreateForPathsWithAdministratorRegistry(AppPaths paths,
         FileCat.Platform.Windows.AdministratorTransferRegistry registry) => new(paths, administratorRegistry: registry);

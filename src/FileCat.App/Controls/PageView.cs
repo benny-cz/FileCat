@@ -14,7 +14,7 @@ namespace FileCat.App.Controls;
 /// </summary>
 public sealed class PageView : NativeControlHost
 {
-    private readonly string _dataFolder;
+    private readonly string? _dataFolder;
     private IPageEngine? _engine;
     private HtmlPage? _page;
     private IDisposable? _noHost;
@@ -26,7 +26,11 @@ public sealed class PageView : NativeControlHost
     private long _keyboardTakenAt = long.MinValue;
     private bool _focusingPage;
 
-    public PageView(string dataFolder)
+    /// <param name="dataFolder">
+    /// Where the engine keeps its own data (WebView2's user data, WebKit's content rules); null in an elevated or root
+    /// FileCat, where Windows and macOS then draw no page (see <see cref="PageEngines.Create"/>).
+    /// </param>
+    public PageView(string? dataFolder)
     {
         _dataFolder = dataFolder;
         if (ManagesKeyboard)
@@ -454,12 +458,26 @@ public readonly record struct PageFindResult(bool Found, int? MatchCount = null,
 
 internal static class PageEngines
 {
-    /// <summary>This platform's engine inside <paramref name="parent"/>, or null with why there is none.</summary>
-    public static IPageEngine? Create(IPlatformHandle parent, string dataFolder, out string? unavailable)
+    internal const string NoDataFolder = "Web pages are not drawn while FileCat runs as administrator or root: the page " +
+        "view would keep its data in the ordinary account's folder, which that account's programs can change. Open the " +
+        "page in an ordinary FileCat window to see it drawn.";
+
+    /// <summary>
+    /// This platform's engine inside <paramref name="parent"/>, or null with why there is none. WebView2 and WebKit keep
+    /// data in <paramref name="dataFolder"/>; without one (an elevated or root FileCat, I645) they are not started, since
+    /// an elevated browser process writing and pruning the ordinary account's folder would follow any link planted there.
+    /// WebKitGTK keeps nothing (an ephemeral context).
+    /// </summary>
+    public static IPageEngine? Create(IPlatformHandle parent, string? dataFolder, out string? unavailable)
     {
         unavailable = null;
         if (OperatingSystem.IsWindows())
         {
+            if (dataFolder is null)
+            {
+                unavailable = NoDataFolder;
+                return null;
+            }
             if (Platform.Windows.Html.WebView2Page.RuntimeVersion is null)
             {
                 unavailable = "Web pages are drawn by Microsoft Edge WebView2, which is not installed (it comes with Windows 11; for Windows 10 it is a free download from Microsoft).";
@@ -476,7 +494,12 @@ internal static class PageEngines
             }
             return LinuxPageEngine.Create(offscreen: false, out unavailable);
         }
-        if (OperatingSystem.IsMacOS()) return MacPageEngine.Create(dataFolder, out unavailable);
+        if (OperatingSystem.IsMacOS())
+        {
+            if (dataFolder is not null) return MacPageEngine.Create(dataFolder, out unavailable);
+            unavailable = NoDataFolder;
+            return null;
+        }
         unavailable = "Web pages are not drawn on this system.";
         return null;
     }

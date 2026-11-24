@@ -26,13 +26,8 @@ internal static partial class ClipboardVirtualStaging
         {
             if (_disposed || _handedOff) return;
             _disposed = true;
-            try
-            {
-                var info = new DirectoryInfo(directory);
-                if (info.Exists && (info.Attributes & FileAttributes.ReparsePoint) == 0)
-                    info.Delete(recursive: true);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            // Never through a link: one in the folder's place, or inside it, is removed itself.
+            TemporarySweep.RemoveTree(directory);
         }
     }
 
@@ -161,20 +156,10 @@ internal static partial class ClipboardVirtualStaging
         }
     }
 
-    internal static void Sweep(string tempRoot, TimeSpan age)
-    {
-        string parent = Path.Combine(tempRoot, Folder);
-        if (!Directory.Exists(parent)) return;
-        foreach (var directory in Directory.EnumerateDirectories(parent))
-        {
-            try
-            {
-                var info = new DirectoryInfo(directory);
-                if ((info.Attributes & FileAttributes.ReparsePoint) == 0
-                    && DateTime.UtcNow - info.CreationTimeUtc > age)
-                    info.Delete(recursive: true);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-        }
-    }
+    /// <summary>
+    /// Removes pasted virtual files older than <paramref name="age"/>, never through a link (I645): a link in place of a
+    /// staged folder is removed itself, and nothing is swept when the temporary or the staging folder is itself a link.
+    /// Not for an elevated or root FileCat (<see cref="AppServices.SweepTemporaryFolders"/>).
+    /// </summary>
+    internal static void Sweep(string tempRoot, TimeSpan age) => TemporarySweep.RemoveStaleFolders(tempRoot, Folder, age);
 }

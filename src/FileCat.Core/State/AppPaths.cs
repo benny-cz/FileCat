@@ -245,14 +245,29 @@ public sealed class AppPaths
             // a folder made under the usual umask (0755) is readable by every local account wherever the home folder does
             // not stop them (Debian's homes are 0755). Folders made before are tightened at the next start; where the mode
             // cannot be set (a FAT stick holding a portable copy), nothing is lost but the setting.
-            foreach (var root in OwnRoots)
-            {
-                try { File.SetUnixFileMode(root, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute); }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException) { }
-            }
-            File.SetUnixFileMode(ListingScratchDirectory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            TightenOwnFolders(OwnRoots, ListingScratchDirectory, Environment.IsPrivilegedProcess);
         }
         return this;
+    }
+
+    /// <summary>
+    /// Linux and macOS: makes FileCat's folders their user's alone (0700); the listing scratch must be, the others are
+    /// where their volume allows. Root changes no folder that is a link (I645): chmod follows a link, and a root FileCat
+    /// whose HOME is the user's (sudo keeps it on macOS, and with -E on Linux) would otherwise change the mode of whatever
+    /// the user's programs linked there.
+    /// </summary>
+    [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    internal static void TightenOwnFolders(IEnumerable<string> roots, string listingScratch, bool privileged)
+    {
+        const UnixFileMode Private = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+        foreach (var root in roots)
+        {
+            if (privileged && UnixFiles.Stat(root) is not { IsLink: false }) continue;
+            try { File.SetUnixFileMode(root, Private); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException) { }
+        }
+        if (privileged && UnixFiles.Stat(listingScratch) is not { IsLink: false }) return;
+        File.SetUnixFileMode(listingScratch, Private);
     }
 
     /// <summary>
@@ -260,25 +275,28 @@ public sealed class AppPaths
     /// ("member-*", "nested-*"). They are deleted on close, by Windows even after a crash, but on Linux and macOS only by
     /// FileCat itself. Those older than <paramref name="age"/> go; one still open stays usable (Windows refuses the
     /// deletion; Linux and macOS keep its data until it is closed). Returns how many went.
+    /// <para>
+    /// Never through a link (I645): a temporary folder that is itself a link is not swept, and a link named as a leftover
+    /// is removed itself, never what it leads to. Not for an elevated or root FileCat, whose temporary folder is the
+    /// ordinary account's (<c>AppServices.SweepTemporaryFolders</c>).
+    /// </para>
     /// </summary>
     public int SweepTemporaryLeftovers(TimeSpan age)
     {
+        if (!TemporarySweep.IsPlainFolder(TempDirectory)) return 0;
         int removed = 0;
-        try
+        foreach (var entry in TemporarySweep.Entries(TempDirectory))
         {
-            foreach (var file in new DirectoryInfo(TempDirectory).EnumerateFiles())
+            try
             {
-                if (!file.Name.StartsWith("member-", StringComparison.Ordinal) && !file.Name.StartsWith("nested-", StringComparison.Ordinal)) continue;
-                if ((file.Attributes & FileAttributes.ReparsePoint) != 0 || DateTime.UtcNow - file.LastWriteTimeUtc < age) continue;
-                try
-                {
-                    file.Delete();
-                    removed++;
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                if (!entry.Name.StartsWith("member-", StringComparison.Ordinal) && !entry.Name.StartsWith("nested-", StringComparison.Ordinal)) continue;
+                // FileCat spools files here: a folder of such a name is not its own (a link to one is a link, and goes itself).
+                if ((entry.Attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) == FileAttributes.Directory) continue;
+                if (DateTime.UtcNow - entry.LastWriteTimeUtc < age) continue;
+                if (TemporarySweep.RemoveItself(entry.FullName)) removed++;
             }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         return removed;
     }
 
