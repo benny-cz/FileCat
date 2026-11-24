@@ -185,6 +185,14 @@ public sealed class MetadataOrderSnapshot : IDisposable
         }
     }
 
+    /// <summary>
+    /// Whether a snapshot keeps <paramref name="value"/> itself: text, numbers, dates, principals, versions and FileCat's
+    /// bounded cells. Sorting reads only a result's state, observation and sort key, so a result whose value is anything
+    /// else (a verification report, a record that carries its explanation, such as an Origin mark or an app alias's link
+    /// target, or a custom field's object graph) is retained without that value, its field's sort key in its place.
+    /// </summary>
+    public static bool CanRetain(object? value) => Payload(value, out _, out _);
+
     // No arbitrary object graph can be retained by a custom field. Strings are charged per reference.
     private static bool Payload(object? value, out long bytes, out long chars)
     {
