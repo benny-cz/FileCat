@@ -5522,3 +5522,10 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - I652 (Medium): on macOS, Copy fills a sparse file's holes on APFS (I616's unqualified Mac part). [I652](evidence/E-I652-macos-sparse-copy-fills-holes.md).
 - I653 (Medium): keyboard reference rows and spin buttons announce implementation names, on both platforms (the class of I583). [I653](evidence/E-I653-accessible-names-implementation-text.md).
 - I654 (Low): a doubled period in the PDF error message. [I654](evidence/E-I654-pdf-error-doubled-period.md).
+
+## 2026-11-24 — rc.2's fourth Windows round, the Mac harness's rehearsal, and the owner's decision on rc.3
+
+- **The owner decided that rc.3 waits for all the fixes** found in rc.2's qualification, I635 to I654.
+- **Windows, in the VM, fourth round.** These pass on the installed candidate: c8, c10, c16, c25 (FTPS and SFTP both ways, Registry copy and export, whole-drive copy and Shift-drag), c29, c30, c33 and c39. These pass in part: c7, c23 (I647), c28, c37 (the elevated FileCat; Paste is I642) and c38. [FQ progress](evidence/E-FQ-RC2-20261124.md).
+- **macOS, the GUI harness's rehearsal.** A re-runnable harness drives FileCat on the Mac through the accessibility API. On rc.2's package 24 b-rows pass, b25 and b26 fail (I651, I652) and six are partial, waiting on screenshots, an FTPS server or display scaling.
+- **Integration.** CI's macOS runners are the release's bottleneck, so the reviewed fix PRs are combined: PR #35 carries #25 to #31 in one run.
