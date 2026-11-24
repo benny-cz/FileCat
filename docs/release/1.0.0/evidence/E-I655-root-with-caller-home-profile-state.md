@@ -280,6 +280,16 @@ The final run's results:
   - at `afa92fa11`, the new Remote class: 2 cases passed, 2 skipped;
   - the whole Core suite at `1185ff79f` was stopped after 53 minutes. It had reported no failure and sat idle in a D-Bus call, most likely `SecretStoreTests`, which this VM's keyring is known to hang. That killed test host left its session folder in `/tmp`, removed by hand; every run that exited normally left none.
 
+### Follow-up: reviewed recovery reports
+
+The fix's author left `RecoveryReviewStore` without a guard. It keeps read-only snapshots of reviewed recovery reports in the profile's `journals/reviewed` folder. Two of its paths matter for an elevated or root FileCat:
+- **Load:** the main window loaded these snapshots at start in every FileCat, an administrator window included. It now loads none when elevated or root, as `JournalRecovery.Scan` lists no journal there.
+- **Save:** saving prunes old records in that folder, so an elevated save would delete in a folder the ordinary account can replace with a link (I645's pattern). Only the recovery of a listed journal saves, which an elevated or root FileCat never reaches. Save now refuses outright all the same.
+
+New `RecoveryReviewStoreAuthorityTests` covers both. It fails without the guard ("Collection was not empty"). At medium integrity, the 11 App classes that use the store pass: 186 tests, 0 failed, 13 skipped.
+
+**Left by design:** an administrator window writes the journals of its own jobs into the profile. They are never read back elevated (`Scan` lists none there). The ordinary window recovers an interrupted administrator job later, with ordinary rights, so no elevated step acts on a journal the ordinary account could change.
+
 ### Not verified
 
 - **FileCat's window as root.** No root FileCat window was started on Linux or macOS. The test machines here have no passwordless sudo, and the hosted runners have no desktop session. The hosted runs drove the same code headless: the composition (`AppServices`), the start-up and Settings texts, the finite check's three steps, and the session folder's removal when the process exits. The window's own start (single-instance handling, the notice on screen) was not seen.
