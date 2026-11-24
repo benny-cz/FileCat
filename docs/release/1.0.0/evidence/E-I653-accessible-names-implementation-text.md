@@ -71,6 +71,64 @@ These read the names from Avalonia's own automation peers, the ones UI Automatio
   - It failed only with the fixture root I had set, a folder under `%LOCALAPPDATA%\Temp`, deeper than the tests' default.
   - With the default root, `%USERPROFILE%\FileCatValidation`, and the same build, both of its cases passed (`render-folderexclusions.trx`, `ff695fea0f6eed168110474262b4408182a880e94edb6bb1c27067b4a6094ba1`). The code it failed in, the indexed acquisition's preparation, is not changed here.
 
+### Everything the audit found, and a wider audit
+
+Commit `038a05689`, after the owner's decision of 2026-11-24 that every known issue is fixed for rc.3.
+
+**Every name the audit found.** These were all of the accessible names that exposed implementation text, a type's name or a record's or object's `ToString()`. All are fixed in `11ee3842f`:
+
+| Where | Named before |
+|---|---|
+| Help → Keyboard reference, and the Change shortcut list | "KeyboardHelpEntry { Id = …, Title = …, … }" (21 rows checked) |
+| Every number box's spin buttons: Appearance (2 boxes), Behavior (1), Columns (1), Analysis history (3), the archive dialog's delta distance | "Avalonia.Controls.PathIcon" |
+| View → Theme… choices | "Avalonia.Controls.StackPanel" (7 of 7) |
+| Disk space, indexed analysis entries | "AnalysisHierarchyRow { Path = AnalysisPathMetadata { …, ObservedIdentity = win:HarddiskVolume8:… } … }" |
+| Registry search results (Windows) | "Row { Item = …, Folder = … }" |
+
+None is ambiguous, and none is left.
+
+**View models.** Three view models' `ToString()` are read as names, and each was written to be read:
+- `TabViewModel` gives the tab's title.
+- `JobViewModel`, an Operations row, gives its title and state.
+- `KeyboardHelpEntry`, above, gives its title and shortcut.
+
+No list falls back to a view model's default `ToString()`.
+
+**The wider audit, after this fix.** A headless sweep with the product styles found no further name. It ran at medium integrity and used the portable platform, so no Shell window could open; it was a temporary test and is not kept. It covered:
+- **The main window**, with two and then three panels and two tabs, plus Operations (with a finished job), quick view, the flat view and a ZIP opened as a folder.
+- **36 dialogs**, every combo box's choices opened in each:
+  - Settings, every page;
+  - Copy, Move, Delete, New folder, Select and Unselect;
+  - Bulk rename, Create link, Checksums, Apply command, SFTP connect and Attributes;
+  - the tab list, folder and file history, bookmarks and notifications;
+  - Find folder, Save workspace, About, Quick filter and Clear history;
+  - the location menu;
+  - Add to working set, Review marks, Create file list, Pack and Unpack;
+  - Permissions, Verify checksums, and the panel and target pickers;
+  - Help and Change shortcut, and View → Theme….
+- **The command palette's popup**, and the folder comparison's options.
+- **Separate windows**:
+  - Find, with its results;
+  - the viewer on text, a picture, a PDF and Markdown;
+  - the hex editor and the file comparison;
+  - the disk space window after an analysis;
+  - the tree of differences between two folders.
+
+I also read every list template, combo box, menu header and icon button in `src/`. The three surfaces the sweep cannot reach on this PC are covered by reading their templates:
+- the Windows ACL and permission lists: text roots, or named containers;
+- the recovery scans: file-list rows, whose peers are FileCat's own;
+- the analysis cleanup and recipe dialogs: text roots and `ToString()`s written for them.
+
+**Tests.** `AccessibleNameFallbackTests.Separate_windows_and_the_choices_in_dialogs_name_nothing_after_a_type_or_a_record` keeps the wider audit's checks that run on every platform:
+- the choices in Settings and fifteen more dialogs;
+- the viewer, the hex editor and the file comparison;
+- Find with its results;
+- the tree of differences between two folders.
+
+It passed. AccessibleNameFallbackTests now holds 6 tests, all passing (`after-i654b-app.trx`, `08e771a6f48accfe21e4ea211cc08ab54d220ffe379633d9409848ef964e7b84`). The test was written after the fix, so it passes on that code: it guards this class from coming back rather than proving a fault.
+
+The whole App test suite on `038a05689` ran 4,010 tests, with 3 load-related failures elsewhere that passed on a rerun (`full-app-2.trx`; see E-I654's Fix).
+
 **Not verified here.** No screen reader was run, and no installed build. These checks read Avalonia's peers; the platform bridges that pass their names on were not observed. macOS and Linux run only in CI.
 
 **The next installed candidate must check**, with NVDA or Narrator on Windows and VoiceOver on macOS:
