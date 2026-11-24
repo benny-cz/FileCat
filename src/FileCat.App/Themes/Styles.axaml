@@ -203,6 +203,20 @@
     <Setter Property="FontWeight" Value="Bold" />
     <Setter Property="FontSize" Value="10.5" />
   </Style>
+  <!-- A panel's number (also its handle): the accent while it is the active panel, else the header's muted colors. Theme
+       resources, so a theme change recolors every panel's number at once, as it does the TARGET chip (I663). -->
+  <Style Selector="Border.panelNumber">
+    <Setter Property="Background" Value="{DynamicResource FcHeader}" />
+  </Style>
+  <Style Selector="Border.panelNumber > TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource FcTextMuted}" />
+  </Style>
+  <Style Selector="Border.panelNumber.active">
+    <Setter Property="Background" Value="{DynamicResource FcAccentFill}" />
+  </Style>
+  <Style Selector="Border.panelNumber.active > TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource FcOnAccent}" />
+  </Style>
 
   <!-- Status and key bar -->
   <Style Selector="Border.status">
