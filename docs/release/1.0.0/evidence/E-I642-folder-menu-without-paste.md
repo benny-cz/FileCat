@@ -160,7 +160,17 @@ No paste has run on that PC since. Pastes are checked only in the VM and on CI r
 
 **What is and is not verified.**
 - **Verified on the development PC:** the cause above, and that the round-1 route with continued dispatching moved and copied correctly (including the 1 GiB Cut). That route is not shipped.
-- **Not yet run anywhere:** the shipped drop route. It compiles, and the headless tests pass. Its first runs are hosted CI and the VM.
+- **The shipped drop route, on hosted CI only (PR #27, run 45452738164, at `c363d6e0`):** in the medium-integrity Windows App shards both paste tests passed, on x64 (2,268 executed, 0 failed) and on ARM64 (2,271 executed, 0 failed). The x64 probe reported:
+
+  | Clipboard data | Asked | `Drop` result | Effect | Time |
+  |---|---|---|---|---|
+  | Flushed, Cut | 2 | `0x00000000` | 2 | 100 ms |
+  | Flushed, Copy | 5 | `0x00000000` | 1 | 96 ms |
+  | Explorer stand-in with `AsyncFlag`, Cut | 2 | `0x00000000` | 0 (the target's report of an optimized move) | 518 ms |
+  | Explorer stand-in with `AsyncFlag`, Copy | 5 | `0x00000000` | 1 | 86 ms |
+
+  The tests checked each file byte for byte. Each time, follow-up Shell work took the process reference about 0.2 s after the paste.
+- **Not yet run:** the shipped route with Explorer itself as the source, and through the real menu. Both are for the VM.
 
 **Tests (round 2).** Two real-Shell tests run `--probe-paste` and check the files byte for byte:
 - `A_folders_own_Paste_moves_what_was_cut_and_copies_what_was_copied` uses flushed data.
@@ -177,5 +187,5 @@ They run only where a paste may show Windows' own windows: on CI runners (`CI=tr
    - a Paste whose name already exists in the folder: the copy engine asks, and Skip or Cancel loses nothing;
    - Explorer's clipboard after the paste (the cut list stays, as described above);
    - Explorer's own empty-space menu: if it lists "Paste shortcut", record that FileCat's menu lacks it.
-2. **Hosted CI:** all three new tests pass in the medium-integrity App shard. A skip does not qualify the route.
+2. **Hosted CI:** done at `c363d6e0` (x64 and ARM64; see above). A later change to the helper reopens it.
 3. **I629 and B12:** verb routing changed and `--probe-paste` is new, so I629's step 3 ("Paste is the Shell's, so an item cut in Explorer moves") and B12's inventory are re-checked on that candidate.
