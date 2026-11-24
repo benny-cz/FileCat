@@ -5469,3 +5469,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - I636: Analyze folder reads Origin, and an alias's or WSL link's Link target, but keeps no order by them. Two value types added on 2026-11-23 are not on the ordering snapshot's list. [I636](evidence/E-I636-analysis-unretained-record-values.md).
 - I637: Compare gives the keyboard to its rows neither when it opens nor when Find closes, so arrows do nothing until a row is clicked. [I637](evidence/E-I637-compare-find-close-keyboard.md).
 - Both are Low. Like I635, the owner decides whether a later candidate fixes them.
+
+## 2026-11-24 — Fifth sync of the day
+
+- With PR #23 merged and no PR open, `release/1.0` was synced at `9c9825a2` through PR #24, which merged as `9e310e95` after its CI passed all 19 jobs that ran. It brings PR #23's test-only buffer pin and the rc.2 records; no product source changed, so rc.2 (`7269ec61`) is still the branch's product. The branch's tree equals `9c9825a2`'s. [Sync record](evidence/E-REL-SYNC-20261124-release-branch.md).
