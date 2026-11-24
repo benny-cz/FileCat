@@ -5493,3 +5493,13 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-24 — I643: the diagnostics log keeps raw paths
 
 - I643 (open, Medium): Tools → Export diagnostics says the log's paths are hashed, but error messages, crash reports and two hand-written log messages keep raw paths. PR #25 corrects SECURITY.md and PRIVACY.md; a product fix is proposed for the next candidate. [I643](evidence/E-I643-diagnostics-log-raw-paths.md).
+
+## 2026-11-24 — I644: an administrator window loads an environment-selected profiler
+
+- I644 (open, High): in the qualification VM, with `CORECLR_ENABLE_PROFILING`, `CORECLR_PROFILER` and `CORECLR_PROFILER_PATH` set only in the ordinary account's `HKCU\Environment`, Tools → Open FileCat as administrator on the installed rc.2 opened an elevated window that loaded the named probe DLL. The administrator helper clears these variables in its native bootstrap (I155); the administrator window, the ordinary `FileCat.exe`, does not. A fix is proposed for the next candidate. [I644](evidence/E-I644-administrator-window-environment-profiler.md).
+
+## 2026-11-24 — I641's B12 review: I645 and I646
+
+- The B12 review of the modes added since B12 is in [PR #28](https://github.com/benny-cz/FileCat/pull/28). B12's Held claim holds for every listed mode except three findings. F3 is I644, which the qualification VM has since observed.
+- I645 (open, High): at every start FileCat sweeps its temporary folders in the profile with no token check, so an administrator window follows a junction planted at medium integrity, resetting attributes or deleting through it. [I645](evidence/E-I645-elevated-temp-sweeps-follow-links.md).
+- I646 (open, Medium): the Linux root process census opens each process's executable name, which another account can replace with a FIFO or a device link once the program is deleted. [I646](evidence/E-I646-linux-root-census-opens-replaceable-path.md).
