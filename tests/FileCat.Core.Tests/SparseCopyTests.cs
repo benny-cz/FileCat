@@ -26,17 +26,7 @@ public sealed class SparseCopyTests : IDisposable
         const int length = 16 * 1024 * 1024;
         string source = Path.Combine(_dir.Path, "source.bin");
         string destination = Path.Combine(_dir.Path, "copy.bin");
-        using (var stream = new FileStream(source, FileMode.CreateNew, FileAccess.Write))
-        {
-            stream.SetLength(length);
-            if (!allHole)
-            {
-                byte[] data = RandomNumberGenerator.GetBytes(4096);
-                stream.Write(data);
-                stream.Position = length / 2;
-                stream.Write(data);
-            }
-        }
+        WriteSparse(source, length, allHole ? [] : [(0, 4096), (length / 2, 4096)]);
 
         long sourceBlocks = Blocks(source);
         if (sourceBlocks * 512 >= length / 4)
@@ -53,6 +43,50 @@ public sealed class SparseCopyTests : IDisposable
         Assert.Equal(SHA256.HashData(File.ReadAllBytes(source)), SHA256.HashData(File.ReadAllBytes(destination)));
         Assert.True(Blocks(destination) * 512 < length / 4,
             "A sparse source copy must not consume nearly the full logical length on disk.");
+    }
+
+    /// <summary>
+    /// I652: APFS gives a file written with gaps real zero blocks for its smaller gaps when the file is closed, so FileCat's
+    /// copy of the Mac GUI harness's b26 source (32 MiB with two 4 KiB extents) was fully allocated although its bytes
+    /// matched. The copy now punches the holes it skips, so it keeps the source's allocation. The other layouts add a
+    /// leading hole with data ending inside an unaligned last block, and many small gaps.
+    /// </summary>
+    [Theory]
+    [InlineData("b26")]
+    [InlineData("leading hole, unaligned data end")]
+    [InlineData("many small gaps")]
+    public void Copy_keeps_the_holes_APFS_would_fill_when_the_copy_is_closed(string layout)
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+            Assert.Skip("Unix extent reporting is required.");
+        const long mib = 1024 * 1024;
+        var (length, data) = layout switch
+        {
+            "b26" => (32 * mib, new (long, int)[] { (0, 4096), (16 * mib, 4096) }),
+            "leading hole, unaligned data end" => (16 * mib + 100, new (long, int)[] { (8 * mib, 4096), (16 * mib, 100) }),
+            _ => (16 * mib, Enumerable.Range(0, 8).Select(i => (i * 2 * mib, 4096)).ToArray()),
+        };
+        string source = Path.Combine(_dir.Path, "sparse.bin");
+        string destination = Path.Combine(_dir.Path, "copy.bin");
+        WriteSparse(source, length, data);
+        long sourceBytes = Blocks(source) * 512;
+        if (sourceBytes >= length / 4)
+            Assert.Skip("The test filesystem did not keep the source sparse.");
+        byte[] sourceHash = SHA256.HashData(File.ReadAllBytes(source));
+
+        long reported = -1;
+        new PortableFileOperations().CopyFile(source, destination, new FileCopyOptions(),
+            (done, total) => { reported = done; return CopyProgressAction.Continue; }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(length, new FileInfo(destination).Length);
+        Assert.Equal(length, reported);
+        Assert.Equal(sourceHash, SHA256.HashData(File.ReadAllBytes(destination)));
+        long copied = Blocks(destination) * 512;
+        Assert.True(copied < length / 4, $"The copy allocated {copied:N0} bytes for a {length:N0}-byte file with {sourceBytes:N0} allocated.");
+        if (OperatingSystem.IsMacOS())
+            Assert.True(copied <= sourceBytes + 64 * 1024, $"The copy allocated {copied:N0} bytes for a source with {sourceBytes:N0} allocated.");
+        Assert.Equal(sourceBytes, Blocks(source) * 512);
+        Assert.Equal(sourceHash, SHA256.HashData(File.ReadAllBytes(source)));
     }
 
     [Theory]
@@ -460,6 +494,46 @@ public sealed class SparseCopyTests : IDisposable
         Assert.Equal(0, process.ExitCode);
         return long.Parse(output.Trim(), CultureInfo.InvariantCulture);
     }
+
+    /// <summary>
+    /// A new file of <paramref name="length"/> bytes with random data at <paramref name="data"/> and holes elsewhere. APFS
+    /// gives a file written with gaps zero blocks for its smaller gaps when it is closed, so on macOS each gap's whole
+    /// blocks are punched while the file is open, as the Mac GUI harness builds its b26 source.
+    /// </summary>
+    private static void WriteSparse(string path, long length, (long Offset, int Length)[] data)
+    {
+        using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write);
+        stream.SetLength(length);
+        foreach (var (offset, count) in data)
+        {
+            stream.Position = offset;
+            stream.Write(RandomNumberGenerator.GetBytes(count));
+        }
+        stream.Flush();
+        if (!OperatingSystem.IsMacOS()) return;
+        int fd = checked((int)stream.SafeFileHandle.DangerousGetHandle());
+        long end = 0;
+        foreach (var (offset, count) in data.OrderBy(range => range.Offset).Append((length, 0)))
+        {
+            long from = (end + 4095) / 4096 * 4096, to = offset / 4096 * 4096;
+            if (to > from)
+            {
+                // struct fpunchhole: u32 fp_flags, u32 reserved, off_t fp_offset, off_t fp_length. fcntl is variadic:
+                // Darwin ARM64 passes the variadic argument on the stack, after eight register slots.
+                long[] punch = [0, from, to - from];
+                int result = RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+                    ? FcntlArm64(fd, 99 /* F_PUNCHHOLE */, 0, 0, 0, 0, 0, 0, punch) : Fcntl(fd, 99, punch);
+                if (result != 0) Assert.Skip($"The test volume cannot punch holes (F_PUNCHHOLE errno {Marshal.GetLastPInvokeError()}).");
+            }
+            end = Math.Max(end, offset + count);
+        }
+    }
+
+    [DllImport("libc", EntryPoint = "fcntl", SetLastError = true)]
+    private static extern int Fcntl(int fd, int command, long[] argument);
+
+    [DllImport("libc", EntryPoint = "fcntl", SetLastError = true)]
+    private static extern int FcntlArm64(int fd, int command, nint x2, nint x3, nint x4, nint x5, nint x6, nint x7, long[] argument);
 
     private static long StorageBytes(string path)
     {

@@ -165,6 +165,10 @@ public sealed partial class MainViewModel
                 tab?.Listing.SupplementaryInventory is not { CanDelete: true, Identity: not null }:
                 return CommandAvailability.No(tab?.Listing.SupplementaryInventory?.Notice ??
                     "Deleting supplementary data requires a current bound inventory. Refresh the inventory and try again.");
+            // Values this list cannot read are not offered to the viewer or to F5, which would fail without a word (I651).
+            case CommandIds.View or CommandIds.ViewAlternate or CommandIds.Copy when loc?.Scheme == Schemes.HiddenData &&
+                tab?.Listing.SupplementaryInventory is { CanAct: false, Items.Length: > 0 } unreadable:
+                return CommandAvailability.No(unreadable.ActionRefusalText);
             // What the location itself cannot do is dimmed with its reason (the key bar, the palette), not offered and refused.
             case CommandIds.Delete or CommandIds.DeletePermanent when loc is not null && loc.Scheme != Schemes.ResultSet && (caps & LocationCapabilities.Delete) == 0:
                 return CommandAvailability.No(Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.Delete));
@@ -1211,6 +1215,12 @@ public sealed partial class MainViewModel
     private async Task OpenNonFileSystemItemAsync(TabViewModel tab, ItemRef? item)
     {
         await Task.CompletedTask;
+        if (item is { Parent.Scheme: Schemes.HiddenData } && (item.Flags & EntryFlags.Unavailable) != 0)
+        {
+            Notify($"\"{Formatters.SafeName(item.Name)}\" cannot be viewed or extracted here. " +
+                (tab.Listing.SupplementaryInventory?.ActionRefusalText ?? "Refresh the list and try again."));
+            return;
+        }
         Notify(item is null ? "Nothing to open." : $"\"{item.Name}\" can be viewed with F3; opening it with an application needs extraction first (F5).");
     }
 

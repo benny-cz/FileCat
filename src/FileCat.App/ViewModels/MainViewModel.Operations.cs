@@ -947,7 +947,9 @@ public sealed partial class MainViewModel
             await ViewerLauncher.OpenWithBrowsing(Services, item, source, hex, sourceTab);
             if (item.Parent.IsFileSystem) Services.RecordFile(item.Parent, item.Name);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException)
+        // A provider's refusal (NotSupportedException) is said too: F3 never ends without a word (I651).
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException
+            or NotSupportedException)
         {
             if (CanRequestAdministratorTask && ErrorText.Classify(ex) == "access" &&
                 item.FileSystemPath is { } path && AdministratorWindow.LocalVolume(path) is not null)
