@@ -105,20 +105,13 @@ public static class DragStaging
         }
     }
 
-    /// <summary>Removes staged folders older than <paramref name="age"/> (at startup: other programs have long taken them).</summary>
-    public static void Sweep(string tempRoot, TimeSpan age)
-    {
-        string root = Path.Combine(tempRoot, Folder);
-        if (!Directory.Exists(root)) return;
-        foreach (var dir in Directory.EnumerateDirectories(root))
-        {
-            try
-            {
-                if (DateTime.UtcNow - Directory.GetCreationTimeUtc(dir) > age) Remove(dir);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-        }
-    }
+    /// <summary>
+    /// Removes staged folders older than <paramref name="age"/> (at startup: other programs have long taken them), never
+    /// through a link (I645): a link in their place is removed itself, and nothing is swept when the temporary or the
+    /// staging folder is itself a link. Not for an elevated or root FileCat, whose temporary folder is the ordinary
+    /// account's (<c>AppServices.SweepTemporaryFolders</c>).
+    /// </summary>
+    public static void Sweep(string tempRoot, TimeSpan age) => TemporarySweep.RemoveStaleFolders(tempRoot, Folder, age);
 
     /// <summary>Discard one unhanded staged drag. Only a direct child of this private staging root may be removed.</summary>
     public static void Discard(IReadOnlyList<string> paths, string tempRoot)
@@ -146,15 +139,8 @@ public static class DragStaging
         return (null, reason);
     }
 
-    private static void Remove(string folder)
-    {
-        try
-        {
-            foreach (var f in Directory.EnumerateFiles(folder)) File.SetAttributes(f, FileAttributes.Normal);
-            Directory.Delete(folder, recursive: true);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-    }
+    /// <summary>A staging folder and its read-only copies, removed without going through a link or changing an attribute.</summary>
+    private static void Remove(string folder) => TemporarySweep.RemoveTree(folder);
 
     private static string Unique(string folder, string name)
     {

@@ -189,7 +189,8 @@ public sealed class ViewerWindow : Window
             _deviceKey = services.Providers.For(location).GetDeviceKey(location);
         }
         _displayName = displayName;
-        _pageView = new PageView(services.Paths.PageViewDataDirectory) { IsVisible = false };
+        // An elevated or root FileCat gives the page view no data folder: the profile's is the ordinary account's (I645).
+        _pageView = new PageView(services.Shell.IsElevated ? null : services.Paths.PageViewDataDirectory) { IsVisible = false };
         Closed += (_, _) => s_open.Remove(this);
         _reader = preparedReader ?? new PagedReader(source, services.Io, _deviceKey);
         _reopen = reopen ?? (source.LocalPath is { } localPath
