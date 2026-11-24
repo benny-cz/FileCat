@@ -5550,3 +5550,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - The owner, asked about I655 to I657: "everything should be fixed for rc.3, we should not prolong fixes of known issues". I655 and I656 are now to be fixed for rc.3, as are the two below.
 - I657 (open, Medium): Git badges are wrong in every folder below a repository's top, because porcelain status names paths from the top and FileCat files them as if they were relative to the folder. Raised by I647's fix (PR #38) and reproduced with Git alone. [Record](evidence/E-I657-git-badges-below-repository-top.md).
 - I658 (open, Medium): with `/proc` mounted `hidepid=invisible`, the Linux recovery census sees no other account's processes, answers "none" and never asks root. Raised by I646's fix (PR #32), confirmed in the source; not run. [Record](evidence/E-I658-census-hidden-processes.md).
+
+## 2026-11-24 — I659 and I660, found by the rc.3 fixes
+
+- I659 (open, Medium): Git badges lost every name that is not plain ASCII once FileCat had loaded the legacy code pages, because Git's output was read as Windows-1252. Found and fixed by I657's fix on PR #38 (`3df37718d`). [Record](evidence/E-I659-git-output-code-page.md).
+- I660 (open, Low): `UnixArchiveNative.cs:77` blames `openx_np` for an EINVAL that XNU gives for `O_NOFOLLOW` with `O_NOFOLLOW_ANY`. The code is safe; the comment is corrected on `fix/i660-archive-openx-comment`, and the flags stay (`O_NOFOLLOW_ANY` alone would refuse the temporary folder's `/var` names). [Record](evidence/E-I660-archive-openx-comment.md).

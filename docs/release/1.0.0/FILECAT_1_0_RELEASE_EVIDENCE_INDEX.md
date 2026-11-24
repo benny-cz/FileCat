@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**1022 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
+**1024 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -11,6 +11,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 
 | ID | What | Source | Class | Record | Issues |
 |---|---|---|---|---|---|
+| E-I660-ARCHIVE-OPENX-COMMENT | A security comment in the macOS archive writer blames the wrong refusal | `UnixArchiveNative.cs` at `7269ec61`; XNU's open rule as found by I646's macOS fix (`bada5da1d`) | Source review, open, Low. No behaviour change proposed. | [I660 record](evidence/E-I660-archive-openx-comment.md) | I660/I646 |
+| E-I659-GIT-CODE-PAGE | Git badges lose files whose names are not ASCII | `GitStatusReader.cs` at `7269ec61`; found and fixed by PR #38 (`3df37718d`) | Observation and fix, open, Medium. | [I659 record](evidence/E-I659-git-output-code-page.md) | I659/I657/I647 |
 | E-I658-CENSUS-HIDEPID | The recovery census calls other accounts' FileCat absent when /proc hides their processes | `v1.0.0-rc.2` (`7269ec61`) source; found by PR #32 | Source review, open, Medium. Not run: remounting `/proc` needs root. | [I658 record](evidence/E-I658-census-hidden-processes.md) | I658/I646/V09 |
 | E-I657-GIT-SUBFOLDERS | Git badges are wrong in every folder below a repository's top | `GitStatusReader.cs` at `7269ec61`; Git for Windows 2.54.0 in a temporary repository; found by PR #38 | Git-only reproduction, open, Medium. | [I657 record](evidence/E-I657-git-badges-below-repository-top.md) | I657/I647/I608 |
 | E-I656-ARM64-OPEN-FLAGS | Linux ARM64 builds open some files and folders with x64 flag values | `v1.0.0-rc.2` (`7269ec61`) source; found by PR #32 | Source review, open, Low for 1.0.0 (no Linux ARM64 package). Not run on ARM64. | [I656 record](evidence/E-I656-linux-arm64-x64-open-flags.md) | I656/I646 |
