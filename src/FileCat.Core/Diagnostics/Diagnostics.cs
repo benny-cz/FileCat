@@ -52,9 +52,13 @@ public static class AppLog
 
     public static bool DiagnosticMode { get; set; }
 
+    /// <summary>
+    /// Starts the log in <paramref name="directory"/>; an administrator window, or root (I655), keeps none: the folder is
+    /// the ordinary account's, which could read it or turn its file into a link to elsewhere.
+    /// </summary>
     public static void Initialize(string directory)
     {
-        if (WindowsTokenAuthority.IsHighIntegrity)
+        if (ProcessAuthority.IsElevatedOrRoot)
         {
             _file = null;
             return;
@@ -116,12 +120,13 @@ public static class AppLog
     }
 
     /// <summary>
-    /// Persist a crash only when the log path is not lower-token writable state. Unless diagnostic mode is on, its paths
-    /// are hashed as the log's are, except the source locations of its stack frames (I643).
+    /// Persist a crash only when the log path is not lower-token writable state (never in an administrator window or as
+    /// root, I655). Unless diagnostic mode is on, its paths are hashed as the log's are, except the source locations of its
+    /// stack frames (I643).
     /// </summary>
     public static void AppendCrash(string directory, string text)
     {
-        if (WindowsTokenAuthority.IsHighIntegrity) return;
+        if (ProcessAuthority.IsElevatedOrRoot) return;
         File.AppendAllText(Path.Combine(directory, "crash.log"), Redact(text));
     }
 

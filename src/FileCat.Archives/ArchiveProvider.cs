@@ -431,8 +431,8 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         string outer = OutermostFile(member);
         var outerInfo = new FileInfo(outer);
         string key = $"{member}|{outerInfo.Length}|{outerInfo.LastWriteTimeUtc.Ticks}|{SourceIdentityKey(outer)}|{SourceChangeKey(outer)}";
-        if (FileCat.Core.State.WindowsTokenAuthority.IsHighIntegrity)
-            throw new IOException("Nested archives cannot be opened while FileCat runs as administrator because they require a user-local spool.");
+        if (FileCat.Core.State.ProcessAuthority.IsElevatedOrRoot)
+            throw new IOException($"Nested archives cannot be opened while FileCat runs {FileCat.Core.State.ProcessAuthority.RunningAs} because they require a user-local spool.");
         lock (_spoolLock)
         {
             if (_spools.TryGetValue(key, out var existing))
@@ -869,8 +869,8 @@ internal sealed class ArchiveIndex : IDisposable
             if (declared >= 0) dst = new MemoryStream((int)declared);
             else
             {
-                if (FileCat.Core.State.WindowsTokenAuthority.IsHighIntegrity)
-                    throw new IOException("This archive member has no declared size and cannot be viewed safely while FileCat runs as administrator.");
+                if (FileCat.Core.State.ProcessAuthority.IsElevatedOrRoot)
+                    throw new IOException($"This archive member has no declared size and cannot be viewed safely while FileCat runs {FileCat.Core.State.ProcessAuthority.RunningAs}.");
                 RequireClearSpoolSource();
                 Directory.CreateDirectory(tempDirectory);
                 string spoolPath = Path.Combine(tempDirectory, $"member-{Guid.NewGuid():N}.tmp");

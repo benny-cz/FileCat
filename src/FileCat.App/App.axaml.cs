@@ -148,8 +148,23 @@ public partial class App : Application
     }
 
     internal static void NotifyAdministratorNotice(MainViewModel vm) =>
-        vm.Notify("FileCat is running as administrator. Operations have full rights, drag and drop from other programs is blocked, and the normal profile is read-only." +
-            (vm.Services.AdministratorTransfers is not null ? " Use Settings to remember copied preferences for later administrator launches." : ""));
+        vm.Notify(AdministratorNotice(OperatingSystem.IsWindows(), vm.Services.AdministratorTransfers is not null));
+
+    /// <summary>
+    /// What an administrator window (Windows), or FileCat running as root, says when it starts. Root keeps out of the
+    /// profile it finds, the caller's under sudo -E as well as its own (I655), so it says that it saves nothing.
+    /// </summary>
+    internal static string AdministratorNotice(bool windows, bool transfers) => windows
+        ? "FileCat is running as administrator. Operations have full rights, drag and drop from other programs is blocked, and the normal profile is read-only." +
+          (transfers ? " Use Settings to remember copied preferences for later administrator launches." : "")
+        : "FileCat is running as root. Operations have full rights, and FileCat keeps out of your profile: it started with the " +
+          "default settings and saves nothing, so changes last only until it closes. Start FileCat as your usual user to keep them.";
+
+    /// <summary>What a UI exception FileCat survived says; an administrator window, or root (I655), keeps no log to point to.</summary>
+    internal static string CrashNotice(string message) => "Something went wrong: " + message +
+        (Core.State.ProcessAuthority.IsElevatedOrRoot
+            ? $" FileCat kept running; persisted diagnostics are omitted while it runs {Core.State.ProcessAuthority.RunningAs}."
+            : " FileCat kept running; details are in the diagnostics log.");
 
     /// <summary>
     /// A UI exception is logged with its stack and reported instead of terminating FileCat; jobs keep their
@@ -171,10 +186,7 @@ public partial class App : Application
             catch (IOException) { }
             if (recent.Count > 5) return; // repeated failures: let the process end rather than loop
             e.Handled = true;
-            vm.Notify("Something went wrong: " + e.Exception.Message +
-                (Core.State.WindowsTokenAuthority.IsHighIntegrity
-                    ? " FileCat kept running; persisted diagnostics are omitted while it runs as administrator."
-                    : " FileCat kept running; details are in the diagnostics log."), true);
+            vm.Notify(CrashNotice(e.Exception.Message), true);
         };
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
         {

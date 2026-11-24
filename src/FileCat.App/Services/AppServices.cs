@@ -26,7 +26,8 @@ public sealed class AppServices : IDisposable
         Paths = paths;
         AppLog.Initialize(paths.LogDirectory);
         StateLoadStatus settingsStatus;
-        if (OperatingSystem.IsWindows() && !WindowsTokenAuthority.IsHighIntegrity)
+        // An administrator window, or root (I655), loads the defaults through JsonFileStore and keeps no settings writer.
+        if (OperatingSystem.IsWindows() && !ProcessAuthority.IsElevatedOrRoot)
         {
             _windowsSettings = new WindowsSettingsFile(paths.SettingsFile);
             Settings = _windowsSettings.Load(out settingsStatus);
@@ -255,10 +256,9 @@ public sealed class AppServices : IDisposable
     /// Removes what earlier sessions left in the profile's temporary folder, a day on: staged drags, pasted virtual files
     /// and spooled archive members. Never in an elevated or root FileCat (I645, <see cref="IShellServices.IsElevated"/>):
     /// its temporary folder is the ordinary account's, which every program of that account can change, so a link planted
-    /// there could make the sweeps change or delete what only an administrator may. An elevated Windows FileCat leaves
-    /// nothing there to sweep (it refuses drags out of archives and virtual pastes, and keeps archive members in memory).
-    /// What a root FileCat leaves there (staged drags, and spooled members after a crash) waits for an ordinary FileCat of
-    /// the same profile.
+    /// there could make the sweeps change or delete what only an administrator may. An elevated FileCat leaves nothing
+    /// there to sweep (it refuses drags out of archives and virtual pastes, and keeps archive members in memory), and since
+    /// I655 neither does root, whose temporary folder is in its own session folder (<see cref="AppPaths.UsesRootSession"/>).
     /// </summary>
     internal static Task SweepTemporaryFolders(AppPaths paths, bool elevatedOrRoot)
     {
@@ -622,10 +622,18 @@ public sealed class AppServices : IDisposable
         AppLog.Error($"Saving {what} failed", ex);
         lock (_saveFailuresReported)
             if (!_saveFailuresReported.Add(what)) return;
-        StateSaveFailed?.Invoke(OperatingSystem.IsWindows() && Core.State.WindowsTokenAuthority.IsHighIntegrity
-            ? $"FileCat did not save its {what} while running as administrator. Reopen it without elevation to save changes."
+        StateSaveFailed?.Invoke(ProcessAuthority.IsElevatedOrRoot
+            ? ElevatedSaveNotice(what, OperatingSystem.IsWindows())
             : $"FileCat could not save its {what}: {ex.Message} It keeps trying; until it can, changes to them will not survive a restart.");
     }
+
+    /// <summary>
+    /// What an administrator window (Windows), or FileCat running as root, says the first time it does not save state: it
+    /// keeps out of the profile on purpose (I655), so it does not keep trying.
+    /// </summary>
+    internal static string ElevatedSaveNotice(string what, bool windows) =>
+        $"FileCat did not save its {what} while running {ProcessAuthority.RunningAsOn(windows)}. " +
+        $"{ProcessAuthority.UsualProcessAdviceOn(windows, "it")} to save changes.";
 
     private readonly WindowsSettingsFile? _windowsSettings;
     private bool _applyingTransferredColumns;

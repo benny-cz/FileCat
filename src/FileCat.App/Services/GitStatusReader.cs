@@ -147,7 +147,9 @@ internal static class GitStatusReader
     /// <param name="gitExecutable">Git by full path; by default an OS-installed copy for automatic badges.</param>
     internal static async Task<GitStatusSnapshot?> ReadAsync(string folder, CancellationToken cancellationToken, string? gitExecutable = null)
     {
-        if (WindowsTokenAuthority.IsHighIntegrity) return null;
+        // Git runs what its configuration names (filters, fsmonitor), from the repository and from HOME: never for an
+        // administrator window, nor for root (I655), whose HOME may be the caller's.
+        if (ProcessAuthority.IsElevatedOrRoot) return null;
         if (cancellationToken.IsCancellationRequested) return null;
         if (!Path.IsPathFullyQualified(folder) || !IsLocalPath(folder) || !Directory.Exists(folder)) return null;
         if ((gitExecutable ?? s_git.Value) is not { } git) return null;

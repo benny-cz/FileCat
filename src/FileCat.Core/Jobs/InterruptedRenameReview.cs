@@ -21,7 +21,7 @@ public static partial class JournalRecovery
     public static RenameReview? ReviewRename(PendingIntent intent, IFileSystemOperations files, ResourceProvider provider,
         Action? check = null, long byteLimit = StagedReviewByteLimit, int itemLimit = 1000)
     {
-        if (WindowsTokenAuthority.IsHighIntegrity) return null;
+        if (ProcessAuthority.IsElevatedOrRoot) return null;
         if (intent.Operation != JobJournal.RenameViaOp || intent.Via is not { } via || intent.Target is null || itemLimit <= 0) return null;
         try
         {
@@ -46,8 +46,8 @@ public static partial class JournalRecovery
     /// <summary>Rechecks the approved tree and parent paths before each destination attempt. Never replaces an occupant.</summary>
     public static RenameRecoveryResult FinishReviewedRename(RenameReview reviewed, IFileSystemOperations files, ResourceProvider provider, Action? check = null)
     {
-        if (WindowsTokenAuthority.IsHighIntegrity)
-            return new(false, 0, ["FileCat does not apply user-profile rename recovery while running as administrator."]);
+        if (ProcessAuthority.IsElevatedOrRoot)
+            return new(false, 0, [$"FileCat does not apply user-profile rename recovery while running {ProcessAuthority.RunningAs}."]);
         var intent = reviewed.Intent; var via = intent.Via!; var target = intent.Target!;
         foreach (var destination in new[] { target, intent.Path }.Distinct(PathUtil.SafetyComparer))
         {

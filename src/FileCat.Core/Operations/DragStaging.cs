@@ -21,15 +21,21 @@ public static class DragStaging
     /// <summary>Whether a path is one of the copies made to drag items out of an archive, a server or a device.</summary>
     public static bool IsStaged(string path, string tempRoot) => PathUtil.IsSameOrUnder(path, Path.Combine(tempRoot, Folder));
 
+    /// <summary>Why an administrator window (Windows), or FileCat running as root, drags nothing out of a container.</summary>
+    internal static string ElevatedRefusal(bool windows) => windows
+        ? "Drag export from an elevated FileCat session is refused because its staging folder is accessible at ordinary integrity. Run FileCat ordinarily or copy with F5 to a reviewed destination."
+        : "Drag export is refused while FileCat runs as root: the programs that take a drop run as your usual account and would " +
+          "get copies of what FileCat read as root. Start FileCat as your usual user, or copy with F5 to a reviewed destination.";
+
     /// <summary>The staged files, or null and why the items cannot be dragged.</summary>
     public static (IReadOnlyList<string>? Paths, string? Refusal) Stage(IReadOnlyList<ItemRef> items, ProviderRegistry providers, IFileSystemOperations fs,
         string tempRoot, CancellationToken ct)
     {
         if (items.Count == 0) return (null, null);
         // A medium process of this account can read the ordinary local temp tree after an elevated
-        // process stages a protected archive or recovered image member there.
-        if (WindowsTokenAuthority.IsHighIntegrity)
-            return (null, "Drag export from an elevated FileCat session is refused because its staging folder is accessible at ordinary integrity. Run FileCat ordinarily or copy with F5 to a reviewed destination.");
+        // process stages a protected archive or recovered image member there. Root (I655) would hand the programs of
+        // the ordinary account, which take a drop, copies of what it read as root.
+        if (ProcessAuthority.IsElevatedOrRoot) return (null, ElevatedRefusal(OperatingSystem.IsWindows()));
         if (items.Any(i => i.Parent.Scheme is not (Schemes.Zip or Schemes.Archive or Schemes.Recovery) || Schemes.Recovery == i.Parent.Scheme && i.Parent.Container?.Scheme == Schemes.Device))
             return (null, "Only files on disk, in archives, and in disk images can be dragged to other programs. Copy these with F5 first.");
         if (items.Any(i => i.IsContainer))
