@@ -43,7 +43,10 @@ public sealed partial class AnalysisRenderingTests
                 window.GetVisualDescendants().OfType<ComboBox>().Single(control => control.IsEffectivelyVisible && AutomationLabel(control)?.StartsWith("Previous root for current ", StringComparison.Ordinal) == true).SelectedIndex = 1;
                 Click(window, "Compare mapped observations");
             }
-            await Until(() => window.SessionCount == 2 && ComparisonControl<ListBox>(window, "Captured comparison rows")?.ItemCount > 0, () => ComparisonText(window)); Frame(window);
+            // A comparison runs native work in the private inventory store: on the 4-processor Ubuntu test VM it was still
+            // running after the default five seconds, every time, so it gets the 30 seconds the cancel test below allows.
+            await Until(() => window.SessionCount == 2 && ComparisonControl<ListBox>(window, "Captured comparison rows")?.ItemCount > 0,
+                () => ComparisonText(window), TimeSpan.FromSeconds(30)); Frame(window);
             var rows = ComparisonControl<ListBox>(window, "Captured comparison rows")!;
             Assert.InRange(rows.ItemCount, 1, 32); Assert.Contains("of " + (structural ? "303" : "304"), ComparisonText(window));
             var first = rows.Items[0];

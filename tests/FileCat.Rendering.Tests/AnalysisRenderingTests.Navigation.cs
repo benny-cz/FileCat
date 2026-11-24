@@ -134,9 +134,12 @@ public sealed partial class AnalysisRenderingTests
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
+    // The default wait is 20 seconds: on the 4-processor Ubuntu and 8-processor Windows test VMs, views waiting on native
+    // indexed work (exploring, marking, saving, opening and comparing inventories) were still working after 5 seconds in
+    // the native runs of 2026-11-23, a different test each time. A passing test returns as soon as its state appears.
     private static async Task Until(Func<bool> predicate, Func<string>? diagnostic = null, TimeSpan? timeout = null)
     {
-        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(5));
+        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(20));
         while (!predicate() && DateTime.UtcNow < deadline) { Dispatcher.UIThread.RunJobs(); await Task.Delay(10); }
         Assert.True(predicate(), "The requested view state was not published." + (diagnostic is null ? "" : " " + diagnostic()));
     }

@@ -107,7 +107,9 @@ public sealed class EscAuditTests
                 .Single(button => button is not Avalonia.Controls.RadioButton && button.Content as string == "Compress");
             for (int i = 0; i < 250 && !Primary().IsEnabled; i++) await Task.Delay(20, ct);
             Assert.True(Primary().IsEnabled); // an actionable review, past the initial inspection
-            await Task.Delay(60, ct); // the dialog's own focus has arrived
+            // The dialog moves the keyboard into itself after it renders. A loaded 4-processor VM took longer than the 60 ms this
+            // once waited (native run of 2026-11-23), so wait for the focus to leave the list, as the other waits here do.
+            for (int i = 0; i < 250 && window.FocusManager?.GetFocusedElement() is null or FileCat.App.Controls.FileListControl; i++) await Task.Delay(20, ct);
             Assert.IsNotType<FileCat.App.Controls.FileListControl>(window.FocusManager?.GetFocusedElement());
             // With the keyboard outside, Esc must still cancel the review rather than reach the list's own handling.
             if (keyboardOutside) list.Focus();

@@ -5396,3 +5396,21 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - The failing test ran Find's permissions command before Find allows it. Main `59abfde1` makes it wait for Find to settle. A slow-search probe reproduced the refusal in 5 of 5 runs, and 30 runs of the class passed after the change.
 - The scan found no secrets. SSH.NET is now vendored, so its security fixes must be ported by hand.
 - Main's tip `59abfde1` then passed its full CI, and the permissions work looked finished, so `release/1.0` was synced again. PR #5 merged as `6611a72d`, with 10 commits in and the tree identical to `59abfde1`. It brings the 7z breakpoint removal and the test fix, so backport PR #4 was closed. [Sync record](evidence/E-REL-SYNC-20261123-release-branch.md).
+
+## 2026-11-23 — Native runs of the release tree, I631, I632 and candidate signing
+
+- The full regression lanes ran natively on the Mac, the Ubuntu VM and the Windows VM against main `8a1e6763`, the tree PR #6 synced:
+  - Mac: 1 failure.
+  - Ubuntu: 7 failures.
+  - Windows: 489 failures. 487 of them came from the lane's missing probe-assets variable, and the re-run with it set passed.
+
+  [Native runs](evidence/E-REL-NATIVE-20261123-release-tree.md).
+- The Mac failure was a real bug, I631. A refused FTPS data connection's final reply stayed on the control channel, so the next command could read it as its own. `a9343253` (PR #9) reads that reply first. [I631](evidence/E-I631-ftps-refused-data-final-reply.md).
+- On both VMs, rendering tests waiting on native indexed work ran out of their five-second waits, a different test each time. PR #12 gives the comparison wait 30 seconds, and PR #13 raises the helper's default to 20 seconds.
+- A second round ran on the final tree, `7ba3aa00`:
+  - Mac: no failures.
+  - Ubuntu: Rendering passed. The only failures were the locked keyring and two test timings that PR #15 fixes: the Esc test failed 5 of 10 runs before the fix and passed 10 of 10 with it.
+  - Windows: still running.
+- I632 records `94f20963`, which PR #6 brought from an old worktree branch. A tool or Apply command naming a file Windows takes for a 16-bit program no longer waits behind a modal box. [I632](evidence/E-I632-unrunnable-program-start-wait.md).
+- PR #7 brought candidate signing into the tagged pipeline. A `v1.0.0-rc.N` tag signs both Windows runtimes in the protected `signing` job and keeps the candidate in private drafts. Its test-certificate dry run passed with both runtimes. The DEC-09 amendment it proposes awaits the owner's decision. [Candidate signing](evidence/E-SIGN-DRYRUN-20261120.md#candidate-signing-in-the-tagged-pipeline).
+- `release/1.0` was synced three more times: PR #6 at `8a1e6763`, PR #8 at `3069448f` and PR #14 at `48d3de08`. PR #14 superseded PR #10, which had stopped at `1ec1207f`, and also brought PR #11's move of unlinked validation receipts to the evidence store. [Sync record](evidence/E-REL-SYNC-20261123-release-branch.md).
