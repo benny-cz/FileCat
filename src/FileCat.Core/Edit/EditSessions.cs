@@ -226,7 +226,7 @@ public sealed class EditCommitCopy : IDisposable
         try { _protection?.Dispose(); } finally { pin.Dispose(); }
         // This GUID folder contains only this owned snapshot; the published working copy is elsewhere. Remove the exact
         // snapshot (a replaced name is kept and logged), then the folder once empty.
-        if (_files is null) { Diagnostics.AppLog.Warn("FileCat kept its edit snapshot " + Path + ": it has no file-operations owner."); return; }
+        if (_files is null) { Diagnostics.AppLog.Warn("FileCat kept its edit snapshot " + Diagnostics.AppLog.P(Path) + ": it has no file-operations owner."); return; }
         if (EditPrivateCleanup.DeleteOwnedFile(_files, Path, _identity, requireClearEfs: _files is IEditCopyPublisher) is null)
             EditPrivateCleanup.RemoveEmptyFolder(System.IO.Path.GetDirectoryName(Path)!);
     }
@@ -1102,11 +1102,9 @@ public sealed partial class EditSessionStore
         {
             // Never remove the destination. A failed copy may have left part of this stage: remove only that exact object
             // (handle-bound where available); in a shared folder on Unix it is kept and named instead (risk R21).
+            // DeleteOwnedFile logs what it keeps, with the path hashed (I643); the text it returns is the user's, path and all.
             if (files.GetFileIdentity(staged) is not null)
-            {
-                string? kept = EditPrivateCleanup.DeleteOwnedFile(files, staged, stagedIdentity, inFileCatData: false);
-                if (kept is not null) Diagnostics.AppLog.Warn(kept);
-            }
+                _ = EditPrivateCleanup.DeleteOwnedFile(files, staged, stagedIdentity, inFileCatData: false);
         }
     }
 

@@ -8,24 +8,31 @@ namespace FileCat.App.Services;
 
 /// <summary>
 /// Explicitly exported, previewable diagnostics (plan §19.2): environment, redacted logs, and settings without
-/// secrets or file contents. Paths in logs are already hashed unless diagnostic mode was enabled.
+/// secrets or file contents. Paths in logs are hashed when written unless diagnostic mode was enabled, and again on export
+/// while it is off (I643).
 /// </summary>
 public static class DiagnosticsBundle
 {
     public sealed record Summary(string Preview);
 
-    public static Summary Describe(AppServices s)
+    public static Summary Describe(AppServices s) => new(Preview(WindowsTokenAuthority.IsHighIntegrity, AppLog.DiagnosticMode));
+
+    /// <summary>
+    /// What the bundle holds, as the export asks before it writes. The log and crash reports hash paths (I643), but no rule
+    /// can find a bare file name, a relative path or a server's name in a message, so the preview says those can remain.
+    /// </summary>
+    internal static string Preview(bool elevated, bool diagnosticMode)
     {
         var sb = new StringBuilder();
         sb.AppendLine("The bundle contains:");
         sb.AppendLine("• FileCat version, OS, runtime, and platform adapter");
-        if (WindowsTokenAuthority.IsHighIntegrity)
-            sb.AppendLine("• persisted diagnostics logs are omitted while FileCat runs as administrator");
-        else sb.AppendLine("• the diagnostics log (paths are hashed" + (AppLog.DiagnosticMode ? "; diagnostic mode is ON, so selected paths are included" : "") + ")");
+        if (elevated) sb.AppendLine("• persisted diagnostics logs are omitted while FileCat runs as administrator");
+        else sb.AppendLine("• the diagnostics log and crash reports, if any (" + (diagnosticMode
+            ? "diagnostic mode is ON, so paths are included)"
+            : "paths are hashed, but a message can still name a file, folder, or server)"));
         sb.AppendLine("• settings (tool paths included; no passwords or keys are ever stored there)");
-        if (!WindowsTokenAuthority.IsHighIntegrity) sb.AppendLine("• crash reports, if any");
         sb.AppendLine("It never contains file contents, Registry data, or credentials.");
-        return new Summary(sb.ToString());
+        return sb.ToString();
     }
 
     public static string Write(AppServices s, string? destinationDirectory = null)
@@ -52,10 +59,31 @@ public static class DiagnosticsBundle
             {
                 using var src = new FileStream(p, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 using var dst = zip.CreateEntry(file).Open();
-                src.CopyTo(dst);
+                CopyLog(src, dst, AppLog.DiagnosticMode);
             }
         }
         return path;
+    }
+
+    /// <summary>
+    /// A log or crash report as exported. With diagnostic mode on it is copied as it is. With it off, its paths are hashed
+    /// again line by line, so the lines written while diagnostic mode was on, or by a FileCat before I643, leave as the
+    /// preview says; a line already hashed comes out the same.
+    /// </summary>
+    internal static void CopyLog(Stream source, Stream destination, bool diagnosticMode)
+    {
+        if (diagnosticMode)
+        {
+            source.CopyTo(destination);
+            return;
+        }
+        using var reader = new StreamReader(source, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: true, leaveOpen: true);
+        using var writer = new StreamWriter(destination, new UTF8Encoding(false), leaveOpen: true);
+        while (reader.ReadLine() is { } line)
+        {
+            writer.Write(LogRedaction.HashPaths(line));
+            writer.Write(Environment.NewLine);
+        }
     }
 
     private static void AddText(ZipArchive zip, string name, string text)

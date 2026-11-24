@@ -40,7 +40,9 @@ public enum LogLevel
 
 /// <summary>
 /// Bounded local log with privacy defaults: paths are replaced by short stable hashes unless diagnostic
-/// mode is enabled; credentials, Registry data, and file contents are never logged (plan §19.2).
+/// mode is enabled; credentials, Registry data, and file contents are never logged (plan §19.2). The paths FileCat writes
+/// go through <see cref="P"/>; those in text it does not compose (an error's message, a crash report) are found and hashed
+/// the same way (I643, <see cref="LogRedaction"/>), so one path has one hash wherever it appears.
 /// </summary>
 public static class AppLog
 {
@@ -73,14 +75,25 @@ public static class AppLog
     public static string P(string? path)
     {
         if (string.IsNullOrEmpty(path)) return "<none>";
-        if (DiagnosticMode) return path;
+        return DiagnosticMode ? path : Hash(path);
+    }
+
+    /// <summary>The short stable hash the log writes in place of a path.</summary>
+    internal static string Hash(string path)
+    {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(path));
         return "path#" + Convert.ToHexString(hash, 0, 4).ToLowerInvariant();
     }
 
+    /// <summary>
+    /// Text FileCat does not compose (a crash report, a helper's output) with its paths hashed as <see cref="P"/> hashes
+    /// them, line by line, unless diagnostic mode is on (I643; <see cref="LogRedaction"/> says how, and what it keeps).
+    /// </summary>
+    internal static string Redact(string text) => DiagnosticMode ? text : LogRedaction.HashPaths(text);
+
     public static void Write(LogLevel level, string message, Exception? ex = null)
     {
-        var line = OneLine($"{DateTime.UtcNow:O} {level,-7} {message}{(ex is null ? "" : " | " + ex.GetType().Name + ": " + ex.Message)}");
+        var line = Record(DateTime.UtcNow, level, message, ex, DiagnosticMode);
         System.Diagnostics.Debug.WriteLine(line);
         if (_file is null) return;
         lock (Lock)
@@ -91,11 +104,25 @@ public static class AppLog
         }
     }
 
-    /// <summary>Persist a crash only when the log path is not lower-token writable state.</summary>
+    /// <summary>
+    /// One record, on one line: its time, level and message, and an error's type and own message. Unless diagnostic mode
+    /// is on, the paths in the message and in the error's text are hashed (I643): .NET's file errors quote whole paths
+    /// ("Could not find file '…'"), and messages carry a server's or a helper's text as it came.
+    /// </summary>
+    internal static string Record(DateTime time, LogLevel level, string message, Exception? ex, bool diagnosticMode)
+    {
+        string text = ex is null ? message : message + " | " + ex.GetType().Name + ": " + ex.Message;
+        return OneLine($"{time:O} {level,-7} {(diagnosticMode ? text : LogRedaction.HashRecord(text))}");
+    }
+
+    /// <summary>
+    /// Persist a crash only when the log path is not lower-token writable state. Unless diagnostic mode is on, its paths
+    /// are hashed as the log's are, except the source locations of its stack frames (I643).
+    /// </summary>
     public static void AppendCrash(string directory, string text)
     {
         if (WindowsTokenAuthority.IsHighIntegrity) return;
-        File.AppendAllText(Path.Combine(directory, "crash.log"), text);
+        File.AppendAllText(Path.Combine(directory, "crash.log"), Redact(text));
     }
 
     /// <summary>
