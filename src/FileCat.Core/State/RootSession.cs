@@ -29,7 +29,7 @@ internal static class RootSession
             string folder = Path.Combine(parent, "filecat-root-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant());
             Directory.CreateDirectory(folder, Private);
             // Used only as made: a folder, not a link, of this account's alone.
-            if (UnixFiles.Stat(folder) is not { IsDirectory: true, IsLink: false } made || made.Owner != UnixPermissions.CurrentUserId ||
+            if (UnixFiles.Stat(folder) is not { IsDirectory: true, IsLink: false } made || made.Owner != Archives.Unix.UnixArchiveNative.GetEuid() ||
                 (made.Mode & 0x3F) != 0)
                 throw new IOException("FileCat could not make a private folder for this session in " + parent + ".");
             AppDomain.CurrentDomain.ProcessExit += (_, _) => Remove(folder);
