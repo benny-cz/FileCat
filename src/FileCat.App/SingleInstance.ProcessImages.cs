@@ -16,8 +16,9 @@ public static partial class SingleInstance
     // Linux open(2) flags that x64 and ARM64 share; O_DIRECTORY and O_NOFOLLOW differ (LinuxOpenFlags).
     private const int LinuxNonBlock = 0x800, LinuxNoControllingTerminal = 0x100;
 
-    // Darwin: O_NONBLOCK | O_NOFOLLOW | O_NOCTTY | O_CLOEXEC | O_NOFOLLOW_ANY (no link anywhere on the name).
-    private const int MacImageOpenFlags = 0x4 | 0x100 | 0x20000 | 0x1000000 | 0x20000000;
+    // Darwin: O_NONBLOCK | O_NOCTTY | O_CLOEXEC | O_NOFOLLOW_ANY, which refuses a link anywhere on the name, its last part
+    // included. Never with O_NOFOLLOW: XNU's vn_open_auth refuses the two together (EINVAL), so every open failed (I646).
+    private const int MacImageOpenFlags = 0x4 | 0x20000 | 0x1000000 | 0x20000000;
 
     /// <summary>
     /// Linux: the process's /proc directory as a descriptor. Everything opened through it belongs to that process: once
@@ -66,9 +67,10 @@ public static partial class SingleInstance
     /// <summary>
     /// macOS: whether the executable named for a process is a FileCat apphost; null when that cannot be told. Darwin gives
     /// no descriptor for another process's image, only its name (proc_pidpath, which Process.MainModule reports), and its
-    /// kernel checks only that something exists under that name, not that it is the image. So the name is opened with no
-    /// link followed anywhere on it, without waiting on a FIFO or device, and only a regular file is read. Linux, which
-    /// does not use this for the census, follows links on the name's folders.
+    /// kernel checks only that something exists under that name, not that it is the image. Darwin builds the name from the
+    /// image's own folders, so no link is on it; a link found there was put in place since, and is refused, never followed.
+    /// Only a regular file at the name is opened, with no link followed anywhere on it and without waiting on a FIFO, and
+    /// only a regular file is read. Linux, which does not use this for the census, follows links on the name's folders.
     /// </summary>
     internal static bool? ImageAtPathIsFileCat(string? path, out string? unknownReason)
     {
@@ -76,6 +78,19 @@ public static partial class SingleInstance
         if (string.IsNullOrEmpty(path) || !Path.IsPathFullyQualified(path) || path.Contains('\0') || PathUtil.HasAmbiguousUnixName(path))
         {
             unknownReason = "no usable image name";
+            return null;
+        }
+        // lstat opens nothing, so a FIFO, device or link already at the name is never opened. What is put there after this
+        // look is a link, which the open refuses, or another file, whose own descriptor must then be a regular file.
+        if (UnixFiles.Stat(path) is not { } named)
+        {
+            _ = UnixPermissions.Stat(path, out int error);
+            unknownReason = "image name error " + error.ToString(CultureInfo.InvariantCulture);
+            return null;
+        }
+        if (!named.IsRegular)
+        {
+            unknownReason = "the named image is not a regular file";
             return null;
         }
         int fd = OpenNative(path, OperatingSystem.IsMacOS() ? MacImageOpenFlags
