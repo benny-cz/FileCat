@@ -15,16 +15,21 @@ public sealed class DiagnosticsExportTests
     [Fact]
     public void The_preview_says_paths_are_hashed_and_what_can_remain()
     {
-        string off = DiagnosticsBundle.Preview(elevated: false, diagnosticMode: false);
+        string off = DiagnosticsBundle.Preview(elevated: false, diagnosticMode: false, windows: OperatingSystem.IsWindows());
         Assert.Contains("• the diagnostics log and crash reports, if any (paths are hashed, but a message can still name a file, folder, or server)",
             off, StringComparison.Ordinal);
-        string on = DiagnosticsBundle.Preview(elevated: false, diagnosticMode: true);
+        string on = DiagnosticsBundle.Preview(elevated: false, diagnosticMode: true, windows: OperatingSystem.IsWindows());
         Assert.Contains("• the diagnostics log and crash reports, if any (diagnostic mode is ON, so paths are included)", on, StringComparison.Ordinal);
         Assert.DoesNotContain("hashed", on, StringComparison.Ordinal);
-        string elevated = DiagnosticsBundle.Preview(elevated: true, diagnosticMode: false);
+        string elevated = DiagnosticsBundle.Preview(elevated: true, diagnosticMode: false, windows: true);
         Assert.Contains("persisted diagnostics logs are omitted while FileCat runs as administrator", elevated, StringComparison.Ordinal);
         Assert.DoesNotContain("crash reports", elevated, StringComparison.Ordinal);
-        foreach (string preview in new[] { off, on, elevated })
+        // I655: root on Linux and macOS keeps no log either, and the preview says so in its terms.
+        string root = DiagnosticsBundle.Preview(elevated: true, diagnosticMode: false, windows: false);
+        Assert.Contains("persisted diagnostics logs are omitted while FileCat runs as root", root, StringComparison.Ordinal);
+        Assert.DoesNotContain("administrator", root, StringComparison.Ordinal);
+        Assert.DoesNotContain("crash reports", root, StringComparison.Ordinal);
+        foreach (string preview in new[] { off, on, elevated, root })
         {
             Assert.StartsWith("The bundle contains:", preview, StringComparison.Ordinal);
             Assert.DoesNotContain(Environment.NewLine + Environment.NewLine, preview, StringComparison.Ordinal);
@@ -34,7 +39,7 @@ public sealed class DiagnosticsExportTests
     [AvaloniaFact]
     public void An_export_hashes_the_paths_left_in_earlier_log_lines()
     {
-        if (WindowsTokenAuthority.IsHighIntegrity) Assert.Skip("An elevated FileCat exports no logs.");
+        if (ProcessAuthority.IsElevatedOrRoot) Assert.Skip("An elevated or root FileCat exports no logs.");
         string root = Directory.CreateTempSubdirectory("filecat-i643-export-").FullName;
         bool priorMode = AppLog.DiagnosticMode;
         try

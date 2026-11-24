@@ -28,6 +28,7 @@
     <Compile Include="..\ArchiveEditDiscardCases.cs" Link="ArchiveEditDiscardCases.cs" />
     <Compile Include="..\TestCleanup.cs" Link="TestCleanup.cs" />
     <Compile Include="..\TemporaryLinkFixture.cs" Link="TemporaryLinkFixture.cs" />
+    <Compile Include="..\ProcessAuthorityScopes.cs" Link="ProcessAuthorityScopes.cs" />
     <Compile Include="..\SettledJournals.cs" Link="SettledJournals.cs" />
     <!-- The in-memory SFTP server of the remote tests, for UI tests of connecting and browsing. -->
     <Compile Include="..\FileCat.Remote.Tests\FakeSftp.cs" Link="Sftp\FakeSftp.cs" />
