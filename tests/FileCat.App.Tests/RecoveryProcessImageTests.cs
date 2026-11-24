@@ -210,6 +210,36 @@ public sealed class RecoveryProcessImageTests
         finally { Stop(process); Directory.Delete(folder, recursive: true); }
     }
 
+    [Fact]
+    public void The_census_refuses_no_running_process_for_a_linked_name_or_an_irregular_image()
+    {
+        if (OperatingSystem.IsWindows()) { Assert.Skip("Unix process images."); return; }
+        // On macOS no link may be followed anywhere on an image's name. The names Darwin gives running processes have
+        // none, or every census there would be unknown. Other unknowns, such as other accounts' processes, are as before.
+        string loop = OperatingSystem.IsMacOS() ? "image error 62" : "(errno 40)";
+        var reasons = new List<string>();
+        var refused = new List<string>();
+        bool? running = SingleInstance.OtherFileCatRunning(() =>
+        {
+            // Processes named FileCat or dotnet count by name, without their images being read.
+            var listed = new List<Process>();
+            foreach (var process in Process.GetProcesses())
+            {
+                if (process.ProcessName is "FileCat" or "dotnet") process.Dispose();
+                else listed.Add(process);
+            }
+            return listed.ToArray();
+        }, null, null, (pid, name, reason) =>
+        {
+            reasons.Add(reason);
+            if (reason.Contains(loop, StringComparison.Ordinal) || reason == "the image is not a regular file")
+                refused.Add($"{pid} {name}: {reason}");
+        }, inspectInventory: true);
+        TestContext.Current.TestOutputHelper?.WriteLine($"Census: {running?.ToString() ?? "unknown"}; " +
+            string.Join("; ", reasons.GroupBy(reason => reason).Select(group => $"{group.Count()} x {group.Key}")));
+        Assert.Empty(refused);
+    }
+
     private static bool? CensusWithin(int pid, string? fifo) =>
         Within(() => SingleInstance.OtherFileCatRunning(() => [Process.GetProcessById(pid)], inspectInventory: true),
             "The census", fifo);

@@ -45,16 +45,17 @@ Proposed in [PR #32](https://github.com/benny-cz/FileCat/pull/32), branch `fix/i
 
 **Test seam.** `OtherFileCatRunning(…, inspectInventory: true)` inspects a supplied inventory as production inspects every process, instead of counting all of it as FileCat.
 
-**Tests.** `RecoveryProcessImageTests`, 18 cases. The Linux cases run in hosted CI's `ubuntu-24.04 (App tests)` job; the macOS cases in its macOS App jobs.
+**Tests.** `RecoveryProcessImageTests`, 19 cases. The Linux cases run in hosted CI's `ubuntu-24.04 (App tests)` job; the macOS cases in its macOS App jobs.
 - **A deleted image whose name is replaced (8, Linux).** The replacement is a FIFO, a link to a file that says the opposite, a link to `/dev/zero`, or a regular file that says the opposite. Each comes with an image that is an apphost and one that is not: a copy of `sleep`, with or without the apphost's `FileCat.dll` binding appended. Each case first checks that `Process.MainModule.FileName` is the planted name. The census must answer from the image within 10 s.
 - **A running image (2, Linux):** with and without the binding.
 - **An exited process (1, Linux).** With `/proc/<pid>` held, the process is killed and reaped; its image is still on disk. Reading the image through the descriptor is unknown (errno 3), and its `stat` cannot be read. A census whose inventory still lists the process skips it.
 - **Opening a name (5, Linux and macOS).** A FIFO and a link are unknown, without waiting. A regular file and an apphost are read. A link on a folder of the name is refused, on macOS only.
 - **macOS (2).** `/bin/sleep`, and a copy started through the temporary folder's `/var` link, are read as not FileCat. A deleted image with a FIFO at its name is answered without waiting.
+- **The machine's whole process list (1, Linux and macOS).** No running process is refused because its name has a link or its image is not a regular file. On macOS this checks that `O_NOFOLLOW_ANY` accepts the names Darwin gives real processes; otherwise every census there would be unknown.
 
 **Runs on the Ubuntu 24.04.5 VM** (kernel 7.0.0-43, .NET 10.0.14), as the ordinary user, with the committed source and tests:
-- **After:** 15 passed, 3 skipped (macOS only); the build has no warnings. `RecoverySafetyTests`, `SingleInstanceMetadataTests` and `MacProcessCensusTests`: 59 passed, 14 skipped (Windows or macOS only), none failed.
-- **Before**, as mutations of the fixed source:
+- **After:** 16 passed, 3 skipped (macOS only); the build has no warnings. On the whole process list, the census was unknown: 56 processes that the user may not inspect refused `exe` (errno 13), and 1 had no image (errno 2); none was refused for a link or a non-regular image. `RecoverySafetyTests`, `SingleInstanceMetadataTests` and `MacProcessCensusTests`: 59 passed, 14 skipped (Windows or macOS only), none failed.
+- **Before**, as mutations of the fixed source, run with the first 18 cases:
   - **The old line,** `IsFileCatAppHost(process.MainModule?.FileName)`: 8 failed. Both FIFO cases hit the 10 s limit, waiting on the FIFO. The linked and planted files gave their own answer, in both directions. The `/dev/zero` link was read up to the 512 MiB limit, and gave unknown.
   - **The safe open of that name instead of `exe`:** 8 failed. Nothing waited, but the FIFO and the links gave unknown, and the planted regular files were read.
   - **Opening a name** without `O_NONBLOCK`: the FIFO case hit the 10 s limit. Without `O_NOFOLLOW`, the link was followed. Without the regular-file check, the FIFO was read as empty, "not FileCat". Each failed only its own case.
