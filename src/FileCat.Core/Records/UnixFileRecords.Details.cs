@@ -48,10 +48,16 @@ public sealed unsafe partial class UnixFileRecords
             if (status != 0) throw Error(path);
             var fields = new ReadOnlySpan<byte>(bytes, 256);
             var report = ParseLinuxDetails(path, fields);
-            var fileSystem = ReadLinuxDetailsFileSystem(fd, fields, noFollow, fullReport, ct, out var zfsMount);
+            var fileSystem = ReadLinuxDetailsFileSystem(fd, fields, noFollow, fullReport, ct, out var zfsMount, out var mount);
             string? format = fileSystem.State == FactState.Known ? fileSystem.Value : null;
             bool ext = format is "ext2" or "ext3" or "ext4";
             report = report with { Summary = report.Summary with { FileSystem = fileSystem } };
+            if (mount is not null)
+            {
+                bool mountRoot = IsLinuxMountRoot(BinaryPrimitives.ReadUInt64LittleEndian(fields[8..]),
+                    BinaryPrimitives.ReadUInt64LittleEndian(fields[56..]), path, mount);
+                report = AddLinuxMount(report, mount, mountRoot, fullReport, fileSystem.Source);
+            }
             if (ext)
             {
                 var snapshot = report.Summary;
@@ -114,10 +120,15 @@ public sealed unsafe partial class UnixFileRecords
         finally { Close(fd); }
     }
 
+    /// <summary>
+    /// The held item's file-system type from its mount's mountinfo line, matched by statx's mount ID and device. A known
+    /// type comes with that line (<paramref name="mount"/>), for the Volume section and the source root.
+    /// </summary>
     private static ObservedFact<string> ReadLinuxDetailsFileSystem(int held, ReadOnlySpan<byte> statx, int noFollow, bool fullReport,
-        CancellationToken ct, out LinuxZfsMount? zfsMount)
+        CancellationToken ct, out LinuxZfsMount? zfsMount, out LinuxMount? mount)
     {
         zfsMount = null;
+        mount = null;
         const string source = "statx on O_PATH descriptor + /proc/self/mountinfo";
         ObservedFact<string> Unavailable(FactState state, string reason) => ObservedFact<string>.Unavailable(state, FactScope.Volume, source, reason);
         ulong mountId = BinaryPrimitives.ReadUInt64LittleEndian(statx[144..]);
@@ -154,6 +165,7 @@ public sealed unsafe partial class UnixFileRecords
             if (count > limit) return Unavailable(FactState.Partial, "The process mount table exceeds the 1 MiB read limit.");
             string? type = null;
             LinuxZfsMount? matchedZfsMount = null;
+            LinuxMount? matchedMount = null;
             bool btrfsSubvolume = false;
             ReadOnlySpan<byte> table = data.AsSpan(0, count);
             foreach (var range in table.Split((byte)'\n'))
@@ -168,6 +180,7 @@ public sealed unsafe partial class UnixFileRecords
                     string.IsNullOrEmpty(columns[separator + 1]))
                     return Unavailable(FactState.Changed, "The mount record did not uniquely match the held item's device.");
                 type = columns[separator + 1];
+                matchedMount = ParseLinuxMount(columns);
                 if (fullReport && type == "zfs") matchedZfsMount = ParseLinuxZfsMount(columns[separator + 2], columns[separator + 3]);
                 if (columns[2] == device) continue;
                 // Btrfs can report an anonymous device number for a subvolume within the same mount ID.
@@ -177,6 +190,7 @@ public sealed unsafe partial class UnixFileRecords
                 btrfsSubvolume = true;
             }
             zfsMount = matchedZfsMount;
+            mount = matchedMount;
             return type is null ? Unavailable(FactState.Partial, "The held item's mount is not visible in the process mount table.")
                 : ObservedFact<string>.Known(type, FactScope.Volume, btrfsSubvolume ? source + " + fstatfs on the held subvolume" : source);
         }
