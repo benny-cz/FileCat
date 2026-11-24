@@ -5544,3 +5544,9 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - I655 (open, Medium, owner decision): a FileCat started as root with the caller's `HOME` (`sudo -E`, or sudo where its configuration keeps `HOME`) reads and writes the caller's saved state. The guards that keep an administrator window out of that state check only the Windows token. Raised by I645's fix (PR #33), confirmed in rc.2's source; not run, since neither test machine offers sudo without a password. [Record](evidence/E-I655-root-with-caller-home-profile-state.md).
 - I656 (open, Low for 1.0.0): Linux ARM64 builds spell `O_NOFOLLOW` and `O_DIRECTORY` with x64 values in the single-instance file, a page's resources and storage analysis. No 1.0.0 package is Linux ARM64. Raised by I646's fix (PR #32). [Record](evidence/E-I656-linux-arm64-x64-open-flags.md).
+
+## 2026-11-24 — The owner: every known issue is fixed for rc.3; I657 and I658
+
+- The owner, asked about I655 to I657: "everything should be fixed for rc.3, we should not prolong fixes of known issues". I655 and I656 are now to be fixed for rc.3, as are the two below.
+- I657 (open, Medium): Git badges are wrong in every folder below a repository's top, because porcelain status names paths from the top and FileCat files them as if they were relative to the folder. Raised by I647's fix (PR #38) and reproduced with Git alone. [Record](evidence/E-I657-git-badges-below-repository-top.md).
+- I658 (open, Medium): with `/proc` mounted `hidepid=invisible`, the Linux recovery census sees no other account's processes, answers "none" and never asks root. Raised by I646's fix (PR #32), confirmed in the source; not run. [Record](evidence/E-I658-census-hidden-processes.md).

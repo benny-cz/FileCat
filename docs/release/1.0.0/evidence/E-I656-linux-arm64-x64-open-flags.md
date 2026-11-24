@@ -1,6 +1,6 @@
 # I656 — Linux ARM64 builds open some files and folders with x64 flag values
 
-**Found:** 2026-11-24 by I646's fix ([PR #32](https://github.com/benny-cz/FileCat/pull/32), which takes `O_DIRECTORY` from `LinuxOpenFlags` and noted the other uses), confirmed in the source of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) (`7269ec61`). **Status:** open. No 1.0.0 package is Linux ARM64: rc.2's Linux assets are x64 only.
+**Found:** 2026-11-24 by I646's fix ([PR #32](https://github.com/benny-cz/FileCat/pull/32), which takes `O_DIRECTORY` from `LinuxOpenFlags` and noted the other uses), confirmed in the source of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) (`7269ec61`). **Status:** open; to be fixed for rc.3 (the owner's decision of 2026-11-24: every known issue is fixed for the next candidate). No 1.0.0 package is Linux ARM64: rc.2's Linux assets are x64 only.
 
 ## Observation
 

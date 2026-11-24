@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**1020 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
+**1022 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -11,6 +11,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 
 | ID | What | Source | Class | Record | Issues |
 |---|---|---|---|---|---|
+| E-I658-CENSUS-HIDEPID | The recovery census calls other accounts' FileCat absent when /proc hides their processes | `v1.0.0-rc.2` (`7269ec61`) source; found by PR #32 | Source review, open, Medium. Not run: remounting `/proc` needs root. | [I658 record](evidence/E-I658-census-hidden-processes.md) | I658/I646/V09 |
+| E-I657-GIT-SUBFOLDERS | Git badges are wrong in every folder below a repository's top | `GitStatusReader.cs` at `7269ec61`; Git for Windows 2.54.0 in a temporary repository; found by PR #38 | Git-only reproduction, open, Medium. | [I657 record](evidence/E-I657-git-badges-below-repository-top.md) | I657/I647/I608 |
 | E-I656-ARM64-OPEN-FLAGS | Linux ARM64 builds open some files and folders with x64 flag values | `v1.0.0-rc.2` (`7269ec61`) source; found by PR #32 | Source review, open, Low for 1.0.0 (no Linux ARM64 package). Not run on ARM64. | [I656 record](evidence/E-I656-linux-arm64-x64-open-flags.md) | I656/I646 |
 | E-I655-ROOT-PROFILE | A root FileCat started with the caller's home folder reads and writes the caller's saved state | `v1.0.0-rc.2` (`7269ec61`) source; found by PR #33 | Source review, open, Medium. Not run: neither test machine offers sudo without a password. | [I655 record](evidence/E-I655-root-with-caller-home-profile-state.md) | I655/I645/V06 |
 | E-I654-MAC-HARNESS | A PDF that cannot be shown gets a message with a doubled period | rc.2's macOS package on the physical Mac (b24); `ViewerWindow.cs` at `7269ec61` | Native observation, open, Low. | [I654 record](evidence/E-I654-pdf-error-doubled-period.md) | I654 |
