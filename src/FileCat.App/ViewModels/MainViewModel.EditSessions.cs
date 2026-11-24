@@ -786,7 +786,7 @@ public sealed partial class MainViewModel
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {
-            if (EditSessionsActive) Notify($"Cannot commit the edit: {ex.Message}. Your working copy is kept.", true);
+            if (EditSessionsActive) Notify($"Cannot commit the edit: {ErrorText.WithoutFinalPeriod(ex.Message)}. Your working copy is kept.", true);
         }
         finally
         {
@@ -1088,7 +1088,7 @@ public sealed partial class MainViewModel
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or ArgumentException)
-        { if (EditSessionsActive) Notify($"Cannot save the copy: {ex.Message}. Your edit is kept.", true); }
+        { if (EditSessionsActive) Notify($"Cannot save the copy: {ErrorText.WithoutFinalPeriod(ex.Message)}. Your edit is kept.", true); }
         finally
         {
             try { if (copy is not null) await Task.Run(copy.Dispose); }

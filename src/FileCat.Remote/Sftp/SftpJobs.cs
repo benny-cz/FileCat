@@ -877,7 +877,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                         catch (NotSupportedException ex)
                         {
                             start = 0;
-                            Issue(IssueSeverity.Info, dst, $"The upload was interrupted and went again from the start: {ex.Message}.", StepOutcome.Committed);
+                            Issue(IssueSeverity.Info, dst, $"The upload was interrupted and went again from the start: {ErrorText.WithoutFinalPeriod(ex.Message)}.", StepOutcome.Committed);
                         }
                     }
                     if (start == 0)

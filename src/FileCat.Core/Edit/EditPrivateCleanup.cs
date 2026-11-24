@@ -87,7 +87,8 @@ internal static class EditPrivateCleanup
 
     private static string Kept(string path, string? reason)
     {
-        string text = "FileCat kept its temporary edit file " + path + (string.IsNullOrEmpty(reason) ? "." : ": " + reason + ".");
+        // The reason can be the system's own message, which ends with a period of its own (I654).
+        string text = "FileCat kept its temporary edit file " + path + (string.IsNullOrEmpty(reason) ? "." : ": " + Jobs.ErrorText.WithoutFinalPeriod(reason) + ".");
         AppLog.Warn(text); return text;
     }
 }

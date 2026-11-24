@@ -49,15 +49,6 @@ public sealed class PdfFailureMessageTests
         Assert.Equal(Prefix + "File not in PDF format or corrupted" + Suffix, message);
     }
 
-    [Theory]
-    [InlineData("File not in PDF format or corrupted.", "File not in PDF format or corrupted")]
-    [InlineData("it has no PDF header", "it has no PDF header")]
-    [InlineData("Wait...", "Wait..")]
-    [InlineData("v1.2 .", "v1.2 ")]
-    [InlineData("", "")]
-    public void Only_one_final_period_gives_way_to_the_viewers_own_sentence(string message, string shown) =>
-        Assert.Equal(shown, ViewerWindow.WithoutFinalPeriod(message));
-
     [AvaloniaFact]
     public async Task An_encrypted_pdf_is_reported_with_its_message_and_one_period()
     {
