@@ -187,8 +187,9 @@ public sealed partial class UnixFileRecordTests
             }
             var section = Section(Read(file), "Streams and attributes");
             var row = Assert.Single(section.Table!.Rows, r => r[0] == name);
+            // macOS reads attribute values only for folders (I651); the table says so in one line.
             if (OperatingSystem.IsMacOS())
-                Assert.StartsWith("not read: A held-object attribute value/action adapter is not qualified", row[3], StringComparison.Ordinal);
+                Assert.Equal("not read: " + Core.HiddenData.UnixHiddenData.MacValueRefusalReason, row[3]);
             else Assert.Equal("a hidden note", row[3]);
         }
         finally { Directory.Delete(dir, recursive: true); }

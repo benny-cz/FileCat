@@ -21,9 +21,11 @@ public sealed partial class UnixHiddenData
     /// it, and that open acts on its own (an untyped event-only open of a FIFO acted as its reader, 20 November 2026).
     /// The path calls that list names and sizes hold nothing, so a value they returned could belong to another object.
     /// </summary>
-    internal const string MacValueRefusal = "FileCat reads, copies and deletes attribute values on macOS only for folders. " +
-        "It acts on an item it holds open, and only for a folder can macOS refuse to open whatever is put in the item's place, " +
+    internal const string MacValueRefusal = MacValueRefusalReason +
+        " It acts on an item it holds open, and only for a folder can macOS refuse to open whatever is put in the item's place, " +
         "such as a pipe or a device. Names and sizes are listed.";
+    /// <summary>The refusal's first sentence: what a refused read says where one line is shown, such as a file record's table.</summary>
+    internal const string MacValueRefusalReason = "FileCat reads, copies and deletes attribute values on macOS only for folders.";
     internal const string MacValueRefusalSummary = "Not readable on macOS: FileCat reads attribute values of folders only";
     private const string IncompleteValueRefusal = "Attribute values are read only from a complete list of the folder's attributes. " +
         "Refresh the list and try again.";
@@ -277,7 +279,7 @@ public sealed partial class UnixHiddenData
         {
             int error = Marshal.GetLastPInvokeError();
             if (error == 20) // ENOTDIR: a regular file or a path component cannot provide the held-directory adapter.
-                throw new NotSupportedException(MacValueRefusal);
+                throw new NotSupportedException(MacValueRefusalReason);
             throw InventoryError(path, error);
         }
         var directory = new SafeFileHandle(descriptor, ownsHandle: true);

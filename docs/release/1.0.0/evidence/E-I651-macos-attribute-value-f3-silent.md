@@ -50,7 +50,7 @@ This changes product source, so it reaches users only in a candidate after rc.2.
 **Change.**
 - **The reason.** `HiddenInventory` carries why its values cannot be read (`ValueRefusal`, with a short `ValueRefusalSummary` for rows). The macOS path view, used for files, links and special files, says:
   > FileCat reads, copies and deletes attribute values on macOS only for folders. It acts on an item it holds open, and only for a folder can macOS refuse to open whatever is put in the item's place, such as a pipe or a device. Names and sizes are listed.
-- **Everywhere it is said.** The same text replaces "A held-object attribute value/action adapter is not qualified for this macOS object." in the refusal, and ends the list's notice.
+- **Everywhere it is said.** The full text ends the list's notice. A refused read now gives its first sentence instead of "A held-object attribute value/action adapter is not qualified for this macOS object.", so the attribute table of a file's Full Details record reads "not read: FileCat reads, copies and deletes attribute values on macOS only for folders."
 - **On each row.** Each row reads "Not readable on macOS: FileCat reads attribute values of folders only" instead of "Not read — F3 to view".
 - **F3, Alt+F3, File → View and F5.** On such a list these commands are unavailable, with that reason, so the menu and key bar show them dimmed and invoking one says why.
 - **Enter.** Enter says: "*name*" cannot be viewed or extracted here, followed by the reason.
@@ -70,6 +70,7 @@ Folders keep their full value route. Windows and Linux lists are unchanged.
   - View, Alt+F3 and Copy are unavailable with the reason, and invoking each says it.
   - Enter says the value cannot be viewed or extracted, with the reason. No viewer, dialog or job appears, and no value is requested.
 - `HiddenDataUiTests.A_files_streams_and_attributes_open_as_a_list_are_copied_out_and_deleted` and `HiddenDataTests.A_files_own_streams_and_attributes_are_listed_read_and_deleted` now expect the macOS row text, the reason on View, Alt+F3 and F5, and F3's message.
+- `UnixFileRecordTests.The_record_lists_the_items_attributes_with_what_they_say` now expects the record's "not read:" line to carry the refusal's first sentence. The pull request's first macOS CI run caught this test still expecting the old message; that was its only failure.
 
 **Results.** On the physical M1 Mac (macOS 27.2.1, .NET SDK 10.0.101, Release):
 - **Before:** the rc.2 product source (`ec126ea94`) with these tests, plus declarations of the new members used by nothing, failed all four. The rows read "Not read — F3 to view", and the refusal read "A held-object attribute value/action adapter is not qualified…".

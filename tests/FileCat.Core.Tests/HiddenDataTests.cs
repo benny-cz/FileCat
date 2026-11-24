@@ -306,7 +306,7 @@ public sealed partial class HiddenDataTests
             Assert.False(inventory.BoundToObject); Assert.Contains("Compression backing: not inventoried", inventory.Notice);
             Assert.Equal(UnixHiddenData.MacValueRefusal, inventory.ValueRefusal);
             var ordinary = Assert.Single(items, i => i.Name == "org.filecat.payload");
-            Assert.Equal(UnixHiddenData.MacValueRefusal, Assert.Throws<NotSupportedException>(() => hidden.Read(file, ordinary, 64)).Message);
+            Assert.Equal(UnixHiddenData.MacValueRefusalReason, Assert.Throws<NotSupportedException>(() => hidden.Read(file, ordinary, 64)).Message);
             Assert.Throws<NotSupportedException>(() => hidden.Open(file, ordinary));
             Assert.Throws<NotSupportedException>(() => hidden.Delete(file, ordinary));
             Assert.Equal("contents", File.ReadAllText(file));
@@ -391,7 +391,7 @@ public sealed partial class HiddenDataTests
         Assert.Contains(UnixHiddenData.MacValueRefusal, listed.Notice);
         var fileTag = Assert.Single(listed.Items, item => item.Name == tags);
         Assert.Equal(blue.Length, fileTag.Size);
-        Assert.Equal(UnixHiddenData.MacValueRefusal, Assert.Throws<NotSupportedException>(() => hidden.Read(file, fileTag, 64)).Message);
+        Assert.Equal(UnixHiddenData.MacValueRefusalReason, Assert.Throws<NotSupportedException>(() => hidden.Read(file, fileTag, 64)).Message);
 
         var provider = new HiddenDataProvider(hidden);
         var sink = new RowSink();
