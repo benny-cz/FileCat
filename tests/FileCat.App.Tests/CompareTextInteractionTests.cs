@@ -1,11 +1,13 @@
 using System.Text;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Automation;
 using Avalonia.Interactivity;
 using Avalonia.Input;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Views;
 using FileCat.Core.Compare;
@@ -57,15 +59,18 @@ public sealed class CompareTextInteractionTests
             Assert.True(search.IsFocused);
             search.Text = "needle";
             await Until(() => status.Text?.StartsWith("2 matches", StringComparison.Ordinal) == true);
+            var rows = window.GetVisualDescendants().OfType<ListBox>().Single();
             window.GetVisualDescendants().OfType<Button>().Single(b =>
                 AutomationProperties.GetName(b) == "Close comparison Find bar")
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.False(search.IsEffectivelyVisible);
+            Assert.Equal(window.CurrentRow, FocusedRow(window, rows)); // I637: the content has the keyboard again
             window.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, null);
             Assert.True(search.IsEffectivelyVisible);
             Assert.Equal("needle", search.Text);
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             Assert.False(search.IsEffectivelyVisible);
+            Assert.Equal(window.CurrentRow, FocusedRow(window, rows));
             window.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, null);
             Assert.True(search.IsEffectivelyVisible);
             Assert.Contains("searchFound", search.Classes);
@@ -273,6 +278,260 @@ public sealed class CompareTextInteractionTests
         finally { window.Close(); }
     }
 
+    /// <summary>
+    /// I637: a comparison opens with the keyboard on its current row (the first difference), not on the window, so Down
+    /// moves the current row and Page Down scrolls the comparison.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task Opening_gives_the_keyboard_to_the_current_row()
+    {
+        var window = OpenThreeHundredLines();
+        try
+        {
+            var rows = window.GetVisualDescendants().OfType<ListBox>().Single();
+            await UntilARowHasTheKeyboard(window, rows);
+            Assert.Equal(0, window.CurrentDifference);
+            Assert.Equal(99, window.CurrentRow); // line 100, the first difference
+            Assert.Equal(99, FocusedRow(window, rows));
+            window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            Assert.Equal((100, 100), (window.CurrentRow, FocusedRow(window, rows)));
+            Layout(window);
+            double before = rows.Scroll!.Offset.Y;
+            window.KeyPress(Key.PageDown, RawInputModifiers.None, PhysicalKey.PageDown, null);
+            Layout(window);
+            Assert.True(rows.Scroll.Offset.Y > before, $"Page Down left the rows at {rows.Scroll.Offset.Y} (was {before}); current row {window.CurrentRow}.");
+            Assert.Equal((100, 100), (window.CurrentRow, FocusedRow(window, rows)));
+            // Page Down moved the view, not the current row: Down moves on from that row and shows it again.
+            window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            Layout(window);
+            Assert.Equal((101, 101), (window.CurrentRow, FocusedRow(window, rows)));
+            var viewport = rows.GetVisualDescendants().OfType<ScrollContentPresenter>().Single();
+            var current = rows.ContainerFromIndex(101)!;
+            Assert.InRange(current.TranslatePoint(default, viewport)!.Value.Y, -0.5, viewport.Bounds.Height - current.Bounds.Height + 0.5);
+        }
+        finally { window.Close(); }
+    }
+
+    /// <summary>
+    /// I637: a comparison shown before its window became active (another window was active, or the activation came late)
+    /// gives the keyboard to its current row when the window is activated.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task A_comparison_shown_before_activation_gives_the_keyboard_to_the_current_row_on_activation()
+    {
+        var window = ThreeHundredLines();
+        window.ShowActivated = false;
+        window.Show();
+        try
+        {
+            var rows = window.GetVisualDescendants().OfType<ListBox>().Single();
+            await Until(() => !window.IsComparing && window.CurrentDifference == 0);
+            Layout(window);
+            Assert.False(window.IsActive);
+            Assert.Null(window.FocusManager?.GetFocusedElement());
+            window.Activate();
+            await UntilARowHasTheKeyboard(window, rows);
+            Assert.Equal((99, 99), (window.CurrentRow, FocusedRow(window, rows)));
+            window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            Assert.Equal((100, 100), (window.CurrentRow, FocusedRow(window, rows)));
+        }
+        finally { window.Close(); }
+    }
+
+    /// <summary>I637: activation gives the keyboard to the rows only when nothing in the window has it: a control the user chose keeps it.</summary>
+    [AvaloniaFact]
+    public async Task Activation_leaves_the_keyboard_with_a_control_that_has_it()
+    {
+        var window = ThreeHundredLines();
+        window.ShowActivated = false;
+        window.Show();
+        try
+        {
+            await Until(() => !window.IsComparing && window.CurrentDifference == 0);
+            Layout(window);
+            var wrap = window.GetVisualDescendants().OfType<CheckBox>().Single(c =>
+                AutomationProperties.GetName(c) == "Wrap long source lines in the aligned comparison");
+            window.Activate();
+            Assert.True(wrap.Focus());
+            for (int i = 0; i < 10; i++) { Layout(window); await Task.Delay(20, TestContext.Current.CancellationToken); }
+            Assert.True(window.IsActive);
+            Assert.Same(wrap, window.FocusManager?.GetFocusedElement());
+        }
+        finally { window.Close(); }
+    }
+
+    /// <summary>
+    /// I637: closing Find, by Escape or by Close Find, gives the keyboard back to the current row (the row clicked
+    /// before Find opened, or the one Find's match went to), and Down moves it.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task Closing_Find_gives_the_keyboard_back_to_the_current_row()
+    {
+        var window = OpenThreeHundredLines();
+        try
+        {
+            var rows = window.GetVisualDescendants().OfType<ListBox>().Single();
+            await Until(() => !window.IsComparing && window.CurrentDifference == 0);
+            Layout(window);
+            var search = window.GetVisualDescendants().OfType<TextBox>().Single(c =>
+                AutomationProperties.GetName(c) == "Find text in comparison (Ctrl+F)");
+            var status = window.GetVisualDescendants().OfType<TextBlock>().Single(c =>
+                AutomationProperties.GetAutomationId(c) == "Comparison match status");
+            // A click on a row's line number gives that row the keyboard, as in I637's observation.
+            int clicked = window.CurrentRow - 3;
+            var container = rows.ContainerFromIndex(clicked)!;
+            Click(window, container, new Point(20, container.Bounds.Height / 2));
+            Assert.Equal((clicked, clicked), (window.CurrentRow, FocusedRow(window, rows)));
+
+            window.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, null);
+            Assert.True(search.IsFocused);
+            search.Text = "line 150";
+            await Until(() => status.Text?.StartsWith("2 matches", StringComparison.Ordinal) == true);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            Assert.False(search.IsEffectivelyVisible);
+            Assert.Equal((clicked, clicked), (window.CurrentRow, FocusedRow(window, rows)));
+            window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            Assert.Equal((clicked + 1, clicked + 1), (window.CurrentRow, FocusedRow(window, rows)));
+
+            window.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, null);
+            Assert.True(search.IsFocused);
+            window.KeyPress(Key.F3, RawInputModifiers.None, PhysicalKey.F3, null);
+            Assert.Equal(149, window.CurrentRow); // line 150, Find's first match
+            Click(window, window.GetVisualDescendants().OfType<Button>().Single(b =>
+                AutomationProperties.GetName(b) == "Close comparison Find bar"));
+            Assert.False(search.IsEffectivelyVisible);
+            Assert.Equal("line 150", search.Text);
+            Assert.Equal((149, 149), (window.CurrentRow, FocusedRow(window, rows)));
+            window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            Assert.Equal((150, 150), (window.CurrentRow, FocusedRow(window, rows)));
+        }
+        finally { window.Close(); }
+    }
+
+    /// <summary>I637: without a current row (identical files), the first row takes the keyboard and Down moves from it.</summary>
+    [AvaloniaFact]
+    public async Task Without_a_current_row_the_first_row_takes_the_keyboard()
+    {
+        string same = string.Concat(Enumerable.Range(1, 50).Select(i => $"line {i}\n"));
+        var window = CompareWindow.Open("left.txt", new MemoryContentSource("left.txt", Encoding.UTF8.GetBytes(same)),
+            "right.txt", new MemoryContentSource("right.txt", Encoding.UTF8.GetBytes(same)));
+        window.Activate();
+        try
+        {
+            var rows = window.GetVisualDescendants().OfType<ListBox>().Single();
+            await UntilARowHasTheKeyboard(window, rows);
+            Assert.StartsWith("Identical", window.Summary);
+            Assert.Equal(0, FocusedRow(window, rows));
+            window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            Assert.Equal((1, 1), (window.CurrentRow, FocusedRow(window, rows)));
+        }
+        finally { window.Close(); }
+    }
+
+    /// <summary>
+    /// I637 with long lines wrapped: when Escape gives the keyboard back to a current row taller than the view, Find's
+    /// match stays in view (the whole row brought into view would show its top, far from the match).
+    /// </summary>
+    [AvaloniaFact]
+    public async Task Closing_Find_keeps_the_match_of_a_tall_wrapped_row_in_view()
+    {
+        string words = string.Join(' ', Enumerable.Range(0, 1200).Select(i => $"w{i:D4}"));
+        var window = CompareWindow.Open("left.txt", new MemoryContentSource("left.txt", Encoding.UTF8.GetBytes($"first\n{words} needle left\nlast\n")),
+            "right.txt", new MemoryContentSource("right.txt", Encoding.UTF8.GetBytes($"first\n{words} needle right\nlast\n")));
+        window.Activate();
+        try
+        {
+            var rows = window.GetVisualDescendants().OfType<ListBox>().Single();
+            var view = window.GetVisualDescendants().OfType<CompareTextView>().Single();
+            await Until(() => !window.IsComparing && window.CurrentDifference == 0);
+            Layout(window);
+            window.GetVisualDescendants().OfType<CheckBox>().Single(c =>
+                AutomationProperties.GetName(c) == "Wrap long source lines in the aligned comparison").IsChecked = true;
+            Layout(window);
+            var search = window.GetVisualDescendants().OfType<TextBox>().Single(c =>
+                AutomationProperties.GetName(c) == "Find text in comparison (Ctrl+F)");
+            var status = window.GetVisualDescendants().OfType<TextBlock>().Single(c =>
+                AutomationProperties.GetAutomationId(c) == "Comparison match status");
+            window.KeyPress(Key.F, RawInputModifiers.Control, PhysicalKey.F, null);
+            search.Text = "needle";
+            await Until(() => status.Text?.StartsWith("2 matches", StringComparison.Ordinal) == true);
+            window.KeyPress(Key.F3, RawInputModifiers.None, PhysicalKey.F3, null);
+            Layout(window);
+            Assert.Equal(1, window.CurrentRow);
+            var cell = view.RealizedRow(1)!.LeftCell!;
+            int match = cell.Text.IndexOf("needle", StringComparison.Ordinal);
+            var viewport = view.GetVisualDescendants().OfType<ScrollContentPresenter>().Single();
+            Assert.True(cell.Bounds.Height > 2 * viewport.Bounds.Height, $"The wrapped row is {cell.Bounds.Height} high in a {viewport.Bounds.Height} view.");
+            AssertInView(cell, match, viewport, "after Find's match");
+
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            Layout(window);
+            Assert.Equal((1, 1), (window.CurrentRow, FocusedRow(window, rows)));
+            AssertInView(view.RealizedRow(1)!.LeftCell!, match, viewport, "after Escape closed Find");
+        }
+        finally { window.Close(); }
+    }
+
+    // I637's case, opened as the application opens it, and active as a window just opened is.
+    private static CompareWindow OpenThreeHundredLines()
+    {
+        var (left, right) = ThreeHundredLineFiles();
+        var window = CompareWindow.Open("left.txt", new MemoryContentSource("left.txt", left), "right.txt", new MemoryContentSource("right.txt", right));
+        window.Activate();
+        return window;
+    }
+
+    // I637's case in a window not shown yet.
+    private static CompareWindow ThreeHundredLines()
+    {
+        var (left, right) = ThreeHundredLineFiles();
+        return new CompareWindow("left.txt", new MemoryContentSource("left.txt", left), "right.txt", new MemoryContentSource("right.txt", right), null, null);
+    }
+
+    // I637's case: two 300-line files that differ in two lines (100 and 200).
+    private static (byte[] Left, byte[] Right) ThreeHundredLineFiles()
+    {
+        var left = new StringBuilder();
+        var right = new StringBuilder();
+        for (int line = 1; line <= 300; line++)
+        {
+            left.Append($"line {line}\n");
+            right.Append(line is 100 or 200 ? $"line {line} changed\n" : $"line {line}\n");
+        }
+        return (Encoding.UTF8.GetBytes(left.ToString()), Encoding.UTF8.GetBytes(right.ToString()));
+    }
+
+    /// <summary>The index of the row that has the keyboard; -1 when no row has it (the window or another control does).</summary>
+    private static int FocusedRow(Window window, ListBox rows) =>
+        window.FocusManager?.GetFocusedElement() is ListBoxItem row ? rows.IndexFromContainer(row) : -1;
+
+    private static void AssertInView(CompareSourceCell cell, int offset, ScrollContentPresenter viewport, string when)
+    {
+        Rect glyph = cell.SourceBounds(offset);
+        var shown = cell.TranslatePoint(glyph.TopLeft + (Vector)cell.TextOrigin, viewport)!.Value;
+        Assert.True(glyph.Height > 0 && shown.Y >= -0.5 && shown.Y + glyph.Height <= viewport.Bounds.Height + 0.5,
+            $"The match is at {shown.Y} in a {viewport.Bounds.Height} high view {when}.");
+    }
+
+    // A click where the user makes it: the pointer must land on the target (or a part of it) at that point.
+    private static void Click(Window window, Control target, Point? at = null)
+    {
+        Layout(window);
+        var point = target.TranslatePoint(at ?? new Point(target.Bounds.Width / 2, target.Bounds.Height / 2), window)!.Value;
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        var hit = window.InputHitTest(point) as Visual;
+        Assert.True(ReferenceEquals(hit, target) || hit?.GetVisualAncestors().Contains(target) == true,
+            $"The click at {point} lands on {hit?.GetType().Name}, not on {target.GetType().Name}.");
+        window.MouseMove(point);
+        window.MouseDown(point, MouseButton.Left);
+        window.MouseUp(point, MouseButton.Left);
+    }
+
+    private static void Layout(Window window)
+    {
+        for (int i = 0; i < 3; i++) { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); }
+    }
+
     private static Button ButtonNamed(Window window, string text) => window.GetVisualDescendants()
         .OfType<Button>().Single(b => b.Content as string == text);
 
@@ -281,6 +540,16 @@ public sealed class CompareTextInteractionTests
         for (int i = 0; i < 500 && !condition(); i++)
             await Task.Delay(20, TestContext.Current.CancellationToken);
         Assert.True(condition());
+    }
+
+    // The comparison is shown with a row that has the keyboard; says where things stand when that does not happen.
+    private static async Task UntilARowHasTheKeyboard(CompareWindow window, ListBox rows)
+    {
+        bool Ready() => !window.IsComparing && FocusedRow(window, rows) >= 0;
+        for (int i = 0; i < 500 && !Ready(); i++)
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+        Assert.True(Ready(), $"Comparing: {window.IsComparing}; active: {window.IsActive}; current row {window.CurrentRow}; " +
+            $"keyboard on {window.FocusManager?.GetFocusedElement()?.GetType().Name ?? "nothing"}.");
     }
 
     private static async Task Until(Func<Task<bool>> condition)
