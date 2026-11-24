@@ -65,3 +65,26 @@ Branch `fix/i665-i667-flaky-tests`. Two product faults lay underneath; each was 
 - The whole App suite in Release at medium integrity: 4,166 tests (11 of them the uncommitted diagnostics), none failed, 331 skipped.
 - Hosted run 45496536945, from a throwaway branch (since deleted) that ran only these classes: windows-11-arm 15 of 15 runs, ubuntu-24.04 15 of 15, macos-26 5 of 5. Its reproductions with the fixed code read all four headers on each.
 - The Mac (M1, macOS 27.2.1, four CPU-busy loops at the tests' priority) and the Ubuntu 24.04.5 VM (six loops): 30 of 30 runs each, and the same reproductions read all four headers.
+
+## Fix — I666
+
+**Cause: a frame drawn during the hover, not inspection or hovering.**
+- `ShowOwner` waits for the focused row's value only. The other visible rows' values are read moments later, and the metadata service announces new values at most every 120 ms, so their notice can come after the test's count.
+- The list then draws again, during `HoverOwner`: `MouseMove` runs pending work and draws. Each frame asks the provider for each drawn row's item (`TabViewModel.ItemForDrawing`, I649): 11 rows, 11 references.
+- Reproduced with a diagnostic copy (not committed) that counts as the test did: on the Windows workstation under CPU load (Gone, 33 to 44 references, no owner read), and on the Ubuntu VM (Denied, 22 to 33, CI's numbers). Each time the notice came as the count was taken, and the frame during the hover.
+
+**Product question.** Drawing asks for each drawn row's item in every frame, whatever value is cached. The cache is keyed by the item's path, and the item reference is what gives the path, for a Denied or Gone value as for any other. For file-system items the reference is computed and does no I/O. The extra frame read no owner again and resolved no name. This is not a fault. Keeping the references from one frame to the next would save them, but nothing reads more.
+
+**Change.**
+- `OwnerFixture.Settle` waits until every drawn row has its value and names are idle. It then joins the metadata service's notice still to come, or sends one, and draws the frame it asks for.
+- The three tests that count references across a hover call it before counting: `Unavailable_and_gone_…`, `Plain_resolved_name_…` and `Unnamed_identity_and_last_known_value_…`.
+- They still check that inspecting and hovering add no provider reference, no owner read and no name lookup.
+
+**Results.**
+- The diagnostic copy, counting as the old test did and after `Settle`:
+  - Windows workstation, pinned to two cores shared with two CPU-busy loops: the old count failed 2 of 400 rounds (Gone, 33 to 44 each time); the settled count passed 300 of 300.
+  - Ubuntu VM: the old count failed once in 50 rounds, as CI did there (Denied, 22 to 33; the notice came 1.3 ms after the count); the settled count passed 50 of 50.
+  - The Mac and each hosted runner: 50 of 50 rounds either way.
+- The three tests (6 cases), pinned to two cores shared with two CPU-busy loops: 40 of 40 runs passed.
+- Hosted run 45496536945: windows-11-arm 15 of 15 runs, ubuntu-24.04 15 of 15, macos-26 5 of 5.
+- The Mac (four CPU-busy loops) and the Ubuntu VM (six loops): 30 of 30 runs each.
