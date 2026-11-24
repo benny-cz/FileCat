@@ -5508,3 +5508,45 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - c23 in the qualification VM: the case-sensitive repository's badges match Git (`PROOF.txt` clean, `proof.txt` changed). In an ordinary repository, a case-only spelling change left the row "Git changed" while Git said clean.
 - I647 (open, Medium): reproduced with Git alone. The badge run skips Git for Windows' system settings (I150), and with them the default `core.autocrlf=true`; a CRLF file whose time changed reads `M` until Git refreshes its index. [I647](evidence/E-I647-git-badges-without-line-ending-settings.md).
+
+## 2026-11-24 — I648: a Markdown Page sometimes stays blank
+
+- c10 in the qualification VM: every link kind draws, and about 60 Pages drew within 3 s in repeated runs, but two stayed blank with Refresh disabled. PR #27's Windows CI job hit the same fault in `PageViewTests`: no navigation completion within 55 s although both page requests were answered. [I648](evidence/E-I648-markdown-page-navigation-never-completes.md).
+
+## 2026-11-24 — The Mac GUI harness's rehearsal of rc.2: I649 to I654
+
+- A re-runnable Mac GUI harness drives FileCat through the accessibility API on the physical Mac. On rc.2's macOS package it passes 21 b-rows, fails b25 and b26, leaves seven partial or blocked (screenshots need a permission the session does not have; FTPS needs a server) and found six issues. The qualification VM confirmed three of them on Windows.
+- I649 (High): Show pictures on a streams or attributes listing ends FileCat on Windows and macOS. [I649](evidence/E-I649-pictures-on-supplementary-data-crash.md).
+- I650 (High): on macOS, typing a time in Change attributes and times ends FileCat while an accessibility client is active. [I650](evidence/E-I650-macos-times-dialog-live-region-crash.md).
+- I651 (Medium): on macOS an attribute row offers "F3 to view", but F3 does nothing, so a Finder tag's name never shows (I615). [I651](evidence/E-I651-macos-attribute-value-f3-silent.md).
+- I652 (Medium): on macOS, Copy fills a sparse file's holes on APFS (I616's unqualified Mac part). [I652](evidence/E-I652-macos-sparse-copy-fills-holes.md).
+- I653 (Medium): keyboard reference rows and spin buttons announce implementation names, on both platforms (the class of I583). [I653](evidence/E-I653-accessible-names-implementation-text.md).
+- I654 (Low): a doubled period in the PDF error message. [I654](evidence/E-I654-pdf-error-doubled-period.md).
+
+## 2026-11-24 — rc.2's fourth Windows round, the Mac harness's rehearsal, and the owner's decision on rc.3
+
+- **The owner decided that rc.3 waits for all the fixes** found in rc.2's qualification, I635 to I654.
+- **Windows, in the VM, fourth round.** These pass on the installed candidate: c8, c10, c16, c25 (FTPS and SFTP both ways, Registry copy and export, whole-drive copy and Shift-drag), c29, c30, c33 and c39. These pass in part: c7, c23 (I647), c28, c37 (the elevated FileCat; Paste is I642) and c38. [FQ progress](evidence/E-FQ-RC2-20261124.md).
+- **macOS, the GUI harness's rehearsal.** A re-runnable harness drives FileCat on the Mac through the accessibility API. On rc.2's package 24 b-rows pass, b25 and b26 fail (I651, I652) and six are partial, waiting on screenshots, an FTPS server or display scaling.
+- **Integration.** CI's macOS runners are the release's bottleneck, so the reviewed fix PRs are combined: PR #35 carries #25 to #31 in one run.
+
+## 2026-11-24 — Owner decisions on the administrator window, and the first pre-rc3 checks
+
+- The owner accepted both administrator-window changes in rc.3: the UAC prompt names the program "FileCat administrator window" (I644, PR #34), and an elevated or root FileCat shows HTML and Markdown pages as source text instead of drawing them, so their page engines never start on the ordinary account's cache folder (I645, PR #33).
+- A pre-rc3 win-x64 build of integration branch 2 (`919d8e764`, rounds 1 and 2) was run in the qualification VM through the scenarios that found the issues:
+  - I635 is fixed: Alt+Enter with two marks says "Select one item to show its properties." and opens no sheet.
+  - I637 is fixed: Compare's arrows move the rows at open and after Find closes.
+  - I636 is fixed: sorting by Origin "retains all 3 items' results".
+  - I644 is fixed: an administrator window started through `FileCat.AdminLauncher.exe` does not load a profiler named only in `HKCU\Environment`, while the unelevated control still does.
+  - I642 is fixed only in part. The folder's own menu now offers Paste after Explorer's Cut, but choosing it moves nothing on build 26200: the menu helper invokes the Shell's paste, which blocks for about 10 s and returns without moving the file. The fix goes back to its author before rc.3.
+
+## 2026-11-24 — I655 and I656, raised by the rc.3 fixes
+
+- I655 (open, Medium, owner decision): a FileCat started as root with the caller's `HOME` (`sudo -E`, or sudo where its configuration keeps `HOME`) reads and writes the caller's saved state. The guards that keep an administrator window out of that state check only the Windows token. Raised by I645's fix (PR #33), confirmed in rc.2's source; not run, since neither test machine offers sudo without a password. [Record](evidence/E-I655-root-with-caller-home-profile-state.md).
+- I656 (open, Low for 1.0.0): Linux ARM64 builds spell `O_NOFOLLOW` and `O_DIRECTORY` with x64 values in the single-instance file, a page's resources and storage analysis. No 1.0.0 package is Linux ARM64. Raised by I646's fix (PR #32). [Record](evidence/E-I656-linux-arm64-x64-open-flags.md).
+
+## 2026-11-24 — The owner: every known issue is fixed for rc.3; I657 and I658
+
+- The owner, asked about I655 to I657: "everything should be fixed for rc.3, we should not prolong fixes of known issues". I655 and I656 are now to be fixed for rc.3, as are the two below.
+- I657 (open, Medium): Git badges are wrong in every folder below a repository's top, because porcelain status names paths from the top and FileCat files them as if they were relative to the folder. Raised by I647's fix (PR #38) and reproduced with Git alone. [Record](evidence/E-I657-git-badges-below-repository-top.md).
+- I658 (open, Medium): with `/proc` mounted `hidepid=invisible`, the Linux recovery census sees no other account's processes, answers "none" and never asks root. Raised by I646's fix (PR #32), confirmed in the source; not run. [Record](evidence/E-I658-census-hidden-processes.md).
