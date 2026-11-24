@@ -27,7 +27,7 @@ Read the executable through `/proc/<pid>/exe` itself, which reaches the running 
 
 ## Fix
 
-Proposed on branch `fix/i646-census-reads-proc-exe` (`6178a544b`, on `main` `1dfc0c12d`), for the candidate after rc.2. The status above stays until the owner decides.
+Proposed in [PR #32](https://github.com/benny-cz/FileCat/pull/32), branch `fix/i646-census-reads-proc-exe` (`6178a544b`, on `main` `1dfc0c12d`), for the candidate after rc.2. The status above stays until the owner decides.
 
 **Linux.** The census no longer opens the name that `Process.MainModule` gives (`SingleInstance.ProcessImages.cs`, and the census loop in `SingleInstance.cs`):
 - It opens each process's `/proc/<pid>` directory once, and reads both its `stat` line and its image through that descriptor.
@@ -64,5 +64,6 @@ Proposed on branch `fix/i646-census-reads-proc-exe` (`6178a544b`, on `main` `1df
 - **A root census.** The VM grants no `sudo`, so `--filecat-recovery-process-census` did not run as root, through pkexec or otherwise. Root differs in which processes it may open, not in how; the tests read the user's own processes.
 - **macOS** runs only in hosted CI, on this change's pull request; no Mac was used.
 - **Windows** tests were not rerun here; hosted CI runs them.
+- **Linux on ARM64.** Its `O_DIRECTORY` differs from x64's; the census takes it from `LinuxOpenFlags`, as other FileCat code does. Neither the VM nor hosted CI runs Linux on ARM64.
 - **ID reuse itself.** The tests show that reads through a held `/proc/<pid>` fail once the process is gone. Making the kernel hand that ID to another process needs privileges that the VM does not grant.
 - **Slow file systems.** An image on a stalled FUSE file system mounted with `allow_other`, or on a hard NFS mount, can still hold the census in a read, as before. That is outside this issue.
