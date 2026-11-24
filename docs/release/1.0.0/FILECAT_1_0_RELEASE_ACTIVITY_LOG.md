@@ -5410,7 +5410,14 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - A second round ran on the final tree, `7ba3aa00`:
   - Mac: no failures.
   - Ubuntu: Rendering passed. The only failures were the locked keyring and two test timings that PR #15 fixes: the Esc test failed 5 of 10 runs before the fix and passed 10 of 10 with it.
-  - Windows: still running.
+  - Windows: 1 failure in 22,794 tests. It was the drawer keyboard test, which also failed in the first round and passes alone and in hosted CI; under investigation.
+- Correction: the first Windows round ran 22,793 tests with 2,448 skipped, not 23,191 and 2,446 as first written.
 - I632 records `94f20963`, which PR #6 brought from an old worktree branch. A tool or Apply command naming a file Windows takes for a 16-bit program no longer waits behind a modal box. [I632](evidence/E-I632-unrunnable-program-start-wait.md).
 - PR #7 brought candidate signing into the tagged pipeline. A `v1.0.0-rc.N` tag signs both Windows runtimes in the protected `signing` job and keeps the candidate in private drafts. Its test-certificate dry run passed with both runtimes. The DEC-09 amendment it proposes awaits the owner's decision. [Candidate signing](evidence/E-SIGN-DRYRUN-20261120.md#candidate-signing-in-the-tagged-pipeline).
 - `release/1.0` was synced three more times: PR #6 at `8a1e6763`, PR #8 at `3069448f` and PR #14 at `48d3de08`. PR #14 superseded PR #10, which had stopped at `1ec1207f`, and also brought PR #11's move of unlinked validation receipts to the evidence store. [Sync record](evidence/E-REL-SYNC-20261123-release-branch.md).
+
+## 2026-11-24 — Final release-branch sync
+
+- After PR #14, main merged PRs #13, #12 and #15, which change only test waits, and the records `a7ff2531`. With no PR open, `release/1.0` was synced at `84cca148` through PR #16, which merged as `10320a7f`; no product source came in. [Sync record](evidence/E-REL-SYNC-20261124-release-branch.md).
+- Its first CI attempt and main's run of `7ba3aa00` showed three hosted test failures in jobs that are not required. Each passed in a later run of the same code. PR #17 widens the indexed-session waits behind one of them.
+- The Windows VM's run of the final tree had one failure, the drawer keyboard test that also failed in the first round. The I631 record now says where its test ran on the final tree: natively on the Mac and Ubuntu, and in hosted CI on all three platforms. The Windows VM has no FTP fixture.
