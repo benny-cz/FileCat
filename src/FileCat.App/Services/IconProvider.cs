@@ -223,8 +223,11 @@ public sealed class IconProvider
     /// <summary>The arrow drawn over links and shortcuts: the platform's where it has one, else FileCat's own.</summary>
     public IImage LinkOverlay => (UseNativeIcons ? Native?.LinkOverlay : null) ?? (_vectorOverlay ??= VectorIcons.LinkOverlay());
 
-    /// <summary>A Git state mark at the lower right of the ordinary icon, large and ringed so it reads over any icon.</summary>
-    internal IImage? GitOverlay(GitStatusKind status) => status == GitStatusKind.None ? null
+    /// <summary>
+    /// A Git state mark at the lower right of the ordinary icon, large and ringed so it reads over any icon. A state Git
+    /// could not decide (Unknown) gets none.
+    /// </summary>
+    internal IImage? GitOverlay(GitStatusKind status) => status is GitStatusKind.None or GitStatusKind.Unknown ? null
         : _gitOverlays.GetOrAdd((status, ThemeManager.Current.Name), key => VectorIcons.GitOverlay(key.Item1));
 
     /// <summary>A file's check against the checksums and signatures beside it (D-57), at the upper right of its icon.</summary>

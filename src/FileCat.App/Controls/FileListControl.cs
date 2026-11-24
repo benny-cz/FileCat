@@ -2336,6 +2336,8 @@ public sealed partial class FileListControl : Control
         GitStatusKind.Added => "Git added",
         GitStatusKind.Modified => "Git changed",
         GitStatusKind.Conflict => "Git conflict",
+        // I647: its comparison needed a filter automatic Git does not run. No mark; the tip and description say so.
+        GitStatusKind.Unknown => "Git state unknown",
         _ => null,
     };
 
