@@ -5555,3 +5555,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - I659 (open, Medium): Git badges lost every name that is not plain ASCII once FileCat had loaded the legacy code pages, because Git's output was read as Windows-1252. Found and fixed by I657's fix on PR #38 (`3df37718d`). [Record](evidence/E-I659-git-output-code-page.md).
 - I660 (open, Low): `UnixArchiveNative.cs:77` blames `openx_np` for an EINVAL that XNU gives for `O_NOFOLLOW` with `O_NOFOLLOW_ANY`. The code is safe; the comment is corrected on `fix/i660-archive-openx-comment`, and the flags stay (`O_NOFOLLOW_ANY` alone would refuse the temporary folder's `/var` names). [Record](evidence/E-I660-archive-openx-comment.md).
+
+## 2026-11-24 — I661, found by integration 3's CI
+
+- Integration 3's CI run 45467009793 failed one job, macOS App tests (remainder), on `PlaceBarHierarchyTests.Compact_panel_header_uses_available_width_and_keeps_overflow_places_reachable`, which had failed once before (PR #19). Its cause is a product fault: `PlaceBarPanel` decides which places fit only when measured, so a narrower final width clips the last shown places while keeping them off the overflow menu. A direct test reproduces it. Registered as I661 (Low), to be fixed for rc.3. [Record](evidence/E-I661-place-bar-arrange-width.md).
