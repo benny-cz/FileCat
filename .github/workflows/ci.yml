@@ -4,18 +4,24 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+    # Records-only pushes (the release ledgers and evidence) build nothing; "Release records" validates them. Tag pushes
+    # always run: path filters do not apply to tags.
+    paths-ignore: ["docs/release/**"]
   pull_request:
+    # "labeled": adding the full-ci label to a fix pull request runs the whole matrix (see the scope step below).
+    types: [opened, synchronize, reopened, labeled]
   # Manual runs build the release packages without tagging (P9).
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Keep one active main CI run and replace only superseded pending main runs.
-# Release tags, manual packaging runs, and pull requests retain distinct groups.
+# Keep one active main CI run and replace only superseded pending main runs. A pull request keeps one run: a new push (or
+# the full-ci label) cancels the superseded one. Other labels get a group of their own, so they cancel nothing. Release
+# tags and manual packaging runs keep distinct groups.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'main' || github.run_id }}
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'main' || github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'full-ci') && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'full-ci') }}
 
 env:
   DOTNET_NOLOGO: true
@@ -27,7 +33,33 @@ jobs:
     name: Producer reference policy (stable blocked)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    outputs:
+      full: ${{ steps.scope.outputs.full }}
     steps:
+      # Whether the build and test matrix runs. It does for pushes, tags and manual runs; for pull requests into a release
+      # branch (the release ruleset requires the checks); for integration branches; and for a pull request labelled
+      # full-ci. Other pull requests (single fixes into main) get this job only: they reach the matrix through an
+      # integration branch. Values come in through the environment, never into the script's text.
+      - name: Decide the run's scope
+        id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+          LABEL: ${{ github.event.label.name }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          full=true
+          if [ "$EVENT" = pull_request ]; then
+            full=false
+            case "$BASE" in release/*) full=true ;; esac
+            case "$HEAD" in *integration*) full=true ;; esac
+            case ",$LABELS," in *,full-ci,*) full=true ;; esac
+            if [ "$ACTION" = labeled ] && [ "$LABEL" != full-ci ]; then full=false; fi
+          fi
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+          echo "Build and test matrix: $full ($EVENT $ACTION)"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
@@ -46,6 +78,7 @@ jobs:
         run: ./eng/Assert-ProducerReference.ps1 -Reference $env:GITHUB_REF -EventName $env:GITHUB_EVENT_NAME
 
   windows:
+    if: needs.producer-policy.outputs.full == 'true'
     name: Windows (build, all tests)
     needs: producer-policy
     runs-on: windows-2025-vs2026
@@ -164,6 +197,7 @@ jobs:
         run: ./eng/validation/assert-windows-ci-tests.ps1 -EvidenceDirectory "$env:RUNNER_TEMP/filecat-windows-test-projects"
 
   windows-app:
+    if: needs.producer-policy.outputs.full == 'true'
     name: Windows x64 (App tests, ${{ matrix.shard }})
     needs: producer-policy
     runs-on: windows-2025-vs2026
@@ -206,6 +240,7 @@ jobs:
             tests/FileCat.App.Tests/TestResults/**/*.dmp
 
   windows-core:
+    if: needs.producer-policy.outputs.full == 'true'
     name: Windows x64 (Core tests)
     needs: producer-policy
     runs-on: windows-2025-vs2026
@@ -248,6 +283,7 @@ jobs:
 
   # D-48: FileCat for Windows on ARM64, built and tested natively; its package starts and draws with the ARM64 Skia.
   windows-arm64:
+    if: needs.producer-policy.outputs.full == 'true'
     name: Windows ARM64 (build, tests, package start)
     needs: producer-policy
     runs-on: windows-11-arm
@@ -353,6 +389,7 @@ jobs:
           path: artifacts/screenshots/*.png
 
   windows-arm64-app:
+    if: needs.producer-policy.outputs.full == 'true'
     name: Windows ARM64 (App tests, ${{ matrix.shard }})
     needs: producer-policy
     runs-on: windows-11-arm
@@ -391,6 +428,7 @@ jobs:
             tests/FileCat.App.Tests/TestResults/**/*.dmp
 
   windows-arm64-core:
+    if: needs.producer-policy.outputs.full == 'true'
     name: Windows ARM64 (Core tests)
     needs: producer-policy
     runs-on: windows-11-arm
@@ -423,6 +461,7 @@ jobs:
             tests/FileCat.Core.Tests/TestResults/**/*.dmp
 
   portable:
+    if: needs.producer-policy.outputs.full == 'true'
     needs: producer-policy
     name: ${{ matrix.os }} (build, portable tests)
     strategy:
@@ -628,6 +667,7 @@ jobs:
             **/TestResults/**/Sequence_*.xml
 
   remote-rendering:
+    if: needs.producer-policy.outputs.full == 'true'
     name: ${{ matrix.os }} (Remote and Rendering tests)
     needs: producer-policy
     strategy:
@@ -702,6 +742,7 @@ jobs:
           if-no-files-found: warn
 
   portable-core:
+    if: needs.producer-policy.outputs.full == 'true'
     name: ${{ matrix.os }} (Core tests)
     needs: producer-policy
     strategy:
@@ -754,6 +795,7 @@ jobs:
           path: tests/FileCat.Core.Tests/TestResults/*.trx
 
   ubuntu-app:
+    if: needs.producer-policy.outputs.full == 'true'
     name: ubuntu-24.04 (App tests)
     needs: producer-policy
     runs-on: ubuntu-24.04
@@ -800,6 +842,7 @@ jobs:
             tests/FileCat.App.Tests/TestResults/**/*.dmp
 
   macos-app:
+    if: needs.producer-policy.outputs.full == 'true'
     name: macos-26 (App tests, ${{ matrix.shard }})
     needs: producer-policy
     runs-on: macos-26
@@ -842,6 +885,7 @@ jobs:
             tests/FileCat.App.Tests/TestResults/**/*.dmp
 
   macos-archive-core:
+    if: needs.producer-policy.outputs.full == 'true'
     name: macos-26 (archive Core tests)
     needs: producer-policy
     runs-on: macos-26
