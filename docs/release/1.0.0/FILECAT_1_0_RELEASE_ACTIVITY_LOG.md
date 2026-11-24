@@ -5489,3 +5489,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - Every rc.2 payload matches its SBOM, and every NuGet component its inventory entry. Each package's PDFium is the upstream `chromium/7690` binary: byte for byte on Linux, and apart from FileCat's signature on Windows and macOS. The four upstream archives, until now only in a scratch folder, are retained with their checksums. [Provenance record](evidence/E-REL-I03-PROVENANCE-RC2-20261124.md).
 - REL-I03-PROVENANCE still needs a disposition for two components that no inventory entry names: the .NET apphost, and WebView2's loader and XML file, which also ship in the Linux and macOS packages.
+
+## 2026-11-24 — I643: the diagnostics log keeps raw paths
+
+- I643 (open, Medium): Tools → Export diagnostics says the log's paths are hashed, but error messages, crash reports and two hand-written log messages keep raw paths. PR #25 corrects SECURITY.md and PRIVACY.md; a product fix is proposed for the next candidate. [I643](evidence/E-I643-diagnostics-log-raw-paths.md).
