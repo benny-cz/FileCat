@@ -88,3 +88,33 @@ Branch `fix/i665-i667-flaky-tests`. Two product faults lay underneath; each was 
 - The three tests (6 cases), pinned to two cores shared with two CPU-busy loops: 40 of 40 runs passed.
 - Hosted run 45496536945: windows-11-arm 15 of 15 runs, ubuntu-24.04 15 of 15, macos-26 5 of 5.
 - The Mac (four CPU-busy loops) and the Ubuntu VM (six loops): 30 of 30 runs each.
+
+## Fix — I667
+
+**Cause: the runner, as recorded; and a product fault beside it.**
+- The folder counted as calm because for 1.5 s the monitor got no change notice: the writes or their notices were held up.
+  - Holding one notice for 2 s, about 3 s in, makes the old test fail the same way: rereads at 0.25, 0.67, 1.08, 2.29, 3.29, 5.52 and 5.93 s, against CI's 0.28, 0.97, 1.51, 2.72, 3.71, 4.86 and 5.58 s.
+- **Product fault: a reread armed before the last one could still be taken early.**
+  - A .NET timer does not withdraw a callback it has already queued when it is armed again.
+  - When a change was noticed while such a callback waited, the callback read the folder at once, before the interval since the last reread had passed. A busy folder could then be read sooner than every `ChurnInterval`, and a large folder sooner than its `MinInterval`.
+  - `A_reread_armed_before_the_last_one_waits_for_its_interval` forces that order with held callbacks. With the old `Fire`, the two rereads were taken 0.259 s apart with a 2-second interval.
+
+**Change.**
+- `ChangeMonitor.Fire` checks under its lock that the interval since the last reread has passed, less 15 ms for a timer falling due early. If not, it arms the timer for when the reread falls due.
+- New internal hooks beside `Fired`: `Noticed` gives the time of each notice and when its reread falls due; `Turned` gives the time the folder turned busy or calm.
+- `A_busy_folder_is_read_again_at_the_churn_interval_until_it_calms` writes for six seconds at least, and on, up to 25 s, until the folder counts as busy and two rereads have been taken while it did. It judges on the monitor's own times:
+  - busy from the third reread within the window;
+  - while busy, rereads at least the interval less one 15.6 ms Windows tick apart;
+  - calm only after 1.5 s without a notice;
+  - `ChurnChanged` once per turn;
+  - the change after the quiet spell due within `MinInterval` of it.
+- Mutations it catches: without the churn interval, rereads 0.40 s apart; calm on the timer regardless of notices, "calm 0.123 s after the last change".
+
+**Results.**
+- With the 2-second hold, on the Windows workstation under four CPU-busy loops: the old test failed in 10 of 10 runs, and the new one passed in 10 of 10. The Mac, the Ubuntu VM and each runner of hosted run 45496536945 gave the same, once each. Without the hold, both passed 30 of 30 runs under the same loops.
+- `ChangeMonitorCadenceTests` (6 tests), pinned to two cores shared with four CPU-busy loops: 29 of 30 runs passed, and the busy-folder test 30 of 30.
+  - The one failure was `A_change_noticed_as_a_reread_falls_due_is_not_read_again_on_its_own`, which this branch leaves as it was: a second reread 1.5 s after the first ("rereads: 0.51, 2.05").
+  - That needs a change notice the test did not make; the new check in `Fire` can only delay a reread. Under the same load, 60 more runs of the test and 60 of a copy that logs the watcher's own notices all passed, and no such notice came. Not investigated further.
+- `ChangeMonitorCadenceTests` and `ChangeMonitorOverflowTests` in Release: 9 of 9 passed.
+- The Mac (M1, macOS 27.2.1, four CPU-busy loops at the tests' priority) and the Ubuntu 24.04.5 VM (six loops): 30 of 30 runs each.
+- Hosted run 45496536945: windows-11-arm 15 of 15 runs, ubuntu-24.04 15 of 15, macos-26 5 of 5.
