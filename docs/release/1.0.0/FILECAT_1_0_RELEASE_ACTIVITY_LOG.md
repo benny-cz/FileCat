@@ -5539,3 +5539,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
   - I636 is fixed: sorting by Origin "retains all 3 items' results".
   - I644 is fixed: an administrator window started through `FileCat.AdminLauncher.exe` does not load a profiler named only in `HKCU\Environment`, while the unelevated control still does.
   - I642 is fixed only in part. The folder's own menu now offers Paste after Explorer's Cut, but choosing it moves nothing on build 26200: the menu helper invokes the Shell's paste, which blocks for about 10 s and returns without moving the file. The fix goes back to its author before rc.3.
+
+## 2026-11-24 — I655 and I656, raised by the rc.3 fixes
+
+- I655 (open, Medium, owner decision): a FileCat started as root with the caller's `HOME` (`sudo -E`, or sudo where its configuration keeps `HOME`) reads and writes the caller's saved state. The guards that keep an administrator window out of that state check only the Windows token. Raised by I645's fix (PR #33), confirmed in rc.2's source; not run, since neither test machine offers sudo without a password. [Record](evidence/E-I655-root-with-caller-home-profile-state.md).
+- I656 (open, Low for 1.0.0): Linux ARM64 builds spell `O_NOFOLLOW` and `O_DIRECTORY` with x64 values in the single-instance file, a page's resources and storage analysis. No 1.0.0 package is Linux ARM64. Raised by I646's fix (PR #32). [Record](evidence/E-I656-linux-arm64-x64-open-flags.md).
