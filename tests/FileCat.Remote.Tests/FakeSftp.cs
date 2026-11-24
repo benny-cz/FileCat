@@ -49,6 +49,9 @@ internal sealed class FakeSftpServer
     /// <summary>A faulty server or disk: the next written file keeps the byte at this offset inverted.</summary>
     public long? CorruptAt { get; set; }
 
+    /// <summary>A faulty server or a full disk that says nothing: the next written file keeps only this many bytes.</summary>
+    public long? KeepsOnly { get; set; }
+
     /// <summary>False: a server that does not set times when asked (vsftpd without MFMT, before I43), and says nothing.</summary>
     public bool KeepsTimes { get; set; } = true;
 
@@ -408,7 +411,13 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
                 GetBuffer()[at] ^= 0xFF;
                 channel.Server.CorruptAt = null;
             }
-            node.Data = ToArray();
+            node.Data = channel.Server.KeepsOnly is { } kept && kept < Length ? ToArray()[..(int)kept] : ToArray();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) channel.Server.KeepsOnly = null;
+            base.Dispose(disposing);
         }
     }
 }

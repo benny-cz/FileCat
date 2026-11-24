@@ -514,6 +514,20 @@ internal sealed partial class FtpChannel : ISftpChannel
     /// <summary>A file the caller has just stat'ed: its length is known, so no second stat (FTP needs one for the length).</summary>
     public Stream OpenRead(string path, long length) => new FtpReadStream(this, _client, Safe(path), length);
 
+    public bool OpensStated => true;
+
+    /// <summary>
+    /// The stat, and a read whose transfer (RETR) begins with its first read: nothing reaches the file before then, so the
+    /// stat describes the content as opened, and a copy asks no second stat before it reads (release issue I42).
+    /// </summary>
+    public RemoteRead OpenReadStated(string path)
+    {
+        var stat = Stat(path);
+        return stat is { IsDirectory: false } file
+            ? new RemoteRead(file, new FtpReadStream(this, _client, Safe(path), file.Size), StatIsOpenedRevision: true)
+            : new RemoteRead(stat, null, StatIsOpenedRevision: true);
+    }
+
     public Stream CreateNew(string path)
     {
         Safe(path);
