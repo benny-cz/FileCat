@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text;
+using Avalonia.Headless.XUnit;
 using FileCat.App.Services;
 using FileCat.Core.Diagnostics;
 using FileCat.Core.State;
@@ -30,7 +31,7 @@ public sealed class DiagnosticsExportTests
         }
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void An_export_hashes_the_paths_left_in_earlier_log_lines()
     {
         if (WindowsTokenAuthority.IsHighIntegrity) Assert.Skip("An elevated FileCat exports no logs.");
