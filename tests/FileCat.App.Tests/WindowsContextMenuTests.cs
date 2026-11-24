@@ -322,6 +322,97 @@ public sealed class WindowsContextMenuTests
     }
 
     /// <summary>
+    /// I642, the real Shell in the real helper: the folder menu's Paste, run as when chosen from the menu, moves a file a
+    /// program put on the clipboard as cut and copies one put there as copied. The data is plain clipboard data, which
+    /// the program that wrote it no longer serves.
+    /// </summary>
+    [Fact]
+    public async Task A_folders_own_Paste_moves_what_was_cut_and_copies_what_was_copied()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows Shell menus are Windows-only.");
+        if (!WindowsContextMenu.CanStartHost()) Assert.Skip("The Shell helper starts only from an ordinary (not elevated) token.");
+        if (WindowsContextMenu.HostStartInfo() is null) Assert.Skip("The FileCat apphost is not beside the tests.");
+        SkipUnlessShellPasteMayRun();
+        using var clipboard = BorrowedClipboard.Borrow();
+        if (clipboard is null) Assert.Skip("Another program kept the clipboard open.");
+        await PasteEachWay((file, effect) => Assert.True(clipboard.SetFiles([file], effect)), () => { });
+    }
+
+    /// <summary>
+    /// I642, as found on the qualification VM: Explorer's Cut leaves the Shell's own data object on the clipboard, served by
+    /// Explorer while it runs and marked for transfer in the background (its AsyncFlag), and the menu's own paste command
+    /// transferred it on a Shell thread that the ending helper cut off. Here the test serves such an object as Explorer
+    /// does; the folder menu's Paste must still move what was cut and copy what was copied before the helper ends.
+    /// </summary>
+    [Fact]
+    public async Task A_folders_own_Paste_moves_what_Explorer_cut_while_Explorer_serves_the_clipboard()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows Shell menus are Windows-only.");
+        if (!WindowsContextMenu.CanStartHost()) Assert.Skip("The Shell helper starts only from an ordinary (not elevated) token.");
+        if (WindowsContextMenu.HostStartInfo() is null) Assert.Skip("The FileCat apphost is not beside the tests.");
+        SkipUnlessShellPasteMayRun();
+        using var clipboard = BorrowedClipboard.Borrow();
+        if (clipboard is null) Assert.Skip("Another program kept the clipboard open.");
+        ShellClipboardSource? source = null;
+        try
+        {
+            await PasteEachWay((file, effect) => source = new ShellClipboardSource(file, effect), () =>
+            {
+                source?.Dispose();
+                source = null;
+                clipboard.Changed();
+            });
+        }
+        finally { source?.Dispose(); }
+    }
+
+    /// <summary>
+    /// A paste runs Windows' copy engine, which can show its own windows (progress, questions) on the desktop of whoever
+    /// runs the tests: these tests run on CI runners, or where asked (FILECAT_TEST_SHELL_PASTE=1), never on a developer's
+    /// desktop by default.
+    /// </summary>
+    private static void SkipUnlessShellPasteMayRun()
+    {
+        if (Environment.GetEnvironmentVariable("CI") != "true" && Environment.GetEnvironmentVariable("FILECAT_TEST_SHELL_PASTE") != "1")
+            Assert.Skip("A Shell paste can show Windows' own windows: it runs on CI runners, or with FILECAT_TEST_SHELL_PASTE=1.");
+    }
+
+    /// <summary>
+    /// Puts a new file on the clipboard as cut, then another as copied, runs the folder menu's Paste through
+    /// <c>--probe-paste</c> each time, and checks the files: what was cut is only in the folder now, what was copied is in
+    /// both places, each with its bytes.
+    /// </summary>
+    private static async Task PasteEachWay(Action<string, uint> offer, Action pasted)
+    {
+        const uint copy = 5 /* DROPEFFECT_COPY | DROPEFFECT_LINK, as Explorer's Copy */, cut = 2 /* DROPEFFECT_MOVE */;
+        string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-background-paste", Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            string from = Directory.CreateDirectory(Path.Combine(root, "from")).FullName;
+            string folder = Directory.CreateDirectory(Path.Combine(root, "folder")).FullName;
+            foreach (uint effect in new[] { cut, copy })
+            {
+                string name = (effect == cut ? "cut-" : "copied-") + Guid.NewGuid().ToString("N")[..8] + ".txt";
+                string file = Path.Combine(from, name), pastedFile = Path.Combine(folder, name);
+                byte[] bytes = System.Text.Encoding.UTF8.GetBytes("bytes of " + name);
+                File.WriteAllBytes(file, bytes);
+                offer(file, effect);
+                var (exit, output, _) = await RunHostAsync(WindowsContextMenu.PasteProbeOption, folder);
+                pasted();
+                TestContext.Current.TestOutputHelper?.WriteLine(output);
+                string[] lines = output.Split('\n').Select(line => line.TrimEnd('\r')).Where(line => line.Length > 0).ToArray();
+                Assert.Equal(0, exit);
+                Assert.Equal([WindowsContextMenu.ReadyMessage, WindowsContextMenu.InvokeMessage], lines[..2]);
+                Assert.Contains(lines, line => line.StartsWith("paste: Preferred DropEffect ", StringComparison.Ordinal) &&
+                    line.Contains("; Drop 0x00000000 ", StringComparison.Ordinal));
+                Assert.Equal(bytes, File.ReadAllBytes(pastedFile));
+                Assert.Equal(effect == copy, File.Exists(file));
+            }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    /// <summary>
     /// A folder deleted (or renamed, or unplugged) before its menu is built: the helper answers with exit code 1 and the
     /// failure's type, as it does for every failure, instead of crashing with an error dialog; FileCat then shows its own
     /// menu.
@@ -383,6 +474,164 @@ public sealed class WindowsContextMenuTests
     }
 
     /// <summary>
+    /// Explorer's part in a Cut or Copy: the Shell's own data object for a file, with its Preferred DropEffect, marked for
+    /// transfer in the background as Explorer marks it (asynchronous mode, and the AsyncFlag format Explorer's clipboard
+    /// data carries), on the OLE clipboard (not flushed), served from a thread of its own that dispatches messages, as
+    /// Explorer's window does, until disposed. A paste in another process then talks to it as to Explorer.
+    /// </summary>
+    private sealed class ShellClipboardSource : IDisposable
+    {
+        private static readonly Guid BhidDataObject = new("b8c0bd9f-ed24-455c-83e6-d5390c4fe8c4");
+        private static readonly Guid IidDataObject = new("0000010e-0000-0000-c000-000000000046");
+        private readonly ManualResetEvent _stop = new(false);
+        private readonly ManualResetEventSlim _ready = new(false);
+        private readonly Thread _thread;
+        private Exception? _failure;
+
+        internal ShellClipboardSource(string file, uint effect)
+        {
+            _thread = new Thread(() => Serve(file, effect)) { IsBackground = true, Name = "Shell clipboard source" };
+            _thread.SetApartmentState(ApartmentState.STA);
+            _thread.Start();
+            if (!_ready.Wait(TimeSpan.FromSeconds(30)) || _failure is not null)
+            {
+                Dispose();
+                throw new InvalidOperationException("The Shell's data object did not reach the clipboard.", _failure);
+            }
+        }
+
+        public void Dispose()
+        {
+            _stop.Set();
+            if (!_thread.Join(TimeSpan.FromSeconds(30))) return; // it still waits on the events
+            _stop.Dispose();
+            _ready.Dispose();
+        }
+
+        private void Serve(string file, uint effect)
+        {
+            const int cantOpen = unchecked((int)0x800401D0); // CLIPBRD_E_CANT_OPEN: another program has the clipboard open
+            nint pidl = 0, data = 0;
+            IShellItemArray? items = null;
+            System.Runtime.InteropServices.ComTypes.IDataObject? dataObject = null;
+            bool initialized = OleInitialize(0) >= 0;
+            try
+            {
+                Marshal.ThrowExceptionForHR(SHParseDisplayName(file, 0, out pidl, 0, out _));
+                Marshal.ThrowExceptionForHR(SHCreateShellItemArrayFromIDLists(1, [pidl], out items));
+                Guid handler = BhidDataObject, requested = IidDataObject;
+                Marshal.ThrowExceptionForHR(items.BindToHandler(0, ref handler, ref requested, out data));
+                dataObject = (System.Runtime.InteropServices.ComTypes.IDataObject)Marshal.GetObjectForIUnknown(data);
+                SetDword(dataObject, "Preferred DropEffect", effect);
+                Marshal.ThrowExceptionForHR(((IDataObjectAsyncCapability)dataObject).SetAsyncMode(1));
+                SetDword(dataObject, "AsyncFlag", 1);
+                int hr = cantOpen;
+                for (int attempt = 0; attempt < 40 && hr == cantOpen; attempt++)
+                    if ((hr = OleSetClipboard(data)) == cantOpen) Thread.Sleep(50);
+                Marshal.ThrowExceptionForHR(hr);
+                _ready.Set();
+                // Calls from the pasting process arrive as messages to this thread's apartment.
+                nint[] stop = [_stop.SafeWaitHandle.DangerousGetHandle()];
+                while (MsgWaitForMultipleObjectsEx(1, stop, uint.MaxValue, 0x4FF /* QS_ALLINPUT */, 0x4 /* MWMO_INPUTAVAILABLE */) == 1)
+                {
+                    while (PeekMessageW(out NativeMessage message, 0, 0, 0, 1 /* PM_REMOVE */))
+                    {
+                        TranslateMessage(ref message);
+                        DispatchMessageW(ref message);
+                    }
+                }
+                if (OleIsCurrentClipboard(data) == 0) OleSetClipboard(0);
+            }
+            catch (Exception ex) { _failure = ex; }
+            finally
+            {
+                if (dataObject is not null) Marshal.ReleaseComObject(dataObject);
+                if (data != 0) Marshal.Release(data);
+                if (items is not null) Marshal.ReleaseComObject(items);
+                if (pidl != 0) Marshal.FreeCoTaskMem(pidl);
+                if (initialized) OleUninitialize();
+                _ready.Set();
+            }
+        }
+
+        private static void SetDword(System.Runtime.InteropServices.ComTypes.IDataObject data, string name, uint value)
+        {
+            var format = new System.Runtime.InteropServices.ComTypes.FORMATETC
+            {
+                cfFormat = unchecked((short)RegisterClipboardFormatW(name)),
+                dwAspect = System.Runtime.InteropServices.ComTypes.DVASPECT.DVASPECT_CONTENT,
+                lindex = -1,
+                tymed = System.Runtime.InteropServices.ComTypes.TYMED.TYMED_HGLOBAL,
+            };
+            nint memory = GlobalAlloc(0x2 /* GMEM_MOVEABLE */, 4);
+            Marshal.WriteInt32(GlobalLock(memory), unchecked((int)value));
+            GlobalUnlock(memory);
+            var medium = new System.Runtime.InteropServices.ComTypes.STGMEDIUM
+            {
+                tymed = System.Runtime.InteropServices.ComTypes.TYMED.TYMED_HGLOBAL,
+                unionmember = memory,
+            };
+            data.SetData(ref format, ref medium, true);
+        }
+
+        [ComImport, Guid("3d8b0590-f691-11d2-8ea9-006097df5bd4"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IDataObjectAsyncCapability
+        {
+            [PreserveSig] int SetAsyncMode(int doOpAsync);
+            [PreserveSig] int GetAsyncMode(out int isOpAsync);
+            [PreserveSig] int StartOperation(nint bindContext);
+            [PreserveSig] int InOperation(out int inAsyncOp);
+            [PreserveSig] int EndOperation(int result, nint bindContext, uint effects);
+        }
+
+        [ComImport, Guid("b63ea76d-1f85-456f-a19c-48159efa858b"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IShellItemArray
+        {
+            [PreserveSig] int BindToHandler(nint bindContext, ref Guid handler, ref Guid riid, out nint result);
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct NativeMessage
+        {
+            public nint Window;
+            public uint Message;
+            public nint WParam, LParam;
+            public uint Time;
+            public int X, Y;
+            public uint Private;
+        }
+
+        [DllImport("ole32.dll")]
+        private static extern int OleInitialize(nint reserved);
+        [DllImport("ole32.dll")]
+        private static extern void OleUninitialize();
+        [DllImport("ole32.dll")]
+        private static extern int OleSetClipboard(nint dataObject);
+        [DllImport("ole32.dll")]
+        private static extern int OleIsCurrentClipboard(nint dataObject);
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+        private static extern int SHParseDisplayName(string name, nint bindContext, out nint pidl, uint attributes, out uint result);
+        [DllImport("shell32.dll")]
+        private static extern int SHCreateShellItemArrayFromIDLists(uint count, nint[] pidls, out IShellItemArray items);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern uint RegisterClipboardFormatW(string name);
+        [DllImport("user32.dll")]
+        private static extern uint MsgWaitForMultipleObjectsEx(uint count, nint[] handles, uint milliseconds, uint wakeMask, uint flags);
+        [DllImport("user32.dll")]
+        private static extern bool PeekMessageW(out NativeMessage message, nint window, uint first, uint last, uint remove);
+        [DllImport("user32.dll")]
+        private static extern bool TranslateMessage(ref NativeMessage message);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern nint DispatchMessageW(ref NativeMessage message);
+        [DllImport("kernel32.dll")]
+        private static extern nint GlobalAlloc(uint flags, nuint bytes);
+        [DllImport("kernel32.dll")]
+        private static extern nint GlobalLock(nint memory);
+        [DllImport("kernel32.dll")]
+        private static extern bool GlobalUnlock(nint memory);
+    }
+
+    /// <summary>
     /// The system clipboard, borrowed by a test: each format it held in global memory is put back afterwards, unless
     /// another program has written to it since the test last did (that program's content then stays). Test content is
     /// kept out of clipboard history and the cloud clipboard.
@@ -419,6 +668,9 @@ public sealed class WindowsContextMenuTests
 
         internal bool SetText(string text) =>
             Write([(CfUnicodeText, System.Text.Encoding.Unicode.GetBytes(text + "\0"))]);
+
+        /// <summary>The test changed the clipboard another way (OLE): what it held is still put back afterwards.</summary>
+        internal void Changed() => _written = GetClipboardSequenceNumber();
 
         public void Dispose()
         {
