@@ -220,7 +220,11 @@ public sealed class MetadataPreparationTests(ITestOutputHelper output)
     {
         using var f = new Fixture("zip", "plain", operation); await f.Load(); var tasks = new List<Task>();
         var before = DirectoryDiffWindow.OpenWindows.ToHashSet();
-        using var rescue = new Timer(_ => f.Gate.Release.Set(), null, TimeSpan.FromSeconds(4), Timeout.InfiniteTimeSpan);
+        // The rescue releases the gate if two workers never take calls, so a regression cannot hold the fixture. It starts
+        // once all eight are started: the compares run on only when the UI thread is free again, after their eight dialogs,
+        // and a slow runner (hosted macOS) took over the rescue's four seconds to open them, so it released the gate before
+        // the count and the count read 0 (I668).
+        Timer? rescue = null;
         try
         {
             for (int i = 0; i < 8; i++)
@@ -228,8 +232,10 @@ public sealed class MetadataPreparationTests(ITestOutputHelper output)
                 tasks.Add(operation == "final" ? await f.StartCompare() : f.Vm.ExecuteAsync(operation == "info" ? CommandIds.Attributes : CommandIds.Enter));
                 if (i == 0) { await Wait(() => f.Gate.Calls.Any(c => c.Operation == operation) || tasks[0].IsCompleted); AssertWorkers(f.Gate, operation); }
             }
+            rescue = new Timer(_ => f.Gate.Release.Set(), null, TimeSpan.FromSeconds(4), Timeout.InfiniteTimeSpan);
             await Wait(() => f.Gate.Active >= 2 || f.Gate.Release.IsSet);
             AssertWorkers(f.Gate, operation); rescue.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            Assert.False(f.Gate.Release.IsSet, "The rescue released the gate before two workers took calls.");
             bool other = await f.Services.Io.Run("owned-unrelated-preparation-device", IoPriority.Interactive, _ => true).WaitAsync(TimeSpan.FromSeconds(2));
             var health = f.Services.Io.GetHealth(f.Provider.GetDeviceKey(f.Left.Location!));
             int limit = health == DeviceHealth.Responsive ? f.Services.Io.ThreadsPerDevice : f.Services.Io.MaxThreadsPerDevice;
@@ -242,6 +248,7 @@ public sealed class MetadataPreparationTests(ITestOutputHelper output)
         }
         finally
         {
+            rescue?.Dispose();
             f.Gate.Release.Set(); if (f.Button("Apply") is not null) f.Click("Cancel");
             foreach (var w in DirectoryDiffWindow.OpenWindows.Where(w => !before.Contains(w)).ToArray()) w.Close();
             if (tasks.Count > 0) await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(15));
