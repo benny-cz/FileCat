@@ -88,7 +88,7 @@ The same lanes ran again on the tree main reached once PRs #11, #12 and #13 had 
 - **Windows, 1 failure:** `OperationsDrawerLayoutTests.Recovery_section_stays_bounded_and_last_item_actions_are_scrollable(count: 5)`.
   - It failed at the same assertion as in the first round: after five Down presses, the last interrupted operation was not selected.
   - The class passed alone on the VM in the first round (18 of 18), and it passes in hosted CI.
-  - Windows lanes run one at a time, so load does not explain it. Process state left by earlier App tests may; the cause is under investigation.
+  - Windows lanes run one at a time, so load does not explain it. Instrumented, the next VM run showed the keyboard moving on while the chosen row stayed behind. That is a real defect, [I633](E-I633-interrupted-list-focus-choice.md), fixed in PR #19; with the fix, the VM's full App suite passed (3,986 tests, 0 failed).
   - Every Windows suite had the same total as in the first round, apart from Remote's one new test. The 487 setup failures of the first round passed, with the probe assets set.
 - **Ubuntu, 3 failures:**
   - **`SecretStoreTests`:** the locked login keyring again.
