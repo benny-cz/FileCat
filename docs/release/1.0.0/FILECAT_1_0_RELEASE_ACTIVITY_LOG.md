@@ -5437,3 +5437,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - Tagged run 45350703310 passed every job in its first attempt: 19 test jobs, identical test by test to PR #20's run of the same tree, and the three package jobs. The owner approved the `signing` run in GitHub. Both runtimes were signed with the owner's certificate and verified, and the candidate's 24 assets and its signing records went into private drafts. Nothing was published.
 - The packages call themselves `1.0.0-rc.1`. Promoted unchanged as 1.0.0, they would offer 1.0.0 to their own users as an update: [I634](evidence/E-I634-candidate-version-identity.md). A successor candidate follows the fix.
 - Native runs of the same source: the Mac passed, Ubuntu failed only the locked-keyring test, and Windows was still running. [Native runs](evidence/E-REL-NATIVE-20261124-rc1-source.md).
+
+## 2026-11-24 — I634 fixed at source
+
+- PR #21 (`bbcbdbdc`, merged as `fac2ec40`) builds a candidate as FileCat 1.0.0 throughout and records its RC tag in the producer manifests. The draft checks expect that, and each package job now checks the version its packages report. PR run 45359654262 passed every job. Candidate-mode builds on Windows and Ubuntu report 1.0.0 in every name and version. [I634](evidence/E-I634-candidate-version-identity.md).
+- The Windows VM's native run of the rc.1 source passed every lane: 20,321 passed, 2,476 skipped, 0 failed. With the Mac's clean run and Ubuntu's locked-keyring failure, the source's native runs are complete. [Native runs](evidence/E-REL-NATIVE-20261124-rc1-source.md).

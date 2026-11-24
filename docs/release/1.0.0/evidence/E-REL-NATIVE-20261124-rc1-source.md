@@ -23,20 +23,30 @@
 |---|---|---|---|---|---|
 | Mac | 07:52Z to 08:21Z | 20,202 | 19,145 | 1,057 | 0 |
 | Ubuntu | 07:52Z to 08:32Z | 20,202 | 19,210 | 991 | 1 |
-| Windows | from 07:53Z | still running when this record was first written | | | |
+| Windows | 07:53Z to 09:53Z | 22,797 | 20,321 | 2,476 | 0 |
+
+**Windows:** every lane passed, at medium integrity on 8 processors:
+- App, 3,986 tests;
+- Core, 12,422 in two shards;
+- the Windows platform tests, 2,590 in two shards, 449 of them AppContainer tests;
+- Remote, 2,801;
+- Rendering, 998.
+
+The drawer keyboard test that exposed [I633](E-I633-interrupted-list-focus-choice.md) passed in the full App run.
 
 **Ubuntu, 1:** `SecretStoreTests.The_system_store_keeps_replaces_and_removes_a_secret`: "The desktop keyring could not save the secret: Cannot create an item in a locked collection".
-- The VM's login keyring reads `Locked=true`. The VM has been up since 2026-11-22T11:50, and a locked keyring after a boot is the state the 23 November round recorded.
+- The VM's login keyring reads `Locked=true`. The VM has been up since 2026-11-22 11:50 CET, and a locked keyring after a boot is the state the 23 November round recorded.
 - The keyring was not unlocked: that would mean entering the account's password.
 
 ## Evidence
 
-Sealed run archives, on the development host under `E:\FileCat\.tmp\release-native-rc1\evidence` and on each machine. SHA-256 prefixes:
+Sealed run archives, on the development host under `E:\FileCat\.tmp\release-native-rc1\evidence` and on each machine. Each machine's run folder and packet were removed once its archive matched the host copy. SHA-256 prefixes:
 
 | Run | Archive | SHA-256 |
 |---|---|---|
 | `full-rc1-8f122365-mac` | `.tar.gz` | `dbe7c3ba802ba51d` |
 | `full-rc1-8f122365-ubuntu` | `.tar.gz` | `50a3ca41f1d0342c` |
+| `full-rc1-8f122365-win` | `.zip` | `b305c27964299cdd` |
 
 ## Not shown
 

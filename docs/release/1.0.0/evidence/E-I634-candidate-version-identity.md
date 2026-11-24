@@ -1,6 +1,6 @@
 # I634 — A release candidate's bytes call themselves `1.0.0-rc.N`, so promoted unchanged they would offer 1.0.0 as an update to itself
 
-**Source:** the RC producer identity of `f9b662e0` (2026-10-30, [release-branch controls](E-REL-PIPELINE-release-branch-20261030.md#checked-pr-positive-control)), as built by `v1.0.0-rc.1` at `8f122365` ([rc.1](E-RC1-TAG-20261124.md)). **Disposition:** blocks promoting a candidate whose bytes carry the RC label (REL-FQ-CANDIDATE, REL-GO-PUBLISH). **Status:** open; found 2026-11-24 while recording rc.1's packages.
+**Source:** the RC producer identity of `f9b662e0` (2026-10-30, [release-branch controls](E-REL-PIPELINE-release-branch-20261030.md#checked-pr-positive-control)), as built by `v1.0.0-rc.1` at `8f122365` ([rc.1](E-RC1-TAG-20261124.md)). **Disposition:** blocks promoting a candidate whose bytes carry the RC label (REL-FQ-CANDIDATE, REL-GO-PUBLISH). **Status:** remediated preliminarily at `bbcbdbdc` ([PR #21](https://github.com/benny-cz/FileCat/pull/21), merged into main as `fac2ec40`); found 2026-11-24 while recording rc.1's packages. The candidate check waits for the next candidate.
 
 ## Fault
 
@@ -35,7 +35,7 @@ From `UpdateCheck.cs` and `ReleaseVersion.cs`:
 
 These follow from reading the code. They have not been shown on a machine, which would need a published 1.0.0 release.
 
-## Remedy (proposed)
+## Remedy
 
 A candidate's packages are 1.0.0 packages throughout:
 - informational version `1.0.0+<source commit>`;
@@ -43,6 +43,26 @@ A candidate's packages are 1.0.0 packages throughout:
 - folders and file names with `1.0.0`.
 
 The candidate reference stays where it identifies the candidate rather than the product: the producer manifests and receipts, the SBOMs' source identity (the commit) and the draft's name. The asset selection and draft checks then accept 1.0.0 names under a `v1.0.0-rc.N` reference. A successor candidate, `v1.0.0-rc.2`, follows the change.
+
+## Change
+
+- **Producers.** `publish.ps1`, `package-linux.sh` and `package-macos.sh` build a candidate with informational version `1.0.0+<commit>`, and name every file, the .deb version and the tarball folder 1.0.0.
+- **Selection.** `Select-ReleaseAssets.ps1` selects a candidate as `-Version 1.0.0 -CandidateRef refs/tags/v1.0.0-rc.N` and records the reference in the manifest. Without a reference, it refuses a release version or an RC-named set.
+- **Draft checks.** `Assert-DraftReleaseAssets.ps1` and `Invoke-DraftPackageChecks.ps1` expect 1.0.0 names under an RC tag, with a manifest naming that tag. A preview's manifest must name none.
+- **CI.** The candidate's selection steps pass the reference, and each package job checks the version its packages report:
+  - a candidate: `FileCat 1.0.0`, plus, on Windows, product version `1.0.0+<commit>`;
+  - anything else: the package's own version.
+- **Previews and manual runs** keep their versions and names.
+
+## Tests
+
+- **Validators.** The three release-asset validators gain the candidate naming and refusal cases, and pass with 16, 46 and 17 cases (8, 42 and 17 before). Each of six weakened guards was caught by a validator.
+- **App test.** `UpdateCheckTests.A_candidate_build_is_not_offered_the_release_it_becomes`: a 1.0.0 build asks `/latest` and is not offered `v1.0.0`, where an RC-labelled build asks for prereleases and finds `v1.0.0` newer.
+- **Real producers in candidate mode,** at `bbcbdbdc` with `-Version 1.0.0-rc.2 -ProductVersion 1.0.0 -CandidateRef refs/tags/v1.0.0-rc.2`:
+  - **Windows (win-x64), on the development host:** the two ZIPs and three SBOMs are named 1.0.0. `FileCat.exe --version` prints `FileCat 1.0.0`, with product version `1.0.0+bbcbdbdc…` and file version `1.0.0.0`; no SBOM mentions an RC. This is the package job's new check, run by hand.
+  - **Ubuntu 24.04 VM:** all seven files are named 1.0.0, and the .deb's version is `1.0.0`. The .deb's binary, the tarball (folder `FileCat-1.0.0`) and the AppImage each print `FileCat 1.0.0`, and the informational version is `1.0.0+bbcbdbdc…`. No SBOM mentions an RC.
+  - **macOS:** not built by hand. The change there is the same two lines as on Linux. [Manual run 45359812179](https://github.com/benny-cz/FileCat/actions/runs/45359812179) of the branch built it as `1.0.0-dev.2996`, and the package job's new check confirmed the ZIP's name and the app's version. The Linux package job did the same for the .deb, the tarball and the AppImage.
+- **CI.** [PR #21's run 45359654262](https://github.com/benny-cz/FileCat/actions/runs/45359654262) passed every job in its first attempt. The candidate-only steps run only on an RC tag, so the next candidate's run is their first.
 
 ## What rc.1 still shows
 
@@ -54,6 +74,6 @@ rc.1 is the first real run of the signed candidate pipeline: tests, packages, th
 2. **Candidate.** The successor's draft holds only 1.0.0-named assets, and an installed package reports 1.0.0 in About, `--version` and its package manager.
 3. **Update check.** A candidate build asks GitHub's `/latest` and finds no newer release when 1.0.0 is the latest release (unit test).
 
-Stop when all three pass. Reopen only for:
+Steps 1 and 3 pass at `bbcbdbdc`; step 2 waits for the next candidate. Stop when all three pass. Reopen only for:
 - a change to how candidates are versioned or named;
 - an installed candidate that reports a pre-release version.
