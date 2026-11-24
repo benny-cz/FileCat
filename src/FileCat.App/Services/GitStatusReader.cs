@@ -49,13 +49,17 @@ internal sealed class GitStatusSnapshot(Dictionary<string, GitStatusKind> entrie
         _ => 6,
     };
 
-    /// <param name="tracked">"git ls-files -z" of the folder.</param>
-    /// <param name="status">"git status --porcelain=v1 -z".</param>
+    /// <param name="tracked">"git ls-files -z" of the folder: paths from the folder.</param>
+    /// <param name="status">"git status --porcelain=v1 -z": paths from the work tree's top, whatever status.relativePaths says.</param>
     /// <param name="names">How the folder compares its children's names.</param>
     /// <param name="undecided">
     /// Paths as <paramref name="status"/> prints them whose " M" needed a filter automatic badges do not run: Unknown.
     /// </param>
-    internal static GitStatusSnapshot Parse(string tracked, string status, StringComparer names, IReadOnlySet<string>? undecided = null)
+    /// <param name="prefix">
+    /// I657: the folder's path from the work tree's top, as "git rev-parse --show-prefix" prints it ("sub/"; empty at the
+    /// top). Status records below it are filed under the folder's children; others are not the folder's.
+    /// </param>
+    internal static GitStatusSnapshot Parse(string tracked, string status, StringComparer names, IReadOnlySet<string>? undecided = null, string prefix = "")
     {
         var entries = new Dictionary<string, GitStatusKind>(names);
         var lookup = entries.GetAlternateLookup<ReadOnlySpan<char>>();
@@ -65,6 +69,12 @@ internal sealed class GitStatusSnapshot(Dictionary<string, GitStatusKind> entrie
             ReadOnlySpan<char> child = separator < 0 ? path : path[..separator];
             if (child.IsEmpty || child.SequenceEqual(".")) return;
             if (!lookup.TryGetValue(child, out var old) || Rank(kind) > Rank(old)) entries[child.ToString()] = kind;
+        }
+        // Git limits the records to the folder ("-- ."), matching its letter case as core.ignorecase says, so the
+        // prefix is compared ignoring case and then cut by its length.
+        void AddBelowPrefix(ReadOnlySpan<char> path, GitStatusKind kind)
+        {
+            if (path.Length > prefix.Length && path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) Add(path[prefix.Length..], kind);
         }
 
         int trackedPosition = 0;
@@ -90,13 +100,13 @@ internal sealed class GitStatusSnapshot(Dictionary<string, GitStatusKind> entrie
                 : x == 'A' || y == 'A' ? GitStatusKind.Added
                 : x == ' ' && y == 'M' && undecided is { Count: > 0 } && undecided.Contains(record[3..].ToString()) ? GitStatusKind.Unknown
                 : GitStatusKind.Modified;
-            Add(record[3..], kind);
+            AddBelowPrefix(record[3..], kind);
             // In -z porcelain output a rename/copy has a second NUL-terminated old pathname.
             if (x is 'R' or 'C' || y is 'R' or 'C')
             {
                 int oldEnd = status.IndexOf('\0', position);
                 if (oldEnd < 0) break;
-                Add(status.AsSpan(position, oldEnd - position), GitStatusKind.Modified);
+                AddBelowPrefix(status.AsSpan(position, oldEnd - position), GitStatusKind.Modified);
                 position = oldEnd + 1;
             }
         }
@@ -117,6 +127,8 @@ internal static class GitStatusReader
     private const int MostRepositories = 24;
     private static readonly SemaphoreSlim Gate = new(2);
     private static readonly Lazy<string?> s_git = new(FindAutomaticGit);
+    /// <summary>UTF-8 without a byte order mark, for everything exchanged with Git.</summary>
+    private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false);
 
     /// <summary>
     /// I647: the settings that decide how "git status" compares a work tree with its index, and that name neither a program
@@ -169,12 +181,27 @@ internal static class GitStatusReader
                 // Without the user's comparison settings Git could call unchanged files changed: no badges then.
                 if (await ReadConfigurationAsync(folder, gitExecutable, timeout.Token).ConfigureAwait(false) is not { } configuration) return null;
                 var run = new GitRun(configuration.Settings);
+                // I657: porcelain status names paths from the work tree's top, ls-files and the listing from the folder.
+                // Below the top, Git says where the folder lies, in the letter case it gives the paths.
+                string prefix = string.Empty;
+                if (!string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder)), Path.TrimEndingDirectorySeparator(workTree), StringComparison.Ordinal))
+                {
+                    if (await RunAsync(folder, timeout.Token, gitExecutable, run, "rev-parse", "--show-prefix").ConfigureAwait(false) is not { } shown) return null;
+                    prefix = shown.EndsWith('\n') ? shown[..^1] : shown;
+                }
                 // Submodules are not entered: their configurations are not checked here.
                 string? status = await RunAsync(folder, timeout.Token, gitExecutable, run, "status", "--porcelain=v1", "-z", "--untracked-files=normal", "--ignore-submodules=all", "--", ".").ConfigureAwait(false);
                 if (status is null) return null;
+                var names = WindowsCaseSensitivity.NamesIn(folder);
+                if (IsUntrackedFolder(status, prefix))
+                {
+                    // Git names an untracked folder as one record, and nothing below it is tracked: list its own files.
+                    status = await RunAsync(folder, timeout.Token, gitExecutable, run, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=all", "--", ".").ConfigureAwait(false);
+                    return status is null ? null : GitStatusSnapshot.Parse(string.Empty, status, names, prefix: prefix);
+                }
                 if (await UndecidedAsync(workTree, gitExecutable, timeout.Token, run, configuration.Filters, status).ConfigureAwait(false) is not { } undecided) return null;
                 string? tracked = await RunAsync(folder, timeout.Token, gitExecutable, run, "ls-files", "--cached", "-z", "--", ".").ConfigureAwait(false);
-                return tracked is null ? null : GitStatusSnapshot.Parse(tracked, status, WindowsCaseSensitivity.NamesIn(folder), undecided);
+                return tracked is null ? null : GitStatusSnapshot.Parse(tracked, status, names, undecided, prefix);
             }
             finally { Gate.Release(); }
         }
@@ -705,6 +732,33 @@ internal static class GitStatusReader
     }
 
     /// <summary>
+    /// I657: whether "git status" in a folder below the top names that folder itself, or one holding it, as one untracked
+    /// record ("?? sub/new/"). In normal untracked mode Git names an untracked folder, not the files in it.
+    /// </summary>
+    private static bool IsUntrackedFolder(string status, string prefix)
+    {
+        if (prefix.Length == 0) return false;
+        for (int position = 0; position < status.Length;)
+        {
+            int end = status.IndexOf('\0', position);
+            if (end < 0) break;
+            var record = status.AsSpan(position, end - position);
+            position = end + 1;
+            if (record.Length < 4 || record[2] != ' ') continue;
+            if (record[0] is 'R' or 'C' || record[1] is 'R' or 'C')
+            {
+                int oldEnd = status.IndexOf('\0', position); // a rename's or copy's old path
+                if (oldEnd < 0) break;
+                position = oldEnd + 1;
+                continue;
+            }
+            if (record[0] == '?' && record[1] == '?' && record[^1] == '/' && prefix.AsSpan().StartsWith(record[3..], StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// I647: the paths "git status" calls changed in the work tree alone (" M") whose comparison needed a clean filter that
     /// automatic badges never run (I150): their attributes select one that Git's ordinary configuration defines, Git LFS's
     /// for one. Git then compared the unfiltered bytes, so "changed" may be false. As in Git, which compares no contents
@@ -847,9 +901,14 @@ internal static class GitStatusReader
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             RedirectStandardInput = run.Input is not null,
+            // Git's paths are UTF-8. Left unset, once FileCat has made the legacy code pages available, Windows .NET reads
+            // them in the console's code page, or with no console, as for FileCat, in the ANSI code page: a name with other
+            // letters then missed its badge (I657).
+            StandardOutputEncoding = Utf8,
+            StandardErrorEncoding = Utf8,
         };
         // Paths go to Git as UTF-8, without a byte order mark that would read as one more path.
-        if (run.Input is not null) start.StandardInputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+        if (run.Input is not null) start.StandardInputEncoding = Utf8;
         // A work tree's attributes can select a filter defined outside its checked configuration. Inherited Git
         // variables can also redirect the repository or write traces. Restrict only this child, preserving the
         // caller's environment and ordinary PATH/runtime settings. Global/system files and implicit user-wide
