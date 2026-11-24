@@ -35,12 +35,15 @@ The refusal itself was correct. Every command after it on the same connection co
 
 - Only pyftpdlib, the owned fixture, was observed. Other servers may send the final reply at other times, or not at all after a refused TLS data connection. The five-second bound and the ended connection are meant to cover those cases, but no other server was tried.
 - The fixture's delay imitates load. The original failure was intermittent: it appeared under the native run's parallel lanes, and the class passed alone 27 of 27.
-- On the final release tree `7ba3aa00`, the Mac and Ubuntu native runs passed every Remote test that ran (2,728 and 2,730, 0 failed), this class included ([E-REL-NATIVE-20261123](E-REL-NATIVE-20261123-release-tree.md#second-round-the-final-tree)). The Windows run had not finished when this was written.
+- On the final release tree:
+  - **Native Mac and Ubuntu:** the runs of `7ba3aa00` passed every Remote test that ran (2,728 and 2,730, 0 failed), this class included ([E-REL-NATIVE-20261123](E-REL-NATIVE-20261123-release-tree.md#second-round-the-final-tree)).
+  - **Hosted CI:** in PR #16's run of the same code (run 45298117183), the new test passed on macOS (the class 28 of 28) and on Windows x64 and ARM64 (26 passed, 2 skipped each).
+  - **Windows VM:** it has no pyftpdlib, so the class skips there.
 
 ## Finite candidate check and stop
 
 1. **Hosted CI.** At the candidate source, the Remote test jobs pass `FtpIntegrationTests`, the new test included.
-2. **Native runs.** On the Mac and the Windows VM, `FtpIntegrationTests` passes natively on the final release tree.
+2. **Native runs.** On the Mac, `FtpIntegrationTests` passes natively on the final release tree. Done on `7ba3aa00`. Windows coverage comes from hosted CI's owned fixture, as the Windows VM has none.
 
 Stop when both pass. Reopen only for:
 - a change to `CheckData`, the channel's reply handling or FluentFTP's data-stream close;

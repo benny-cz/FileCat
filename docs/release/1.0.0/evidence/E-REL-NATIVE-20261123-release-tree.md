@@ -34,7 +34,7 @@ All three machines ran at the same time, by the owner's instruction to keep ever
 |---|---|---|---|---|
 | Mac | 20,198 | 19,140 | 1,057 | 1 |
 | Ubuntu | 20,198 | 19,200 | 991 | 7 |
-| Windows | 23,191 | 19,856 | 2,446 | 489 (487 from the lane's own setup; see below) |
+| Windows | 22,793 | 19,856 | 2,448 | 489 (487 from the lane's own setup; see below) |
 
 On Windows, Core (12,422) and Remote (2,800) had no failures.
 
@@ -81,10 +81,15 @@ The same lanes ran again on the tree main reached once PRs #11, #12 and #13 had 
 |---|---|---|---|---|
 | Mac | 20,199 | 19,142 | 1,057 | 0 |
 | Ubuntu | 20,199 | 19,205 | 991 | 3 |
-| Windows | Running when this was written | | | |
+| Windows | 22,794 | 20,317 | 2,476 | 1 |
 
 - **Rendering:** it passed on both machines (988 passed, 10 skipped each). The longer waits of PR #12 and PR #13 held on Ubuntu, where four of these tests had run out of time in the first round.
-- **Remote:** no failures on either machine, the new I631 test included.
+- **Remote:** no failures on any machine. The Mac and Ubuntu ran the new I631 test, and it passed. The Windows VM has no pyftpdlib, the owned FTP fixture, so all 28 `FtpIntegrationTests` skip there, in both rounds; hosted CI's Windows x64 and ARM64 jobs run them.
+- **Windows, 1 failure:** `OperationsDrawerLayoutTests.Recovery_section_stays_bounded_and_last_item_actions_are_scrollable(count: 5)`.
+  - It failed at the same assertion as in the first round: after five Down presses, the last interrupted operation was not selected.
+  - The class passed alone on the VM in the first round (18 of 18), and it passes in hosted CI.
+  - Windows lanes run one at a time, so load does not explain it. Process state left by earlier App tests may; the cause is under investigation.
+  - Every Windows suite had the same total as in the first round, apart from Remote's one new test. The 487 setup failures of the first round passed, with the probe assets set.
 - **Ubuntu, 3 failures:**
   - **`SecretStoreTests`:** the locked login keyring again.
   - **`LinuxArchiveProcessTests.A_healthy_64_MiB_stream_proxy_copy_and_complete_readback_need_no_filesystem_grants`:** timed out at its 30-second limit beside four other test processes. It took 7.1 s in the first round, and run alone, the class passed 31 of 31. Its time-limited copy ran as a `Task.Run` body. [PR #15](https://github.com/benny-cz/FileCat/pull/15) runs it on its own thread under 120 seconds, as the repository's other hang guards do.
@@ -101,8 +106,9 @@ The same lanes ran again on the tree main reached once PRs #11, #12 and #13 had 
 | `rerun1-relfinal2d07b72b-ubuntu` (EscAuditTests, LinuxArchiveProcessTests) | `.tar.gz` | `0600bda4dc86a63c` |
 | `rerun2-pr15-cb06d20f-ubuntu` (EscAuditTests with PR #15) | `.tar.gz` | `91ad27f11d0bb286` |
 | `esc-before-after` (10 direct runs each, before and with PR #15) | `.tar.gz` | `fd1996d43b3ece9e` |
+| `full-relfinal2d07b72b-win` | `.zip` | `f0dd2d1317d9e35d` |
 
-The archives are on the development host under `E:\FileCat\.tmp\release-native-final\evidence`. The Ubuntu archives are also on the VM, and the Mac's on the Mac.
+The archives are on the development host under `E:\FileCat\.tmp\release-native-final\evidence`, and each machine keeps its own.
 
 ## Not shown
 
