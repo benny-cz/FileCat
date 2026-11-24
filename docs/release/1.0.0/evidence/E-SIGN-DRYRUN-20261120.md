@@ -151,3 +151,52 @@ Each refusal logged events 3077, 3033, 3089 (twice) and 3118. All 15 Code Integr
 - Launches used `Start-Process` in a batch session, so the download prompt Explorer would show (SmartScreen) is not covered.
 - Only startup was exercised. Smart App Control checks each binary as it loads, and the verifier shows every shipped PE file carries a trusted signature, so binaries this check did not load meet the same rule.
 - Smart App Control stays on in the VM by the owner's choice. While it is on, other unsigned test builds there are blocked.
+
+## Candidate signing in the tagged pipeline
+
+2026-11-23. [PR #7](https://github.com/benny-cz/FileCat/pull/7) brings the piloted signing into the tagged pipeline. It merged into main as `3069448f` and reached `release/1.0` through PR #8. Nothing has run it for real, because no `v1.0.0-rc.N` tag exists.
+
+### What a `v1.0.0-rc.N` tag now runs
+
+- **After the tests.** As for every tag, the package jobs start only after every test job has passed.
+- **Package job.** It checks the `signing` environment's protections, then publishes both Windows runtimes unsigned and hands them to a new `sign-candidate` job with the payload manifest's hash. The unsigned installer, asset-selection and Windows upload steps run only for other tags.
+- **`sign-candidate`.** It runs on a fresh `windows-2025-vs2026` runner in the protected `signing` environment. The owner approves each run, administrator bypass is off, and only main and `v*` tags deploy. It checks those protections again (`Assert-SigningEnvironment.ps1`), then checks the payload against the package job's manifest.
+- **Signing.**
+  - It signs the win-x64 and win-arm64 payloads.
+  - It writes SBOMs and archives of the signed payloads.
+  - It signs both Setups and their uninstallers.
+  - The eSigner credentials reach only the two signing steps.
+- **Verification.** Against Windows' roots with revocation, it checks both payloads, the ZIPs, both Setups and a silent install and uninstall of the x64 Setup. The runner is x64, so the ARM64 Setup is verified as a file. The four negative controls run as before.
+- **Private drafts.** Nothing is published.
+  - The signing records, which name the signer, go into one private draft, `signing-records-<tag>-<run>`.
+  - The 13 signed Windows assets join the Linux and macOS producer outputs, and all three producer manifests are checked.
+  - The 24 assets go into the candidate's own private draft. Its upload IDs and server digests are then checked.
+- **Draft checks.** `Assert-DraftReleaseAssets.ps1` and `Invoke-DraftPackageChecks.ps1` gain `-SignedCandidate`. It accepts only a `v1.0.0-rc.N` tag and refuses to reuse a draft that is not a signed-candidate draft. Previews keep the unsigned draft path, still made by `draft-preview` in the `release` environment. The validators now hold 42 and 17 cases.
+- **Signing run script.** `Invoke-WindowsSigningRun.ps1` takes `-Runtimes`, `-ProductVersion` and `-CandidateRef`, and its payload manifest is schema `filecat-payload-manifest/2`. The manual dry-run and pilot workflows gain a runtimes input.
+
+### Signing volume
+
+Each runtime needs 55 distinct payload files, Setup and the uninstaller signed, so a candidate costs **114 signing operations**.
+
+### DEC-09
+
+DEC-09 makes drafts in the `release` environment. PR #7 proposes an amendment:
+- For RC tags, the owner-approved `signing` job creates the candidate's private draft, so signed bytes never pass through workflow artifacts.
+- Previews keep `release` as their only release-write environment.
+
+The owner had PR #7 merged. No separate decision on the amendment is recorded.
+
+### Test-certificate dry run of the candidate path
+
+[Run 45243254377](https://github.com/benny-cz/FileCat/actions/runs/45243254377) ran on `1a0a431c` (branch `signing/candidate-pipeline`) with both runtimes. Both jobs passed: the unsigned build for win-x64 and win-arm64, and the signing job.
+
+- **Verification:** 1,466 PE files: 486 FileCat-signed, 980 unchanged vendor-signed, 0 failed. Negative controls: 4 of 4 rejected.
+- **Signing:** 55 distinct files signed per runtime.
+- **Install round trip:** the x64 Setup installed, with 248 installed PE files verified. It uninstalled with exit 0, and its folder was removed.
+- **Test signer:** it and its root stayed in the job, and no signed byte was uploaded. Revocation is not checked against a test root.
+
+### Not shown
+
+- A real RC tag run: eSigner signing of both runtimes, the owner's approval step, and the candidate's private drafts.
+- Installing the ARM64 Setup, and Smart App Control on ARM64.
+- An owner decision on the proposed DEC-09 amendment.

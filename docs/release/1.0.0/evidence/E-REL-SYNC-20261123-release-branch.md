@@ -1,6 +1,15 @@
-# E-REL-SYNC-20261123 — `release/1.0` synced with main twice: at `e5cf68f2`, then at `59abfde1`
+# E-REL-SYNC-20261123 — `release/1.0` synced with main five times, from `e5cf68f2` to `48d3de08`
 
 2026-11-23 (UTC). **Release-branch maintenance; no candidate, tag or publication.** On the owner's request, `release/1.0` was synced with main through PR #3, as [E-REL-SYNC-20261120](E-REL-SYNC-20261120-release-branch.md) had planned. Main's newest work then settled and passed CI, and the owner had it synced again through PR #5. Backport PR #4, opened between the two syncs, was closed because the second sync contains its commits.
+
+Three more syncs followed, each at the owner's request:
+- PR #6 brought a Windows program-start fix and two test cleanups.
+- PR #8 brought the release-candidate signing pipeline.
+- PR #14 brought two changes:
+  - the fix for [I631](E-I631-ftps-refused-data-final-reply.md), which the native runs of the PR #6 tree found ([E-REL-NATIVE-20261123](E-REL-NATIVE-20261123-release-tree.md));
+  - the move of unlinked validation receipts to the evidence store (PR #11).
+
+  It superseded sync PR #10, which had stopped at `1ec1207f`.
 
 ## First sync: main at `e5cf68f2` (PR #3)
 
@@ -101,6 +110,111 @@ Covering `e5cf68f2` to `59abfde1` (71 files):
 - Workflows, packages and build configuration are unchanged, and no test gains a skip.
 - The tree grew from 1,383 MB to 1,384 MB.
 
+## Third sync: main at `8a1e6763` (PR #6)
+
+### Source choice
+
+- **Source:** `8a1e6763`, main's tip when the owner asked for the sync.
+- **What came in (4 commits, 13 files):**
+  - `94f20963`, `2bf15ce8` and `8a1e6763` came from an old worktree branch. At the owner's request, the branch was rebased onto main and deleted.
+    - `94f20963` fixes [I632](E-I632-unrunnable-program-start-wait.md): starting a tool or an Apply command that names a file 64-bit Windows takes for a 16-bit program no longer waits behind Windows' modal "Unsupported 16-Bit Application" box.
+    - `2bf15ce8` keeps the junction accounting fixture uncompressed. `8a1e6763` clears the storage tests' last analyzer warnings.
+  - `5cb7702a` recorded the first two syncs.
+- **Gate:** the PR's own run. Main's run of the same tree, 45236898547, started at the same time; see [CI failures seen on the way](#ci-failures-seen-on-the-way).
+
+### Procedure and result
+
+1. **Sync branch.** `sync/release-1.0-8a1e6763d` was pushed at `49644213`, with parents `8a1e6763` and `6611a72d` and `8a1e6763`'s tree.
+2. **CI.** [PR run 45237015331](https://github.com/benny-cz/FileCat/actions/runs/45237015331) passed all 19 jobs that ran, the five required ones included, in its second attempt. In the first, GitHub could not get hosted macOS runners for two macOS jobs.
+3. **Merge.** [PR #6](https://github.com/benny-cz/FileCat/pull/6) was merged as `57bd5e8f` at 2026-11-23T19:47:24Z. The merge was pinned to the tested head, and the branch was deleted.
+
+`release/1.0`'s tree then equalled `8a1e6763`'s.
+
+### Quick issue scan
+
+Covering `59abfde1` to `8a1e6763`:
+- No secrets, key or keystore files, email addresses, files over 2 MB or new test skips.
+- Workflows, packages and build configuration are unchanged.
+
+## Fourth sync: main at `3069448f` (PR #8)
+
+### Source choice
+
+- **Source:** `3069448f`, the merge of [PR #7](https://github.com/benny-cz/FileCat/pull/7), which brings signing into the tagged candidate pipeline. The owner asked for the sync once PR #7 merged.
+- **Main's CI:** [run 45252307188](https://github.com/benny-cz/FileCat/actions/runs/45252307188) passed.
+- **What came in (3 commits, 8 files):** workflows and `eng` scripts only; see [E-SIGN-DRYRUN-20261120](E-SIGN-DRYRUN-20261120.md#candidate-signing-in-the-tagged-pipeline).
+
+### Procedure and result
+
+1. **Sync branch.** `sync/release-1.0-3069448f8` was pushed at `4a2f2a78`, with parents `3069448f` and `57bd5e8f`.
+2. **CI.** [PR run 45252685726](https://github.com/benny-cz/FileCat/actions/runs/45252685726) passed all 19 jobs that ran in its first attempt. The new candidate signing job runs only for RC tags, so it was skipped with the other tag-only jobs.
+3. **Merge.** [PR #8](https://github.com/benny-cz/FileCat/pull/8) was merged as `08e03db2` at 2026-11-23T21:08:33Z. The merge was pinned to the tested head, and the branch was deleted.
+
+`release/1.0`'s tree then equalled `3069448f`'s.
+
+### Quick issue scan
+
+Covering `8a1e6763` to `3069448f`:
+- No secrets, key or keystore files, email addresses, files over 2 MB or new test skips.
+- Source, packages and build configuration are unchanged.
+- **Workflows.** `ci.yml` gains the `sign-candidate` job for `v1.0.0-rc.N` tags:
+  - It runs in the protected `signing` environment and holds `contents: write` for the candidate's private drafts.
+  - It is the only job given the eSigner secrets, and they reach only its two signing steps.
+  - On RC tags, the unsigned Windows draft steps are skipped.
+- **Manual workflows.** The two manual signing workflows gain a runtimes input.
+- **Pinning.** Every new action is pinned to a commit, and no workflow uses `pull_request_target`.
+
+## Sync PR #10 at `1ec1207f`, superseded
+
+- **Source:** `1ec1207f`, the merge of [PR #9](https://github.com/benny-cz/FileCat/pull/9), the I631 fix. The owner had asked for a sync once all open PRs had merged, and PR #9 was then the last of them.
+- **Main's CI:** run 45267782131 lost two macOS jobs to runner capacity.
+- **What it carried (2 commits, 2 files):** `FluentFtp.cs` and `FtpIntegrationTests.cs`.
+- **Sync branch:** `sync/release-1.0-1ec1207f5` at `d34cac82`, with parents `1ec1207f` and `08e03db2`.
+- **First attempt of [PR run 45267952326](https://github.com/benny-cz/FileCat/actions/runs/45267952326):**
+  - Every job passed except one non-required macOS Rendering test; see below.
+  - GitHub could not get a hosted runner for the macOS archive Core job.
+- **Superseded.** The re-run of those two jobs was still waiting for macOS runners when PR #11 merged into main. The owner then asked for a sync with main at once. [PR #10](https://github.com/benny-cz/FileCat/pull/10) was closed, its re-run cancelled and its branch deleted. Its commits came in through PR #14.
+
+## Fifth sync: main at `48d3de08` (PR #14)
+
+### Source choice
+
+- **Source:** `48d3de08`, main's tip and the merge of [PR #11](https://github.com/benny-cz/FileCat/pull/11), on the owner's request to sync with main at once.
+- **What came in (4 commits):**
+  - From PR #9 and its merge: `FluentFtp.cs` and `FtpIntegrationTests.cs`.
+  - From PR #11 and its merge: 2,246 unlinked validation receipts moved to the evidence store. With them came `.gitignore` rules that keep such receipts out, `eng/evidence-retention.policy.json` and `docs/validation/disk-space/README.md`.
+- **Tree size:** the tree shrank from 1,384 MiB to 193 MiB.
+
+### Procedure and result
+
+1. **Sync branch.** `sync/release-1.0-48d3de08d` was pushed at `939d0a8e`, with parents `48d3de08` and `08e03db2` and `48d3de08`'s tree.
+2. **CI.** [PR run 45286933633](https://github.com/benny-cz/FileCat/actions/runs/45286933633) passed all 19 jobs that ran, the five required ones included, in its first attempt.
+3. **Merge.** [PR #14](https://github.com/benny-cz/FileCat/pull/14) was merged as `6b2404f3` at 2026-11-24T00:18:34Z. The merge was pinned to the tested head, and the branch was deleted.
+
+- **Tip:** `release/1.0` is at `6b2404f3`, with parents `08e03db2` and `939d0a8e`.
+- **Content:** its tree equals `48d3de08`'s.
+- **Gap:** while PR #14's checks ran, main merged PR #13 and PR #12. Those two only lengthen test waits, and they and these records follow in the next sync.
+
+### Quick issue scan
+
+Covering `3069448f` to `48d3de08`:
+- No secrets, key or keystore files, email addresses, files over 2 MB or new test skips. PR #11 adds or changes only `.gitignore`, the retention policy and one README; the rest of it is deletions.
+- Workflows, packages and build configuration are unchanged.
+
+## CI failures seen on the way
+
+Both failures were on hosted macOS, in jobs that are not required. Neither was investigated further.
+
+- **`MetadataPreparationTests.Ended_preparation_retains_active_calls_until_return_and_never_publishes_late_UI(operation: "final", action: "navigate")`.**
+  - It failed in main's run 45236898547 of `8a1e6763`, in the macOS App focus job, with "Assert.NotEmpty() Failure: Collection was empty" after 0.5 s.
+  - The same job passed on the same tree in PR #6's run.
+  - Earlier that day, in main's run 45163923255 of `e34011a8`, three cases of another test in the class, `An_explicitly_approved_attribute_job_keeps_the_selection_shown_in_its_dialog`, timed out in the same job.
+- **`AnalysisRenderingTests.ClipboardPathFromCompactInspectorRemainsBoundToItsDisplayedEntry`.**
+  - It failed in the first attempt of PR #10's run, in the macOS Remote and Rendering job, after 61 ms.
+  - The clipboard held nothing where `/fixture/Photos/picture.png` was expected.
+  - PR #10's re-run was cancelled when PR #14 superseded it. The same job passed in PR #14's run, whose Rendering tests are the same.
+
 ## Not shown
 
-- Native runs on the Mac, Ubuntu and Windows VMs for this state.
+- Native runs of the final tree. The PR #6 tree ran natively on the Mac, Ubuntu and Windows VMs: [E-REL-NATIVE-20261123](E-REL-NATIVE-20261123-release-tree.md).
+- The cause of the two macOS failures above.
