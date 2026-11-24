@@ -21,3 +21,7 @@ Adding `O_NOFOLLOW_ANY` without `O_NOFOLLOW` is not a drop-in hardening either. 
 ## Remedy
 
 Correct the comment: say what protects the final name and the folders above it, why `O_NOFOLLOW_ANY` is not added, and where the EINVAL came from. The flags and the behaviour stay as they are.
+
+## Fix
+
+Branch `fix/i660-archive-openx-comment`: the comment at `UnixArchiveNative.cs:77` now says that `O_NOFOLLOW` (in `SafeOpen`) protects the final component, that ancestor pinning and the post-create relative identity review protect the folders above it and stay mandatory, and why `O_NOFOLLOW_ANY` is not added: XNU refuses it together with `O_NOFOLLOW` (EINVAL), which is the refusal once taken for `openx_np`'s, and without `O_NOFOLLOW` it would refuse the temporary folder's names, which reach the file through the `/var` link. Comment only: the compiled code is unchanged, so no test is added.
