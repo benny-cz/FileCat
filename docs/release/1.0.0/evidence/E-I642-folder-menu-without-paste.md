@@ -35,7 +35,9 @@ On the candidate that carries a fix, cut a file in Explorer and paste it through
 
 ## Fix
 
-Branch `fix/i642-folder-menu-paste`, for rc.3. Product source before it equals `v1.0.0-rc.2` (`7269ec61`).
+Branch `fix/i642-folder-menu-paste`, for rc.3. Product source before it equals `v1.0.0-rc.2` (`7269ec61`). It came in two rounds:
+- **Round 1 (`d7f386a1`):** the folder's menu offers the Shell's Paste.
+- **Round 2:** choosing it pastes. Round 1's Paste did nothing in the VM after a Cut or Copy in Explorer (see "Round 2" below).
 
 ### Cause, confirmed
 
@@ -62,11 +64,11 @@ Invoking that `paste` (scratch probe, the helper's invoke flags, nothing shown) 
 - A Cut from C: to E: moved.
 - The hosted view's own Paste gave the same result for a Cut.
 
-Explorer then offered "Undo Move" for these moves, as after its own Paste.
+Explorer then offered "Undo Move" for these moves, as after its own Paste. These round-1 checks used clipboard data that a program had written and flushed, not Explorer's live data object; round 2 shows why that mattered.
 
-### Change
+### Change (round 1)
 
-`src/FileCat.App/Services/WindowsContextMenu.cs`: for a folder's own menu (`--background`, not `--probe-new`), the helper also builds the folder's menu as an item of its parent with `CMF_NOVERBS` (`BuildFolderPaste`). When the Shell offers `paste` there, the helper puts the Shell's item, with its label and state, at the top of the folder's menu, followed by a separator. Choosing it runs `InvokeCommand` on the menu it came from, with the same flags and owner window as every Shell verb. `--probe` and `--probe-verbs --background` list it, the latter with its canonical verb `paste`. If that menu cannot be built or offers no Paste, the folder's menu is unchanged.
+`src/FileCat.App/Services/WindowsContextMenu.cs`: for a folder's own menu (`--background`, not `--probe-new`), the helper also builds the folder's menu as an item of its parent with `CMF_NOVERBS` (`BuildFolderPaste`). When the Shell offers `paste` there, the helper puts the Shell's item, with its label and state, at the top of the folder's menu, followed by a separator. `--probe` and `--probe-verbs --background` list it, the latter with its canonical verb `paste`. If that menu cannot be built or offers no Paste, the folder's menu is unchanged. In round 1, choosing it ran `InvokeCommand` on the menu it came from; round 2 replaces that.
 
 Unchanged:
 - arguments, the `FILECAT_CONTEXT_READY` and `FILECAT_CONTEXT_INVOKE` lines, and the exit codes. Paste ends with 0, or 11 when the Shell's command fails, as other Shell verbs do;
@@ -102,13 +104,13 @@ FILECAT_CONTEXT_READY
   - A removed folder still gave exit 1 and one stderr line (`FileNotFoundException 0x80070002`).
   - The probes moved nothing.
 
-The selection route itself was checked with a local helper build, not committed. That build chose Paste where the popup would open, without showing a window or taking the foreground:
+In round 1 the selection route was checked with a local helper build, not committed, with flushed data. That build chose Paste where the popup would open, without showing a window or taking the foreground:
 - A Cut of a file and a folder: READY, INVOKE, exit 0, and both were moved with their contents.
 - A Copy: copied.
 - A Cut across volumes: moved.
 - Text only: no Paste, exit 0.
 
-### Tests
+### Tests (round 1)
 
 `WindowsContextMenuTests.The_folders_own_Windows_menu_offers_the_Shells_Paste_while_the_clipboard_holds_files`, a real-Shell test in the real helper:
 - It puts a file on the clipboard as Explorer's Copy, then as its Cut. Each time `--probe-verbs --background` must list exactly one `paste`, as the menu's first line.
@@ -121,9 +123,69 @@ At medium integrity, `explorer.exe` → `.vbs` → `.cmd`, Debug build, developm
 - **`WindowsContextMenuTests` and `BackgroundContextMenuTests`:** 56 tests, 0 failed, 0 skipped.
 - **Those two with `ArchiveContextMenuTests`, `BreadcrumbMenuTests`, `ClipboardIntentTests`, `MenuInteractionTests` and `MenuUnavailableReasonTests`:** 119 tests, 0 failed, 1 skipped. The skip is `ClipboardIntentTests.Distinct_case_resources_remain_distinct_in_a_cut_publication`, whose fixture needs a case-sensitive file system.
 
+Hosted CI (PR #27, Windows x64 App tests): the test passed, not skipped.
+
+### Round 2: the Paste itself
+
+**Finding (qualification VM, Windows 11 25H2 build 26200, a pre-rc.3 build with round 1).** After Ctrl+X in Explorer the clipboard held `Shell IDList Array`, `DataObjectAttributes`, `DataObjectAttributesRequiringElevation`, `Preferred DropEffect` (2), `AsyncFlag`, `FileDrop`, `FileNameW`, `FileName`, `FileContents` and `FileGroupDescriptorW`. The folder's menu listed Paste, but choosing it moved nothing. The helper, run by hand, printed READY and INVOKE and ended about 10.5 s after the click; the file stayed in Explorer's folder.
+
+**Cause.** Explorer's Cut and Copy leave the Shell's own data object on the clipboard, served by Explorer and marked for transfer in the background: the `AsyncFlag` format. The menu's paste command then does not transfer within `InvokeCommand`. It hands the transfer to a Shell work thread, which reads the data through the helper's apartment, and the helper ended as soon as the call returned. In the VM the call waited about 10 s first (`CMIC_MASK_NOASYNC`); here it returned at once. Either way the transfer never ran.
+
+Reproduced on the development PC (build 26320, medium integrity) with a stand-in for Explorer. A process put the Shell's own data object for a file on the clipboard, with `Preferred DropEffect` and Explorer's `AsyncFlag`, and kept serving it:
+- rc.2's invoke moved nothing.
+- The same invoke moved the file when the helper went on dispatching its messages after the call.
+- Without `AsyncFlag` (data a program wrote and flushed) the transfer completes inside the call, which is why round 1's checks passed.
+
+**Why the helper cannot simply wait for that work.** The documented host contract is the process reference ([SetProcessReference](https://learn.microsoft.com/en-us/windows/win32/api/shlwapi/nf-shlwapi-setprocessreference), [GetProcessReference](https://learn.microsoft.com/en-us/windows/win32/api/shlwapi/nf-shlwapi-getprocessreference)); shell32's `SHSetInstanceExplorer` and `SHGetInstanceExplorer` jump straight to those. Offered by the helper, the reference was taken only briefly after a transfer, never during one. A 1 GiB Cut across volumes took and released it at once, 770 ms after the call returned, so the reference cannot say when a long transfer ends.
+
+**Change (round 2).** Choosing Paste on a folder's own menu, or on a folder item's menu, now does a paste as Microsoft documents it ([Handling Shell Data Transfer Scenarios](https://learn.microsoft.com/en-us/windows/win32/shell/datascenarios)):
+- The helper takes the clipboard's data object (`OleGetClipboard`) and the folder's own drop target. The target comes from the folder's parent (`IShellFolder::GetUIObjectOf`, `IID_IDropTarget`) with the helper's owner window, so the copy engine's progress and questions belong to the window that had the foreground for the menu.
+- It drops the data as a left-button drop. A Cut (`Preferred DropEffect` exactly `DROPEFFECT_MOVE`) is dropped with Shift, so the target moves the items itself (the optimized move the Shell does for files). Anything else is dropped with Ctrl, so it copies (or links).
+- The data goes in without the asynchronous capability: no `IDataObjectAsyncCapability`, and `AsyncFlag` hidden. The documented target transfers in the background only for that capability, so the transfer, its progress and any question it asks run within `Drop`, and are done when it returns.
+- No delete-on-paste report (`CFSTR_PASTESUCCEEDED`) goes to the source. A move from a virtual source, one the target can only copy from, therefore stays a copy, and Explorer keeps its cut list.
+- After the drop the helper offers its process reference and stays while any follow-up Shell work holds it, and at least 1 s.
+- Other verbs keep the synchronous invoke.
+
+**New test mode `--native-context-menu --probe-paste FOLDER`.** It builds the folder's menu and runs its Paste exactly as when chosen from it, without showing the menu, and prints:
+- `FILECAT_CONTEXT_READY`, then `FILECAT_CONTEXT_INVOKE`.
+- Then one line: `paste: Preferred DropEffect N; Drop 0x… with effect E after T ms; …; the helper ended T ms after the paste`.
+
+It exits 0 after the paste. It exits 11 with one stderr line when the paste failed, and 1 with "No Paste here." when the menu offers no Paste. Like `--probe-new`, it acts with its caller's token, and FileCat never starts it. Exit codes and protocol lines are otherwise unchanged.
+
+**Incident on the development PC (uncommitted code, 2026-11-24 18:34).** An intermediate version passed no mouse button in the drop's key state. Windows' drop target took it for a right-button drop and showed its drop menu on the owner's desktop: handlers, "Copy here", "Create shortcuts here", Cancel. After one such menu was dismissed, the same version still sent the delete-on-paste report, and the source deleted the test file `live-cut.bin` to the Recycle Bin although nothing had been pasted. The shipped code fixes both:
+- the drop is a left-button drop;
+- no report is sent.
+
+No paste has run on that PC since. Pastes are checked only in the VM and on CI runners.
+
+**What is and is not verified.**
+- **Verified on the development PC:** the cause above, and that the round-1 route with continued dispatching moved and copied correctly (including the 1 GiB Cut). That route is not shipped.
+- **The shipped drop route, on hosted CI only (PR #27, run 45452738164, at `c363d6e0`):** in the medium-integrity Windows App shards both paste tests passed, on x64 (2,268 executed, 0 failed) and on ARM64 (2,271 executed, 0 failed). The x64 probe reported:
+
+  | Clipboard data | Asked | `Drop` result | Effect | Time |
+  |---|---|---|---|---|
+  | Flushed, Cut | 2 | `0x00000000` | 2 | 100 ms |
+  | Flushed, Copy | 5 | `0x00000000` | 1 | 96 ms |
+  | Explorer stand-in with `AsyncFlag`, Cut | 2 | `0x00000000` | 0 (the target's report of an optimized move) | 518 ms |
+  | Explorer stand-in with `AsyncFlag`, Copy | 5 | `0x00000000` | 1 | 86 ms |
+
+  The tests checked each file byte for byte. Each time, follow-up Shell work took the process reference about 0.2 s after the paste.
+- **Not yet run:** the shipped route with Explorer itself as the source, and through the real menu. Both are for the VM.
+
+**Tests (round 2).** Two real-Shell tests run `--probe-paste` and check the files byte for byte:
+- `A_folders_own_Paste_moves_what_was_cut_and_copies_what_was_copied` uses flushed data.
+- `A_folders_own_Paste_moves_what_Explorer_cut_while_Explorer_serves_the_clipboard` uses an Explorer stand-in on its own STA thread: the Shell's data object, asynchronous mode and `AsyncFlag`.
+
+They run only where a paste may show Windows' own windows: on CI runners (`CI=true`) or with `FILECAT_TEST_SHELL_PASTE=1`. At medium integrity on the development PC, `WindowsContextMenuTests` and `BackgroundContextMenuTests` gave 58 tests, 0 failed, 3 skipped:
+- the two paste tests, by design;
+- the menu-listing test, because the locked session's clipboard could not be opened.
+
 ### Remaining checks
 
-1. **Installed candidate with this fix, in the Windows 11 25H2 qualification VM:** this record's finite check above (an Explorer Cut moves, a Copy copies, through the real menu).
-   - Also compare Explorer's own empty-space menu there. If it lists "Paste shortcut", FileCat's menu lacks it, and that difference should be recorded.
-2. **Hosted CI:** the new test in the medium-integrity App shard. A skip does not qualify the route.
-3. **I629:** the change alters verb routing, so its step 3 ("Paste is the Shell's, so an item cut in Explorer moves") and B12's `--background` entry are re-checked on that candidate.
+1. **The pre-rc.3 build with round 2, in the Windows 11 25H2 qualification VM:**
+   - this record's finite check (an Explorer Cut moves, a Copy copies) through the real menu, and with `--probe-paste`;
+   - a Paste whose name already exists in the folder: the copy engine asks, and Skip or Cancel loses nothing;
+   - Explorer's clipboard after the paste (the cut list stays, as described above);
+   - Explorer's own empty-space menu: if it lists "Paste shortcut", record that FileCat's menu lacks it.
+2. **Hosted CI:** done at `c363d6e0` (x64 and ARM64; see above). A later change to the helper reopens it.
+3. **I629 and B12:** verb routing changed and `--probe-paste` is new, so I629's step 3 ("Paste is the Shell's, so an item cut in Explorer moves") and B12's inventory are re-checked on that candidate.
