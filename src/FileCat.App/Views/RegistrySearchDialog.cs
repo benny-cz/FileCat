@@ -4,6 +4,7 @@ using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.VisualTree;
+using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.Resources;
 using FileCat.Core.Search;
@@ -23,11 +24,26 @@ public sealed record SearchDialogResult(SearchDialogOutcome Outcome, ResultSet? 
 /// <summary>Registry-specific search fields; results reference original typed items.</summary>
 public static class RegistrySearchDialog
 {
-    private sealed record Row(ItemRef Item, string Folder)
+    internal sealed record Row(ItemRef Item, string Folder)
     {
         public string Name => Item.Name.Length == 0 ? "(Default)" : Item.Name;
         public string Kind => Item.Kind == EntryKind.RegistryKey ? "Key" : "Value";
+
+        // A result's accessibility peer falls back to its item's ToString (I653): the row as it reads, never the record's fields.
+        public override string ToString() => $"{Kind}, {Formatters.SafeName(Name)}, {Formatters.SafeName(Folder)}";
     }
+
+    /// <summary>A result as a row: its kind, name and key.</summary>
+    internal static readonly FuncDataTemplate<Row> ResultTemplate = new((row, _) =>
+    {
+        var line = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,2*,3*") };
+        line.Children.Add(new TextBlock { Text = row?.Kind, Classes = { "muted" }, Width = 52 });
+        var name = new TextBlock { Text = row?.Name, TextTrimming = TextTrimming.CharacterEllipsis };
+        Grid.SetColumn(name, 1); line.Children.Add(name);
+        var folder = new TextBlock { Text = row?.Folder, Classes = { "muted" }, TextTrimming = TextTrimming.CharacterEllipsis };
+        Grid.SetColumn(folder, 2); line.Children.Add(folder);
+        return line;
+    });
 
     public static async Task<SearchDialogResult> ShowAsync(MainViewModel vm, FileCat.Core.Resources.Location root)
     {
@@ -47,16 +63,7 @@ public static class RegistrySearchDialog
         var results = new ListBox
         {
             MinHeight = 240, ItemsSource = shown, Classes = { "choices" },
-            ItemTemplate = new FuncDataTemplate<Row>((row, _) =>
-            {
-                var line = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,2*,3*") };
-                line.Children.Add(new TextBlock { Text = row?.Kind, Classes = { "muted" }, Width = 52 });
-                var name = new TextBlock { Text = row?.Name, TextTrimming = TextTrimming.CharacterEllipsis };
-                Grid.SetColumn(name, 1); line.Children.Add(name);
-                var folder = new TextBlock { Text = row?.Folder, Classes = { "muted" }, TextTrimming = TextTrimming.CharacterEllipsis };
-                Grid.SetColumn(folder, 2); line.Children.Add(folder);
-                return line;
-            }),
+            ItemTemplate = ResultTemplate,
         };
         Avalonia.Automation.AutomationProperties.SetName(term, "Registry search text");
         Avalonia.Automation.AutomationProperties.SetName(rawText, "Raw bytes as hexadecimal pairs");

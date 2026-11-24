@@ -21,7 +21,7 @@ public sealed partial class MainViewModel
         Avalonia.Automation.AutomationProperties.SetName(list, "Themes");
         foreach (var name in names)
         {
-            list.Items.Add(new ListBoxItem
+            var item = new ListBoxItem
             {
                 Tag = name,
                 Content = new StackPanel
@@ -33,7 +33,11 @@ public sealed partial class MainViewModel
                         new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, Text = ThemeManager.Description(name), Classes = { "muted" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 500 },
                     },
                 },
-            });
+            };
+            // Named by what it shows: an item holding a panel is otherwise named after it, "Avalonia.Controls.StackPanel" (I653).
+            Avalonia.Automation.AutomationProperties.SetName(item, ThemeManager.DisplayName(name));
+            Avalonia.Automation.AutomationProperties.SetHelpText(item, ThemeManager.Description(name));
+            list.Items.Add(item);
         }
         list.SelectedIndex = Math.Max(0, names.ToList().IndexOf(original));
         list.SelectionChanged += (_, _) =>

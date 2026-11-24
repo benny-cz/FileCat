@@ -38,7 +38,15 @@ public sealed record ChoiceResult(int Index, bool Alternate, IReadOnlyList<int> 
 }
 
 public sealed record KeyboardHelpEntry(string Id, string Title, string Category, string? Gestures, string? Description,
-    bool Enabled = true, string? UnavailableReason = null, string? ContextLabel = null, string? DefaultGestures = null);
+    bool Enabled = true, string? UnavailableReason = null, string? ContextLabel = null, string? DefaultGestures = null)
+{
+    /// <summary>What the keyboard reference shows on the row's right: its shortcut, or "Unbound".</summary>
+    public string GestureText => string.IsNullOrEmpty(Gestures) ? "Unbound" : Gestures;
+
+    // A list item's accessibility peer falls back to its item's ToString (I653, as I583 for command search): the row's
+    // title and shortcut, as shown, never the record's fields.
+    public override string ToString() => Title + ", " + GestureText;
+}
 
 /// <summary>What the keyboard reference was left with: a command to run, or one whose shortcut to change.</summary>
 public sealed record KeyboardReferenceChoice(string CommandId, bool ChangeShortcut);

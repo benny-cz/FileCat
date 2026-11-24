@@ -44,6 +44,8 @@ public sealed partial class DiskSpaceWindow
                 panel.Children.Add(check);
             }
             else panel.Children.Add(new Border { Width = 30 });
+            // The list item takes its name from this panel, else from the row's record ("AnalysisHierarchyRow { Path = …", I653).
+            AutomationProperties.SetName(panel, AutomationProperties.GetName(row));
             panel.Children.Add(row); return panel;
         }
         private void AddSelectionControls()
