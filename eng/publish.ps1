@@ -104,9 +104,10 @@ if (-not $FromPayload) {
         @versionArgs -p:DebugType=embedded -p:StartupHookSupport=false -o $publish
     if ($LASTEXITCODE -ne 0) { throw "self-contained publish failed" }
 
+    # Its administrator window, too, must not run a startup hook that the account's environment names (I644).
     Write-Host "Publishing framework-dependent $Runtime"
     dotnet publish $project -c $Configuration -r $Runtime --self-contained false -p:PublishReadyToRun=true `
-        @versionArgs -p:DebugType=embedded -o $fdd
+        @versionArgs -p:DebugType=embedded -p:StartupHookSupport=false -o $fdd
     if ($LASTEXITCODE -ne 0) { throw "framework-dependent publish failed" }
 
     # The per-plan administrator helper (ADR-14) sits beside FileCat.exe; it runs only from Program Files.
@@ -177,10 +178,23 @@ if (-not $FromPayload) {
     }
 }
 
-$runtimeConfig = Get-Content -LiteralPath (Join-Path $publish 'FileCat.runtimeconfig.json') -Raw | ConvertFrom-Json
-$startupHooks = $runtimeConfig.runtimeOptions.configProperties.'System.StartupHookProvider.IsSupported'
-if ($startupHooks -isnot [bool] -or $startupHooks) {
-    throw 'The self-contained client must disable .NET startup hooks.'
+$expectedMachine = if ($Runtime -eq 'win-arm64') { 0xAA64 } else { 0x8664 }
+foreach ($payload in @($publish, $fdd)) {
+    $kind = if ($payload -eq $publish) { 'self-contained' } else { 'framework-dependent' }
+    $runtimeConfig = Get-Content -LiteralPath (Join-Path $payload 'FileCat.runtimeconfig.json') -Raw | ConvertFrom-Json
+    $startupHooks = $runtimeConfig.runtimeOptions.configProperties.'System.StartupHookProvider.IsSupported'
+    if ($startupHooks -isnot [bool] -or $startupHooks) {
+        throw "The $kind client must disable .NET startup hooks."
+    }
+    # Every Windows package opens its administrator window through this launcher (I644); FileCat refuses without it.
+    $launcher = Join-Path $payload 'FileCat.AdminLauncher.exe'
+    if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) { throw "The $kind payload lacks the administrator window launcher FileCat.AdminLauncher.exe." }
+    $bytes = [IO.File]::ReadAllBytes($launcher)
+    $header = if ($bytes.Length -ge 64) { [BitConverter]::ToInt32($bytes, 0x3C) } else { -1 }
+    if ($header -lt 0 -or $header + 6 -gt $bytes.Length -or [BitConverter]::ToUInt32($bytes, $header) -ne 0x4550 -or
+        [BitConverter]::ToUInt16($bytes, $header + 4) -ne $expectedMachine) {
+        throw "The $kind payload's FileCat.AdminLauncher.exe is not a $Runtime program."
+    }
 }
 
 if ($PayloadOnly) {

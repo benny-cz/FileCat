@@ -1,11 +1,18 @@
-<# Native entry point for the Windows administrator helper; runs before any CLR-selected code. #>
+<#
+Native Windows programs that FileCat builds with the Visual Studio C++ tools:
+  PrivilegedHost                the administrator helper's entry point, which runs before any CLR-selected code (I155)
+  AdministratorLauncher         FileCat.AdminLauncher.exe, beside FileCat.exe in every Windows build and package: it starts
+                                the administrator window without the account's .NET runtime settings (I644)
+  AdministratorLauncherStandIn  the launcher tests' stand-in for FileCat.exe; it ships in no package
+#>
 param(
     [Parameter(Mandatory)][string]$ProjectDirectory,
     [Parameter(Mandatory)][string]$OutputFile,
     [Parameter(Mandatory)][string]$IntermediateDirectory,
     [string]$Runtime = 'win-x64',
     [string]$Version = '0.1.0-preview',
-    [string]$SourceRevisionId = ''
+    [string]$SourceRevisionId = '',
+    [ValidateSet('PrivilegedHost', 'AdministratorLauncher', 'AdministratorLauncherStandIn')][string]$Component = 'PrivilegedHost'
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -18,15 +25,37 @@ function InputPin([string]$Path) {
     finally { $Hash.Dispose();$Stream.Dispose() }
     @{ Name=$File.Name; Path=$File.FullName; Bytes=$File.Length; SHA256=$Digest }
 }
-if ($Runtime -notin @('win-x64','win-arm64')) { throw 'The administrator bootstrap supports Windows x64 and ARM64.' }
+# Each program's source (<Stem>.cpp) and manifest in -ProjectDirectory, its output name, version resource, entry point and
+# libraries. The helper's values are the ones it was qualified with (I155).
+$Specification = @{
+    PrivilegedHost = @{
+        Stem = 'NativeBootstrap'; Manifest = 'app.manifest'; Output = 'FileCat.PrivilegedHost.exe'; InternalName = 'FileCat.PrivilegedHost'
+        Description = 'FileCat administrator helper: runs one approved plan, then exits'
+        Entry = 'wWinMainCRTStartup'; Libraries = 'shell32.lib ole32.lib user32.lib advapi32.lib'; Receipt = 'bootstrap-build.json'
+    }
+    AdministratorLauncher = @{
+        Stem = 'AdministratorLauncher'; Manifest = 'AdministratorLauncher.manifest'; Output = 'FileCat.AdminLauncher.exe'; InternalName = 'FileCat.AdminLauncher'
+        # Windows' elevation prompt names the program by this description.
+        Description = 'FileCat administrator window'
+        Entry = 'wWinMainCRTStartup'; Libraries = 'user32.lib'; Receipt = 'launcher-build.json'
+    }
+    AdministratorLauncherStandIn = @{
+        Stem = 'AdministratorLauncherStandIn'; Manifest = 'AdministratorLauncherStandIn.manifest'; Output = 'AdministratorLauncherStandIn.exe'
+        InternalName = 'AdministratorLauncherStandIn'; Description = 'FileCat administrator launcher test stand-in'
+        # A windowless program whose arguments the C runtime parses as FileCat.exe's .NET host parses its own.
+        Entry = 'wmainCRTStartup'; Libraries = 'user32.lib'; Receipt = 'stand-in-build.json'
+    }
+}[$Component]
+if ($Runtime -notin @('win-x64','win-arm64')) { throw 'FileCat''s native Windows programs support Windows x64 and ARM64.' }
 if ($Version -notmatch '^\d+\.\d+\.\d+(\.\d+)?(-[0-9A-Za-z.-]+)?$' -or $SourceRevisionId -notmatch '^([0-9a-fA-F]{40})?$') { throw 'Invalid build version or revision.' }
 $ProjectDirectory = [IO.Path]::GetFullPath($ProjectDirectory)
 $OutputFile = [IO.Path]::GetFullPath($OutputFile)
 $IntermediateDirectory = [IO.Path]::GetFullPath($IntermediateDirectory)
-if ([IO.Path]::GetFileName($OutputFile) -cne 'FileCat.PrivilegedHost.exe') { throw 'Unexpected bootstrap output name.' }
-$Source = Join-Path $ProjectDirectory 'NativeBootstrap.cpp'
-$Manifest = Join-Path $ProjectDirectory 'app.manifest'
-$Icon = [IO.Path]::GetFullPath((Join-Path $ProjectDirectory '../FileCat.App/Assets/filecat.ico'))
+if ([IO.Path]::GetFileName($OutputFile) -cne $Specification.Output) { throw 'Unexpected bootstrap output name.' }
+$Stem = $Specification.Stem
+$Source = Join-Path $ProjectDirectory ($Stem + '.cpp')
+$Manifest = Join-Path $ProjectDirectory $Specification.Manifest
+$Icon = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../src/FileCat.App/Assets/filecat.ico'))
 foreach ($Path in @($ProjectDirectory,$OutputFile,$IntermediateDirectory,$Source,$Manifest,$Icon)) {
     if ($Path -match '["%\r\n!^&|<>]') { throw 'Build paths contain unsupported command characters.' }
 }
@@ -57,16 +86,16 @@ if (Test-Path -LiteralPath $Temporary) { throw 'Native compiler temporary direct
 if ($Temporary -match '["%\r\n!^&|<>]' -or $Temporary.Length -gt 180) { throw 'Native tools need a short supported temporary path.' }
 [void][IO.Directory]::CreateDirectory($Temporary)
 try {
-$CompileSource = Join-Path $Temporary 'NativeBootstrap.cpp'
-$CompileManifest = Join-Path $Temporary 'app.manifest'
+$CompileSource = Join-Path $Temporary ($Stem + '.cpp')
+$CompileManifest = Join-Path $Temporary $Specification.Manifest
 $CompileIcon = Join-Path $Temporary 'filecat.ico'
 [IO.File]::Copy($Source,$CompileSource);[IO.File]::Copy($Manifest,$CompileManifest);[IO.File]::Copy($Icon,$CompileIcon)
-$Resource = Join-Path $Temporary 'NativeBootstrap.rc'
-$ResourceObject = Join-Path $Temporary 'NativeBootstrap.res'
-$NativeOutput = Join-Path $Temporary 'FileCat.PrivilegedHost.exe'
-$CompilerObject = Join-Path $Temporary 'NativeBootstrap.obj'
-$Dependencies = Join-Path $Temporary 'NativeBootstrap-dependencies.json'
-$LinkMap = Join-Path $Temporary 'NativeBootstrap.map'
+$Resource = Join-Path $Temporary ($Stem + '.rc')
+$ResourceObject = Join-Path $Temporary ($Stem + '.res')
+$NativeOutput = Join-Path $Temporary $Specification.Output
+$CompilerObject = Join-Path $Temporary ($Stem + '.obj')
+$Dependencies = Join-Path $Temporary ($Stem + '-dependencies.json')
+$LinkMap = Join-Path $Temporary ($Stem + '.map')
 # Fixed Win32 VERSIONINFO values: VOS_NT_WINDOWS32 and VFT_APP. The generated
 # resource needs no SDK header preprocessing; its icon is an explicit copied input.
 $ResourceText = @"
@@ -85,10 +114,10 @@ BEGIN
   BLOCK "040904b0"
   BEGIN
    VALUE "CompanyName", "FileCat\0"
-   VALUE "FileDescription", "FileCat administrator helper: runs one approved plan, then exits\0"
+   VALUE "FileDescription", "$($Specification.Description)\0"
    VALUE "FileVersion", "$Version\0"
-   VALUE "InternalName", "FileCat.PrivilegedHost\0"
-   VALUE "OriginalFilename", "FileCat.PrivilegedHost.exe\0"
+   VALUE "InternalName", "$($Specification.InternalName)\0"
+   VALUE "OriginalFilename", "$($Specification.Output)\0"
    VALUE "ProductName", "FileCat\0"
    VALUE "ProductVersion", "$Version+$SourceRevisionId\0"
   END
@@ -115,7 +144,7 @@ if errorlevel 1 exit /b 1
 set VSLANG=1033
 rc.exe /nologo /fo"$ResourceObject" "$Resource"
 if errorlevel 1 exit /b 1
-cl.exe /nologo /Bv /sourceDependencies "$Dependencies" /std:c++17 /utf-8 /EHsc /MT /O1 /W4 /WX /DUNICODE /D_UNICODE /Fo"$CompilerObject" "$CompileSource" /link /VERBOSE:LIB /INCREMENTAL:NO /Brepro /MAP:"$LinkMap" /SUBSYSTEM:WINDOWS /ENTRY:wWinMainCRTStartup /MANIFEST:EMBED /MANIFESTINPUT:"$CompileManifest" /MANIFESTUAC:NO /OUT:"$NativeOutput" "$ResourceObject" shell32.lib ole32.lib user32.lib advapi32.lib
+cl.exe /nologo /Bv /sourceDependencies "$Dependencies" /std:c++17 /utf-8 /EHsc /MT /O1 /W4 /WX /DUNICODE /D_UNICODE /Fo"$CompilerObject" "$CompileSource" /link /VERBOSE:LIB /INCREMENTAL:NO /Brepro /MAP:"$LinkMap" /SUBSYSTEM:WINDOWS /ENTRY:$($Specification.Entry) /MANIFEST:EMBED /MANIFESTINPUT:"$CompileManifest" /MANIFESTUAC:NO /OUT:"$NativeOutput" "$ResourceObject" $($Specification.Libraries)
 if errorlevel 1 exit /b 1
 "@
 [IO.File]::WriteAllText($Batch,($BatchText -replace "`r?`n","`r`n"),[Text.Encoding]::Default)
@@ -164,7 +193,11 @@ foreach ($Line in @($Stderr -split "`r?`n")) {
     }
 }
 if (@($ToolComponents.Values | Where-Object { $_.Name -ieq 'link.exe' }).Count -ne 1) { throw 'Native compiler pass/linker report is incomplete.' }
-$Receipt = [ordered]@{ Runtime=$Runtime; Version=$Version; SourceRevisionId=$SourceRevisionId; NativeBootstrap=$true; ManagedMainPreserved=$true; Files=@() }
+$Receipt = if ($Component -eq 'PrivilegedHost') {
+    [ordered]@{ Runtime=$Runtime; Version=$Version; SourceRevisionId=$SourceRevisionId; NativeBootstrap=$true; ManagedMainPreserved=$true; Files=@() }
+} else {
+    [ordered]@{ Runtime=$Runtime; Version=$Version; SourceRevisionId=$SourceRevisionId; Component=$Component; Output=$Specification.Output; Files=@() }
+}
 foreach ($Path in @($Source,$Manifest,$Icon,$Resource,$ResourceObject,$Compiler,$ResourceCompiler,$NativeOutput)) {
     $Pin=InputPin $Path
     $Receipt.Files+=@{ Name=$Pin.Name; Bytes=$Pin.Bytes; SHA256=$Pin.SHA256 }
@@ -178,19 +211,20 @@ $Receipt['NativeInputInventory']=[ordered]@{
     ResourceCompilerFileInputs=@($Resource,$CompileIcon | ForEach-Object { InputPin $_ })
     ResourceCompilerHeaderIncludes=@()
     CompiledResource=(InputPin $ResourceObject)
-    RetainedEvidenceFiles=@('source-dependencies.json','NativeBootstrap.map','NativeBootstrap.rc','NativeBootstrap.res','compiler-stdout.log','compiler-stderr.log')
+    RetainedEvidenceFiles=@('source-dependencies.json',"$Stem.map","$Stem.rc","$Stem.res",'compiler-stdout.log','compiler-stderr.log')
     InputPinTiming='After successful compilation; these pins are not a trace of individual bytes read.'
     ResourceCompilerHeaderDependenciesVerified=$true
     LicenseAndSystemLibraryClassificationComplete=$false
 }
-[IO.File]::WriteAllText((Join-Path $IntermediateDirectory 'bootstrap-build.json'),($Receipt | ConvertTo-Json -Depth 8),[Text.Encoding]::UTF8)
+[IO.File]::WriteAllText((Join-Path $IntermediateDirectory $Specification.Receipt),($Receipt | ConvertTo-Json -Depth 8),[Text.Encoding]::UTF8)
 [IO.File]::Copy($Dependencies,(Join-Path $IntermediateDirectory 'source-dependencies.json'),$true)
-[IO.File]::Copy($LinkMap,(Join-Path $IntermediateDirectory 'NativeBootstrap.map'),$true)
+[IO.File]::Copy($LinkMap,(Join-Path $IntermediateDirectory "$Stem.map"),$true)
 Move-Item -LiteralPath $NativeOutput -Destination $OutputFile -Force
 [IO.File]::Copy($Batch,(Join-Path $IntermediateDirectory 'BuildNativeBootstrap.cmd'),$true)
-[IO.File]::Copy($Resource,(Join-Path $IntermediateDirectory 'NativeBootstrap.rc'),$true)
-[IO.File]::Copy($ResourceObject,(Join-Path $IntermediateDirectory 'NativeBootstrap.res'),$true)
-Write-Host ("Native bootstrap built: {0} reported headers, {1} searched libraries, {2} reported tool components." -f $HeaderPins.Count,$Libraries.Count,$ToolComponents.Count)
+[IO.File]::Copy($Resource,(Join-Path $IntermediateDirectory "$Stem.rc"),$true)
+[IO.File]::Copy($ResourceObject,(Join-Path $IntermediateDirectory "$Stem.res"),$true)
+$Built = if ($Component -eq 'PrivilegedHost') { 'Native bootstrap' } else { $Specification.Output }
+Write-Host ("{3} built: {0} reported headers, {1} searched libraries, {2} reported tool components." -f $HeaderPins.Count,$Libraries.Count,$ToolComponents.Count,$Built)
 }
 finally {
     if (!(Remove-BootstrapTemporary -Temporary $Temporary -TemporaryParent $TemporaryParent)) {
