@@ -5426,3 +5426,19 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - The Windows VM's drawer keyboard failure was a real defect, I633. Instrumented, the full App run showed Down moving the keyboard to the next interrupted operation while the chosen one, whose actions are shown, stayed behind. Focus that reaches a row by Tab or programmatically also left the choice behind, on any machine. PR #19 (`bfefc469`, merged as `58ac8453`) makes the row with the keyboard the chosen one; with it, the full App suite passed on the Windows host and the VM. [I633](evidence/E-I633-interrupted-list-focus-choice.md).
 - PR #17 merged, and `release/1.0` was synced again at `d0ebd1d3` through PR #18, which merged as `f9f8f1cb`. Two more hosted test failures in jobs that are not required, an owner-column test and a place-bar layout check, passed on re-run. [Sync record](evidence/E-REL-SYNC-20261124-release-branch.md).
+
+## 2026-11-24 — Third sync of the day
+
+- With PR #19 merged and no PR open, `release/1.0` was synced at `dae7207c` through PR #20, which merged as `8f122365` after its first CI attempt passed every job. It brings the I633 fix, and the branch's tree equals main's. [Sync record](evidence/E-REL-SYNC-20261124-release-branch.md).
+
+## 2026-11-24 — `v1.0.0-rc.1`
+
+- The owner answered "Yes, tag rc.1". Annotated tag `5712f08e` points to `release/1.0` `8f122365`, and the answer also accepted the DEC-09 amendment for RC drafts. [rc.1](evidence/E-RC1-TAG-20261124.md).
+- Tagged run 45350703310 passed every job in its first attempt: 19 test jobs, identical test by test to PR #20's run of the same tree, and the three package jobs. The owner approved the `signing` run in GitHub. Both runtimes were signed with the owner's certificate and verified, and the candidate's 24 assets and its signing records went into private drafts. Nothing was published.
+- The packages call themselves `1.0.0-rc.1`. Promoted unchanged as 1.0.0, they would offer 1.0.0 to their own users as an update: [I634](evidence/E-I634-candidate-version-identity.md). A successor candidate follows the fix.
+- Native runs of the same source: the Mac passed, Ubuntu failed only the locked-keyring test, and Windows was still running. [Native runs](evidence/E-REL-NATIVE-20261124-rc1-source.md).
+
+## 2026-11-24 — I634 fixed at source
+
+- PR #21 (`bbcbdbdc`, merged as `fac2ec40`) builds a candidate as FileCat 1.0.0 throughout and records its RC tag in the producer manifests. The draft checks expect that, and each package job now checks the version its packages report. PR run 45359654262 passed every job. Candidate-mode builds on Windows and Ubuntu report 1.0.0 in every name and version. [I634](evidence/E-I634-candidate-version-identity.md).
+- The Windows VM's native run of the rc.1 source passed every lane: 20,321 passed, 2,476 skipped, 0 failed. With the Mac's clean run and Ubuntu's locked-keyring failure, the source's native runs are complete. [Native runs](evidence/E-REL-NATIVE-20261124-rc1-source.md).

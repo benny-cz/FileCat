@@ -60,7 +60,12 @@ $Cases = @(
     @{Name='candidate-linux-draft';Platform='linux';Candidate=$true},
     @{Name='candidate-uploaded-complete';Verify=$true;Candidate=$true},
     @{Name='candidate-preview-reference';Candidate=$true;Error='Signed-candidate asset upload requires a 1.0.0 RC tag'},
-    @{Name='candidate-published-release';Candidate=$true;Error='Existing release is not a signed-candidate draft'}
+    @{Name='candidate-published-release';Candidate=$true;Error='Existing release is not a signed-candidate draft'},
+    # A candidate's files are FileCat 1.0.0 and its manifest names the RC tag that built them (I634).
+    @{Name='candidate-wrong-version';Candidate=$true;Error='Manifest source, version or platform differs'},
+    @{Name='candidate-wrong-candidate-ref';Candidate=$true;Error='Manifest candidate reference differs'},
+    @{Name='candidate-missing-candidate-ref';Candidate=$true;Error='Manifest candidate reference differs'},
+    @{Name='preview-candidate-ref';Error='Manifest candidate reference differs'}
 )
 $Observations = [Collections.Generic.List[object]]::new()
 $OriginalToken = $env:GH_TOKEN
@@ -72,7 +77,7 @@ function Invoke-RestMethod($Uri,$Headers,$Method,$TimeoutSec) {
     $Calls.Add($Suffix)
     if ($Base -eq 'api-failure') { throw 'Synthetic unavailable API.' }
     if ($Suffix.StartsWith('git/ref/tags/')) {
-        if ($Suffix -cne "git/ref/tags/v$CaseVersion") { throw 'Unexpected reference request.' }
+        if ($Suffix -cne "git/ref/tags/$CaseTag") { throw 'Unexpected reference request.' }
         return [pscustomobject]@{object=[pscustomobject]@{type=$(if ($Base -in @('macos-annotated','annotated-depth')) {'tag'} else {'commit'});sha=$(if ($Base -eq 'remote-source-change') {'1123456789abcdef0123456789abcdef01234567'} else {$Source})}}
     }
     if ($Suffix.StartsWith('git/tags/')) { return [pscustomobject]@{object=[pscustomobject]@{type=$(if ($Base -eq 'annotated-depth') {'tag'} else {'commit'});sha=$Source}} }
@@ -82,7 +87,7 @@ function Invoke-RestMethod($Uri,$Headers,$Method,$TimeoutSec) {
         if ($Base -eq 'windows-new-irm-empty') { Write-Output -NoEnumerate -InputObject ([object[]]@()); return }
         if ($Base -eq 'release-malformed-row') { return @([pscustomobject]@{message='synthetic malformed row'}) }
         if ($Base -in @('windows-new','macos-annotated')) { Write-Output -NoEnumerate -InputObject ([object[]]@()); return }
-        $Draft = [pscustomobject]@{id=51;tag_name="v$CaseVersion";draft=($Base -ne 'published-release');prerelease=$true;immutable=($Base -eq 'immutable-release')}
+        $Draft = [pscustomobject]@{id=51;tag_name=$CaseTag;draft=($Base -ne 'published-release');prerelease=$true;immutable=($Base -eq 'immutable-release')}
         if ($Base -eq 'ambiguous-release') { return @($Draft,$Draft) }
         return @($Draft)
     }
@@ -106,8 +111,11 @@ try {
     foreach ($Case in $Cases) {
         $IsCandidate = $Case.ContainsKey('Candidate')
         $Base = $Case.Name -replace '^candidate-', ''
-        $CaseVersion = if ($IsCandidate) {'1.0.0-rc.1'} else {$Version}
-        $CaseReference = "refs/tags/v$CaseVersion"
+        # A candidate's packages are named 1.0.0 and selected with the RC tag that built them (I634).
+        $CaseVersion = if ($IsCandidate) {'1.0.0'} else {$Version}
+        $CaseTag = if ($IsCandidate) {'v1.0.0-rc.1'} else {"v$Version"}
+        $CaseReference = "refs/tags/$CaseTag"
+        $CandidateSelection = if ($IsCandidate) {@{CandidateRef=$CaseReference}} else {@{}}
         $Directory = Join-Path $Root $Case.Name
         [void][IO.Directory]::CreateDirectory($Directory)
         $Platform = if ($Case.ContainsKey('Platform')) {$Case.Platform} else {'macos'}
@@ -118,16 +126,19 @@ try {
         }
         $Names = @($Names | ForEach-Object { $_.Replace('1.0.0-preview.3', $CaseVersion) })
         foreach ($Name in $Names) { [IO.File]::WriteAllText((Join-Path $Directory $Name),"external owned contract: $Name") }
-        $Selection = & (Join-Path $Eng 'Select-ReleaseAssets.ps1') -Platform $Platform -Version $CaseVersion -SourceCommit $Source -ArtifactDirectory $Directory
+        $Selection = & (Join-Path $Eng 'Select-ReleaseAssets.ps1') -Platform $Platform -Version $CaseVersion -SourceCommit $Source -ArtifactDirectory $Directory @CandidateSelection
         $PackageName = $Selection.Manifest.Files[0].Name
         $Hash = (Get-FileHash -LiteralPath $Selection.ManifestPath).Hash.ToLowerInvariant()
         if ($Base -eq 'manifest-hash-change') { [IO.File]::AppendAllText($Selection.ManifestPath,' ') }
         if ($Base -eq 'package-hash-change') { [IO.File]::AppendAllText((Join-Path $Directory $PackageName),'changed') }
-        if ($Base -in @('wrong-source','wrong-version','unexpected-name')) {
+        if ($Base -in @('wrong-source','wrong-version','unexpected-name','wrong-candidate-ref','missing-candidate-ref','preview-candidate-ref')) {
             $Manifest = Get-Content -Raw -LiteralPath $Selection.ManifestPath | ConvertFrom-Json
             if ($Base -eq 'wrong-source') {$Manifest.SourceCommit='1123456789abcdef0123456789abcdef01234567'}
             if ($Base -eq 'wrong-version') {$Manifest.Version='1.0.0-rc.2'}
             if ($Base -eq 'unexpected-name') {$Manifest.Files[0].Name='../outside.zip'}
+            if ($Base -eq 'wrong-candidate-ref') {$Manifest.CandidateRef='refs/tags/v1.0.0-rc.2'}
+            if ($Base -eq 'missing-candidate-ref') {$Manifest.PSObject.Properties.Remove('CandidateRef')}
+            if ($Base -eq 'preview-candidate-ref') {$Manifest | Add-Member -NotePropertyName CandidateRef -NotePropertyValue 'refs/tags/v1.0.0-rc.1'}
             [IO.File]::WriteAllText($Selection.ManifestPath,($Manifest | ConvertTo-Json -Depth 6))
             $Hash = (Get-FileHash -LiteralPath $Selection.ManifestPath).Hash.ToLowerInvariant()
         }

@@ -25,7 +25,9 @@ elseif ($Policy.Mode -cne 'prerelease' -or $Reference -cnotmatch '^refs/tags/v1\
     throw 'Draft asset upload requires a 1.0.0 preview tag; RC artifacts need the separate signed-candidate path.'
 }
 $Tag = $Reference.Substring('refs/tags/'.Length)
-$Version = $Tag.Substring(1)
+# A candidate's packages are FileCat 1.0.0 built from its RC tag (I634), and their manifest records that tag; a
+# preview's packages carry the preview's own version and no candidate reference.
+$Version = if ($SignedCandidate) { '1.0.0' } else { $Tag.Substring(1) }
 $Path = [IO.Path]::GetFullPath($ManifestPath)
 $Directory = [IO.Path]::GetDirectoryName($Path)
 $Current = Get-Item -LiteralPath $Directory -Force
@@ -44,6 +46,8 @@ $ManifestPin = Get-AssetPin $Path
 if ($ManifestPin.SHA256 -cne $ManifestSHA256) { throw 'Selected manifest bytes changed.' }
 $Manifest = [IO.File]::ReadAllText($Path) | ConvertFrom-Json
 if ($Manifest.SourceCommit -cne $SourceCommit -or $Manifest.Version -cne $Version -or $Manifest.Platform -cnotin @('windows','linux','macos')) { throw 'Manifest source, version or platform differs from producer identity.' }
+$ManifestCandidate = if ($Manifest.PSObject.Properties.Name -contains 'CandidateRef') { $Manifest.CandidateRef } else { $null }
+if ($(if ($SignedCandidate) { $ManifestCandidate -cne $Reference } else { $null -ne $ManifestCandidate })) { throw 'Manifest candidate reference differs from producer identity.' }
 if ($ManifestPin.Name -cne "FileCat-$Version-$($Manifest.Platform)-assets.json") { throw 'Manifest name differs from producer identity.' }
 $NumericVersion = ($Version -split '-')[0]
 $Names = @(switch ($Manifest.Platform) {

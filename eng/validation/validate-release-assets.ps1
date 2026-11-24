@@ -16,12 +16,12 @@ $TemporaryParent = [IO.Path]::GetFullPath((Join-Path $TemporaryBase 'FileCatVali
 $TestRoot = Join-Path $TemporaryParent ('filecat-release-assets-' + [guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($TestRoot)
 $Commit = '0123456789abcdef0123456789abcdef01234567'
-$Version = '1.0.0-rc.1-extra'
+$Version = '1.0.0-preview.1-extra'
 $Contract = @{
-    windows=@('FileCat-1.0.0-win-x64-setup.exe','FileCat-1.0.0-rc.1-extra-win-x64-portable.zip','FileCat-1.0.0-rc.1-extra-win-x64-fdd.zip','sbom-1.0.0-rc.1-extra-win-x64-setup-payload.spdx.json','sbom-1.0.0-rc.1-extra-win-x64-portable.spdx.json','sbom-1.0.0-rc.1-extra-win-x64-fdd.spdx.json',
-        'FileCat-1.0.0-win-arm64-setup.exe','FileCat-1.0.0-rc.1-extra-win-arm64-portable.zip','FileCat-1.0.0-rc.1-extra-win-arm64-fdd.zip','sbom-1.0.0-rc.1-extra-win-arm64-setup-payload.spdx.json','sbom-1.0.0-rc.1-extra-win-arm64-portable.spdx.json','sbom-1.0.0-rc.1-extra-win-arm64-fdd.spdx.json')
-    linux=@('FileCat-1.0.0-rc.1-extra-linux-x64.tar.gz','filecat_1.0.0-rc.1-extra_amd64.deb','FileCat-1.0.0-rc.1-extra-x86_64.AppImage','FileCat-1.0.0-rc.1-extra-linux-x64-appimage-runtime-source.tar.gz','sbom-1.0.0-rc.1-extra-linux-x64-tar.spdx.json','sbom-1.0.0-rc.1-extra-linux-x64-deb.spdx.json','sbom-1.0.0-rc.1-extra-linux-x64-appimage.spdx.json')
-    macos=@('FileCat-1.0.0-rc.1-extra-osx-arm64.zip','sbom-1.0.0-rc.1-extra-osx-arm64-macos-app.spdx.json')
+    windows=@('FileCat-1.0.0-win-x64-setup.exe','FileCat-1.0.0-preview.1-extra-win-x64-portable.zip','FileCat-1.0.0-preview.1-extra-win-x64-fdd.zip','sbom-1.0.0-preview.1-extra-win-x64-setup-payload.spdx.json','sbom-1.0.0-preview.1-extra-win-x64-portable.spdx.json','sbom-1.0.0-preview.1-extra-win-x64-fdd.spdx.json',
+        'FileCat-1.0.0-win-arm64-setup.exe','FileCat-1.0.0-preview.1-extra-win-arm64-portable.zip','FileCat-1.0.0-preview.1-extra-win-arm64-fdd.zip','sbom-1.0.0-preview.1-extra-win-arm64-setup-payload.spdx.json','sbom-1.0.0-preview.1-extra-win-arm64-portable.spdx.json','sbom-1.0.0-preview.1-extra-win-arm64-fdd.spdx.json')
+    linux=@('FileCat-1.0.0-preview.1-extra-linux-x64.tar.gz','filecat_1.0.0-preview.1-extra_amd64.deb','FileCat-1.0.0-preview.1-extra-x86_64.AppImage','FileCat-1.0.0-preview.1-extra-linux-x64-appimage-runtime-source.tar.gz','sbom-1.0.0-preview.1-extra-linux-x64-tar.spdx.json','sbom-1.0.0-preview.1-extra-linux-x64-deb.spdx.json','sbom-1.0.0-preview.1-extra-linux-x64-appimage.spdx.json')
+    macos=@('FileCat-1.0.0-preview.1-extra-osx-arm64.zip','sbom-1.0.0-preview.1-extra-osx-arm64-macos-app.spdx.json')
 }
 $Observations = [Collections.Generic.List[object]]::new()
 try {
@@ -54,6 +54,36 @@ try {
         catch { $Refused = $true }
         if (-not $Refused -or [Convert]::ToHexString([IO.File]::ReadAllBytes($Result.ManifestPath)) -cne [Convert]::ToHexString($Original)) { throw 'Existing manifest was not preserved.' }
         $Observations.Add(@{Platform=$Platform;Assets=$Names.Count;HashesVerified=$true;ExtraExcluded=$true;ExistingManifestPreserved=$true;GitHubSafeNames=$true})
+    }
+    # A candidate is selected as 1.0.0 with its RC tag's reference (I634): every name says 1.0.0 and the manifest keeps the tag.
+    $CandidateRef = 'refs/tags/v1.0.0-rc.1'
+    foreach ($Platform in @('windows','linux','macos')) {
+        $Root = Join-Path $TestRoot "candidate-$Platform"
+        [void][IO.Directory]::CreateDirectory($Root)
+        $Names = @($Contract[$Platform] | ForEach-Object { $_.Replace('1.0.0-preview.1-extra', '1.0.0') })
+        foreach ($Name in $Names) { [IO.File]::WriteAllBytes((Join-Path $Root $Name), [Text.Encoding]::UTF8.GetBytes("owned candidate fixture: $Name")) }
+        $Result = & $Selector -Platform $Platform -Version 1.0.0 -CandidateRef $CandidateRef -SourceCommit $Commit -ArtifactDirectory $Root
+        $Manifest = Get-Content -LiteralPath $Result.ManifestPath -Raw | ConvertFrom-Json
+        if (($Manifest.Files.Name -join "`n") -cne ($Names -join "`n") -or [IO.Path]::GetFileName($Result.ManifestPath) -cne "FileCat-1.0.0-$Platform-assets.json") { throw 'Candidate assets differ from the 1.0.0 filename contract.' }
+        if ($Manifest.Version -cne '1.0.0' -or $Manifest.CandidateRef -cne $CandidateRef -or -not $Manifest.InstallerVersionSuffixPreserved) { throw 'Candidate manifest identity is incorrect.' }
+        $Observations.Add(@{Platform=$Platform;Case='candidate';Assets=$Names.Count;CandidateRefRecorded=$true})
+    }
+    foreach ($Refusal in @(
+        @{Case='rc-named';Version='1.0.0-rc.1';Error='Candidate packages are named 1.0.0'},
+        @{Case='release-without-reference';Version='1.0.0';Error='A release-version package set needs its candidate reference'},
+        @{Case='candidate-rc-named';Version='1.0.0-rc.1';Reference=$CandidateRef;Error='A candidate is selected as version 1.0.0'},
+        @{Case='candidate-preview-reference';Version='1.0.0';Reference='refs/tags/v1.0.0-preview.3';Error='A candidate is selected as version 1.0.0'},
+        @{Case='candidate-loose-reference';Version='1.0.0';Reference='refs/tags/v1.0.0-rc.01';Error='A candidate is selected as version 1.0.0'})) {
+        $Root = Join-Path $TestRoot "refusal-$($Refusal.Case)"
+        [void][IO.Directory]::CreateDirectory($Root)
+        foreach ($Name in @($Contract.macos | ForEach-Object { $_.Replace('1.0.0-preview.1-extra', $Refusal.Version) })) { [IO.File]::WriteAllText((Join-Path $Root $Name), 'owned fixture') }
+        $Output = Join-Path $Root 'github-output.txt'
+        $Arguments = @{Platform='macos';Version=$Refusal.Version;SourceCommit=$Commit;ArtifactDirectory=$Root;GitHubOutputPath=$Output}
+        if ($Refusal.ContainsKey('Reference')) { $Arguments.CandidateRef = $Refusal.Reference }
+        $ErrorText = $null
+        try { & $Selector @Arguments | Out-Null } catch { $ErrorText = $_.ToString() }
+        if ($null -eq $ErrorText -or -not $ErrorText.StartsWith($Refusal.Error) -or (Test-Path -LiteralPath $Output) -or @(Get-ChildItem -LiteralPath $Root -Filter '*-assets.json').Count) { throw "Candidate naming case $($Refusal.Case) did not refuse before output: $ErrorText" }
+        $Observations.Add(@{Case=$Refusal.Case;RefusedBeforeOutput=$true})
     }
     foreach ($Kind in @('missing','empty','directory','invalid-version','glob-root')) {
         $Root = Join-Path $TestRoot $(if ($Kind -eq 'glob-root') { 'glob[fixture]' } else { $Kind })

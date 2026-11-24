@@ -1,4 +1,4 @@
-# E-REL-SYNC-20261124 — `release/1.0` synced with main at `84cca148`, then at `d0ebd1d3`
+# E-REL-SYNC-20261124 — `release/1.0` synced with main three times: at `84cca148`, `d0ebd1d3` and `dae7207c`
 
 2026-11-24 (UTC). **Release-branch maintenance; no candidate, tag or publication.** The owner's standing instruction is to sync `release/1.0` with main once every open PR has merged. After PR #14 ([E-REL-SYNC-20261123](E-REL-SYNC-20261123-release-branch.md)), main merged PRs #13, #12 and #15 and the release records `a7ff2531`. No PR was then open, so the branch was synced through PR #16.
 
@@ -39,6 +39,19 @@ Covering `48d3de08` to `84cca148`:
 - **CI:** [PR run 45311340608](https://github.com/benny-cz/FileCat/actions/runs/45311340608) passed all 19 jobs that ran in its first attempt.
 - **Merge:** [PR #18](https://github.com/benny-cz/FileCat/pull/18) was merged as `f9f8f1cb` at 2026-11-24T03:02:47Z, pinned to the tested head; the branch was deleted. `release/1.0`'s tree then equalled `d0ebd1d3`'s.
 
+## Third sync: main at `dae7207c` (PR #20)
+
+- **Source:** `dae7207c`, main's tip. It holds the records of I633 and of the second sync, on top of `58ac8453`, the merge of [PR #19](https://github.com/benny-cz/FileCat/pull/19). PR #19 had merged and no PR was open. Main's run 45322746301 of `58ac8453` passed.
+- **What came in:**
+  - `bfefc469` (PR #19, [I633](E-I633-interrupted-list-focus-choice.md)): `OperationsView.axaml`, `OperationsView.axaml.cs` and `OperationsDrawerLayoutTests.cs`. The interrupted operation that has the keyboard becomes the chosen one.
+  - `dae7207c`: the records.
+
+  No workflows, packages or build configuration changed, and the quick scan found no secrets, email addresses or new skips.
+- **Sync branch:** `sync/release-1.0-dae7207c7` was pushed at `ea2f58cd`, with parents `dae7207c` and `f9f8f1cb`.
+- **CI:** [PR run 45323047164](https://github.com/benny-cz/FileCat/actions/runs/45323047164) passed all 19 jobs that ran in its first attempt.
+- **Merge:** [PR #20](https://github.com/benny-cz/FileCat/pull/20) was merged as `8f122365` at 2026-11-24T04:47:37Z, pinned to the tested head; the branch was deleted.
+- **Result:** `release/1.0` is at `8f122365`, with parents `f9f8f1cb` and `ea2f58cd`. Its tree equals `dae7207c`'s, which was main's tip.
+
 ## Test failures seen on the way
 
 All were on hosted runners, in jobs that are not required, in tests that the changes being checked did not touch, and each passed in a later run of the same test code.
@@ -63,5 +76,5 @@ All were on hosted runners, in jobs that are not required, in tests that the cha
 
 ## Not shown
 
-- Main's commits after `d0ebd1d3`: PR #19 ([I633](E-I633-interrupted-list-focus-choice.md)) and the records of these syncs. They follow in a later sync.
+- The records of the third sync, which stay on main until a later sync.
 - The causes of the tooltip, owner-column and place-bar failures, and of the hosted macOS failures recorded in E-REL-SYNC-20261123.

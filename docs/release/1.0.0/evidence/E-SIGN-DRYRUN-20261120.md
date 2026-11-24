@@ -154,7 +154,7 @@ Each refusal logged events 3077, 3033, 3089 (twice) and 3118. All 15 Code Integr
 
 ## Candidate signing in the tagged pipeline
 
-2026-11-23. [PR #7](https://github.com/benny-cz/FileCat/pull/7) brings the piloted signing into the tagged pipeline. It merged into main as `3069448f` and reached `release/1.0` through PR #8. Nothing has run it for real, because no `v1.0.0-rc.N` tag exists.
+2026-11-23. [PR #7](https://github.com/benny-cz/FileCat/pull/7) brings the piloted signing into the tagged pipeline. It merged into main as `3069448f` and reached `release/1.0` through PR #8. Nothing ran it for real until `v1.0.0-rc.1` on 2026-11-24 ([rc.1](E-RC1-TAG-20261124.md#tagged-run)).
 
 ### What a `v1.0.0-rc.N` tag now runs
 
@@ -180,11 +180,11 @@ Each runtime needs 55 distinct payload files, Setup and the uninstaller signed, 
 
 ### DEC-09
 
-DEC-09 makes drafts in the `release` environment. PR #7 proposes an amendment:
+DEC-09 makes drafts in the `release` environment. PR #7 proposed an amendment:
 - For RC tags, the owner-approved `signing` job creates the candidate's private draft, so signed bytes never pass through workflow artifacts.
 - Previews keep `release` as their only release-write environment.
 
-The owner had PR #7 merged. No separate decision on the amendment is recorded.
+The owner had PR #7 merged on 2026-11-23. On 2026-11-24 they accepted the amendment by answering yes to tagging `v1.0.0-rc.1`, a question that said the yes would be recorded as this decision ([owner decision](E-RC1-TAG-20261124.md#the-owners-decision)).
 
 ### Test-certificate dry run of the candidate path
 
@@ -197,6 +197,4 @@ The owner had PR #7 merged. No separate decision on the amendment is recorded.
 
 ### Not shown
 
-- A real RC tag run: eSigner signing of both runtimes, the owner's approval step, and the candidate's private drafts.
 - Installing the ARM64 Setup, and Smart App Control on ARM64.
-- An owner decision on the proposed DEC-09 amendment.
