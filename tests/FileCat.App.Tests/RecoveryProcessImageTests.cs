@@ -8,7 +8,8 @@ namespace FileCat.App.Tests;
 /// I646: the recovery process census runs as root on Linux and reads each process's executable image to recognise a
 /// renamed FileCat apphost. Linux names a deleted image "&lt;path&gt; (deleted)" (Process.MainModule), and any account
 /// that can write the folder can create that name again, as a FIFO or as a link. The census reads the image the process
-/// runs instead, without waiting; macOS, which only names images, opens the name without following links or waiting.
+/// runs instead, without waiting; macOS, which only names images, opens only a regular file at the name, without
+/// following any link on it or waiting.
 /// </summary>
 public sealed class RecoveryProcessImageTests
 {
@@ -29,7 +30,10 @@ public sealed class RecoveryProcessImageTests
 
     public enum Planted { Fifo, LinkToFile, LinkToDevice, File }
 
-    public enum Named { Fifo, Link, FolderLink, Regular, AppHost }
+    public enum Named { Fifo, Device, Link, FolderLink, Regular, AppHost }
+
+    // A FIFO, device or link at the name is refused before anything is opened; a link on a folder by the open itself.
+    private const string NotOpened = "the named image is not a regular file";
 
     [Theory]
     [InlineData(Planted.Fifo, true)]
@@ -118,12 +122,14 @@ public sealed class RecoveryProcessImageTests
     }
 
     [Theory]
-    [InlineData(Named.Fifo, null)]
-    [InlineData(Named.Link, null)]
-    [InlineData(Named.FolderLink, null)]
-    [InlineData(Named.Regular, false)]
-    [InlineData(Named.AppHost, true)]
-    public void A_named_image_opens_without_following_links_or_waiting_and_is_read_only_when_regular(Named kind, bool? expected)
+    [InlineData(Named.Fifo, null, NotOpened)]
+    [InlineData(Named.Device, null, NotOpened)]
+    [InlineData(Named.Link, null, NotOpened)]
+    [InlineData(Named.FolderLink, null, "image error 62")] // ELOOP
+    [InlineData(Named.Regular, false, null)]
+    [InlineData(Named.AppHost, true, null)]
+    public void A_named_image_opens_without_following_links_or_waiting_and_is_read_only_when_regular(Named kind, bool? expected,
+        string? why)
     {
         if (OperatingSystem.IsWindows()) { Assert.Skip("Unix executable names."); return; }
         if (kind == Named.FolderLink && !OperatingSystem.IsMacOS())
@@ -142,6 +148,9 @@ public sealed class RecoveryProcessImageTests
                 case Named.Fifo:
                     Assert.Equal(0, MkFifo(path, 0x180));
                     break;
+                case Named.Device:
+                    path = "/dev/zero";
+                    break;
                 case Named.Link:
                     File.CreateSymbolicLink(path, appHost);
                     break;
@@ -156,25 +165,59 @@ public sealed class RecoveryProcessImageTests
                     path = appHost;
                     break;
             }
-            Assert.Equal(expected, Within(() => SingleInstance.ImageAtPathIsFileCat(path, out _),
+            string? reason = null;
+            Assert.Equal(expected, Within(() => SingleInstance.ImageAtPathIsFileCat(path, out reason),
                 $"Reading the image named as {kind}", kind == Named.Fifo ? path : null));
+            TestContext.Current.TestOutputHelper?.WriteLine($"{kind}: {reason ?? "read"}");
+            Assert.Equal(why, reason);
         }
         finally { Directory.Delete(folder, recursive: true); }
+    }
+
+    [Fact]
+    public void A_fifo_at_an_images_name_is_never_opened()
+    {
+        if (OperatingSystem.IsWindows()) { Assert.Skip("Unix executable names."); return; }
+        string folder = NewFolder();
+        string fifo = Path.Combine(folder, "image");
+        Assert.Equal(0, MkFifo(fifo, 0x180));
+        // A writer's open waits until something opens the FIFO to read; a nonblocking open would also end that wait.
+        // The census must not open it at all.
+        int written = -1;
+        var writer = new Thread(() => written = OpenNative(fifo, 1)) { IsBackground = true };
+        writer.Start();
+        try
+        {
+            Thread.Sleep(200); // into its open
+            Assert.True(writer.IsAlive, "The writer's open returned without a reader.");
+            Assert.Null(Within(() => SingleInstance.ImageAtPathIsFileCat(fifo, out _), "Reading the FIFO's name", fifo));
+            Assert.False(writer.Join(500), "The census opened the FIFO.");
+        }
+        finally
+        {
+            // A reader that does not wait lets the writer's open return; both then close.
+            int reader = OpenNative(fifo, OperatingSystem.IsMacOS() ? 0x4 : 0x800);
+            if (writer.Join(CensusLimit) && written >= 0) CloseNative(written);
+            if (reader >= 0) CloseNative(reader);
+            Directory.Delete(folder, recursive: true);
+        }
     }
 
     [Fact]
     public void Mac_census_reads_running_images_by_the_names_Darwin_gives_them()
     {
         if (!OperatingSystem.IsMacOS()) { Assert.Skip("macOS names process images through proc_pidpath."); return; }
-        // The copy is started through the temporary folder's /var link; Darwin names it by its real folders, which the
-        // census opens without following any link.
-        string folder = Path.Combine(Path.GetTempPath(), "filecat-i646-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(folder);
+        string folder = NewFolder();
+        string image = CopyImage(folder, fileCat: false);
+        Directory.CreateSymbolicLink(Path.Combine(folder, "linked"), folder);
         using var system = Run("/bin/sleep");
         Process? copy = null;
         try
         {
-            copy = Run(CopyImage(folder, fileCat: false));
+            // The copy is started through links: the temporary folder's as TMPDIR names it (/var is a link to private/var)
+            // and one to its own folder. Darwin names it by its real folders, which the census opens with no link followed.
+            copy = Run(Path.Combine(Path.GetTempPath(), Path.GetFileName(folder), "linked", Path.GetFileName(image)));
+            using (var named = Process.GetProcessById(copy.Id)) Assert.Equal(image, named.MainModule?.FileName);
             Assert.False(CensusWithin(system.Id, null));
             Assert.False(CensusWithin(copy.Id, null));
             // Both still run, so the census read them rather than skipping them as gone.
@@ -198,6 +241,9 @@ public sealed class RecoveryProcessImageTests
         using var process = Run(image);
         try
         {
+            // macOS assesses new ad hoc code from its file after it starts (an idle M1 took 0.1 to 0.25 s), and kills the
+            // process if the file is gone by then ("ASP: Security policy would not allow process").
+            Assert.False(process.WaitForExit(2000), "The copy exited before its image was deleted.");
             File.Delete(image);
             Assert.Equal(0, MkFifo(image, 0x180));
             bool? result = CensusWithin(process.Id, image);
@@ -215,8 +261,10 @@ public sealed class RecoveryProcessImageTests
     {
         if (OperatingSystem.IsWindows()) { Assert.Skip("Unix process images."); return; }
         // On macOS no link may be followed anywhere on an image's name. The names Darwin gives running processes have
-        // none, or every census there would be unknown. Other unknowns, such as other accounts' processes, are as before.
-        string loop = OperatingSystem.IsMacOS() ? "image error 62" : "(errno 40)";
+        // none, or every census there would be unknown. Open flags the kernel refuses (EINVAL) make every process unknown
+        // too, as O_NOFOLLOW beside O_NOFOLLOW_ANY once did on macOS. Other unknowns, such as other accounts' processes,
+        // are as before.
+        string[] refusals = OperatingSystem.IsMacOS() ? ["image error 22", "image error 62"] : ["(errno 22)", "(errno 40)"];
         var reasons = new List<string>();
         var refused = new List<string>();
         bool? running = SingleInstance.OtherFileCatRunning(() =>
@@ -232,7 +280,8 @@ public sealed class RecoveryProcessImageTests
         }, null, null, (pid, name, reason) =>
         {
             reasons.Add(reason);
-            if (reason.Contains(loop, StringComparison.Ordinal) || reason == "the image is not a regular file")
+            if (refusals.Any(refusal => reason.Contains(refusal, StringComparison.Ordinal)) ||
+                reason.EndsWith("not a regular file", StringComparison.Ordinal))
                 refused.Add($"{pid} {name}: {reason}");
         }, inspectInventory: true);
         TestContext.Current.TestOutputHelper?.WriteLine($"Census: {running?.ToString() ?? "unknown"}; " +
@@ -240,9 +289,11 @@ public sealed class RecoveryProcessImageTests
         Assert.Empty(refused);
     }
 
+    // Why the census could not tell the process goes to the test's output.
     private static bool? CensusWithin(int pid, string? fifo) =>
-        Within(() => SingleInstance.OtherFileCatRunning(() => [Process.GetProcessById(pid)], inspectInventory: true),
-            "The census", fifo);
+        Within(() => SingleInstance.OtherFileCatRunning(() => [Process.GetProcessById(pid)], null, null,
+            (id, name, reason) => TestContext.Current.TestOutputHelper?.WriteLine($"Census of {id} {name}: {reason}"),
+            inspectInventory: true), "The census", fifo);
 
     // On a thread of its own, since a stuck read must not hold a pool thread the test host needs.
     private static T Within<T>(Func<T> work, string what, string? fifo)
@@ -277,10 +328,23 @@ public sealed class RecoveryProcessImageTests
     {
         string image = Path.Combine(folder, "i646-image");
         File.Copy(File.Exists("/usr/bin/sleep") ? "/usr/bin/sleep" : "/bin/sleep", image);
+        // With System Integrity Protection on, macOS kills a copy of its own sleep started outside the system volume
+        // (AMFI: Launch Constraint Violation). Signed ad hoc, the copy is an ordinary program.
+        if (OperatingSystem.IsMacOS()) SignAdHoc(image);
         if (fileCat)
             using (var output = new FileStream(image, FileMode.Append)) output.Write(Binding);
         File.SetUnixFileMode(image, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         return image;
+    }
+
+    private static void SignAdHoc(string image)
+    {
+        var start = new ProcessStartInfo("/usr/bin/codesign") { UseShellExecute = false, RedirectStandardError = true };
+        foreach (string argument in new[] { "--force", "--sign", "-", image }) start.ArgumentList.Add(argument);
+        using var codesign = Process.Start(start)!;
+        string error = codesign.StandardError.ReadToEnd();
+        Assert.True(codesign.WaitForExit(30_000), "codesign did not finish within 30 s.");
+        Assert.True(codesign.ExitCode == 0, $"codesign: {error}");
     }
 
     private static Process Run(string image)
