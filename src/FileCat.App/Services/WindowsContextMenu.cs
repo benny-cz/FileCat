@@ -425,8 +425,13 @@ internal static class WindowsContextMenu
 
     private const uint ShellFirst = 1, ShellLast = 0x6fff, FileCatCommand = 0x7001, RecoverCommand = 0x7002;
     private const uint AnalyzeCommand = 0x7003, AnalyzeSelectedCommand = 0x7004;
+    /// <summary>A folder menu's Paste: the Shell's own, run on the menu it came from (<see cref="FolderPaste"/>).</summary>
+    private const uint PasteCommand = 0x7005;
+    /// <summary>The Shell's canonical verb for Paste.</summary>
+    internal const string PasteVerb = "paste";
     private const uint TpmReturnCmd = 0x0100, TpmRightButton = 0x0002;
-    private const uint CmfExtendedVerbs = 0x100, WmInitMenuPopup = 0x117;
+    private const uint CmfNoVerbs = 0x8, CmfExtendedVerbs = 0x100, WmInitMenuPopup = 0x117;
+    private const uint MfByPosition = 0x400, MfSeparator = 0x800, MiimState = 0x1, MiimFtype = 0x100, MfsDisabled = 0x3;
     private static readonly Guid ShellUiObject = new("3981e225-f559-11d3-8e3a-00c04f6837d5");
     private static readonly Guid ContextMenuId = new("000214e4-0000-0000-c000-000000000046");
     private static readonly Guid ShellFolderId = new("000214e6-0000-0000-c000-000000000046");
@@ -441,6 +446,7 @@ internal static class WindowsContextMenu
         IShellItemArray? items = null;
         IShellFolder? folder = null;
         IContextMenu? menu = null;
+        FolderPaste? paste = null;
         nint popup = 0, owner = 0, previousWindow = 0;
         string? windowClass = null;
         try
@@ -463,7 +469,8 @@ internal static class WindowsContextMenu
             nint menuPointer;
             if (background)
             {
-                // Explorer's menu for a folder's empty space is the folder's view object, not an item's UI object.
+                // A folder's empty space: the folder's own menu from its view object (New, Give access to, the folder's
+                // handlers, Properties), not an item's UI object. Explorer shows it inside its folder view's menu.
                 Guid shellFolder = ShellFolderId, requested = ContextMenuId;
                 Marshal.ThrowExceptionForHR(SHBindToObject(0, pidls[0], 0, ref shellFolder, out nint folderPointer));
                 try { folder = (IShellFolder)Marshal.GetObjectForIUnknown(folderPointer); }
@@ -483,6 +490,16 @@ internal static class WindowsContextMenu
             if (popup == 0) { Console.Error.WriteLine("CreatePopupMenu failed"); return 1; }
             int hr = menu.QueryContextMenu(popup, 0, ShellFirst, ShellLast, extended ? CmfExtendedVerbs : 0);
             if (hr < 0 || GetMenuItemCount(popup) < 1) { Console.Error.WriteLine("QueryContextMenu failed 0x" + hr.ToString("X8", CultureInfo.InvariantCulture)); return 1; }
+            if (background && newVerb is null && BuildFolderPaste(pidls[0]) is { } offered)
+            {
+                // At the top: Explorer, too, puts Paste above the folder's own commands.
+                if (InsertMenuW(popup, 0, MfByPosition | offered.State, PasteCommand, offered.Label))
+                {
+                    paste = offered;
+                    if (!IsSeparator(popup, 1)) InsertMenuW(popup, 1, MfByPosition | MfSeparator, 0, null);
+                }
+                else offered.Release();
+            }
             // Windows.ModernShare requires per-window WinRT interop. Invoking it from this short-lived
             // isolated Shell host fails with an invalid-window error. Give its menu entry an honest handoff.
             for (int i = 0; i < GetMenuItemCount(popup); i++)
@@ -498,11 +515,11 @@ internal static class WindowsContextMenu
                 if (verbProbe || newVerb is not null) FillSubmenus(menu, popup);
             }
 
-            if (probe && !analyze && !analyzeSelected) PrintMenu(menu, popup, verbProbe, 0);
+            if (probe && !analyze && !analyzeSelected) PrintMenu(menu, paste, popup, verbProbe, 0);
             AppendMenuW(popup, 0x800, 0, null); // Separator before FileCat's own commands.
             if (analyze) AppendMenuW(popup, 0, AnalyzeCommand, ViewModels.MainViewModel.AnalyzeDiskSpaceTitle);
             if (analyzeSelected) AppendMenuW(popup, 0, AnalyzeSelectedCommand, ViewModels.MainViewModel.AnalyzeSelectedFoldersTitle);
-            if (probe && (analyze || analyzeSelected)) PrintMenu(menu, popup, verbProbe, 0);
+            if (probe && (analyze || analyzeSelected)) PrintMenu(menu, paste, popup, verbProbe, 0);
             // A disk image: its deleted files, one click away (plan §17).
             if (!background && paths.Length == 1 && DiskImages.IsImageName(paths[0])) AppendMenuW(popup, 0, RecoverCommand, "Recover deleted files from this disk image…");
             AppendMenuW(popup, 0, FileCatCommand, "FileCat actions…");
@@ -529,15 +546,18 @@ internal static class WindowsContextMenu
             if (selected == RecoverCommand) return 12;
             if (selected == AnalyzeCommand && analyze) return 20;
             if (selected == AnalyzeSelectedCommand && analyzeSelected) return 21;
-            if (selected < ShellFirst || selected > ShellLast) return 11;
+            // Paste stays the Shell's, on a folder item and on a folder's own menu alike: it moves what another program
+            // cut, as in Explorer, where FileCat's paste would only copy it. A folder menu's Paste runs on its own menu.
+            IContextMenu chosenMenu = menu;
+            uint chosen = selected;
+            if (selected == PasteCommand && paste is not null) (chosenMenu, chosen) = (paste.Menu, paste.Command);
+            else if (selected < ShellFirst || selected > ShellLast) return 11;
             // A Properties sheet needs a persistent owner. The short-lived Shell-extension host is destroyed
             // immediately after InvokeCommand, which can leave the sheet invisible. Dispatch the canonical
             // Shell verb to FileCat's existing Alt+Enter route with the exact selected path (the folder's own,
             // from its empty space) instead.
-            string? selectedVerb = CanonicalVerb(menu, selected);
+            string? selectedVerb = CanonicalVerb(chosenMenu, chosen);
             if (string.Equals(selectedVerb, "properties", StringComparison.OrdinalIgnoreCase)) return 13;
-            // A folder's own Paste stays the Shell's, as on a folder item: it moves what another program cut, as in
-            // Explorer, where FileCat's paste would only copy it.
             if (!background)
             {
                 if (string.Equals(selectedVerb, "copy", StringComparison.OrdinalIgnoreCase)) return 15;
@@ -561,12 +581,12 @@ internal static class WindowsContextMenu
                 // handler). The flag is advisory, so installed-candidate behavior still needs a native check.
                 fMask = 0x00004000 | 0x00000100 | 0x20000000, // Unicode, NOASYNC, invocation point.
                 hwnd = owner,
-                lpVerb = (nint)(selected - ShellFirst),
-                lpVerbW = (nint)(selected - ShellFirst),
+                lpVerb = (nint)(chosen - ShellFirst),
+                lpVerbW = (nint)(chosen - ShellFirst),
                 nShow = 1,
                 ptInvoke = new NativePoint(x, y),
             };
-            int invokeResult = menu.InvokeCommand(ref invoke);
+            int invokeResult = chosenMenu.InvokeCommand(ref invoke);
             if (invokeResult < 0)
             {
                 Console.Error.WriteLine("InvokeCommand failed 0x" + invokeResult.ToString("X8", CultureInfo.InvariantCulture));
@@ -588,11 +608,84 @@ internal static class WindowsContextMenu
             if (owner != 0) DestroyWindow(owner);
             if (windowClass is not null) UnregisterClassW(windowClass, GetModuleHandleW(null));
             if (popup != 0) DestroyMenu(popup);
+            paste?.Release();
             if (menu is not null) Marshal.ReleaseComObject(menu);
             if (folder is not null) Marshal.ReleaseComObject(folder);
             if (items is not null) Marshal.ReleaseComObject(items);
             foreach (nint pidl in pidls) if (pidl != 0) Marshal.FreeCoTaskMem(pidl);
         }
+    }
+
+    /// <summary>
+    /// The Shell's own Paste into a folder, for the folder's own menu (I642). Explorer's Paste on a folder's empty space is
+    /// its folder view's (the view object's menu built here has none), and a view needs a window and a browser to host it.
+    /// The folder's menu as an item of its parent has the same Paste: Explorer shows it there too, only while the clipboard
+    /// holds what the folder accepts, and it pastes into the folder as Explorer's does, so a Cut moves. Built without verbs
+    /// (CMF_NOVERBS, as the Shell builds a Send To target's menu): no handler loads, only the Shell's own commands. Null
+    /// when the Shell offers no Paste here or its menu cannot be built; the folder's menu then goes without it.
+    /// </summary>
+    private static FolderPaste? BuildFolderPaste(nint pidl)
+    {
+        IShellItemArray? item = null;
+        IContextMenu? menu = null;
+        nint popup = 0;
+        try
+        {
+            if (SHCreateShellItemArrayFromIDLists(1, [pidl], out item) < 0 || item is null) return null;
+            Guid handler = ShellUiObject, requested = ContextMenuId;
+            if (item.BindToHandler(0, ref handler, ref requested, out nint pointer) < 0 || pointer == 0) return null;
+            try { menu = (IContextMenu)Marshal.GetObjectForIUnknown(pointer); }
+            finally { Marshal.Release(pointer); }
+            popup = CreatePopupMenu();
+            if (popup == 0 || menu.QueryContextMenu(popup, 0, ShellFirst, ShellLast, CmfNoVerbs) < 0) return null;
+            for (int i = 0; i < GetMenuItemCount(popup); i++)
+            {
+                uint command = GetMenuItemID(popup, i);
+                if (command is < ShellFirst or > ShellLast ||
+                    !string.Equals(CanonicalVerb(menu, command), PasteVerb, StringComparison.OrdinalIgnoreCase)) continue;
+                var label = new StringBuilder(512);
+                var info = new MenuItemInfo { cbSize = (uint)Marshal.SizeOf<MenuItemInfo>(), fMask = MiimState };
+                if (GetMenuStringW(popup, (uint)i, label, label.Capacity, MfByPosition) == 0 || !GetMenuItemInfoW(popup, (uint)i, true, ref info))
+                    return null;
+                var paste = new FolderPaste(item, menu, popup, command, label.ToString(), info.fState & MfsDisabled);
+                (item, menu, popup) = (null, null, 0);
+                return paste;
+            }
+            return null;
+        }
+        // Whatever fails here leaves the folder's menu as it was, without Paste.
+        catch (Exception ex) when (ex is not OutOfMemoryException) { return null; }
+        finally
+        {
+            if (popup != 0) DestroyMenu(popup);
+            if (menu is not null) Marshal.ReleaseComObject(menu);
+            if (item is not null) Marshal.ReleaseComObject(item);
+        }
+    }
+
+    /// <summary>
+    /// A folder menu's Paste (<see cref="BuildFolderPaste"/>): the Shell menu it came from, kept with its popup until the
+    /// command runs, the command there, and its label and state as the Shell gave them.
+    /// </summary>
+    private sealed class FolderPaste(IShellItemArray item, IContextMenu menu, nint popup, uint command, string label, uint state)
+    {
+        internal IContextMenu Menu { get; } = menu;
+        internal uint Command { get; } = command;
+        internal string Label { get; } = label;
+        internal uint State { get; } = state;
+
+        internal void Release()
+        {
+            DestroyMenu(popup);
+            Marshal.ReleaseComObject(Menu);
+            Marshal.ReleaseComObject(item);
+        }
+    }
+
+    private static bool IsSeparator(nint popup, int position)
+    {
+        var info = new MenuItemInfo { cbSize = (uint)Marshal.SizeOf<MenuItemInfo>(), fMask = MiimFtype };
+        return GetMenuItemInfoW(popup, (uint)position, true, ref info) && (info.fType & MfSeparator) != 0;
     }
 
     /// <summary>
@@ -718,8 +811,11 @@ internal static class WindowsContextMenu
         }
     }
 
-    /// <summary>Probe output: each label (and canonical verb), submenu items indented by a tab per level.</summary>
-    private static void PrintMenu(IContextMenu menu, nint popup, bool verbs, int depth)
+    /// <summary>
+    /// Probe output: each label (and canonical verb), submenu items indented by a tab per level. A folder menu's Paste
+    /// shows the verb of the Shell menu it came from.
+    /// </summary>
+    private static void PrintMenu(IContextMenu menu, FolderPaste? paste, nint popup, bool verbs, int depth)
     {
         for (int i = 0; i < GetMenuItemCount(popup); i++)
         {
@@ -729,10 +825,13 @@ internal static class WindowsContextMenu
             if (label.Length > 0)
             {
                 uint command = submenu != 0 ? MenuItemId(popup, i) : GetMenuItemID(popup, i);
-                string? verb = verbs && command is >= ShellFirst and <= ShellLast ? CanonicalVerb(menu, command) : null;
+                string? verb = !verbs ? null
+                    : command is >= ShellFirst and <= ShellLast ? CanonicalVerb(menu, command)
+                    : command == PasteCommand && paste is not null ? CanonicalVerb(paste.Menu, paste.Command)
+                    : null;
                 Console.WriteLine(new string('\t', depth) + (verbs ? label + "\t" + (verb ?? "") : label.ToString()));
             }
-            if (verbs && submenu != 0) PrintMenu(menu, submenu, verbs, depth + 1);
+            if (verbs && submenu != 0) PrintMenu(menu, paste, submenu, verbs, depth + 1);
         }
     }
 
@@ -911,6 +1010,8 @@ internal static class WindowsContextMenu
     private static extern int GetMenuStringW(nint menu, uint item, StringBuilder text, int maxChars, uint flags);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern bool AppendMenuW(nint menu, uint flags, uint item, string? label);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool InsertMenuW(nint menu, uint position, uint flags, nuint item, string? label);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern bool ModifyMenuW(nint menu, uint position, uint flags, uint item, string label);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
