@@ -700,7 +700,14 @@ namespace Renci.SshNet.Sftp
                     {
                         if (_session.IsOpen)
                         {
-                            _session.RequestClose(Handle);
+                            if (_closeWithoutWaiting && _session is SftpSession session)
+                            {
+                                session.CloseWithoutWaiting(Handle);
+                            }
+                            else
+                            {
+                                _session.RequestClose(Handle);
+                            }
                         }
                     }
                 }

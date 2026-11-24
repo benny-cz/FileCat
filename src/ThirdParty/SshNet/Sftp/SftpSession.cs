@@ -372,6 +372,7 @@ namespace Renci.SshNet.Sftp
                 _requests.Add(request.RequestId, request);
             }
 
+            RequestSent?.Invoke(request.SftpMessageType);
             SendMessage(request);
         }
 

@@ -79,14 +79,37 @@ public interface ISftpChannel : IDisposable
     /// <summary>Attributes with links followed; null when nothing is there (a dangling link reports itself).</summary>
     RemoteStat? Stat(string path);
 
+    /// <summary>
+    /// What reading <paramref name="path"/> would see now (links followed), to tell whether content changed; null when no
+    /// content is there. SFTP asks the server's own stat of the exact path, one request (release issue I42), where
+    /// <see cref="Stat"/> has SSH.NET resolve the path first.
+    /// </summary>
+    RemoteStat? StatContent(string path) => Stat(path);
+
     /// <summary>Seekable read-only content (links followed).</summary>
     Stream OpenRead(string path);
 
     /// <summary>
     /// The same, for a file the caller has just stat'ed at <paramref name="length"/> bytes: a channel that would otherwise
-    /// ask the server for the length again (FTP) does not.
+    /// ask the server for the length again (FTP; SFTP's fstat) does not.
     /// </summary>
     Stream OpenRead(string path, long length) => OpenRead(path);
+
+    /// <summary>
+    /// Whether <see cref="OpenReadStated"/> sends the stat with the open (SFTP, one round trip; release issue I42) or opens
+    /// nothing on the server before the first read (FTP), rather than a stat and then an open: a caller then settles its
+    /// own metadata before it calls, where otherwise it does so between the stat and the open.
+    /// </summary>
+    bool OpensStated => false;
+
+    /// <summary>
+    /// A file opened for reading with a stat of it (links followed): nothing opened where nothing or a folder is there.
+    /// SFTP sends the open and the stat together (one round trip, I42), so the stat describes the file as opened.
+    /// </summary>
+    RemoteRead OpenReadStated(string path) =>
+        Stat(path) is not { } stat ? new RemoteRead(null, null, false)
+        : stat.IsDirectory ? new RemoteRead(stat, null, false)
+        : new RemoteRead(stat, OpenRead(path, stat.Size), false);
 
     /// <summary>Creates a new file; fails when the name exists.</summary>
     Stream CreateNew(string path);
@@ -100,6 +123,19 @@ public interface ISftpChannel : IDisposable
     {
         using var output = CreateNew(path);
         input.CopyTo(output, 256 * 1024);
+    }
+
+    /// <summary>
+    /// <see cref="UploadNew"/>, then the modified time <paramref name="modified"/> names once the input has been read
+    /// (null: none; a server refusing it is not an error, I43), then what the server holds for the new file (null:
+    /// nothing). SFTP sends the time and the question through the open handle behind the last write, so the whole
+    /// upload of a small file costs two round trips (release issue I42); others ask in turn.
+    /// </summary>
+    RemoteStat? UploadNewStated(Stream input, string path, Func<DateTime?> modified)
+    {
+        UploadNew(input, path);
+        if (modified() is { } utc) SetModified(path, utc);
+        return Stat(path);
     }
 
     /// <summary>
@@ -137,6 +173,14 @@ public interface ISftpChannel : IDisposable
     /// </summary>
     void SetModified(string path, DateTime utc);
 }
+
+/// <summary>A file opened for reading, with a stat of it.</summary>
+/// <param name="Stat">What is at the path, links followed; null when nothing is.</param>
+/// <param name="Content">The opened file; null when nothing was opened (nothing there, or a folder).</param>
+/// <param name="StatIsOpenedRevision">The stat describes the content as opened (asked with the open, or before a read
+/// that opens it only when it begins), so a revision asked for before the first read can be this stat rather than
+/// another question to the server.</param>
+public sealed record RemoteRead(RemoteStat? Stat, Stream? Content, bool StatIsOpenedRevision);
 
 /// <summary>The connection broke; the work can continue after reconnecting only where it is provably safe.</summary>
 public sealed class RemoteDisconnectedException(string message, Exception? inner = null) : IOException(message, inner);
