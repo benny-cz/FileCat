@@ -51,7 +51,7 @@ This changes product source, so it reaches users only in a candidate after rc.2.
 
 ## Fix
 
-Proposed for the next candidate on branch `fix/i644-admin-window-launcher`, not merged. It changes product source, so it reaches users only in a candidate after rc.2.
+Proposed for the next candidate in [PR #34](https://github.com/benny-cz/FileCat/pull/34) (branch `fix/i644-admin-window-launcher`), not merged. It changes product source, so it reaches users only in a candidate after rc.2.
 
 ### Design
 
