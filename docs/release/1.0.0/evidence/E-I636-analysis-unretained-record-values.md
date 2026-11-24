@@ -44,3 +44,28 @@ Keep the sort key whenever the value itself cannot be retained, as the Verified 
 ## Finite check and stop
 
 On the candidate that carries a fix, analyze the same three pictures by Origin: the banner says all 3 results are retained, and the order is by the mark (`Internet`, `Intranet`, then the unmarked file last, or the reverse). Then analyze `%LOCALAPPDATA%\Microsoft\WindowsApps` by Link target: all aliases retained. Stop when both hold. If the owner accepts the behavior for 1.0.0 instead, record the acceptance and stop.
+
+## Fix
+
+Branch `fix/i636-analysis-record-values`, from `main` at `565f75778` (product source as `v1.0.0-rc.2`).
+
+**Correction to the cause.** Sorting by a column header was affected too. In the product nothing sets `ListingModel.MetadataKeys` (only tests do), so a column-header sort does not capture through `MetadataOrderSnapshot.Capture`: it goes through `TabViewModel.CaptureMetadataOrderCore`, which passes each cached value to the same `TryAdd`. Rc.2 refused every cached mark and alias target there too, so those rows sorted as unknown, in name order, and "Origin sorting by column header still works" (Consequence) did not hold either. The new tests' column-header cases failed before the fix (Origin: 1 of 3 rows retained; Link target: 1 of 3).
+
+**Change.** One rule for every field, in place of a case per type:
+- `MetadataOrderSnapshot.CanRetain(value)` says whether a snapshot keeps a value itself: its existing list (text, numbers, dates, principals, versions, cells). The list is unchanged.
+- **Analyze folder** (`TabViewModel.AnalyzeAsync`): a value the snapshot does not keep is retained as its field's sort key, taken when it is read, with its state and observation. Those are all that sorting reads. Verified's case from `dc22579ad` is now this rule, and an Origin mark and an alias's or WSL link's target follow it. A value with no key is still refused, and the banner still says a value could not be retained.
+- **Column-header sort** (`CaptureMetadataOrderCore` with no analysis): the same rule, for the cached values.
+- Explanations stay in the metadata cache, where cells and tooltips read them. The ordering snapshot keeps only the keys, so an Origin analysis charges a mark's text ("Internet"), not its addresses, against the character limit. Values the snapshot already kept are retained as before.
+- ADR-10's retention paragraph says this instead of the Verified case.
+
+**Tests** (this workstation, Debug build):
+- `FileCat.App.Tests.AnalysisRecordValueOrderingTests`, new, at medium integrity: 26 passed, 0 skipped. Before the product change, 9 of them failed: every Origin and Link target case, in Analyze folder and in a column-header sort. Verified and the other fields already passed. The class covers:
+  - Every field this platform registers, each with a value of every type its producer returns and results without a key. Each goes through Analyze folder and through a column-header sort, both directions; the reversed sort reads nothing. A guard fails when a registered field has no samples. On Windows the fields are Version, Dimensions, Link target, Origin, Extra data, Verified, Owner, Allocated, Hard links and Reparse type; Linux and macOS have Permissions and Group instead of Version and Reparse type.
+  - Origin from real `Zone.Identifier` streams (ZoneId=3, none, ZoneId=1), as in the observation; on Linux and macOS, real `user.xdg.origin.url` and `com.apple.quarantine` attributes. The cell still explains the mark.
+  - An app execution alias and a WSL symbolic link set with `FSCTL_SET_REPARSE_POINT` (the layouts of `LinkTargetColumnTests`), and a plain file.
+  - This account's own `%LOCALAPPDATA%\Microsoft\WindowsApps`, read only: "Read Link target for 98 items: 74 current values. 24 without a value. The order retains all 98 items' results." Before the fix the banner did not say all were retained.
+- The whole `FileCat.App.Tests` suite with the final change, at medium integrity: 4,013 tests, 0 failed, 294 skipped, in 40 minutes. The skips are opt-in lanes (standard-user native UI, disposable VMs, EFS and other fixtures) and other platforms' tests; none is in the new class.
+- `FileCat.Core.Tests`, elevated: `MetadataOrderingSnapshotTests` 15 passed, 2 of them new: which values a snapshot keeps, and record values retained as keys and charged only for the keys. With `LinkTargetColumnTests`, `MetadataStreamingOrderTests` and `MetadataTests`: 38 tests, 0 failed, 1 skipped (Linux and macOS only).
+- The Linux and macOS cases (Origin from extended attributes; Permissions and Group samples) did not run here; the pull request's CI runs them.
+
+**Remaining.** The finite check above, on the installed candidate that carries this fix.
