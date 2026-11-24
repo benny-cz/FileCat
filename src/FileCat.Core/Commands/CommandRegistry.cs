@@ -564,7 +564,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.Rename, "Renames the item under the cursor right in the list.");
         r.Describe(CommandIds.MakeDirectory, "Creates a new folder in this panel's folder.");
         r.Describe(CommandIds.Delete, $"Moves the marked items (or the one under the cursor) to {FileCat.Core.Jobs.RecycleText.Destination}; Shift+Del deletes permanently.");
-        r.Describe(CommandIds.Properties, "Shows the properties of the item under the cursor.");
+        r.Describe(CommandIds.Properties, "Shows the properties of the marked item (or the one under the cursor); with several marked, it asks you to select one.");
         r.Describe(CommandIds.PermissionsOwnership, "Inspect ownership and configured access on the selected filesystem objects.");
         r.Describe(CommandIds.FileRecord, "Shows metadata for the focused file or folder. Read full record adds qualified filesystem details. Use the supplementary-data tab to read stream, attribute and fork values.");
         r.Describe(CommandIds.HiddenData, "Lists supplementary-data names, categories and available lengths. F3 reads a selected value, F5 exports an allowed selection, and F8 requests deletion. Windows extended attribute inventory requires explicit approval.");

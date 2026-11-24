@@ -583,9 +583,11 @@ public sealed partial class MainViewModel
                 if (FocusedFileSystemPath() is { } rp) Services.Shell.Reveal(rp);
                 break;
             case CommandIds.Properties:
-                if (PropertiesPathForFocus() is { } pp) ShowPropertiesForPath(pp);
-                else Notify("Select a file, folder, or drive to show its properties.");
+            {
+                var (count, single) = PropertiesSelection();
+                ShowPropertiesForSelection(count, single);
                 break;
+            }
             case CommandIds.PermissionsOwnership:
                 if (tab is { Location: not null }) await InspectPermissionsAsync(CapturePermissionsSelection(tab));
                 break;
@@ -642,13 +644,61 @@ public sealed partial class MainViewModel
     internal string? PropertiesPathForFocus()
     {
         var tab = ActiveTab;
-        if (tab?.Location is null || !tab.Listing.TryGetFocused(out var focused)) return null;
+        if (tab?.Location is null || !tab.Listing.TryGetFocused(out _)) return null;
+        return PropertiesPathAt(tab, tab.Listing.FocusedStoreIndex);
+    }
+
+    /// <summary>
+    /// The path one row's properties are shown for: a drive's root on This PC (Windows), the folder itself at "..", and
+    /// otherwise the item's own path on disk; null for an item that has none (in an archive, on a server, virtual).
+    /// </summary>
+    private static string? PropertiesPathAt(TabViewModel tab, int storeIndex)
+    {
+        var listing = tab.Listing;
+        if (tab.Location is not { } location || listing.IsDisposed || (uint)storeIndex >= (uint)listing.Store.Count) return null;
+        var row = listing.Store[storeIndex];
         // This PC is a virtual listing, so its ItemRef has no FileSystemPath. Its drive tag carries the
         // actual root to hand to the Windows property sheet, including mounted and network volumes.
-        if (OperatingSystem.IsWindows() && tab.Location.Scheme == Schemes.Computer &&
-            focused.Kind == EntryKind.Drive && focused.Tag is DriveTag drive)
+        if (OperatingSystem.IsWindows() && location.Scheme == Schemes.Computer &&
+            row.Kind == EntryKind.Drive && row.Tag is DriveTag drive)
             return drive.RootPath;
-        return FocusedFileSystemPath();
+        if (row.Kind == EntryKind.Parent) return location.IsFileSystem ? location.Path : null;
+        return listing.GetItemRef(storeIndex).FileSystemPath;
+    }
+
+    /// <summary>What Properties says when it is asked for several items: it shows one item's properties (I601, I635).</summary>
+    private const string PropertiesShowOneItem = "Select one item to show its properties.";
+
+    /// <summary>
+    /// What the Properties command acts on, as Windows' context menu chooses it (I635): the marked items when there are any,
+    /// wherever the cursor is (".." is never marked), and otherwise the item under the cursor. Count is how many items that
+    /// is; Path is the one item's path, null when it has none or when several are marked.
+    /// </summary>
+    private (int Count, string? Path) PropertiesSelection()
+    {
+        var tab = ActiveTab;
+        if (tab?.Location is null || tab.Listing.IsDisposed) return (0, null);
+        int marked = tab.Listing.MarkedCount;
+        if (marked > 1) return (marked, null);
+        if (marked == 1)
+        {
+            Span<int> index = stackalloc int[1];
+            return (1, tab.Listing.CopyMarkedStoreIndices(-1, index) == 1 ? PropertiesPathAt(tab, index[0]) : null);
+        }
+        return PropertiesPathForFocus() is { } focused ? (1, focused) : (0, null);
+    }
+
+    /// <summary>
+    /// Shows the properties of the items a route chose, by one rule for the Properties command (Alt+Enter) and Windows'
+    /// context menu (I635): several items open nothing and say that Properties shows one; a single item shows its own.
+    /// </summary>
+    /// <param name="count">How many items were chosen: the marked ones when there are any, else the item under the cursor.</param>
+    /// <param name="single">The one chosen item's path; null when it has none, or when several were chosen.</param>
+    internal void ShowPropertiesForSelection(int count, string? single)
+    {
+        if (count > 1) Notify(PropertiesShowOneItem);
+        else if (count == 1 && single is not null) ShowPropertiesForPath(single);
+        else Notify("Select a file, folder, or drive to show its properties.");
     }
 
     internal void ShowPropertiesForPath(string path)
