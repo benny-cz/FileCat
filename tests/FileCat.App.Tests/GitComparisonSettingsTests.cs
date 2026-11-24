@@ -37,11 +37,11 @@ public sealed class GitComparisonSettingsTests
         Assert.Equal(" M a.txt\0", fixture.Status(repository, ordinary: false));
         Assert.Equal(expected == GitStatusKind.Clean ? "" : " M a.txt\0", fixture.Status(repository, ordinary: true));
 
-        var snapshot = await GitStatusReader.ReadAsync(repository, TestContext.Current.CancellationToken, fixture.GitPath);
-        var parent = await GitStatusReader.ReadAsync(fixture.Root, TestContext.Current.CancellationToken, fixture.GitPath);
+        var snapshot = await fixture.Badges(repository);
+        var parent = await fixture.RepositoryBadge();
 
         Assert.Equal(expected, snapshot?.ForName("a.txt"));
-        Assert.Equal(expected, parent?.ForName("repo"));
+        Assert.Equal(expected, parent);
         // Nothing refreshed the index meanwhile: FileCat's own comparison decided.
         Assert.Equal(index, fixture.IndexHash(repository));
     }
@@ -60,7 +60,7 @@ public sealed class GitComparisonSettingsTests
         File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddSeconds(5));
         Assert.Equal(" M a.txt\0", fixture.Status(repository, ordinary: true));
 
-        var snapshot = await GitStatusReader.ReadAsync(repository, TestContext.Current.CancellationToken, fixture.GitPath);
+        var snapshot = await fixture.Badges(repository);
 
         Assert.Equal(GitStatusKind.Modified, snapshot?.ForName("a.txt"));
     }
@@ -80,7 +80,7 @@ public sealed class GitComparisonSettingsTests
         Assert.Equal(" M run.sh\0", fixture.Status(repository, ordinary: false));
         Assert.Equal("", fixture.Status(repository, ordinary: true));
 
-        var snapshot = await GitStatusReader.ReadAsync(repository, TestContext.Current.CancellationToken, fixture.GitPath);
+        var snapshot = await fixture.Badges(repository);
 
         Assert.Equal(GitStatusKind.Clean, snapshot?.ForName("run.sh"));
     }
@@ -128,8 +128,7 @@ public sealed class GitComparisonSettingsTests
         Assert.DoesNotContain("smudge-only", configuration.Filters);
         Assert.DoesNotContain("withdrawn", configuration.Filters);
         // Real Git accepts every value passed on.
-        var snapshot = await GitStatusReader.ReadAsync(repository, TestContext.Current.CancellationToken, fixture.GitPath);
-        Assert.NotNull(snapshot);
+        Assert.NotNull(await fixture.Badges(repository));
     }
 
     [Fact]
@@ -163,14 +162,14 @@ public sealed class GitComparisonSettingsTests
         File.Delete(marker);
         string index = fixture.IndexHash(repository);
 
-        var snapshot = await GitStatusReader.ReadAsync(repository, TestContext.Current.CancellationToken, fixture.GitPath);
-        var parent = await GitStatusReader.ReadAsync(fixture.Root, TestContext.Current.CancellationToken, fixture.GitPath);
+        var snapshot = await fixture.Badges(repository);
+        var parent = await fixture.RepositoryBadge();
 
         Assert.False(File.Exists(marker), "An automatic badge read ran a filter.");
         Assert.Equal(GitStatusKind.Unknown, snapshot?.ForName("model.bin"));
         Assert.Equal(GitStatusKind.Unknown, snapshot?.ForName("assets"));
         Assert.Equal(GitStatusKind.Clean, snapshot?.ForName("notes.txt"));
-        Assert.Equal(GitStatusKind.Unknown, parent?.ForName("repo"));
+        Assert.Equal(GitStatusKind.Unknown, parent);
         Assert.Equal(index, fixture.IndexHash(repository));
 
         // A size other than the one Git recorded proves a change, for Git too; an unfiltered file is compared as before.
@@ -180,14 +179,14 @@ public sealed class GitComparisonSettingsTests
         Assert.Equal(" M model.bin\0 M notes.txt\0", fixture.Status(repository, ordinary: true));
         File.Delete(marker);
 
-        snapshot = await GitStatusReader.ReadAsync(repository, TestContext.Current.CancellationToken, fixture.GitPath);
-        parent = await GitStatusReader.ReadAsync(fixture.Root, TestContext.Current.CancellationToken, fixture.GitPath);
+        snapshot = await fixture.Badges(repository);
+        parent = await fixture.RepositoryBadge();
 
         Assert.False(File.Exists(marker), "An automatic badge read ran a filter.");
         Assert.Equal(GitStatusKind.Modified, snapshot?.ForName("model.bin"));
         Assert.Equal(GitStatusKind.Modified, snapshot?.ForName("notes.txt"));
         Assert.Equal(GitStatusKind.Unknown, snapshot?.ForName("assets"));
-        Assert.Equal(GitStatusKind.Modified, parent?.ForName("repo"));
+        Assert.Equal(GitStatusKind.Modified, parent);
     }
 
     [Fact]
@@ -212,13 +211,13 @@ public sealed class GitComparisonSettingsTests
         File.Delete(filtered);
         File.Delete(converted);
 
-        var snapshot = await GitStatusReader.ReadAsync(repository, TestContext.Current.CancellationToken, fixture.GitPath);
-        var parent = await GitStatusReader.ReadAsync(fixture.Root, TestContext.Current.CancellationToken, fixture.GitPath);
+        var snapshot = await fixture.Badges(repository);
+        var parent = await fixture.RepositoryBadge();
 
         Assert.False(File.Exists(filtered), "An automatic badge read ran a filter.");
         Assert.False(File.Exists(converted), "An automatic badge read ran textconv.");
         Assert.Equal(GitStatusKind.Unknown, snapshot?.ForName("a.txt"));
-        Assert.Equal(GitStatusKind.Unknown, parent?.ForName("repo"));
+        Assert.Equal(GitStatusKind.Unknown, parent);
     }
 
     [Fact]
@@ -232,7 +231,7 @@ public sealed class GitComparisonSettingsTests
         Assert.True(File.Exists(trace), "Ordinary Git wrote no trace.");
         File.Delete(trace);
 
-        var snapshot = await GitStatusReader.ReadAsync(repository, TestContext.Current.CancellationToken, fixture.GitPath);
+        var snapshot = await fixture.Badges(repository);
 
         Assert.NotNull(snapshot);
         Assert.False(File.Exists(trace), "Automatic Git wrote to a trace destination of the user's settings.");
@@ -309,6 +308,36 @@ public sealed class GitComparisonSettingsTests
 
         internal string IndexHash(string repository) =>
             Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Join(repository, ".git", "index"))));
+
+        /// <summary>
+        /// A folder's snapshot. Automatic reads are optional past their deadlines, 8 s for a folder and 5 s for each
+        /// repository listed in its parent, so on a busy runner a snapshot or badge can be absent (I405). Only an absent one
+        /// is read again, twice at most; a present state is returned at once, right or wrong.
+        /// </summary>
+        internal async Task<GitStatusSnapshot?> Badges(string folder)
+        {
+            GitStatusSnapshot? snapshot = null;
+            for (int attempt = 1; attempt <= 3 && snapshot is null; attempt++)
+            {
+                if (attempt > 1) await Task.Delay(100, TestContext.Current.CancellationToken);
+                snapshot = await GitStatusReader.ReadAsync(folder, TestContext.Current.CancellationToken, GitPath);
+                TestContext.Current.TestOutputHelper?.WriteLine($"{folder}, attempt {attempt}: {(snapshot is null ? "no snapshot" : "a snapshot")}");
+            }
+            return snapshot;
+        }
+
+        /// <summary>The repository's own badge where its folder is listed, read again only while absent (see <see cref="Badges"/>).</summary>
+        internal async Task<GitStatusKind> RepositoryBadge()
+        {
+            var badge = GitStatusKind.None;
+            for (int attempt = 1; attempt <= 3 && badge == GitStatusKind.None; attempt++)
+            {
+                if (attempt > 1) await Task.Delay(100, TestContext.Current.CancellationToken);
+                badge = (await GitStatusReader.ReadAsync(Root, TestContext.Current.CancellationToken, GitPath))?.ForName("repo") ?? GitStatusKind.None;
+                TestContext.Current.TestOutputHelper?.WriteLine($"repo in {Root}, attempt {attempt}: {badge}");
+            }
+            return badge;
+        }
 
         private string Run(string folder, bool ordinary, string[] arguments)
         {
