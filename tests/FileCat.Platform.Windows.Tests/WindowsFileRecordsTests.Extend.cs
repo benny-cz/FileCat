@@ -21,12 +21,15 @@ public sealed partial class WindowsFileRecordsTests
     }
 
     /// <summary>Gives a file an object ID (FSCTL_CREATE_OR_GET_OBJECT_ID, which needs only write access to it): the 64 bytes Windows returns.</summary>
-    private static byte[] CreateObjectId(string file)
+    private static unsafe byte[] CreateObjectId(string file)
     {
         using var handle = CreateFile(file, 0xC000_0000 /* read, write */, 7, 0, 3, 0, 0);
         var buffer = new byte[64];
-        Assert.True(DeviceIoControl(handle, 0x000900C0, 0, 0, Marshal.UnsafeAddrOfPinnedArrayElement(buffer, 0), 64, out _, 0),
-            $"FSCTL_CREATE_OR_GET_OBJECT_ID: {Marshal.GetLastPInvokeError()}");
+        // Pinned for the call: Windows writes into it, and an unpinned array can move under the collector, which once left
+        // the test reading 64 zero bytes (an empty ID) while FileCat read the real one (main run 45386566393, Windows ARM64).
+        fixed (byte* output = buffer)
+            Assert.True(DeviceIoControl(handle, 0x000900C0, 0, 0, (nint)output, 64, out _, 0),
+                $"FSCTL_CREATE_OR_GET_OBJECT_ID: {Marshal.GetLastPInvokeError()}");
         return buffer;
     }
 

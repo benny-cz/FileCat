@@ -351,12 +351,7 @@ public sealed partial class WindowsFileRecordsTests
             string file = Path.Combine(dir, "tracked.txt");
             File.WriteAllText(file, "x");
             if (!OnNtfs(file)) Assert.Skip("The test folder is not on NTFS.");
-            using (var handle = CreateFile(file, 0xC000_0000 /* read, write */, 7, 0, 3, 0, 0))
-            {
-                var buffer = new byte[64];
-                Assert.True(DeviceIoControl(handle, 0x000900C0 /* FSCTL_CREATE_OR_GET_OBJECT_ID */, 0, 0, Marshal.UnsafeAddrOfPinnedArrayElement(buffer, 0), 64, out _, 0),
-                    $"FSCTL_CREATE_OR_GET_OBJECT_ID: {Marshal.GetLastPInvokeError()}");
-            }
+            CreateObjectId(file);
             var section = Section(Read(file, privileged: false), "Object ID ($OBJECT_ID)");
             Assert.Matches(@"^\{[0-9a-f-]{36}\}", Field(section, "Object ID"));
             // Birth IDs are said when the volume gave them (a volume without an object ID of its own leaves them empty).
