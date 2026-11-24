@@ -223,6 +223,10 @@ internal sealed partial class SshNetChannel(SftpClient client, IDisposable? key,
     /// <summary>The connection's socket receive buffer as the system reports it after widening (-1: not reached).</summary>
     internal int SocketBuffer { get; init; } = -1;
 
+    /// <summary>Reports every SFTP request this connection sends, by its protocol name ("Open", "Write"…), for tests.</summary>
+    internal void ObserveRequests(Action<string>? observer) =>
+        client.ObserveRequests(observer is null ? null : type => observer(type.ToString()));
+
     public bool IsConnected => client.IsConnected;
 
     public string HomeDirectory { get; } = client.WorkingDirectory;

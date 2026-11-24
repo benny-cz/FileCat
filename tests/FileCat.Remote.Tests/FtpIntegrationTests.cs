@@ -204,7 +204,13 @@ internal sealed class TestFtpServer : IDisposable
                         b"type=file;size=1;unix.mode=0755; duplicate.txt\r\n"
                     )
                     self.push_dtp_data(data, isproducer=False, cmd="MLSD")
-        server = FTPServer(("127.0.0.1", int(os.environ.get("FILECAT_FTP_PORT", "0"))), Handler)
+        # FILECAT_FTP_BIND: another loopback address, and FILECAT_FTP_PASSIVE "first-last": the ports data connections use,
+        # so a relay on 127.0.0.1 can stand between the client and every connection (release issue I42's latency runs).
+        passive = os.environ.get("FILECAT_FTP_PASSIVE")
+        if passive:
+            first, last = (int(part) for part in passive.split("-"))
+            Handler.passive_ports = range(first, last + 1)
+        server = FTPServer((os.environ.get("FILECAT_FTP_BIND", "127.0.0.1"), int(os.environ.get("FILECAT_FTP_PORT", "0"))), Handler)
         print("READY", server.socket.getsockname()[1], flush=True)
         server.serve_forever()
         """;
@@ -232,7 +238,7 @@ internal sealed class TestFtpServer : IDisposable
         string? mutateOnRename = null, string? failAfterBackupRename = null, string? failAfterStagePublish = null,
         string? failAfterBackupCleanup = null, int virtualListingCount = 0, bool virtualSelfLines = false, bool emptyFolders550 = false,
         (int Lines, int Length)? virtualPadding = null, string? permissionListing = null, string? dataCertificatePem = null,
-        string? workingFolderReply = null, double dataCloseDelaySeconds = 0)
+        string? workingFolderReply = null, double dataCloseDelaySeconds = 0, string? bindAddress = null, (int First, int Last)? passivePorts = null)
     {
         if (dataCertificatePem is not null && certificatePem is null)
             throw new ArgumentException("A data certificate requires a control certificate.", nameof(dataCertificatePem));
@@ -290,6 +296,8 @@ internal sealed class TestFtpServer : IDisposable
                 start.Environment["FILECAT_FTP_DATA_CLOSE_DELAY"] = dataCloseDelaySeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
         if (workingFolderReply is not null) start.Environment["FILECAT_FTP_PWD"] = workingFolderReply;
+        if (bindAddress is not null) start.Environment["FILECAT_FTP_BIND"] = bindAddress;
+        if (passivePorts is { } range) start.Environment["FILECAT_FTP_PASSIVE"] = FormattableString.Invariant($"{range.First}-{range.Last}");
         var launched = Launch(start);
         if (launched is null) return null;
         return new TestFtpServer(launched.Value.Process, start, root, launched.Value.Port);
