@@ -16,7 +16,7 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
 {
     public override void Open(string path)
     {
-        if (WindowsTokenAuthority.IsHighIntegrity)
+        if (ProcessAuthority.IsElevatedOrRoot)
             throw new IOException("System file associations are unavailable while FileCat runs as administrator. Reopen it without elevation.");
         // The OS applies its normal security prompts (e.g. Mark-of-the-Web warnings) when opening.
         var psi = new ProcessStartInfo(path) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(path) ?? string.Empty };
@@ -329,7 +329,7 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
 
     private static void RefuseElevatedTerminal()
     {
-        if (WindowsTokenAuthority.IsHighIntegrity)
+        if (ProcessAuthority.IsElevatedOrRoot)
             throw new IOException("Terminals are unavailable while FileCat runs as administrator. Reopen it without elevation.");
     }
 
@@ -346,9 +346,9 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
     /// <summary>
     /// A high-integrity token, as every other refusal of the security plan decides it (review finding R-M12): an elevated
     /// Backup Operators member has one without Administrators membership, and a user-configured tool must not run there
-    /// either.
+    /// either. The one decision of <see cref="ProcessAuthority.IsElevatedOrRoot"/> (I655).
     /// </summary>
-    public override bool IsElevated => Core.State.WindowsTokenAuthority.IsHighIntegrity;
+    public override bool IsElevated => ProcessAuthority.IsElevatedOrRoot;
 
     private ProcessAccount? _account;
 

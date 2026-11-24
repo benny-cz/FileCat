@@ -84,8 +84,11 @@ public sealed partial class TabViewModel
         var field = Services.Metadata.Field(fieldId);
         if (field is null || Location is null || !MetadataApplies(entry, fieldId)) return MetadataCellPresentation.Inapplicable;
         if (fieldId == BuiltInFields.Verified.Id && Location.IsFileSystem && !_hasSidecars) return MetadataCellPresentation.Inapplicable;
-        if (fieldId == BuiltInFields.Verified.Id && Location.IsFileSystem && entry.Kind == EntryKind.File && Core.State.WindowsTokenAuthority.IsHighIntegrity)
-            return new(MetadataState.Available, Elevated.Text, string.Join('\n', Elevated.Details.Select(Formatters.SafeName)));
+        if (fieldId == BuiltInFields.Verified.Id && Location.IsFileSystem && entry.Kind == EntryKind.File && Core.State.ProcessAuthority.IsElevatedOrRoot)
+        {
+            var elevated = Elevated;
+            return new(MetadataState.Available, elevated.Text, string.Join('\n', elevated.Details.Select(Formatters.SafeName)));
+        }
         if (context is not null && (!ReferenceEquals(context.Store, Listing.Store) || context.StoreIndex != storeIndex ||
             context.Name != entry.Name || context.Kind != entry.Kind)) context = null;
         if (context is null && demand) context = CaptureMetadataContext(entry, storeIndex);

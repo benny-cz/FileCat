@@ -45,7 +45,11 @@ public static class HexSaveJournal
     private const string JournalChanged = "The hex recovery journal changed since it was read. The journal is retained for review.";
     private const string JournalEncrypted = "The hex recovery journal is EFS-encrypted. The journal is retained for review.";
 
-    public static IReadOnlyList<string> Pending(string directory) => !WindowsTokenAuthority.IsHighIntegrity && Directory.Exists(directory)
+    /// <summary>
+    /// The journals waiting in <paramref name="directory"/>; none for an administrator window or root (I655), whose hex
+    /// recovery folder may be the ordinary account's: a journal names a file and the bytes to write into it.
+    /// </summary>
+    public static IReadOnlyList<string> Pending(string directory) => !ProcessAuthority.IsElevatedOrRoot && Directory.Exists(directory)
         ? Directory.EnumerateFiles(directory, "hex-*.fcj", SearchOption.TopDirectoryOnly).Order(StringComparer.Ordinal).ToArray()
         : [];
 
@@ -341,8 +345,9 @@ public static class HexSaveJournal
 
     private static void RefuseElevatedJournal()
     {
-        if (WindowsTokenAuthority.IsHighIntegrity)
-            throw new IOException("FileCat does not save or apply user-profile hex recovery while running as administrator. Reopen it without elevation.");
+        if (ProcessAuthority.IsElevatedOrRoot)
+            throw new IOException($"FileCat does not save or apply user-profile hex recovery while running {ProcessAuthority.RunningAs}. " +
+                $"{ProcessAuthority.UsualProcessAdvice}.");
     }
 
     private static HexRecoveryInspection Compare(IReadOnlyList<HexPatchRange> ranges, Func<long, byte[], int> read)

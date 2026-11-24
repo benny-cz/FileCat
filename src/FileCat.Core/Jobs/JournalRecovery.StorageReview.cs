@@ -359,7 +359,7 @@ public static partial class JournalRecovery
     }
     private static void RequireStorageArtifacts(StorageReviewArtifacts evidence)
     {
-        if (WindowsTokenAuthority.IsHighIntegrity) throw new IOException("Storage history must be reviewed in the normal user process.");
+        if (ProcessAuthority.IsElevatedOrRoot) throw new IOException("Storage history must be reviewed in the normal user process.");
         if (!evidence.IsOwned || string.IsNullOrEmpty(evidence.DirectoryIdentity) || evidence.DirectoryIdentity.Length > 1024)
             throw new IOException("Owned private storage artifact access is required.");
     }

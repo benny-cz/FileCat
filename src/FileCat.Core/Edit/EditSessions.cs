@@ -270,7 +270,8 @@ public sealed partial class EditSessionStore
 
     public IReadOnlyList<EditSessionRecord> LoadAll()
     {
-        if (WindowsTokenAuthority.IsHighIntegrity) return [];
+        // The records are the ordinary account's: an administrator window, or root (I655), takes none of them.
+        if (ProcessAuthority.IsElevatedOrRoot) return [];
         var sessions = new List<EditSessionRecord>();
         // One private root lease for the whole native pass, and the storage gate tried at most once: once it is busy, no
         // other folder waits for it.
@@ -1249,8 +1250,9 @@ public sealed partial class EditSessionStore
 
     private static void RefuseElevatedSession()
     {
-        if (WindowsTokenAuthority.IsHighIntegrity)
-            throw new IOException("FileCat does not read or write user-profile edit sessions while running as administrator. Reopen it without elevation.");
+        if (ProcessAuthority.IsElevatedOrRoot)
+            throw new IOException($"FileCat does not read or write user-profile edit sessions while running {ProcessAuthority.RunningAs}. " +
+                $"{ProcessAuthority.UsualProcessAdvice}.");
     }
 
     public static string Hash(string path)

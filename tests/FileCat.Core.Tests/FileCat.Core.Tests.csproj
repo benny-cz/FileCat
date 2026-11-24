@@ -34,6 +34,7 @@
   <ItemGroup>
     <Compile Include="..\TestCleanup.cs" Link="TestCleanup.cs" />
     <Compile Include="..\TemporaryLinkFixture.cs" Link="TemporaryLinkFixture.cs" />
+    <Compile Include="..\ProcessAuthorityScopes.cs" Link="ProcessAuthorityScopes.cs" />
     <Compile Include="..\AnalysisScratchCrashFixture.cs" Link="AnalysisScratchCrashFixture.cs" />
     <Compile Include="..\AnalysisIndexedGraphFixture.cs" Link="AnalysisIndexedGraphFixture.cs" />
     <Compile Include="..\AnalysisObservationCaptureFixture.cs" Link="AnalysisObservationCaptureFixture.cs" />

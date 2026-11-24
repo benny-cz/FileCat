@@ -26,7 +26,8 @@ public sealed class NotificationCenterTests
         {
             App.NotifyAdministratorNotice(vm);
             var notice = vm.CurrentNotification!;
-            Assert.Contains("running as administrator", notice.Message);
+            // I655: root on Linux and macOS says so in its own terms.
+            Assert.Contains(OperatingSystem.IsWindows() ? "running as administrator" : "running as root", notice.Message);
             Assert.False(notice.IsError);
             Assert.True(window.NotificationTimerEnabled);
             Assert.Equal(TimeSpan.FromSeconds(6), window.NotificationTimerInterval);

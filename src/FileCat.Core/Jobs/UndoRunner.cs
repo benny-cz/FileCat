@@ -66,6 +66,11 @@ internal sealed class UndoRunner(UndoPlan plan, IFileSystemOperations fs, Action
         }
     }
 
+    /// <summary>Why a folder is not moved back by an administrator window (Windows) or by FileCat running as root.</summary>
+    internal static string ElevatedDirectoryUndoRefusal(bool windows) => windows
+        ? "Elevated directory Undo is refused because its contents cannot be bound to the reviewed move. Restore it separately after reviewing its current contents."
+        : "Directory Undo is refused while FileCat runs as root because its contents cannot be bound to the reviewed move. Restore it separately after reviewing its current contents.";
+
     private (UndoOutcomeKind Outcome, string Reason) Apply(UndoStep step, Action intent)
     {
         switch (step.Kind)
@@ -74,10 +79,10 @@ internal sealed class UndoRunner(UndoPlan plan, IFileSystemOperations fs, Action
             {
                 var now = fs.TryGetInfo(step.From);
                 if (now is null) return (UndoOutcomeKind.Kept, "The item no longer exists at the recorded path.");
-                // The inverse has no child snapshot. At high integrity, a directory exposed to a medium
-                // writer could carry substituted children into a protected destination.
-                if (now.IsDirectory && WindowsTokenAuthority.IsHighIntegrity)
-                    return (UndoOutcomeKind.Kept, "Elevated directory Undo is refused because its contents cannot be bound to the reviewed move. Restore it separately after reviewing its current contents.");
+                // The inverse has no child snapshot. At high integrity, or as root (I655), a directory exposed to an
+                // ordinary writer could carry substituted children into a protected destination.
+                if (now.IsDirectory && ProcessAuthority.IsElevatedOrRoot)
+                    return (UndoOutcomeKind.Kept, ElevatedDirectoryUndoRefusal(OperatingSystem.IsWindows()));
                 // A directory inverse moves the current directory; it never promises a recursive content snapshot.
                 if (!now.IsDirectory && (now.Size != step.Size || now.ModifiedUtc.Ticks != step.ModifiedTicks))
                     return (UndoOutcomeKind.Kept, "It changed since the operation.");

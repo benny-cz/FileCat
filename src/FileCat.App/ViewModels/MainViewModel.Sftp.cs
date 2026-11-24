@@ -506,11 +506,19 @@ public sealed partial class MainViewModel
     /// known_hosts and lands in the folder. The host follows "--" so a name can never become an ssh option, and the
     /// folder is quoted for the server's shell.
     /// </summary>
+    /// <summary>
+    /// Why an administrator window (Windows), or FileCat running as root, opens no SSH terminal: the terminal and ssh run
+    /// configuration from the profile, which under sudo -E is the caller's (I655).
+    /// </summary>
+    internal static string SshTerminalRefusal(bool windows) => windows
+        ? "Open the SSH terminal from an ordinary FileCat session; elevated sessions do not run user-profile SSH configuration."
+        : "Open the SSH terminal from FileCat started as your usual user; FileCat running as root does not run user-profile SSH or terminal configuration.";
+
     private void OpenSshTerminal(Location location)
     {
-        if (Core.State.WindowsTokenAuthority.IsHighIntegrity)
+        if (Core.State.ProcessAuthority.IsElevatedOrRoot)
         {
-            Notify("Open the SSH terminal from an ordinary FileCat session; elevated sessions do not run user-profile SSH configuration.", true);
+            Notify(SshTerminalRefusal(OperatingSystem.IsWindows()), true);
             return;
         }
         if (location.Session is not { } id || Services.FindRemoteProfile(id) is not { } profile) return;

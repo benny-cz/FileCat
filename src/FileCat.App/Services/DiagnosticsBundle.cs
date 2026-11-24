@@ -15,18 +15,18 @@ public static class DiagnosticsBundle
 {
     public sealed record Summary(string Preview);
 
-    public static Summary Describe(AppServices s) => new(Preview(WindowsTokenAuthority.IsHighIntegrity, AppLog.DiagnosticMode));
+    public static Summary Describe(AppServices s) => new(Preview(ProcessAuthority.IsElevatedOrRoot, AppLog.DiagnosticMode, OperatingSystem.IsWindows()));
 
     /// <summary>
     /// What the bundle holds, as the export asks before it writes. The log and crash reports hash paths (I643), but no rule
     /// can find a bare file name, a relative path or a server's name in a message, so the preview says those can remain.
     /// </summary>
-    internal static string Preview(bool elevated, bool diagnosticMode)
+    internal static string Preview(bool elevated, bool diagnosticMode, bool windows)
     {
         var sb = new StringBuilder();
         sb.AppendLine("The bundle contains:");
         sb.AppendLine("• FileCat version, OS, runtime, and platform adapter");
-        if (elevated) sb.AppendLine("• persisted diagnostics logs are omitted while FileCat runs as administrator");
+        if (elevated) sb.AppendLine($"• persisted diagnostics logs are omitted while FileCat runs {ProcessAuthority.RunningAsOn(windows)}");
         else sb.AppendLine("• the diagnostics log and crash reports, if any (" + (diagnosticMode
             ? "diagnostic mode is ON, so paths are included)"
             : "paths are hashed, but a message can still name a file, folder, or server)"));
@@ -52,7 +52,9 @@ public static class DiagnosticsBundle
         env.AppendLine(UiStallMonitor.Describe());
         AddText(zip, "environment.txt", env.ToString());
         AddText(zip, "settings.json", JsonSerializer.Serialize(s.Settings, Core.State.StateJsonContext.Default.AppSettings));
-        foreach (var file in WindowsTokenAuthority.IsHighIntegrity ? [] : new[] { "filecat.log", "filecat.log.1", "crash.log" })
+        // An administrator window, or root (I655), copies nothing from the log folder: the ordinary account's, which may
+        // have put a link to a protected file under a log's name there.
+        foreach (var file in ProcessAuthority.IsElevatedOrRoot ? [] : new[] { "filecat.log", "filecat.log.1", "crash.log" })
         {
             var p = Path.Combine(s.Paths.LogDirectory, file);
             if (File.Exists(p))

@@ -179,8 +179,8 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
     {
         var container = location.Container ?? throw new InvalidOperationException("ZIP location without its archive.");
         if (container.IsFileSystem) return new ArchiveSourceLease(container.Path);
-        if (FileCat.Core.State.WindowsTokenAuthority.IsHighIntegrity)
-            throw new IOException("Nested archives cannot be opened while FileCat runs as administrator because they require a user-local spool.");
+        if (FileCat.Core.State.ProcessAuthority.IsElevatedOrRoot)
+            throw new IOException($"Nested archives cannot be opened while FileCat runs {FileCat.Core.State.ProcessAuthority.RunningAs} because they require a user-local spool.");
         if (container.Scheme != Schemes.Zip)
         {
             if (OtherArchives is IArchiveSpoolProvider spools) return spools.OpenSpool(container);

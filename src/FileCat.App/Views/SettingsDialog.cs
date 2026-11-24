@@ -26,6 +26,15 @@ public static class SettingsDialog
     /// <summary>The Columns page's name, as its tab shows it (the file list's header menu opens Settings on it).</summary>
     internal const string ColumnsPage = "Columns";
 
+    /// <summary>
+    /// Why Settings are read-only in an administrator window (Windows) or in FileCat running as root, which neither reads
+    /// nor saves the profile's settings (I655).
+    /// </summary>
+    internal static string ElevatedReadOnlyReason(bool windows) => windows
+        ? "Administrator Settings are read-only. You can copy appearance and open folders from a normal window."
+        : "Settings are read-only while FileCat runs as root: it neither reads nor saves your settings, and shows the defaults. " +
+          "Start FileCat as your usual user to change them.";
+
     /// <param name="startPage">The tab to open on, by its name (<see cref="ColumnsPage"/>); null for the first.</param>
     /// <param name="columnProfile">The column profile the Columns page selects (a panel's own); null for the first.</param>
     public static async Task ShowAsync(MainViewModel vm, string? startPage = null, int? columnProfile = null)
@@ -481,8 +490,8 @@ public static class SettingsDialog
                     foreach (var control in page.GetLogicalDescendants().OfType<Control>())
                         if (control is TextBox textBox) textBox.IsReadOnly = true;
                         else if (control is Button or ComboBox or CheckBox or NumericUpDown) control.IsEnabled = false;
-            string reason = WindowsTokenAuthority.IsHighIntegrity
-                ? "Administrator Settings are read-only. You can copy appearance and open folders from a normal window."
+            string reason = ProcessAuthority.IsElevatedOrRoot
+                ? ElevatedReadOnlyReason(OperatingSystem.IsWindows())
                 : vm.Services.SettingsStatus switch
             {
                 StateLoadStatus.NewerSchemaReadOnly => "These settings were written by a newer FileCat. They can be inspected here, but this version cannot change them.",
