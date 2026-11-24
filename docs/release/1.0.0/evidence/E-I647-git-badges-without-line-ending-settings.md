@@ -91,9 +91,10 @@ Commit `a158f9fd5` changes `src/FileCat.App/Services/GitStatusReader.cs`, with t
 | Clean | 192–244 ms | 271–295 ms |
 | One file changed | 181–223 ms | 319–442 ms |
 
-**Tests.** `tests/FileCat.App.Tests/GitComparisonSettingsTests.cs` holds 8 methods and 10 cases with real Git in temporary repositories.
-- Each test writes its settings to the global file of its own `HOME`, where FileCat's read finds them on every runner. A global value overrides whatever the machine's system file holds.
+**Tests.** `tests/FileCat.App.Tests/GitComparisonSettingsTests.cs` holds 8 methods and 10 cases; all but the last run real Git in temporary repositories.
+- Each of those writes its settings to the global file of its own `HOME`, where FileCat's read finds them on every runner. A global value overrides whatever the machine's system file holds.
 - Each also runs Git directly, as FileCat ran it until now and as Git ordinarily runs it. So each fixture is shown to reproduce its case, and each program it sets up is shown to run under ordinary Git.
+- Automatic reads are optional past their deadlines (8 s for a folder, 5 s for each repository listed in its parent). So, as in I405's test, a folder or a repository's badge is read again only while it is absent, twice at most. A present state is asserted at once, right or wrong.
 
 | Test | What it shows |
 |---|---|
@@ -107,7 +108,7 @@ Commit `a158f9fd5` changes `src/FileCat.App/Services/GitStatusReader.cs`, with t
 | `An_undecided_change_reads_unknown_and_ranks_above_clean_only` | The snapshot's ranking and the label |
 
 **Results.** Run on this workstation (Windows 11, Git for Windows 2.54.0), at medium integrity through Explorer, with `TEMP=%LOCALAPPDATA%\Temp`.
-- **The new class:** 10/10, and 10/10 again in five repeats.
+- **The new class:** 10/10, and 10/10 again in five repeats. With the re-read of absent badges added (commit `24bd2c467`), it and `GitEnvironmentTests` passed 16/16, none needing a second read.
 - **Every `Git*` class**, with `ElevatedSecurityBoundaryTests` and `BrowsingProcessTests`: 143 cases, 136 passed, 0 failed, 7 declared platform or opt-in skips. A second run of the same source had one failure in an unchanged check with a 250 ms elapsed budget, `GitLazyFetchTests.Explicitly_disabled_promisor_remotes_leave_ordinary_repositories_available("0")`. That class then passed 20/20 three times.
 - **The original reader.** The same final test DLL was run with rc.2's App DLL, built here from `1dfc0c12d` (SHA-256 `ca51b0b4bc1d54833d814feaed5de9d226124e3d68db9312ec7c1fac63b23935`). It had 11 failures:
   - five behavioral: `autocrlf` `true` and `input`, file mode, and both filter tests read changed;
@@ -115,7 +116,7 @@ Commit `a158f9fd5` changes `src/FileCat.App/Services/GitStatusReader.cs`, with t
   - four existing snapshot tests that fail only to bind, because `GitStatusSnapshot.Parse` gained an optional parameter.
   - `autocrlf=false`, the real-change control and the trace test pass with both readers.
 - **Mutations of the fixed reader**, each caught: no size check (1 failure), filters ignored (2), trace not switched off (1), and every setting read passed on, filters included (3; two because the filter ran).
-- CI on Windows x64, Windows ARM64, Ubuntu and macOS runs with the pull request.
+- **CI**: [run 45438010500](https://github.com/benny-cz/FileCat/actions/runs/45438010500) of PR #38 on `24bd2c467` passed 18 of its 19 jobs. They include the App jobs that run the new class on Ubuntu, Windows x64 and Windows ARM64, and the macOS App focus shard. The macOS App remainder shard, which runs the new class there, was still running when this was written. Its per-case results (TRX) were not inspected.
 
 **Residuals.**
 - A filtered file that really changed but kept its size reads unknown. FileCat cannot tell without running the filter.
