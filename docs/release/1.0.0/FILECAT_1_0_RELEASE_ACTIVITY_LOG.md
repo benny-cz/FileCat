@@ -5446,3 +5446,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-24 — Fourth sync of the day
 
 - With PR #21 merged and no PR open, `release/1.0` was synced at `f0febaa4` through PR #22, which merged as `7269ec61` after its first CI attempt passed all 19 jobs. It brings the I634 fix, so the next candidate tag builds FileCat 1.0.0 throughout. The branch's tree equals main's, and `v1.0.0-rc.1` stays at `8f122365`. [Sync record](evidence/E-REL-SYNC-20261124-release-branch.md).
+
+## 2026-11-24 — `v1.0.0-rc.2`
+
+- The owner answered "Yes, tag rc.2". Annotated tag `1caa5fc3` points to `release/1.0` `7269ec61`, which carries the I634 fix; `src/` is unchanged since rc.1. [rc.2](evidence/E-RC2-TAG-20261124.md).
+- Tagged run 45377416067 passed every job in its first attempt. Its 24 TRX are identical test by test to PR #22's run of the same tree. The package jobs' new checks confirmed that every package calls itself FileCat 1.0.0. The owner approved the `signing` run in GitHub; both runtimes were signed and verified, and the 24-asset candidate, every asset named 1.0.0, went into a private draft with its signing records beside it. Nothing was published.
