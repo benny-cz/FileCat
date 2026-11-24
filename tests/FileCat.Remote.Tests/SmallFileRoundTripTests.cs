@@ -138,9 +138,9 @@ public sealed class SmallFileRoundTripTests : IDisposable
         var up = await RunAsync(stack.Jobs, new JobRequest { Kind = JobKind.Copy, Sources = files, Destination = SftpProvider.At(profile, RemotePath.Combine(sshd.Files, "up")) });
         Assert.Equal(JobState.Completed, up.State);
         var sent = stack.Counter.Take();
-        // Before I42 each file cost 14 requests (realpath before nearly each of them, the time as lstat and setstat, a stat
-        // of the path), each waited for. Now: open; the write, fsetstat, fstat and close together; the rename. The
-        // destination folder is listed once (realpath, opendir, two readdirs, close).
+        // Before I42 each file cost 13 requests (realpath before six of them, the time as lstat and setstat, a stat of the
+        // path), each waited for. Now: open; the write, fsetstat, fstat and close together; the rename. The destination
+        // folder is listed once (realpath, opendir, two readdirs, close).
         Assert.Equal(3, Count(sent, "Open"));
         Assert.Equal(3, Count(sent, "Write"));
         Assert.Equal(3, Count(sent, "FSetStat"));
@@ -162,9 +162,9 @@ public sealed class SmallFileRoundTripTests : IDisposable
         });
         Assert.Equal(JobState.Completed, down.State);
         var read = stack.Counter.Take();
-        // Before: 11.5 requests each (two realpath and lstat pairs, open and fstat, reads, close). Now: open with a stat of
-        // the path; the read (SSH.NET also asks once past the end without waiting for it); a stat to see the file did not
-        // change; the close, not waited for.
+        // Before: 11 requests each (three realpath and lstat pairs: a stat before opening and the revisions before and
+        // after reading; open and fstat; the read and one past its end; close). Now: open with a stat of the path; the
+        // read and one past its end, together; a stat to see the file did not change; the close, not waited for.
         Assert.Equal(3, Count(read, "Open"));
         Assert.Equal(6, Count(read, "Stat"));
         Assert.InRange(Count(read, "Read"), 3, 6);
