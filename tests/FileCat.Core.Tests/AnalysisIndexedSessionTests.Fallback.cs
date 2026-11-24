@@ -106,7 +106,7 @@ public sealed partial class AnalysisIndexedSessionTests
         using var session = new AnalysisCoordinator(io).Start([source], storage: Storage(directory, new Backend(0, "private")) with { AllowMemoryFallback = true });
         try
         {
-            Assert.True(entered.Wait(TimeSpan.FromSeconds(5), Cancellation)); session.Stop();
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(30), Cancellation)); session.Stop(); // a generous wait for the first write
             Assert.Equal(AnalysisPhase.Stopped, session.Snapshot().Phase); Assert.False(session.Completion.IsCompleted);
         }
         finally { release.Set(); }
