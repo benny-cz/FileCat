@@ -594,7 +594,7 @@ internal sealed class ZipTestExecutor(Job job, IFileSystemOperations fs, JobJour
                 {
                     damaged++;
                     Job.ItemFailed();
-                    Issue(IssueSeverity.Error, $"{Path.GetFileName(path)}: {entry.FullName}", $"Damaged: {ex.Message}.", StepOutcome.Failed);
+                    Issue(IssueSeverity.Error, $"{Path.GetFileName(path)}: {entry.FullName}", $"Damaged: {ErrorText.WithoutFinalPeriod(ex.Message)}.", StepOutcome.Failed);
                 }
             }
         }

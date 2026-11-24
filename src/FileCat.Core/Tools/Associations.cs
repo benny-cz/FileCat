@@ -61,7 +61,7 @@ public static class Associations
             string maskText = ToolTextGrammar.Field(parts[0]);
             if (!Mask.TryParse(maskText, savedFilters, out _, out var maskError) || maskText.Length == 0)
             {
-                throw new FormatException($"\"{maskText}\" is not a valid mask{(maskError is null ? "" : ": " + maskError)}.");
+                throw new FormatException($"\"{maskText}\" is not a valid mask{(maskError is null ? "" : ": " + Jobs.ErrorText.WithoutFinalPeriod(maskError))}.");
             }
             var intent = ToolTextGrammar.Field(parts[1]).ToLowerInvariant();
             if (!IsIntent(intent))

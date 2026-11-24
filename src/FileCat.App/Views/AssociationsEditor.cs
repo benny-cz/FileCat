@@ -219,7 +219,7 @@ internal sealed class AssociationsEditor
             string? maskError = null;
             if (string.IsNullOrWhiteSpace(tool.Name)) { error = $"Association {i + 1}, name: enter a name."; field = _name; }
             else if (string.IsNullOrWhiteSpace(tool.Mask) || !Mask.TryParse(tool.Mask, resolve, out _, out maskError))
-            { error = $"Association {i + 1}, mask: {maskError ?? "enter a mask"}."; field = _mask; }
+            { error = $"Association {i + 1}, mask: {(maskError is null ? "enter a mask" : Core.Jobs.ErrorText.WithoutFinalPeriod(maskError))}."; field = _mask; }
             else if (!Associations.IsIntent(tool.Intent)) { error = $"Association {i + 1}, action: choose view, edit or open."; field = _mask; }
             else if (string.IsNullOrWhiteSpace(tool.Executable)) { error = $"Association {i + 1}, program: enter a program."; field = _program; }
             else if (!ToolTextGrammar.TryParseArguments(entry.ArgumentsText, out var args, out var argumentError))

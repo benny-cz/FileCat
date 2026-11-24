@@ -613,6 +613,33 @@ public sealed class SftpJobTests : IDisposable
     }
 
     [Fact]
+    public async Task A_refusal_that_ends_its_own_sentence_is_reported_with_one_period()
+    {
+        // I654's pattern: FluentFTP's "FTP continues a file only at its end." gained FileCat's period, "end..".
+        var data = new byte[3 * 1024 * 1024 + 5];
+        new Random(5).NextBytes(data);
+        string big = Path.Combine(_local, "big.bin");
+        File.WriteAllBytes(big, data);
+        _server.Dir("/up");
+        _server.ContinuesUploads = false;
+        _server.ContinueRefusal = "FTP continues a file only at its end.";
+        _server.DropAfterBytes = 2 * 1024 * 1024 + 17;
+        var job = _jobs.Submit(new JobRequest { Kind = JobKind.Copy, Sources = [ItemRef.ForFileSystemPath(big, EntryKind.File)], Destination = Remote("/up") });
+        while (!job.State.IsFinished())
+        {
+            if (job.Decision is { Task.IsCompleted: false } d)
+            {
+                _server.Down = false;
+                d.Resolve(new Decision(DecisionAction.Retry));
+            }
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        Assert.Equal(JobState.Completed, job.State);
+        var restarted = Assert.Single(job.Issues, i => i.Message.Contains("went again from the start", StringComparison.Ordinal));
+        Assert.Equal("The upload was interrupted and went again from the start: FTP continues a file only at its end.", restarted.Message);
+    }
+
+    [Fact]
     public async Task Uploads_keep_modified_times_and_say_so_where_the_server_does_not()
     {
         // Release issue I43: vsftpd has no MFMT, so FileCat sent no time, and every upload silently showed its arrival.

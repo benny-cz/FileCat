@@ -58,6 +58,9 @@ internal sealed class FakeSftpServer
     /// <summary>False: a server that refuses to continue a file (ProFTPD's FTP without AllowStoreRestart, I47).</summary>
     public bool ContinuesUploads { get; set; } = true;
 
+    /// <summary>What a server that does not continue uploads says (FluentFTP's own sentence ends with a period).</summary>
+    public string ContinueRefusal { get; set; } = "the server does not continue uploads (451 Append/Restart not permitted, try again)";
+
     /// <summary>Called with a file's path as it is opened for reading (outside the server's lock): others' changes meanwhile.</summary>
     public Action<string>? OnRead { get; set; }
     /// <summary>Owned test seam: a server that stops reporting a revision after a file is opened.</summary>
@@ -257,7 +260,7 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
         lock (server.Lock)
         {
             var node = server.Lookup(path, followFinal: false) ?? throw new FileNotFoundException("No such file: " + path);
-            if (!server.ContinuesUploads) throw new NotSupportedException("the server does not continue uploads (451 Append/Restart not permitted, try again)");
+            if (!server.ContinuesUploads) throw new NotSupportedException(server.ContinueRefusal);
             server.WritesAt.Add(offset);
             var stream = new CommitStream(this, node);
             stream.Write(node.Data.AsSpan(0, (int)Math.Min(offset, node.Data.Length)));

@@ -346,6 +346,17 @@ public static class ErrorText
 {
     public static int Win32Code(Exception ex) => ex.HResult & 0xFFFF;
 
+    /// <summary>
+    /// An exception's or a library's message that a sentence of FileCat's own goes on from: trailing white space and one
+    /// final period dropped, so "… corrupted." does not become "corrupted.." (I654). Otherwise the message is shown as it
+    /// came; an ellipsis keeps two of its dots.
+    /// </summary>
+    public static string WithoutFinalPeriod(string message)
+    {
+        string trimmed = message.TrimEnd();
+        return trimmed.EndsWith('.') ? trimmed[..^1] : trimmed;
+    }
+
     public static string Classify(Exception ex)
     {
         if (ex is UnauthorizedAccessException) return "access";

@@ -226,4 +226,195 @@ public sealed class AccessibleNameFallbackTests
         static IEnumerable<Control> Items(MenuItem parent) =>
             parent.Items.OfType<MenuItem>().SelectMany(item => Items(item).Prepend(item));
     }
+
+    /// <summary>
+    /// Every choice of every combo box under <paramref name="root"/>, by its realized item, whose accessible name is
+    /// implementation text (a ComboBoxItem is named like a list item: its template's text, else its item's ToString).
+    /// </summary>
+    private static IEnumerable<string> ImplementationNamedChoices(Control root, string where)
+    {
+        var found = new List<string>();
+        foreach (var combo in root.GetVisualDescendants().OfType<ComboBox>().Where(c => c.IsEffectivelyVisible && c.IsEffectivelyEnabled && c.ItemCount > 0).ToList())
+        {
+            combo.IsDropDownOpen = true;
+            Dispatcher.UIThread.RunJobs();
+            try
+            {
+                for (int i = 0; i < combo.ItemCount; i++)
+                    if (combo.ContainerFromIndex(i) is Control item && Name(item) is { } name && Implementation.IsMatch(name))
+                        found.Add($"{where}: {AutomationProperties.GetName(combo)} choice {i + 1} named \"{name}\"");
+            }
+            finally
+            {
+                combo.IsDropDownOpen = false;
+                Dispatcher.UIThread.RunJobs();
+            }
+        }
+        return found;
+    }
+
+    [AvaloniaFact]
+    public async Task Separate_windows_and_the_choices_in_dialogs_name_nothing_after_a_type_or_a_record()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1300, height: 860, prepareFiles: folder =>
+        {
+            Directory.CreateDirectory(Path.Combine(folder, "sub"));
+            string other = Directory.CreateDirectory(Path.Combine(Path.GetDirectoryName(folder)!, "other", "sub")).Parent!.FullName;
+            File.WriteAllText(Path.Combine(other, "a.txt"), "changed alpha");
+            File.WriteAllText(Path.Combine(other, "only-right.txt"), "right");
+        });
+        ProductStyles(window);
+        var found = new List<string>();
+        var opened = new List<Window>();
+        void Opened(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            if (sender is Window w && !ReferenceEquals(w, window)) opened.Add(w);
+        }
+        using var subscription = Window.WindowOpenedEvent.AddClassHandler(typeof(Window), Opened);
+        var ct = TestContext.Current.CancellationToken;
+        var dialogs = (OverlayDialogService)vm.Dialogs;
+        try
+        {
+            var tab = vm.ActiveTab!;
+            var listing = tab.Listing;
+            await WaitFor(() => listing.State == Core.Listing.ListingState.Complete && listing.FindStoreIndex("sub") >= 0, "the folder is listed");
+            void Focus(string name) => listing.SetFocus(listing.GetVisibleIndex(listing.FindStoreIndex(name)));
+
+            async Task CloseOverlays()
+            {
+                for (int tries = 0; tries < 4 && dialogs.IsOpen; tries++)
+                {
+                    window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+                    for (int i = 0; i < 50 && dialogs.IsOpen; i++) await Task.Delay(20, ct);
+                }
+            }
+
+            // Dialogs, with every combo box's choices: where a command opens none on this system, there is nothing to check.
+            foreach (var command in new[] { CommandIds.Settings, CommandIds.Copy, CommandIds.Move, CommandIds.MarkUnselectMask, CommandIds.CreateLink,
+                         CommandIds.Checksum, CommandIds.ApplyCommand, CommandIds.SftpConnect, CommandIds.RecentNotifications, CommandIds.FindFolder,
+                         CommandIds.SaveWorkspace, CommandIds.About, CommandIds.QuickFilter, CommandIds.LocationMenuSource, CommandIds.FocusPanelPicker,
+                         CommandIds.ChooseTarget })
+            {
+                Focus("a.txt");
+                _ = vm.ExecuteAsync(command);
+                for (int i = 0; i < 40 && !dialogs.IsOpen; i++) await Task.Delay(25, ct);
+                if (!dialogs.IsOpen) continue;
+                await Task.Delay(50, ct);
+                window.UpdateLayout();
+                found.AddRange(ImplementationNamed(window, command));
+                found.AddRange(ImplementationNamedChoices(window, command));
+                if (command == CommandIds.Settings)
+                {
+                    var tabs = window.GetVisualDescendants().OfType<TabControl>().First();
+                    for (int i = 0; i < tabs.ItemCount; i++)
+                    {
+                        tabs.SelectedIndex = i;
+                        await Task.Delay(50, ct);
+                        window.UpdateLayout();
+                        found.AddRange(ImplementationNamedChoices(window, $"Settings page {(tabs.Items[i] as TabItem)?.Header}"));
+                    }
+                }
+                await CloseOverlays();
+                Assert.False(dialogs.IsOpen, command + " closes");
+            }
+
+            // Separate windows: each is checked once it has shown what it opened for.
+            async Task<Window?> Open(string command, string focus, Func<Window, bool> ready)
+            {
+                int before = opened.Count;
+                Focus(focus);
+                _ = vm.ExecuteAsync(command);
+                for (int i = 0; i < 200 && opened.Count == before; i++) await Task.Delay(25, ct);
+                if (opened.Count == before) return null;
+                var w = opened[^1];
+                for (int i = 0; i < 200 && !ready(w); i++)
+                {
+                    Dispatcher.UIThread.RunJobs();
+                    await Task.Delay(25, ct);
+                }
+                w.UpdateLayout();
+                return w;
+            }
+            var checkedWindows = new List<string>();
+            async Task Check(string command, string focus, Func<Window, bool> ready)
+            {
+                if (await Open(command, focus, ready) is not { } w) return;
+                try
+                {
+                    found.AddRange(ImplementationNamed(w, $"{command} ({w.GetType().Name})"));
+                    found.AddRange(ImplementationNamedChoices(w, $"{command} ({w.GetType().Name})"));
+                    checkedWindows.Add(w.GetType().Name);
+                }
+                finally { w.Close(); }
+            }
+
+            await Check(CommandIds.View, "a.txt", w => w.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text?.Contains("alpha", StringComparison.Ordinal) == true) ||
+                w.GetVisualDescendants().OfType<Control>().Count() > 50);
+            await Check(CommandIds.HexEdit, "a.txt", w => w.GetVisualDescendants().OfType<Control>().Count() > 50);
+            // Find, with its results.
+            if (await Open(CommandIds.FindFiles, "a.txt", w => w.GetVisualDescendants().OfType<Button>().Any(b => b.Content as string == "Find" && b.IsEffectivelyEnabled)) is { } find)
+            {
+                try
+                {
+                    find.GetVisualDescendants().OfType<Button>().First(b => b.Content as string == "Find" && b.IsEffectivelyEnabled)
+                        .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+                    for (int i = 0; i < 120 && !find.GetVisualDescendants().OfType<FileCat.App.Controls.FileListControl>().Any(l => l.AutomationListing?.TotalCount > 0); i++)
+                    {
+                        Dispatcher.UIThread.RunJobs();
+                        await Task.Delay(25, ct);
+                    }
+                    find.UpdateLayout();
+                    found.AddRange(ImplementationNamed(find, "Find results"));
+                    found.AddRange(ImplementationNamedChoices(find, "Find"));
+                    checkedWindows.Add(find.GetType().Name);
+                }
+                finally { find.Close(); }
+            }
+            // Two files compared side by side.
+            listing.MarkAll(false);
+            listing.SetMark(listing.GetVisibleIndex(listing.FindStoreIndex("a.txt")), true);
+            listing.SetMark(listing.GetVisibleIndex(listing.FindStoreIndex("b.txt")), true);
+            await Check(CommandIds.CompareFiles, "a.txt", w => w.GetVisualDescendants().OfType<Control>().Count() > 50);
+            listing.MarkAll(false);
+            // Two folders compared with their subfolders, as a tree of differences.
+            var right = vm.Workspace.Panels[1].ActiveTab!;
+            right.Navigate(Core.Resources.Location.FileSystem(Path.Combine(root, "other")));
+            await WaitFor(() => right.Listing.State == Core.Listing.ListingState.Complete && right.Listing.FindStoreIndex("only-right.txt") >= 0, "the other folder is listed");
+            {
+                int before = opened.Count;
+                _ = vm.ExecuteAsync(CommandIds.CompareDirectories);
+                await WaitFor(() => dialogs.IsOpen, "the folder comparison asks what to compare");
+                await Task.Delay(50, ct);
+                window.UpdateLayout();
+                var overlay = window.FindControl<Panel>("OverlayHost")!;
+                overlay.GetVisualDescendants().OfType<CheckBox>().Single(c => c.Content is string s && s.StartsWith("Include subfolders", StringComparison.Ordinal)).IsChecked = true;
+                overlay.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Compare").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+                await WaitFor(() => opened.Count > before, "the tree of differences opens");
+                var differences = opened[^1];
+                try
+                {
+                    for (int i = 0; i < 120 && !differences.GetVisualDescendants().OfType<ListBoxItem>().Any(); i++)
+                    {
+                        Dispatcher.UIThread.RunJobs();
+                        await Task.Delay(25, ct);
+                    }
+                    differences.UpdateLayout();
+                    found.AddRange(ImplementationNamed(differences, "folder differences"));
+                    found.AddRange(ImplementationNamedChoices(differences, "folder differences"));
+                    checkedWindows.Add(differences.GetType().Name);
+                }
+                finally { differences.Close(); }
+            }
+            Assert.Contains("ViewerWindow", checkedWindows);
+            Assert.Contains("FindWindow", checkedWindows);
+            Assert.Contains("CompareWindow", checkedWindows);
+            Assert.Contains("DirectoryDiffWindow", checkedWindows);
+            Assert.True(found.Count == 0, string.Join(Environment.NewLine, found.Distinct()));
+        }
+        finally
+        {
+            foreach (var w in opened.ToList()) { try { w.Close(); } catch (InvalidOperationException) { } }
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
 }

@@ -89,7 +89,9 @@ internal static class EditPrivateCleanup
     /// <summary>Why a path was kept, for the user; the log has it with the path hashed (I643).</summary>
     private static string Kept(string path, string? reason)
     {
-        string Text(string shown) => "FileCat kept its temporary edit file " + shown + (string.IsNullOrEmpty(reason) ? "." : ": " + reason + ".");
+        // The reason can be the system's own message, which ends with a period of its own (I654).
+        string Text(string shown) => "FileCat kept its temporary edit file " + shown +
+            (string.IsNullOrEmpty(reason) ? "." : ": " + Jobs.ErrorText.WithoutFinalPeriod(reason) + ".");
         AppLog.Warn(Text(AppLog.P(path)));
         return Text(path);
     }
