@@ -37,7 +37,10 @@ public sealed class AppPaths
         OwnRoots = [.. ownRoots, privateRoot];
     }
 
-    /// <summary>The folder given with --data, which holds everything FileCat writes; null when FileCat keeps its usual places.</summary>
+    /// <summary>
+    /// The folder given with --data, or root's session folder on Linux and macOS (I655, <see cref="RootSession"/>), which
+    /// holds everything FileCat writes; null when FileCat keeps its usual places.
+    /// </summary>
     public string? DataRoot { get; }
 
     /// <summary>The folders FileCat owns whole: all its state lives below them.</summary>
