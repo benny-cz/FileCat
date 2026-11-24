@@ -5462,3 +5462,10 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - In the qualification VM, scenarios now drive the installed FileCat in the test account's own session. About shows 1.0.0 (7269ec6). Menus, free space, attributes, both drive Properties routes, command-line history, the hidden-item count and Windows' Properties sheet from Alt+Enter and from the context menu all pass. [FQ progress](evidence/E-FQ-RC2-20261124.md).
 - I635: with several items marked, Alt+Enter opens the cursor item's sheet, where the context menu says "Select one item to show its properties." It is Low, and the owner decides whether a later candidate fixes it. [I635](evidence/E-I635-alt-enter-ignores-marks.md).
+
+## 2026-11-24 — Second round of rc.2's Windows installed-UI checks
+
+- In the qualification VM, these now pass on the installed candidate: Find in Page and Text (c4, c5, c13); shortcut changes from F1 and Search commands (c22); separate-click rename (c24); Ignored folders (c31); Analyze folder's chooser (c32); and the Shell helper's folder modes at high and medium integrity (c36). Find's dismissal passes in the Viewer and the Hex Editor. [FQ progress](evidence/E-FQ-RC2-20261124.md).
+- I636: Analyze folder reads Origin, and an alias's or WSL link's Link target, but keeps no order by them. Two value types added on 2026-11-23 are not on the ordering snapshot's list. [I636](evidence/E-I636-analysis-unretained-record-values.md).
+- I637: Compare gives the keyboard to its rows neither when it opens nor when Find closes, so arrows do nothing until a row is clicked. [I637](evidence/E-I637-compare-find-close-keyboard.md).
+- Both are Low. Like I635, the owner decides whether a later candidate fixes them.
