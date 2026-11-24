@@ -6,6 +6,7 @@ using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
+using Avalonia.Data;
 using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -225,22 +226,35 @@ internal static class ComboBoxAnnouncements
 /// </summary>
 internal static class LiveRegions
 {
-    /// <summary>A watched control's peer, whether its text changed while hidden, and whether it was just shown.</summary>
+    /// <summary>
+    /// A watched control's peer, whether its text changed while hidden, whether it was just shown, and the live setting
+    /// held Off while the change that emptied its name is raised (with the property that changed).
+    /// </summary>
     private sealed class Region(AutomationPeer peer)
     {
         public AutomationPeer Peer { get; } = peer;
         public bool Deferred;
         public bool Showing;
+        public IDisposable? Silence;
+        public AvaloniaProperty? SilencedBy;
     }
 
     private static readonly ConditionalWeakTable<Control, Region> s_watched = [];
+    private static int s_emptyNameGuard;
+    /// <summary>Set while this class switches a live setting itself; the control's own setting is unchanged.</summary>
+    [ThreadStatic] private static bool t_silencing;
 
-    internal static void Install() =>
+    internal static void Install()
+    {
+        GuardEmptyNames();
         AutomationProperties.LiveSettingProperty.Changed.AddClassHandler<Control>((control, _) => Watch(control));
+    }
 
     /// <summary>Tracks the control while it is live; its live setting may be switched later.</summary>
     internal static void Watch(Control control)
     {
+        if (t_silencing) return;
+        GuardEmptyNames();
         if (!s_watched.TryGetValue(control, out var region))
         {
             region = new Region(ControlAutomationPeer.CreatePeerForElement(control));
@@ -260,13 +274,56 @@ internal static class LiveRegions
                 // the final text after its native element has a visible parent.
                 if (watched.Deferred && control.IsEffectivelyVisible) Shown(control, watched);
             };
+            // Subscribed after the peer was created, so this runs after the peer's own handler of the same change.
             control.PropertyChanged += (_, e) =>
             {
+                if (ReferenceEquals(e.Property, watched.SilencedBy)) Unsilence(watched);
                 if (e.Property == Visual.IsVisibleProperty && control.IsVisible) Shown(control, watched);
             };
             region.Peer.PropertyChanged += (_, e) => OnNameChanged(control, watched, e);
         }
         Track(control, region.Peer);
+    }
+
+    /// <summary>
+    /// Avalonia.Native 12.1.4 announces a live element's new name by putting it into a dictionary without checking it, and
+    /// an empty name reaches it as nil: a live text whose text was cleared, such as the validation message of Change
+    /// attributes and times once a typed time became valid, ended FileCat with NSInvalidArgumentException ("attempt to
+    /// insert nil object") while an accessibility client was active (I650; fixed upstream in Avalonia 12.1.5 by
+    /// AvaloniaUI/Avalonia#22463). FileCat's live regions are text blocks, apart from one read-only text box, and Avalonia
+    /// raises a name change for a text block's text only (a text box's text is a value change, which is never announced
+    /// this way). Under the macOS bridge, a watched live text whose name becomes empty therefore reads as not live
+    /// while that change is raised: this class handler runs before the text block's own property-changed event, from
+    /// which its automation peer raises the name change the bridge acts on, and the control's handler in
+    /// <see cref="Watch"/> restores the setting after the peer's. The Off value is held at animation priority, so the
+    /// control's own setting never changes and an empty name is simply not announced.
+    /// </summary>
+    private static void GuardEmptyNames()
+    {
+        if (Interlocked.Exchange(ref s_emptyNameGuard, 1) != 0) return;
+        TextBlock.TextProperty.Changed.AddClassHandler<TextBlock>((block, e) => SilenceEmptyName(block, e.Property));
+    }
+
+    private static void SilenceEmptyName(Control control, AvaloniaProperty changed)
+    {
+        if (!NativeLiveRegionBridges.UseMacBridge || !s_watched.TryGetValue(control, out var region)) return;
+        // Left over only if an earlier change's event never reached the control's handler; this change decides anew.
+        if (region.Silence is not null) Unsilence(region);
+        if (region.Peer.GetLiveSetting() == AutomationLiveSetting.Off || region.Peer.GetName().Length > 0) return;
+        t_silencing = true;
+        try { region.Silence = control.SetValue(AutomationProperties.LiveSettingProperty, AutomationLiveSetting.Off, BindingPriority.Animation); }
+        finally { t_silencing = false; }
+        region.SilencedBy = region.Silence is null ? null : changed;
+    }
+
+    private static void Unsilence(Region region)
+    {
+        var silence = region.Silence;
+        region.Silence = null;
+        region.SilencedBy = null;
+        t_silencing = true;
+        try { silence?.Dispose(); }
+        finally { t_silencing = false; }
     }
 
     /// <summary>Speaks the control's current text again, as for Enter on a value its message rejects.</summary>
