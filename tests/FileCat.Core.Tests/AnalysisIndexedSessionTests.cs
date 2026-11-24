@@ -40,7 +40,9 @@ public sealed partial class AnalysisIndexedSessionTests
         AnalysisSnapshot? preview = null;
         try
         {
-            Assert.True(entered.Wait(TimeSpan.FromSeconds(4), Cancellation)); preview = session.Snapshot();
+            // Waits for the indexing to reach its first write. Hosted macOS once took longer than the 4 s this allowed (PR #16's run,
+            // 2026-11-24); a passing test returns as soon as the write starts, and a hang still fails.
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(30), Cancellation)); preview = session.Snapshot();
             Assert.Equal(AnalysisPhase.Finished, preview.Phase);
             for (int n = 0; n < 20; n++) Assert.Equal(preview.Identity, session.Snapshot().Identity);
         }
@@ -87,8 +89,11 @@ public sealed partial class AnalysisIndexedSessionTests
         var flush = Task.Run(() => capture.Publish(Cancellation), Cancellation);
         try
         {
-            Assert.True(entered.Wait(TimeSpan.FromSeconds(3), Cancellation));
-            await Task.Run(() => capture.RequestStop("device-not-responding"), Cancellation).WaitAsync(TimeSpan.FromSeconds(2), Cancellation);
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(30), Cancellation));
+            // The write stays held until the finally block, so a stop that waited for it would never return: any limit proves it
+            // does not. The stop runs on its own thread, as a busy thread pool can hold a Task.Run body while the limit runs.
+            await Task.Factory.StartNew(() => capture.RequestStop("device-not-responding"), CancellationToken.None, TaskCreationOptions.LongRunning,
+                TaskScheduler.Default).WaitAsync(TimeSpan.FromSeconds(30), Cancellation);
         }
         finally { release.Set(); }
         await flush;
