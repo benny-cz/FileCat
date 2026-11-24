@@ -1,6 +1,0 @@
-  Discovering: FileCat.Rendering.Tests
-  Discovered:  FileCat.Rendering.Tests
-  Starting:    FileCat.Rendering.Tests
-  Finished:    FileCat.Rendering.Tests (ID = 'db50f79f3d93cdac9ca655150f7dd54f8f01dab4963108a33621feb0dcdf8c06')
-=== TEST EXECUTION SUMMARY ===
-   FileCat.Rendering.Tests  Total: 1, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 0.617s

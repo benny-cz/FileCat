@@ -1,6 +1,0 @@
-  Discovering: FileCat.App.Tests
-  Discovered:  FileCat.App.Tests
-  Starting:    FileCat.App.Tests
-  Finished:    FileCat.App.Tests (ID = 'a2e7ce036a0615d356b2d94d49007ac318a5e3f9ed061a0453c17babd38cb6d0')
-=== TEST EXECUTION SUMMARY ===
-   FileCat.App.Tests  Total: 35, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 14,959s
