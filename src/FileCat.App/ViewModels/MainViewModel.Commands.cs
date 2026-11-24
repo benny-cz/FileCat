@@ -493,7 +493,10 @@ public sealed partial class MainViewModel
                 if (tab is not null)
                 {
                     tab.PictureView = !tab.PictureView;
-                    Notify(tab.PictureView ? "Pictures: thumbnail grid in this tab." : "Pictures: file list in this tab.");
+                    // A place without thumbnails (a file's streams and attributes) says why its tiles stay plain (I649).
+                    string? plain = tab.PictureView && tab.Listing.Location is { } place ? tab.Listing.Provider?.ExplainNoThumbnails(place) : null;
+                    Notify(!tab.PictureView ? "Pictures: file list in this tab."
+                        : plain is null ? "Pictures: thumbnail grid in this tab." : "Pictures: thumbnail grid in this tab. " + plain);
                 }
                 break;
             case CommandIds.SortName:
