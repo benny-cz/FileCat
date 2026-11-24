@@ -749,7 +749,7 @@ public sealed class ViewerWindow : Window
                     UpdatePdfPageControls();
                     pageFailure = $"Page {page + 1} could not be shown: {ex.Message}";
                 }
-                else _picture.ShowMessage($"This {(_isPdf ? "PDF page" : "picture")} cannot be shown: {ex.Message}. Text and Hex (F4) show its bytes; Info (Ctrl+I) describes the file.");
+                else _picture.ShowMessage($"This {(_isPdf ? "PDF page" : "picture")} cannot be shown: {WithoutFinalPeriod(ex.Message)}. Text and Hex (F4) show its bytes; Info (Ctrl+I) describes the file.");
             }
         }
         finally { if (ReferenceEquals(_pdfLoadCts, pending)) _pdfLoadCts = null; }
@@ -759,6 +759,12 @@ public sealed class ViewerWindow : Window
             if (pageFailure is not null) _status.Text = pageFailure + " · " + _status.Text;
         }
     }
+
+    /// <summary>
+    /// A decoder's message, continued by FileCat's own sentence: one final period dropped, so the PDF library's "corrupted."
+    /// does not become "corrupted.." (I654). The message is otherwise shown as it came.
+    /// </summary>
+    internal static string WithoutFinalPeriod(string message) => message.EndsWith('.') ? message[..^1] : message;
 
     private void UpdatePdfPageControls()
     {
