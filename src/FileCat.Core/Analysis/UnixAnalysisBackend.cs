@@ -43,7 +43,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend, IAnal
         string canonical = UnixFiles.RealPath(selectedRoot) ?? throw new IOException("The selected root could not be resolved.");
         // Preparing is explicit and does not enumerate. The setup screen displays this captured target before Start.
         var rootLease = AnalysisNativeHandles.Acquire();
-        _root = Open(canonical, _mac ? 0x1000000 | 0x8000 | 0x100 | 0x4 : 0x200000 | 0x80000 | 0x20000);
+        _root = Open(canonical, _mac ? 0x1000000 | 0x8000 | 0x100 | 0x4 : LinuxRootOpenFlags(RuntimeInformation.ProcessArchitecture));
         if (_root < 0) rootLease.Dispose(); else _handleLeases.Add(_root, AnalysisNativeHandle.UnixFile(_root, rootLease, _nativeClose));
         if (_root < 0) throw new IOException("The selected directory could not be opened without following a link.");
         try
@@ -275,7 +275,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend, IAnal
         if (!_mac)
         {
             // O_PATH never reads data, hydrates placeholders or waits on a special device.
-            var how = new OpenHow { Flags = directory ? 0x80000ul | 0x10000 | 0x20000 : 0x200000ul | 0x80000 | 0x20000,
+            var how = new OpenHow { Flags = (ulong)LinuxEntryOpenFlags(directory, RuntimeInformation.ProcessArchitecture),
                 Resolve = 0x01 | 0x02 | 0x04 | 0x08 }; // NO_XDEV, NO_MAGICLINKS, NO_SYMLINKS, BENEATH
             fixed (byte* p = terminated)
             {
@@ -407,6 +407,18 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend, IAnal
         if (!_handleLeases.Remove(fd, out var owner)) return; // Never retry a native number.
         try { owner.CloseChecked(); }
         catch (Exception error) { _closeFailure ??= error; throw; }
+    }
+    /// <summary>Linux: the selected root, pinned with O_PATH | O_CLOEXEC | O_NOFOLLOW. O_NOFOLLOW's value depends on the
+    /// architecture (I656).</summary>
+    internal static int LinuxRootOpenFlags(Architecture architecture) =>
+        0x200000 | LinuxOpenFlags.CloseOnExec | LinuxOpenFlags.ForArchitecture(architecture).NoFollow;
+    /// <summary>Linux: an entry below the root, through openat2. A folder is opened to be read (O_DIRECTORY), anything else
+    /// only pinned (O_PATH); neither follows a final link. O_DIRECTORY's and O_NOFOLLOW's values depend on the architecture:
+    /// ARM64 reads x64's as O_DIRECT, which a folder refuses, and O_LARGEFILE, which openat2 refuses with O_PATH (I656).</summary>
+    internal static int LinuxEntryOpenFlags(bool directory, Architecture architecture)
+    {
+        var (folder, noFollow) = LinuxOpenFlags.ForArchitecture(architecture);
+        return directory ? LinuxOpenFlags.CloseOnExec | folder | noFollow : 0x200000 | LinuxOpenFlags.CloseOnExec | noFollow;
     }
     [StructLayout(LayoutKind.Sequential)] private struct OpenHow { public ulong Flags, Mode, Resolve; }
     [LibraryImport("libc", EntryPoint = "open", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)] private static partial int Open(string path, int flags);

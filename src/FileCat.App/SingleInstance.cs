@@ -383,7 +383,7 @@ public static partial class SingleInstance
         }
         int flags = OperatingSystem.IsMacOS()
             ? 4 | 16777216 | 256   // O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW
-            : 2048 | 524288 | 131072;
+            : LinuxLockOpenFlags(RuntimeInformation.ProcessArchitecture);
         if (create) flags |= 2; // O_RDWR; creation above is exclusive and owner-only
         int fd = OpenLockNative(path, flags);
         if (fd < 0)
@@ -402,6 +402,10 @@ public static partial class SingleInstance
         }
         catch { handle.Dispose(); throw; }
     }
+
+    /// <summary>Linux: O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW. O_NOFOLLOW's value depends on the architecture (I656).</summary>
+    internal static int LinuxLockOpenFlags(Architecture architecture) =>
+        0x800 | LinuxOpenFlags.CloseOnExec | LinuxOpenFlags.ForArchitecture(architecture).NoFollow;
 
     private static FileStream? OpenIndependentLock(string file, bool create)
     {

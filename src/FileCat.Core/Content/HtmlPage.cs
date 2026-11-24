@@ -200,10 +200,9 @@ public sealed class HtmlPage
 
         // O_NONBLOCK prevents a FIFO beside the page from hanging the viewer during open. O_NOFOLLOW refuses
         // a final link swapped in after ResolveLinks; the opened descriptor supplies the actual size bound.
-        int nonblock = OperatingSystem.IsMacOS() ? 4 : 2048;
-        int closeOnExec = OperatingSystem.IsMacOS() ? 16777216 : 524288;
-        int noFollow = OperatingSystem.IsMacOS() ? 256 : 131072;
-        int fd = OpenUnixReadOnly(path, nonblock | closeOnExec | noFollow);
+        int fd = OpenUnixReadOnly(path, OperatingSystem.IsMacOS()
+            ? 4 | 16777216 | 256 // O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW
+            : LinuxResourceOpenFlags(RuntimeInformation.ProcessArchitecture));
         if (fd < 0) return null;
         var handle = new SafeFileHandle((IntPtr)fd, ownsHandle: true);
         try
@@ -219,6 +218,10 @@ public sealed class HtmlPage
             throw;
         }
     }
+
+    /// <summary>Linux: O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW. O_NOFOLLOW's value depends on the architecture (I656).</summary>
+    internal static int LinuxResourceOpenFlags(Architecture architecture) =>
+        0x800 | LinuxOpenFlags.CloseOnExec | LinuxOpenFlags.ForArchitecture(architecture).NoFollow;
 
     private bool Inside(string full) => Inside(full, _folder!);
 
