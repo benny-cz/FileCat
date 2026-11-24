@@ -21,6 +21,14 @@ public sealed record HiddenInventory(string Path, DateTimeOffset ObservedAt, Imm
     public bool CanDelete => CanAct && DeletionAvailable;
     public bool ValueBearingQueryIssued { get; init; }
     public string? Notice { get; init; }
+    /// <summary>
+    /// Why this observation's values are not read, copied or deleted, for F3, F5, Delete and Enter to say (I651); null
+    /// where they are. <see cref="ValueRefusalSummary"/> is its short form on each row.
+    /// </summary>
+    public string? ValueRefusal { get; init; }
+    public string? ValueRefusalSummary { get; init; }
+    /// <summary>What a value action says when this observation cannot act on its values.</summary>
+    public string ActionRefusalText => ValueRefusal ?? Notice ?? "FileCat could not bind this list to its object. Refresh it and try again.";
     public bool IsComplete => Categories.Length > 0 && Categories.All(c => c.State == HiddenInventoryState.Complete);
     public int? ExactCount => IsComplete ? Items.Length : null;
     /// <summary>At least this many: the listed items, or the categories' counts where a category knows of more than it lists.</summary>

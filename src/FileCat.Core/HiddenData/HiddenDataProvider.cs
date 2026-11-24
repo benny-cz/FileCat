@@ -80,7 +80,8 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
         foreach (var item in inventory.Items)
         {
             ct.ThrowIfCancellationRequested();
-            string summary = "Not read — F3 to view";
+            // A row whose value cannot be read says so, rather than offering F3 (I651).
+            string summary = inventory.CanAct ? "Not read — F3 to view" : inventory.ValueRefusalSummary ?? "Not readable here";
             if (item.NativeFlags != 0) summary += $" · native flags 0x{item.NativeFlags:X2}";
             if (HiddenMetadataRoles.DeleteRefusal(item) is { } reason) summary += " · " + reason;
             sink.AddBatch([new EntryData(item.Name, EntryKind.File, item.Size) { Tag = new HiddenEntryTag(item, summary, [], inventory.CanAct ? inventory.Identity : null),
@@ -208,7 +209,7 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
     {
         var kind = HiddenIdentities.Kind(reference.Ordinal) ?? throw new NotSupportedException("The supplementary category is missing or obsolete; refresh required.");
         var inventory = hidden.ReadInventory(file, new HiddenInventoryRequest(IncludeEaValues: kind == HiddenKind.NtfsAttribute), ct);
-        if (!inventory.CanAct) throw new NotSupportedException(inventory.Notice ?? "A bound supplementary-data action is unavailable.");
+        if (!inventory.CanAct) throw new NotSupportedException(inventory.ActionRefusalText);
         var category = inventory.Categories.FirstOrDefault(c => c.Kind == kind);
         if (category?.State != HiddenInventoryState.Complete) throw new IOException("The requested category could not be completely resolved; refresh required. " + category?.Reason);
         return inventory.Items.SingleOrDefault(i => i.Kind == kind && string.Equals(i.Name, reference.Name, StringComparison.Ordinal));

@@ -13,6 +13,21 @@ public sealed partial class UnixHiddenData
     private const int LinuxNoSys = 38;
     private const int MacDirectoryFlags = 0x00100000 | 0x00008000 | 0x00000100 | 0x01000000; // O_DIRECTORY | O_EVTONLY | O_NOFOLLOW | O_CLOEXEC
     private const int MacShowCompression = 0x0020;
+
+    /// <summary>
+    /// Why macOS attribute values are read, copied and deleted only for folders (I651). Each action uses an object FileCat
+    /// holds open. O_DIRECTORY makes that open fail before acquiring anything but a folder; Darwin has no such open for a
+    /// file (no O_PATH, no regular-file-only flag), so an open of a file's name could open a FIFO or device swapped in at
+    /// it, and that open acts on its own (an untyped event-only open of a FIFO acted as its reader, 20 November 2026).
+    /// The path calls that list names and sizes hold nothing, so a value they returned could belong to another object.
+    /// </summary>
+    internal const string MacValueRefusal = "FileCat reads, copies and deletes attribute values on macOS only for folders. " +
+        "It acts on an item it holds open, and only for a folder can macOS refuse to open whatever is put in the item's place, " +
+        "such as a pipe or a device. Names and sizes are listed.";
+    internal const string MacValueRefusalSummary = "Not readable on macOS: FileCat reads attribute values of folders only";
+    private const string IncompleteValueRefusal = "Attribute values are read only from a complete list of the folder's attributes. " +
+        "Refresh the list and try again.";
+
     private static readonly Lazy<bool> LinuxHasXattrAt = new(() =>
     {
         // Ask the kernel about an invalid descriptor before inspecting any object. A provider's own error must not
@@ -210,6 +225,8 @@ public sealed partial class UnixHiddenData
                 BoundToObject = true,
                 ActionsAvailable = held.State == HiddenInventoryState.Complete,
                 DeletionAvailable = compressionView,
+                ValueRefusal = held.State == HiddenInventoryState.Complete ? null : IncompleteValueRefusal,
+                ValueRefusalSummary = held.State == HiddenInventoryState.Complete ? null : "Not readable until the list is complete",
                 Notice = $"{heldBacking} No values read for this inventory. Explicit directory value reads and exports use a fresh held descriptor." +
                     (compressionView ? " Deletion requires a fresh held descriptor and complete compression-visible inventory." : " Deletion requires a complete compression-visible inventory."),
             };
@@ -232,8 +249,9 @@ public sealed partial class UnixHiddenData
         string backing = request.ShowCompressionBacking ? "Compression backing: not inventoried." : "Compression backing: not requested.";
         return new(path, DateTimeOffset.UtcNow, result.Items, categories.ToImmutable(), "listxattr / getxattr size queries")
         {
-            Notice = $"Observed {attributes} ordinary attributes and {forks} resource forks. {backing} " +
-                "No values read. Value, export and delete actions require a qualified bound adapter.",
+            Notice = $"Observed {attributes} ordinary attributes and {forks} resource forks. {backing} No values read. {MacValueRefusal}",
+            ValueRefusal = MacValueRefusal,
+            ValueRefusalSummary = MacValueRefusalSummary,
         };
 
         nint SizeWithoutMaterialization(string name)
@@ -259,7 +277,7 @@ public sealed partial class UnixHiddenData
         {
             int error = Marshal.GetLastPInvokeError();
             if (error == 20) // ENOTDIR: a regular file or a path component cannot provide the held-directory adapter.
-                throw new NotSupportedException("A held-object attribute value/action adapter is not qualified for this macOS object.");
+                throw new NotSupportedException(MacValueRefusal);
             throw InventoryError(path, error);
         }
         var directory = new SafeFileHandle(descriptor, ownsHandle: true);

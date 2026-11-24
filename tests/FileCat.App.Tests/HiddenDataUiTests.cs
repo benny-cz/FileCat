@@ -94,20 +94,30 @@ public sealed class HiddenDataUiTests
             await Until(() => tab.Location?.Scheme == Schemes.HiddenData && tab.Listing.State == ListingState.Complete && Rows(tab).Count >= 2,
                 () => $"the hidden data is listed (location: {tab.Location}; state: {tab.Listing.State}; inventory: {tab.SupplementaryInventoryText}; notification: {vm.Notification})");
             var markRow = Assert.Single(Rows(tab), e => e.Name == mark);
-            Assert.StartsWith("Not read — F3 to view", tab.GetDetailsText(markRow));
             var payloadRow = Assert.Single(Rows(tab), e => e.Name == payload);
-            Assert.StartsWith("Not read — F3 to view", tab.GetDetailsText(payloadRow));
             if (OperatingSystem.IsMacOS())
             {
+                // A file's values are refused on macOS (47f7b0630); its rows and commands say so (I651).
+                Assert.Equal(UnixHiddenData.MacValueRefusalSummary, tab.GetDetailsText(markRow));
+                Assert.Equal(UnixHiddenData.MacValueRefusalSummary, tab.GetDetailsText(payloadRow));
                 Assert.Contains("Compression backing: not inventoried", tab.SupplementaryInventoryText);
+                Assert.Contains(UnixHiddenData.MacValueRefusal, tab.SupplementaryInventoryText);
                 Assert.True(payloadRow.Has(EntryFlags.Unavailable));
                 tab.Listing.SetFocus(Rows(tab).FindIndex(e => e.Name == payload) + (tab.Listing.HasParentRow ? 1 : 0));
                 Assert.False(vm.GetAvailability(CommandIds.Delete).Enabled);
                 Assert.False(vm.GetAvailability(CommandIds.DeletePermanent).Enabled);
-                Assert.Throws<NotSupportedException>(() => services.Providers.For(tab.Location!).OpenContent(
+                foreach (string id in new[] { CommandIds.View, CommandIds.ViewAlternate, CommandIds.Copy })
+                    Assert.Equal((false, UnixHiddenData.MacValueRefusal), (vm.GetAvailability(id).Enabled, vm.GetAvailability(id).Reason));
+                var refusal = Assert.Throws<NotSupportedException>(() => services.Providers.For(tab.Location!).OpenContent(
                     services.Providers.For(tab.Location!).GetItemRef(tab.Location!, payloadRow)));
+                Assert.DoesNotContain("adapter", refusal.Message, StringComparison.Ordinal);
+                vm.Execute(CommandIds.View);
+                await Until(() => vm.Notification == UnixHiddenData.MacValueRefusal, () => $"F3 says why ({vm.Notification ?? "nothing"})");
+                Assert.Empty(window.OwnedWindows);
                 return;
             }
+            Assert.StartsWith("Not read — F3 to view", tab.GetDetailsText(markRow));
+            Assert.StartsWith("Not read — F3 to view", tab.GetDetailsText(payloadRow));
 
             // F5: copied out as a file by a job.
             tab.Listing.SetFocus(Rows(tab).FindIndex(e => e.Name == payload) + (tab.Listing.HasParentRow ? 1 : 0));
@@ -151,6 +161,85 @@ public sealed class HiddenDataUiTests
         {
             BuiltInFields.HiddenDataSource = previousHiddenSource;
             AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    /// <summary>
+    /// I651: on macOS a file's attribute rows offered "Not read — F3 to view", Enter offered F3, and File > View was
+    /// enabled, while FileCat refuses those values; F3 and View then did nothing and said nothing. Rows of a list that
+    /// cannot act on its values now say so, and Enter, F3, Alt+F3, View and F5 give the adapter's reason without
+    /// reading a value. The adapter here refuses values on every platform.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task Rows_whose_values_cannot_be_read_say_why_on_the_row_Enter_F3_View_and_F5()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string file = Path.Combine(root, "files", "case notes.txt");
+            File.WriteAllText(file, "case notes with one Finder tag");
+            var adapter = new UnreadableValues();
+            services.Providers.Register(new HiddenDataProvider(adapter));
+            var sourcePanel = vm.Workspace.Panels[0];
+            var tab = sourcePanel.ActiveTab!;
+            vm.Workspace.Activate(sourcePanel);
+            tab.Navigate(HiddenDataProvider.Of(file));
+            await Until(() => tab.Listing.State == ListingState.Complete && Rows(tab).Count == 1,
+                () => "the attribute is listed. " + tab.SupplementaryInventoryText);
+            var row = Assert.Single(Rows(tab));
+            Assert.True(row.Has(EntryFlags.Unavailable));
+            Assert.Equal(UnreadableValues.Summary, tab.GetDetailsText(row));
+            tab.Listing.SetFocus(Rows(tab).IndexOf(row) + (tab.Listing.HasParentRow ? 1 : 0));
+            foreach (string id in new[] { CommandIds.View, CommandIds.ViewAlternate, CommandIds.Copy })
+            {
+                var availability = vm.GetAvailability(id);
+                Assert.False(availability.Enabled, id);
+                Assert.Equal(UnreadableValues.Refusal, availability.Reason);
+            }
+
+            vm.Execute(CommandIds.View);
+            await Until(() => vm.Notification == UnreadableValues.Refusal, () => $"F3 says why ({vm.Notification ?? "nothing"})");
+            vm.Notify("cleared");
+            vm.Execute(CommandIds.ViewAlternate);
+            await Until(() => vm.Notification == UnreadableValues.Refusal, () => $"Alt+F3 says why ({vm.Notification ?? "nothing"})");
+            vm.Notify("cleared");
+            vm.Execute(CommandIds.Copy);
+            await Until(() => vm.Notification == UnreadableValues.Refusal, () => $"F5 says why ({vm.Notification ?? "nothing"})");
+            vm.Execute(CommandIds.Open); // Enter
+            await Until(() => vm.Notification == $"\"{UnreadableValues.Name}\" cannot be viewed or extracted here. {UnreadableValues.Refusal}",
+                () => $"Enter says why ({vm.Notification ?? "nothing"})");
+            Assert.Empty(window.OwnedWindows);
+            Assert.Empty(services.Jobs.Jobs);
+            Assert.Equal(0, adapter.ValueRequests);
+            Assert.False(((OverlayDialogService)vm.Dialogs).IsOpen);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    /// <summary>Lists a Finder tag of a file without binding the list to the file, as the macOS path view does.</summary>
+    private sealed class UnreadableValues : IHiddenData
+    {
+        internal const string Name = "com.apple.metadata:_kMDItemUserTags";
+        internal const string Refusal = "This test adapter lists names and sizes only.";
+        internal const string Summary = "Not readable: names and sizes only";
+        private static readonly HiddenItem Item = new(Name, HiddenKind.Attribute, 51);
+        public int ValueRequests;
+
+        public bool IsSupported => true;
+        public IReadOnlyList<HiddenItem> List(string path) => [Item];
+
+        public HiddenInventory ReadInventory(string path, HiddenInventoryRequest request, CancellationToken ct) =>
+            new(path, DateTimeOffset.UtcNow, [Item], [new(HiddenKind.Attribute, HiddenInventoryState.Partial, 1, "test path view")], "test")
+            { Notice = "Observed 1 attribute. No values read.", ValueRefusal = Refusal, ValueRefusalSummary = Summary };
+
+        public byte[] Read(string path, HiddenItem item, int max) => throw Refused();
+        public Stream Open(string path, HiddenItem item) => throw Refused();
+        public void Delete(string path, HiddenItem item) => throw Refused();
+
+        private NotSupportedException Refused()
+        {
+            ValueRequests++;
+            return new NotSupportedException(Refusal);
         }
     }
 
