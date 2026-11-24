@@ -274,7 +274,9 @@ public sealed class AdministratorLauncherTests
         {
             string path = Path.Combine(Folder, "stand-in-record.json");
             Assert.True(File.Exists(path), "FileCat.exe, the stand-in, did not run.");
-            using var document = JsonDocument.Parse(File.ReadAllBytes(path));
+            // A stand-in that still runs may replace its record meanwhile: never block that.
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var document = JsonDocument.Parse(stream);
             var root = document.RootElement;
             DateTime? Time(string name) => root.TryGetProperty(name, out var value) ? DateTime.FromFileTimeUtc(value.GetInt64()) : null;
             string[] Strings(string name) => root.GetProperty(name).EnumerateArray().Select(value => value.GetString()!).ToArray();
