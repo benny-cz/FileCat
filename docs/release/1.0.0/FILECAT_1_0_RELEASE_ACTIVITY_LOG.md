@@ -5426,3 +5426,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - The Windows VM's drawer keyboard failure was a real defect, I633. Instrumented, the full App run showed Down moving the keyboard to the next interrupted operation while the chosen one, whose actions are shown, stayed behind. Focus that reaches a row by Tab or programmatically also left the choice behind, on any machine. PR #19 (`bfefc469`, merged as `58ac8453`) makes the row with the keyboard the chosen one; with it, the full App suite passed on the Windows host and the VM. [I633](evidence/E-I633-interrupted-list-focus-choice.md).
 - PR #17 merged, and `release/1.0` was synced again at `d0ebd1d3` through PR #18, which merged as `f9f8f1cb`. Two more hosted test failures in jobs that are not required, an owner-column test and a place-bar layout check, passed on re-run. [Sync record](evidence/E-REL-SYNC-20261124-release-branch.md).
+
+## 2026-11-24 — Third sync of the day
+
+- With PR #19 merged and no PR open, `release/1.0` was synced at `dae7207c` through PR #20, which merged as `8f122365` after its first CI attempt passed every job. It brings the I633 fix, and the branch's tree equals main's. [Sync record](evidence/E-REL-SYNC-20261124-release-branch.md).
