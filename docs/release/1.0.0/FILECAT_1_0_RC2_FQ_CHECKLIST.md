@@ -29,7 +29,7 @@ Status: **done** (with the record's section), **partial**, **open**, or **blocke
 | # | IDs | Check and stop condition | Needs | Status |
 |---|---|---|---|---|
 | c1 | REL-SIGN-WINDOWS, REL-FQ-CANDIDATE, plan 12.3 | Install the x64 Setup, installed `--version` 1.0.0, every installed program file signed (the uninstaller included), the administrator helper only in the installed form (DEC-04), uninstall removes the folder, reinstall works; the portable and framework-dependent ZIPs' `--version`, the latter with and without the .NET runtime | command line | done (E-FQ-RC2 "Windows: install lifecycle"); SmartScreen on a browser download not covered by any record |
-| c2 | I634, I606 | About shows 1.0.0 | GUI | open |
+| c2 | I634, I606 | About shows 1.0.0 | GUI | done (E-FQ-RC2 "Windows: installed-UI checks") |
 | c3 | I566 | Paste the five top-level items of the owner's `FileCat_README_Update.zip` from Explorer: 7 files with matching bytes and times, each with `ZoneId=3`, and 4 folders; the ZIP unchanged, no staging left | GUI; the owner's ZIP | open |
 | c4 | I567, I564 | Markdown Page: Ctrl+F, type without clicking and match; Escape back to the Page; Page Up/Down scroll, also after the viewer window has focus | GUI | open |
 | c5 | I568 | Find feedback in Page and in Text or Hex: neutral, green on a hit while typing (250 ms), red for none; wrap both ways; the wrap notice survives a status update | GUI | open |
@@ -39,12 +39,12 @@ Status: **done** (with the record's section), **partial**, **open**, or **blocke
 | c9 | I572 | A denied folder's `..` row reaches the parent without another retry, by double-click and Enter; Back works; a denied place with no parent keeps its retry; a network share's login unchanged | GUI; a share with credentials | open |
 | c10 | I563, I573, REL-FQ-CORE | Markdown links in `docs/validation/FILECAT_EXPLORATORY_UX_HARDENING_RESULTS.md`: same-folder opens a separate viewer, the original Page stays; parent-folder shows a review with Cancel selected; Escape and Cancel open nothing; Open makes one viewer; missing, non-Markdown, absolute, `scheme:` and outside-symlink links refused | GUI | open |
 | c11 | I577 | Refresh keeps the reading position in Page, Text, Hex, Info and Picture; a shortened file lands at a reachable place; a failed reload keeps the old view | GUI | open |
-| c12 | I579 | An unfinished command survives Up then Down exactly; an empty line stays empty; nothing runs | GUI | open |
+| c12 | I579 | An unfinished command survives Up then Down exactly; an empty line stays empty; nothing runs | GUI | done |
 | c13 | I580 | Text and Page with Find open: after a refresh to matching and non-matching content, count, highlight and border describe the new content without a keystroke; a failed reload keeps view and query | GUI | open |
-| c14 | I589 | Windows' own Properties sheet still opens | GUI | open |
-| c15 | I590 | A hidden/system file beside an ordinary one: with hidden items off, one row plus a truthful hidden count; on, both rows and no count | GUI | open |
+| c14 | I589 | Windows' own Properties sheet still opens | GUI | done |
+| c15 | I590 | A hidden/system file beside an ordinary one: with hidden items off, one row plus a truthful hidden count; on, both rows and no count | GUI | done |
 | c16 | I593 | An ordinary local file: no clipboard overwrite and no false "UNC" success; a mapped drive or share: the server/share path and count copied | GUI; a share | open |
-| c17 | I601 | Alt+Enter and right-click → Properties on a file and a folder: exact path, clean return; several marked items give the one-item message | GUI | open |
+| c17 | I601 | Alt+Enter and right-click → Properties on a file and a folder: exact path, clean return; several marked items give the one-item message | GUI | done, with [I635](evidence/E-I635-alt-enter-ignores-marks.md) for Alt+Enter |
 | c18 | I602 | Send to → Compressed (zipped) folder on a file and a nested folder: ZIPs open, not empty, paths and hashes match; a taken name gets ` (2)`; no empty ZIP reported as success | GUI | open |
 | c19 | I603 | "Share in Explorer…": Explorer selects the exact file, Share works, cancelling sends nothing, return to FileCat | GUI | open |
 | c20 | I604 | Windows Copy and Cut on a marked file: the clipboard holds the exact path; paste or move to a scratch folder; a changed selection refused | GUI | open |
@@ -56,7 +56,7 @@ Status: **done** (with the record's section), **partial**, **open**, or **blocke
 | c26 | I611 | PDF: two-page, malformed and encrypted files; F3 pages, fit/zoom, Info; F4 original bytes; clear no-render message; refresh after fewer pages | GUI; PDF files | open |
 | c27 | I616 | Sparse copy on NTFS: length and SHA-256, allocation under ¼, Completed only for the exact target; a failed extent read leaves no target | GUI | open |
 | c28 | I618 | Settings at normal and narrow sizes: Tools card, tab tops, search, results, shortcut chooser, pre-selected names, empty-name error, outside click, Escape and close with and without changes, Cancel and OK | GUI; real keyboard | open |
-| c29 | I619 | Panel role badges legible | GUI | open |
+| c29 | I619 | Panel role badges legible | GUI | partial: legible at normal width; narrow widths and larger text open |
 | c30 | I620 | Minimum window and larger text: About (all themes), Advanced Find, New connection, Apply command, Pack, Create link without an outer horizontal scrollbar, missing button, clipped warning or detached label | GUI | open |
 | c31 | I621 | Ignored Folders: Enter on blank text keeps the editor, Enter on text adds one entry, Add/Remove enablement, Cancel keeps the saved list | GUI | open |
 | c32 | I622 | Analyze folder again opens the chooser with the last metadata field; Cancel keeps the order; another field sorts | GUI | open |
@@ -69,8 +69,8 @@ Status: **done** (with the record's section), **partial**, **open**, or **blocke
 | c39 | I630 | Name colors for compressed, encrypted and hidden-compressed items in all 7 themes, active and inactive panels and the picture grid; Attr `C`/`E`; High Contrast cyan and magenta; contrast at least 4.5:1 | GUI; EFS (Pro) | open |
 | c40 | I632 | From `cmd.exe`, a tool and an Apply command naming a 128-byte `.exe` give an immediate start error, no 16-bit box, window responsive | GUI | open |
 | c41 | I633 | Three or more interrupted operations: with the keyboard only, the row with the keyboard is the one whose details and actions show | GUI | open |
-| c42 | I107 | Main menus open, stay open and accept clicks | GUI | open |
-| c43 | I512, I514, I515, I517 | Free space beside the file mask, capital attributes, drive Properties in front, manual scroll kept across refresh | GUI | open |
+| c42 | I107 | Main menus open, stay open and accept clicks | GUI | done |
+| c43 | I512, I514, I515, I517 | Free space beside the file mask, capital attributes, drive Properties in front, manual scroll kept across refresh | GUI | partial: free space, capital attributes and both drive Properties routes pass; I517's scroll open |
 | c44 | I04, REL-I17-BROKER | A standard account's administrator retry through UAC to the helper's consent page: requester, full text, connection and token, exact effect | GUI; UAC; a standard account | open (the person's attestation is d7) |
 
 ## Ubuntu 24.04.5 VM, installed `.deb` unless noted
