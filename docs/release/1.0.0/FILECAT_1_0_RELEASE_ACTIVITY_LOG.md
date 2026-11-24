@@ -5451,3 +5451,9 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - The owner answered "Yes, tag rc.2". Annotated tag `1caa5fc3` points to `release/1.0` `7269ec61`, which carries the I634 fix; `src/` is unchanged since rc.1. [rc.2](evidence/E-RC2-TAG-20261124.md).
 - Tagged run 45377416067 passed every job in its first attempt. Its 24 TRX are identical test by test to PR #22's run of the same tree. The package jobs' new checks confirmed that every package calls itself FileCat 1.0.0. The owner approved the `signing` run in GitHub; both runtimes were signed and verified, and the 24-asset candidate, every asset named 1.0.0, went into a private draft with its signing records beside it. Nothing was published.
+
+## 2026-11-24 — Final qualification of rc.2 begins
+
+- The owner approved starting final qualification. The VMware Windows VM was unavailable, and the development PC was allowed only for work that would not interrupt the owner. There, only checks with no window and no install ran. At the owner's suggestion, a disposable Hyper-V VM was built from the Windows 11 25H2 ISO already on V:, and it is driven only through PowerShell Direct. [FQ progress](evidence/E-FQ-RC2-20261124.md), [checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md).
+- The 24 draft assets match GitHub and the manifests. Signatures, versions and payload-to-SBOM checks pass on all three platforms, and the Windows install, uninstall and reinstall pass in the VM. rc.2's results lose no preview.11 pass. Two high-integrity tests that CI now skips passed in the VM, and the permissions successors passed on Ubuntu with their fixture.
+- Main's run 45386566393 failed one elevated Windows ARM64 test because the test passed Windows an unpinned buffer. PR #23 pins it; no product code is affected.
