@@ -206,7 +206,10 @@ public sealed partial class LinuxArchiveProcessTests(ITestOutputHelper diagnosti
         var worker = LinuxArchiveProcess.Start(probe, nonce, TimeSpan.FromSeconds(60), ["archive-proxy", nonce.ToString("D"), source.Length.ToString(CultureInfo.InvariantCulture)]);
         await using (worker)
         {
-            await Task.Run(() =>
+            // The copy runs on its own thread: a busy thread pool can hold a Task.Run body while the limit runs. On the
+            // 4-processor Ubuntu VM, beside four other test processes, it took 7 s in one native run and ran out of 30 s in the
+            // next (2026-11-23). A hang is endless, so 120 s catches one as well.
+            await Task.Factory.StartNew(() =>
             {
                 var send = new ArchiveWorkerProtocol(nonce, 4L * source.Length + (16 << 20));
                 var receive = new ArchiveWorkerProtocol(nonce, 4L * source.Length + (16 << 20));
@@ -220,7 +223,7 @@ public sealed partial class LinuxArchiveProcessTests(ITestOutputHelper diagnosti
                     var reply = io.Handle(frame); send.Write(worker.Input, reply.Kind, reply.Payload);
                 }
                 Assert.Equal(-1, worker.Output.ReadByte());
-            }, TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default).WaitAsync(TimeSpan.FromSeconds(120), TestContext.Current.CancellationToken);
             await Exit(worker); Assert.Equal(0u, worker.ExitCode);
         }
         Assert.Equal(source, stage.ToArray()); Assert.False(Directory.Exists(worker.ControlPath));
