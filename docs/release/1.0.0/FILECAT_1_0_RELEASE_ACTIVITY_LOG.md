@@ -5529,3 +5529,13 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - **Windows, in the VM, fourth round.** These pass on the installed candidate: c8, c10, c16, c25 (FTPS and SFTP both ways, Registry copy and export, whole-drive copy and Shift-drag), c29, c30, c33 and c39. These pass in part: c7, c23 (I647), c28, c37 (the elevated FileCat; Paste is I642) and c38. [FQ progress](evidence/E-FQ-RC2-20261124.md).
 - **macOS, the GUI harness's rehearsal.** A re-runnable harness drives FileCat on the Mac through the accessibility API. On rc.2's package 24 b-rows pass, b25 and b26 fail (I651, I652) and six are partial, waiting on screenshots, an FTPS server or display scaling.
 - **Integration.** CI's macOS runners are the release's bottleneck, so the reviewed fix PRs are combined: PR #35 carries #25 to #31 in one run.
+
+## 2026-11-24 — Owner decisions on the administrator window, and the first pre-rc3 checks
+
+- The owner accepted both administrator-window changes in rc.3: the UAC prompt names the program "FileCat administrator window" (I644, PR #34), and an elevated or root FileCat shows HTML and Markdown pages as source text instead of drawing them, so their page engines never start on the ordinary account's cache folder (I645, PR #33).
+- A pre-rc3 win-x64 build of integration branch 2 (`919d8e764`, rounds 1 and 2) was run in the qualification VM through the scenarios that found the issues:
+  - I635 is fixed: Alt+Enter with two marks says "Select one item to show its properties." and opens no sheet.
+  - I637 is fixed: Compare's arrows move the rows at open and after Find closes.
+  - I636 is fixed: sorting by Origin "retains all 3 items' results".
+  - I644 is fixed: an administrator window started through `FileCat.AdminLauncher.exe` does not load a profiler named only in `HKCU\Environment`, while the unelevated control still does.
+  - I642 is fixed only in part. The folder's own menu now offers Paste after Explorer's Cut, but choosing it moves nothing on build 26200: the menu helper invokes the Shell's paste, which blocks for about 10 s and returns without moving the file. The fix goes back to its author before rc.3.
