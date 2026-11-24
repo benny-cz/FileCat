@@ -128,6 +128,12 @@ The installed broker handles plans that fit its operations. Portable FileCat rev
 a separate administrator window, which also handles transfers that need the original conflict prompts.
 Canceling that review makes the original retry available again in Operations.
 
+An administrator window runs the program files of the copy that opened it. By default the installer
+puts them under Program Files, which only administrators can change. A portable or framework-dependent
+copy runs from its own folder, which your ordinary account, and any program running as you, can
+usually change. If you open administrator windows from such a copy, keep it in a folder only
+administrators can change, such as one under Program Files, or use the installer.
+
 **File → Inspect → Permissions and ownership** shows the selected item's owner, mode and access
 rules in plain language beside their exact values, each section with the review actions available
 there; in an administrator window, or as root, it is read-only. A local mode change requires a verified
@@ -230,7 +236,9 @@ connected-glass header. They do not establish installed-package or native-intera
 For 1.0.0, **Windows 11 x64 is the planned stable tier**. Windows 11 ARM64,
 Ubuntu 24.04/26.04 x64 with GNOME, and macOS 26+ on Apple silicon are planned previews.
 The public preview packages are unsigned. These labels describe the validation targets for
-stable 1.0.0. The x64 installer also accepts Windows Server 2016 (build 14393) with Desktop Experience.
+stable 1.0.0. The x64 installer also accepts Windows Server 2016 (build 14393) with Desktop Experience,
+which it does not check. It refuses Windows 10 and Windows Server 2019 and 2022; Windows Server 2025
+passes its build check but has not been tried. The ARM64 installer needs Windows 11.
 Windows provides MTP, Registry and native Shell actions. The Unix builds use their own trash,
 permission, keyring and device-authorization paths. See [what works where](docs/CAPABILITIES.md)
 for differences by platform and location.

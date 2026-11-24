@@ -9,11 +9,15 @@ Include:
 
 - what an attacker controls, such as a crafted archive, a file name, a shared folder, or a settings file;
 - the impact;
-- the FileCat version (Help → About) and the Windows version;
+- the FileCat version (Help → About) and the package you use, such as the installer or a portable ZIP;
+- your operating system and its version (Windows, macOS or Ubuntu);
 - the smallest reproduction you can share.
 
-Please do not include personal files. A diagnostics bundle (Tools → Export diagnostics) hashes paths by default
-and never contains file contents or credentials.
+Please do not include personal files. A diagnostics bundle (Tools → Export diagnostics) never contains file contents
+or credentials. Its log replaces the paths FileCat records with hashes unless diagnostic mode is on, but error messages
+and crash reports keep the system's own text, which can name a file. Its `settings.json` holds your FileCat settings in
+plain text, including saved server hosts and user names, key-file and start paths, tool paths and Find's ignored
+folders. Check the ZIP before you attach it, and remove what you do not want to share.
 
 Expected response:
 
@@ -24,8 +28,18 @@ Expected response:
 
 ## Supported versions
 
-Security fixes go into the latest release. There is no updater, so each fix ships as a new release. The opt-in
-update check (Settings → Privacy) or Help → Check for updates tells you when one is available.
+Security fixes go into the latest release. There is no updater, so each fix ships as a new release. The automatic
+update check, on by default for new profiles (Settings → Privacy), or Help → Check for updates tells you when one is
+available. Neither downloads or installs anything.
+
+## Administrator windows from portable copies
+
+On Windows, any FileCat copy can reopen itself as administrator after Windows asks for approval (Tools → Open FileCat
+as administrator, and the administrator reviews that offer it). The administrator window runs the program files of
+the copy that opened it. By default the installer puts them under Program Files, which only administrators can
+change. A portable or framework-dependent copy runs from its own folder, which your ordinary account, and any program
+running as you, can usually change. If you open administrator windows from such a copy, keep it in a folder only
+administrators can change, such as one under Program Files, or use the installer. This is a known limitation.
 
 ## In scope
 

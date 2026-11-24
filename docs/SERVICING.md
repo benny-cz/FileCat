@@ -4,13 +4,13 @@ FileCat has no updater (plan §19.3, ADR-15), so servicing is an explicit mainta
 
 ## Release artifacts
 
-The Windows, Linux, and macOS packaging scripts produce the following. CI builds them on tags and signs them through SignPath once the Foundation project exists.
+The Windows, Linux, and macOS packaging scripts produce the following. CI builds them on tags. SignPath Foundation declined FileCat on 2026-10-31 ([download page](DOWNLOAD.md#code-signing-policy)). For a release candidate, a CI job in the protected `signing` environment signs FileCat's own Windows programs and libraries and both Setups; it runs only after the maintainer approves it. The macOS app is ad-hoc signed and not notarized.
 
 | Artifact | Contents | Receives .NET security fixes |
 |---|---|---|
 | `FileCat-<ver>-win-<arch>-setup.exe` | Per-machine installer (Inno Setup) of the self-contained ReadyToRun build | Only through a new FileCat release |
-| `FileCat-<ver>-win-<arch>-portable.zip` | The same build plus a `FileCat.portable` marker; state lives in `Data/` next to the exe | Only through a new FileCat release |
-| `FileCat-<ver>-win-<arch>-fdd.zip` | Framework-dependent build without the administrator helper (administrator retry is part of the installed FileCat) | Yes, through the installed .NET 10 Desktop Runtime |
+| `FileCat-<ver>-win-<arch>-portable.zip` | The same build without the administrator helper, plus a `FileCat.portable` marker; state lives in `Data/` next to the exe | Only through a new FileCat release |
+| `FileCat-<ver>-win-<arch>-fdd.zip` | Framework-dependent build without the administrator helper (the helper's per-plan retry is part of the installed FileCat) | Yes, through the installed .NET 10 Desktop Runtime |
 | `FileCat-<ver>-linux-x64.tar.gz`, `.deb`, `.AppImage` | Self-contained Linux payloads in three package formats | Only through a new FileCat release |
 | `FileCat-<ver>-linux-x64-appimage-runtime-source.tar.gz` | The AppImage runtime's corresponding source (type2-runtime, libfuse, squashfuse) with a script that rebuilds the shipped runtime and relinks it against a changed libfuse (LGPL-2.1, EXT-04) | – |
 | `FileCat-<ver>-osx-arm64.zip` | Ad-hoc-signed, non-notarized Apple silicon app bundle (preview) | Only through a new FileCat release |
@@ -20,6 +20,13 @@ There is one SBOM for each distinct payload: setup, portable, and FDD on Windows
 Debian, and AppImage on Linux; and the app bundle on macOS. The platform asset manifest
 separately pins each outer archive or installer byte stream. An SBOM is composition
 evidence, not a signature, notarization receipt, legal determination, or candidate approval.
+
+**Administrator windows.** Every Windows package can reopen FileCat as administrator after Windows' approval
+(Tools → Open FileCat as administrator, and the administrator reviews built on it). Only the installer includes the
+administrator helper, which retries one displayed plan. A portable or framework-dependent copy opened as administrator
+runs the program files in its own folder, which the ordinary account can usually change. Users of such a copy should
+keep it in a folder only administrators can change, such as one under Program Files, or use the installer
+([README](../README.md#work-with-visible-outcomes), [security policy](../SECURITY.md#administrator-windows-from-portable-copies)).
 
 ## Security releases
 
@@ -33,7 +40,7 @@ evidence, not a signature, notarization receipt, legal determination, or candida
 1. `dotnet test FileCat.slnx` is green on Windows. The portable-test lanes on Linux and macOS are green.
 2. `FileCat.exe --benchmark 1000000 --benchmark-panels 4` stays within the recorded TV-01 budgets.
 3. Version bumped (`VersionPrefix` in `Directory.Build.props`). Tag `v<version>`.
-4. CI builds the artifacts and signs them. Verify the signatures on a clean machine with Smart App Control enforcing (TV-13).
+4. CI builds the artifacts; once the maintainer approves the `signing` run, it signs the Windows ones. Verify the signatures on a clean machine with Smart App Control enforcing (TV-13).
 5. Publish the GitHub release and its notes. The startup update check is on for new profiles unless disabled in Privacy; stable builds read `releases/latest` and preview builds consider published prereleases.
 
 ## How users upgrade
