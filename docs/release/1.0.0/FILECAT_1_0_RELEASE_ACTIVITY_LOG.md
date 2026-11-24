@@ -5559,3 +5559,15 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-24 — I661, found by integration 3's CI
 
 - Integration 3's CI run 45467009793 failed one job, macOS App tests (remainder), on `PlaceBarHierarchyTests.Compact_panel_header_uses_available_width_and_keeps_overflow_places_reachable`, which had failed once before (PR #19). Its cause is a product fault: `PlaceBarPanel` decides which places fit only when measured, so a narrower final width clips the last shown places while keeping them off the overflow menu. A direct test reproduces it. Registered as I661 (Low), to be fixed for rc.3. [Record](evidence/E-I661-place-bar-arrange-width.md).
+
+## 2026-11-24 — The Ubuntu GUI harness on rc.2: I662 to I664
+
+- The harness for the Ubuntu rows a1–a26 is complete and re-runnable on rc.3 with the candidate's tarball as its only argument. On rc.2: 22 rows pass. a1, a4 and a6 are partly blocked: their .deb, bind-mount and second-account steps need sudo without a password. a4 also fails on I662. The earlier a14, a15 and a18 failures were harness faults: the badges are at least 4.5:1 in all seven themes.
+- I662 (open, Low): Linux File-system details lost I612's source root (a regression since `4364d1b37`). [Record](evidence/E-I662-linux-details-source-root-regression.md).
+- I663 (open, Low): panel numbers keep the startup theme's colors after a theme change. [Record](evidence/E-I663-panel-number-theme-colors.md).
+- I664 (open, Low): the picture grid exposes fewer tiles to screen readers than it draws. [Record](evidence/E-I664-picture-grid-accessible-tiles.md).
+
+## 2026-11-24 — I665 to I667: tests that fail intermittently
+
+- Integration 3's run 45476564759, with I655, failed two jobs on two tests already listed as intermittent in the release-branch sync record: `ColumnHeaderHelpTests` (Windows x64) and `OwnerColumnTests` (ubuntu-24.04). They are registered with the third such test as I665, I666 and I667 (Low), to be fixed for rc.3 rather than rerun. The failed and cancelled jobs were rerun for the run's other platforms.
+  [Record](evidence/E-I665-I667-ci-flaky-tests.md).
