@@ -2,7 +2,7 @@
 
 Recorded 2026-11-24 by a documentation session working for the owner. Source at recording: `main` `565f7577`. Every product file cited below is identical at `v1.0.0-rc.2` (`7269ec61`) and at that `main`.
 
-REL-CONTRACT froze the 1.0.0 contract on 2026-10-29 and reopens it "only for a later owner decision that changes a contract row". REL-V22-DOCS's [desk review](E-REL-V22-DOCS-20261124.md) found three contract rows that rc.2 no longer matches. On 2026-11-24 the owner decided all three in favour of the product as built. The decisions reached this documentation change through the release session; the owner's wording is not quoted here.
+REL-CONTRACT froze the 1.0.0 contract on 2026-10-29 and reopens it "only for a later owner decision that changes a contract row". REL-V22-DOCS's [desk review](E-REL-V22-DOCS-20261124.md) found three contract rows that rc.2 no longer matches. The release session showed them to the owner on 2026-11-24 with the choice, for each, to amend the contract or change the product. The owner answered: "I639 and I640 both approved by me". For I638 the owner gave no new answer. The product follows the owner's own request of 2026-11-03 (below), and the release session told the owner on 2026-11-24 that it would amend C25 and V22 to match; the owner did not object. I638's amendment rests on that 2026-11-03 decision and stands until the owner says otherwise.
 
 This record changes no product code. It amends contract rows and makes the user documents say what the product does.
 
@@ -17,7 +17,7 @@ This record changes no product code. It amends contract rows and makes the user 
 <a id="i638"></a>
 ## I638: the update check is on by default
 
-**Decision.** Automatic update checks stay on by default for new profiles, and Settings → Privacy turns them off. Help → Check for updates stays an explicit request.
+**Decision.** Automatic update checks stay on by default for new profiles, and Settings → Privacy turns them off. Help → Check for updates stays an explicit request. This is the owner's decision of 2026-11-03 (History, below), which came after the contract froze but did not amend it; this record makes the amendment.
 
 **History.** `ab30f474` (2026-11-03) made `AppSettings.CheckForUpdates` default to true, added the startup release dialog with **Skip this version**, and amended ADR-15 ("Update check (amended 2026-11-03)"). [E-STARTUP-UPDATE-LIVE-20261103](E-STARTUP-UPDATE-LIVE-20261103.md) calls the feature "the owner-requested background startup update dialog" and tests its opt-out. C25 and V22 were not amended then.
 
