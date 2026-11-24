@@ -179,6 +179,11 @@ public sealed class LogRedactionTests
             AppLog.Record(time, LogLevel.Error, message, error, diagnosticMode: true));
         Assert.Equal($"2026-11-24T10:00:00.0000000Z Error   Opening {H(path)} failed | FileNotFoundException: Could not find file '{H(path)}'.",
             AppLog.Record(time, LogLevel.Error, message, error, diagnosticMode: false));
+        // A message that ends in a path: the error's type after " | " is not taken for the end of a name.
+        string sums = @"C:\Users\jan\Downloads\SHA256SUMS";
+        var denied = new UnauthorizedAccessException($"Access to the path '{sums}' is denied.");
+        Assert.Equal($"2026-11-24T10:00:00.0000000Z Warning A checksum file could not be read: {H(sums)} | UnauthorizedAccessException: Access to the path '{H(sums)}' is denied.",
+            AppLog.Record(time, LogLevel.Warning, $"A checksum file could not be read: {sums}", denied, diagnosticMode: false));
         // Still one line: a server's text cannot pose as records of its own.
         string remote = "/home/jan/x.txt";
         Assert.Equal($"2026-11-24T10:00:00.0000000Z Warning 550 {H(remote)}" + (char)92 + "r" + (char)92 + "nforged",
