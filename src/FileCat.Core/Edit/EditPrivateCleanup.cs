@@ -11,8 +11,9 @@ namespace FileCat.Core.Edit;
 /// <item>Unix has no conditional unlink of a held inode. A file is removed only in a folder only this user can change
 /// (owned, not a link, no group or other write) while its name still binds the recorded identity (the argument of
 /// UNIX_PRIVATE_CLEANUP_DECISION.md).</item>
-/// <item>Anything else is kept, and its path is logged and returned. An adapter without identities or bound operations
-/// (the portable adapter on Windows, used by tests) keeps the earlier removal only inside FileCat's own data folders.</item>
+/// <item>Anything else is kept, and its path is logged (hashed, I643) and returned. An adapter without identities or bound
+/// operations (the portable adapter on Windows, used by tests) keeps the earlier removal only inside FileCat's own data
+/// folders.</item>
 /// </list>
 /// </summary>
 internal static class EditPrivateCleanup
@@ -67,7 +68,7 @@ internal static class EditPrivateCleanup
     internal static void RemoveEmptyFolder(string folder)
     {
         try { if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any()) Directory.Delete(folder); }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { AppLog.Warn("FileCat kept its temporary folder " + folder + ": " + error.Message); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { AppLog.Warn("FileCat kept its temporary folder " + AppLog.P(folder) + ": " + error.Message); }
     }
 
     /// <summary>
@@ -85,9 +86,11 @@ internal static class EditPrivateCleanup
 
     private static bool Present(string path) => File.Exists(path) || new FileInfo(path).LinkTarget is not null;
 
+    /// <summary>Why a path was kept, for the user; the log has it with the path hashed (I643).</summary>
     private static string Kept(string path, string? reason)
     {
-        string text = "FileCat kept its temporary edit file " + path + (string.IsNullOrEmpty(reason) ? "." : ": " + reason + ".");
-        AppLog.Warn(text); return text;
+        string Text(string shown) => "FileCat kept its temporary edit file " + shown + (string.IsNullOrEmpty(reason) ? "." : ": " + reason + ".");
+        AppLog.Warn(Text(AppLog.P(path)));
+        return Text(path);
     }
 }

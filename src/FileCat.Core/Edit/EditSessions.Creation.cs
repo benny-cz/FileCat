@@ -152,7 +152,8 @@ public sealed partial class EditSessionStore
             try
             {
                 if(complete)return;
-                string folder=Path.Combine(root.Path,id),text;string? kept=null;
+                // What is said comes in two parts around the folder: the user is told where, the log has it hashed (I643).
+                string folder=Path.Combine(root.Path,id),before,after;string? kept=null;
                 if(Session is null)
                 {
                     // Its folder may have been made although no lease could hold it (its private review refused it): nothing
@@ -160,11 +161,11 @@ public sealed partial class EditSessionStore
                     if(!foldersAttempted)return;
                     bool? listed=Listed();
                     if(listed==false)return;
-                    text=listed is null
-                        ?"FileCat may have kept a folder for the unfinished copy of “"+leaf+"” at "+folder+": it could not hold that folder, "+
-                            "nor check whether it was made. If it was, it is listed in File → Edit sessions for review."
-                        :"FileCat kept a folder for the unfinished copy of “"+leaf+"” at "+folder+": it could not hold that folder. "+
-                            "It is listed in File → Edit sessions for review.";
+                    (before,after)=listed is null
+                        ?("FileCat may have kept a folder for the unfinished copy of “"+leaf+"” at ",": it could not hold that folder, "+
+                            "nor check whether it was made. If it was, it is listed in File → Edit sessions for review.")
+                        :("FileCat kept a folder for the unfinished copy of “"+leaf+"” at ",": it could not hold that folder. "+
+                            "It is listed in File → Edit sessions for review.");
                 }
                 else
                 {
@@ -191,26 +192,27 @@ public sealed partial class EditSessionStore
                     if(kept is null)return;
                     // What is left decides what the user is told: a whole edit (its record still there), the copy without
                     // the record that speaks for it, or an unfinished copy.
-                    text=RecordKept()
-                        ?"FileCat could not complete the edit of “"+leaf+"” and could not remove its record, so the edit is kept at "+folder+
-                            ": "+Sentence(kept)+" Review it in File → Edit sessions."
+                    (before,after)=RecordKept()
+                        ?("FileCat could not complete the edit of “"+leaf+"” and could not remove its record, so the edit is kept at ",
+                            ": "+Sentence(kept)+" Review it in File → Edit sessions.")
                         :!WorkingKept()&&workingRemoved
-                        ?"FileCat removed the copy it had made of “"+leaf+"” but kept its folder at "+folder+": "+Sentence(kept)+
-                            " Review it in File → Edit sessions."
+                        ?("FileCat removed the copy it had made of “"+leaf+"” but kept its folder at ",": "+Sentence(kept)+
+                            " Review it in File → Edit sessions.")
                         :WorkingKept()&&copied
                         // A whole copy with no record: FileCat cannot tell such a copy from an edit of the user's, so it
                         // keeps it whole and the list offers no removal for it. The way out is said here instead of
                         // sending the user to a row that cannot act.
-                        ?"FileCat could not complete the edit of “"+leaf+"” and could not remove the copy it had made, so that copy is kept at "+
-                            folder+": "+Sentence(kept)+" FileCat lists it in File → Edit sessions and keeps it; open its folder from there to see "+
-                            "the copy, which is yours to delete once you no longer need it."
+                        ?("FileCat could not complete the edit of “"+leaf+"” and could not remove the copy it had made, so that copy is kept at ",
+                            ": "+Sentence(kept)+" FileCat lists it in File → Edit sessions and keeps it; open its folder from there to see "+
+                            "the copy, which is yours to delete once you no longer need it.")
                         :workingIdentity is null
-                        ?"FileCat kept the folder it had started for the copy of “"+leaf+"” at "+folder+": "+Sentence(kept)+
-                            " It is listed in File → Edit sessions for review."
-                        :"FileCat kept the unfinished copy of “"+leaf+"” at "+folder+": "+Sentence(kept)+
-                            " It is listed in File → Edit sessions for review.";
+                        ?("FileCat kept the folder it had started for the copy of “"+leaf+"” at ",": "+Sentence(kept)+
+                            " It is listed in File → Edit sessions for review.")
+                        :("FileCat kept the unfinished copy of “"+leaf+"” at ",": "+Sentence(kept)+
+                            " It is listed in File → Edit sessions for review.");
                 }
-                AppLog.Warn(text);
+                AppLog.Warn(before+AppLog.P(folder)+after);
+                string text=before+folder+after;
                 try{primary.Data[RetainedCreationKey]=text;}
                 catch(Exception error)when(error is ArgumentException or NotSupportedException){}
             }

@@ -49,7 +49,7 @@ internal static class NativeBenchmark
                 using var file = new FileStream(output, FileMode.CreateNew, FileAccess.Write, FileShare.None);
                 file.Write(System.Text.Encoding.UTF8.GetBytes(json));
             }
-            AppLog.Info("Benchmark results written to " + output);
+            AppLog.Info("Benchmark results written to " + AppLog.P(output));
             Console.WriteLine(output);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
