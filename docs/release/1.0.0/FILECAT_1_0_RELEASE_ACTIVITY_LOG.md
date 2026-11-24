@@ -5430,3 +5430,10 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-24 — Third sync of the day
 
 - With PR #19 merged and no PR open, `release/1.0` was synced at `dae7207c` through PR #20, which merged as `8f122365` after its first CI attempt passed every job. It brings the I633 fix, and the branch's tree equals main's. [Sync record](evidence/E-REL-SYNC-20261124-release-branch.md).
+
+## 2026-11-24 — `v1.0.0-rc.1`
+
+- The owner answered "Yes, tag rc.1". Annotated tag `5712f08e` points to `release/1.0` `8f122365`, and the answer also accepted the DEC-09 amendment for RC drafts. [rc.1](evidence/E-RC1-TAG-20261124.md).
+- Tagged run 45350703310 passed every job in its first attempt: 19 test jobs, identical test by test to PR #20's run of the same tree, and the three package jobs. The owner approved the `signing` run in GitHub. Both runtimes were signed with the owner's certificate and verified, and the candidate's 24 assets and its signing records went into private drafts. Nothing was published.
+- The packages call themselves `1.0.0-rc.1`. Promoted unchanged as 1.0.0, they would offer 1.0.0 to their own users as an update: [I634](evidence/E-I634-candidate-version-identity.md). A successor candidate follows the fix.
+- Native runs of the same source: the Mac passed, Ubuntu failed only the locked-keyring test, and Windows was still running. [Native runs](evidence/E-REL-NATIVE-20261124-rc1-source.md).
