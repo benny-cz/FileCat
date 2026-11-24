@@ -5512,3 +5512,13 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-24 — I648: a Markdown Page sometimes stays blank
 
 - c10 in the qualification VM: every link kind draws, and about 60 Pages drew within 3 s in repeated runs, but two stayed blank with Refresh disabled. PR #27's Windows CI job hit the same fault in `PageViewTests`: no navigation completion within 55 s although both page requests were answered. [I648](evidence/E-I648-markdown-page-navigation-never-completes.md).
+
+## 2026-11-24 — The Mac GUI harness's rehearsal of rc.2: I649 to I654
+
+- A re-runnable Mac GUI harness drives FileCat through the accessibility API on the physical Mac. On rc.2's macOS package it passes 21 b-rows, fails b25 and b26, leaves seven partial or blocked (screenshots need a permission the session does not have; FTPS needs a server) and found six issues. The qualification VM confirmed three of them on Windows.
+- I649 (High): Show pictures on a streams or attributes listing ends FileCat on Windows and macOS. [I649](evidence/E-I649-pictures-on-supplementary-data-crash.md).
+- I650 (High): on macOS, typing a time in Change attributes and times ends FileCat while an accessibility client is active. [I650](evidence/E-I650-macos-times-dialog-live-region-crash.md).
+- I651 (Medium): on macOS an attribute row offers "F3 to view", but F3 does nothing, so a Finder tag's name never shows (I615). [I651](evidence/E-I651-macos-attribute-value-f3-silent.md).
+- I652 (Medium): on macOS, Copy fills a sparse file's holes on APFS (I616's unqualified Mac part). [I652](evidence/E-I652-macos-sparse-copy-fills-holes.md).
+- I653 (Medium): keyboard reference rows and spin buttons announce implementation names, on both platforms (the class of I583). [I653](evidence/E-I653-accessible-names-implementation-text.md).
+- I654 (Low): a doubled period in the PDF error message. [I654](evidence/E-I654-pdf-error-doubled-period.md).
