@@ -21,8 +21,8 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory
         private readonly Stream _guarded;
         private bool _disposed;
         private SafeHandle Parent => _parents[^1].Handle.Handle;
-        private int DirFlags => _mac ? 0x100000 | 0x1000000 | 0x100 | 4 : 0x10000 | 0x80000 | 0x20000;
-        private int InputFlags => _mac ? 0x1000000 | 0x100 | 4 : 0x80000 | 0x20000 | 0x800;
+        private int DirFlags => _mac ? 0x100000 | 0x1000000 | 0x100 | 4 : LinuxDirectoryFlags(RuntimeInformation.ProcessArchitecture);
+        private int InputFlags => _mac ? 0x1000000 | 0x100 | 4 : LinuxFileFlags(RuntimeInformation.ProcessArchitecture);
         internal ChosenInventory(string path, bool comparison = false)
         {
             if (!OperatingSystem.IsLinux() && !_mac) throw new PlatformNotSupportedException();

@@ -188,7 +188,7 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
         private InodeInfo? InodeFlags(ulong inode, string? fileSystem)
         {
             // O_RDONLY | O_NONBLOCK | O_NOCTTY | O_CLOEXEC | O_NOFOLLOW (whose value depends on the architecture).
-            int noFollow = RuntimeInformation.ProcessArchitecture is Architecture.Arm64 or Architecture.Arm or Architecture.Ppc64le ? 0x8000 : 0x20000;
+            int noFollow = LinuxOpenFlags.Current.NoFollow;
             int fd = Open(path, 0x800 | 0x100 | 0x80000 | noFollow);
             if (fd < 0)
             {

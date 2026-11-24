@@ -33,7 +33,7 @@ public sealed unsafe partial class UnixFileRecords
 
     private static FileDetailsReport LinuxDetails(string path, bool fullReport, CancellationToken ct)
     {
-        int noFollow = RuntimeInformation.ProcessArchitecture is Architecture.Arm64 or Architecture.Arm or Architecture.Ppc64le ? 0x8000 : 0x20000;
+        int noFollow = LinuxOpenFlags.Current.NoFollow;
         ct.ThrowIfCancellationRequested();
         // O_PATH pins even symlinks/special nodes without a data open or device/FIFO activation.
         int fd = Open(path, 0x200000 | 0x80000 | noFollow);

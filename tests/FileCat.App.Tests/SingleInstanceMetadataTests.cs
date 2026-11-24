@@ -64,6 +64,34 @@ public sealed class SingleInstanceMetadataTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    // I656: OpenUnixLock refuses a link at its path first; the open after that check must refuse one put in place meanwhile,
+    // which on Linux takes O_NOFOLLOW's value for the architecture. Linux ARM64 followed the link before the fix.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Unix_instance_lock_open_refuses_a_link_put_in_place_after_the_path_check(bool create)
+    {
+        if (OperatingSystem.IsWindows()) { Assert.Skip("Unix instance-lock links."); return; }
+        string root = Path.Combine(Path.GetTempPath(), "filecat-instance-link-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            string target = Path.Combine(root, "regular.lock"), link = Path.Combine(root, "instance.lock");
+            File.WriteAllText(target, string.Empty);
+            File.CreateSymbolicLink(link, target);
+            var error = Assert.Throws<TargetInvocationException>(() => OpenRegularLock(link, create));
+            Assert.IsType<IOException>(error.InnerException);
+            using var held = Assert.IsType<FileStream>(OpenRegularLock(target, create));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData(Architecture.X64, 2048 | 524288 | 131072)] // rc.2's flags: x64 is unchanged
+    [InlineData(Architecture.Arm64, 0x800 | 0x80000 | 0x8000)] // O_NONBLOCK | O_CLOEXEC | ARM64's O_NOFOLLOW
+    public void Linux_instance_lock_opens_with_its_architectures_no_follow_flag(Architecture architecture, int expected) =>
+        Assert.Equal(expected, SingleInstance.LinuxLockOpenFlags(architecture));
+
     [Theory]
     [InlineData("OpenUnixLock")]
     [InlineData("OpenIndependentLock")]
@@ -173,4 +201,8 @@ public sealed class SingleInstanceMetadataTests
     private static object? OpenLock(string method, string path, bool create)
         => typeof(SingleInstance).GetMethod(method, BindingFlags.Static | BindingFlags.NonPublic)!
             .Invoke(null, [path, create]);
+
+    private static object? OpenRegularLock(string path, bool create)
+        => typeof(SingleInstance).GetMethod("OpenUnixRegularLock", BindingFlags.Static | BindingFlags.NonPublic)!
+            .Invoke(null, [path, create, false]);
 }

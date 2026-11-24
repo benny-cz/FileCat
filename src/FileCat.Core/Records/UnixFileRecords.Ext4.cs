@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Inspect;
 using Microsoft.Win32.SafeHandles;
 
@@ -167,8 +168,7 @@ public sealed unsafe partial class UnixFileRecords
             At(b + 112), At(b + 96), At(b + 64), (*(uint*)b & 0x800) != 0 ? At(b + 80) : null, null, null);
         if ((mode & TypeMask) is not (0x8000 or 0x4000)) return live;
         // Its generation and flags, through a descriptor opened only to read (as InodeFlags opens it).
-        int noFollow = RuntimeInformation.ProcessArchitecture is Architecture.Arm64 or Architecture.Arm or Architecture.Ppc64le ? 0x8000 : 0x20000;
-        int fd = Open(path, 0x800 | 0x100 | 0x80000 | noFollow);
+        int fd = Open(path, 0x800 | 0x100 | 0x80000 | LinuxOpenFlags.Current.NoFollow);
         if (fd < 0) return live;
         try
         {

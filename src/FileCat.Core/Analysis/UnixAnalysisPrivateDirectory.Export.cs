@@ -22,8 +22,8 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory
         private UnixStat _initial;
         private SafeHandle Parent => _parents[^1].Handle.Handle;
         private SafeHandle File => (SafeHandle?)_file?.Handle ?? _stream?.SafeFileHandle ?? throw new ObjectDisposedException(nameof(ExportDestination));
-        private int DirFlags => _mac ? 0x100000 | 0x1000000 | 0x100 | 4 : 0x10000 | 0x80000 | 0x20000;
-        private int ReadFlags => _mac ? 0x1000000 | 0x100 | 4 : 0x80000 | 0x20000 | 0x800;
+        private int DirFlags => _mac ? 0x100000 | 0x1000000 | 0x100 | 4 : LinuxDirectoryFlags(RuntimeInformation.ProcessArchitecture);
+        private int ReadFlags => _mac ? 0x1000000 | 0x100 | 4 : LinuxFileFlags(RuntimeInformation.ProcessArchitecture);
         internal ExportDestination(string folder, Func<AnalysisPrivateDirectory>? createPrivateScratch, IReadOnlySet<string>? protectedDirectories)
         {
             if (!_mac && !OperatingSystem.IsLinux()) throw new PlatformNotSupportedException();
@@ -52,7 +52,7 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory
                 }
                 else
                 {
-                    _file = OpenOwned(Parent, ".", 0x410000 | 0x80000 | 2, 0x180); // O_TMPFILE, publication allowed; 0600.
+                    _file = OpenOwned(Parent, ".", LinuxTemporaryFileFlags(RuntimeInformation.ProcessArchitecture), 0x180); // O_TMPFILE, publication allowed; 0600.
                     _stream = _file.Handle.OpenStream(FileAccess.ReadWrite);
                 }
                 _initial = Stat(File); Verify();

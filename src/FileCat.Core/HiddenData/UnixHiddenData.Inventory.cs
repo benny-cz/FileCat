@@ -84,8 +84,7 @@ public sealed partial class UnixHiddenData
     private static SafeFileHandle PinInventoryFile(string path, CancellationToken ct, out UnixStat original)
     {
         ct.ThrowIfCancellationRequested();
-        int noFollow = RuntimeInformation.ProcessArchitecture is Architecture.Arm64 or Architecture.Arm or Architecture.Ppc64le ? 0x8000 : 0x20000;
-        int fd = InventoryOpen(path, 0x200000 | 0x80000 | noFollow); // O_PATH | O_CLOEXEC | O_NOFOLLOW
+        int fd = InventoryOpen(path, 0x200000 | LinuxOpenFlags.CloseOnExec | LinuxOpenFlags.Current.NoFollow); // O_PATH | O_CLOEXEC | O_NOFOLLOW
         if (fd < 0) throw Error(path);
         var pin = new SafeFileHandle(fd, ownsHandle: true);
         try
