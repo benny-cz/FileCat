@@ -57,9 +57,14 @@ if (-not [string]::IsNullOrWhiteSpace($CandidateRef)) {
 $versionPrefix = ($product -split '-')[0]
 $versionArgs = @("-p:Version=$product", "-p:VersionPrefix=$versionPrefix")
 if (-not [string]::IsNullOrWhiteSpace($CandidateRef)) {
-    $versionArgs += "-p:InformationalVersion=$Version+$sourceCommit"
+    $versionArgs += "-p:InformationalVersion=$product+$sourceCommit"
     $versionArgs += '-p:IncludeSourceRevisionInInformationalVersion=false'
 }
+# A candidate is FileCat 1.0.0 built from its RC reference, and its bytes say so throughout (I634): the informational
+# version (About, --version, the update check) and every file name carry 1.0.0, so the qualified files can be published
+# as 1.0.0 unchanged. The reference stays in the producer manifests and the candidate's draft; the commit is in the
+# informational version.
+$packageVersion = if ([string]::IsNullOrWhiteSpace($CandidateRef)) { $Version } else { $product }
 # The SBOMs name their source. Uncommitted build inputs are refused in CI and named by a state hash elsewhere,
 # so an SBOM never claims a clean commit it was not built from.
 $buildInputs = @('src', 'eng', 'licenses', 'Directory.Build.props', 'Directory.Build.targets', 'Directory.Packages.props', 'global.json', 'THIRD-PARTY-NOTICES.md', 'LICENSE', 'FileCat.slnx')
@@ -76,9 +81,9 @@ if ($changedInputs.Count -gt 0) {
     $sourceIdentity = "$sourceCommit+dirty." + [Convert]::ToHexString($state.GetHashAndReset()).ToLowerInvariant()
     Write-Warning "Packaging uncommitted changes; the SBOMs record source $sourceIdentity."
 }
-$sbomSetup = Join-Path $artifacts "sbom-$Version-$Runtime-setup-payload.spdx.json"
-$sbomPortable = Join-Path $artifacts "sbom-$Version-$Runtime-portable.spdx.json"
-$sbomFdd = Join-Path $artifacts "sbom-$Version-$Runtime-fdd.spdx.json"
+$sbomSetup = Join-Path $artifacts "sbom-$packageVersion-$Runtime-setup-payload.spdx.json"
+$sbomPortable = Join-Path $artifacts "sbom-$packageVersion-$Runtime-portable.spdx.json"
+$sbomFdd = Join-Path $artifacts "sbom-$packageVersion-$Runtime-fdd.spdx.json"
 
 $signingManifests = Join-Path $artifacts "signing/$Runtime"
 if ($FromPayload) {
@@ -90,11 +95,11 @@ if ($FromPayload) {
 } else {
     Remove-Item -Recurse -Force $publish, $fdd, $signingManifests -ErrorAction SilentlyContinue
 }
-Remove-Item -Force $sbomSetup, $sbomPortable, $sbomFdd, (Join-Path $artifacts "sbom-$Version-$Runtime.json") -ErrorAction SilentlyContinue
+Remove-Item -Force $sbomSetup, $sbomPortable, $sbomFdd, (Join-Path $artifacts "sbom-$packageVersion-$Runtime.json") -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $artifacts | Out-Null
 
 if (-not $FromPayload) {
-    Write-Host "Publishing self-contained $Runtime ($Version)"
+    Write-Host "Publishing self-contained $Runtime ($packageVersion)"
     dotnet publish $project -c $Configuration -r $Runtime --self-contained true -p:PublishReadyToRun=true `
         @versionArgs -p:DebugType=embedded -p:StartupHookSupport=false -o $publish
     if ($LASTEXITCODE -ne 0) { throw "self-contained publish failed" }
@@ -189,7 +194,7 @@ if ($Sign) {
 
 function Write-ArtifactSbom([string]$Payload, [string]$Kind, [string]$Output, [string[]]$Extra = @()) {
     & dotnet run --project (Join-Path $root 'eng/ArtifactSbom') -c Release -- `
-        $Payload (Join-Path $root 'licenses/dependencies/index.json') $Version $Runtime $Kind `
+        $Payload (Join-Path $root 'licenses/dependencies/index.json') $packageVersion $Runtime $Kind `
         $sourceIdentity $createdUtc $Output @Extra
     if ($LASTEXITCODE -ne 0) { throw "artifact SBOM failed: $Kind" }
 }
@@ -210,14 +215,14 @@ New-Item -ItemType File -Path (Join-Path $portableStage "FileCat.portable") -For
 # Portable mode has no administrator retry: a helper in a user-writable folder could be replaced (ADR-14).
 Remove-Item (Join-Path $portableStage "FileCat.PrivilegedHost.*") -Force
 Write-ArtifactSbom $portableStage 'portable' $sbomPortable
-$portableZip = Join-Path $artifacts "FileCat-$Version-$Runtime-portable.zip"
+$portableZip = Join-Path $artifacts "FileCat-$packageVersion-$Runtime-portable.zip"
 Remove-Item $portableZip -ErrorAction SilentlyContinue
 Compress-Archive -Path (Join-Path $portableStage "*") -DestinationPath $portableZip
 Remove-Item -Recurse -Force $portableStage
 
 $fddHelper = @(Get-ChildItem -LiteralPath $fdd -Recurse -File -Filter "FileCat.PrivilegedHost.*")
 if ($fddHelper.Count -ne 0) { throw "the framework-dependent payload must not contain the administrator helper (DEC-04): $($fddHelper.Name -join ', ')" }
-$fddZip = Join-Path $artifacts "FileCat-$Version-$Runtime-fdd.zip"
+$fddZip = Join-Path $artifacts "FileCat-$packageVersion-$Runtime-fdd.zip"
 Remove-Item $fddZip -ErrorAction SilentlyContinue
 Compress-Archive -Path (Join-Path $fdd "*") -DestinationPath $fddZip
 

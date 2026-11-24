@@ -45,6 +45,25 @@ public sealed class UpdateCheckTests
     private static byte[] Answer(string tag, string url) =>
         JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, string> { ["tag_name"] = tag, ["html_url"] = url });
 
+    /// <summary>
+    /// I634: a release candidate's bytes become the stable release unchanged, so a candidate build calls itself 1.0.0
+    /// (with its commit as build metadata). Had it kept its RC label, the stable release would offer itself as an update.
+    /// </summary>
+    [Fact]
+    public void A_candidate_build_is_not_offered_the_release_it_becomes()
+    {
+        const string page = "https://github.com/benny-cz/FileCat/releases/tag/v1.0.0";
+        Assert.Equal(UpdateCheck.LatestReleaseApi, UpdateCheck.ReleaseApiFor("1.0.0"));
+        var stable = UpdateCheck.Interpret("1.0.0", Answer("v1.0.0", page));
+        Assert.False(stable.Newer);
+        Assert.Null(stable.Error);
+        Assert.Equal("1.0.0", stable.Latest);
+        // What an RC-labelled build would have done: ask for prereleases too, and find its own release newer.
+        Assert.Equal(UpdateCheck.PreviewReleasesApi, UpdateCheck.ReleaseApiFor("1.0.0-rc.1"));
+        Assert.True(ReleaseVersion.IsNewer("1.0.0-rc.1", "v1.0.0"));
+        Assert.True(UpdateCheck.Interpret("1.0.0", Answer("v1.0.1", page.Replace("v1.0.0", "v1.0.1"))).Newer);
+    }
+
     [Fact]
     public void Preview_builds_consider_public_prereleases_while_stable_builds_use_full_releases()
     {
