@@ -5503,3 +5503,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - The B12 review of the modes added since B12 is in [PR #28](https://github.com/benny-cz/FileCat/pull/28). B12's Held claim holds for every listed mode except three findings. F3 is I644, which the qualification VM has since observed.
 - I645 (open, High): at every start FileCat sweeps its temporary folders in the profile with no token check, so an administrator window follows a junction planted at medium integrity, resetting attributes or deleting through it. [I645](evidence/E-I645-elevated-temp-sweeps-follow-links.md).
 - I646 (open, Medium): the Linux root process census opens each process's executable name, which another account can replace with a FIFO or a device link once the program is deleted. [I646](evidence/E-I646-linux-root-census-opens-replaceable-path.md).
+
+## 2026-11-24 — I647: Git badges ignore Git's line-ending settings
+
+- c23 in the qualification VM: the case-sensitive repository's badges match Git (`PROOF.txt` clean, `proof.txt` changed). In an ordinary repository, a case-only spelling change left the row "Git changed" while Git said clean.
+- I647 (open, Medium): reproduced with Git alone. The badge run skips Git for Windows' system settings (I150), and with them the default `core.autocrlf=true`; a CRLF file whose time changed reads `M` until Git refreshes its index. [I647](evidence/E-I647-git-badges-without-line-ending-settings.md).
