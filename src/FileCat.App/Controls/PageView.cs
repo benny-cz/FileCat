@@ -83,11 +83,22 @@ public sealed class PageView : NativeControlHost
     private IDisposable? _loadTimer;
     private int _loadGeneration;
 
+    /// <summary>
+    /// How long a page may load before the viewer says that it has not finished and how to get past it (release issue
+    /// I648: WebView2 sometimes never reported a page's completion, and the page stayed blank with nothing said).
+    /// </summary>
+    internal TimeSpan SlowLoadNotice { get; set; } = TimeSpan.FromSeconds(10);
+    private IDisposable? _slowTimer;
+
+    /// <summary>Whether the page has been loading for longer than <see cref="SlowLoadNotice"/>.</summary>
+    public bool LoadIsSlow { get; private set; }
+
     /// <summary>Shows a page, now or once the native view exists.</summary>
     public void Show(HtmlPage page)
     {
         _page = page;
         PageLoaded = false;
+        LoadIsSlow = false;
         if (_engine is { } engine) Load(engine, page);
     }
 
@@ -95,8 +106,15 @@ public sealed class PageView : NativeControlHost
     {
         _loadTimer?.Dispose();
         _loadTimer = null;
+        _slowTimer?.Dispose();
         int generation = ++_loadGeneration;
         engine.Show(page);
+        _slowTimer = DispatcherTimer.RunOnce(() =>
+        {
+            if (generation != _loadGeneration || PageLoaded || !ReferenceEquals(engine, _engine)) return;
+            LoadIsSlow = true;
+            Changed?.Invoke();
+        }, SlowLoadNotice);
         if (LoadTimeout is not { } timeout) return;
         _loadTimer = DispatcherTimer.RunOnce(() =>
         {
@@ -277,22 +295,13 @@ public sealed class PageView : NativeControlHost
     private void ConnectEngine(IPageEngine engine)
     {
         engine.Changed += () => Dispatcher.UIThread.Post(() => Changed?.Invoke());
-        engine.Loaded += (ok, why) => Dispatcher.UIThread.Post(() =>
+        engine.Loaded += (ok, why) =>
         {
-            _loadTimer?.Dispose();
-            _loadTimer = null;
-            PageLoaded = ok;
-            LoadCompleted?.Invoke(ok, why);
-            // On Windows a fast initial focus request can precede both the browser controller and the
-            // switch away from the Text surface. If Avalonia still names that hidden surface as focused,
-            // give the newly loaded page the keys. A visible Find or toolbar control keeps its focus.
-            if (ok && OperatingSystem.IsWindows() && IsEffectivelyVisible &&
-                _keyboardOwner is WindowBase { IsActive: true } &&
-                _keyboardOwner.FocusManager?.GetFocusedElement() is Control { IsEffectivelyVisible: false })
-                GiveKeysToPage();
-            if (!ok && why is not null) Failed?.Invoke("The page could not be shown: " + why);
-            Changed?.Invoke();
-        });
+            // A report raised before the page now shown was asked for belongs to the page before it: Refresh can replace
+            // a page that is still loading (I648), and that page's late completion must not count for the new one.
+            int generation = Volatile.Read(ref _loadGeneration);
+            Dispatcher.UIThread.Post(() => OnLoaded(generation, ok, why));
+        };
         engine.KeyRequested = (key, modifiers) => KeyRequested?.Invoke(key, modifiers) == true;
         engine.FocusRequested += () => Dispatcher.UIThread.Post(() =>
         {
@@ -312,6 +321,27 @@ public sealed class PageView : NativeControlHost
         });
     }
 
+    private void OnLoaded(int generation, bool ok, string? why)
+    {
+        if (generation != _loadGeneration) return;
+        _loadTimer?.Dispose();
+        _loadTimer = null;
+        _slowTimer?.Dispose();
+        _slowTimer = null;
+        PageLoaded = ok;
+        LoadIsSlow = false;
+        LoadCompleted?.Invoke(ok, why);
+        // On Windows a fast initial focus request can precede both the browser controller and the
+        // switch away from the Text surface. If Avalonia still names that hidden surface as focused,
+        // give the newly loaded page the keys. A visible Find or toolbar control keeps its focus.
+        if (ok && OperatingSystem.IsWindows() && IsEffectivelyVisible &&
+            _keyboardOwner is WindowBase { IsActive: true } &&
+            _keyboardOwner.FocusManager?.GetFocusedElement() is Control { IsEffectivelyVisible: false })
+            GiveKeysToPage();
+        if (!ok && why is not null) Failed?.Invoke("The page could not be shown: " + why);
+        Changed?.Invoke();
+    }
+
     protected override void DestroyNativeControlCore(IPlatformHandle control)
     {
         if (_engine is { } engine && ReferenceEquals(control, engine.Handle))
@@ -319,6 +349,8 @@ public sealed class PageView : NativeControlHost
             _engine = null;
             _loadTimer?.Dispose();
             _loadTimer = null;
+            _slowTimer?.Dispose();
+            _slowTimer = null;
             engine.Dispose();
             return;
         }

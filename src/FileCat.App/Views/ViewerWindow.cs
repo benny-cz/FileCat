@@ -1182,7 +1182,10 @@ public sealed class ViewerWindow : Window
                                : "Web page: its scripts do not run and nothing is fetched from the web") +
                            (blocked > 0 ? $" ({blocked.ToString("N0", CultureInfo.CurrentCulture)} {(blocked == 1 ? "request" : "requests")} refused)" : "") +
                            $" · F4 shows its {(markdown ? "text" : "source")} · {Formatters.ExactSize(_reader.Length)}";
-            if (_pageGeneration != _sourceGeneration)
+            if (_pageView.LoadIsSlow && !_pageView.PageLoaded && !_refreshing)
+                _status.Text = (_reopen is null ? "The page has not finished loading. "
+                    : "The page has not finished loading; Refresh (F5) tries again. ") + _status.Text;
+            else if (_pageGeneration != _sourceGeneration)
                 _status.Text = "The file changed; Refresh (F5) to update this page. " + _status.Text;
             else if (_pageSearchStatus is { } searchStatus)
                 _status.Text = searchStatus + " · " + _status.Text;
@@ -1245,8 +1248,9 @@ public sealed class ViewerWindow : Window
         bool stale = _isPicture ? _pictureGeneration != _sourceGeneration
             : _isInfo ? _infoGeneration != _sourceGeneration
             : _isPage && _pageGeneration != _sourceGeneration;
-        _refresh.IsEnabled = _reopen is not null && _readyForRefresh && !_refreshing &&
-            (!_isPage || _pageView.PageLoaded);
+        // A page that is still loading can be refreshed too: WebView2 sometimes never reports that a page finished
+        // (release issue I648), and Refresh is how the reader gets past that.
+        _refresh.IsEnabled = _reopen is not null && _readyForRefresh && !_refreshing;
         _staleBanner.IsVisible = stale || _refreshFailure is not null;
         if (_refreshFailure is { } failure)
         {
@@ -1286,8 +1290,6 @@ public sealed class ViewerWindow : Window
         (double X, double Y)? pagePosition = null;
         try
         {
-            if (pageMode && !_pageView.PageLoaded)
-                throw new InvalidOperationException("Wait for the current page to finish loading before refreshing");
             opened = await reopen(ct) ?? throw new IOException("This provider cannot reopen the selected item");
             // Provider metadata may touch a remote device. Keep it off the UI thread and await
             // completion even after close, so the source cannot be disposed under an active call.
