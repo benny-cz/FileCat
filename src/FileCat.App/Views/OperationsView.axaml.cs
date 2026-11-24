@@ -38,6 +38,11 @@ public partial class OperationsView : UserControl
     {
         InitializeComponent();
         ReviewedReports.AddHandler(KeyDownEvent, OnReviewedRecoveryKeyDown, RoutingStrategies.Tunnel);
+        // The details and actions under the interrupted list belong to the chosen operation, so the row with the keyboard is
+        // the chosen one. The list chooses a row only when its own arrow handling moves both; focus that reached a row any
+        // other way (Tab, a restored or realized row, programmatic focus) left one operation's actions under another's
+        // focus, as the Windows VM showed when Down moved the keyboard on and left the choice behind.
+        InterruptedChoices.AddHandler(GotFocusEvent, OnInterruptedChoiceFocused, RoutingStrategies.Bubble, handledEventsToo: true);
         DataContextChanged += (_, _) => ObserveCenter(Center);
         // While the selected recovery action can be stopped, Stop is kept in view when the recovery area's content or size
         // changes: the action starting, a status line wrapping, the window settling around the drawer.
@@ -720,6 +725,15 @@ public partial class OperationsView : UserControl
     private async void OnReviewedRecoveryReport(object? sender, RoutedEventArgs e)
     {
         if ((sender as Button)?.Tag is RecoveryReviewRecord record) await OpenReviewedRecoveryReportAsync(record);
+    }
+
+    private void OnInterruptedChoiceFocused(object? sender, FocusChangedEventArgs e)
+    {
+        if (Center is not { } center || e.Source is not Visual source) return;
+        var row = source as ListBoxItem ?? source.FindAncestorOfType<ListBoxItem>();
+        if (row?.DataContext is InterruptedJobViewModel item && !ReferenceEquals(center.SelectedInterrupted, item) &&
+            center.Interrupted.Contains(item))
+            center.SelectedInterrupted = item;
     }
 
     private async void OnReviewedRecoveryKeyDown(object? sender, KeyEventArgs e)

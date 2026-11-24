@@ -125,14 +125,27 @@ public sealed class OperationsDrawerLayoutTests
             selector.ScrollIntoView(0);
             Layout(window);
             Assert.True(selector.ContainerFromIndex(0)!.Focus(), "The interrupted item must accept keyboard focus.");
+            // On a failure, say where the selection, the keyboard and the list's scroll were after each press: on the Windows VM
+            // (2026-11-23 and 24) the focus moved on while the selection stayed one item behind.
+            var trace = new System.Text.StringBuilder();
+            string State()
+            {
+                var focused = window.FocusManager?.GetFocusedElement();
+                var scroll = selector.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+                int focusedIndex = focused is ListBoxItem row ? selector.IndexFromContainer(row) : -2;
+                return $"selected {center.Interrupted.IndexOf(center.SelectedInterrupted!)}, focused {focused?.GetType().Name} {focusedIndex}, " +
+                    $"offset {scroll?.Offset.Y:F0} of {scroll?.Extent.Height:F0}";
+            }
+            trace.Append("start: ").Append(State());
             for (int i = 0; i < count; i++)
             {
                 window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
                 window.KeyRelease(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
                 Layout(window); // Let keyboard focus and virtualized row realization retire before the next input.
+                trace.Append("; Down ").Append(i + 1).Append(": ").Append(State());
             }
             Layout(window);
-            Assert.Same(center.Interrupted[^1], center.SelectedInterrupted);
+            Assert.True(ReferenceEquals(center.Interrupted[^1], center.SelectedInterrupted), trace.ToString());
 
             recovery.Offset = new Vector(0, recovery.Extent.Height);
             Layout(window);
@@ -391,6 +404,41 @@ public sealed class OperationsDrawerLayoutTests
             Layout(window);
             Assert.True(recovery.Extent.Height > recovery.Viewport.Height + 1, "The fixture must exercise a clipped recovery card.");
             AssertStopVisible(view, recovery, "after an announcement above it");
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(NavigationMethod.Unspecified)]
+    [InlineData(NavigationMethod.Tab)]
+    [InlineData(NavigationMethod.Directional)]
+    public void Focusing_an_interrupted_operation_chooses_it_however_the_focus_arrived(NavigationMethod method)
+    {
+        // The details and actions under the list belong to the chosen operation. A focus that reached another row without
+        // choosing it showed one operation's actions under another's focus.
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 420);
+        try
+        {
+            var center = vm.Operations;
+            center.IsOpen = true;
+            for (int i = 0; i < 5; i++)
+                center.Interrupted.Add(new InterruptedJobViewModel(new InterruptedJob(
+                    Path.Combine(root, $"journal-{i}"), nameof(JobKind.Copy), $"Interrupted {i}", DateTime.UtcNow,
+                    [Path.Combine(root, $"source-{i}")], Path.Combine(root, "target"), [], [], 0, 1)));
+            Layout(window);
+            var view = window.GetVisualDescendants().OfType<OperationsView>().Single();
+            view.GetVisualDescendants().OfType<Expander>()
+                .Single(e => AutomationProperties.GetName(e) == "Interrupted operations needing review").IsExpanded = true;
+            Layout(window);
+            var selector = view.GetVisualDescendants().OfType<ListBox>()
+                .Single(e => AutomationProperties.GetName(e) == "Choose an interrupted operation");
+            Assert.Same(center.Interrupted[0], center.SelectedInterrupted);
+            selector.ScrollIntoView(3);
+            Layout(window);
+            Assert.True(selector.ContainerFromIndex(3)!.Focus(method), "The interrupted item must accept keyboard focus.");
+            Layout(window);
+            Assert.Same(center.Interrupted[3], center.SelectedInterrupted);
+            Assert.Equal(3, selector.SelectedIndex);
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }
