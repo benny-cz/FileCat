@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using FileCat.Core.State;
 using FileCat.App.Services;
 
@@ -269,6 +270,58 @@ public sealed class WindowsContextMenuTests
     }
 
     /// <summary>
+    /// I642, the real Shell in the real helper: a folder's own menu is headed by the Shell's Paste (canonical verb "paste")
+    /// while the clipboard holds a file, copied or cut, and has none while it holds only text. A probe pastes nothing. The
+    /// clipboard is borrowed for the test and given back as it was.
+    /// </summary>
+    [Fact]
+    public async Task The_folders_own_Windows_menu_offers_the_Shells_Paste_while_the_clipboard_holds_files()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows Shell menus are Windows-only.");
+        if (!WindowsContextMenu.CanStartHost()) Assert.Skip("The Shell helper starts only from an ordinary (not elevated) token.");
+        if (WindowsContextMenu.HostStartInfo() is null) Assert.Skip("The FileCat apphost is not beside the tests.");
+        string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-background-paste", Guid.NewGuid().ToString("N"))).FullName;
+        string folder = Directory.CreateDirectory(Path.Combine(root, "folder")).FullName;
+        string file = Path.Combine(root, "pasted.txt");
+        File.WriteAllText(file, "pasted");
+        try
+        {
+            using var clipboard = BorrowedClipboard.Borrow();
+            if (clipboard is null) Assert.Skip("Another program kept the clipboard open.");
+            const uint copy = 5 /* DROPEFFECT_COPY | DROPEFFECT_LINK, as Explorer's Copy */, cut = 2 /* DROPEFFECT_MOVE */;
+            foreach (uint effect in new[] { copy, cut })
+            {
+                Assert.True(clipboard.SetFiles([file], effect));
+                string[] lines = await BackgroundProbeLines(folder);
+                // At the top: Explorer, too, puts Paste above the folder's own commands.
+                Assert.False(lines[0].StartsWith('\t'));
+                Assert.EndsWith("\t" + WindowsContextMenu.PasteVerb, lines[0], StringComparison.Ordinal);
+                Assert.Single(lines, line => line.EndsWith("\t" + WindowsContextMenu.PasteVerb, StringComparison.OrdinalIgnoreCase));
+                Assert.Contains(lines, line => line.EndsWith("\tproperties", StringComparison.OrdinalIgnoreCase));
+            }
+
+            Assert.True(clipboard.SetText("No files, only text."));
+            string[] plain = await BackgroundProbeLines(folder);
+            Assert.DoesNotContain(plain, line => line.EndsWith("\t" + WindowsContextMenu.PasteVerb, StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(plain, line => line.EndsWith("\tproperties", StringComparison.OrdinalIgnoreCase));
+
+            Assert.True(File.Exists(file));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(folder));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+
+        static async Task<string[]> BackgroundProbeLines(string folder)
+        {
+            var (exit, output, _) = await RunHostAsync(WindowsContextMenu.VerbProbeOption, WindowsContextMenu.BackgroundOption, folder);
+            TestContext.Current.TestOutputHelper?.WriteLine(output);
+            string[] lines = output.Split('\n').Select(line => line.TrimEnd('\r')).Where(line => line.Length > 0).ToArray();
+            Assert.Equal(0, exit);
+            Assert.Equal(WindowsContextMenu.ReadyMessage, lines[^1]);
+            return lines;
+        }
+    }
+
+    /// <summary>
     /// A folder deleted (or renamed, or unplugged) before its menu is built: the helper answers with exit code 1 and the
     /// failure's type, as it does for every failure, instead of crashing with an error dialog; FileCat then shows its own
     /// menu.
@@ -327,5 +380,143 @@ public sealed class WindowsContextMenuTests
             Arguments = "/d /s /c \"" + command + "\"",
         };
         return Process.Start(start)!;
+    }
+
+    /// <summary>
+    /// The system clipboard, borrowed by a test: each format it held in global memory is put back afterwards, unless
+    /// another program has written to it since the test last did (that program's content then stays). Test content is
+    /// kept out of clipboard history and the cloud clipboard.
+    /// </summary>
+    private sealed class BorrowedClipboard : IDisposable
+    {
+        private const uint CfUnicodeText = 13, CfHdrop = 15, GmemMoveable = 0x2;
+        private readonly List<(uint Format, byte[] Data)> _held = [];
+        /// <summary>The clipboard's sequence number after the test's last write; null until it writes.</summary>
+        private uint? _written;
+
+        internal static BorrowedClipboard? Borrow()
+        {
+            var borrowed = new BorrowedClipboard();
+            return Use(() =>
+            {
+                for (uint format = EnumClipboardFormats(0); format != 0; format = EnumClipboardFormats(format))
+                    if (IsMemory(format) && Read(GetClipboardData(format)) is { } data) borrowed._held.Add((format, data));
+                return true;
+            }) ? borrowed : null;
+        }
+
+        /// <summary>Paths as Explorer's Copy (effect 5) or Cut (effect 2) puts them on the clipboard.</summary>
+        internal bool SetFiles(IReadOnlyList<string> paths, uint effect)
+        {
+            // DROPFILES: the list's offset (20), a point, fNC, and fWide; then each path and a final null, in UTF-16.
+            byte[] list = System.Text.Encoding.Unicode.GetBytes(string.Concat(paths.Select(path => path + "\0")) + "\0");
+            byte[] drop = new byte[20 + list.Length];
+            BitConverter.GetBytes(20).CopyTo(drop, 0);
+            BitConverter.GetBytes(1).CopyTo(drop, 16);
+            list.CopyTo(drop, 20);
+            return Write([(CfHdrop, drop), (RegisterClipboardFormatW("Preferred DropEffect"), BitConverter.GetBytes(effect))]);
+        }
+
+        internal bool SetText(string text) =>
+            Write([(CfUnicodeText, System.Text.Encoding.Unicode.GetBytes(text + "\0"))]);
+
+        public void Dispose()
+        {
+            if (_written is { } ours && GetClipboardSequenceNumber() == ours) Write(_held);
+        }
+
+        private bool Write(IReadOnlyList<(uint Format, byte[] Data)> content)
+        {
+            bool written = Use(() =>
+            {
+                if (!EmptyClipboard()) return false;
+                bool all = true;
+                foreach (var (format, data) in content) all &= Put(format, data);
+                if (content.Count > 0) Put(RegisterClipboardFormatW("ExcludeClipboardContentFromMonitorProcessing"), new byte[4]);
+                return all;
+            });
+            _written = GetClipboardSequenceNumber();
+            return written;
+        }
+
+        /// <summary>Runs one clipboard session with an owner window of its own, on this thread.</summary>
+        private static bool Use(Func<bool> session)
+        {
+            nint owner = CreateWindowExW(0, "Static", null, 0, 0, 0, 0, 0, -3 /* HWND_MESSAGE */, 0, 0, 0);
+            if (owner == 0) return false;
+            try
+            {
+                bool open = false;
+                for (int attempt = 0; attempt < 40 && !(open = OpenClipboard(owner)); attempt++) Thread.Sleep(50);
+                if (!open) return false;
+                try { return session(); }
+                finally { CloseClipboard(); }
+            }
+            finally { DestroyWindow(owner); }
+        }
+
+        // GDI objects, metafiles, private handles and owner-drawn data are not plain memory.
+        private static bool IsMemory(uint format) =>
+            format is not (2 or 3 or 9 or 14 or 0x80 or 0x82 or 0x83 or 0x8E) and not (>= 0x200 and <= 0x3FF);
+
+        private static byte[]? Read(nint memory)
+        {
+            nuint size = memory == 0 ? 0 : GlobalSize(memory);
+            if (size == 0 || size > int.MaxValue) return null;
+            nint pointer = GlobalLock(memory);
+            if (pointer == 0) return null;
+            try
+            {
+                byte[] data = new byte[(int)size];
+                Marshal.Copy(pointer, data, 0, data.Length);
+                return data;
+            }
+            finally { GlobalUnlock(memory); }
+        }
+
+        private static bool Put(uint format, byte[] data)
+        {
+            nint memory = GlobalAlloc(GmemMoveable, (nuint)Math.Max(1, data.Length));
+            if (memory == 0) return false;
+            nint pointer = GlobalLock(memory);
+            if (pointer == 0) { GlobalFree(memory); return false; }
+            Marshal.Copy(data, 0, pointer, data.Length);
+            GlobalUnlock(memory);
+            if (SetClipboardData(format, memory) != 0) return true; // Windows owns the memory now.
+            GlobalFree(memory);
+            return false;
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool OpenClipboard(nint owner);
+        [DllImport("user32.dll")]
+        private static extern bool CloseClipboard();
+        [DllImport("user32.dll")]
+        private static extern bool EmptyClipboard();
+        [DllImport("user32.dll")]
+        private static extern uint EnumClipboardFormats(uint format);
+        [DllImport("user32.dll")]
+        private static extern nint GetClipboardData(uint format);
+        [DllImport("user32.dll")]
+        private static extern nint SetClipboardData(uint format, nint memory);
+        [DllImport("user32.dll")]
+        private static extern uint GetClipboardSequenceNumber();
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern uint RegisterClipboardFormatW(string name);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern nint CreateWindowExW(uint exStyle, string className, string? title, uint style, int x, int y, int width, int height,
+            nint parent, nint menu, nint module, nint param);
+        [DllImport("user32.dll")]
+        private static extern bool DestroyWindow(nint window);
+        [DllImport("kernel32.dll")]
+        private static extern nint GlobalAlloc(uint flags, nuint bytes);
+        [DllImport("kernel32.dll")]
+        private static extern nint GlobalFree(nint memory);
+        [DllImport("kernel32.dll")]
+        private static extern nuint GlobalSize(nint memory);
+        [DllImport("kernel32.dll")]
+        private static extern nint GlobalLock(nint memory);
+        [DllImport("kernel32.dll")]
+        private static extern bool GlobalUnlock(nint memory);
     }
 }
