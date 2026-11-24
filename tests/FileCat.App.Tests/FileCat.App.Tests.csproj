@@ -37,4 +37,27 @@
     <None Include="TestData\Viewer\owned-encrypted.pdf" CopyToOutputDirectory="PreserveNewest" />
     <None Include="TestData\Viewer\owned-one-page.pdf" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <!--
+    The administrator launcher tests (I644) start the real FileCat.AdminLauncher.exe, which reaches this project's output
+    beside FileCat.exe through the application, with a windowless stand-in for FileCat.exe that records what it received.
+    The stand-in is compiled as the launcher is (eng/Build-PrivilegedBootstrap.ps1, Visual Studio C++ tools), on Windows.
+  -->
+  <PropertyGroup>
+    <FileCatLauncherStandInRuntime Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64'">$(RuntimeIdentifier)</FileCatLauncherStandInRuntime>
+    <FileCatLauncherStandInRuntime Condition="'$(RuntimeIdentifier)' == '' and '$(OS)' == 'Windows_NT' and '$(NETCoreSdkRuntimeIdentifier)' == 'win-arm64'">win-arm64</FileCatLauncherStandInRuntime>
+    <FileCatLauncherStandInRuntime Condition="'$(RuntimeIdentifier)' == '' and '$(OS)' == 'Windows_NT' and '$(FileCatLauncherStandInRuntime)' == ''">win-x64</FileCatLauncherStandInRuntime>
+    <FileCatBuildLauncherStandIn Condition="'$(FileCatLauncherStandInRuntime)' != '' and '$(OS)' == 'Windows_NT' and '$(FileCatBuildAdministratorLauncher)' != 'false'">true</FileCatBuildLauncherStandIn>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(FileCatBuildLauncherStandIn)' == 'true'">
+    <None Include="$(IntermediateOutputPath)administrator-launcher-stand-in\AdministratorLauncherStandIn.exe" Link="AdministratorLauncher\AdministratorLauncherStandIn.exe"
+          CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+  <Target Name="FileCatCompileLauncherStandIn" AfterTargets="CoreCompile" Condition="'$(FileCatBuildLauncherStandIn)' == 'true' and '$(DesignTimeBuild)' != 'true'"
+          Inputs="AdministratorLauncher\AdministratorLauncherStandIn.cpp;AdministratorLauncher\AdministratorLauncherStandIn.manifest;..\..\eng\Build-PrivilegedBootstrap.ps1;$(MSBuildProjectFullPath)"
+          Outputs="$(IntermediateOutputPath)administrator-launcher-stand-in\AdministratorLauncherStandIn.exe">
+    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\eng\Build-PrivilegedBootstrap.ps1&quot; -Component AdministratorLauncherStandIn -ProjectDirectory &quot;$(MSBuildProjectDirectory)\AdministratorLauncher&quot; -OutputFile &quot;$([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'administrator-launcher-stand-in', 'AdministratorLauncherStandIn.exe'))&quot; -IntermediateDirectory &quot;$([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'administrator-launcher-stand-in'))&quot; -Runtime &quot;$(FileCatLauncherStandInRuntime)&quot;" />
+    <ItemGroup>
+      <FileWrites Include="$(IntermediateOutputPath)administrator-launcher-stand-in\**" />
+    </ItemGroup>
+  </Target>
 </Project>
