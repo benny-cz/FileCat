@@ -85,7 +85,7 @@ Tests print it, and the CI test's timeout message includes it. When the view has
 
 So the fault is reproduced: under load, a page view started while its folder's previous browser process is still exiting waits for its controller for tens of seconds or for good, or fails with ERROR_BUSY. Each round closes every view, so every round starts like that. With a data folder per process, the same load gave no failure in 58 runs.
 
-**The exit takes time.** After the last view of a folder closes, WebView2's BrowserProcessExited came 0.6 to 1.5 s later on this PC. Under the heaviest load, it never came within 10 s. The exiting browser's processes were still listed, unreadable, and new views got their controller only about 70 s after the previous ones closed. Even on the whole PC, it showed: after the fix's watch but before the wait below was added, 1 of 1,800 pages, opened right after three others closed, got a controller in 38 ms, then waited 6.3 s for a renderer process.
+**The exit takes time.** After the last view of a folder closes, WebView2's BrowserProcessExited came 0.3 to 1.5 s later on this PC. Under the heaviest load, it never came within 10 s. The exiting browser's processes were still listed, unreadable, and new views got their controller only about 70 s after the previous ones closed. Even on the whole PC, it showed: after the fix's watch but before the wait below was added, 1 of 1,800 pages, opened right after three others closed, got a controller in 38 ms, then waited 6.3 s for a renderer process.
 
 **Suspected causes tested:**
 1. **A request answered on the wrong thread, its error swallowed.** A probe answers a page's request off the UI thread, as would happen if WebView2 raised its request event with no synchronization context. WebView2 refused the response from that thread (InvalidOperationException, 0x80131509) but accepted the deferral's completion. It then showed its own error page and reported a failed completion within 0.35 s. A failure, not a stall: not this fault, on this runtime.
@@ -126,7 +126,7 @@ Errors still show as errors. No failure report is turned into a success: the wat
   - a process that ended.
 - **`PageViewTests`**, two new real-WebView2 tests:
   - **The completion withheld.** A seam (`WithholdNavigationCompletedForTests`) drops WebView2's completion reports. The page must count as drawn exactly once, at least 4 s after it went quiet and within 10 s more. It took 4.0 s. Against the old code with the seam, it timed out after 49 s.
-  - **Opened right after the last view closed.** The second view waits for the first browser to exit: 1.2 s here. Then it draws its page.
+  - **Opened right after the last view closed.** The second view waits for the first browser to exit, 0.3 and 1.2 s in two runs here. Then it draws its page.
 - **`PageCompletionRecoveryTests`**, 3 App tests through an engine that never reports a completion:
   - Refresh is enabled while the page loads, and reloads it.
   - The 10-second notice appears and goes once the page has loaded.

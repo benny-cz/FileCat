@@ -5,7 +5,7 @@ namespace FileCat.Platform.Windows.Html;
 
 /// <summary>
 /// The page views of one data folder share one WebView2 browser process. When the last of them closes, that process
-/// takes a moment to exit (0.6 to 1.5 seconds on an ordinary machine); in repeated runs on a busy one (release issue
+/// takes a moment to exit (0.3 to 1.5 seconds on an ordinary machine); in repeated runs on a busy one (release issue
 /// I648), a view started meanwhile stayed blank for up to 66 seconds waiting for its controller, or failed at once with
 /// ERROR_BUSY. So a view that was its folder's last leaves word, as it closes, of the exit to come, and the next view
 /// of that folder waits for it (bounded) before it starts. The word is the environment's BrowserProcessExited, which
