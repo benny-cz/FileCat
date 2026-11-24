@@ -5473,3 +5473,19 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-24 — Fifth sync of the day
 
 - With PR #23 merged and no PR open, `release/1.0` was synced at `9c9825a2` through PR #24, which merged as `9e310e95` after its CI passed all 19 jobs that ran. It brings PR #23's test-only buffer pin and the rc.2 records; no product source changed, so rc.2 (`7269ec61`) is still the branch's product. The branch's tree equals `9c9825a2`'s. [Sync record](evidence/E-REL-SYNC-20261124-release-branch.md).
+
+## 2026-11-24 — Desk reviews of rc.2: the Shell helper's modes and the user-facing text
+
+- I629's dated B12 review is done: every helper mode added since B12, and ShellHost's kind 5, runs with its starter's rights and listens nowhere another account can reach. [B12 addendum](evidence/E-I629-B12-ADDENDUM-20261124.md).
+- I641: the review found later startup, worker and test modes, and environment switches, that B12 does not list.
+- REL-V22-DOCS is not done. Three contract rows no longer match the product, and the owner decides each: I638 (the update check is on by default), I639 (the installer accepts Windows 10 and Server 2016) and I640 (FileCat reopens itself as administrator outside the installed build). SECURITY.md, SERVICING.md and CAPABILITIES.md then need corrections, and the 1.0.0 release text does not exist yet. [Desk review](evidence/E-REL-V22-DOCS-20261124.md).
+
+## 2026-11-24 — Third round of rc.2's Windows installed-UI checks
+
+- In the qualification VM, these pass on the installed candidate: the ZIP paste from Explorer (c3), the reading position across a refresh (c11), Send to ZIP (c18), Share in Explorer (c19), Windows' Copy and Cut with the changed-selection refusal (c20), the Apply command's preview and report (c21), PDFs (c26), the sparse copy (c27), the file list (c35) and the 128-byte program (c40). [FQ progress](evidence/E-FQ-RC2-20261124.md).
+- I642: the folder's Windows menu offers no Paste, so an item cut in Explorer cannot be moved into a FileCat folder. [I642](evidence/E-I642-folder-menu-without-paste.md).
+
+## 2026-11-24 — rc.2's provenance tie and PDFium
+
+- Every rc.2 payload matches its SBOM, and every NuGet component its inventory entry. Each package's PDFium is the upstream `chromium/7690` binary: byte for byte on Linux, and apart from FileCat's signature on Windows and macOS. The four upstream archives, until now only in a scratch folder, are retained with their checksums. [Provenance record](evidence/E-REL-I03-PROVENANCE-RC2-20261124.md).
+- REL-I03-PROVENANCE still needs a disposition for two components that no inventory entry names: the .NET apphost, and WebView2's loader and XML file, which also ship in the Linux and macOS packages.
