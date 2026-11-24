@@ -22,6 +22,7 @@ public sealed partial class OwnerColumnTests
         using var f = new OwnerFixture(new OwnerSource { NameAnswer = new(NameStatus.Resolved, "fixture-user", "User") });
         await f.Load();
         await f.ShowOwner();
+        await f.Settle();
         int references = f.Provider.References, reads = f.Source.ReadPaths.Count, names = f.Source.NameCalls;
         HoverOwner(f);
         Assert.Null(ToolTip.GetTip(f.List));
@@ -48,6 +49,7 @@ public sealed partial class OwnerColumnTests
         using var f = new OwnerFixture(new OwnerSource { ReadOverride = _ => new(outcome, Reason: reason) });
         await f.Load();
         await f.ShowOwner();
+        await f.Settle(); // the other rows' values, read moments later, repaint them once more (I666)
         int refs = f.Provider.References, reads = f.Source.ReadPaths.Count;
         string report = f.List.FocusedInspectionText()!;
         Assert.Contains("Owner: " + cell, report);
@@ -73,7 +75,7 @@ public sealed partial class OwnerColumnTests
         f.Services.Metadata.ExpireRefreshable();
         f.Frame();
         await FileListFixture.Wait(() => f.FocusedValue.Observation == MetadataObservation.LastKnown);
-        f.Frame();
+        await f.Settle();
         int refs = f.Provider.References, reads = f.Source.ReadPaths.Count;
         HoverOwner(f);
         Assert.Contains("(last known)", Assert.IsType<string>(ToolTip.GetTip(f.List)));

@@ -108,6 +108,42 @@ public sealed partial class OwnerColumnTests
             Frame();
         }
         public void Frame() { List.InvalidateVisual(); Window.CaptureRenderedFrame()?.Dispose(); }
+
+        /// <summary>
+        /// Lets the view settle before a test counts what it then does: every row the list draws has its value, the notice
+        /// that values arrived has come, and the frame it asks for is drawn. ShowOwner waits for the focused row's value
+        /// only; the other rows' values, read moments later, ask for one more frame about 120 ms after they arrive, and
+        /// each frame asks the provider for each drawn row's item (TabViewModel.ItemForDrawing, I649): one reference per
+        /// row, counted as if hovering had made them (I666).
+        /// </summary>
+        public async Task Settle()
+        {
+            await FileListFixture.Wait(() => DrawnValues().All(value => value.State is not (MetadataState.NotRequested or MetadataState.Pending)), 1000);
+            await Names.WhenIdle(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            var announced = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Announced() => announced.TrySetResult();
+            Services.Metadata.ValuesChanged += Announced;
+            try
+            {
+                Services.Metadata.NotifyValuesChanged(); // joins a notice still to come, or sends one
+                await announced.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            }
+            finally { Services.Metadata.ValuesChanged -= Announced; }
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs(); // the list repaints on its own thread
+            Frame();
+        }
+
+        /// <summary>The owner values of the rows the list draws: those it shows, and the one it shows in part below them.</summary>
+        private IEnumerable<MetadataValue> DrawnValues()
+        {
+            int count = Tab.Listing.VisibleCount, top = List.TopRow;
+            for (int row = top; row < Math.Min(count, top + List.VisibleRowCapacity + 1); row++)
+            {
+                var entry = Tab.Listing.GetVisible(row);
+                if (entry.Kind != EntryKind.Parent)
+                    yield return Services.Metadata.Peek("owner", Path.Combine(Root, "synthetic", entry.Name), entry, false);
+            }
+        }
         public void Dispose()
         {
             Window.Close();

@@ -610,6 +610,7 @@ public sealed partial class FileListControl : Control
             }
             _widthOverrides.Clear();
             ClearTextCache();
+            WithdrawTip();
             _cachedStore = _listing?.Store;
             _topRow = 0;
             _horizontalOffset = 0;
@@ -632,7 +633,7 @@ public sealed partial class FileListControl : Control
             ClearPictureThumbnails();
             _topRow = 0;
             _horizontalOffset = 0;
-            ClearTip();
+            WithdrawTip();
             AutomationProperties.SetName(this, PictureMode ? "Pictures, thumbnail grid" : "File list");
             EnsureFocusVisible();
             _automationPeer?.QueueUpdate(ListingChange.Reset);
@@ -671,6 +672,7 @@ public sealed partial class FileListControl : Control
         if (!e.WidthsOnly) _horizontalOffset = 0;
         _widthOverrides.Clear();
         ClearTextCache();
+        WithdrawTip();
         InvalidateArrange();
         InvalidateVisual();
     }
@@ -768,6 +770,7 @@ public sealed partial class FileListControl : Control
         _widthScale = Math.Max(1, SampleWidth(_typeface, size) / ReferenceSampleWidth);
         UpdateDateScale();
         ClearTextCache();
+        WithdrawTip();
         InvalidateArrange();
     }
 
@@ -790,6 +793,7 @@ public sealed partial class FileListControl : Control
         }
         UpdateDateScale();
         ClearTextCache();
+        WithdrawTip();
         InvalidateArrange();
         InvalidateVisual();
     }
@@ -1071,7 +1075,7 @@ public sealed partial class FileListControl : Control
     {
         double next = Math.Clamp(offset, 0, Math.Max(0, _contentExtent - _horizontalViewport));
         if (Math.Abs(next - _horizontalOffset) < 0.01) return;
-        ClearTip();
+        WithdrawTip();
         _viewportIntentGeneration++;
         _horizontalOffset = next;
         _updatingHorizontalScrollBar = true;
@@ -1832,6 +1836,7 @@ public sealed partial class FileListControl : Control
             double w = Math.Max(30, _resizeStartWidth + (_resizeInverse ? -delta : delta));
             _widthOverrides[_resizingColumn] = w / _resizeScale;
             ClearTextCache();
+            WithdrawTip();
             InvalidateArrange();
             InvalidateVisual();
             return;
@@ -1852,10 +1857,16 @@ public sealed partial class FileListControl : Control
     protected override void OnPointerExited(PointerEventArgs e)
     {
         base.OnPointerExited(e);
+        // Still within the list: the pointer is now over something shown above it, as this list's own tooltip is when
+        // there is no room for it beside the pointer (Reparse type's help, the tallest, on a short screen). The tip still
+        // describes that point; withdrawing it closed the tooltip as soon as it covered the pointer (I665).
+        if (new Rect(Bounds.Size).Contains(e.GetPosition(this))) return;
         UpdateTip(null);
     }
 
     private string? _tip;
+    /// <summary>Whether the tip is a header's help, which no row's change makes stale (see <see cref="ClearTip"/>).</summary>
+    private bool _tipIsHeader;
 
     /// <summary>
     /// Rendered, clipped cells supply their safe full value. Pointer movement never calls metadata providers.
@@ -1867,6 +1878,7 @@ public sealed partial class FileListControl : Control
         {
             string? pictureTip = pos is { } picturePoint && RowAt(picturePoint) is var pictureRow and >= 0 && _listing is { } pictureListing
                 ? Formatters.SafeName(pictureListing.GetVisible(pictureRow).Name) : null;
+            _tipIsHeader = false;
             if (_tip == pictureTip) return;
             _tip = pictureTip;
             ToolTip.SetTip(this, pictureTip);
@@ -1874,9 +1886,10 @@ public sealed partial class FileListControl : Control
         }
         string? tip = null;
         Control? richTip = null;
+        bool headerHelp = false;
         if (pos is { } header && header.Y >= 0 && header.Y < _headerHeight && ColumnAt(header) is var headerColumn and >= 0)
         {
-            if (HeaderTip(_columns[headerColumn]) is { } headerTip) (richTip, tip) = (headerTip, headerTip.Text);
+            if (HeaderTip(_columns[headerColumn]) is { } headerTip) (richTip, tip, headerHelp) = (headerTip, headerTip.Text, true);
         }
         else if (pos is { } p && _listing is { } listing && RowAt(p) is var row and >= 0 && ColumnAt(p) is var col and >= 0)
         {
@@ -1906,6 +1919,7 @@ public sealed partial class FileListControl : Control
                 tip = IdentityTip(entry);
         }
         if (tip is { Length: > 8192 }) tip = tip[..8192] + "…\nCtrl+Shift+I shows the complete focused row.";
+        _tipIsHeader = headerHelp;
         if (tip == _tip) return;
         _tip = tip;
         ToolTip.SetTip(this, (object?)richTip ?? tip);
@@ -1936,8 +1950,20 @@ public sealed partial class FileListControl : Control
         return $"{Formatters.SafeName(column.DisplayHeader)}: {text}";
     }
 
+    /// <summary>
+    /// Withdraws a row's tip, which can describe what its row no longer shows: values read since, rows that moved. A
+    /// header's help stays, as it describes its column whatever the rows show: withdrawn each time values arrived, it closed
+    /// while a folder's values were being read (I665). <see cref="WithdrawTip"/> withdraws that too.
+    /// </summary>
     private void ClearTip()
     {
+        if (!_tipIsHeader) WithdrawTip();
+    }
+
+    /// <summary>Withdraws the tip, a header's help too: the columns, their widths, or where they are scrolled changed.</summary>
+    private void WithdrawTip()
+    {
+        _tipIsHeader = false;
         if (_tip is null) return;
         _tip = null;
         ToolTip.SetIsOpen(this, false);

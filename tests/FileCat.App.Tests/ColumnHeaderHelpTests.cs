@@ -135,6 +135,79 @@ public sealed class ColumnHeaderHelpTests
         finally { ThemeManager.Apply(before); }
     }
 
+    /// <summary>
+    /// A header's tooltip with no room beside the pointer is shown over it: Reparse type's help, the tallest, in a short
+    /// window (or on a short screen). The pointer is then over the tooltip, still within the list, and the list keeps its
+    /// tip: withdrawing it, as if the pointer had left, closed the tooltip as soon as it covered the pointer (I665).
+    /// </summary>
+    [AvaloniaFact]
+    public async Task A_header_tooltip_shown_over_the_pointer_keeps_its_help()
+    {
+        using var f = new FileListFixture("short.txt");
+        f.Services.Columns.Replace([("Help", [
+            new ColumnSpec(ColumnField.Name, "Name", 200, Star: true),
+            new ColumnSpec(ColumnField.Metadata, "Reparse type", 120) { MetadataId = FileDetailsFields.ReparseType },
+        ])]);
+        f.Tab.ColumnProfile = 0;
+        await f.Load();
+        var point = HoverHeader(f, 1);
+        var content = Assert.IsType<RichTip>(ToolTip.GetTip(f.List));
+        Assert.StartsWith("Reparse type\n", content.Text);
+        // Opened as the tooltip service opens it, at the pointer; the frame that shows it finds the pointer over it.
+        ToolTip.SetIsOpen(f.List, true);
+        var toolTip = content.GetVisualAncestors().OfType<ToolTip>().First();
+        f.Window.CaptureRenderedFrame()?.Dispose();
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(ToolTip.GetIsOpen(f.List), "The tooltip closed once it was shown.");
+        Assert.Same(content, ToolTip.GetTip(f.List));
+        var shown = new Rect(toolTip.TranslatePoint(default, f.Window)!.Value, toolTip.Bounds.Size);
+        Assert.True(shown.Contains(point), $"The tooltip, at {shown}, does not cover the pointer at {point}.");
+        Assert.False(f.List.IsPointerOver); // the pointer is over the tooltip
+        ToolTip.SetIsOpen(f.List, false);
+    }
+
+    /// <summary>
+    /// Values arriving for the rows withdraw a row's tip, which may describe what its cell no longer shows, and keep a
+    /// header's help, which describes its column whatever the rows show. Withdrawn each time, it closed while a folder's
+    /// values were being read, and once while this class hovered a header: the tab's first values came as it did (I665).
+    /// </summary>
+    [AvaloniaFact]
+    public async Task Values_arriving_for_the_rows_keep_a_headers_help_and_withdraw_a_rows_tip()
+    {
+        string name = new string('n', 150) + ".txt"; // clipped: its cell has a tip
+        using var f = new FileListFixture(name);
+        f.Services.Columns.Replace([("Help", [
+            new ColumnSpec(ColumnField.Name, "Name", 200, Star: true),
+            new ColumnSpec(ColumnField.Metadata, "Reparse type", 120) { MetadataId = FileDetailsFields.ReparseType },
+        ])]);
+        f.Tab.ColumnProfile = 0;
+        await f.Load();
+        async Task ValuesArrive()
+        {
+            var arrived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Arrived() => arrived.TrySetResult();
+            f.Services.Metadata.ValuesChanged += Arrived;
+            try
+            {
+                f.Services.Metadata.NotifyValuesChanged();
+                await arrived.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            }
+            finally { f.Services.Metadata.ValuesChanged -= Arrived; }
+            Dispatcher.UIThread.RunJobs(); // the list takes the news on its own thread
+        }
+
+        HoverHeader(f, 1);
+        var help = Assert.IsType<RichTip>(ToolTip.GetTip(f.List));
+        await ValuesArrive();
+        Assert.Same(help, ToolTip.GetTip(f.List));
+
+        f.Window.MouseMove(f.List.TranslatePoint(new Point(60, f.List.GetRowBounds(0).Center.Y), f.Window)!.Value);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("Full name: " + name, ToolTip.GetTip(f.List) as string);
+        await ValuesArrive();
+        Assert.Null(ToolTip.GetTip(f.List));
+    }
+
     private static Color ColorOf(string key) => Avalonia.Application.Current!.TryGetResource(key, null, out var v) switch
     {
         true when v is Color c => c,
@@ -251,6 +324,20 @@ public sealed class ColumnHeaderHelpTests
     /// <summary>Moves the pointer onto a column's header after the current frame is drawn, and reads the list's tooltip.</summary>
     private static string? HeaderTip(FileListFixture f, int column)
     {
+        HoverHeader(f, column);
+        return ToolTip.GetTip(f.List)?.ToString(); // a header's RichTip reads as its text
+    }
+
+    /// <summary>
+    /// Moves the pointer onto a column's header after the current frame is drawn; returns where, in the window. No tooltip
+    /// opens meanwhile: the tooltip service, which all windows share, opens one at once when another closed within the
+    /// last 100 ms (in the test before, say). An open tooltip takes each header's help as the pointer moves along, and
+    /// Reparse type's, the tallest, covers the header row in this window, so a move there would reach the tooltip, not the
+    /// list (I665).
+    /// </summary>
+    private static Point HoverHeader(FileListFixture f, int column)
+    {
+        ToolTip.SetServiceEnabled(f.List, false);
         Dispatcher.UIThread.RunJobs();
         f.Window.CaptureRenderedFrame()?.Dispose();
         double[] x = (double[])typeof(FileListControl).GetField("_columnX", System.Reflection.BindingFlags.NonPublic |
@@ -259,8 +346,9 @@ public sealed class ColumnHeaderHelpTests
         Assert.True(header.Y > 0);
         Assert.True(header.X < f.List.Bounds.Width, $"Column {column} starts at {x[column]:F0}, beyond the list's {f.List.Bounds.Width:F0} pixels.");
         f.Window.MouseMove(new Point(0, 0));
-        f.Window.MouseMove(f.List.TranslatePoint(header, f.Window)!.Value);
+        var point = f.List.TranslatePoint(header, f.Window)!.Value;
+        f.Window.MouseMove(point);
         Dispatcher.UIThread.RunJobs();
-        return ToolTip.GetTip(f.List)?.ToString(); // a header's RichTip reads as its text
+        return point;
     }
 }
