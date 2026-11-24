@@ -1,6 +1,6 @@
 # I634 — A release candidate's bytes call themselves `1.0.0-rc.N`, so promoted unchanged they would offer 1.0.0 as an update to itself
 
-**Source:** the RC producer identity of `f9b662e0` (2026-10-30, [release-branch controls](E-REL-PIPELINE-release-branch-20261030.md#checked-pr-positive-control)), as built by `v1.0.0-rc.1` at `8f122365` ([rc.1](E-RC1-TAG-20261124.md)). **Disposition:** blocks promoting a candidate whose bytes carry the RC label (REL-FQ-CANDIDATE, REL-GO-PUBLISH). **Status:** remediated preliminarily at `bbcbdbdc` ([PR #21](https://github.com/benny-cz/FileCat/pull/21), merged into main as `fac2ec40`); found 2026-11-24 while recording rc.1's packages. The candidate check waits for the next candidate.
+**Source:** the RC producer identity of `f9b662e0` (2026-10-30, [release-branch controls](E-REL-PIPELINE-release-branch-20261030.md#checked-pr-positive-control)), as built by `v1.0.0-rc.1` at `8f122365` ([rc.1](E-RC1-TAG-20261124.md)). **Disposition:** blocks promoting a candidate whose bytes carry the RC label (REL-FQ-CANDIDATE, REL-GO-PUBLISH). **Status:** remediated preliminarily at `bbcbdbdc` ([PR #21](https://github.com/benny-cz/FileCat/pull/21), merged into main as `fac2ec40`); found 2026-11-24 while recording rc.1's packages. [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) is the first candidate built with the fix.
 
 ## Fault
 
@@ -74,6 +74,6 @@ rc.1 is the first real run of the signed candidate pipeline: tests, packages, th
 2. **Candidate.** The successor's draft holds only 1.0.0-named assets, and an installed package reports 1.0.0 in About, `--version` and its package manager.
 3. **Update check.** A candidate build asks GitHub's `/latest` and finds no newer release when 1.0.0 is the latest release (unit test).
 
-Steps 1 and 3 pass at `bbcbdbdc`; step 2 waits for the next candidate. Stop when all three pass. Reopen only for:
+Steps 1 and 3 pass at `bbcbdbdc`. Step 2 passed in rc.2's run 45377416067 for every name and for `--version` and the package manager: all 24 draft assets are named 1.0.0, and the package jobs' new checks passed on all three platforms. About on each installed platform remains, in the installed-candidate checks. Stop when all three pass. Reopen only for:
 - a change to how candidates are versioned or named;
 - an installed candidate that reports a pre-release version.

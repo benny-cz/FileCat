@@ -1,4 +1,4 @@
-# E-REL-SYNC-20261124 — `release/1.0` synced with main three times: at `84cca148`, `d0ebd1d3` and `dae7207c`
+# E-REL-SYNC-20261124 — `release/1.0` synced with main four times: at `84cca148`, `d0ebd1d3`, `dae7207c` and `f0febaa4`
 
 2026-11-24 (UTC). **Release-branch maintenance; no candidate, tag or publication.** The owner's standing instruction is to sync `release/1.0` with main once every open PR has merged. After PR #14 ([E-REL-SYNC-20261123](E-REL-SYNC-20261123-release-branch.md)), main merged PRs #13, #12 and #15 and the release records `a7ff2531`. No PR was then open, so the branch was synced through PR #16.
 
@@ -52,6 +52,19 @@ Covering `48d3de08` to `84cca148`:
 - **Merge:** [PR #20](https://github.com/benny-cz/FileCat/pull/20) was merged as `8f122365` at 2026-11-24T04:47:37Z, pinned to the tested head; the branch was deleted.
 - **Result:** `release/1.0` is at `8f122365`, with parents `f9f8f1cb` and `ea2f58cd`. Its tree equals `dae7207c`'s, which was main's tip.
 
+## Fourth sync: main at `f0febaa4` (PR #22)
+
+- **Source:** `f0febaa4`, main's tip. It holds the merge of [PR #21](https://github.com/benny-cz/FileCat/pull/21) (`fac2ec40`) and the records of `v1.0.0-rc.1`, I634 and the third sync. PR #21 had merged and no PR was open. Main's run 45365703758 of `fac2ec40` passed.
+- **What came in:**
+  - `bbcbdbdc` (PR #21, [I634](E-I634-candidate-version-identity.md)): a candidate is built as FileCat 1.0.0 throughout. It changes `.github/workflows/ci.yml`, the release-asset scripts and their validators in `eng/`, and `UpdateCheckTests.cs`. The workflow change touches only the candidate's selection steps and the package jobs' version checks.
+  - `aaf044a1`, `5ce8f8f7` and `f0febaa4`: the records.
+
+  No product source or package references changed, and the quick scan found no secrets, email addresses or new skips.
+- **Sync branch:** `sync/release-1.0-f0febaa4a` was pushed at `557d5074`, with parents `f0febaa4` and `8f122365`.
+- **CI:** [PR run 45371361546](https://github.com/benny-cz/FileCat/actions/runs/45371361546) passed all 19 jobs that ran in its first attempt.
+- **Merge:** [PR #22](https://github.com/benny-cz/FileCat/pull/22) was merged as `7269ec61` at 2026-11-24T10:41:06Z, pinned to the tested head; the branch was deleted.
+- **Result:** `release/1.0` is at `7269ec61`, with parents `8f122365` and `557d5074`. Its tree equals `f0febaa4`'s, which was main's tip. The `v1.0.0-rc.1` tag stays at `8f122365`.
+
 ## Test failures seen on the way
 
 All were on hosted runners, in jobs that are not required, in tests that the changes being checked did not touch, and each passed in a later run of the same test code.
@@ -76,5 +89,5 @@ All were on hosted runners, in jobs that are not required, in tests that the cha
 
 ## Not shown
 
-- The records of the third sync, which stay on main until a later sync.
+- The records of the fourth sync, which stay on main until a later sync.
 - The causes of the tooltip, owner-column and place-bar failures, and of the hosted macOS failures recorded in E-REL-SYNC-20261123.
