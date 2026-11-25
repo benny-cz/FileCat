@@ -89,7 +89,10 @@ public static class PictureDecoder
         limit.CancelAfter(Timeout);
         var token = limit.Token;
         var launch = WorkerLaunchFor(maxSide, pdfPage);
+        // How long the worker took to start, and whether it had the whole picture, say where a timeout's time went (I677).
+        var clock = Stopwatch.StartNew();
         await using var worker = Worker.StartPicture(launch);
+        var startedAfter = clock.Elapsed;
         using var stop = token.Register(worker.Kill);
         // Written and read at once: the worker may stop reading early (a damaged file), and a full pipe must not block.
         var input = worker.Input;
@@ -107,7 +110,7 @@ public static class PictureDecoder
         }
         catch (Exception) when (limit.IsCancellationRequested && !ct.IsCancellationRequested)
         {
-            throw new TimeoutException($"decoding it took longer than {Timeout.TotalSeconds:0} seconds");
+            throw new TimeoutException(TimeoutText(startedAfter, feeding.IsCompletedSuccessfully));
         }
         catch (Exception) when (ct.IsCancellationRequested)
         {
@@ -120,6 +123,19 @@ public static class PictureDecoder
             var drained = ObserveFeedAsync(feeding);
             if (drainFeed) await drained.ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Why a decode ran out of time, as far as FileCat can tell: its worker's start took the time (Windows held the new
+    /// process), FileCat was still reading the picture, or the worker had all of it and did not answer.
+    /// </summary>
+    internal static string TimeoutText(TimeSpan startedAfter, bool fed)
+    {
+        string started = startedAfter.TotalSeconds.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+        string where = startedAfter >= Timeout ? $"its decoder took {started} s to start"
+            : fed ? $"its decoder started after {started} s, had the whole picture, and did not answer"
+            : $"its decoder started after {started} s while FileCat was still reading the picture";
+        return $"decoding it took longer than {Timeout.TotalSeconds:0} seconds ({where})";
     }
 
     private static async Task ObserveFeedAsync(Task feeding)
