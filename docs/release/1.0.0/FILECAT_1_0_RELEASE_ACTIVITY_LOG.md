@@ -5631,3 +5631,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-25 — I673 and I674 from PR #57's full run
 
 - PR #57's full-matrix run 45615496168 failed four jobs in its first attempt: two Windows ARM64 jobs whose .NET SDK download failed on the hosted runners (rerun), and two App tests that neither I672 nor rc.3 touched and that had passed in all three of rc.3's runs. Both are real races in the product, registered as I673 (a finished comparison could keep "Comparing… 100%") and I674 (the storage call pages could keep Next enabled on the last page) ([record](evidence/E-I673-I674-ui-state-races.md)). PR #58 fixes both, with the owner's rule that every known issue is fixed for the candidate; rc.4 waits for both PRs.
+
+## 2026-11-25 — I672's fix on main
+
+- PR #57 merged as `3934b843` after its full-matrix run 45615496168 (attempt 2) passed all jobs that ran. I672 is remediated preliminarily ([record](evidence/E-I672-unc-sign-in-enter.md)); rc.4 follows through the release-branch sync, under the owner's authorization.
+- c25's Registry copy to another key passes on rc.3 with a corrected check (batch32d: the dialog's Enter, then the copy's own confirmation, Copy value): the value arrives as REG_SZ with the same data, and the source keeps it.
