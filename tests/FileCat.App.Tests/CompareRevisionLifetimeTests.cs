@@ -99,6 +99,43 @@ public sealed class CompareRevisionLifetimeTests
         }
     }
 
+    [AvaloniaFact]
+    public async Task Byte_progress_that_arrives_after_the_result_leaves_the_result_shown()
+    {
+        // I673: the comparing thread posts its progress to the window; on a slow runner a post reached the window after the
+        // result, and "Comparing… 19 bytes of 19 bytes (100%)" replaced "Identical: every byte was compared" for good.
+        const BindingFlags fields = BindingFlags.Instance | BindingFlags.NonPublic;
+        string root = Path.Combine(Path.GetTempPath(), "filecat-compare-progress-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string leftPath = Path.Combine(root, "left.txt"), rightPath = Path.Combine(root, "right.txt");
+        File.WriteAllText(leftPath, "same owned content\n");
+        File.WriteAllText(rightPath, "same owned content\n");
+        CompareWindow? window = null;
+        try
+        {
+            window = CompareWindow.Open(leftPath, new FileContentSource(leftPath), rightPath, new FileContentSource(rightPath),
+                () => (new FileContentSource(leftPath), new FileContentSource(rightPath)));
+            await WaitFor(() => !window.IsComparing && window.Summary.StartsWith("Identical", StringComparison.Ordinal));
+            string result = window.Summary;
+            var work = (CancellationTokenSource)typeof(CompareWindow).GetField("_work", fields)!.GetValue(window)!;
+
+            window.ShowCompareProgress(work, "Comparing… 19 bytes of 19 bytes (100%)"); // The late post of this comparison.
+            Assert.Equal(result, window.Summary);
+            using var older = new CancellationTokenSource();
+            window.ShowCompareProgress(older, "Comparing… 1 byte of 19 bytes (5%)"); // A post of an earlier comparison.
+            Assert.Equal(result, window.Summary);
+        }
+        finally
+        {
+            if (window is not null)
+            {
+                window.Close();
+                await WaitFor(() => ((Task)typeof(CompareWindow).GetField("_runs", fields)!.GetValue(window)!).IsCompleted);
+            }
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static async Task WaitFor(Func<bool> ready)
     {
         var timer = System.Diagnostics.Stopwatch.StartNew();

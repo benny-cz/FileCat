@@ -45,7 +45,9 @@ public sealed partial class ReportWindow
             if (page.Prefix != prefix || page.AfterCall != requestedAfter)
                 throw new IOException("The reader returned a different durable storage prefix or call continuation.");
             ct.ThrowIfCancellationRequested();
-            Dispatcher.UIThread.Post(() =>
+            // The page becomes current before the read completes (I674): Navigate then sets the buttons from this page,
+            // not from the previous one, which had left Next enabled on the last page until a posted update ran.
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 if (ct.IsCancellationRequested || window!._closing.IsCancellationRequested || request != Volatile.Read(ref generation)) return;
                 current = page; first.IsEnabled = requestedAfter != 0; next.IsEnabled = page.More;
