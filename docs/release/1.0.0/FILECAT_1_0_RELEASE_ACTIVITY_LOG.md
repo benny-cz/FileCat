@@ -5636,3 +5636,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - PR #57 merged as `3934b843` after its full-matrix run 45615496168 (attempt 2) passed all jobs that ran. I672 is remediated preliminarily ([record](evidence/E-I672-unc-sign-in-enter.md)); rc.4 follows through the release-branch sync, under the owner's authorization.
 - c25's Registry copy to another key passes on rc.3 with a corrected check (batch32d: the dialog's Enter, then the copy's own confirmation, Copy value): the value arrives as REG_SZ with the same data, and the source keeps it.
+
+## 2026-11-25 — I673 and I674's fixes on main
+
+- PR #58 merged as `32d4dc2b` after its full-matrix run 45623238985 (attempt 2) passed all jobs that ran. I673 and I674 are remediated preliminarily ([record](evidence/E-I673-I674-ui-state-races.md)). rc.4 now carries I672 to I674.
