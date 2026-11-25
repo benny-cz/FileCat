@@ -99,14 +99,14 @@ public sealed class UnansweringLocationTests
     public async Task A_typed_path_that_is_slow_to_answer_opens_at_once_and_then_as_its_file()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
-        var previous = Views.MainWindow.IsTypedFile;
+        var previous = MainViewModel.IsFilePath;
         using var gate = new ManualResetEventSlim();
         try
         {
             string folder = Directory.CreateDirectory(Path.Join(root, "typed")).FullName;
             string file = Path.Join(folder, "typed.txt");
             File.WriteAllText(file, "x");
-            Views.MainWindow.IsTypedFile = path =>
+            MainViewModel.IsFilePath = path =>
             {
                 if (SamePath(path, file)) Assert.True(gate.Wait(TimeSpan.FromSeconds(30)));
                 return File.Exists(path);
@@ -134,7 +134,7 @@ public sealed class UnansweringLocationTests
         }
         finally
         {
-            Views.MainWindow.IsTypedFile = previous;
+            MainViewModel.IsFilePath = previous;
             gate.Set();
             AccessibilityTests.Close(services, window, root);
         }
@@ -144,7 +144,7 @@ public sealed class UnansweringLocationTests
     public async Task A_late_answer_does_not_move_a_tab_that_went_elsewhere()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
-        var previous = Views.MainWindow.IsTypedFile;
+        var previous = MainViewModel.IsFilePath;
         using var gate = new ManualResetEventSlim();
         bool answered = false;
         try
@@ -153,7 +153,7 @@ public sealed class UnansweringLocationTests
             string other = Directory.CreateDirectory(Path.Join(root, "other")).FullName;
             string file = Path.Join(folder, "typed.txt");
             File.WriteAllText(file, "x");
-            Views.MainWindow.IsTypedFile = path =>
+            MainViewModel.IsFilePath = path =>
             {
                 if (!SamePath(path, file)) return File.Exists(path);
                 Assert.True(gate.Wait(TimeSpan.FromSeconds(30)));
@@ -173,7 +173,45 @@ public sealed class UnansweringLocationTests
         }
         finally
         {
-            Views.MainWindow.IsTypedFile = previous;
+            MainViewModel.IsFilePath = previous;
+            gate.Set();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task A_start_location_that_is_slow_to_answer_does_not_hold_the_window_back()
+    {
+        // FileCat started with --left on a share whose server does not answer showed its window only after 23 s, on a
+        // build that already kept Go to path from waiting: the arguments asked the same question.
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        var previous = MainViewModel.IsFilePath;
+        using var gate = new ManualResetEventSlim();
+        try
+        {
+            string folder = Directory.CreateDirectory(Path.Join(root, "started")).FullName;
+            string file = Path.Join(folder, "named.txt");
+            File.WriteAllText(file, "x");
+            MainViewModel.IsFilePath = path =>
+            {
+                if (SamePath(path, file)) Assert.True(gate.Wait(TimeSpan.FromSeconds(30)));
+                return File.Exists(path);
+            };
+            var tab = vm.Workspace.Panels[0].ActiveTab!;
+
+            var waited = Stopwatch.StartNew();
+            vm.OpenArguments(new StartupOptions { LeftLocation = file }, initial: true);
+            waited.Stop();
+            Assert.True(waited.Elapsed < Promptly, $"The window waited {waited.Elapsed} to learn whether the argument was a file.");
+            Assert.True(SamePath(file, tab.Location!.Path), tab.Location?.Path); // the left panel's own tab, replaced
+
+            gate.Set();
+            await Until(() => SamePath(folder, tab.Location!.Path) && tab.Listing.State == ListingState.Complete);
+            await Until(() => tab.Listing.TryGetFocused(out var row) && row.Name == "named.txt");
+        }
+        finally
+        {
+            MainViewModel.IsFilePath = previous;
             gate.Set();
             AccessibilityTests.Close(services, window, root);
         }

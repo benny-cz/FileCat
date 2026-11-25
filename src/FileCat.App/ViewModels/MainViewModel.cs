@@ -436,22 +436,61 @@ public sealed partial class MainViewModel : ObservableObject
                 Notify($"Could not open \"{text}\".", true);
                 return;
             }
-            // A file argument opens its folder with the file focused.
-            string? focus = null;
-            if (loc.IsFileSystem && File.Exists(loc.Path))
-            {
-                focus = Path.GetFileName(loc.Path);
-                loc = Location.FileSystem(Path.GetDirectoryName(loc.Path)!);
-            }
             var target = into ?? panel;
             // At startup the requested location replaces the default tab instead of adding one next to it.
-            if (initial && target.Tabs.Count == 1 && !target.Tabs[0].IsLocked) target.ActiveTab?.Navigate(loc, focus, record: false);
-            else target.OpenTab(loc, focus);
+            bool replace = initial && target.Tabs.Count == 1 && !target.Tabs[0].IsLocked;
+            // A file argument opens its folder with the file focused.
+            OpenPath(loc, (where, focus) =>
+            {
+                if (!replace) return target.OpenTab(where, focus);
+                var tab = target.ActiveTab;
+                tab?.Navigate(where, focus, record: false);
+                return tab;
+            }, record: !replace);
         }
         if (options.LeftLocation is { } l && Workspace.Panels.Count > 0) Open(l, Workspace.Panels[0]);
         if (options.RightLocation is { } r && Workspace.Panels.Count > 1) Open(r, Workspace.Panels[1]);
         foreach (var loc in options.Locations) Open(loc, null);
         if (options.ListFile is { Length: > 0 } list) OpenListFile(list);
+    }
+
+    /// <summary>How long the window waits to learn whether a given path is a file (see <see cref="OpenPath"/>).</summary>
+    internal static TimeSpan FileCheckWait { get; set; } = TimeSpan.FromMilliseconds(200);
+
+    /// <summary>Whether a given path is a file; tests hold the answer back.</summary>
+    internal static Func<string, bool> IsFilePath { get; set; } = File.Exists;
+
+    /// <summary>
+    /// Opens a typed or given location with <paramref name="open"/> (which returns the tab it opened it in): a file opens
+    /// its folder with the file focused. Asking whether a path is a file opens it: on a share whose server does not
+    /// answer, that waits for the connection's timeout (21 s for SMB on Windows), and the window must keep answering. The
+    /// window waits as long as an answering location takes; otherwise the path opens as a folder at once, and as the
+    /// file's folder if the answer comes, says file, and the tab is still there.
+    /// </summary>
+    internal void OpenPath(Location location, Func<Location, string?, TabViewModel?> open, bool record = true)
+    {
+        if (!location.IsFileSystem)
+        {
+            open(location, null);
+            return;
+        }
+        string path = location.Path;
+        var asking = Task.Factory.StartNew(() => IsFilePath(path), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        if (((IAsyncResult)asking).AsyncWaitHandle.WaitOne(FileCheckWait))
+        {
+            bool file = asking.GetAwaiter().GetResult();
+            open(file ? FolderOf(path) : location, file ? Path.GetFileName(path) : null);
+            return;
+        }
+        if (open(location, null) is not { } tab) return;
+        long intent = tab.NavigationGeneration;
+        _ = asking.ContinueWith(t => Services.Ui.Post(() =>
+        {
+            if (t.Result && tab.NavigationGeneration == intent && tab.Location == location)
+                tab.Navigate(FolderOf(path), Path.GetFileName(path), record);
+        }), CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
+
+        static Location FolderOf(string file) => Location.FileSystem(Path.GetDirectoryName(file)!);
     }
 
     /// <summary>A list file (--list, Total Commander's LOADLIST) opens as a result set in a new tab; reading it may take a while.</summary>
