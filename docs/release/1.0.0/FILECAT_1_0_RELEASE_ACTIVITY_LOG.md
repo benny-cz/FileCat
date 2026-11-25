@@ -5607,3 +5607,9 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - Remediated preliminarily: I635 to I637, I641 to I671 and I42; I638 to I640 closed by decision (separate entry). I636's row is corrected (the column-header sort was affected too); I615 is narrowed by I651 on macOS; I42 is done for 1.0.0 by the owner's decision (SFTP sped up; FTPS uploads and one file at a time accepted).
 - Pre-rc3 checks: the Windows qualification VM passed each Windows fix's own check (I635, I636, I637, I642, I643, I644, I645, I647, I648, I649, I653, I654, I657, I659); the physical Mac passed x03, b25 and b26 for I650 to I652; the Ubuntu harness passed a4, a14 and a18 on a build of I662 to I664. Hosted runners with sudo ran I655, I656 and I658 as root, on ARM64 and with `/proc` hidden. I671's restored record passed its tests on the Windows host (medium and elevated), the Mac and the Ubuntu VM (also as root), and the qualification VM showed it through the window, medium and elevated (batch43).
 - The owner authorized the release session to tag `v1.0.0-rc.3` once this is merged, synced to `release/1.0` and green ("Yes, tag it").
+
+## 2026-11-25 — `release/1.0` synced with the rc.3 fixes; `v1.0.0-rc.3` tagged
+
+- Every open PR had merged (#25 to #55, through integration PR #44 as `a2f983e9`), so `release/1.0` was synced with main at `d449095f` through PR #56: run 45575294166 passed all 19 jobs that ran, and the merge `60fe1731` has `d449095f`'s tree ([sync record](evidence/E-REL-SYNC-20261125-release-branch.md)).
+- With the owner's authorization of 2026-11-24 ("Yes, tag it"), annotated tag `v1.0.0-rc.3` (object `c551d41b`) was pushed on `60fe1731` at 08:51:18Z; tagged run 45579976088 started at once. Its signing job waits for the owner's approval; stable 1.0.0 remains NO-GO.
+- The owner approved, for rc.3's Windows qualification run, lowering UAC's consent prompt in the test VM for batch28 (I644) and restoring it ("Yes, allow it").
