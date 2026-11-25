@@ -126,15 +126,38 @@ public sealed record NetworkHostTag(NetworkHost Host) : IDisplayDetails
     }.Where(s => !string.IsNullOrEmpty(s)));
 }
 
-/// <summary>Thrown when a server requires credentials; the UI offers the Windows credential prompt.</summary>
+/// <summary>
+/// Thrown when a server or a share requires credentials; the UI offers the Windows credential prompt for
+/// <see cref="Server"/>.
+/// </summary>
 public sealed class NetworkAuthenticationRequiredException(string server, int error)
     : UnauthorizedAccessException($"{server} requires credentials ({new Win32Exception(error).Message}). Press Enter to sign in.")
 {
+    /// <summary>The server (<c>\\server</c>) or share (<c>\\server\share</c>) to sign in to.</summary>
     public string Server { get; } = server;
 }
 
 public static unsafe class WindowsNetwork
 {
+    /// <summary>
+    /// Whether Windows' error says that a server refused the logon itself, not what the user may do: signing in as someone
+    /// else is the remedy (Windows' prompt). The current account's password, for one, is not the share's
+    /// (ERROR_LOGON_FAILURE), or the account may not log on there (a blank password, its hours, disabled, locked out,
+    /// expired).
+    /// </summary>
+    internal static bool RefusedLogon(int error) => error is
+        86 // ERROR_INVALID_PASSWORD
+        or ERROR_LOGON_FAILURE // 1326
+        or 1327 // ERROR_ACCOUNT_RESTRICTION
+        or 1328 // ERROR_INVALID_LOGON_HOURS
+        or 1329 // ERROR_INVALID_WORKSTATION
+        or 1330 // ERROR_PASSWORD_EXPIRED
+        or 1331 // ERROR_ACCOUNT_DISABLED
+        or 1385 // ERROR_LOGON_TYPE_NOT_GRANTED
+        or 1793 // ERROR_ACCOUNT_EXPIRED
+        or 1907 // ERROR_PASSWORD_MUST_CHANGE
+        or 1909; // ERROR_ACCOUNT_LOCKED_OUT
+
     public static IReadOnlyList<ShareTag> EnumerateShares(string server)
     {
         var result = new List<ShareTag>();
@@ -147,7 +170,7 @@ public static unsafe class WindowsNetwork
             {
                 if (rc is not (NERR_Success or ERROR_MORE_DATA))
                 {
-                    if (rc is ERROR_ACCESS_DENIED or ERROR_LOGON_FAILURE) throw new NetworkAuthenticationRequiredException(server, rc);
+                    if (rc == ERROR_ACCESS_DENIED || RefusedLogon(rc)) throw new NetworkAuthenticationRequiredException(server, rc);
                     if (rc == ERROR_BAD_NETPATH) throw new DirectoryNotFoundException($"The server {server} was not found or is not reachable.");
                     throw new IOException(new Win32Exception(rc).Message);
                 }

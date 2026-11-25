@@ -12,7 +12,7 @@ public sealed unsafe partial class WindowsFileSystemProvider
     internal bool UseNativeEnumeration { get; init; }
 
     public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct) =>
-        UseNativeEnumeration ? EnumerateWithFindApi(location, sink, ct, new Win32FindApi()) : base.EnumerateAsync(location, sink, ct);
+        UseNativeEnumeration ? EnumerateWithFindApi(location, sink, ct, new Win32FindApi()) : ManagedEnumerate(location, sink, ct);
 
     internal Task EnumerateWithFindApi<TFindApi>(Location location, IEnumerationSink sink, CancellationToken ct, TFindApi api)
         where TFindApi : IFindApi
@@ -32,11 +32,12 @@ public sealed unsafe partial class WindowsFileSystemProvider
             ct.ThrowIfCancellationRequested();
             if (cursor.IsInvalid)
             {
-                if (error is 50 or 87 or 120) return base.EnumerateAsync(location, sink, ct); // no publication yet
+                if (error is 50 or 87 or 120) return ManagedEnumerate(location, sink, ct); // no publication yet
                 // "No match" is ambiguous: an empty share or FAT root reports it, and so does a server that answers a
                 // missing folder with "no such file". The managed route opens the folder first and tells them apart.
-                if (error == 2) return base.EnumerateAsync(location, sink, ct);
-                if (error == 5 && ListableTargetOfRefusedLink(location.Path) is { } target)
+                if (error == 2) return ManagedEnumerate(location, sink, ct);
+                // A share that asks for a sign-in is no link to list through (and asking would reach its server again).
+                if (error == 5 && SignInRequired(location.Path, error) is null && ListableTargetOfRefusedLink(location.Path) is { } target)
                     throw new LinkListingRefusedException(location.Path, target, new UnauthorizedAccessException(new Win32Exception(error).Message));
                 throw EnumerationError(location.Path, error);
             }
@@ -108,7 +109,45 @@ public sealed unsafe partial class WindowsFileSystemProvider
         catch (ArgumentOutOfRangeException) { return 0; }
     }
 
-    private static Exception EnumerationError(string path, int error) => error switch
+    /// <summary>
+    /// The sign-in a share's failure calls for, else null (NET-004, I672). Its server refused the logon (as a Samba share
+    /// whose account Windows' user is not answers), or the share itself denied access: the panel says so ("… requires
+    /// credentials (…). Press Enter to sign in."), and Enter opens Windows' prompt for the share, as for a server. A denied
+    /// folder inside a share keeps its plain refusal, so its ".." row still goes up (I572); a server root's shares are the
+    /// Network's, which asks for its own sign-in.
+    /// </summary>
+    internal static NetworkAuthenticationRequiredException? SignInRequired(string path, int error)
+    {
+        if (!PathUtil.IsUncPath(path) || PathUtil.IsUncServerRoot(path)) return null;
+        bool asks = WindowsNetwork.RefusedLogon(error) || error == 5 && PathUtil.IsUncShareRoot(path);
+        return asks ? new NetworkAuthenticationRequiredException(ShareRoot(path), error) : null;
+    }
+
+    /// <summary>The same, for .NET's own exceptions (the managed listing).</summary>
+    internal static NetworkAuthenticationRequiredException? SignInRequired(string path, Exception error) => error switch
+    {
+        NetworkAuthenticationRequiredException or LinkListingRefusedException => null,
+        UnauthorizedAccessException => SignInRequired(path, 5),
+        IOException { HResult: var hr } => SignInRequired(path, (hr & 0xFFFF0000) == 0x80070000 ? hr & 0xFFFF : hr),
+        _ => null,
+    };
+
+    // "\\server\share" of a path on it.
+    private static string ShareRoot(string path)
+    {
+        int server = path.IndexOfAny(['\\', '/'], 2);
+        int share = path.IndexOfAny(['\\', '/'], server + 1);
+        return share < 0 ? path : path[..share];
+    }
+
+    // The managed listing, with the sign-in a share's failure calls for. It runs synchronously (LocalFileSystemProvider).
+    private Task ManagedEnumerate(Location location, IEnumerationSink sink, CancellationToken ct)
+    {
+        try { return base.EnumerateAsync(location, sink, ct); }
+        catch (Exception ex) when (SignInRequired(location.Path, ex) is { } signIn) { throw signIn; }
+    }
+
+    private static Exception EnumerationError(string path, int error) => (Exception?)SignInRequired(path, error) ?? error switch
     {
         5 => new UnauthorizedAccessException($"{path}: {new Win32Exception(error).Message}"),
         3 => new DirectoryNotFoundException(path),

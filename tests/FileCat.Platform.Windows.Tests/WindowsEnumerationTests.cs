@@ -233,6 +233,53 @@ public sealed class WindowsEnumerationTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    [Theory]
+    [InlineData(@"\\server\share", 1326)] // ERROR_LOGON_FAILURE, which c9's Samba share answers (I672)
+    [InlineData(@"\\server\share\sub\deeper", 1326)]
+    [InlineData(@"\\server\share", 5)] // ERROR_ACCESS_DENIED at the share itself
+    [InlineData(@"\\server\share\sub", 1327)] // ERROR_ACCOUNT_RESTRICTION (a blank password, for one)
+    [InlineData(@"\\server\share\sub", 1909)] // ERROR_ACCOUNT_LOCKED_OUT
+    public async Task A_share_whose_server_refused_the_logon_offers_a_sign_in_to_the_share(string path, int error)
+    {
+        // The share's own failure must say what Enter does, as the server's does (NET-004): until I672's second fix it was
+        // Windows' bare "The user name or password is incorrect.", and Enter went up.
+        var api = new ScriptedFindApi([error]);
+        var nothing = new Sink();
+        var failure = await Assert.ThrowsAsync<NetworkAuthenticationRequiredException>(() => new WindowsFileSystemProvider()
+            .EnumerateWithFindApi(Location.FileSystem(path), nothing, TestContext.Current.CancellationToken, api));
+        Assert.Equal(@"\\server\share", failure.Server);
+        Assert.StartsWith(@"\\server\share requires credentials (", failure.Message);
+        Assert.EndsWith("). Press Enter to sign in.", failure.Message);
+        Assert.Empty(nothing.Entries);
+        Assert.Equal(0, api.AdvanceCalls);
+    }
+
+    [Theory]
+    [InlineData(@"C:\folder", 1326)] // not on a share: Windows' own answer
+    [InlineData(@"\\server\share\private", 5)] // a denied folder inside a share keeps its refusal; its ".." goes up (I572)
+    [InlineData(@"\\server", 1326)] // a server root lists shares through the Network, which asks for its own sign-in
+    [InlineData(@"\\server\share", 53)] // ERROR_BAD_NETPATH: no sign-in reaches a server that does not answer
+    [InlineData(@"\\server\share", 1219)] // ERROR_SESSION_CREDENTIAL_CONFLICT: Windows refuses a second sign-in
+    public void Other_failures_keep_their_own_error(string path, int error)
+    {
+        Assert.Null(WindowsFileSystemProvider.SignInRequired(path, error));
+        Assert.Null(WindowsFileSystemProvider.SignInRequired(path, new IOException("refused", unchecked((int)0x80070000 | error))));
+    }
+
+    [Fact]
+    public void The_managed_route_offers_the_same_sign_in()
+    {
+        // .NET's own exceptions, as the managed listing throws them (an emulated process lists that way).
+        var logon = new IOException(@"The user name or password is incorrect. : '\\server\share\sub'", unchecked((int)0x8007052E));
+        Assert.Equal(@"\\server\share", WindowsFileSystemProvider.SignInRequired(@"\\server\share\sub", logon)?.Server);
+        Assert.Equal(@"\\server\share", WindowsFileSystemProvider.SignInRequired(@"\\server\share", new UnauthorizedAccessException())?.Server);
+        Assert.Null(WindowsFileSystemProvider.SignInRequired(@"\\server\share\private", new UnauthorizedAccessException()));
+        Assert.Null(WindowsFileSystemProvider.SignInRequired(@"C:\folder", logon));
+        // A link that refuses listing while its folder lists is shown as that folder, never as a sign-in.
+        Assert.Null(WindowsFileSystemProvider.SignInRequired(@"\\server\share",
+            new LinkListingRefusedException(@"\\server\share", @"C:\target", new UnauthorizedAccessException())));
+    }
+
     private sealed unsafe class ScriptedFindApi(int[] openErrors, int entries = 0, int terminalError = 18)
         : WindowsFileSystemProvider.IFindApi
     {
