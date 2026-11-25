@@ -5640,3 +5640,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-25 — I673 and I674's fixes on main
 
 - PR #58 merged as `32d4dc2b` after its full-matrix run 45623238985 (attempt 2) passed all jobs that ran. I673 and I674 are remediated preliminarily ([record](evidence/E-I673-I674-ui-state-races.md)). rc.4 now carries I672 to I674.
+
+## 2026-11-25 — `release/1.0` synced with I672 to I674; `v1.0.0-rc.4` tagged
+
+- With PRs #57 and #58 merged and no PR open, `release/1.0` was synced with main at `5137040b` through PR #59: run 45634525115 passed all 19 jobs that ran in its first attempt, the three fixes' first run together ([sync record](evidence/E-REL-SYNC-20261125-release-branch.md)).
+- With the owner's authorization ("Yes, tag rc.4"), annotated tag `v1.0.0-rc.4` (object `6cdaeb55`) was pushed on `16f9379a` at 15:08:40Z; tagged run 45641843032 started at once. Its signing job waits for the owner's approval; stable 1.0.0 remains NO-GO. The owner also approved batch28's UAC change for rc.4's Windows run.
