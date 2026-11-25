@@ -230,7 +230,10 @@ public sealed class FileSystemRecordViewTests
             await window.Reading!;
             Assert.DoesNotContain(Sentinel, window.Text); // the summary reads no values
             Click(Action(window, ReadRecord));
-            await FileDetailsWindowTests.Until(() => window.Text.Contains("File-system record ·") || window.Text.Contains("Record read failed"), "the real record is published");
+            // The real record is real I/O: 2 to 9 s on hosted runners against the old 5 s rounds, which main's run on
+            // 4ffe68ba ran out of on both Windows lanes (I678).
+            await FileDetailsWindowTests.Until(() => window.Text.Contains("File-system record ·") || window.Text.Contains("Record read failed"),
+                "the real record is published", TimeSpan.FromSeconds(60), () => window.Text.Length > 400 ? window.Text[..400] + "…" : window.Text);
             string text = window.Text;
             Assert.DoesNotContain("Record read failed", text);
             Assert.Contains("Timestamp checks", text);
