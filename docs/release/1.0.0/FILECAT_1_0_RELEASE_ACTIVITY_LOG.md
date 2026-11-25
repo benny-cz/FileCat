@@ -5678,3 +5678,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-25 — I679 from main's run on PR #64's merge
 
 - Main's CI run 45696160627 on `ed0e317c` failed one Remote test on Ubuntu: its owned loopback sshd refused the connection 36 ms after the fixture counted it ready. The fixture released a probe port before sshd bound it, and parallel fixtures could take it. PR #66 counts the server ready only once its own sshd has written its pid file; the new test fails with the old logic and passes with the fix ([I679](evidence/E-I679-test-sshd-port-race.md)). The `release/1.0` sync (PR #65) is brought up to date once PR #66 is merged, so rc.5 carries it.
+
+## 2026-11-25 — PR #66 combined with the sync
+
+- The owner asked to combine commits so that fewer full-matrix runs are waited for, and chose to merge PR #66 at once ("Yes, combine now"): it merged as `aa9981a3` before its own run finished, and that run and the earlier sync run (PR #65) were cancelled. I679 is remediated preliminarily ([I679](evidence/E-I679-test-sshd-port-race.md)). A new sync PR from main's tip runs the full matrix once for all six rc.5 changes.
