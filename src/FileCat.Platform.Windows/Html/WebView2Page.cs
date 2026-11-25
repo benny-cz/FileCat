@@ -34,6 +34,10 @@ public sealed class WebView2Page : IDisposable
     private bool _watchArmed;
     private long _shownAt;
     private string? _navigationAddress;
+    // When the viewer said that the page shown has not finished loading (a Stopwatch timestamp; 0: it has not), and how
+    // long after the page was asked for.
+    private long _slowSaidAt;
+    private TimeSpan _slowSaidAfter;
 
     /// <summary>
     /// How long a page may make no progress, with every request it made of FileCat answered, before the view stops
@@ -93,6 +97,15 @@ public sealed class WebView2Page : IDisposable
 
     /// <summary>A request for the page's own address was answered: the path, and whether it was found (diagnostics, tests).</summary>
     public event Action<string, bool>? Served;
+
+    /// <summary>
+    /// Whether the view waits, before it starts, for its folder's previous browser process to exit (I648; see
+    /// <see cref="PageBrowserExits"/>): the viewer says so when the page is slow to come.
+    /// </summary>
+    public bool WaitsForPreviousBrowser { get; private set; }
+
+    /// <summary><see cref="WaitsForPreviousBrowser"/> changed (on the view's thread).</summary>
+    public event Action? WaitChanged;
 
     /// <summary>How many requests were refused (the status line counts them).</summary>
     public int BlockedCount { get; private set; }
@@ -157,7 +170,20 @@ public sealed class WebView2Page : IDisposable
         _timeline.Add("startup failed: " + detail);
         _watch.Stop();
         _startupError = message;
-        if (!_disposed) Loaded?.Invoke(false, message);
+        if (!_disposed) ReportLoaded(false, message);
+    }
+
+    /// <summary>The page's outcome, to the viewer; for a page the viewer had said was slow, to the log as well (I648).</summary>
+    private void ReportLoaded(bool ok, string? why)
+    {
+        if (_slowSaidAt != 0)
+        {
+            var after = _slowSaidAfter + System.Diagnostics.Stopwatch.GetElapsedTime(_slowSaidAt);
+            _slowSaidAt = 0;
+            AppLog.Info(string.Create(CultureInfo.InvariantCulture,
+                $"Page view: the page the viewer said was slow {(ok ? "finished loading" : "could not be shown")} {after.TotalSeconds:0.0} s after it was asked for."));
+        }
+        Loaded?.Invoke(ok, why);
     }
 
     /// <summary>When the folder's last view closed lately, its browser process is exiting: starting meanwhile is what
@@ -168,13 +194,43 @@ public sealed class WebView2Page : IDisposable
         if (exit.IsCompleted) return;
         _timeline.Add("waiting for the folder's previous browser process to exit");
         long since = Environment.TickCount64;
-        if (await Task.WhenAny(exit, Task.Delay(BrowserExitWait)) == exit)
-            _timeline.Add($"it exited after {Environment.TickCount64 - since} ms");
-        else
+        SetWaitsForPreviousBrowser(true);
+        try
         {
-            _timeline.Add($"it did not exit within {BrowserExitWait.TotalSeconds:0} s: starting all the same");
-            PageBrowserExits.Forget(DataFolder, exit);
+            if (await Task.WhenAny(exit, Task.Delay(BrowserExitWait)) == exit)
+                _timeline.Add($"it exited after {Environment.TickCount64 - since} ms");
+            else
+            {
+                _timeline.Add($"it did not exit within {BrowserExitWait.TotalSeconds:0} s: starting all the same");
+                PageBrowserExits.Forget(DataFolder, exit);
+            }
         }
+        finally { SetWaitsForPreviousBrowser(false); }
+    }
+
+    private void SetWaitsForPreviousBrowser(bool waits)
+    {
+        if (WaitsForPreviousBrowser == waits) return;
+        WaitsForPreviousBrowser = waits;
+        if (!_disposed) WaitChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// The viewer now says that the page has not finished loading (I648): FileCat's diagnostics log gets what the view did
+    /// since the page was shown, which tells the stage that is slow (addresses hashed there).
+    /// </summary>
+    public void ReportSlowLoad(TimeSpan sinceAsked)
+    {
+        if (_disposed) return;
+        var shownFor = System.Diagnostics.Stopwatch.GetElapsedTime(_shownAt);
+        string what = string.Create(CultureInfo.InvariantCulture,
+            $"the page has not finished loading {sinceAsked.TotalSeconds:0.0} s after it was asked for ({shownFor.TotalSeconds:0.0} s after the view was given it)") +
+            (WaitsForPreviousBrowser ? ", while the view waits for its folder's previous browser process to exit" : "");
+        _timeline.Add("viewer: " + what);
+        _slowSaidAt = System.Diagnostics.Stopwatch.GetTimestamp();
+        _slowSaidAfter = sinceAsked;
+        AppLog.Warn($"Page view (I648): {what}. WebView2 {_environment?.BrowserVersionString ?? "not started"}. Timeline: " +
+            _timeline.Describe(hashNames: true, since: _shownAt).TrimEnd('\n').Replace("\n", " | ", StringComparison.Ordinal));
     }
 
     /// <returns>Whether the view started (or closed meanwhile); false when its controller did not come by the deadline.</returns>
@@ -357,7 +413,7 @@ public sealed class WebView2Page : IDisposable
                     _timeline.Add($"navigation {e.NavigationId} completion not passed on: the page already counts as drawn");
                     return;
             }
-            Loaded?.Invoke(e.IsSuccess, e.IsSuccess ? null : e.WebErrorStatus.ToString());
+            ReportLoaded(e.IsSuccess, e.IsSuccess ? null : e.WebErrorStatus.ToString());
         };
         _controller.AcceleratorKeyPressed += OnAcceleratorKey;
         _controller.GotFocus += (_, _) =>
@@ -396,6 +452,7 @@ public sealed class WebView2Page : IDisposable
         if (_disposed) return;
         _page = page;
         _shownAt = _timeline.Mark();
+        _slowSaidAt = 0;
         _timeline.Add($"show ({(_startupError is not null ? "startup failed" : _controller is not null ? "navigate" : _starting ? "still starting" : "start")}), host window visible: {Native.IsWindowVisible(Handle)}", page.Address);
         _context ??= SynchronizationContext.Current;
         _navigationAddress = null;
@@ -460,7 +517,7 @@ public sealed class WebView2Page : IDisposable
         {
             case PageCompletionWatch.Decision.TreatAsDrawn:
                 Note("no completion came, but the page's content loaded and every request it made of FileCat was answered: it counts as drawn");
-                Loaded?.Invoke(true, null);
+                ReportLoaded(true, null);
                 break;
             case PageCompletionWatch.Decision.NavigateAgain:
                 string? address = _navigationAddress ?? _page?.Address;
@@ -473,13 +530,13 @@ public sealed class WebView2Page : IDisposable
                 {
                     _timeline.Add("navigating once more failed: " + Describe(ex));
                     _watch.Stop();
-                    Loaded?.Invoke(false, "WebView2 could not load the page again: " + ex.Message);
+                    ReportLoaded(false, "WebView2 could not load the page again: " + ex.Message);
                     return;
                 }
                 break;
             case PageCompletionWatch.Decision.Fail:
                 Note("the page's process ended again: it could not be shown");
-                Loaded?.Invoke(false, $"WebView2's page process ended ({_lastProcessFailure?.ToString() ?? "unknown"})");
+                ReportLoaded(false, $"WebView2's page process ended ({_lastProcessFailure?.ToString() ?? "unknown"})");
                 break;
             case PageCompletionWatch.Decision.GiveUp:
                 Note("navigating once more did not help: the page waits, and Refresh stays available");

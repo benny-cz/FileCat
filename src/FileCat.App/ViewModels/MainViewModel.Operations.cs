@@ -932,6 +932,8 @@ public sealed partial class MainViewModel
     /// </summary>
     private async Task ViewItemAsync(ItemRef item, string name, bool hex, TabViewModel sourceTab)
     {
+        // A page the viewer opens on counts its loading from the reader's F3 (I648).
+        long askedAt = Environment.TickCount64;
         try
         {
             var provider = Services.Providers.For(item.Parent);
@@ -944,7 +946,7 @@ public sealed partial class MainViewModel
                 Notify("This item has no viewable content.", true);
                 return;
             }
-            await ViewerLauncher.OpenWithBrowsing(Services, item, source, hex, sourceTab);
+            await ViewerLauncher.OpenWithBrowsing(Services, item, source, hex, sourceTab, askedAt);
             if (item.Parent.IsFileSystem) Services.RecordFile(item.Parent, item.Name);
         }
         // A provider's refusal (NotSupportedException) is said too: F3 never ends without a word (I651).
