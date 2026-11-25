@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**1032 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
+**1033 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -11,6 +11,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 
 | ID | What | Source | Class | Record | Issues |
 |---|---|---|---|---|---|
+| E-DEC05-RECORD | The full file-system record shown again from File-system details (DEC-05, I671) | PR #55 on integration 3 (`4512483f8`); Windows host (medium and elevated), the Mac, the Ubuntu VM (also as root) | Engineering and tests, open, Medium: new App and Core tests fail before and pass after; full App suite 4,179, 0 failed. | [Record](evidence/E-DEC05-full-record-restored.md) | I671/I05/DEC-05 |
 | E-I670 | An administrator window or a root FileCat checked for updates at every start | The documentation review for rc.3 (PR #53); source of `UpdateCheck.RunScheduledAsync` and `ProcessAuthority` | Code review, open, Medium; fixed in PR #54 with a test that fails without it. | [Record](evidence/E-I670-elevated-update-check.md) | I670/I645/I655/I638 |
 | E-I668-I669 | A compare test's rescue timer and Compare after a re-read in its dialog; the consent page's singular | rc.3's integration run 45504400360; an instrumented build on the Mac (40 runs); the qualification VM | CI observation and code review, open, Low; causes shown and fixed in PR #51. | [Record](evidence/E-I668-I669-compare-reread-consent-wording.md) | I668/I669/I665 |
 | E-DEC-2026-11-24-SCOPE | Owner decision DEC-14: hardware, people and scope for 1.0.0 | The owner's answers in the release session, 2026-11-24, at `146315eda` | Owner decision: REL-PERFORMANCE, REL-HUMAN-UX and REL-HUMAN-AT waived as documented limitations and I07 closed; the owner provides the GA PC and attests; d10 and d11 close by scope on rc.3's results | [Decision record](evidence/E-DEC-2026-11-24-release-scope.md) | DEC-14/I07/I11/I06/I08/I13/I16 |

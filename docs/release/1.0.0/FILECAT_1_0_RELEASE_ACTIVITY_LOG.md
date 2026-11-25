@@ -5590,3 +5590,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - The 1.0.0 release-notes draft (branch `docs/release-notes-1.0.0`) found user documents no longer true of rc.3. As `v1.0.0` goes on the candidate's own source (plan §13.1), PR #53 corrects README, DOWNLOAD, SECURITY, PRIVACY, SERVICING, BUILDING, CAPABILITIES, IMPLEMENTATION_STATUS, ADR-15 and the Settings note on the update check before rc.3 is tagged.
 - That review found I670 (Medium): an administrator window or a root FileCat checked for updates at every start, even with the check off. PR #54 stops the automatic check there. [Record](evidence/E-I670-elevated-update-check.md).
 - Also found: since `4364d1b37` (2026-11-17) File-system details is metadata only, so the D-56 record fields that DEC-05 required and I05 implemented have no product caller. That is the owner's decision; it is put to the owner.
+
+## 2026-11-25 — DEC-05: the owner keeps the full file-system record for 1.0.0
+
+- Asked whether rc.3 restores the full file-system record that DEC-05 requires (unreachable since `4364d1b37` made File-system details metadata only) or ships metadata only, the owner answered "Yes, restore it". Registered as I671 (Medium). PR #55 restores it as **Read file-system record** in File-system details; [record](evidence/E-DEC05-full-record-restored.md).
+- A full Windows dress rehearsal of rc.3's checks on the integration-3 build (`4512483f8`) found no product regression: every rc.3 fix it exercised passed, and its failures were known harness lines, the administrator-deployed copy's refused archive worker, and three outdated checks (corrected). All 63 guarded runs left the owner's OneDrive unchanged.
