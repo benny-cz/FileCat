@@ -715,19 +715,18 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         return v;
     }
 
-    private void NavigateToText(PanelViewModel panel, string text)
+    internal void NavigateToText(PanelViewModel panel, string text)
     {
         var tab = panel.ActiveTab;
         if (tab is null) return;
         if (_vm.Services.Providers.TryParse(text, tab.Location, out var loc) && loc is not null)
         {
-            string? focus = null;
-            if (loc.IsFileSystem && File.Exists(loc.Path))
+            // A typed file opens its folder with the file focused; a share that does not answer does not stop the window.
+            _vm.OpenPath(loc, (where, focus) =>
             {
-                focus = Path.GetFileName(loc.Path);
-                loc = Location.FileSystem(Path.GetDirectoryName(loc.Path)!);
-            }
-            tab.Navigate(loc, focus);
+                tab.Navigate(where, focus);
+                return tab;
+            });
             FocusActivePanel();
         }
         else
