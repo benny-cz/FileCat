@@ -146,3 +146,8 @@ The Ubuntu loop volumes, mount points and images were removed after the root run
 - **Not run through the record route in this pass:** a Windows non-administrator account, a real EFS-encrypted file (`FILECAT_TEST_EFS`) and Cloud Files placeholders. The reader's own tests cover placeholders (I05).
 - **Memory:** no measurement of an administrator record read. The bound is the legacy reader's own caps plus one record read at a time.
 - **Binding window:** the legacy reader reopens streams by path for their excerpts. An object swapped in and back between the two identity reads would not be detected, because the identities before and after match.
+
+## Verification closed (2026-11-25, release session)
+
+- The full `FileCat.App.Tests` run at medium integrity, started 04:03 on the build before the last one-line edit, ended at 04:37: 4,179 tests, 0 failed, 332 skipped.
+- After rebuilding with the last two edits (the one line in `ReportWindow.Record.cs` and the renamed locals in `FileRecordReadTests`): `FileRecordReadTests` 8, 0 failed, 2 skipped (Unix or root only); the 26 App classes that use `ReportWindow`, at medium integrity, 429, 0 failed, 81 skipped.
