@@ -66,6 +66,8 @@ public sealed partial class ReportWindow
         _view.Wrap = true; _wrap.IsChecked = true;
         _search.MinWidth = 100;
         _actions.Children.Add(_tier);
+        _actions.Children.Add(_recordButton);
+        _recordButton.Click += async (_, _) => await ToggleRecordAsync();
         if (openExtraData is not null) _actions.Children.Add(_extraData);
         if (openPermissions is not null) _actions.Children.Add(_permissions);
         _actions.Children.Add(_copyTarget);
@@ -84,33 +86,47 @@ public sealed partial class ReportWindow
         // The main window's state (a dialog open there, closing) decides whether the link can open a review: look again
         // whenever the user comes back to this window.
         Activated += (_, _) => { if (!_closing.IsCancellationRequested) SetDetailsActions(); };
-        Closed += (_, _) => { _openExtraData = null; _openTarget = null; _compression = null; _permissionsUnavailable = null; _openPermissions = null; };
+        Closed += (_, _) =>
+        {
+            _openExtraData = null; _openTarget = null; _compression = null; _permissionsUnavailable = null; _openPermissions = null;
+            _record = null; _recordNotice = null;
+        };
     }
 
-    private bool CanPublishDetails => _detailsReader is null || _detailsObservation is not null;
+    /// <summary>
+    /// Copy and Save take a successful observation: the details tier shown, or a record bound to one object whose values
+    /// cannot be decrypted EFS content (<see cref="FileRecordObservation.OutputRefusal()"/>). Never a reading placeholder.
+    /// </summary>
+    private bool CanPublishDetails => _detailsReader is null || (_recordShown
+        ? _record is { } record && !RecordPlaceholder && record.OutputRefusal() is null
+        : _detailsObservation is not null);
 
     private void SetDetailsActions()
     {
         bool ready = CanPublishDetails;
+        bool details = !_recordShown;
         _copyAll.IsEnabled = _copyVisible.IsEnabled = _copyDisplayed.IsEnabled = _save.IsEnabled = ready;
         _extraData.IsEnabled = _detailsObservation is not null;
+        // The record view keeps only its own actions; every details action returns with the details.
+        _extraData.IsVisible = _permissions.IsVisible = _tier.IsVisible = details;
+        SetRecordAction();
         string? permissionsReason = _openingPermissions ? "The permissions inspection is open."
             : _permissionsUnavailable?.Invoke(_detailsObservation?.Summary);
         _permissions.IsEnabled = permissionsReason is null && _openPermissions is not null;
         ToolTip.SetTip(_permissions, permissionsReason);
         ToolTip.SetShowOnDisabled(_permissions, true);
         AutomationProperties.SetHelpText(_permissions, permissionsReason ?? "Inspect permissions for this report's original object.");
-        _copyTarget.IsVisible = _detailsObservation?.Summary.Target.State == FactState.Known;
+        _copyTarget.IsVisible = details && _detailsObservation?.Summary.Target.State == FactState.Known;
         bool network = false;
         bool qualified = _detailsObservation is { Summary.Identity.State: FactState.Known } observation &&
             FileDetailsTargets.TryResolve(observation.Summary, OperatingSystem.IsWindows(), out _, out network);
-        _navigateTarget.IsVisible = qualified && _openTarget is not null;
+        _navigateTarget.IsVisible = details && qualified && _openTarget is not null;
         _navigateTarget.IsEnabled = _checkingTarget is null;
         _navigateTarget.Content = network ? "Open target location (network)" : "Open target location";
         _tier.Content = _detailsTier == FileDetailsTier.Full ? "Show summary"
             : _detailsObservation?.Full is not null ? "Show full record" : "Read full record";
         // Shown wherever the build offers compression; a reason says why it cannot open a review now.
-        _compress.IsVisible = _compression is not null && _detailsObservation is not null;
+        _compress.IsVisible = details && _compression is not null && _detailsObservation is not null;
         string? blocked = CompressionBlocked();
         _compress.IsEnabled = blocked is null;
         ToolTip.SetTip(_compress, blocked ?? CompressHelp);
@@ -184,6 +200,8 @@ public sealed partial class ReportWindow
     private async Task SwitchDetailsTierAsync()
     {
         if (_detailsReader is null || _closing.IsCancellationRequested) return;
+        // From the record, a tier switch is first a way back to the details; a record still being read is retired below.
+        if (_recordShown) ExitRecordView();
         _reading?.Cancel();
         _checkingTarget?.Cancel();
         _copying?.Cancel(); _saving?.Cancel();
@@ -257,7 +275,8 @@ public sealed partial class ReportWindow
 
     private void PublishDetails(bool announceStatus = true)
     {
-        if (_detailsObservation is not { } observation) return;
+        // The record view owns the text; the details publish again when it is left.
+        if (_detailsObservation is not { } observation || _recordShown) return;
         string text = _detailsDisplayedTier == FileDetailsTier.Full && observation.Full is { } full
             ? full.ToText(_targetCheck) : observation.Summary.ToReport(_targetCheck).ToText();
         if (_detailsNotice is { } notice) text = notice + " · showing observation " + observation.Summary.ObservedAt.ToString("O") + Environment.NewLine + text;
@@ -273,6 +292,7 @@ public sealed partial class ReportWindow
 
     private void UpdateDetailsStatus(bool announce = true)
     {
+        if (_recordShown) { UpdateRecordStatus(announce); return; }
         // The report itself exposes the pending read. Keep the status live event for the outcome,
         // since a fast read can otherwise lose its completion announcement behind the pending event.
         if (!announce) AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Off);
@@ -311,7 +331,7 @@ public sealed partial class ReportWindow
 
     private async Task NavigateTargetAsync()
     {
-        if (_checkingTarget is not null || _closing.IsCancellationRequested || _detailsReader is not { } reader ||
+        if (_recordShown || _checkingTarget is not null || _closing.IsCancellationRequested || _detailsReader is not { } reader ||
             _detailsObservation is not { Summary.Identity.State: FactState.Known } captured || _openTarget is not { } navigate ||
             !FileDetailsTargets.TryResolve(captured.Summary, OperatingSystem.IsWindows(), out string path, out _)) return;
         _reading?.Cancel();

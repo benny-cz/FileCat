@@ -9,8 +9,12 @@ public static class FileObservationRequests
     public static bool HasAdmission => _admittedDevice is not null;
     public static bool IsAdmittedFor(string device) => string.Equals(_admittedDevice, device, StringComparison.OrdinalIgnoreCase);
 
+    /// <param name="queue">
+    /// The scheduler queue that runs the read, when not the device's own (admission is still the device's). The full
+    /// file-system record uses one so that a long administrator read is not reported as the device hanging.
+    /// </param>
     public static async Task<T> RunOwned<T>(DeviceIoScheduler io, string device, IoPriority priority,
-        Func<CancellationToken, T> read, CancellationToken ct = default)
+        Func<CancellationToken, T> read, CancellationToken ct = default, string? queue = null)
     {
         if (DeviceIoScheduler.IsDeviceWorker)
         {
@@ -23,7 +27,7 @@ public static class FileObservationRequests
         }
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, io.StoppingToken);
         using var permit = await DetailsAdmission.AcquireAsync(device, linked.Token).ConfigureAwait(false);
-        var result = await io.RunOwned(device, priority, token =>
+        var result = await io.RunOwned(queue ?? device, priority, token =>
         {
             token.ThrowIfCancellationRequested();
             string? previous = _admittedDevice;
