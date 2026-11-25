@@ -789,6 +789,14 @@ public sealed partial class MainViewModel
     {
         var tab = ActiveTab;
         if (tab is null) return;
+        // A share or server that needs credentials tells the user "Press Enter to sign in" (Windows' prompt, NET-004).
+        // Its only row is the parent row, so the sign-in comes before that row's escape below: since I572 Enter went up
+        // instead, and Windows' prompt could not be reached (I672). Backspace still goes up.
+        if (tab.Listing.State == ListingState.Failed && WindowsSignInTarget(tab) is { } signIn)
+        {
+            _ = SignInThenRefreshAsync(tab, signIn);
+            return;
+        }
         // The parent row remains available when enumeration is denied. Let it
         // escape the failed location before treating Open as a retry or sign-in.
         if (tab.Listing.TryGetFocused(out var focused) && focused.Kind == EntryKind.Parent)
@@ -798,7 +806,7 @@ public sealed partial class MainViewModel
         }
         if (tab.Listing.State == ListingState.Failed)
         {
-            // A share that needs credentials: Enter opens the Windows sign-in prompt, then retries (NET-004).
+            // A share that denied access: Enter opens the Windows sign-in prompt, then retries (NET-004).
             var loc = tab.Location;
             bool unc = loc is not null && (loc.Scheme == Schemes.Network || loc.IsFileSystem && PathUtil.IsUncPath(loc.Path));
             if (unc && tab.Listing.Error is { } err && (err.Contains("credentials", StringComparison.OrdinalIgnoreCase) || err.Contains("denied", StringComparison.OrdinalIgnoreCase)))
@@ -853,6 +861,19 @@ public sealed partial class MainViewModel
         {
             Notify($"Could not open \"{e.Name}\": {ex.Message}", true);
         }
+    }
+
+    /// <summary>
+    /// The share or server to sign in to when Windows refused to list it for want of credentials (the failure says
+    /// "requires credentials … Press Enter to sign in"); otherwise null. Linux and macOS ask for credentials in FileCat's
+    /// own dialog while listing, so there the parent row keeps its escape (I572).
+    /// </summary>
+    internal static string? WindowsSignInTarget(TabViewModel tab)
+    {
+        if (!OperatingSystem.IsWindows() || tab.Location is not { } loc || tab.Listing.Error is not { } err) return null;
+        bool unc = loc.Scheme == Schemes.Network || loc.IsFileSystem && PathUtil.IsUncPath(loc.Path);
+        if (!unc || !err.Contains("credentials", StringComparison.OrdinalIgnoreCase)) return null;
+        return loc.Scheme == Schemes.Network ? loc.Path : ShareRoot(loc.Path);
     }
 
     private static string ShareRoot(string unc)
