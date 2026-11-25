@@ -35,6 +35,12 @@ The worker is `FileCat.exe` itself, started at low integrity for each picture. I
   - New `PictureDecoderTimeoutTextTests`: the three phases, and numbers that read the same in cs-CZ.
   - The picture decoder, worker and viewer classes pass at medium integrity: 54 tests, 8 Unix-only skips.
 
+## The owner's decision
+
+- **Question,** asked after PR #61's run found I677, which came after the owner's authorization to tag rc.5: "Tag rc.5 with I677 open (diagnostics in), or hold rc.5 until its cause is found?"
+- **Answer:** "Tag with I677 open".
+- **What follows:** rc.5 carries PR #63's diagnostics, merged into main as `544fa0a2` after its full-matrix run 45674146421. Its fourth attempt passed; three earlier attempts lost a macOS job that no hosted runner took. I677 stays open in the register.
+
 ## Not covered
 
 - **The cause:** the change localizes the next occurrence; it does not prevent one.

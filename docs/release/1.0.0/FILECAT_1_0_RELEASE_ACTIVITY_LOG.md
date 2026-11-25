@@ -5670,3 +5670,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-25 — I678 from main's run on PR #60's merge
 
 - Main's CI run 45676863831 on `4ffe68ba` failed the real file-system record test on both Windows lanes: it waited 5 s for a read that takes 1.9 to 8.8 s on the hosted runners (0.9 s on a host). Main's code there equals PR #60's tested head but for records. PR #64 waits for that read by the clock ([I678](evidence/E-I678-real-record-wait-budget.md)).
+
+## 2026-11-25 — I672's share case, I675, I676 and I678 fixed on main; I677's diagnostics merged
+
+- PR #60 merged as `4ffe68ba` after run 45662381953 (attempt 2), PR #61 as `643266b6` after run 45665950729 (attempt 2), PR #62 as `3abcd813` after run 45671024154, PR #63 as `544fa0a2` after run 45674146421 (attempt 4), and PR #64 as `ed0e317c` after run 45686642031. I672, I675, I676 and I678 are remediated preliminarily ([I672](evidence/E-I672-unc-sign-in-enter.md), [I675](evidence/E-I675-unanswering-share-window-stall.md), [I676](evidence/E-I676-picture-grid-first-thumbnails-budget.md), [I678](evidence/E-I678-real-record-wait-budget.md)). I677 stays open with its diagnostics in: the owner decided to tag rc.5 with it open ("Tag with I677 open") ([I677](evidence/E-I677-first-picture-decode-timeout-ci.md)). `release/1.0` is synced next; rc.5 follows under the owner's authorization ("Yes, tag rc.5").
