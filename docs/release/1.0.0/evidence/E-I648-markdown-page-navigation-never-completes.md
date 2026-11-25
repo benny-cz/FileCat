@@ -166,3 +166,80 @@ In the qualification VM, with the candidate installed:
 2. **Step R1, 20 times.** Close FileCat, start it again at once, and make the results document its first viewer.
 3. **While a page is still loading.** Refresh must be enabled. After 10 s, the status line must say that the page has not finished loading. F5 must reload the page.
 4. **After the runs.** Export diagnostics and keep any "Page view (I648)" warnings in `filecat.log`: their timelines show which stage stalled.
+
+## Follow-up fix
+
+**Found:** 2026-11-25, in the qualification VM, on the pre-rc3 build `d54e5a2b`, which has the fix above. Batch 34b ran step 2 of the check above 20 times, judging each Page by step 1's rule and reading the status line on every poll from 10 s on. All 20 Pages drew, 7 of them 10.1 to 11.9 s after F3. None of those 7 said in the status line that it had not finished loading, so the check failed. The batch counts a Page as drawn once the page's accessibility tree holds a hyperlink.
+
+### The cause
+
+- **The notice counted from when the page view had the page, not from the reader's request.**
+  - The 10-s timer started in `PageView.Load` (`src/FileCat.App/Controls/PageView.cs`, lines 109 to 121 before the change), when the page view handed the page to the engine.
+  - That happens in `ViewerWindow.ShowPage` (`ViewerWindow.cs`, lines 652 and 812), after the viewer window has been made and shown and has read and examined the file's first page, or later, when the native view is made. The reader's wait before that was never counted.
+  - **Measured:** a probe in the VM on the same build (`probe-i648-timing.ps1`) ran step 2's steps eight times. The status line switched to page mode, the moment the page view gets the page, 0.39 to 0.55 s after F3 in five runs and 1.9 s in one. In the other two, the probe's own accessibility searches stalled.
+  - So if batch 34b's runs were alike, the notice was due 10.4 s or more after F3. Four of the seven slow Pages (10.1 to 10.3 s) had drawn before that, and a fifth (10.4 s) about when it came.
+- **The wait for the previous browser was not the uncounted part in step 2.** Each run there is a fresh FileCat, and `PageBrowserExits` knows only its own process's views, so none of them waited.
+  - Where a view does wait (one opened as its folder's last one closed, as in step 1), the wait (`WebView2Page.WaitForExitingBrowserAsync`, at most 10 s) ran inside the notice's time.
+  - But the notice then said "Refresh (F5) tries again", which cannot hurry the wait: until the view has started, Refresh only changes the page it will navigate to.
+- **Not settled for the other two slow Pages** (11.0 and 11.9 s). That build logs nothing about a page that finishes by itself, so whether FileCat had finished them before their notice was due is not known. The probe found another way such a run can arise (see "In the qualification VM" below): the hyperlink can come seconds after FileCat has finished the page and its text shows.
+
+### The change
+
+1. **Counted from the request.**
+   - The time the reader asked for the viewer goes with it: F3, or a Markdown link's click or its approval. `ViewerLauncher` sets `ViewerWindow.AskedAt`, and the viewer passes it to `PageView.Show(page, askedAt)`.
+   - The notice is due 10 s after that, or at once if that time has passed.
+   - A page asked for later (Refresh, the Page button) counts from that moment.
+2. **What the page waits for.**
+   - `WebView2Page` says when it starts and stops waiting for its folder's previous browser process (`WaitsForPreviousBrowser`, `WaitChanged`).
+   - While it waits, the notice reads "The page has not finished loading: it waits for the previous page's browser to close." Once the wait ends, it reads "The page has not finished loading; Refresh (F5) tries again." as before.
+3. **The log.**
+   - When the notice comes, `filecat.log` gets a "Page view (I648)" warning. It says how long after the request and after the view had the page, whether the view still waits for the previous browser, and gives the view's timeline since the page was shown.
+   - When that page then ends, an Info line says how long after the request it finished or failed.
+
+Unchanged: one report per page, Refresh while a page loads, the watch's 4 s, the 10-s wait for the previous browser, and the 90-s start limit.
+
+### Tests
+
+- **`PageCompletionRecoveryTests`** (App), two new tests:
+  - **The reader's wait counts.** The viewer is asked for, and its file's first read takes 2 s. Then the engine waits for the previous browser, and the page loads at once after the wait. With a 3-s notice:
+    - the status line must say that the page waits for the previous page's browser 3 s after the request, and sooner than 4.5 s after the page view had the page;
+    - once the wait ends, it must say that Refresh tries again;
+    - the page must count as loaded once.
+
+    Against the old code, it failed: the status line said so 5.48 s after the viewer was asked for, and the engine had had the page since 2.46 s. It passes with the change.
+  - **A page asked for 1.5 s before the page view had it** says so 0.5 s later, with a 2-s notice. A Refresh then counts its whole time again.
+- **`PageViewTests`** (Platform, the real WebView2): the test of a view opened right after its folder's last one closed also checks that the view reports its wait's start and end, and that the log entry for a slow page names the wait.
+- **Runs on the development PC**, all at medium integrity:
+  - App, the 41 viewer and page classes: 380 tests, 375 passed, and the 5 WebKitGTK tests skipped (Linux only).
+  - App, the whole suite: 4,165 tests, 3,833 passed, 332 skipped, none failed.
+  - Platform, `PageViewTests` and `PageCompletionWatchTests`: 26 tests, 24 passed, and the 2 opt-in tests skipped.
+
+### In the qualification VM
+
+A build of the fix's commit, `238f82b2`, was deployed as `C:\FQ\pre-rc3\win-x64-i648b`; the commit that adds this section changes no code. Afterwards, the harness pointed at `win-x64-r4` (`d54e5a2b`) again.
+
+**Batches 34b and 34 passed, but no Page in them was slow.**
+- Batch 34b: 20 of 20 drew, 19 within 5 s, none after 10 s.
+- Batch 34: in A, 20 of 20 drew, in 0.4 to 0.5 s; in B, 20 of 20 drew, in 4.3 to 4.8 s.
+- Neither left a "Page view (I648)" warning.
+- The VM was faster than when batch 34b failed: on `d54e5a2b` too, the probe above saw the first hyperlink 4.2 to 6.3 s after F3 in its three undisturbed runs. So these batches do not show the notice at work.
+
+**Under load, the notice at work.** A probe (`probe-i648-load.ps1`) ran four busy loops on the VM's four processors throughout and measured each Page without whole-tree accessibility searches, on both builds:
+- **A, six times in one FileCat:** the results document was opened, drawn and closed, then `links.md` was opened at once.
+  - The FileCat's first Page drew (its first hyperlink) in 3.7 s with the fix and 7.4 s on `d54e5a2b`. Every view after it waited the whole 10 s for the previous browser, on both builds. The fix's log puts each of those pages' end 10.3 to 10.6 s after F3.
+  - With the fix, those 11 Pages said that they had not finished loading 10.0 to 10.3 s after F3. Each of the 11 log warnings reads "10.0 s after it was asked for".
+  - The first `links.md` said "it waits for the previous page's browser to close" at 10.02 s, then "Refresh (F5) tries again" at 10.21 s, once its wait had ended.
+  - On `d54e5a2b`, the 11 said "Refresh (F5) tries again" 10.05 to 10.21 s after F3, whether or not they were still waiting.
+  - Refresh was enabled whenever the probe read it while a Page loaded, on both builds.
+- **B, six fresh FileCats:** step 2's results document.
+  - With the fix, FileCat finished every one within 10 s of F3: its status line never said otherwise, and its log has no entry. The page's text showed 4.0 to 4.8 s after F3.
+  - Yet the first hyperlink came 6.6 to 10.4 s after F3, and 3.8 to 10.8 s on `d54e5a2b`.
+  - One run on each build (10.36 s and 10.84 s) is one that batch 34b would count as a slow Page that did not say so.
+  - The probe's list of notices for some B runs holds the page's own text, which its pattern also matched; FileCat's status line said nothing of the kind there.
+
+### Residuals
+
+- **Batch 34b's measure of a drawn Page.** For the 318 KB results document under load, the hyperlink came up to about 6 s after the page's text showed and after FileCat had finished loading it. Such a run fails batch 34b's rule, though the status line has nothing true to say. A check of the notice needs a page that FileCat itself has not finished, or a measure of the page as drawn, such as its pixels.
+- **The original failure is only partly explained.** The counting gap is measured; whether FileCat had finished the 11.0 and 11.9 s Pages is not known. This build logs a page that has not finished 10 s after the request, and when it ends.
+- **The exit under load.** Under the four busy loops, every view opened within about 2 s of its folder's last one closing waited the whole 10 s for the old browser. The wait is bounded and now said; why the exit takes that long under load was not studied.
+- **CI.** The two new App tests give their timing about 1.5 s of margin. They have run on the development PC only, not yet on CI's three systems.
