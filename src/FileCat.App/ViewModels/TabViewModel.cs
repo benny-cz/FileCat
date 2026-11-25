@@ -334,7 +334,44 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             return;
         }
         if (!loc.IsFileSystem) return;
-        var monitor = new ChangeMonitor(loc.Path, () => Services.Ui.Post(() => OnFolderChanged(loc)));
+        // The watcher opens the folder. On a share whose server does not answer, or a mount that hangs, that waits for
+        // the connection's timeout (21 s for SMB on Windows), and the window must keep answering meanwhile: the watcher
+        // is made on a thread of its own. The window waits for it as long as an answering folder takes, so that a change
+        // right after the navigation is seen as before; a watcher that comes later is taken if the tab still shows that
+        // folder.
+        long watch = _watchGeneration;
+        var making = Task.Factory.StartNew(() => NewChangeMonitor(loc.Path, () => Services.Ui.Post(() => OnFolderChanged(loc))),
+            CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        if (((IAsyncResult)making).AsyncWaitHandle.WaitOne(WatcherWait))
+        {
+            Watch(making.GetAwaiter().GetResult(), loc);
+            return;
+        }
+        _ = making.ContinueWith(t => Services.Ui.Post(() =>
+        {
+            if (_disposed || watch != _watchGeneration || !IsActiveTab || Location != loc)
+            {
+                _ = Task.Run(t.Result.Dispose); // closing it may reach the server too
+                return;
+            }
+            Watch(t.Result, loc);
+            RefreshIfFolderChanged(); // a change between the read and the watcher
+        }), CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
+    }
+
+    /// <summary>
+    /// How long the window waits for a folder's watcher before it goes on without it (see <see cref="StartWatching"/>).
+    /// </summary>
+    internal static TimeSpan WatcherWait { get; set; } = TimeSpan.FromMilliseconds(200);
+
+    /// <summary>Makes a folder's watcher; tests hold one back.</summary>
+    internal static Func<string, Action, ChangeMonitor> NewChangeMonitor { get; set; } = static (path, changed) => new ChangeMonitor(path, changed);
+
+    /// <summary>Counts StopWatching calls: a watcher that comes after one belongs to a folder no longer watched.</summary>
+    private long _watchGeneration;
+
+    private void Watch(ChangeMonitor monitor, Location loc)
+    {
         monitor.ChurnChanged += () => Services.Ui.Post(() => { if (!_disposed && Location == loc) UpdateStatus(); });
         _monitor = monitor.IsActive ? monitor : null;
         if (!monitor.IsActive) monitor.Dispose();
@@ -360,6 +397,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     private void StopWatching()
     {
+        _watchGeneration++;
         _monitor?.Dispose();
         _monitor = null;
         _poller?.Dispose();

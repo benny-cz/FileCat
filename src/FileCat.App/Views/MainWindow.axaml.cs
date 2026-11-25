@@ -715,26 +715,53 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         return v;
     }
 
-    private void NavigateToText(PanelViewModel panel, string text)
+    /// <summary>How long the window waits to learn whether a typed path is a file (see <see cref="NavigateToText"/>).</summary>
+    internal static TimeSpan TypedPathWait { get; set; } = TimeSpan.FromMilliseconds(200);
+
+    /// <summary>Whether a typed path is a file; tests hold the answer back.</summary>
+    internal static Func<string, bool> IsTypedFile { get; set; } = File.Exists;
+
+    internal void NavigateToText(PanelViewModel panel, string text)
     {
         var tab = panel.ActiveTab;
         if (tab is null) return;
         if (_vm.Services.Providers.TryParse(text, tab.Location, out var loc) && loc is not null)
         {
-            string? focus = null;
-            if (loc.IsFileSystem && File.Exists(loc.Path))
+            if (!loc.IsFileSystem)
             {
-                focus = Path.GetFileName(loc.Path);
-                loc = Location.FileSystem(Path.GetDirectoryName(loc.Path)!);
+                tab.Navigate(loc);
+                FocusActivePanel();
+                return;
             }
-            tab.Navigate(loc, focus);
+            // A typed file opens its folder with the file focused. Asking opens the path: on a share whose server does not
+            // answer, that waits for the connection's timeout (21 s for SMB on Windows), and the window must keep
+            // answering. It waits as long as an answering location takes; otherwise it goes to the path as a folder at
+            // once, and to the file's folder if the answer comes, says file, and the tab is still there.
+            string path = loc.Path;
+            var asking = Task.Factory.StartNew(() => IsTypedFile(path), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            if (((IAsyncResult)asking).AsyncWaitHandle.WaitOne(TypedPathWait))
+            {
+                bool file = asking.GetAwaiter().GetResult();
+                tab.Navigate(file ? FolderOf(path) : loc, file ? Path.GetFileName(path) : null);
+                FocusActivePanel();
+                return;
+            }
+            tab.Navigate(loc);
             FocusActivePanel();
+            long intent = tab.NavigationGeneration;
+            _ = asking.ContinueWith(t => _vm.Services.Ui.Post(() =>
+            {
+                if (t.Result && tab.NavigationGeneration == intent && tab.Location == loc)
+                    tab.Navigate(FolderOf(path), Path.GetFileName(path));
+            }), CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
         }
         else
         {
             _vm.Notify($"\"{text}\" is not a location FileCat can open.", true);
         }
     }
+
+    private static Location FolderOf(string file) => Location.FileSystem(Path.GetDirectoryName(file)!);
 
     private void OpenRowInNewTab(PanelViewModel panel, int row)
     {
