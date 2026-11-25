@@ -49,9 +49,10 @@ the SBOMs enumerate the bytes inside each distinct payload and their reviewed
 NuGet/runtime identities.
 
 The portable Windows ZIP includes `FileCat.portable`: state goes in `Data/`
-beside the executable. The framework-dependent ZIP requires the appropriate
-.NET desktop runtime and contains no administrator helper. Installed builds
-have the separately qualified helper route.
+beside the executable. The framework-dependent ZIP requires the .NET 10
+Runtime (`Microsoft.NETCore.App`) for its architecture and contains no
+administrator helper. Installed builds have the separately qualified helper
+route.
 
 ## Update dependencies deliberately
 

@@ -345,7 +345,8 @@ public static class SettingsDialog
         // ---- Privacy
         var diag = new CheckBox { Content = "Diagnostic mode: include file paths in the local log (off by default)", IsChecked = s.DiagnosticMode };
         var updates = new CheckBox { Content = "Automatically check for updates", IsChecked = s.CheckForUpdates };
-        var updateNote = Note("On by default for new profiles. At most once a day at startup, FileCat checks for a newer release and offers its release page. You can skip one version or turn this off. It does not download or install update packages. Help → Check for updates and network locations still connect when you request them.");
+        // The repeat rule is UpdateCheck.RunScheduledAsync's: only a finished check (an offline one included) is remembered.
+        var updateNote = Note("On by default for new profiles. At startup, FileCat checks for a newer release unless its last check finished less than a day ago, and offers its release page. A check cut short by closing FileCat runs again at the next start. You can skip one version or turn this off. It does not download or install update packages. Help → Check for updates and network locations still connect when you request them.");
         Avalonia.Automation.AutomationProperties.SetHelpText(updates, updateNote.Text);
         bool helper = vm.Services.ShellPictures is not null;
         var shellPictures = new CheckBox
