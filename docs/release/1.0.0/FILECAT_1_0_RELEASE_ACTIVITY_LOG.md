@@ -5645,3 +5645,9 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - With PRs #57 and #58 merged and no PR open, `release/1.0` was synced with main at `5137040b` through PR #59: run 45634525115 passed all 19 jobs that ran in its first attempt, the three fixes' first run together ([sync record](evidence/E-REL-SYNC-20261125-release-branch.md)).
 - With the owner's authorization ("Yes, tag rc.4"), annotated tag `v1.0.0-rc.4` (object `6cdaeb55`) was pushed on `16f9379a` at 15:08:40Z; tagged run 45641843032 started at once. Its signing job waits for the owner's approval; stable 1.0.0 remains NO-GO. The owner also approved batch28's UAC change for rc.4's Windows run.
+
+## 2026-11-25 — `v1.0.0-rc.4` built, signed and drafted; its qualification starts
+
+- Tagged run 45641843032: in the first attempt GitHub's macOS capacity left `macos-26 (build, portable tests)` unstarted, so no package job ran; "Re-run failed jobs" passed it and every job after it. The tests match PR #59's run test by test (73,763P/13,694S/0F) but for one Ubuntu environment skip.
+- The owner approved the `signing` deployment in GitHub at 16:26Z and confirmed it here ("Approved"). Signing and verification gave rc.3's counts; private draft 458361481 holds the 24 assets ([rc.4](evidence/E-RC4-TAG-20261125.md)). The release session downloaded all 24 and checked each against GitHub's digest and its manifest.
+- Qualification on rc.4's bytes: the Mac run passes 33 of 35, b23 and b28 keeping their known BLOCKED halves; c1 in the Windows VM passes with nothing unexpected (an upgrade over rc.3, an uninstall and a fresh install; 402 of 402 setup files match the SBOM, 249 installed PE files verify). The Ubuntu run and the Windows runner (with the owner's approval of batch28's UAC change) are under way; c9 follows with the owner.
