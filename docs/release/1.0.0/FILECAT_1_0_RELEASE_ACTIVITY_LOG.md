@@ -5595,3 +5595,15 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - Asked whether rc.3 restores the full file-system record that DEC-05 requires (unreachable since `4364d1b37` made File-system details metadata only) or ships metadata only, the owner answered "Yes, restore it". Registered as I671 (Medium). PR #55 restores it as **Read file-system record** in File-system details; [record](evidence/E-DEC05-full-record-restored.md).
 - A full Windows dress rehearsal of rc.3's checks on the integration-3 build (`4512483f8`) found no product regression: every rc.3 fix it exercised passed, and its failures were known harness lines, the administrator-deployed copy's refused archive worker, and three outdated checks (corrected). All 63 guarded runs left the owner's OneDrive unchanged.
+
+## 2026-11-24 — The contract amendments for I638 to I640
+
+- PR #25 merged into main with integration PR #44 as `a2f983e9a`: C25, V22, PSD-W64, PSD-WA, V06 and DEC-04 now record the owner's decisions, and README.md, SECURITY.md, PRIVACY.md, SERVICING.md and CAPABILITIES.md say what the product does. [Amendment record](evidence/E-DEC-2026-11-24-contract-amendments.md).
+- I638, I639 and I640 are closed by those decisions. I638 rests on the owner's own 2026-11-03 request; the owner gave no new answer on it. I639's earlier wording, here and in the dashboard, said the installer accepts Windows 10: it refuses Windows 10 and accepts Server 2016. DEC-02 now points to I639's amendment.
+
+## 2026-11-25 — rc.3's fixes on main
+
+- Integration PR #44 merged as `a2f983e9a` after CI run 45570809782. It carries every rc.3 fix: PRs #25 to #36 (rounds 1 and 2, through integration PRs #35 and #37), #38 to #43, #45 to #47 and #49 to #55 (#53 the user documents), and the CI changes of #48.
+- Remediated preliminarily: I635 to I637, I641 to I671 and I42; I638 to I640 closed by decision (separate entry). I636's row is corrected (the column-header sort was affected too); I615 is narrowed by I651 on macOS; I42 is done for 1.0.0 by the owner's decision (SFTP sped up; FTPS uploads and one file at a time accepted).
+- Pre-rc3 checks: the Windows qualification VM passed each Windows fix's own check (I635, I636, I637, I642, I643, I644, I645, I647, I648, I649, I653, I654, I657, I659); the physical Mac passed x03, b25 and b26 for I650 to I652; the Ubuntu harness passed a4, a14 and a18 on a build of I662 to I664. Hosted runners with sudo ran I655, I656 and I658 as root, on ARM64 and with `/proc` hidden. I671's restored record passed its tests on the Windows host (medium and elevated), the Mac and the Ubuntu VM (also as root), and the qualification VM showed it through the window, medium and elevated (batch43).
+- The owner authorized the release session to tag `v1.0.0-rc.3` once this is merged, synced to `release/1.0` and green ("Yes, tag it").
