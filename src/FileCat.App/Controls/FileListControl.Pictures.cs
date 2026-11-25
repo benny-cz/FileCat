@@ -29,6 +29,8 @@ public sealed partial class FileListControl
     private long _pictureGeneration;
     private long _pictureTouch;
     internal int CachedPictureThumbnailCount => _pictureCache.Values.Count(value => value.Bitmap is not null);
+    /// <summary>Thumbnails kept as their file icon: the decode failed, or the file is not shown as a picture (tests).</summary>
+    internal int IconPictureThumbnailCount => _pictureCache.Values.Count(value => value.Bitmap is null);
     internal int PendingPictureThumbnailCount => _picturePending.Count;
     internal long PictureThumbnailLoadCount { get; private set; }
 
