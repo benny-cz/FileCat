@@ -5662,3 +5662,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-25 — I676 from PR #60's run
 
 - PR #60's run 45662381953 failed one test on windows-11-arm: the picture grid's first two thumbnails were not decoded within the test's 9.5 s, while the next test decoded 65 on the same runner; GitHub's macOS capacity left another job without a runner. The release session reran the failed jobs, and PR #62 gives the test the decoder's own bound ([I676](evidence/E-I676-picture-grid-first-thumbnails-budget.md)).
+
+## 2026-11-25 — I677 from PR #61's run
+
+- PR #61's run 45665950729 failed one App test on Windows x64: the viewer's first decode of a 12 x 8 PNG ran out of the decoder's 30 s (normally 0.2 to 2.7 s there, 1.3 s on a host); the next decode took 2.4 s. PR #61 does not touch that path. The cause is not proven; PR #63 makes the timeout say where the time went ([I677](evidence/E-I677-first-picture-decode-timeout-ci.md)). The release session reran the failed jobs.
