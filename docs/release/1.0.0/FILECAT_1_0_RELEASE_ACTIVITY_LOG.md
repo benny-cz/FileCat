@@ -5583,3 +5583,10 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - rc.3's final integration run 45504400360 failed one macOS case; its re-run passed. Instrumented runs on the Mac showed the cause in the test (a rescue timer started before eight compare dialogs), and the compare path showed a silent drop beside it. Both are I668 (Low). The review behind the owner's rc.3 consent walkthrough found I669 (Low), "these 1 step" on the consent page. PR #51 fixes both; it was merged into integration 3 for a new CI run.
 - Considered, not changed: what uninstalling keeps (the helper's replay record, the administrator window's settings and a per-user AppContainer profile; the release text will say so) and c44's requester check across accounts (the owner's walkthrough checks it). [Record](evidence/E-I668-I669-compare-reread-consent-wording.md).
+
+## 2026-11-25 — I670, the documentation review and I648's follow-up
+
+- I648's own rule failed on the pre-rc3 build: the 10 s notice counted from when the page view got the page, so 7 of 20 Pages drew after 10 s with nothing said (batch 34b). PR #52 counts from the request and names the wait for the previous page's browser; it is in integration 3.
+- The 1.0.0 release-notes draft (branch `docs/release-notes-1.0.0`) found user documents no longer true of rc.3. As `v1.0.0` goes on the candidate's own source (plan §13.1), PR #53 corrects README, DOWNLOAD, SECURITY, PRIVACY, SERVICING, BUILDING, CAPABILITIES, IMPLEMENTATION_STATUS, ADR-15 and the Settings note on the update check before rc.3 is tagged.
+- That review found I670 (Medium): an administrator window or a root FileCat checked for updates at every start, even with the check off. PR #54 stops the automatic check there. [Record](evidence/E-I670-elevated-update-check.md).
+- Also found: since `4364d1b37` (2026-11-17) File-system details is metadata only, so the D-56 record fields that DEC-05 required and I05 implemented have no product caller. That is the owner's decision; it is put to the owner.
