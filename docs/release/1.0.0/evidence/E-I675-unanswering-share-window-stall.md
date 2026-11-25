@@ -63,8 +63,17 @@ The build was a local merge of the two rc.5 fixes, `1.0.0-dev+633ab423`. It is n
 
 With the fix, the panel showed "Loading… (Esc stops)" while Windows tried the connection, then `\\192.0.2.1\share: The network path was not found.` with `Ctrl+R retries · Backspace goes up`.
 
-## Not covered
+## On rc.5's installed bytes
 
-- **The candidate's own bytes:** rc.5's Windows qualification repeats the probes on the installed candidate.
+The same probes ran on the installed `v1.0.0-rc.5` (`1.0.0+19002592`) in the VM, on addresses no earlier probe had used:
+
+| Case | rc.4 | rc.5 |
+|---|---|---|
+| Go to `\\192.0.2.12\share`: the window's longest wait to answer | 21,019 ms | 0 ms |
+| Start on `\\192.0.2.13\share` and `\\192.0.2.14\share`: window shown after | 22,037 and 22,010 ms | 1,371 and 1,292 ms |
+| Start on a local folder: window shown after | 908 to 1,110 ms | 905 to 955 ms |
+| Longest wait in the 25 s after a start | 113 to 128 ms | 11 to 178 ms |
+
+## Not covered
 - **A server that stops answering after its folder listed:** a few calls still ask that server on the window's thread. These are a new folder's or a rename's name check, and a paste of paths copied in another program. They wait only if the server stops answering after the folder listed. Path suggestions and command-line completion already ran off the window's thread.
 - **macOS and Linux:** a hung network mount (an NFS hard mount, say) belongs to the same class. The watcher's fix covers navigation on every platform, because that code is shared, but no probe with a hung mount was run.

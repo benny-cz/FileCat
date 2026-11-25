@@ -79,6 +79,13 @@ A local build of both rc.5 fixes (`1.0.0-dev+633ab423`, not a candidate) ran on 
 - Enter opened Windows' "Enter network credentials" prompt for 192.168.58.129.
 - Nothing was typed into the prompt. It closed when the probe stopped FileCat; nothing was connected or stored.
 
-## Not covered
+## c9 on rc.5, with the owner (2026-11-25)
 
-- The share-level sign-in with the owner, on the candidate's installed bytes: c9 on rc.5.
+The run used the installed rc.5 (`1.0.0+19002592`), the same share, `batch-c9-owner.ps1`, and no connection or stored credential before it began. The OneDrive guard found nothing changed.
+- **The notice:** the share said `\\192.168.58.129\fcqa requires credentials (The user name or password is incorrect.). Press Enter to sign in.`, as the screenshot shows.
+- **Enter:** FileCat stayed on the share, and Windows' credential broker started with its "Enter network credentials" prompt.
+- **The sign-in:** the owner signed in with the share's test account, typing the user name and password themselves and leaving "Remember my credentials" unticked.
+- **The listing:** FileCat listed the share (`readme.txt`, `sub`), and the `sub` folder listed `nested.txt`.
+- **Afterwards:** the only connection was a temporary one to `\\192.168.58.129\fcqa`, and the script removed it. No credential for the server was stored: 0 before, 0 after.
+
+Both of I672's gaps are closed on the candidate's installed bytes.

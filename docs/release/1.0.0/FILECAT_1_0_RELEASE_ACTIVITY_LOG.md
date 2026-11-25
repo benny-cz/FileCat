@@ -5693,3 +5693,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - Tagged run 45707588571 passed every job in its first attempt; its tests are identical to PR #67's run test by test (73,816P/13,699S/0F).
 - The owner approved the `signing` deployment in GitHub; signing and verification gave rc.4's counts (1,475 PE files, 0 failed, 4/4 controls; 249 files in the install round trip). Private draft 458724408 holds the 24 assets ([rc.5](evidence/E-RC5-TAG-20261125.md)); the release session downloaded all 24 and checked each against GitHub's digest and its manifest.
 - Qualification on rc.5's bytes: c1 in the Windows VM passes (an upgrade over rc.4, an uninstall and a fresh install; 402 of 402 setup files match the SBOM, 249 installed PE files verify). The Ubuntu and Mac runs started from the package jobs' artifacts, and the Windows runner (with the owner's approval of batch28's UAC change) started after c1; c9 follows with the owner.
+
+## 2026-11-25 — c9 on rc.5 passes with the owner
+
+- At the owner's request ("Now (pause runner)") the Windows runner was paused after batch2, and c9 ran on the installed rc.5: the share said it needs a sign-in, Enter stayed on it and opened Windows' prompt, the owner signed in, and FileCat listed the share and its sub folder; the temporary connection was removed and no credential was stored ([I672](evidence/E-I672-unc-sign-in-enter.md)).
+- I675's probes on the installed rc.5: Go to an unreachable share, longest wait 0 ms (21,019 ms on rc.4); a start on one showed the window after 1.4 and 1.3 s (22.0 s on rc.4) ([I675](evidence/E-I675-unanswering-share-window-stall.md)). The runner then resumed.
