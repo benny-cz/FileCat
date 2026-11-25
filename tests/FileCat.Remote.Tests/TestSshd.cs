@@ -40,6 +40,9 @@ internal sealed class TestSshd : IDisposable
     /// <param name="sftpDescriptors">The SFTP server process may hold this many descriptors (the system's sftp-server is
     /// then used, not sshd's own): every folder it has open holds one. Null where no sftp-server is found.</param>
     /// <param name="deniedRequests">SFTP requests the server refuses (sftp-server's -P, e.g. "fsetstat,setstat").</param>
+    /// <summary>The first port tried, as if another fixture had just taken it (this test flow only; I679).</summary>
+    internal static readonly AsyncLocal<int?> FirstPortForTests = new();
+
     public static TestSshd? TryStart(int? sftpDescriptors = null, bool disableLSetStat = false, string? privateReviewRoot = null,
         bool dropGroupReply = false, bool swapOnLSetStat = false, string? deniedRequests = null)
     {
@@ -86,39 +89,61 @@ internal sealed class TestSshd : IDisposable
         Run("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", Path.Combine(dir, "host"));
         Run("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", Path.Combine(dir, "client"));
         File.Copy(Path.Combine(dir, "client.pub"), Path.Combine(dir, "authorized_keys"));
-        int port;
-        using (var probe = new TcpListener(IPAddress.Loopback, 0))
+        // The probe frees its port before sshd binds it, and the Remote classes start their servers in parallel: another
+        // fixture can take the port first. This sshd then exits while a connect still reaches the other one, whose own exit
+        // later refused this fixture's test (I679). So the listener counts as this sshd's only once sshd has written its
+        // pid file, which OpenSSH does after binding its listen sockets; a lost port is tried again with another.
+        string pidFile = Path.Combine(dir, "sshd.pid");
+        for (int attempt = 0; attempt < 5; attempt++)
         {
-            probe.Start();
-            port = ((IPEndPoint)probe.LocalEndpoint).Port;
-        }
-        File.WriteAllText(Path.Combine(dir, "sshd_config"), string.Join('\n',
-            $"Port {port}", "ListenAddress 127.0.0.1", $"HostKey {dir}/host", $"PidFile {dir}/sshd.pid", $"AuthorizedKeysFile {dir}/authorized_keys",
-            "StrictModes no", "UsePAM no", "PasswordAuthentication no", "KbdInteractiveAuthentication no", "PubkeyAuthentication yes",
-            $"Subsystem sftp {sftp}", "LogLevel ERROR") + "\n");
-        var psi = new ProcessStartInfo(sshd) { UseShellExecute = false, RedirectStandardError = true, RedirectStandardOutput = true };
-        foreach (var a in new[] { "-D", "-e", "-f", Path.Combine(dir, "sshd_config") }) psi.ArgumentList.Add(a);
-        var process = Process.Start(psi)!;
-        process.BeginErrorReadLine();
-        process.BeginOutputReadLine();
-        for (int i = 0; i < 100; i++)
-        {
-            if (process.HasExited) return null;
-            try
+            int port;
+            using (var probe = new TcpListener(IPAddress.Loopback, 0))
             {
-                using var client = new TcpClient();
-                client.Connect(IPAddress.Loopback, port);
-                // "ssh-ed25519 AAAA… comment": the public key blob is the second field.
-                var hostKey = Convert.FromBase64String(File.ReadAllText(Path.Combine(dir, "host.pub")).Split(' ')[1]);
-                return new TestSshd(process, dir, port, hostKey);
+                probe.Start();
+                port = ((IPEndPoint)probe.LocalEndpoint).Port;
             }
-            catch (SocketException)
+            if (attempt == 0 && FirstPortForTests.Value is { } taken) port = taken;
+            File.Delete(pidFile);
+            File.WriteAllText(Path.Combine(dir, "sshd_config"), string.Join('\n',
+                $"Port {port}", "ListenAddress 127.0.0.1", $"HostKey {dir}/host", $"PidFile {pidFile}", $"AuthorizedKeysFile {dir}/authorized_keys",
+                "StrictModes no", "UsePAM no", "PasswordAuthentication no", "KbdInteractiveAuthentication no", "PubkeyAuthentication yes",
+                $"Subsystem sftp {sftp}", "LogLevel ERROR") + "\n");
+            var psi = new ProcessStartInfo(sshd) { UseShellExecute = false, RedirectStandardError = true, RedirectStandardOutput = true };
+            foreach (var a in new[] { "-D", "-e", "-f", Path.Combine(dir, "sshd_config") }) psi.ArgumentList.Add(a);
+            var process = Process.Start(psi)!;
+            process.BeginErrorReadLine();
+            process.BeginOutputReadLine();
+            for (int i = 0; i < 100 && !process.HasExited; i++)
             {
+                if (WrittenBy(pidFile, process.Id))
+                {
+                    try
+                    {
+                        using var client = new TcpClient();
+                        client.Connect(IPAddress.Loopback, port);
+                        // "ssh-ed25519 AAAA… comment": the public key blob is the second field.
+                        var hostKey = Convert.FromBase64String(File.ReadAllText(Path.Combine(dir, "host.pub")).Split(' ')[1]);
+                        return new TestSshd(process, dir, port, hostKey);
+                    }
+                    catch (SocketException) { }
+                }
                 Thread.Sleep(50);
             }
+            if (!process.HasExited)
+            {
+                // Started but never listened in five seconds: no later port fares better.
+                process.Kill();
+                return null;
+            }
+            process.Dispose(); // most likely the port was taken: try another
         }
-        process.Kill();
         return null;
+
+        static bool WrittenBy(string file, int pid)
+        {
+            try { return int.TryParse(File.ReadAllText(file).Trim(), out int written) && written == pid; }
+            catch (IOException) { return false; }
+        }
     }
 
     private const string DropGroupReplyFixture = """
