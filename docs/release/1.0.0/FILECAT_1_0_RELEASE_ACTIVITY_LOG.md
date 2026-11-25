@@ -5687,3 +5687,9 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - PR #67 synced `release/1.0` with main at `27a54d0f`; its run 45701846571 passed all 19 jobs that ran in its first attempt, the six rc.5 changes' first run together ([sync](evidence/E-REL-SYNC-20261125-release-branch.md)). It merged as `19002592`.
 - Under the owner's authorization ("Yes, tag rc.5") the release session tagged `v1.0.0-rc.5` (object `f0deea22`) on `19002592` ([rc.5](evidence/E-RC5-TAG-20261125.md)). Tagged run 45707588571 started; it waits for the owner's signing approval after its package jobs. The owner's walkthroughs now name rc.5.
+
+## 2026-11-25 — `v1.0.0-rc.5` built, signed and drafted; its qualification starts
+
+- Tagged run 45707588571 passed every job in its first attempt; its tests are identical to PR #67's run test by test (73,816P/13,699S/0F).
+- The owner approved the `signing` deployment in GitHub; signing and verification gave rc.4's counts (1,475 PE files, 0 failed, 4/4 controls; 249 files in the install round trip). Private draft 458724408 holds the 24 assets ([rc.5](evidence/E-RC5-TAG-20261125.md)); the release session downloaded all 24 and checked each against GitHub's digest and its manifest.
+- Qualification on rc.5's bytes: c1 in the Windows VM passes (an upgrade over rc.4, an uninstall and a fresh install; 402 of 402 setup files match the SBOM, 249 installed PE files verify). The Ubuntu and Mac runs started from the package jobs' artifacts, and the Windows runner (with the owner's approval of batch28's UAC change) started after c1; c9 follows with the owner.
