@@ -129,7 +129,7 @@ The release also holds one manifest per platform (`FileCat-1.0.0-windows-assets.
 
 **macOS (preview)**
 - Ad-hoc signed and not notarized, so Gatekeeper asks for **Open Anyway** on the first start. Not available: the Registry, MTP, programs' own icons and Shell thumbnails, administrator retry, and the Owner and Group columns.
-- Changes are limited to what your own account may make: changing an item's owner, changing other users' or root's items, system flags and a volume's Ignore ownership setting need an authorized helper that FileCat does not include.
+- Permissions are shown, not changed: released macOS builds make no mode, access-list, group or Finder-flag changes (Permissions and ownership says the macOS writer awaits release qualification). **Change attributes and times** still sets timestamps and Finder Hidden.
 - Attribute values are read only for folders; for files, names and sizes are listed (I651). The archive worker's memory is sampled and the worker is stopped above its budget, which a fast allocation can exceed between samples; it is not a hard ceiling. Finder's Put Back does not know FileCat's deletions; FileCat's Undo restores them.
 
 **Everywhere**
