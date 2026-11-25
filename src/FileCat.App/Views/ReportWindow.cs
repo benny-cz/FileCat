@@ -249,7 +249,7 @@ public sealed partial class ReportWindow : Window
             _copyAll.IsEnabled = _copyVisible.IsEnabled = _copyDisplayed.IsEnabled = _save.IsEnabled = CanPublishReport;
     }
 
-    private Task ReadAsync() => Reading = _detailsReader is null ? ReadCoreAsync() : ReadDetailsCoreAsync();
+    private Task ReadAsync() => Reading = _detailsReader is null ? ReadCoreAsync() : _recordShown ? ReadRecordCoreAsync() : ReadDetailsCoreAsync();
 
     private async Task ReadCoreAsync()
     {
@@ -307,12 +307,14 @@ public sealed partial class ReportWindow : Window
         }
     }
 
-    private void Show(string text, SupplementaryValueReport? supplementary = null)
+    /// <param name="spoken">What the spoken line says for each line of <paramref name="text"/> (null: the line as shown).</param>
+    private void Show(string text, SupplementaryValueReport? supplementary = null, string?[]? spoken = null)
     {
         _searching?.Cancel();
         _copying?.Cancel();
         _saving?.Cancel();
         _supplementaryReport = supplementary;
+        _spokenForms = spoken;
         _text = text;
         _lineCount = text.Length == 0 ? 0 : 1 + text.AsSpan(0, text[^1] == '\n' ? text.Length - 1 : text.Length).Count('\n');
         _lineIndex = _lineStart = _segmentIndex = 0;
@@ -399,6 +401,9 @@ public sealed partial class ReportWindow : Window
         int segmentStart = _segmentStarts[_segmentIndex];
         int segmentEnd = SegmentEnd(segmentStart, end);
         string body = segmentStart == end ? "(blank line)" : _text[segmentStart..segmentEnd];
+        // A structured report's line in words (a heading, a field, a table row under its column names), when it is read whole.
+        if (_spokenForms is { } forms && _lineIndex < forms.Length && forms[_lineIndex] is { } said && _segmentIndex == 0 && segmentEnd == end)
+            body = said;
         string part = _segmentIndex > 0 || segmentEnd < end ? $", part {_segmentIndex + 1}" : string.Empty;
         _spokenLine.Text = $"Line {_lineIndex + 1} of {_lineCount}{part}. {Formatters.SafeName(body)}";
         _previousLine.IsEnabled = _lineIndex > 0 || _segmentIndex > 0;
@@ -407,7 +412,12 @@ public sealed partial class ReportWindow : Window
 
     private void UpdateStatus()
     {
-        if (_detailsReader is not null) { UpdateDetailsStatus(); return; }
+        if (_detailsReader is not null)
+        {
+            if (_recordShown) UpdateRecordStatus();
+            else UpdateDetailsStatus();
+            return;
+        }
         int lines = _text.Count(c => c == '\n');
         _status.Text = (_searchNotice is { } notice ? notice + " · " : "") +
             $"{_subject} · read at {_readAt.ToString("T", CultureInfo.CurrentCulture)} · {lines.ToString("N0", CultureInfo.CurrentCulture)} lines · F5 reads it again";
@@ -540,6 +550,7 @@ public sealed partial class ReportWindow : Window
     private async Task CopyAsync(bool all)
     {
         if (!all) { await CopyTextAsync(displayed: false, explicitVisible: false); return; }
+        if (RecordOutputRefusal is { } refused) { _copyNotice.Show(refused); return; }
         if (_closing.IsCancellationRequested || !CanPublishReport || Clipboard is not { } clipboard) return;
         _copying?.Cancel();
         using var cts = _copying = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
@@ -581,6 +592,7 @@ public sealed partial class ReportWindow : Window
 
     internal async Task CopyTextAsync(bool displayed, bool explicitVisible, Avalonia.Input.Platform.IClipboard? targetClipboard = null)
     {
+        if (RecordOutputRefusal is { } refused) { _copyNotice.Show(refused); return; }
         if (_closing.IsCancellationRequested || !CanPublishReport || (targetClipboard ?? Clipboard) is not { } clipboard) return;
         _copying?.Cancel();
         using var cts = _copying = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
@@ -624,6 +636,7 @@ public sealed partial class ReportWindow : Window
 
     private async Task SaveAsync()
     {
+        if (RecordOutputRefusal is { } refused) { _status.Text = refused; return; }
         if (_closing.IsCancellationRequested || !CanPublishReport) return;
         _saving?.Cancel();
         using var cts = _saving = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
@@ -631,6 +644,7 @@ public sealed partial class ReportWindow : Window
         string capturedText = _text;
         var capturedReader = _reader;
         var supplementary = _supplementaryReport;
+        string kind = _recordShown ? RecordKind : _kind;
         string? startedOutput = null;
         try
         {
@@ -638,7 +652,7 @@ public sealed partial class ReportWindow : Window
             using var picked = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = supplementary is null ? "Save the report as a text file" : "Save the report to a new text file",
-                SuggestedFileName = $"{(stem.Length > 0 ? stem : "report")} - {_kind}.txt",
+                SuggestedFileName = $"{(stem.Length > 0 ? stem : "report")} - {kind}.txt",
                 DefaultExtension = "txt",
                 FileTypeChoices = [new FilePickerFileType("Text") { Patterns = ["*.txt"] }],
             });

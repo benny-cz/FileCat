@@ -173,9 +173,13 @@ make every parser a full sandbox.
   and permissions. On macOS, attribute values are read for folders only; a file's are listed by
   name and size. **File-system details** (Ctrl+Alt+Enter) summarize an item's metadata, and
   **Read full record** adds NTFS extent records, hard-link names, sparse ranges and WOF backing on
-  Windows, and the supported native fields on Linux and macOS. Both show metadata only: no raw MFT,
-  `$LogFile` or `$Secure` records. On Windows, **Tools → Change journal of this drive** lists a
-  drive's USN journal.
+  Windows, and the supported native fields on Linux and macOS; both show metadata only.
+  **Read file-system record** then shows what the file system itself records: IDs, exact times
+  with timestamp checks, journal entries, links, reparse and cloud data, clusters, streams and
+  attributes with what they say, and security. In an administrator window it adds NTFS's raw
+  records (the MFT record and its runs, `$LogFile`, `$Secure`, index entries and the item's
+  journal history); FileCat run as root adds ext4's on-disk inode, FAT entries and HFS+'s
+  journal. On Windows, **Tools → Change journal of this drive** lists a drive's USN journal.
 - **Verify deliberately:** calculate hashes, check checksum manifests and automatic sidecars,
   or verify minisign/OpenPGP signatures. Weak hashes are labelled as integrity checks rather than
   proof of origin.
