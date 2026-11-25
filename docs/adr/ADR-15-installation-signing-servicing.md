@@ -19,7 +19,8 @@
 - **Update check (amended 2026-11-03).** Automatic checks are on for new profiles and can be turned off in Privacy;
   saved off preferences stay off. At startup a request goes to the GitHub releases API unless the last check finished
   less than a day ago; a check still running when the main window closes is not remembered, so the next start asks
-  again, and an administrator window or a root FileCat, which keeps no settings, asks each time it starts. A newer release
+  again. An administrator window or a root FileCat, which keeps no settings and so cannot see the user's choice, never
+  checks automatically (I670). A newer release
   uses the same dialog as Help → Check for updates and can be skipped by version; offline checks stay silent. Help's
   explicit check works even when automatic checks are off. FileCat never downloads or installs update packages.
   Requested network locations and optional network services can also connect; the update preference does not control them.
