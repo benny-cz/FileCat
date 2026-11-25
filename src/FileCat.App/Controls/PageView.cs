@@ -88,19 +88,38 @@ public sealed class PageView : NativeControlHost
     private int _loadGeneration;
 
     /// <summary>
-    /// How long a page may load before the viewer says that it has not finished and how to get past it (release issue
-    /// I648: WebView2 sometimes never reported a page's completion, and the page stayed blank with nothing said).
+    /// How long after it was asked for a page may load before the viewer says that it has not finished and how to get
+    /// past it (release issue I648: WebView2 sometimes never reported a page's completion, and the page stayed blank with
+    /// nothing said).
     /// </summary>
     internal TimeSpan SlowLoadNotice { get; set; } = TimeSpan.FromSeconds(10);
     private IDisposable? _slowTimer;
 
-    /// <summary>Whether the page has been loading for longer than <see cref="SlowLoadNotice"/>.</summary>
+    /// <summary>
+    /// When the page now shown was asked for (<see cref="Environment.TickCount64"/>): <see cref="SlowLoadNotice"/> counts
+    /// from then, the reader's wait before this view had the page included (I648: the viewer's own opening, the file's
+    /// first bytes read, the native view made).
+    /// </summary>
+    private long _askedAt;
+
+    /// <summary>Whether the page has not finished loading <see cref="SlowLoadNotice"/> after it was asked for.</summary>
     public bool LoadIsSlow { get; private set; }
 
-    /// <summary>Shows a page, now or once the native view exists.</summary>
-    public void Show(HtmlPage page)
+    /// <summary>
+    /// Whether the engine has yet to start because the browser of the pages closed just before is still ending (WebView2,
+    /// I648): the page cannot begin to load until it has, and Refresh would not hurry it.
+    /// </summary>
+    public bool WaitsForPreviousBrowser => _engine?.WaitsForPreviousBrowser ?? false;
+
+    /// <summary>Shows a page asked for now (a Refresh, a mode the reader chose), now or once the native view exists.</summary>
+    public void Show(HtmlPage page) => Show(page, Environment.TickCount64);
+
+    /// <summary>Shows a page that the reader asked for at <paramref name="askedAt"/> (<see cref="Environment.TickCount64"/>;
+    /// F3 or a link, before the viewer opened), now or once the native view exists.</summary>
+    public void Show(HtmlPage page, long askedAt)
     {
         _page = page;
+        _askedAt = Math.Min(askedAt, Environment.TickCount64);
         PageLoaded = false;
         LoadIsSlow = false;
         if (_engine is { } engine) Load(engine, page);
@@ -113,12 +132,15 @@ public sealed class PageView : NativeControlHost
         _slowTimer?.Dispose();
         int generation = ++_loadGeneration;
         engine.Show(page);
+        long askedAt = _askedAt;
+        var notice = SlowLoadNotice - TimeSpan.FromMilliseconds(Environment.TickCount64 - askedAt);
         _slowTimer = DispatcherTimer.RunOnce(() =>
         {
             if (generation != _loadGeneration || PageLoaded || !ReferenceEquals(engine, _engine)) return;
             LoadIsSlow = true;
+            engine.ReportSlowLoad(TimeSpan.FromMilliseconds(Environment.TickCount64 - askedAt));
             Changed?.Invoke();
-        }, SlowLoadNotice);
+        }, notice > TimeSpan.FromMilliseconds(1) ? notice : TimeSpan.FromMilliseconds(1));
         if (LoadTimeout is not { } timeout) return;
         _loadTimer = DispatcherTimer.RunOnce(() =>
         {
@@ -467,6 +489,12 @@ internal interface IPageEngine : IDisposable
     void SetSize(int width, int height);
     void Focus();
     bool HasKeyboardFocus => false;
+    /// <summary>The engine has yet to start: it waits for the browser of the pages closed just before to end (a change
+    /// raises <see cref="Changed"/>).</summary>
+    bool WaitsForPreviousBrowser => false;
+    /// <summary>The viewer now says that the page has not finished loading, this long after it was asked for: the engine
+    /// may log how far the page got.</summary>
+    void ReportSlowLoad(TimeSpan sinceAsked) { }
     Task<bool> ScrollByPageAsync(int direction) => Task.FromResult(false);
     Task<(double X, double Y)?> CaptureScrollPositionAsync(CancellationToken ct) =>
         Task.FromResult<(double X, double Y)?>(null);
@@ -549,6 +577,7 @@ internal sealed class WindowsPageEngine : IPageEngine
         _view.FocusGained += () => FocusRequested?.Invoke();
         _view.TitleChanged += _ => Changed?.Invoke();
         _view.Blocked += _ => Changed?.Invoke();
+        _view.WaitChanged += () => Changed?.Invoke();
         _view.Loaded += (ok, why) => Loaded?.Invoke(ok, why);
         _view.LinkedMarkdown += (page, target) => LinkedMarkdown?.Invoke(page, target);
         _view.KeyPressed = (virtualKey, ctrl, shift, alt) =>
@@ -563,6 +592,8 @@ internal sealed class WindowsPageEngine : IPageEngine
     public string? Title => _view.Title;
     public int BlockedCount => _view.BlockedCount;
     public bool HasKeyboardFocus => _view.HasNativeFocus;
+    public bool WaitsForPreviousBrowser => _view.WaitsForPreviousBrowser;
+    public void ReportSlowLoad(TimeSpan sinceAsked) => _view.ReportSlowLoad(sinceAsked);
     public event Action? Changed;
     public event Action<bool, string?>? Loaded;
     public event Action? FocusRequested;

@@ -82,6 +82,7 @@ public sealed partial class PageViewTests
     /// Release issue I648, the stall reproduced: page views share their data folder's browser process, and a view started
     /// while that process was exiting, its folder's last view just closed, waited minutes for its controller or failed with
     /// ERROR_BUSY. A view opened right after the last one closed waits for the old browser to exit, then draws its page.
+    /// It says when it begins and ends that wait, so the viewer can say what a slow page waits for (I648's follow-up).
     /// </summary>
     [Fact]
     public void A_page_opened_right_after_the_folders_last_one_closed_waits_for_the_old_browser_to_exit()
@@ -92,27 +93,40 @@ public sealed partial class PageViewTests
         string links = Path.Combine(site, "links.md");
         File.WriteAllText(links, "# Links\n\n[Plan](plan.md)\n");
         string data = Path.Combine(_dir, "webview-exits");
-        string? first = null, second = null;
+        (string Timeline, List<bool> Waits)? first = null, second = null;
         StaPump.Run(async () =>
         {
             first = await OpenAndClose();
             second = await OpenAndClose();
         }, TimeSpan.FromSeconds(120));
 
-        TestContext.Current.TestOutputHelper?.WriteLine("First view:\n" + first + "\nSecond view:\n" + second);
-        Assert.DoesNotContain("waiting for the folder's previous browser process to exit", first, StringComparison.Ordinal);
-        Assert.Contains("waiting for the folder's previous browser process to exit", second, StringComparison.Ordinal);
+        TestContext.Current.TestOutputHelper?.WriteLine("First view:\n" + first?.Timeline + "\nSecond view:\n" + second?.Timeline);
+        Assert.DoesNotContain("waiting for the folder's previous browser process to exit", first!.Value.Timeline, StringComparison.Ordinal);
+        Assert.Empty(first.Value.Waits);
+        string timeline = second!.Value.Timeline;
+        Assert.Contains("waiting for the folder's previous browser process to exit", timeline, StringComparison.Ordinal);
         // On a busy runner the exit may take longer than the view waits for it; the view starts all the same then.
-        Assert.True(second!.Contains("it exited after", StringComparison.Ordinal) ||
-            second.Contains("it did not exit within", StringComparison.Ordinal), second);
+        Assert.True(timeline.Contains("it exited after", StringComparison.Ordinal) ||
+            timeline.Contains("it did not exit within", StringComparison.Ordinal), timeline);
+        // The viewer hears of the wait as it begins and as it ends (I648: it says what the page waits for), and the log
+        // says what a slow page waits for.
+        Assert.Equal(new[] { true, false }, second.Value.Waits);
+        Assert.Contains("viewer: the page has not finished loading 10.0 s after it was asked for (", timeline, StringComparison.Ordinal);
+        Assert.Contains(", while the view waits for its folder's previous browser process to exit", timeline, StringComparison.Ordinal);
 
-        async Task<string> OpenAndClose()
+        async Task<(string, List<bool>)> OpenAndClose()
         {
             nint parent = StaPump.CreateHiddenWindow();
             try
             {
                 using var source = new FileContentSource(links);
                 using var view = new WebView2Page(parent, data);
+                var waits = new List<bool>();
+                view.WaitChanged += () =>
+                {
+                    waits.Add(view.WaitsForPreviousBrowser);
+                    if (view.WaitsForPreviousBrowser) view.ReportSlowLoad(TimeSpan.FromSeconds(10));
+                };
                 var loaded = new TaskCompletionSource<(bool Ok, string? Why)>(TaskCreationOptions.RunContinuationsAsynchronously);
                 view.Loaded += (ok, why) => loaded.TrySetResult((ok, why));
                 view.SetSize(640, 480);
@@ -120,7 +134,8 @@ public sealed partial class PageViewTests
                 var (ok, why) = await loaded.Task.WaitAsync(TimeSpan.FromSeconds(50));
                 Assert.True(ok, why + "\n" + view.LoadDiagnostics);
                 Assert.Equal("links.md", view.Title);
-                return view.Timeline.Describe();
+                Assert.False(view.WaitsForPreviousBrowser);
+                return (view.Timeline.Describe(), waits);
             }
             finally { StaPump.DestroyWindow(parent); }
         }
