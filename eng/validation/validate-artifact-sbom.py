@@ -8,6 +8,7 @@ import json
 import os
 import pathlib
 import shutil
+import struct
 import subprocess
 import sys
 import urllib.parse
@@ -16,13 +17,21 @@ import zipfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 REFERENCE_BYTES = b"reviewed-reference-assembly-fixture\x00\x02"
 REFERENCE_PATH = "lib_manual/netcoreapp3.0/Fixture.Package.Core.dll"
+# A file the package's build targets copy into the app folder without the dependency manifest naming it (as WebView2's
+# copy its XML documentation and loader), and a license text the notice index retains.
+UNLISTED_PATH = "lib/net10.0/Fixture.Package.xml"
+UNLISTED_BYTES = b"package-documentation-fixture\x00\x08"
+LICENSE_BYTES = b"fixture license text\n"
 # The files publishing takes from the restored package and runtime pack folders, by archive member name (NuGet escapes
-# member names and restores them unescaped).
+# member names and restores them unescaped). The empty member is a NuGet placeholder, like a real package's _._ files.
 PACKAGE_MEMBERS = {
     "lib/net10.0/Fixture.Package.dll": b"package-runtime-fixture\x00\x03",
     "runtimes/win-x64/native/fixture.native.dll": b"package-native-fixture\x00\x04",
     "lib/net10.0/de/Fixture%2BPackage.resources.dll": b"package-resources-fixture\x00\x05",
     REFERENCE_PATH: REFERENCE_BYTES,
+    UNLISTED_PATH: UNLISTED_BYTES,
+    "lib/netstandard2.0/_._": b"",
+    "LICENSE": LICENSE_BYTES,
 }
 RUNTIME_MEMBERS = {
     "runtimes/win-x64/lib/net10.0/System.Fixture.dll": b"runtime-managed-fixture\x00\x06",
@@ -51,6 +60,127 @@ RUNTIME_ARCHIVE_SHA512 = base64.b64encode(hashlib.sha512(RUNTIME_ARCHIVE_BYTES).
 PACKAGE_ARCHIVE_BYTES = make_archive(PACKAGE_MEMBERS)
 PACKAGE_ARCHIVE_SHA256 = hashlib.sha256(PACKAGE_ARCHIVE_BYTES).hexdigest()
 PACKAGE_ARCHIVE_SHA512 = base64.b64encode(hashlib.sha512(PACKAGE_ARCHIVE_BYTES).digest()).decode("ascii")
+
+# The .NET apphost: the SDK binds its template to an app by writing the DLL's name over this placeholder (the SHA-256 text
+# of "foobar"). The template also keeps the placeholder's two halves apart, as the binding check that survives binding.
+PLACEHOLDER = b"c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"
+APPHOST_LICENSE = b"apphost pack license fixture\n"
+
+
+def apphost_body(tag: bytes) -> bytes:
+    return tag * 8 + PLACEHOLDER[:32] + b"\0" + PLACEHOLDER[32:] + b"\0" + tag * 2 + PLACEHOLDER + bytes(64) + tag * 4
+
+
+def bind(data: bytes, dll: str) -> bytes:
+    name = dll.encode("utf-8")
+    at = data.index(PLACEHOLDER)
+    return data[:at] + name + bytes(len(PLACEHOLDER) - len(name)) + data[at + len(PLACEHOLDER):]
+
+
+def elf(body: bytes) -> bytes:
+    return b"\x7fELF\x02\x01\x01" + bytes(9) + body
+
+
+def code_signature(flags: int, cms: bytes) -> bytes:
+    """A code-signature SuperBlob (big-endian): a CodeDirectory with these flags (0x2 is ad hoc), then a CMS wrapper."""
+    slots = [(0, struct.pack(">IIII", 0xFADE0C02, 24, 0x20400, flags) + bytes(8)),
+             (0x10000, struct.pack(">II", 0xFADE0B01, 8 + len(cms)) + cms)]
+    offset, index, blobs = 12 + 8 * len(slots), b"", b""
+    for slot, blob in slots:
+        index += struct.pack(">II", slot, offset)
+        blobs += blob
+        offset += len(blob)
+    return struct.pack(">III", 0xFADE0CC0, offset, len(slots)) + index + blobs
+
+
+def macho(body: bytes, signature: bytes) -> bytes:
+    """A thin arm64 Mach-O: __TEXT over the header and body, __LINKEDIT holding only the code signature."""
+    commands = 72 + 72 + 16
+    signature_offset = (32 + commands + len(body) + 15) // 16 * 16
+    header = struct.pack("<IiiIIIII", 0xFEEDFACF, 0x0100000C, 0, 2, 3, commands, 0x00200085, 0)
+    text = struct.pack("<II16sQQQQiiII", 0x19, 72, b"__TEXT", 0x100000000, 0x4000, 0, signature_offset, 5, 5, 0, 0)
+    linkedit = struct.pack("<II16sQQQQiiII", 0x19, 72, b"__LINKEDIT", 0x100004000, (len(signature) + 0x3FFF) // 0x4000 * 0x4000,
+                           signature_offset, len(signature), 1, 1, 0, 0)
+    signature_command = struct.pack("<IIII", 0x1D, 16, signature_offset, len(signature))
+    data = header + text + linkedit + signature_command + body
+    return data + bytes(signature_offset - len(data)) + signature
+
+
+def resource_section(rva: int, leaves) -> bytes:
+    """A .rsrc section: one type/name/language path per (type, name, language, data) leaf."""
+    count = len(leaves)
+    names, languages = 16 + 8 * count, 16 + 8 * count + 24 * count
+    entries = languages + 24 * count
+    offset = entries + 16 * count
+    out = struct.pack("<IIHHHH", 0, 0, 0, 0, 0, count)
+    out += b"".join(struct.pack("<II", leaf[0], 0x80000000 | (names + 24 * i)) for i, leaf in enumerate(leaves))
+    out += b"".join(struct.pack("<IIHHHHII", 0, 0, 0, 0, 0, 1, leaf[1], 0x80000000 | (languages + 24 * i)) for i, leaf in enumerate(leaves))
+    out += b"".join(struct.pack("<IIHHHHII", 0, 0, 0, 0, 0, 1, leaf[2], entries + 16 * i) for i, leaf in enumerate(leaves))
+    blobs = b""
+    for leaf in leaves:
+        out += struct.pack("<IIII", rva + offset + len(blobs), len(leaf[3]), 1252, 0)
+        blobs += leaf[3] + bytes(-len(leaf[3]) % 4)
+    return out + blobs
+
+
+def pe(sections, *, subsystem=3, timestamp=0x6ADAF2B3, checksum=0, resources=None, certificate=None) -> bytes:
+    """A minimal PE32+ (x64) image: its sections in order, then a .rsrc section with the given leaves, then an
+    Authenticode-shaped certificate blob."""
+    file_align, section_align, headers = 0x200, 0x1000, 0x400
+    planned = list(sections) + ([(b".rsrc", None)] if resources is not None else [])
+    built, raw, virtual = [], headers, section_align
+    for name, data in planned:
+        data = resource_section(virtual, resources) if data is None else data
+        size = (len(data) + file_align - 1) // file_align * file_align
+        built.append((name, data, virtual, raw, size))
+        raw += size
+        virtual += (len(data) + section_align - 1) // section_align * section_align
+    directories = [(0, 0)] * 16
+    for name, data, address, _, _ in built:
+        if name == b".reloc":
+            directories[5] = (address, len(data))
+        if name == b".rsrc":
+            directories[2] = (address, len(data))
+    blob = b""
+    if certificate is not None:
+        blob = struct.pack("<IHH", 8 + len(certificate), 0x0200, 0x0002) + certificate
+        blob += bytes(-len(blob) % 8)
+        directories[4] = (raw, len(blob))
+    optional = struct.pack("<HBBIIIIIQIIHHHHHHIIIIHHQQQQII", 0x20B, 14, 0, len(built[0][1]), sum(len(b[1]) for b in built[1:]), 0,
+                           0x1000, 0x1000, 0x140000000, section_align, file_align, 6, 0, 0, 0, 6, 0, 0, virtual, headers, checksum,
+                           subsystem, 0xC160, 0x100000, 0x1000, 0x100000, 0x1000, 0, 16)
+    optional += b"".join(struct.pack("<II", *directory) for directory in directories)
+    coff = struct.pack("<HHIIIHH", 0x8664, len(built), timestamp, 0, 0, len(optional), 0x22)
+    head = b"MZ" + bytes(0x3A) + struct.pack("<I", 0x80) + b"dos-stub-fixture".ljust(0x40, b"\0") + b"PE\0\0" + coff + optional
+    head += b"".join(struct.pack("<8sIIIIIIHHI", name, len(data), address, size, pointer, 0, 0, 0, 0, 0x40000040)
+                     for name, data, address, pointer, size in built)
+    image = head + bytes(headers - len(head))
+    for _, data, _, _, size in built:
+        image += data + bytes(size - len(data))
+    return image + blob
+
+
+PE_SECTIONS = [(b".text", b"pe-code-fixture;" * 64), (b".data", apphost_body(b"pe-data;")), (b".reloc", b"reloc-fixture;" * 8)]
+RESOURCES = [(16, 1, 0, b"version-resource-fixture"), (24, 1, 0, b"<assembly manifest fixture/>")]
+
+
+def apphost_files(fmt: str, dll: str, *, bound_to=None, change=None, signed=True):
+    """The template of an apphost pack and the launcher made from it (bound to the given DLL, or bound_to), with change
+    applied to the launcher, plus the DLL its Windows launcher's resources come from."""
+    if fmt == "pe":
+        template = pe(PE_SECTIONS)
+        bound = [(name, bind(data, bound_to or dll) if name == b".data" else data) for name, data in PE_SECTIONS]
+        launcher = pe(bound, subsystem=2, timestamp=0x6ADA0000, checksum=0x5330F, resources=RESOURCES,
+                      certificate=b"pkcs7-fixture;" * 40 if signed else None)
+        app = pe([(b".text", b"managed-app-fixture;" * 16)], resources=RESOURCES)
+    elif fmt == "elf":
+        template = elf(apphost_body(b"elf-code;"))
+        launcher, app = bind(template, bound_to or dll), b"managed-app-fixture"
+    else:
+        template = macho(apphost_body(b"macho-code;"), code_signature(0x10000, b"vendor-cms-fixture;" * 20))
+        launcher = macho(bind(apphost_body(b"macho-code;"), bound_to or dll), code_signature(0x2, b""))
+        app = b"managed-app-fixture"
+    return template, (change(launcher) if change else launcher), app
 
 
 def digest(path: pathlib.Path) -> str:
@@ -112,6 +242,7 @@ def snapshot(extra_package=False):
         })
     return {
         "SchemaVersion": 1,
+        "Files": [{"Path": "fixture/LICENSE", "Bytes": len(LICENSE_BYTES), "SHA256": hashlib.sha256(LICENSE_BYTES).hexdigest()}],
         "Packages": packages,
         "RuntimePacks": [{
             "ID": "Microsoft.NETCore.App.Runtime.win-x64", "Version": "10.0.14", "RID": "win-x64",
@@ -160,6 +291,50 @@ def edit_json(path: pathlib.Path, change) -> None:
     write_json(path, value)
 
 
+def add_apphost(payload: pathlib.Path, index: pathlib.Path, packages_root: pathlib.Path, *, fmt: str, rid: str, version="10.0.14",
+                bound_to=None, change=None, signed=True, restored=True, packs_root=None, index_change=None):
+    """A reviewed apphost pack for rid (its archive restored, or only its template in an SDK packs folder), and the
+    launcher made from it beside FileCat.dll in the payload."""
+    launcher_name = "FileCat.exe" if rid.startswith("win-") else "FileCat"
+    template, launcher, app = apphost_files(fmt, "FileCat.dll", bound_to=bound_to, change=change, signed=signed)
+    template_path = f"runtimes/{rid}/native/apphost" + (".exe" if rid.startswith("win-") else "")
+    pack_id = f"Microsoft.NETCore.App.Host.{rid}"
+    members = {template_path: template, "LICENSE.TXT": APPHOST_LICENSE}
+    archive = make_archive(members)
+    if restored:
+        folder = packages_root / pack_id.lower() / version
+        folder.mkdir(parents=True)
+        nupkg = folder / f"{pack_id.lower()}.{version}.nupkg"
+        nupkg.write_bytes(archive)
+        pathlib.Path(str(nupkg) + ".sha512").write_text(base64.b64encode(hashlib.sha512(archive).digest()).decode("ascii") + "\n", encoding="utf-8")
+        restore(folder, members)
+    if packs_root is not None:
+        packed = packs_root / "packs" / pack_id / version / template_path
+        packed.parent.mkdir(parents=True)
+        packed.write_bytes(template)
+    (payload / launcher_name).write_bytes(launcher)
+    (payload / "FileCat.dll").write_bytes(app)
+
+    def change_index(value):
+        value["Files"].append({"Path": "runtime/LICENSE.TXT", "Bytes": len(APPHOST_LICENSE), "SHA256": hashlib.sha256(APPHOST_LICENSE).hexdigest()})
+        value["AppHostPacks"] = [{
+            "ID": pack_id, "Version": version, "RID": rid,
+            "PackageArchiveSHA256": hashlib.sha256(archive).hexdigest(),
+            "RawArchiveSHA512": base64.b64encode(hashlib.sha512(archive).digest()).decode("ascii"),
+            "TemplatePath": template_path, "TemplateBytes": len(template), "TemplateSHA256": hashlib.sha256(template).hexdigest(),
+            "RetainedNoticePaths": ["runtime/LICENSE.TXT"],
+        }]
+        if index_change:
+            index_change(value)
+    edit_json(index, change_index)
+
+
+def declare_unlisted(value, sha256=None):
+    value["Packages"][0]["UnlistedPayloadFiles"] = [{
+        "Path": "Fixture.Package.xml", "PackagePath": UNLISTED_PATH, "Bytes": len(UNLISTED_BYTES),
+        "SHA256": sha256 or hashlib.sha256(UNLISTED_BYTES).hexdigest(), "CopiedBy": "the fixture package's build targets"}]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--evidence-dir", required=True)
@@ -193,13 +368,16 @@ def main() -> int:
             extras=(), mutate=None, mutate_runtime_archive=False, mutate_package_archive=False,
             expected_reference_sha256=None, projects=(), expected_project_licenses=None, project_runtime=None,
             project_files=(), expected_root_comment=None, expected_appimage_runtime=False, expected_inno=False,
-            mutate_restored=None, expected_package_comment=None):
+            mutate_restored=None, expected_package_comment=None, rid="win-x64", setup=None, extra_environment=None,
+            expected_apphost=None, expected_unlisted=()):
         folder = evidence / "cases" / name
         payload, index, packages_root = prepare(folder, include_runtime=include_runtime, package_hash=package_hash,
                                                 runtime_hash=runtime_hash, package_id=package_id,
                                                 reference_id=reference_id, reference_hash=reference_hash,
                                                 extra_package=extra_package, projects=projects,
                                                 project_runtime=project_runtime, project_files=project_files)
+        if setup:
+            setup(folder, payload, index, packages_root)
         if mutate:
             mutate(payload, index)
         if mutate_runtime_archive:
@@ -213,10 +391,11 @@ def main() -> int:
         output = payload / "inside.spdx.json" if output_inside else folder / "result.spdx.json"
         if precreate:
             output.write_text("preserve", encoding="utf-8")
-        command = ["dotnet", str(tool), str(payload), str(index), "1.0.0-rc.1", "win-x64", kind,
+        command = ["dotnet", str(tool), str(payload), str(index), "1.0.0-rc.1", rid, kind,
                    "a" * 40, "2026-10-28T12:00:00Z", str(output)] + list(extras)
         environment = dict(os.environ)
         environment["NUGET_PACKAGES"] = str(packages_root)
+        environment.update({key: value(folder) for key, value in (extra_environment or {}).items()})
         result = subprocess.run(command, cwd=ROOT, text=True, capture_output=True, env=environment)
         (folder / "stdout.txt").write_text(result.stdout, encoding="utf-8")
         (folder / "stderr.txt").write_text(result.stderr, encoding="utf-8")
@@ -261,6 +440,30 @@ def main() -> int:
                 "OutsideFileCat": not set(inno_files) & set(root_package["hasFiles"]),
                 "NamesUninstaller": "unins000.exe" in inno_package["comment"],
             }
+            # The apphost package, what is generated from it and how; the files expanded from a package's archive.
+            names_by_id = {value["SPDXID"]: value["fileName"] for value in files}
+            comments_by_name = {value["fileName"]: value["comment"] for value in files}
+            host = next((value for value in document["packages"] if value["SPDXID"].startswith("SPDXRef-AppHost-")), None)
+            generated = sorted(names_by_id[value["spdxElementId"]] for value in document["relationships"]
+                               if value["relationshipType"] == "GENERATED_FROM" and host and value["relatedSpdxElement"] == host["SPDXID"])
+            details["AppHost"] = None if host is None else {
+                "Name": host["name"], "Version": host["versionInfo"], "License": host["licenseDeclared"],
+                "Purl": host["externalRefs"][0]["referenceLocator"],
+                "DependedOn": any(value["spdxElementId"] == "SPDXRef-Package-FileCat" and value["relationshipType"] == "DEPENDS_ON"
+                                  and value["relatedSpdxElement"] == host["SPDXID"] for value in document["relationships"]),
+                "Generated": generated, "Relations": [comments_by_name[name] for name in generated],
+            }
+            details["Unlisted"] = sorted(names_by_id[value["spdxElementId"]] for value in document["relationships"]
+                                         if value["relationshipType"] == "EXPANDED_FROM_ARCHIVE")
+            if expected_apphost is None:
+                passed = passed and details["AppHost"] is None
+            else:
+                (host_name, host_version, launcher, relation) = expected_apphost
+                actual = details["AppHost"]
+                passed = (passed and actual is not None and actual["Name"] == host_name and actual["Version"] == host_version
+                          and actual["License"] == "MIT" and actual["Purl"] == f"pkg:nuget/{host_name}@{host_version}"
+                          and actual["DependedOn"] and actual["Generated"] == [launcher] and relation in actual["Relations"][0])
+            passed = passed and details["Unlisted"] == sorted(expected_unlisted)
             passed = (passed and details["SPDXVersion"] == "SPDX-2.3" and details["SortedUniqueFiles"]
                       and details["GeneratorAssemblyHashBound"])
             if expected_reference_sha256 is not None:
@@ -378,6 +581,80 @@ def main() -> int:
     run("existing-output-preserved", False, precreate=True)
     run("duplicate-extra-logical-path", False, kind="appimage",
         extras=(f"nested/native.bin={extra}",))
+
+    # The .NET apphost. A launcher carrying the apphost's binding check must be a reviewed template of the payload's RID,
+    # bound to the DLL beside it and changed only as each platform changes it: Windows adds the DLL's Win32 resources, the
+    # GUI subsystem and an Authenticode signature; macOS replaces the code signature; Linux changes nothing else.
+    def apphost(fmt, rid, **options):
+        return lambda _folder, payload, index, packages_root: add_apphost(payload, index, packages_root, fmt=fmt, rid=rid, **options)
+
+    pe_relation = "a .rsrc section with exactly FileCat.dll's 2 Win32 resources; an Authenticode signature"
+    run("apphost-pe", True, setup=apphost("pe", "win-x64"),
+        expected_apphost=("Microsoft.NETCore.App.Host.win-x64", "10.0.14", "./FileCat.exe", pe_relation))
+    run("apphost-pe-unsigned-fdd", True, kind="fdd", include_runtime=False, setup=apphost("pe", "win-x64", signed=False),
+        expected_apphost=("Microsoft.NETCore.App.Host.win-x64", "10.0.14", "./FileCat.exe", "FileCat.dll's 2 Win32 resources"))
+    run("apphost-elf", True, kind="fdd", include_runtime=False, rid="linux-x64", setup=apphost("elf", "linux-x64"),
+        expected_apphost=("Microsoft.NETCore.App.Host.linux-x64", "10.0.14", "./FileCat", "byte for byte the template with the name written in"))
+    run("apphost-macho", True, kind="fdd", include_runtime=False, rid="osx-arm64", setup=apphost("macho", "osx-arm64"),
+        expected_apphost=("Microsoft.NETCore.App.Host.osx-arm64", "10.0.14", "./FileCat", "an ad-hoc signature replaces the template's"))
+    # The SDK prefers a pack in its own packs folder, and restore then leaves none: the template there must still be the
+    # reviewed one.
+    run("apphost-from-sdk-packs", True, kind="fdd", include_runtime=False, rid="linux-x64",
+        setup=lambda folder, payload, index, root: add_apphost(payload, index, root, fmt="elf", rid="linux-x64", restored=False,
+                                                               packs_root=folder / "dotnet"),
+        extra_environment={"DOTNET_ROOT": lambda folder: str(folder / "dotnet")},
+        expected_apphost=("Microsoft.NETCore.App.Host.linux-x64", "10.0.14", "./FileCat", "byte for byte"))
+    run("apphost-pe-code-changed", False, setup=apphost("pe", "win-x64", change=lambda data: data.replace(b"pe-code-fixture;", b"pe-code-fixturE;", 1)))
+    run("apphost-pe-resources-not-the-dll", False,
+        setup=lambda _folder, payload, index, root: (add_apphost(payload, index, root, fmt="pe", rid="win-x64"),
+                                                     (payload / "FileCat.dll").write_bytes(pe([(b".text", b"other")], resources=RESOURCES[:1]))))
+    run("apphost-pe-bytes-after-signature", False, setup=apphost("pe", "win-x64", change=lambda data: data + b"appended"))
+    run("apphost-elf-changed", False, kind="fdd", include_runtime=False, rid="linux-x64",
+        setup=apphost("elf", "linux-x64", change=lambda data: data.replace(b"elf-code;", b"elf-codE;", 1)))
+    run("apphost-macho-changed-before-signature", False, kind="fdd", include_runtime=False, rid="osx-arm64",
+        setup=apphost("macho", "osx-arm64", change=lambda data: data.replace(b"macho-code;", b"macho-codE;", 1)))
+    ad_hoc_signature = len(code_signature(0x2, b""))
+    run("apphost-macho-signature-not-a-superblob", False, kind="fdd", include_runtime=False, rid="osx-arm64",
+        setup=apphost("macho", "osx-arm64", change=lambda data: data[:-ad_hoc_signature] + bytes(ad_hoc_signature)))
+    run("apphost-bound-to-another-app", False, kind="fdd", include_runtime=False, rid="linux-x64",
+        setup=apphost("elf", "linux-x64", bound_to="Other.dll"))
+    run("apphost-unreviewed", False, kind="fdd", include_runtime=False, rid="linux-x64",
+        setup=apphost("elf", "linux-x64", index_change=lambda value: value.pop("AppHostPacks")))
+    run("apphost-template-pin-differs", False, kind="fdd", include_runtime=False, rid="linux-x64",
+        setup=apphost("elf", "linux-x64", index_change=lambda value: value["AppHostPacks"][0].update(TemplateSHA256="0" * 64)))
+    run("apphost-retained-text-not-its-own", False, kind="fdd", include_runtime=False, rid="linux-x64",
+        setup=apphost("elf", "linux-x64", index_change=lambda value: value["Files"][-1].update(SHA256="0" * 64)))
+    run("apphost-other-release-than-runtime", False, setup=apphost("pe", "win-x64", version="10.0.13"))
+
+    # Files a package's build targets copy without the dependency manifest naming them ship only as the reviewed index
+    # declares them, byte for byte; any other payload file that is a reviewed archive's member is refused. A license text
+    # the index retains, and an empty file, are no components.
+    def payload_file(path, data):
+        def write(_folder, payload, _index, _root):
+            (payload / path).parent.mkdir(parents=True, exist_ok=True)
+            (payload / path).write_bytes(data)
+        return write
+
+    def both(*setups):
+        return lambda *arguments: [step(*arguments) for step in setups]
+
+    run("unlisted-declared", True, setup=payload_file("Fixture.Package.xml", UNLISTED_BYTES),
+        mutate=lambda _payload, index: edit_json(index, declare_unlisted), expected_unlisted=["./Fixture.Package.xml"],
+        expected_package_comment="./Fixture.Package.xml (lib/net10.0/Fixture.Package.xml)")
+    run("unlisted-declared-absent", True, mutate=lambda _payload, index: edit_json(index, declare_unlisted))
+    run("unlisted-undeclared", False, setup=payload_file("Fixture.Package.xml", UNLISTED_BYTES))
+    run("unlisted-undeclared-elsewhere", False, setup=payload_file("docs/copy.xml", UNLISTED_BYTES))
+    run("unlisted-declared-differs", False, setup=payload_file("Fixture.Package.xml", b"changed documentation"),
+        mutate=lambda _payload, index: edit_json(index, declare_unlisted))
+    run("unlisted-pin-differs", False, setup=payload_file("Fixture.Package.xml", UNLISTED_BYTES),
+        mutate=lambda _payload, index: edit_json(index, lambda value: declare_unlisted(value, "0" * 64)))
+    run("runtime-member-copy-undeclared", False,
+        setup=payload_file("extra/coreclr.fixture.dll", RUNTIME_MEMBERS["runtimes/win-x64/native/coreclr.fixture.dll"]))
+    run("retained-license-text-anywhere", True,
+        setup=both(payload_file("licenses/dependencies/fixture/LICENSE", LICENSE_BYTES), payload_file("licenses/other/COPYING", LICENSE_BYTES)))
+    run("license-text-not-retained", False, setup=payload_file("licenses/other/COPYING", LICENSE_BYTES),
+        mutate=lambda _payload, index: edit_json(index, lambda value: value["Files"].clear()))
+    run("empty-file-not-attributed", True, setup=payload_file("FileCat.portable", b""))
     if os.name != "nt":
         run("symbolic-link", True,
             mutate=lambda payload, _index: (payload / "native-link").symlink_to("nested/native.bin"))

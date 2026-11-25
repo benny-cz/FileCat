@@ -83,3 +83,7 @@ These are local preliminary outputs (the installer and other RIDs were not built
 REL-CONTRACT's last open point: the macOS bundle declared `LSMinimumSystemVersion` 13.0, below PSD-MAC's floor of macOS 26 on Apple Silicon, and .NET 10 supports only macOS 15, 26 and 27. The release session asked the owner to require macOS 26 or keep 13.0 with an explanation. The owner chose: "Raise the macOS bundle's LSMinimumSystemVersion to 26.0 to match the macOS 26 support floor, then freeze REL-CONTRACT."
 
 `42f02610` sets 26.0 in `eng/package-macos.sh` and in the validation bundle of `tests/FileCat.NativeAcceptance/mac-publish-git-validation.sh`, and notes it in the readiness plan. The generated `Info.plist` passes `plutil -lint` on the physical Mac (macOS 27.0.1), and `plutil -extract` reads 26.0. macOS now refuses to open the preview below macOS 26 instead of running it where it is unsupported. No package was rebuilt for this record; the next package qualification carries the value.
+
+## DEC-04 amended on 2026-11-24
+
+The owner amended DEC-04's "administrator retry only in the installed build" on 2026-11-24 (I640). The administrator helper still ships only in the installed build, and the FDD ZIP still carries none; any Windows FileCat may reopen itself as administrator through UAC. See [E-DEC-2026-11-24](E-DEC-2026-11-24-contract-amendments.md#i640).

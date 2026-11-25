@@ -829,6 +829,9 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 }
                 // Retire the source reader before server publication. A close failure still leaves only the stage.
                 string? freshStage = null;
+                // A new copy's time and size question go with its upload (SFTP: through the open handle, I42).
+                RemoteStat? stated = null;
+                bool statedWithUpload = false;
                 using (var input = openSource())
                 {
                     attemptEfsIdentity = null;
@@ -877,7 +880,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                         catch (NotSupportedException ex)
                         {
                             start = 0;
-                            Issue(IssueSeverity.Info, dst, $"The upload was interrupted and went again from the start: {ex.Message}.", StepOutcome.Committed);
+                            Issue(IssueSeverity.Info, dst, $"The upload was interrupted and went again from the start: {ErrorText.WithoutFinalPeriod(ex.Message)}.", StepOutcome.Committed);
                         }
                     }
                     if (start == 0)
@@ -917,8 +920,16 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                             Job.Checkpoint();
                             RequireApprovedProtection();
                         });
-                        // A new copy goes with requests in flight together (I39); a continued one appends where the server's copy ends.
-                        if (start == 0) Channel.UploadNew(paced, temp!);
+                        // A new copy goes with requests in flight together (I39), and its time and the question of what the
+                        // server holds go with it (I42); a continued one appends where the server's copy ends.
+                        if (start == 0)
+                        {
+                            // The time to keep, once the source is read whole: as computed below for the continued copy.
+                            stated = Channel.UploadNewStated(paced, temp!, () =>
+                                KeptTime((input as ContentStream)?.Revision, incoming) is var keep && Options.PreserveTimestamps && keep > DateTime.MinValue
+                                    ? keep : null);
+                            statedWithUpload = true;
+                        }
                         else paced.CopyTo(appendTo!, BufferSize);
                         paced.EnsureComplete();
                         RequireApprovedProtection();
@@ -935,11 +946,14 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 if (unchanged is not null && !unchanged())
                     throw new IOException("The source changed during uploading, so the copy was not published.");
                 retained?.File.Review(retained.Reviewed,Job.Token);
-                DateTime modified = uploadedRevision is { ModifiedTicks: > 0 } opened && opened.ModifiedTicks <= DateTime.MaxValue.Ticks
-                    ? new DateTime(opened.ModifiedTicks, DateTimeKind.Utc) : incoming.ModifiedUtc;
+                DateTime modified = KeptTime(uploadedRevision, incoming);
                 bool keepTime = Options.PreserveTimestamps && modified > DateTime.MinValue;
-                if (keepTime) Channel.SetModified(temp!, modified);
-                var stat = Channel.Stat(temp!);
+                RemoteStat? stat = stated;
+                if (!statedWithUpload)
+                {
+                    if (keepTime) Channel.SetModified(temp!, modified);
+                    stat = Channel.Stat(temp!);
+                }
                 if (stat is not { } s || s.Size != written)
                     throw new IOException($"The server holds {(stat is { } x ? x.Size : 0):N0} bytes of the {written:N0} sent, so the copy was not published.");
                 // Whether the time held, as the server reports it (whole seconds; two for servers on FAT). A server that
@@ -1022,6 +1036,14 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         if (!timeKept && _timesNotKept++ == 0) _firstTimeNotKept = dst;
         return true;
     }
+
+    /// <summary>
+    /// The modified time an upload keeps: the one its source stated when it was read (an archive member's, another
+    /// server's), else the file's own.
+    /// </summary>
+    private static DateTime KeptTime(ContentRevision? revision, FileSystemItemInfo incoming) =>
+        revision is { ModifiedTicks: > 0 } opened && opened.ModifiedTicks <= DateTime.MaxValue.Ticks
+            ? new DateTime(opened.ModifiedTicks, DateTimeKind.Utc) : incoming.ModifiedUtc;
 
     private FileAttributes ReadUploadAttributes(FileStream source)
     {

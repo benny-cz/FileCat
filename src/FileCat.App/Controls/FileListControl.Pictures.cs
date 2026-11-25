@@ -55,11 +55,17 @@ public sealed partial class FileListControl
     {
         var listing = _listing;
         if (listing is null) return;
+        // A place without thumbnails (a file's streams and attributes) has its rows drawn as plain tiles, and none of them
+        // read (I649). Elsewhere only a tile that can show one asks for its item: never "..", which such a listing refuses.
+        var tab = Tab;
+        var provider = listing.Provider;
+        var location = listing.Location;
+        bool thumbnails = tab is not null && provider is not null && location is not null && provider.ExplainNoThumbnails(location) is null;
         var demand = new HashSet<ThumbnailKey>();
         var visible = new HashSet<int>();
         int count = listing.VisibleCount;
         int first = Math.Max(0, _topRow);
-        int last = Math.Min(count, first + VisibleRowCapacity + _pictureColumns);
+        int last = Math.Min(count, first + DrawnItemCapacity);
         double width = _horizontalViewport > 0 ? _horizontalViewport : bounds.Width;
         using (dc.PushClip(new Rect(0, 0, width, bounds.Height)))
         {
@@ -84,10 +90,11 @@ public sealed partial class FileListControl
                     imageWidth, Math.Max(1, tile.Height - 61));
                 dc.FillRectangle(_header, imageBox);
                 dc.DrawRectangle(null, new Pen(_grid, 1), imageBox);
-                var item = listing.GetItemRef(storeIndex);
                 WriteableBitmap? thumbnail = null;
-                if (entry.Kind == EntryKind.File && PictureBrowseContext.IsPictureName(entry.Name)
-                    && entry.Size <= MaxAutomaticThumbnailBytes && !entry.Has(EntryFlags.Offline))
+                // A row its provider can no longer describe is drawn plain; the tab reads the listing again after the frame.
+                if (thumbnails && entry.Kind == EntryKind.File && PictureBrowseContext.IsPictureName(entry.Name)
+                    && entry.Size <= MaxAutomaticThumbnailBytes && !entry.Has(EntryFlags.Offline)
+                    && tab!.ItemForDrawing(provider!, location!, entry) is { } item)
                 {
                     var key = new ThumbnailKey(item, entry.Size, entry.Modified);
                     // Demand tracks every visible picture, including cached ones. Otherwise
@@ -151,7 +158,7 @@ public sealed partial class FileListControl
             }
             RenderEmptyState(dc, listing, count, width, bounds.Height);
         }
-        if (Tab is { } tab) tab.VisibleStoreIndices = visible;
+        if (tab is not null) tab.VisibleStoreIndices = visible;
         // Do not open providers or launch decoders while Avalonia is drawing. Only visible tiles demand work.
         long generation = _pictureGeneration;
         Dispatcher.UIThread.Post(() => SyncPictureDemand(demand, generation), DispatcherPriority.Background);

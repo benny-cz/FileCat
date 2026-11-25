@@ -112,6 +112,10 @@ public sealed class ChangeMonitorCadenceTests
     /// A folder that keeps changing (a log written every second, in C:\Windows say) is read again at most every
     /// <see cref="ChangeMonitor.ChurnInterval"/> once it counts as busy, which it says (for the status line); a quiet
     /// spell ends that, and the next change is read again promptly. The knobs are shortened here.
+    /// Each is judged on the monitor's own clock: the times it noticed each change, took each reread, and turned busy or
+    /// calm at. The times its callbacks ran at, and the times this test wrote at, add the runner's scheduling: on Windows
+    /// on Arm in CI two callbacks ran 0.87 s apart, and once the writes or their notices were held up for longer than the
+    /// quiet spell, so the folder rightly counted as calm when the writes ended (I667).
     /// </summary>
     [Fact]
     public async Task A_busy_folder_is_read_again_at_the_churn_interval_until_it_calms()
@@ -120,55 +124,166 @@ public sealed class ChangeMonitorCadenceTests
         using var dir = new TempDir();
         string folder = Directory.CreateDirectory(Path.Combine(dir.Path, "busy")).FullName;
         var clock = Stopwatch.StartNew();
-        var reads = new List<double>();
-        var fired = new List<DateTime>();
+        var interval = TimeSpan.FromSeconds(1);
+        var window = TimeSpan.FromSeconds(5);
+        var calmAfter = TimeSpan.FromSeconds(1.5);
+        var taken = new List<DateTime>();
+        var notices = new List<(DateTime At, DateTime Due)>();
+        var turns = new List<(DateTime At, bool Busy)>();
         int churnChanges = 0;
-        using var monitor = new ChangeMonitor(folder, () => { lock (reads) reads.Add(clock.Elapsed.TotalSeconds); })
+        using var monitor = new ChangeMonitor(folder, () => { })
         {
-            ChurnInterval = TimeSpan.FromSeconds(1), ChurnWindow = TimeSpan.FromSeconds(5), CalmAfter = TimeSpan.FromSeconds(1.5),
-            Fired = time => { lock (fired) fired.Add(time); },
+            ChurnInterval = interval, ChurnWindow = window, CalmAfter = calmAfter,
+            Fired = time => { lock (taken) taken.Add(time); },
+            Noticed = (time, due) => { lock (notices) notices.Add((time, due)); },
+            Turned = (time, busy) => { lock (turns) turns.Add((time, busy)); },
         };
         monitor.ChurnChanged += () => Interlocked.Increment(ref churnChanges);
         if (!monitor.IsActive) Assert.Skip("This folder cannot be watched here.");
-        double[] Reads() { lock (reads) return [.. reads]; }
+        DateTime[] Taken() { lock (taken) return [.. taken.Order()]; }
+        (DateTime At, DateTime Due)[] Notices() { lock (notices) return [.. notices.OrderBy(n => n.At)]; }
+        (DateTime At, bool Busy)[] Turns() { lock (turns) return [.. turns.OrderBy(t => t.At)]; }
+        // The rereads taken while the folder counted as busy, spell by spell: from the one that made it busy to the last
+        // before it turned calm.
+        List<DateTime[]> BusySpells()
+        {
+            var all = Taken();
+            var turnedAt = Turns();
+            var spells = new List<DateTime[]>();
+            for (int i = 0; i < turnedAt.Length; i++)
+            {
+                if (!turnedAt[i].Busy) continue;
+                var (start, end) = (turnedAt[i].At, i + 1 < turnedAt.Length ? turnedAt[i + 1].At : DateTime.MaxValue);
+                spells.Add([.. all.Where(t => t >= start && t < end)]);
+            }
+            return spells;
+        }
+        double[] BusyGaps() => [.. BusySpells().SelectMany(spell => spell.Zip(spell.Skip(1), (a, b) => (b - a).TotalSeconds))];
+        string Record()
+        {
+            var origin = Notices() is [var first, ..] ? first.At : DateTime.UtcNow;
+            string Seconds(DateTime t) => (t - origin).TotalSeconds.ToString("F3");
+            return $"noticed at: {string.Join(", ", Notices().Select(n => Seconds(n.At)))}; rereads taken at: " +
+                $"{string.Join(", ", Taken().Select(Seconds))}; turned: {string.Join(", ", Turns().Select(t => $"{(t.Busy ? "busy" : "calm")} {Seconds(t.At)}"))}";
+        }
         async Task Until(Func<bool> condition, TimeSpan limit)
         {
             var deadline = clock.Elapsed + limit;
             while (!condition() && clock.Elapsed < deadline) await Task.Delay(25, ct);
         }
 
-        // A line every 400 ms for six seconds, as a busy log is written: each change settles (a quarter second) before
-        // the next, so without the churn interval every one was read again; after three rereads within the window the
-        // folder counts as busy. (Changes closer together than a quarter second are already read every two seconds.)
+        // A line every 400 ms, as a busy log is written: each change settles (a quarter second) before the next, so without
+        // the churn interval every one was read again; after three rereads within the window the folder counts as busy.
+        // (Changes closer together than a quarter second are already read every two seconds.) For six seconds at least,
+        // and on until the folder counts as busy and two rereads have been taken apart while it did: a runner that holds up
+        // the writes or their notices for longer than the quiet spell rightly makes the folder calm in between.
         double started = clock.Elapsed.TotalSeconds;
-        for (int i = 0; clock.Elapsed.TotalSeconds - started < 6; i++)
+        for (int i = 0; clock.Elapsed.TotalSeconds - started < 25; i++)
         {
+            if (clock.Elapsed.TotalSeconds - started >= 6 && monitor.IsChurning && BusyGaps().Length >= 2) break;
             File.WriteAllText(Path.Combine(folder, $"f{i:0000}.txt"), "x");
             await Task.Delay(400, ct);
         }
-        Assert.True(monitor.IsChurning, $"rereads: {string.Join(", ", Reads().Select(t => t.ToString("F2")))}");
-        // From the reread that made the folder count as busy (the third), on the monitor's own clock: the interval counts
-        // from the time a reread was taken at. The times its callbacks ran at add the runner's scheduling (on Windows on Arm
-        // in CI two of them ran 0.87 s apart). A timer may fall due a system timer tick (15.6 ms) early. Without the
-        // interval these rereads come 0.4 s apart.
-        DateTime[] taken;
-        lock (fired) taken = [.. fired.Order()];
-        var gaps = taken.Skip(ChangeMonitor.ChurnRereads - 1).Zip(taken.Skip(ChangeMonitor.ChurnRereads), (a, b) => (b - a).TotalSeconds).ToArray();
-        TestContext.Current.TestOutputHelper?.WriteLine(
-            $"rereads: {string.Join(", ", Reads().Select(t => t.ToString("F2")))}; taken apart while busy: {string.Join(", ", gaps.Select(g => g.ToString("F3")))}");
-        Assert.NotEmpty(gaps);
-        Assert.All(gaps, gap => Assert.True(gap >= 0.95, $"rereads taken {gap:F3} s apart while the folder counted as busy"));
+        Assert.True(monitor.IsChurning && BusyGaps().Length >= 2, Record());
 
-        // Quiet for longer than CalmAfter: no longer busy, and a change is read again within the usual quarter second.
-        await Until(() => !monitor.IsChurning, TimeSpan.FromSeconds(5));
-        Assert.False(monitor.IsChurning);
-        Assert.Equal(2, Volatile.Read(ref churnChanges));
-        int before = Reads().Length;
-        double written = clock.Elapsed.TotalSeconds;
+        // Quiet for longer than CalmAfter: no longer busy, which it says once more.
+        await Until(() => !monitor.IsChurning, TimeSpan.FromSeconds(10));
+        Assert.False(monitor.IsChurning, Record());
+        var turned = Turns();
+        await Until(() => Volatile.Read(ref churnChanges) >= turned.Length, TimeSpan.FromSeconds(5));
+        Assert.Equal(turned.Length, Volatile.Read(ref churnChanges));
+        Assert.Equal(turned.Select((_, i) => i % 2 == 0), turned.Select(t => t.Busy)); // busy, calm, and so on
+        TestContext.Current.TestOutputHelper?.WriteLine(Record() +
+            $"; taken apart while busy: {string.Join(", ", BusyGaps().Select(g => g.ToString("F3")))}");
+
+        var rereads = Taken();
+        var noticed = Notices();
+        foreach (var (at, busy) in turned)
+        {
+            if (busy)
+            {
+                // Busy from the third reread within the window, counted since the folder last turned calm.
+                var since = turned.Where(t => !t.Busy && t.At < at).Select(t => t.At).DefaultIfEmpty(DateTime.MinValue).Max();
+                Assert.Contains(at, rereads);
+                Assert.Equal(ChangeMonitor.ChurnRereads, rereads.Count(t => t > since && t <= at && at - t <= window));
+            }
+            else
+            {
+                // Calm only after a quiet spell: no change noticed for CalmAfter.
+                var last = noticed.Where(n => n.At <= at).Max(n => n.At);
+                Assert.True(at - last >= calmAfter, $"calm {(at - last).TotalSeconds:F3} s after the last change; {Record()}");
+            }
+        }
+        // While busy, rereads are taken an interval apart: it counts from the time the last one was taken at. A timer may
+        // fall due a system timer tick (15.6 ms) early. Without the interval these rereads come 0.4 s apart.
+        double floor = (interval - TimeSpan.FromMilliseconds(15.6)).TotalSeconds;
+        Assert.All(BusyGaps(), gap => Assert.True(gap >= floor, $"rereads taken {gap:F3} s apart while the folder counted as busy; {Record()}"));
+
+        // A change after the quiet spell is read again within the usual quarter second (a little more had the folder been
+        // read moments before), not at the churn interval.
+        var calm = turned[^1].At;
         File.WriteAllText(Path.Combine(folder, "late.txt"), "x");
-        await Until(() => Reads().Length > before, TimeSpan.FromSeconds(3));
-        Assert.True(Reads().Length > before, "The change after the quiet spell was not read again.");
-        Assert.True(Reads()[before] - written < 0.9, $"read again {Reads()[before] - written:F2} s after the change");
+        (DateTime At, DateTime Due)[] Late() => [.. Notices().Where(n => n.At > calm).Take(1)];
+        await Until(() => Late() is [var change] && Taken().Any(t => t >= change.At), TimeSpan.FromSeconds(10));
+        var late = Late();
+        Assert.True(late.Length == 1 && Taken().Any(t => t >= late[0].At), "The change after the quiet spell was not read again. " + Record());
+        var soon = late[0].Due - late[0].At;
+        Assert.True(soon <= monitor.MinInterval, $"read again {soon.TotalSeconds:F3} s after the change; {Record()}");
+    }
+
+    /// <summary>
+    /// A reread armed before the last one can still fall due after it: a timer does not withdraw a callback it has queued
+    /// when it is armed again. A change noticed while that callback waits arms the timer for when its reread falls due;
+    /// the waiting callback must not read the folder before the interval since the last reread ends. The held callbacks
+    /// force that order; the interval is long here, so an early reread stands out.
+    /// </summary>
+    [Fact]
+    public async Task A_reread_armed_before_the_last_one_waits_for_its_interval()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var dir = new TempDir();
+        string folder = Directory.CreateDirectory(Path.Combine(dir.Path, "stale")).FullName;
+        var interval = TimeSpan.FromSeconds(2);
+        var taken = new List<DateTime>();
+        using var firstDue = new ManualResetEventSlim();
+        using var releaseFirst = new ManualResetEventSlim();
+        using var firstTaken = new ManualResetEventSlim();
+        using var staleDue = new ManualResetEventSlim();
+        using var releaseStale = new ManualResetEventSlim();
+        int due = 0;
+        using var monitor = new ChangeMonitor(folder, () => { })
+        {
+            MinInterval = interval,
+            Fired = time => { lock (taken) taken.Add(time); firstTaken.Set(); },
+        };
+        if (!monitor.IsActive) Assert.Skip("This folder cannot be watched here.");
+        monitor.BeforeFire = () =>
+        {
+            switch (Interlocked.Increment(ref due))
+            {
+                case 1: firstDue.Set(); releaseFirst.Wait(TimeSpan.FromSeconds(10)); break;
+                // Held until the first reread has been taken, however late its own thread runs.
+                case 2: firstTaken.Wait(TimeSpan.FromSeconds(10)); staleDue.Set(); releaseStale.Wait(TimeSpan.FromSeconds(10)); break;
+            }
+        };
+        DateTime[] Taken() { lock (taken) return [.. taken.Order()]; }
+
+        monitor.Again(); // a change: the first reread falls due a quarter second later
+        Assert.True(firstDue.Wait(TimeSpan.FromSeconds(5), ct), "The first reread never fell due.");
+        monitor.Again(); // noticed as it falls due: arms the timer again, before any reread was taken
+        releaseFirst.Set(); // the first reread is taken, and reads this change too
+        Assert.True(staleDue.Wait(TimeSpan.FromSeconds(5), ct), "The timer armed before the first reread never fell due.");
+        monitor.Again(); // a change after the first reread, noticed while that callback waits: due an interval after it
+        releaseStale.Set();
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        while (Taken().Length < 2 && DateTime.UtcNow < deadline) await Task.Delay(25, ct);
+        await Task.Delay(500, ct); // and no reread after it
+
+        var times = Taken();
+        Assert.True(times.Length == 2, $"{times.Length} rereads");
+        var apart = times[1] - times[0];
+        Assert.True(apart >= interval - TimeSpan.FromMilliseconds(15.6), $"rereads taken {apart.TotalSeconds:F3} s apart");
+        Assert.True(Volatile.Read(ref due) >= 3, "The second reread was not taken when the timer fell due again.");
     }
 
     /// <summary>

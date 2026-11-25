@@ -3,6 +3,7 @@ using FileCat.Core.FileSystem;
 using FileCat.Core.Listing;
 using FileCat.Core.Metadata;
 using FileCat.Core.Resources;
+using FileCat.Core.Verification;
 
 namespace FileCat.Core.Tests;
 
@@ -175,6 +176,63 @@ public sealed class MetadataOrderingSnapshotTests
         Assert.Equal("safe", retained.Value);
         Assert.True(budget.ReservedBytes > 0);
         Assert.Null(snapshot.Key(0));
+    }
+
+    [Fact]
+    public void Bounded_scalars_are_kept_and_records_with_explanations_are_not()
+    {
+        object?[] kept = [null, "text", 42, 4096L, 3u, (10, 20), new Version(1, 2), DateTime.UnixEpoch, DateTimeOffset.UnixEpoch,
+            TimeSpan.FromSeconds(1), (UnixFileMode)420, new Principal(PrincipalKind.UnixUser, "42"), new FileDetailsFields.Cell("1", "One stream.", 1)];
+        Assert.All(kept, value => Assert.True(MetadataOrderSnapshot.CanRetain(value)));
+        object[] refused = [new OriginMark("Internet", "Zone.Identifier: ZoneId=3, the Internet."),
+            new LinkTargetText("/mnt/c/fixture", "WSL symbolic link: programs in WSL follow this Linux path."),
+            new VerificationResult(VerificationState.Matches, "Matches", ["A report line."]),
+            new FileDetailsFields.Cell("1", "A mutable key.", new MutableKey()), new byte[8], new object()];
+        Assert.All(refused, value => Assert.False(MetadataOrderSnapshot.CanRetain(value)));
+        using var snapshot = new MetadataOrderSnapshot(new IndexMemoryBudget());
+        Assert.False(snapshot.TryAdd(0, new(MetadataState.Available, refused[0]), "Internet"));
+        Assert.Equal(MetadataCapacity.UnsupportedPayload, snapshot.Capacity);
+    }
+
+    /// <summary>
+    /// I636: an Origin mark and an app alias's or WSL link's target carry their explanation. The analysis keeps such a
+    /// result as its field's sort key, with its state and observation, as it keeps a verification report: every result is
+    /// retained, the keys order them, and only the keys' characters are charged.
+    /// </summary>
+    [Fact]
+    public void Record_values_are_retained_as_their_sort_keys_and_charge_only_the_keys()
+    {
+        string tail = new('x', 400);
+        (MetadataField Field, object Value)[] results =
+        [
+            (BuiltInFields.LinkTarget, new LinkTargetText(@"C:\Program Files\WindowsApps\Fixture\b-alias.exe", "App execution alias: " + tail)),
+            (BuiltInFields.LinkTarget, new LinkTargetText("a-relative/wsl-target", "WSL symbolic link: " + tail)),
+            (BuiltInFields.Zone, new OriginMark("Internet", "Zone.Identifier: ZoneId=3, the Internet.\nDownloaded from: https://example.test/" + tail)),
+            (BuiltInFields.Zone, new OriginMark("Intranet", "Zone.Identifier: ZoneId=1, the local intranet.")),
+        ];
+        var budget = new IndexMemoryBudget();
+        var snapshot = new MetadataOrderSnapshot(budget);
+        var comparison = CultureInfo.GetCultureInfo("en-US").CompareInfo;
+        long keyCharacters = 0;
+        for (int i = 0; i < results.Length; i++)
+        {
+            var value = new MetadataValue(MetadataState.Available, results[i].Value);
+            Assert.False(MetadataOrderSnapshot.CanRetain(value.Value));
+            var key = Assert.IsType<string>(results[i].Field.CaptureKey(value));
+            keyCharacters += key.Length;
+            Assert.True(snapshot.TryAdd(i, value with { Value = null }, key, comparison: comparison));
+        }
+        Assert.True(snapshot.TryAdd(results.Length, MetadataValue.Absent));
+        snapshot.Seal();
+        Assert.Equal((results.Length + 1, MetadataCapacity.None), (snapshot.Count, snapshot.Capacity));
+        Assert.Equal(keyCharacters, snapshot.RetainedCharacters);
+        Assert.True(snapshot.TryValue(2, out var retained));
+        Assert.Equal(new MetadataValue(MetadataState.Available), retained);
+        Assert.True(snapshot.Key(1)!.CompareTo(snapshot.Key(0)) < 0); // a-relative/… before C:\…
+        Assert.True(snapshot.Key(2)!.CompareTo(snapshot.Key(3)) < 0); // Internet before Intranet
+        Assert.Null(snapshot.Key(results.Length));
+        snapshot.Dispose();
+        Assert.Equal(0, budget.ReservedBytes);
     }
 
     [Fact]

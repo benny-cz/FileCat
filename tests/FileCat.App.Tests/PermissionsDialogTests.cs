@@ -1,9 +1,13 @@
 using System.Diagnostics;
 using System.Globalization;
+using Avalonia;
 using Avalonia.Automation;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Views;
@@ -489,6 +493,69 @@ public sealed class PermissionsDialogTests
             Assert.NotEqual(modified, File.GetLastWriteTimeUtc(Path.Combine(files, "b.txt")));
         }
         finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    /// <summary>
+    /// I650 (x03 on rc.2): typing a time into Modified one key at a time ended FileCat on macOS while an accessibility
+    /// client was active. "2023-01" is the first valid prefix; its key cleared the live validation message, and
+    /// Avalonia.Native announced the empty name. The subscriber stands in for that bridge, which subscribes after FileCat
+    /// and acts on every name change of a live element.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task Typing_a_modified_time_key_by_key_never_announces_an_empty_live_message()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Windows' Attributes and times dialog has no live validation message.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        bool mac = NativeLiveRegionBridges.UseMacBridge;
+        NativeLiveRegionBridges.UseMacBridge = true;
+        var culture = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+        // As the app does at start (App.axaml.cs): every control that becomes live is watched.
+        using var watch = AutomationProperties.LiveSettingProperty.Changed.AddClassHandler<Control>((control, _) => LiveRegions.Watch(control));
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var listing = vm.ActiveTab!.Listing;
+            await WaitFor(() => listing.State == Core.Listing.ListingState.Complete && listing.FocusName("a.txt"), ct);
+            vm.Execute(CommandIds.Attributes);
+            await WaitFor(() => window.GetVisualDescendants().OfType<TextBox>().Any(field => AutomationProperties.GetName(field) == "Modified"), ct);
+            var modified = TimeField(window, "Modified");
+            var announced = new List<(AutomationLiveSetting Live, string Name)>();
+            var messages = window.GetVisualDescendants().OfType<TextBlock>()
+                .Where(block => AutomationProperties.GetLiveSetting(block) != AutomationLiveSetting.Off).ToArray();
+            var settings = messages.Select(AutomationProperties.GetLiveSetting).ToArray();
+            Assert.NotEmpty(messages);
+            foreach (var message in messages)
+            {
+                var peer = ControlAutomationPeer.CreatePeerForElement(message);
+                peer.PropertyChanged += (_, e) =>
+                {
+                    if (e.Property == AutomationElementIdentifiers.NameProperty) announced.Add((peer.GetLiveSetting(), peer.GetName()));
+                };
+            }
+
+            Assert.True(modified.Focus());
+            modified.SelectAll();
+            const string typed = "2023-01-02 03:04:00";
+            foreach (char key in typed)
+            {
+                window.KeyTextInput(key.ToString());
+                Dispatcher.UIThread.RunJobs();
+            }
+            Assert.Equal(typed, modified.Text);
+            const string invalid = "Enter a valid modified time or clear the field.";
+            Assert.Contains((AutomationLiveSetting.Polite, invalid), announced);
+            Assert.DoesNotContain(announced, change => change.Live != AutomationLiveSetting.Off && change.Name.Length == 0);
+            Assert.False(HasResult(window, invalid));
+            // Each live message keeps its own setting, the validation message too now that it is empty.
+            Assert.Equal(settings, messages.Select(AutomationProperties.GetLiveSetting));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = culture;
+            NativeLiveRegionBridges.UseMacBridge = mac;
+            AccessibilityTests.Close(services, window, root);
+        }
     }
 
     private static uint ReadMacFlags(string file) => uint.Parse(RunTool("/usr/bin/stat", "-f", "%f", file).Trim(), CultureInfo.InvariantCulture);

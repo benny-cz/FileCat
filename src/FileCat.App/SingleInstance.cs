@@ -37,8 +37,18 @@ public static partial class SingleInstance
     /// </summary>
     public static bool? OtherFileCatRunning() => OtherFileCatRunning(null);
 
+    /// <param name="enumerate">Tests: the inventory, otherwise every process.</param>
+    /// <param name="identify">Tests: decides each process of the inventory in place of every check by name or image.</param>
+    /// <param name="additionallyExcludedProcessId">A process not to count, such as the FileCat that asked a root census.</param>
+    /// <param name="diagnostic">Receives each process that is FileCat or cannot be told, with the reason; and on Linux, as
+    /// process 0, why /proc may leave processes out.</param>
+    /// <param name="inspectInventory">Tests: inspect a supplied inventory as production inspects every process, instead
+    /// of counting each of its processes as FileCat.</param>
+    /// <param name="listingLimit">Tests: why the inventory may leave processes out, in place of what Linux's /proc says
+    /// (<see cref="LinuxProcessListingLimit()"/>), which production asks of every census that finds no FileCat.</param>
     internal static bool? OtherFileCatRunning(Func<Process[]>? enumerate, Func<Process, bool?>? identify = null,
-        int? additionallyExcludedProcessId = null, Action<int, string, string>? diagnostic = null)
+        int? additionallyExcludedProcessId = null, Action<int, string, string>? diagnostic = null, bool inspectInventory = false,
+        Func<string?>? listingLimit = null)
     {
         var snapshot = new List<Process>();
         var inspectedImages = new Dictionary<string, bool?>(StringComparer.OrdinalIgnoreCase);
@@ -51,10 +61,12 @@ public static partial class SingleInstance
                 names.Add(current.ProcessName);
             }
             snapshot.AddRange((enumerate ?? Process.GetProcesses)());
+            bool inspect = enumerate is null || inspectInventory;
             bool unknown = false;
             foreach (var process in snapshot)
             {
                 if (process.Id == Environment.ProcessId || process.Id == additionallyExcludedProcessId) continue;
+                SafeFileHandle? linux = null;
                 try
                 {
                     // PID 0 is Windows' idle accounting entry, not an executable. Even HasExited can
@@ -67,18 +79,21 @@ public static partial class SingleInstance
                         if (running == false) continue;
                         unknown |= running is null;
                     }
-                    if (enumerate is null && OperatingSystem.IsLinux())
+                    if (inspect && OperatingSystem.IsLinux())
                     {
-                        bool? kernel = KernelThreadFromStat(File.ReadAllText($"/proc/{process.Id}/stat"));
+                        // Read this process's facts through one /proc directory descriptor: if it exits meanwhile they
+                        // become unknown, never another process's that has taken over its ID.
+                        linux = OpenLinuxProcess(process.Id);
+                        bool? kernel = KernelThreadFromStat(ReadLinuxProcessStat(linux));
                         if (kernel == true) continue; // A kernel thread cannot host the managed application.
                         unknown |= kernel is null;
                     }
-                    // The existing test seam supplies an already selected candidate inventory. Production also
-                    // inspects other executable names: a renamed apphost still binds the FileCat entry assembly.
+                    // A test inventory is an already selected candidate inventory unless the test asks for inspection.
+                    // Production also inspects other executable names: a renamed apphost still binds the FileCat entry assembly.
                     bool? match;
                     string? unknownReason = null;
                     if (identify is not null) match = identify(process);
-                    else if (enumerate is not null) match = true;
+                    else if (!inspect) match = true;
                     else if (OperatingSystem.IsWindows() && process.ProcessName.Equals("dotnet", StringComparison.OrdinalIgnoreCase))
                     {
                         // A renamed FileCat apphost can itself be called dotnet.exe. Inspect both the
@@ -107,7 +122,9 @@ public static partial class SingleInstance
                         if (match is null)
                             unknownReason = image.Path is null ? $"image error {image.Error}" : $"incomplete image scan: {image.Path}";
                     }
-                    else match = IsFileCatAppHost(process.MainModule?.FileName);
+                    // Linux reads the image the process runs, never a name; macOS can only open the name Darwin gives.
+                    else if (OperatingSystem.IsLinux()) match = LinuxImageIsFileCat(linux ??= OpenLinuxProcess(process.Id), out unknownReason);
+                    else match = ImageAtPathIsFileCat(process.MainModule?.FileName, out unknownReason);
                     if (match == true)
                     {
                         diagnostic?.Invoke(process.Id, process.ProcessName, "match");
@@ -123,8 +140,17 @@ public static partial class SingleInstance
                     diagnostic?.Invoke(process.Id, process.ProcessName, $"{ex.GetType().Name}: {ex.Message}");
                     unknown = true;
                 }
+                finally { linux?.Dispose(); }
             }
-            return unknown ? null : false;
+            if (unknown) return null;
+            // I658: processes this census cannot see may be FileCat, so it cannot say that none is.
+            listingLimit ??= enumerate is null && OperatingSystem.IsLinux() ? LinuxProcessListingLimit : null;
+            if (listingLimit?.Invoke() is { } limit)
+            {
+                diagnostic?.Invoke(0, "/proc", limit);
+                return null;
+            }
+            return false;
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or NotSupportedException)
         {
@@ -133,6 +159,7 @@ public static partial class SingleInstance
         finally { foreach (var process in snapshot) process.Dispose(); }
     }
 
+    // Windows images; Linux and macOS read theirs as SingleInstance.ProcessImages.cs describes.
     private static bool? IsFileCatAppHost(string? path)
     {
         if (string.IsNullOrEmpty(path)) return null;
@@ -368,7 +395,7 @@ public static partial class SingleInstance
         }
         int flags = OperatingSystem.IsMacOS()
             ? 4 | 16777216 | 256   // O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW
-            : 2048 | 524288 | 131072;
+            : LinuxLockOpenFlags(RuntimeInformation.ProcessArchitecture);
         if (create) flags |= 2; // O_RDWR; creation above is exclusive and owner-only
         int fd = OpenLockNative(path, flags);
         if (fd < 0)
@@ -387,6 +414,10 @@ public static partial class SingleInstance
         }
         catch { handle.Dispose(); throw; }
     }
+
+    /// <summary>Linux: O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW. O_NOFOLLOW's value depends on the architecture (I656).</summary>
+    internal static int LinuxLockOpenFlags(Architecture architecture) =>
+        0x800 | LinuxOpenFlags.CloseOnExec | LinuxOpenFlags.ForArchitecture(architecture).NoFollow;
 
     private static FileStream? OpenIndependentLock(string file, bool create)
     {

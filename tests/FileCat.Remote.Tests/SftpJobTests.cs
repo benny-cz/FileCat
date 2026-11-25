@@ -613,6 +613,33 @@ public sealed class SftpJobTests : IDisposable
     }
 
     [Fact]
+    public async Task A_refusal_that_ends_its_own_sentence_is_reported_with_one_period()
+    {
+        // I654's pattern: FluentFTP's "FTP continues a file only at its end." gained FileCat's period, "end..".
+        var data = new byte[3 * 1024 * 1024 + 5];
+        new Random(5).NextBytes(data);
+        string big = Path.Combine(_local, "big.bin");
+        File.WriteAllBytes(big, data);
+        _server.Dir("/up");
+        _server.ContinuesUploads = false;
+        _server.ContinueRefusal = "FTP continues a file only at its end.";
+        _server.DropAfterBytes = 2 * 1024 * 1024 + 17;
+        var job = _jobs.Submit(new JobRequest { Kind = JobKind.Copy, Sources = [ItemRef.ForFileSystemPath(big, EntryKind.File)], Destination = Remote("/up") });
+        while (!job.State.IsFinished())
+        {
+            if (job.Decision is { Task.IsCompleted: false } d)
+            {
+                _server.Down = false;
+                d.Resolve(new Decision(DecisionAction.Retry));
+            }
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        Assert.Equal(JobState.Completed, job.State);
+        var restarted = Assert.Single(job.Issues, i => i.Message.Contains("went again from the start", StringComparison.Ordinal));
+        Assert.Equal("The upload was interrupted and went again from the start: FTP continues a file only at its end.", restarted.Message);
+    }
+
+    [Fact]
     public async Task Uploads_keep_modified_times_and_say_so_where_the_server_does_not()
     {
         // Release issue I43: vsftpd has no MFMT, so FileCat sent no time, and every upload silently showed its arrival.
@@ -780,6 +807,42 @@ public sealed class SftpJobTests : IDisposable
         Assert.Equal(["a.txt", "tree"], Names("/up"));
         Assert.Equal("alpha".Length + "beta".Length + "gamma".Length, job.BytesDone);
         Assert.True(File.Exists(a));
+    }
+
+    [Fact]
+    public async Task An_upload_takes_its_name_only_once_its_bytes_and_time_are_on_the_server()
+    {
+        // Release issue I42 moved the time and the size question into the upload itself; the copy still waits under its
+        // temporary name until both are answered.
+        var when = new DateTime(2023, 4, 5, 6, 7, 8, DateTimeKind.Utc);
+        string a = LocalFile("staged.txt", "staged content");
+        File.SetLastWriteTimeUtc(a, when);
+        _server.Dir("/up");
+        var seen = new List<string>();
+        _server.BeforeStat = path =>
+        {
+            if (!RemotePath.Name(path).StartsWith(JournalRecovery.StagedPrefix, StringComparison.Ordinal)) return;
+            var stage = _server.Lookup(path, followFinal: false)!;
+            seen.Add($"{_server.Exists("/up/staged.txt")} {Encoding.UTF8.GetString(stage.Data)} {stage.Modified:O}");
+        };
+        var job = await RunAsync(new JobRequest { Kind = JobKind.Copy, Sources = [ItemRef.ForFileSystemPath(a, EntryKind.File)], Destination = Remote("/up") });
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal([$"False staged content {when:O}"], seen);
+        Assert.Equal(["staged.txt"], Names("/up"));
+        Assert.Equal(when, _server.Lookup("/up/staged.txt", true)!.Modified);
+    }
+
+    [Fact]
+    public async Task A_server_that_keeps_fewer_bytes_than_sent_gets_nothing_published()
+    {
+        string a = LocalFile("short.bin", new string('x', 10_000));
+        _server.Dir("/up");
+        _server.KeepsOnly = 4096;
+        var job = await RunAsync(new JobRequest { Kind = JobKind.Copy, Sources = [ItemRef.ForFileSystemPath(a, EntryKind.File)], Destination = Remote("/up") });
+        Assert.NotEqual(JobState.Completed, job.State);
+        Assert.Contains(job.Issues, i => i.Message.Contains($"The server holds {4096:N0} bytes of the {10_000:N0} sent, so the copy was not published.", StringComparison.Ordinal));
+        Assert.Empty(Names("/up")); // nothing under the name, and the temporary copy is gone
+        Assert.Equal(0, job.ItemsDone);
     }
 
     [Fact]

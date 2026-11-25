@@ -121,7 +121,7 @@ public sealed class ProgressiveContent : IContentSource
         _gate = gate;
         _open = open;
         _limits = limits;
-        _maxKept = WindowsTokenAuthority.IsHighIntegrity ? Math.Min(maxKept, 64L * 1024 * 1024) : maxKept;
+        _maxKept = ProcessAuthority.IsElevatedOrRoot ? Math.Min(maxKept, 64L * 1024 * 1024) : maxKept;
         _tempDirectory = tempDirectory;
         _closed = closed;
         _verifySource = verifySource;
@@ -221,7 +221,7 @@ public sealed class ProgressiveContent : IContentSource
     private void Produce(long upTo)
     {
         if (_damage is not null) return;
-        var verify = WindowsTokenAuthority.IsHighIntegrity ? null : _verifyDiskSpool;
+        var verify = ProcessAuthority.IsElevatedOrRoot ? null : _verifyDiskSpool;
         var chunk = ArrayPool<byte>.Shared.Rent(ChunkSize);
         try
         {
@@ -327,10 +327,10 @@ public sealed class ProgressiveContent : IContentSource
 
     private Stream CreateSpool()
     {
-        // A high-token member must not be published under the ordinary user-local temp path.
+        // A high-token member must not be published under the ordinary user-local temp path, nor one root read (I655).
         // Keep bounded viewed content in process memory; larger content can be extracted
         // explicitly to a user-selected destination.
-        if (WindowsTokenAuthority.IsHighIntegrity) return new MemoryStream();
+        if (ProcessAuthority.IsElevatedOrRoot) return new MemoryStream();
         Directory.CreateDirectory(_tempDirectory);
         return new FileStream(Path.Combine(_tempDirectory, $"member-{Guid.NewGuid():N}.tmp"), FileMode.CreateNew, FileAccess.ReadWrite,
             FileShare.Read | FileShare.Delete, 1, FileOptions.DeleteOnClose);

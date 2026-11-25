@@ -932,6 +932,8 @@ public sealed partial class MainViewModel
     /// </summary>
     private async Task ViewItemAsync(ItemRef item, string name, bool hex, TabViewModel sourceTab)
     {
+        // A page the viewer opens on counts its loading from the reader's F3 (I648).
+        long askedAt = Environment.TickCount64;
         try
         {
             var provider = Services.Providers.For(item.Parent);
@@ -944,10 +946,12 @@ public sealed partial class MainViewModel
                 Notify("This item has no viewable content.", true);
                 return;
             }
-            await ViewerLauncher.OpenWithBrowsing(Services, item, source, hex, sourceTab);
+            await ViewerLauncher.OpenWithBrowsing(Services, item, source, hex, sourceTab, askedAt);
             if (item.Parent.IsFileSystem) Services.RecordFile(item.Parent, item.Name);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException)
+        // A provider's refusal (NotSupportedException) is said too: F3 never ends without a word (I651).
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException
+            or NotSupportedException)
         {
             if (CanRequestAdministratorTask && ErrorText.Classify(ex) == "access" &&
                 item.FileSystemPath is { } path && AdministratorWindow.LocalVolume(path) is not null)
@@ -1013,7 +1017,7 @@ public sealed partial class MainViewModel
         var configured = Associations.Find(Services.Settings.Associations, Associations.Edit, Path.GetFileName(path)) ?? Services.Settings.Editor;
         if (configured is null && Services.Shell.IsElevated)
         {
-            Notify($"FileCat is running {Elevation}, so it will not choose an external editor automatically. Reopen FileCat without elevation to edit this file.", true);
+            Notify($"FileCat is running {Elevation}, so it will not choose an external editor automatically. {Core.State.ProcessAuthority.UsualProcessAdviceFor("FileCat")} to edit this file.", true);
             return;
         }
         if (configured is not null && !AdmitConfiguredExternalTool(configured)) return;
@@ -1039,11 +1043,11 @@ public sealed partial class MainViewModel
     private bool AdmitConfiguredExternalTool(ToolDefinition tool)
     {
         if (!Services.Shell.IsElevated) return true;
-        Notify($"FileCat is running {Elevation} and will not launch the configured external tool \"{Formatters.SafeName(tool.Name)}\" from user settings. Reopen FileCat without elevation to use it.", true);
+        Notify($"FileCat is running {Elevation} and will not launch the configured external tool \"{Formatters.SafeName(tool.Name)}\" from user settings. {Core.State.ProcessAuthority.UsualProcessAdviceFor("FileCat")} to use it.", true);
         return false;
     }
 
-    private static string Elevation => OperatingSystem.IsWindows() ? "as administrator" : "as root";
+    private static string Elevation => Core.State.ProcessAuthority.RunningAs;
 
     /// <summary>Runs the per-type association for an intent when one matches the file name; false otherwise.</summary>
     internal bool TryLaunchAssociation(string intent, string path)

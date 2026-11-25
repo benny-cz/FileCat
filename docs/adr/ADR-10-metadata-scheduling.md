@@ -32,8 +32,10 @@
   16M UTF-16 characters, charged per retained reference; observations use a conservative quarter share so key/name
   copies have room within the total. Unknown object graphs are not retained. Actual coverage and limiting resources
   are reported; unretained rows never fall back to a live cache.
-  Verified retains its existing integer state rank and observation outcome; its detailed report/check graphs remain
-  with the verification subsystem and are not retained by ordering snapshots.
+  A result whose value is not such a bounded payload (Verified's report/check graph; Origin's mark and an app alias's
+  or WSL link's target, each with its explanation) is retained as its field's sort key with its state and observation,
+  by Analyze and by a column-header sort alike; the value itself stays with the metadata cache and its subsystem. A
+  value without a key is not retained, and the coverage says so.
 - **Analyze folder.** This explicit cancellable pass reads listed files and applicable directories, never descendants.
   It distinguishes current, LastKnown, ordinary absent, Gone, Denied, detected placeholders, other unsupported and
   failed outcomes. Principal fields wait at most ten seconds for global name idle; Esc skips only that wait.

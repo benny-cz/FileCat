@@ -786,7 +786,8 @@ public static partial class JournalRecovery
     public static IReadOnlyList<InterruptedJob> Scan(string directory, int keepFinished = 200, TimeSpan? maxAge = null)
     {
         var result = new List<InterruptedJob>();
-        if (WindowsTokenAuthority.IsHighIntegrity) return result;
+        // The journals are the ordinary account's: an administrator window, or root (I655), reviews, prunes and acts on none.
+        if (ProcessAuthority.IsElevatedOrRoot) return result;
         if (!Directory.Exists(directory)) return result;
         // Storage candidates are classified before legacy materialization/parsing/deletion. Their bounded discovery
         // is separate, including when the first record is damaged or absent.

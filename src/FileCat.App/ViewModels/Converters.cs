@@ -1,22 +1,15 @@
 using Avalonia;
 using Avalonia.Data.Converters;
-using Avalonia.Media;
 
 namespace FileCat.App.ViewModels;
 
+/// <remarks>
+/// Colors are not converted here: a converter reads a theme once, when its binding changes, so a brush picked by one keeps
+/// the old theme's color after a theme change (I663). Theme colors come from styles with dynamic resources instead.
+/// </remarks>
 public static class Converters
 {
-    private static IBrush Resource(string key, IBrush fallback) =>
-        Application.Current?.TryGetResource(key, Application.Current.ActualThemeVariant, out var v) == true && v is IBrush b ? b : fallback;
-
     /// <summary>The active panel has a thicker frame: a non-color cue for focus (PI-04).</summary>
     public static readonly IValueConverter ActiveBorder =
         new FuncValueConverter<bool, Thickness>(active => active ? new Thickness(2) : new Thickness(1));
-
-    /// <summary>The panel number's background: the active color, else the header's (its muted number stays readable in every theme).</summary>
-    public static readonly IValueConverter ActiveAccent =
-        new FuncValueConverter<bool, IBrush>(active => active ? Resource("FcAccentFill", Brushes.SteelBlue) : Resource("FcHeader", Brushes.LightGray));
-
-    public static readonly IValueConverter ActiveAccentText =
-        new FuncValueConverter<bool, IBrush>(active => active ? Resource("FcOnAccent", Brushes.White) : Resource("FcTextMuted", Brushes.Gray));
 }

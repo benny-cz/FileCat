@@ -14,16 +14,18 @@ public sealed class AppPaths
     public const string PortableMarker = "FileCat.portable";
 
     /// <param name="dataRoot">A folder that holds everything FileCat writes (--data), the listing scratch and hex originals included.</param>
-    private AppPaths(string settingsDir, string localDir, bool portable, string profile, IReadOnlyList<string> ownRoots, string? dataRoot = null)
+    /// <param name="privateRoot">Where the listing scratch and hex originals go when it is not <paramref name="dataRoot"/>
+    /// or the user's local application data (root's session folder, I655).</param>
+    private AppPaths(string settingsDir, string localDir, bool portable, string profile, IReadOnlyList<string> ownRoots, string? dataRoot = null,
+        string? privateRoot = null)
     {
         SettingsDirectory = settingsDir;
         LocalDirectory = localDir;
         IsPortable = portable;
         ProfileName = profile;
         DataRoot = dataRoot;
-        string privateRoot;
-        if (dataRoot is not null) privateRoot = dataRoot;
-        else
+        if (privateRoot is null && dataRoot is not null) privateRoot = dataRoot;
+        else if (privateRoot is null)
         {
             privateRoot = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             if (string.IsNullOrWhiteSpace(privateRoot)) privateRoot = Path.GetTempPath();
@@ -35,7 +37,10 @@ public sealed class AppPaths
         OwnRoots = [.. ownRoots, privateRoot];
     }
 
-    /// <summary>The folder given with --data, which holds everything FileCat writes; null when FileCat keeps its usual places.</summary>
+    /// <summary>
+    /// The folder given with --data, or root's session folder on Linux and macOS (I655, <see cref="RootSession"/>), which
+    /// holds everything FileCat writes; null when FileCat keeps its usual places.
+    /// </summary>
     public string? DataRoot { get; }
 
     /// <summary>The folders FileCat owns whole: all its state lives below them.</summary>
@@ -127,7 +132,9 @@ public sealed class AppPaths
         if (!string.IsNullOrEmpty(overrideRoot))
         {
             var root = Path.Combine(overrideRoot, suffix);
-            return new AppPaths(root, Path.Combine(root, "local"), true, profile, [overrideRoot])
+            // Root's listing scratch and hex originals stay out of the user's local application data (I655).
+            string? scratch = UsesRootSession ? RootSession.Folder() : null;
+            return new AppPaths(root, Path.Combine(root, "local"), true, profile, [overrideRoot], privateRoot: scratch)
                 .ConfigureAnalysisScratch(analysisScratchParent, overrideRoot).Ensure();
         }
         baseDirectory ??= AppContext.BaseDirectory;
@@ -138,6 +145,15 @@ public sealed class AppPaths
             // A portable copy or an installed one alike: which administrator helper it may use does not change.
             return new AppPaths(root, Path.Combine(root, "local"), File.Exists(Path.Combine(baseDirectory, PortableMarker)), profile, [data], data)
                 .ConfigureAnalysisScratch(analysisScratchParent, data).Ensure();
+        }
+        if (UsesRootSession)
+        {
+            // Root on Linux and macOS (I655): everything it writes while it runs goes to a folder of its own, as if it had been
+            // started with --data there, never to a profile or a portable copy's data folder (see RootSession).
+            string session = RootSession.Folder();
+            var root = Path.Combine(session, suffix);
+            return new AppPaths(root, Path.Combine(root, "local"), File.Exists(Path.Combine(baseDirectory, PortableMarker)), profile, [session], session)
+                .ConfigureAnalysisScratch(analysisScratchParent, session).Ensure();
         }
         string? portableProblem = null;
         if (File.Exists(Path.Combine(baseDirectory, PortableMarker)))
@@ -154,6 +170,14 @@ public sealed class AppPaths
             [Path.Combine(roaming, "FileCat"), Path.Combine(local, "FileCat")]) { PortableUnavailableReason = portableProblem }
             .ConfigureAnalysisScratch(analysisScratchParent).Ensure();
     }
+
+    /// <summary>
+    /// Whether this process keeps what it writes in <see cref="RootSession"/>: root on Linux and macOS (I655). Whatever it
+    /// made in a profile would belong to root, so the ordinary FileCat could not read it or save beside it, and a profile
+    /// keeps state, which root takes none of. An administrator window keeps its profile's folders, where Windows gives the
+    /// account rights to whatever it makes, and keeps out of their state.
+    /// </summary>
+    internal static bool UsesRootSession => !OperatingSystem.IsWindows() && ProcessAuthority.IsElevatedOrRoot;
 
     private AppPaths ConfigureAnalysisScratch(string? parent, string? containmentRoot = null)
     {
@@ -245,14 +269,29 @@ public sealed class AppPaths
             // a folder made under the usual umask (0755) is readable by every local account wherever the home folder does
             // not stop them (Debian's homes are 0755). Folders made before are tightened at the next start; where the mode
             // cannot be set (a FAT stick holding a portable copy), nothing is lost but the setting.
-            foreach (var root in OwnRoots)
-            {
-                try { File.SetUnixFileMode(root, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute); }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException) { }
-            }
-            File.SetUnixFileMode(ListingScratchDirectory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            TightenOwnFolders(OwnRoots, ListingScratchDirectory, Environment.IsPrivilegedProcess);
         }
         return this;
+    }
+
+    /// <summary>
+    /// Linux and macOS: makes FileCat's folders their user's alone (0700); the listing scratch must be, the others are
+    /// where their volume allows. Root changes no folder that is a link (I645): chmod follows a link, and a root FileCat
+    /// whose HOME is the user's (sudo keeps it on macOS, and with -E on Linux) would otherwise change the mode of whatever
+    /// the user's programs linked there.
+    /// </summary>
+    [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    internal static void TightenOwnFolders(IEnumerable<string> roots, string listingScratch, bool privileged)
+    {
+        const UnixFileMode Private = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+        foreach (var root in roots)
+        {
+            if (privileged && UnixFiles.Stat(root) is not { IsLink: false }) continue;
+            try { File.SetUnixFileMode(root, Private); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException) { }
+        }
+        if (privileged && UnixFiles.Stat(listingScratch) is not { IsLink: false }) return;
+        File.SetUnixFileMode(listingScratch, Private);
     }
 
     /// <summary>
@@ -260,25 +299,28 @@ public sealed class AppPaths
     /// ("member-*", "nested-*"). They are deleted on close, by Windows even after a crash, but on Linux and macOS only by
     /// FileCat itself. Those older than <paramref name="age"/> go; one still open stays usable (Windows refuses the
     /// deletion; Linux and macOS keep its data until it is closed). Returns how many went.
+    /// <para>
+    /// Never through a link (I645): a temporary folder that is itself a link is not swept, and a link named as a leftover
+    /// is removed itself, never what it leads to. Not for an elevated FileCat, whose temporary folder is the ordinary
+    /// account's, nor for root, whose session folder goes when it closes (<c>AppServices.SweepTemporaryFolders</c>).
+    /// </para>
     /// </summary>
     public int SweepTemporaryLeftovers(TimeSpan age)
     {
+        if (!TemporarySweep.IsPlainFolder(TempDirectory)) return 0;
         int removed = 0;
-        try
+        foreach (var entry in TemporarySweep.Entries(TempDirectory))
         {
-            foreach (var file in new DirectoryInfo(TempDirectory).EnumerateFiles())
+            try
             {
-                if (!file.Name.StartsWith("member-", StringComparison.Ordinal) && !file.Name.StartsWith("nested-", StringComparison.Ordinal)) continue;
-                if ((file.Attributes & FileAttributes.ReparsePoint) != 0 || DateTime.UtcNow - file.LastWriteTimeUtc < age) continue;
-                try
-                {
-                    file.Delete();
-                    removed++;
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                if (!entry.Name.StartsWith("member-", StringComparison.Ordinal) && !entry.Name.StartsWith("nested-", StringComparison.Ordinal)) continue;
+                // FileCat spools files here: a folder of such a name is not its own (a link to one is a link, and goes itself).
+                if ((entry.Attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) == FileAttributes.Directory) continue;
+                if (DateTime.UtcNow - entry.LastWriteTimeUtc < age) continue;
+                if (TemporarySweep.RemoveItself(entry.FullName)) removed++;
             }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         return removed;
     }
 

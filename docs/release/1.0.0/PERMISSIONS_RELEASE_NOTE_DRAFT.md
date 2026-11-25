@@ -8,8 +8,11 @@ records the qualified filesystems, routes and evidence.
 ## What macOS does not do in this release
 
 The macOS package stays an ad-hoc signed preview without an authorized helper (release decision DEC-03, kept on
-23 November 2026). On macOS FileCat inspects permissions and makes the reviewed changes your own account may make:
-mode, ACL entries, a group you belong to, Finder Locked and append-only, timestamps and Finder Hidden. It does not:
+23 November 2026). In this release FileCat inspects permissions on macOS but changes none of them: its reviewed
+writers for mode, ACL entries, a group you belong to, and Finder Locked and append-only stay off until they pass macOS
+release qualification, and only `FILECAT_QUALIFY_MAC_*` environment variables, used for qualification runs, turn them
+on. **Change attributes and times…** still changes timestamps and Finder Hidden. Even once qualified, those writers
+make only the changes your own account may make. FileCat does not:
 
 - change an item's owner;
 - change items that belong to other users or to root;

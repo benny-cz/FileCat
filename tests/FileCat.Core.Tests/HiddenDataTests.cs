@@ -304,8 +304,9 @@ public sealed partial class HiddenDataTests
             // held-object adapter is qualified, rather than reopening a mutable path or ..namedfork traversal.
             var inventory = hidden.ReadInventory(file, new(), TestContext.Current.CancellationToken);
             Assert.False(inventory.BoundToObject); Assert.Contains("Compression backing: not inventoried", inventory.Notice);
+            Assert.Equal(UnixHiddenData.MacValueRefusal, inventory.ValueRefusal);
             var ordinary = Assert.Single(items, i => i.Name == "org.filecat.payload");
-            Assert.Throws<NotSupportedException>(() => hidden.Read(file, ordinary, 64));
+            Assert.Equal(UnixHiddenData.MacValueRefusalReason, Assert.Throws<NotSupportedException>(() => hidden.Read(file, ordinary, 64)).Message);
             Assert.Throws<NotSupportedException>(() => hidden.Open(file, ordinary));
             Assert.Throws<NotSupportedException>(() => hidden.Delete(file, ordinary));
             Assert.Equal("contents", File.ReadAllText(file));
@@ -354,6 +355,61 @@ public sealed partial class HiddenDataTests
         new FileCat.Core.Search.SearchSession(new FileCat.Core.Search.SearchQuery { Roots = [dir.Path], CarriesHiddenData = new UnixHiddenData() }, set)
             .Run(TestContext.Current.CancellationToken);
         Assert.Equal(["carrier.bin"], set.Snapshot().Select(s => s.Item.Name));
+    }
+
+    /// <summary>
+    /// I651 and I615 on macOS: a Finder tag is read and named through a held folder, while a file's tag is listed with its
+    /// size and its value refused (47f7b0630). The refusal is said on the file's row and by every value action, instead
+    /// of "Not read — F3 to view" followed by silence.
+    /// </summary>
+    [Fact]
+    public async Task Mac_Finder_tag_is_named_for_a_folder_and_a_files_value_refusal_is_explained()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "Requires Darwin extended attributes.");
+        const string tags = "com.apple.metadata:_kMDItemUserTags";
+        using var dir = new TempDir();
+        string folder = Directory.CreateDirectory(Path.Combine(dir.Path, "tagged folder")).FullName;
+        string file = dir.File("case notes.txt", "case notes with one Finder tag\n");
+        byte[] blue = BinaryPlistOfStrings("Blue\n4");
+        Assert.Equal(51, blue.Length);
+        Assert.Equal(0, SetAttribute(folder, tags, blue));
+        Assert.Equal(0, SetAttribute(file, tags, blue));
+        var ct = TestContext.Current.CancellationToken;
+        var hidden = new UnixHiddenData();
+
+        var held = hidden.ReadInventory(folder, new(), ct);
+        Assert.True(held.CanAct);
+        Assert.Null(held.ValueRefusal);
+        var folderTag = Assert.Single(held.Items, item => item.Name == tags);
+        Assert.Equal("Finder tag: Blue", HiddenDataDecoder.Describe(folderTag, hidden.Read(folder, folderTag, 65536)).Summary);
+
+        var listed = hidden.ReadInventory(file, new(), ct);
+        Assert.False(listed.CanAct);
+        Assert.Equal(UnixHiddenData.MacValueRefusal, listed.ValueRefusal);
+        Assert.Equal(UnixHiddenData.MacValueRefusal, listed.ActionRefusalText);
+        Assert.Equal(UnixHiddenData.MacValueRefusalSummary, listed.ValueRefusalSummary);
+        Assert.Contains(UnixHiddenData.MacValueRefusal, listed.Notice);
+        var fileTag = Assert.Single(listed.Items, item => item.Name == tags);
+        Assert.Equal(blue.Length, fileTag.Size);
+        Assert.Equal(UnixHiddenData.MacValueRefusalReason, Assert.Throws<NotSupportedException>(() => hidden.Read(file, fileTag, 64)).Message);
+
+        var provider = new HiddenDataProvider(hidden);
+        var sink = new RowSink();
+        await provider.EnumerateAsync(HiddenDataProvider.Of(file), sink, ct);
+        Assert.Same(listed.ValueRefusal, sink.Inventory?.ValueRefusal);
+        var row = Assert.Single(sink.Rows);
+        Assert.True((row.Flags & EntryFlags.Unavailable) != 0);
+        Assert.Equal(UnixHiddenData.MacValueRefusalSummary, Assert.IsType<HiddenEntryTag>(row.Tag).Summary);
+        Assert.Throws<NotSupportedException>(() => provider.OpenContent(provider.GetItemRef(HiddenDataProvider.Of(file), row)));
+    }
+
+    private sealed class RowSink : IEnumerationSink
+    {
+        public List<EntryData> Rows { get; } = [];
+        public HiddenInventory? Inventory { get; private set; }
+        public void ReportSupplementaryInventory(HiddenInventory inventory) => Inventory = inventory;
+        public void AddBatch(ReadOnlySpan<EntryData> entries) => Rows.AddRange(entries.ToArray());
+        public void ReportIssue(string message) { }
     }
 
     [Fact]

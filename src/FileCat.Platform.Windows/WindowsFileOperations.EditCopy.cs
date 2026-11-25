@@ -191,7 +191,7 @@ public partial class WindowsFileOperations : IEditCopyPublisher
                     {
                         try { CheckEditCopyOutput(output); DeleteOpen(output); }
                         catch (Exception error) when (error is IOException or UnauthorizedAccessException or Win32Exception)
-                        { Core.Diagnostics.AppLog.Warn($"FileCat kept the temporary saved edit at {Path.Combine(folder, stage)}: {error.Message}"); }
+                        { Core.Diagnostics.AppLog.Warn($"FileCat kept the temporary saved edit at {Core.Diagnostics.AppLog.P(Path.Combine(folder, stage))}: {error.Message}"); }
                     }
                 }
             }

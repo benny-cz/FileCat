@@ -118,7 +118,8 @@ public sealed class VerificationCache(string? file)
             _entries.Remove(entry.Key);
             _entries[entry.Key] = entry; // re-added last: the newest when the file is rewritten
             TrimRecent();
-            if (file is null || WindowsTokenAuthority.IsHighIntegrity) return;
+            // Results are kept in the ordinary account's cache: never by an administrator window or root (I655).
+            if (file is null || ProcessAuthority.IsElevatedOrRoot) return;
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(file)!);
@@ -133,7 +134,7 @@ public sealed class VerificationCache(string? file)
     {
         if (_loaded) return;
         _loaded = true;
-        if (file is null || WindowsTokenAuthority.IsHighIntegrity || !File.Exists(file)) return;
+        if (file is null || ProcessAuthority.IsElevatedOrRoot || !File.Exists(file)) return;
         try
         {
             foreach (string line in ReadBoundedLines(file))
@@ -331,9 +332,9 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     /// <summary>After the folder's listing changed: rescan its sidecars and invalidate rows when sources changed or the prior scan was evicted.</summary>
     public void FolderChanged(string folder, CancellationToken ct)
     {
-        // A listing refresh is implicit work. At high integrity, scanning a lower-token
+        // A listing refresh is implicit work. At high integrity, or as root (I655), scanning a lower-token
         // sidecar (or a linked signature) may read protected bytes or remote content.
-        if (WindowsTokenAuthority.IsHighIntegrity) return;
+        if (ProcessAuthority.IsElevatedOrRoot) return;
         bool evicted;
         lock (_folderLock)
         {
@@ -360,7 +361,7 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     // Automatic row work must not read a lower-token link to high-only bytes. At high integrity the cache is
     // already memory-only, but refusing the entire implicit check also avoids reading the target or its claims.
     public VerificationResult? Automatic(string path, CancellationToken ct) =>
-        WindowsTokenAuthority.IsHighIntegrity ? null : Verify(path, automatic: true, ct, null);
+        ProcessAuthority.IsElevatedOrRoot ? null : Verify(path, automatic: true, ct, null);
 
     /// <summary>
     /// The check asked for (a command): no size limit, and nothing kept is trusted: the file is read and its signatures
@@ -645,8 +646,8 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     public (int Good, int Bad, int Unknown, int NotChecked, int Historical) Summary(string folder, IEnumerable<string> names)
     {
         // Even a cached explicit sidecar scan must not make an implicit status refresh
-        // stamp linked files or fingerprint signer trust files at high integrity.
-        if (WindowsTokenAuthority.IsHighIntegrity) return default;
+        // stamp linked files or fingerprint signer trust files at high integrity, or as root (I655).
+        if (ProcessAuthority.IsElevatedOrRoot) return default;
         FolderSidecars sidecars;
         lock (_folderLock)
         {

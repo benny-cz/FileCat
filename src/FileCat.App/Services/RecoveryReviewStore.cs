@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using FileCat.Core.Jobs;
+using FileCat.Core.State;
 
 namespace FileCat.App.Services;
 
@@ -34,6 +35,9 @@ internal static class RecoveryReviewStore
 
     internal static IReadOnlyList<RecoveryReviewRecord> Load(string journalDirectory)
     {
+        // An elevated or root FileCat reads none of the profile's records, which the ordinary account can change, as it
+        // lists no journal (JournalRecovery.Scan): it shows no reviewed report either (I655).
+        if (ProcessAuthority.IsElevatedOrRoot) return [];
         string directory = DirectoryOf(journalDirectory);
         if (!Directory.Exists(directory)) return [];
         var records = new List<RecoveryReviewRecord>();
@@ -57,6 +61,10 @@ internal static class RecoveryReviewStore
 
     internal static void Save(string journalDirectory, RecoveryReviewRecord record)
     {
+        // Saving also prunes old records in a folder the ordinary account can replace with a link (I645's pattern). Only
+        // the recovery of a listed journal saves, and an elevated or root FileCat lists none; refuse outright all the same.
+        if (ProcessAuthority.IsElevatedOrRoot)
+            throw new IOException("FileCat does not keep recovery reports while running " + ProcessAuthority.RunningAs + ".");
         if (record.Kind == nameof(JobKind.StorageTransform) || record.StorageAcknowledgment is not null)
             throw new InvalidOperationException("Storage review reports must use the exact-snapshot Core acknowledgment path.");
         ArgumentException.ThrowIfNullOrWhiteSpace(record.JournalPath);

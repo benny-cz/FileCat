@@ -362,7 +362,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or System.Security.SecurityException)
         {
-            Notify($"Cannot inspect everything that would be deleted: {ex.Message}. Nothing was deleted.", true);
+            Notify($"Cannot inspect everything that would be deleted: {ErrorText.WithoutFinalPeriod(ex.Message)}. Nothing was deleted.", true);
             return;
         }
         string what = items.Count == 1
@@ -563,7 +563,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or System.Security.SecurityException)
         {
-            Notify($"Cannot inspect everything that would be copied: {ex.Message}. Nothing was copied.", true);
+            Notify($"Cannot inspect everything that would be copied: {ErrorText.WithoutFinalPeriod(ex.Message)}. Nothing was copied.", true);
             return;
         }
         if (plan.Changes.Count == 0)
@@ -603,7 +603,7 @@ public sealed partial class MainViewModel
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
             {
-                Notify($"Cannot inspect the full key subtree: {ex.Message}. Nothing was copied.", true);
+                Notify($"Cannot inspect the full key subtree: {ErrorText.WithoutFinalPeriod(ex.Message)}. Nothing was copied.", true);
                 return;
             }
             if (scope.LinkCount > 0)

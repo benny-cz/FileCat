@@ -11,7 +11,7 @@ namespace FileCat.Platform.Windows.Tests;
 /// with its own title (its script does not run), the image beside it is served, and the web and files outside its folder
 /// are refused.
 /// </summary>
-public sealed class PageViewTests : IDisposable
+public sealed partial class PageViewTests : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "filecat-page-" + Guid.NewGuid().ToString("N")[..8]);
 
@@ -396,6 +396,9 @@ public sealed class PageViewTests : IDisposable
                 for (int i = 0; i < 100 && !served.Any(s => s.Path == "/pic.png"); i++) await Task.Delay(50);
                 await Task.Delay(500); // anything else the page would ask for
                 title = view.Title;
+                // I648: when WebView2 lost the completion and the view counted the page as drawn, say how it went.
+                if (view.LoadDiagnostics.Contains("watch:", StringComparison.Ordinal))
+                    TestContext.Current.TestOutputHelper?.WriteLine("WebView2 reported no completion: " + view.LoadDiagnostics);
                 if (!string.IsNullOrEmpty(capture))
                     await using (var png = File.Create(capture)) await view.CaptureAsync(png);
             }

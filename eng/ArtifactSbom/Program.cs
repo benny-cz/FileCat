@@ -68,7 +68,15 @@ try
         ReferenceComponent[] components = item.TryGetProperty("ReferenceComponents", out JsonElement referenceComponents)
             ? referenceComponents.EnumerateArray().Select(value => new ReferenceComponent(Required(value, "ID"), PackageRelative(Required(value, "PackagePath")))).ToArray()
             : [];
-        if (!packages.TryAdd(id, new(id, packageVersion, contentHash, archiveHash, licenseText, repositoryUrl, repositoryCommit, notices, components)))
+        // Files publishing takes from the package that no dependency manifest names (its build targets' content items, or
+        // the documentation beside a reference they add): the reviewed index names each, by its path in the app folder,
+        // with the package file it is, that file's size and SHA-256, and what copies it.
+        UnlistedFile[] unlisted = item.TryGetProperty("UnlistedPayloadFiles", out JsonElement unlistedFiles)
+            ? unlistedFiles.EnumerateArray().Select(value => new UnlistedFile(NormalizeLogical(Required(value, "Path")),
+                PackageRelative(Required(value, "PackagePath")), value.GetProperty("Bytes").GetInt64(), Required(value, "SHA256"),
+                Required(value, "CopiedBy"))).ToArray()
+            : [];
+        if (!packages.TryAdd(id, new(id, packageVersion, contentHash, archiveHash, licenseText, repositoryUrl, repositoryCommit, notices, components, unlisted)))
             throw new InvalidDataException("Duplicate package in notice snapshot.");
     }
     var runtimePacks = new Dictionary<string, RuntimeInfo>(StringComparer.OrdinalIgnoreCase);
@@ -80,6 +88,26 @@ try
         if (!runtimePacks.TryAdd(runtime.ID + "/" + runtime.Version, runtime))
             throw new InvalidDataException("Duplicate runtime pack in notice snapshot.");
     }
+    // The SDK's apphost packs: the reviewed launcher template of each RID (see AppHost), with the license texts the index
+    // retains for it.
+    var appHostPacks = new List<AppHostInfo>();
+    if (snapshot.TryGetProperty("AppHostPacks", out JsonElement hostItems))
+        foreach (JsonElement item in hostItems.EnumerateArray())
+        {
+            var host = new AppHostInfo(Required(item, "ID"), Required(item, "Version"), Required(item, "RID"), Required(item, "RawArchiveSHA512"),
+                Required(item, "PackageArchiveSHA256"), PackageRelative(Required(item, "TemplatePath")), item.GetProperty("TemplateBytes").GetInt64(),
+                Required(item, "TemplateSHA256"),
+                item.GetProperty("RetainedNoticePaths").EnumerateArray().Select(value => value.GetString() ?? throw new InvalidDataException("Null apphost notice path.")).ToArray());
+            if (host.ID != "Microsoft.NETCore.App.Host." + host.RID || appHostPacks.Any(other => other.ID == host.ID && other.Version == host.Version))
+                throw new InvalidDataException("Malformed or duplicate apphost pack in notice snapshot.");
+            appHostPacks.Add(host);
+        }
+    // The retained license and notice texts, by their path in the notice folder, with their reviewed SHA-256.
+    var noticeHashes = new Dictionary<string, string>(StringComparer.Ordinal);
+    if (snapshot.TryGetProperty("Files", out JsonElement noticeItems))
+        foreach (JsonElement item in noticeItems.EnumerateArray())
+            if (!noticeHashes.TryAdd(Required(item, "Path"), Required(item, "SHA256")))
+                throw new InvalidDataException("Duplicate retained notice text in notice snapshot.");
 
     var seenPackages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     var seenRuntimePacks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -90,12 +118,19 @@ try
     // (bare names by kind): they must be the reviewed archives' own bytes.
     var packageFiles = new Dictionary<string, SortedSet<string>>(StringComparer.OrdinalIgnoreCase);
     var runtimePackFiles = new Dictionary<string, SortedSet<string>>(StringComparer.OrdinalIgnoreCase);
+    // Where publishing puts the files the manifests name, relative to the payload: an app folder (one holding a manifest)
+    // plus the file's name, under its culture for resources; a runtime target keeps its path.
+    var manifestNamed = new HashSet<string>(StringComparer.Ordinal);
+    var appFolders = new SortedSet<string>(StringComparer.Ordinal);
     string[] assetKinds = ["runtime", "native", "resources", "runtimeTargets"];
     string[] depsFiles = FindFiles(new DirectoryInfo(payload), ".deps.json").Order(StringComparer.Ordinal).ToArray();
     if (depsFiles.Length == 0) throw new InvalidDataException("Payload has no dependency manifest.");
     foreach (string depsPath in depsFiles)
     {
         using var depsDocument = JsonDocument.Parse(File.ReadAllBytes(depsPath));
+        string depsFolder = Path.GetDirectoryName(depsPath) ?? throw new InvalidDataException("Dependency manifest has no folder.");
+        string appFolder = LogicalFolder(payload, depsFolder);
+        appFolders.Add(appFolder);
         // The files each library contributes, by kind, as the manifest's targets name them.
         var libraryAssets = new Dictionary<string, List<(string Kind, string Name)>>(StringComparer.OrdinalIgnoreCase);
         if (depsDocument.RootElement.TryGetProperty("targets", out JsonElement targets) && targets.ValueKind == JsonValueKind.Object)
@@ -105,10 +140,16 @@ try
                         if (entry.Value.TryGetProperty(assetKind, out JsonElement assets) && assets.ValueKind == JsonValueKind.Object)
                         {
                             if (!libraryAssets.TryGetValue(entry.Name, out var list)) libraryAssets[entry.Name] = list = [];
-                            list.AddRange(assets.EnumerateObject().Select(asset => (assetKind, asset.Name)));
+                            foreach (JsonProperty asset in assets.EnumerateObject())
+                            {
+                                list.Add((assetKind, asset.Name));
+                                string fileName = asset.Name[(asset.Name.LastIndexOf('/') + 1)..];
+                                string? culture = assetKind == "resources" && asset.Value.ValueKind == JsonValueKind.Object
+                                    && asset.Value.TryGetProperty("locale", out JsonElement locale) ? locale.GetString() : null;
+                                manifestNamed.Add(JoinLogical(appFolder, assetKind == "runtimeTargets" ? asset.Name : culture is null ? fileName : culture + "/" + fileName));
+                            }
                         }
         List<(string Kind, string Name)> AssetsOf(string library) => libraryAssets.TryGetValue(library, out var list) ? list : [];
-        string depsFolder = Path.GetDirectoryName(depsPath) ?? throw new InvalidDataException("Dependency manifest has no folder.");
         foreach (JsonProperty library in depsDocument.RootElement.GetProperty("libraries").EnumerateObject())
         {
             int separator = library.Name.LastIndexOf('/');
@@ -182,17 +223,41 @@ try
     omittedProjects.ExceptWith(projects.Keys);
     if (references.Values.Any(reference => !seenPackages.Contains(reference.ParentPackage)))
         throw new InvalidDataException("Published reference component omits its reviewed parent package.");
+    var files = new List<FileRecord>();
+    ReadTree(new DirectoryInfo(payload), "", files);
+    var payloadFiles = files.ToDictionary(file => file.Path, StringComparer.Ordinal);
+    // A file a package's build targets copy without any manifest naming it ships only as the reviewed index declares it,
+    // which makes the package one this payload takes; its bytes must be that package file's.
+    var unlistedShipped = new SortedDictionary<string, (PackageInfo Package, UnlistedFile Declared, FileRecord File)>(StringComparer.Ordinal);
+    foreach (PackageInfo package in packages.Values.OrderBy(package => package.ID, StringComparer.OrdinalIgnoreCase))
+        foreach (UnlistedFile declared in package.UnlistedFiles)
+            foreach (string folder in appFolders)
+                if (payloadFiles.TryGetValue(JoinLogical(folder, declared.Path), out FileRecord? file) && !file.IsLink)
+                {
+                    if (!unlistedShipped.TryAdd(file.Path, (package, declared, file)))
+                        throw new InvalidDataException($"The reviewed index declares {file.Path} for more than one package.");
+                    seenPackages.Add(package.ID);
+                    if (!packageFiles.TryGetValue(package.ID, out var named)) packageFiles[package.ID] = named = new(StringComparer.Ordinal);
+                    named.Add(declared.PackagePath);
+                }
     int restoredFilesMatched = 0;
+    var memberHashes = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
     foreach (string packageId in seenPackages.Order(StringComparer.OrdinalIgnoreCase))
     {
         PackageInfo package = packages[packageId];
-        restoredFilesMatched += ValidateNuGetArchive(package.ID, package.Version, package.ContentHash, package.ArchiveSHA256, false, _ => packageFiles[package.ID]);
+        IReadOnlyDictionary<string, string> compared = ValidateNuGetArchive(package.ID, package.Version, package.ContentHash, package.ArchiveSHA256, false,
+            _ => packageFiles.TryGetValue(package.ID, out var named) ? named : []);
+        memberHashes[package.ID] = compared;
+        restoredFilesMatched += compared.Count;
     }
+    foreach ((string path, (PackageInfo package, UnlistedFile declared, FileRecord file)) in unlistedShipped)
+        if (memberHashes[package.ID][declared.PackagePath] != declared.SHA256 || file.SHA256 != declared.SHA256 || file.Bytes != declared.Bytes)
+            throw new InvalidDataException($"{path} is not {package.ID} {package.Version}'s {declared.PackagePath} byte for byte, as the reviewed index declares.");
     foreach (string identity in seenRuntimePacks.Order(StringComparer.OrdinalIgnoreCase))
     {
         RuntimeInfo runtime = runtimePacks[identity];
         restoredFilesMatched += ValidateNuGetArchive(runtime.ID, runtime.Version, runtime.ContentHash, runtime.ArchiveSHA256, true,
-            members => runtimePackFiles[identity].Select(named => RuntimePackMember(members, runtime.RID, named)));
+            members => runtimePackFiles[identity].Select(named => RuntimePackMember(members, runtime.RID, named))).Count;
     }
     bool selfContained = kind != "fdd";
     if (selfContained)
@@ -203,8 +268,66 @@ try
     }
     else if (seenRuntimePacks.Count != 0) throw new InvalidDataException("Framework-dependent payload unexpectedly contains a runtime pack.");
 
-    var files = new List<FileRecord>();
-    ReadTree(new DirectoryInfo(payload), "", files);
+    // A launcher made from the .NET apphost (it carries the apphost's binding check) must be a reviewed template of this
+    // RID, bound to the DLL beside it and changed only as publishing, signing and packaging change it (AppHost.TryRelate).
+    // The reviewed pack whose template it matches is the one the SDK used.
+    var launchers = new List<(FileRecord File, AppHostInfo Host, string AppDll, string Relation)>();
+    var templates = new Dictionary<AppHostInfo, byte[]>();
+    foreach (FileRecord file in files.Where(file => !file.IsLink))
+    {
+        byte[] shipped = File.ReadAllBytes(Path.Combine(payload, file.Path.Replace('/', Path.DirectorySeparatorChar)));
+        if (!AppHost.CarriesBindingCheck(shipped)) continue;
+        int slash = file.Path.LastIndexOf('/');
+        string folder = slash < 0 ? "" : file.Path[..slash], name = file.Path[(slash + 1)..];
+        string appDll = (rid.StartsWith("win-", StringComparison.Ordinal) && name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? name[..^4] : name) + ".dll";
+        if (!payloadFiles.TryGetValue(JoinLogical(folder, appDll), out FileRecord? dll) || dll.IsLink)
+            throw new InvalidDataException($"{file.Path} carries the .NET apphost's binding check, but its app {appDll} is not beside it.");
+        byte[] dllBytes = File.ReadAllBytes(Path.Combine(payload, dll.Path.Replace('/', Path.DirectorySeparatorChar)));
+        var mismatches = new List<string>();
+        (AppHostInfo Host, string Relation)? match = null;
+        foreach (AppHostInfo host in appHostPacks.Where(host => host.RID == rid).OrderBy(host => host.Version, StringComparer.Ordinal))
+        {
+            if (!templates.TryGetValue(host, out byte[]? template)) templates[host] = template = AppHostTemplate(host, noticeHashes);
+            if (AppHost.TryRelate(AppHost.Bind(template, appDll), shipped, appDll, dllBytes, out string relation, out string mismatch))
+            {
+                match = (host, relation);
+                break;
+            }
+            mismatches.Add($"{host.ID} {host.Version}: {mismatch}");
+        }
+        if (match is not { } found)
+            throw new InvalidDataException($"{file.Path} carries the .NET apphost's binding check, but it is no reviewed {rid} apphost bound to {appDll}"
+                + (mismatches.Count == 0 ? ": the reviewed index has no apphost pack for this RID." : ": " + string.Join("; ", mismatches) + "."));
+        launchers.Add((file, found.Host, appDll, found.Relation));
+    }
+    if (launchers.Select(launcher => launcher.Host).Distinct().Count() > 1)
+        throw new InvalidDataException("The payload's launchers come from more than one apphost pack.");
+    if (selfContained && launchers.Count != 0 && launchers[0].Host.Version != runtimePacks[seenRuntimePacks.Single()].Version)
+        throw new InvalidDataException("The launchers' apphost and the payload's runtime pack are different .NET releases.");
+
+    // Every payload file that is a reviewed archive's member byte for byte must be declared: named by a dependency manifest
+    // or by the reviewed index (as an unlisted file), or made from the apphost. A file a package's build targets copy
+    // without either would otherwise ship with no package in its SBOM. The archives are those this payload takes and the
+    // App graph's other reviewed packages restored here (build-only ones too, whose targets can copy files). A license or
+    // notice text the reviewed index retains is no component, wherever it sits (the notice folder, or another component's
+    // texts that quote the same license), and an empty file says nothing of where it comes from.
+    var declaredFiles = new HashSet<string>(manifestNamed, StringComparer.Ordinal);
+    declaredFiles.UnionWith(unlistedShipped.Keys);
+    declaredFiles.UnionWith(launchers.Select(launcher => launcher.File.Path));
+    var retainedTexts = new HashSet<string>(noticeHashes.Values, StringComparer.Ordinal);
+    var undeclaredBySize = files.Where(file => !file.IsLink && file.Bytes > 0 && !declaredFiles.Contains(file.Path) && !retainedTexts.Contains(file.SHA256))
+        .GroupBy(file => file.Bytes).ToDictionary(group => group.Key, group => group.ToList());
+    var scannedArchives = seenPackages.Select(id => packages[id]).Select(package => (package.ID, package.Version, package.ArchiveSHA256))
+        .Concat(seenRuntimePacks.Select(identity => runtimePacks[identity]).Select(runtime => (runtime.ID, runtime.Version, runtime.ArchiveSHA256)))
+        .Concat(launchers.Select(launcher => (launcher.Host.ID, launcher.Host.Version, launcher.Host.ArchiveSHA256)))
+        .Concat(packages.Values.Where(package => !seenPackages.Contains(package.ID)).Select(package => (package.ID, package.Version, package.ArchiveSHA256)))
+        .Distinct().Where(archive => File.Exists(ArchivePath(archive.ID, archive.Version)))
+        .OrderBy(archive => archive.ID + "/" + archive.Version, StringComparer.Ordinal).ToList();
+    foreach ((string id, string archiveVersion, string archiveSHA256) in scannedArchives)
+        foreach ((string member, long length, string hash) in ArchiveMembers(ArchivePath(id, archiveVersion), archiveSHA256, undeclaredBySize))
+            foreach (FileRecord file in undeclaredBySize[length].Where(file => file.SHA256 == hash))
+                throw new InvalidDataException($"{file.Path} is {id} {archiveVersion}'s {member} byte for byte, but neither a dependency manifest nor the reviewed index declares it.");
+
     var logicalPaths = new HashSet<string>(files.Select(file => file.Path), StringComparer.Ordinal);
     for (int index = 8; index < args.Length; index++)
     {
@@ -289,6 +412,15 @@ try
                 + "references; the reviewed notice index names each as this package's own: " + string.Join(", ", aliases)
                 + ". Their restored files match this archive's members; their payload bytes, which publishing may compile ahead of time, "
                 + "are recorded as files.";
+        string[] unlistedHere = unlistedShipped.Values.Where(shipped => shipped.Package.ID.Equals(package.ID, StringComparison.OrdinalIgnoreCase))
+            .Select(shipped => $"./{shipped.File.Path} ({shipped.Declared.PackagePath})").ToArray();
+        if (unlistedHere.Length != 0)
+        {
+            string unlistedText = "Files publishing takes from this package through its build targets without any dependency manifest naming them; "
+                + "the reviewed notice index declares each, and each is this archive's member byte for byte, EXPANDED_FROM_ARCHIVE this package: "
+                + string.Join(", ", unlistedHere) + ".";
+            node["comment"] = node["comment"] is JsonNode existing ? existing.GetValue<string>() + " " + unlistedText : unlistedText;
+        }
         if (!string.IsNullOrWhiteSpace(package.RepositoryUrl))
         {
             ((JsonArray)node["externalRefs"]!).Add(new JsonObject
@@ -323,6 +455,45 @@ try
             })
         });
     }
+    // The .NET apphost every launcher here is made from, framework-dependent payloads included: the reviewed pack whose
+    // template the launchers match, with how each launcher's bytes relate to it in its file comment.
+    string? appHostId = null;
+    if (launchers.Count != 0)
+    {
+        AppHostInfo host = launchers[0].Host;
+        appHostId = SpdxId("AppHost", host.ID + "/" + host.Version);
+        dependencyIds.Add(appHostId);
+        spdxPackages.Add(new JsonObject
+        {
+            ["name"] = host.ID,
+            ["SPDXID"] = appHostId,
+            ["versionInfo"] = host.Version,
+            ["downloadLocation"] = $"https://api.nuget.org/v3-flatcontainer/{host.ID.ToLowerInvariant()}/{host.Version}/{host.ID.ToLowerInvariant()}.{host.Version}.nupkg",
+            ["filesAnalyzed"] = false,
+            ["checksums"] = new JsonArray(new JsonObject { ["algorithm"] = "SHA256", ["checksumValue"] = host.ArchiveSHA256 }),
+            ["licenseConcluded"] = "NOASSERTION",
+            ["licenseDeclared"] = "MIT",
+            ["licenseComments"] = "Retained texts: " + string.Join(", ", host.NoticePaths) + "; the reviewed notice index pins them as this archive's members of the same names.",
+            ["copyrightText"] = "NOASSERTION",
+            ["comment"] = $"The .NET application host. Publishing makes each launcher from this archive's {host.TemplatePath} ({host.TemplateBytes} bytes, "
+                + $"SHA-256 {host.TemplateSHA256}) by writing its app's DLL name over a placeholder: "
+                + string.Join(", ", launchers.Select(launcher => $"./{launcher.File.Path} ({launcher.AppDll})"))
+                + ". Each is GENERATED_FROM this package; its file comment says how its bytes relate to the template."
+                + (selfContained ? " The same .NET release as the runtime pack." : ""),
+            ["externalRefs"] = new JsonArray(new JsonObject
+            {
+                ["referenceCategory"] = "PACKAGE-MANAGER", ["referenceType"] = "purl",
+                ["referenceLocator"] = $"pkg:nuget/{Uri.EscapeDataString(host.ID)}@{host.Version}"
+            })
+        });
+    }
+    // What the file comments add to a file's size: how a launcher or an unlisted package file relates to its source.
+    var fileNotes = new Dictionary<string, string>(StringComparer.Ordinal);
+    foreach (var launcher in launchers)
+        fileNotes[launcher.File.Path] = $"made from the .NET apphost {launcher.Host.ID} {launcher.Host.Version} ({launcher.Host.TemplatePath}) "
+            + $"bound to {launcher.AppDll}: {launcher.Relation}";
+    foreach ((string path, (PackageInfo package, UnlistedFile declared, FileRecord _)) in unlistedShipped)
+        fileNotes[path] = $"{package.ID} {package.Version}'s {declared.PackagePath} byte for byte, which no dependency manifest names: {declared.CopiedBy}";
     foreach ((string name, string projectVersion) in projects.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase))
     {
         if (name.Equals("FileCat", StringComparison.OrdinalIgnoreCase)) continue;
@@ -425,6 +596,15 @@ try
     }
     foreach (string dependencyId in dependencyIds.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
         relationships.Add(new JsonObject { ["spdxElementId"] = rootId, ["relationshipType"] = "DEPENDS_ON", ["relatedSpdxElement"] = dependencyId });
+    // Each launcher is generated from the apphost package; each unlisted package file is expanded from its package's archive.
+    foreach (var launcher in launchers.OrderBy(launcher => launcher.File.Path, StringComparer.Ordinal))
+        relationships.Add(new JsonObject { ["spdxElementId"] = launcher.File.SpdxId, ["relationshipType"] = "GENERATED_FROM", ["relatedSpdxElement"] = appHostId });
+    foreach ((PackageInfo package, UnlistedFile _, FileRecord file) in unlistedShipped.Values)
+        relationships.Add(new JsonObject
+        {
+            ["spdxElementId"] = file.SpdxId, ["relationshipType"] = "EXPANDED_FROM_ARCHIVE",
+            ["relatedSpdxElement"] = SpdxId("NuGet", package.ID + "/" + package.Version)
+        });
 
     string generatorPath = Assembly.GetExecutingAssembly().Location;
     if (string.IsNullOrWhiteSpace(generatorPath)) throw new InvalidOperationException("Missing generator assembly path.");
@@ -453,7 +633,7 @@ try
             ["licenseConcluded"] = "NOASSERTION",
             ["licenseInfoInFiles"] = new JsonArray("NOASSERTION"),
             ["copyrightText"] = "NOASSERTION",
-            ["comment"] = file.Description
+            ["comment"] = fileNotes.TryGetValue(file.Path, out string? note) ? file.Description + "; " + note : file.Description
         }).ToArray()),
         ["relationships"] = relationships,
         ["annotations"] = new JsonArray(new JsonObject
@@ -475,6 +655,9 @@ try
     }
     finally { if (File.Exists(temporary)) File.Delete(temporary); }
     Console.WriteLine($"Wrote SPDX 2.3 SBOM: {files.Count} exact files, {seenPackages.Count} reviewed NuGet packages, {seenRuntimePacks.Count} runtime packs ({restoredFilesMatched} restored files match their archives), tree {treeIdentity}.");
+    Console.WriteLine($"Launchers made from the reviewed .NET apphost: {launchers.Count}"
+        + (launchers.Count == 0 ? "" : $" ({launchers[0].Host.ID} {launchers[0].Host.Version}: {string.Join(", ", launchers.Select(launcher => launcher.File.Path))})")
+        + $"; files the reviewed index declares outside the dependency manifests: {unlistedShipped.Count}; {scannedArchives.Count} reviewed archives hold no other payload file.");
     return 0;
 }
 catch (Exception error)
@@ -509,7 +692,82 @@ static FileRecord ReadLink(string logical, string target)
 {
     byte[] bytes = Encoding.UTF8.GetBytes(target);
     return new(logical, bytes.LongLength, Hex(SHA1.HashData(bytes)), Hex(SHA256.HashData(bytes)),
-        SpdxId("File", logical), $"symbolic link target: {target}");
+        SpdxId("File", logical), $"symbolic link target: {target}", IsLink: true);
+}
+// A folder inside the payload as a logical path ("" for the payload itself), and a path inside such a folder.
+static string LogicalFolder(string payload, string folder)
+{
+    string relative = Path.GetRelativePath(payload, folder);
+    return relative == "." ? "" : NormalizeLogical(relative);
+}
+static string JoinLogical(string folder, string relative) => folder.Length == 0 ? relative : folder + "/" + relative;
+// The restored NuGet package folder and a package's archive in it.
+static string NuGetRoot()
+{
+    string? packageRoot = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
+    return string.IsNullOrWhiteSpace(packageRoot)
+        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages")
+        : packageRoot;
+}
+static string ArchivePath(string id, string version) =>
+    Path.Combine(NuGetRoot(), id.ToLowerInvariant(), version.ToLowerInvariant(), $"{id.ToLowerInvariant()}.{version.ToLowerInvariant()}.nupkg");
+// The members of a reviewed archive whose sizes are among the given ones, with their SHA-256 values; the archive must have
+// its reviewed SHA-256.
+static List<(string Member, long Length, string SHA256)> ArchiveMembers(string archive, string archiveSHA256, IReadOnlyDictionary<long, List<FileRecord>> sizes)
+{
+    if ((File.GetAttributes(archive) & FileAttributes.ReparsePoint) != 0)
+        throw new InvalidDataException($"Restored NuGet package archive {Path.GetFileName(archive)} is linked.");
+    byte[] bytes = File.ReadAllBytes(archive);
+    if (Hex(SHA256.HashData(bytes)) != archiveSHA256)
+        throw new InvalidDataException($"Restored NuGet package archive {Path.GetFileName(archive)} differs from the reviewed snapshot.");
+    var found = new List<(string, long, string)>();
+    using var reader = new ZipArchive(new MemoryStream(bytes, false), ZipArchiveMode.Read);
+    foreach (ZipArchiveEntry entry in reader.Entries)
+        if (entry.Length > 0 && sizes.ContainsKey(entry.Length))
+        {
+            using Stream stream = entry.Open();
+            found.Add((Uri.UnescapeDataString(entry.FullName), entry.Length, Hex(SHA256.HashData(stream))));
+        }
+    return found;
+}
+// The template of a reviewed apphost pack. Restored, the pack's archive must be the reviewed one, and the template and the
+// texts the index retains for the pack its members (the texts by their names). The SDK prefers a pack in its own packs
+// folder, and restore then leaves none: the template there is taken, as the SDK takes it. Either way its bytes must be the
+// reviewed template's.
+static byte[] AppHostTemplate(AppHostInfo host, IReadOnlyDictionary<string, string> noticeHashes)
+{
+    byte[] template;
+    string archive = ArchivePath(host.ID, host.Version);
+    if (File.Exists(archive))
+    {
+        static string Name(string path) => path[(path.LastIndexOf('/') + 1)..];
+        IReadOnlyDictionary<string, string> compared = ValidateNuGetArchive(host.ID, host.Version, host.ArchiveSHA512, host.ArchiveSHA256, true,
+            _ => host.NoticePaths.Select(Name).Append(host.TemplatePath));
+        foreach (string path in host.NoticePaths)
+            if (!noticeHashes.TryGetValue(path, out string? hash) || compared[Name(path)] != hash)
+                throw new InvalidDataException($"The retained text {path} is not {host.ID} {host.Version}'s own {Name(path)}.");
+        template = File.ReadAllBytes(Path.Combine(Path.GetDirectoryName(archive)!, host.TemplatePath.Replace('/', Path.DirectorySeparatorChar)));
+    }
+    else
+    {
+        string? packed = DotnetRoots().Select(root => Path.Combine(root, "packs", host.ID, host.Version, host.TemplatePath.Replace('/', Path.DirectorySeparatorChar)))
+            .FirstOrDefault(File.Exists);
+        if (packed is null || (File.GetAttributes(packed) & FileAttributes.ReparsePoint) != 0)
+            throw new InvalidDataException($"The reviewed apphost template of {host.ID} {host.Version} is neither restored nor in the SDK's packs folder.");
+        template = File.ReadAllBytes(packed);
+    }
+    if (template.LongLength != host.TemplateBytes || Hex(SHA256.HashData(template)) != host.TemplateSHA256)
+        throw new InvalidDataException($"The apphost template of {host.ID} {host.Version} differs from the reviewed one.");
+    return template;
+}
+// The .NET installations whose packs folder the SDK may have used: DOTNET_ROOT, then the one running this tool
+// (<root>/shared/Microsoft.NETCore.App/<version>/).
+static IEnumerable<string> DotnetRoots()
+{
+    string? configured = Environment.GetEnvironmentVariable("DOTNET_ROOT");
+    if (!string.IsNullOrWhiteSpace(configured)) yield return configured;
+    string? runtime = Path.GetDirectoryName(typeof(object).Assembly.Location);
+    if (!string.IsNullOrEmpty(runtime) && new DirectoryInfo(runtime).Parent?.Parent?.Parent is { } root) yield return root.FullName;
 }
 static void ReadTree(DirectoryInfo directory, string relative, List<FileRecord> files)
 {
@@ -551,15 +809,12 @@ static string TreeIdentity(IEnumerable<FileRecord> files)
 }
 // Publish copies a package's files from its restored folder, not from the archive whose hash is reviewed: each file the
 // payload takes (restoredFiles, given the archive's members) must exist there with the archive member's own bytes.
-// Returns how many files it compared.
-static int ValidateNuGetArchive(string id, string version, string contentHash, string archiveSHA256, bool contentHashMustMatchArchive,
+// Returns the files it compared, with their SHA-256 values.
+static IReadOnlyDictionary<string, string> ValidateNuGetArchive(string id, string version, string contentHash, string archiveSHA256, bool contentHashMustMatchArchive,
     Func<IReadOnlyDictionary<string, ZipArchiveEntry>, IEnumerable<string>> restoredFiles)
 {
-    string? packageRoot = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
-    if (string.IsNullOrWhiteSpace(packageRoot))
-        packageRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
-    string folder = Path.Combine(packageRoot, id.ToLowerInvariant(), version.ToLowerInvariant());
-    string archive = Path.Combine(folder, $"{id.ToLowerInvariant()}.{version.ToLowerInvariant()}.nupkg");
+    string archive = ArchivePath(id, version);
+    string folder = Path.GetDirectoryName(archive)!;
     string sha512File = archive + ".sha512";
     if (!File.Exists(archive) || !File.Exists(sha512File)
         || (File.GetAttributes(archive) & FileAttributes.ReparsePoint) != 0
@@ -578,7 +833,7 @@ static int ValidateNuGetArchive(string id, string version, string contentHash, s
     foreach (ZipArchiveEntry entry in archiveReader.Entries)
         if (!members.TryAdd(Uri.UnescapeDataString(entry.FullName), entry))
             throw new InvalidDataException($"NuGet package archive {id} {version} has duplicate member names.");
-    int compared = 0;
+    var compared = new Dictionary<string, string>(StringComparer.Ordinal);
     foreach (string relative in restoredFiles(members).Select(PackageRelative))
     {
         if (!members.TryGetValue(relative, out ZipArchiveEntry? member))
@@ -592,7 +847,7 @@ static int ValidateNuGetArchive(string id, string version, string contentHash, s
         using (FileStream stream = restored.Open(FileMode.Open, FileAccess.Read, FileShare.Read)) actual = SHA256.HashData(stream);
         if (!expected.AsSpan().SequenceEqual(actual))
             throw new InvalidDataException($"Restored file {relative} of {id} {version} differs from its reviewed archive.");
-        compared++;
+        compared[relative] = Hex(expected);
     }
     return compared;
 }
@@ -623,8 +878,10 @@ static string RuntimePackMember(IReadOnlyDictionary<string, ZipArchiveEntry> mem
     return matches[0];
 }
 
-sealed record PackageInfo(string ID, string Version, string ContentHash, string ArchiveSHA256, string License, string? RepositoryUrl, string? RepositoryCommit, string[] NoticePaths, ReferenceComponent[] ReferenceComponents);
+sealed record PackageInfo(string ID, string Version, string ContentHash, string ArchiveSHA256, string License, string? RepositoryUrl, string? RepositoryCommit, string[] NoticePaths, ReferenceComponent[] ReferenceComponents, UnlistedFile[] UnlistedFiles);
 sealed record ReferenceComponent(string ID, string PackagePath);
+sealed record UnlistedFile(string Path, string PackagePath, long Bytes, string SHA256, string CopiedBy);
 sealed record RuntimeInfo(string ID, string Version, string RID, string ContentHash, string ArchiveSHA256, string[] NoticePaths);
+sealed record AppHostInfo(string ID, string Version, string RID, string ArchiveSHA512, string ArchiveSHA256, string TemplatePath, long TemplateBytes, string TemplateSHA256, string[] NoticePaths);
 sealed record ReferenceInfo(string ID, string Version, string ParentPackage, string PackagePath);
-sealed record FileRecord(string Path, long Bytes, string SHA1, string SHA256, string SpdxId, string Description);
+sealed record FileRecord(string Path, long Bytes, string SHA1, string SHA256, string SpdxId, string Description, bool IsLink = false);

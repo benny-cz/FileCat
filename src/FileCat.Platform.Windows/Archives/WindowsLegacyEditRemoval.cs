@@ -135,5 +135,6 @@ internal static class WindowsLegacyEditRemoval
         try{WindowsArchiveNative.DeleteExact(handle);return null;}
         catch(Win32Exception error){return error.Message;}
     }
-    private static string Kept(string folder,string why)=>"The old edit folder was kept at "+folder+": "+why+".";
+    // Why can be the system's own message (a Win32Exception's), which ends with a period of its own (I654).
+    internal static string Kept(string folder,string why)=>"The old edit folder was kept at "+folder+": "+Core.Jobs.ErrorText.WithoutFinalPeriod(why)+".";
 }

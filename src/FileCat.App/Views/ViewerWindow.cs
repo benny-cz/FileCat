@@ -71,6 +71,7 @@ public sealed class ViewerWindow : Window
     /// <summary>A web page, drawn by the system's browser engine with scripts and the web off (D-51).</summary>
     private readonly ToggleButton _modePage = new() { Content = "Page", IsVisible = false };
     private readonly PageView _pageView;
+    private readonly long _askedAt;
     private HtmlPage? _htmlPage;
     private bool _isPage;
     private string? _pageSearchStatus;
@@ -173,12 +174,20 @@ public sealed class ViewerWindow : Window
     /// <summary>The viewed item's full path or provider path.</summary>
     public string DisplayName => _displayName;
 
+    /// <summary>
+    /// When the reader asked for this viewer (<see cref="Environment.TickCount64"/>: F3, a link); by default, when it was
+    /// made. A page it opens on says that it has not finished loading 10 s after that (I648), the wait for the viewer
+    /// itself included.
+    /// </summary>
+    internal long AskedAt { get => _askedAt; init => _askedAt = value; }
+
     public ViewerWindow(AppServices services, IContentSource source, string displayName, bool hex, string? deviceKey = null)
         : this(services, source, displayName, hex, deviceKey, null, null) { }
 
     internal ViewerWindow(AppServices services, IContentSource source, string displayName, bool hex, string? deviceKey,
         PagedReader? preparedReader, Func<CancellationToken, Task<IContentSource?>>? reopen = null)
     {
+        _askedAt = Environment.TickCount64;
         _services = services;
         ReadabilityPolicy.ApplyDensity(services.Settings.RowDensity);
         Classes.Set("comfortable", ReadabilityPolicy.Comfortable(services.Settings.RowDensity));
@@ -189,7 +198,8 @@ public sealed class ViewerWindow : Window
             _deviceKey = services.Providers.For(location).GetDeviceKey(location);
         }
         _displayName = displayName;
-        _pageView = new PageView(services.Paths.PageViewDataDirectory) { IsVisible = false };
+        // An elevated or root FileCat gives the page view no data folder: the profile's is the ordinary account's (I645).
+        _pageView = new PageView(services.Shell.IsElevated ? null : services.Paths.PageViewDataDirectory) { IsVisible = false };
         Closed += (_, _) => s_open.Remove(this);
         _reader = preparedReader ?? new PagedReader(source, services.Io, _deviceKey);
         _reopen = reopen ?? (source.LocalPath is { } localPath
@@ -461,7 +471,8 @@ public sealed class ViewerWindow : Window
                     return;
                 }
             }
-            bool opened = await ViewerLauncher.TryOpenPath(_services, target.Path);
+            // The reader asked for the linked page with the click (or, for a reviewed link, with the approval).
+            bool opened = await ViewerLauncher.TryOpenPath(_services, target.Path, Environment.TickCount64);
             if (!opened && !_closing.IsCancellationRequested)
                 _status.Text = "The linked Markdown file could not be opened: " + target.Path;
         };
@@ -647,8 +658,9 @@ public sealed class ViewerWindow : Window
         // A Markdown file opens drawn, as a page does (release issue I25); its text is an F4 away.
         _modePage.IsVisible = HtmlPage.IsHtml(_displayName, prefix) || Markdown.IsMarkdown(_displayName);
         if (Markdown.IsMarkdown(_displayName)) ToolTip.SetTip(_modePage, "The Markdown drawn as a page: its HTML shown as text, pictures only from its folder, nothing fetched from the web");
-        // A web page opens as the page, as a browser shows it (its scripts and the web off); its source is an F4 away.
-        if (_modePage.IsVisible && forceHexIfBinary) ShowPage();
+        // A web page opens as the page, as a browser shows it (its scripts and the web off); its source is an F4 away. The
+        // reader has waited for it since asking for the viewer (I648).
+        if (_modePage.IsVisible && forceHexIfBinary) ShowPage(_askedAt);
         else if (_modePicture.IsVisible && forceHexIfBinary) ShowPicture();
         // Programs and libraries open on their structure, as Salamander's viewer opens them in its PE viewer; their bytes
         // are an F4 away.
@@ -749,7 +761,7 @@ public sealed class ViewerWindow : Window
                     UpdatePdfPageControls();
                     pageFailure = $"Page {page + 1} could not be shown: {ex.Message}";
                 }
-                else _picture.ShowMessage($"This {(_isPdf ? "PDF page" : "picture")} cannot be shown: {ex.Message}. Text and Hex (F4) show its bytes; Info (Ctrl+I) describes the file.");
+                else _picture.ShowMessage($"This {(_isPdf ? "PDF page" : "picture")} cannot be shown: {ErrorText.WithoutFinalPeriod(ex.Message)}. Text and Hex (F4) show its bytes; Info (Ctrl+I) describes the file.");
             }
         }
         finally { if (ReferenceEquals(_pdfLoadCts, pending)) _pdfLoadCts = null; }
@@ -781,7 +793,11 @@ public sealed class ViewerWindow : Window
     }
 
     /// <summary>The page mode: the page drawn by the system's browser engine (a native view over the window's content).</summary>
-    public void ShowPage()
+    public void ShowPage() => ShowPage(Environment.TickCount64);
+
+    /// <param name="askedAt">When the reader asked for the page (<see cref="Environment.TickCount64"/>), should it be drawn
+    /// now: its slow-loading notice counts from then.</param>
+    private void ShowPage(long askedAt)
     {
         if (_closing.IsCancellationRequested || !_modePage.IsVisible) return;
         InvalidateSearch();
@@ -808,7 +824,7 @@ public sealed class ViewerWindow : Window
         {
             _pageGeneration = _sourceGeneration;
             _htmlPage = Markdown.IsMarkdown(_displayName) ? HtmlPage.ForMarkdown(_reader, _displayName, _closing.Token) : new HtmlPage(_reader, _displayName, _closing.Token);
-            _pageView.Show(_htmlPage);
+            _pageView.Show(_htmlPage, askedAt);
         }
         _pageView.FocusPage();
         UpdateStatus();
@@ -1182,7 +1198,13 @@ public sealed class ViewerWindow : Window
                                : "Web page: its scripts do not run and nothing is fetched from the web") +
                            (blocked > 0 ? $" ({blocked.ToString("N0", CultureInfo.CurrentCulture)} {(blocked == 1 ? "request" : "requests")} refused)" : "") +
                            $" · F4 shows its {(markdown ? "text" : "source")} · {Formatters.ExactSize(_reader.Length)}";
-            if (_pageGeneration != _sourceGeneration)
+            // 10 s after the reader asked for the page (I648). While the browser of the pages closed just before still ends,
+            // the page cannot begin to load, and Refresh would not hurry it.
+            if (_pageView.LoadIsSlow && !_pageView.PageLoaded && !_refreshing)
+                _status.Text = (_pageView.WaitsForPreviousBrowser ? "The page has not finished loading: it waits for the previous page's browser to close. "
+                    : _reopen is null ? "The page has not finished loading. "
+                    : "The page has not finished loading; Refresh (F5) tries again. ") + _status.Text;
+            else if (_pageGeneration != _sourceGeneration)
                 _status.Text = "The file changed; Refresh (F5) to update this page. " + _status.Text;
             else if (_pageSearchStatus is { } searchStatus)
                 _status.Text = searchStatus + " · " + _status.Text;
@@ -1245,8 +1267,9 @@ public sealed class ViewerWindow : Window
         bool stale = _isPicture ? _pictureGeneration != _sourceGeneration
             : _isInfo ? _infoGeneration != _sourceGeneration
             : _isPage && _pageGeneration != _sourceGeneration;
-        _refresh.IsEnabled = _reopen is not null && _readyForRefresh && !_refreshing &&
-            (!_isPage || _pageView.PageLoaded);
+        // A page that is still loading can be refreshed too: WebView2 sometimes never reports that a page finished
+        // (release issue I648), and Refresh is how the reader gets past that.
+        _refresh.IsEnabled = _reopen is not null && _readyForRefresh && !_refreshing;
         _staleBanner.IsVisible = stale || _refreshFailure is not null;
         if (_refreshFailure is { } failure)
         {
@@ -1286,8 +1309,6 @@ public sealed class ViewerWindow : Window
         (double X, double Y)? pagePosition = null;
         try
         {
-            if (pageMode && !_pageView.PageLoaded)
-                throw new InvalidOperationException("Wait for the current page to finish loading before refreshing");
             opened = await reopen(ct) ?? throw new IOException("This provider cannot reopen the selected item");
             // Provider metadata may touch a remote device. Keep it off the UI thread and await
             // completion even after close, so the source cannot be disposed under an active call.
@@ -2541,13 +2562,19 @@ public static class ViewerLauncher
 {
     /// <summary>Admits initial metadata off the UI thread; transfers the source to a shown window or disposes it on failure.</summary>
     public static Task Open(AppServices services, ItemRef item, IContentSource source, bool hex) =>
-        OpenCore(services, item, source, hex, null);
+        OpenCore(services, item, source, hex, null, Environment.TickCount64);
 
     /// <summary>Open from a panel with its current order available for same-window picture browsing.</summary>
-    public static Task OpenWithBrowsing(AppServices services, ItemRef item, IContentSource source, bool hex, TabViewModel tab) =>
-        OpenCore(services, item, source, hex, tab);
+    /// <param name="askedAt">When the reader asked for the viewer (<see cref="Environment.TickCount64"/>: F3); by default,
+    /// now.</param>
+    public static Task OpenWithBrowsing(AppServices services, ItemRef item, IContentSource source, bool hex, TabViewModel tab,
+        long? askedAt = null) =>
+        OpenCore(services, item, source, hex, tab, askedAt ?? Environment.TickCount64);
 
-    private static async Task OpenCore(AppServices services, ItemRef item, IContentSource source, bool hex, TabViewModel? tab)
+    /// <param name="askedAt">When the reader asked for the viewer (<see cref="Environment.TickCount64"/>): a page it opens
+    /// on says that it has not finished loading 10 s after that (I648), the wait for the viewer itself included.</param>
+    private static async Task OpenCore(AppServices services, ItemRef item, IContentSource source, bool hex, TabViewModel? tab,
+        long askedAt)
     {
         ProviderReadLease? readLease = null;
         PagedReader? reader = null;
@@ -2562,7 +2589,7 @@ public static class ViewerLauncher
             if (services.Io.IsStopped) throw new OperationCanceledException("Viewer admission stopped.");
             var provider = services.Providers.For(item.Parent);
             Task<IContentSource?> Reopen(CancellationToken ct) => ReopenProviderAsync(services, provider, item, deviceKey, ct);
-            window = new ViewerWindow(services, source, name, hex, deviceKey, reader, Reopen);
+            window = new ViewerWindow(services, source, name, hex, deviceKey, reader, Reopen) { AskedAt = askedAt };
             var keptReadLease = readLease;
             window.Closed += (_, _) => keptReadLease?.Dispose();
             if (tab is not null && item.Kind == EntryKind.File && PictureBrowseContext.IsPictureName(item.Name))
@@ -2638,14 +2665,17 @@ public static class ViewerLauncher
     public static async Task OpenPath(AppServices services, string path) => await TryOpenPath(services, path);
 
     /// <summary>Open a local file in a separate viewer; false means the file could not be admitted.</summary>
-    public static async Task<bool> TryOpenPath(AppServices services, string path)
+    /// <param name="askedAt">When the reader asked for it (<see cref="Environment.TickCount64"/>; a link's click); by
+    /// default, now.</param>
+    public static async Task<bool> TryOpenPath(AppServices services, string path, long? askedAt = null)
     {
+        long asked = askedAt ?? Environment.TickCount64;
         try
         {
             var item = ItemRef.ForFileSystemPath(path, EntryKind.File);
             string deviceKey = services.Providers.For(item.Parent).GetDeviceKey(item.Parent);
             var source = await services.Io.Run(deviceKey, IoPriority.Interactive, _ => new FileContentSource(path));
-            await Open(services, item, source, hex: false);
+            await OpenCore(services, item, source, hex: false, null, asked);
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)

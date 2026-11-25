@@ -48,12 +48,13 @@
 
       <!-- Address row -->
       <Grid x:Name="AddressRow" DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto" RowDefinitions="Auto,Auto,Auto" Background="{DynamicResource FcPanel}">
-        <!-- The panel's number is also its handle: drag it onto another panel to move this one (ADR-18). -->
-        <Border x:Name="NumberBadge" Margin="4,2,0,2" CornerRadius="3" Padding="5,0" VerticalAlignment="Center" Cursor="SizeAll"
-                Background="{Binding IsActive, Converter={x:Static vm:Converters.ActiveAccent}}"
+        <!-- The panel's number is also its handle: drag it onto another panel to move this one (ADR-18). Its colors come
+             from the panelNumber style's theme resources, so they follow a theme change (I663). The number's own transparent
+             background makes the whole handle take presses, whatever the style paints behind it. -->
+        <Border x:Name="NumberBadge" Classes="panelNumber" Classes.active="{Binding IsActive}" Margin="4,2,0,2" CornerRadius="3"
+                VerticalAlignment="Center" Cursor="SizeAll"
                 ToolTip.Tip="Panel number · drag onto another panel: an edge puts this panel beside it, the middle swaps them (Alt+Shift+arrows move it)">
-          <TextBlock Text="{Binding Number}" FontWeight="Bold" FontSize="11"
-                     Foreground="{Binding IsActive, Converter={x:Static vm:Converters.ActiveAccentText}}" />
+          <TextBlock Text="{Binding Number}" FontWeight="Bold" FontSize="11" Padding="5,0" Background="Transparent" />
         </Border>
         <Button Grid.Column="1" Classes="flat" Content="▾" Click="OnLocationMenuClick" ToolTip.Tip="Change location (Alt+F1 / Alt+F2)" />
         <!-- The path: its folders are links (PathLine) until it is edited in the box beneath (a click on its last part). -->

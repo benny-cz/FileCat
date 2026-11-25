@@ -49,6 +49,9 @@ internal sealed class FakeSftpServer
     /// <summary>A faulty server or disk: the next written file keeps the byte at this offset inverted.</summary>
     public long? CorruptAt { get; set; }
 
+    /// <summary>A faulty server or a full disk that says nothing: the next written file keeps only this many bytes.</summary>
+    public long? KeepsOnly { get; set; }
+
     /// <summary>False: a server that does not set times when asked (vsftpd without MFMT, before I43), and says nothing.</summary>
     public bool KeepsTimes { get; set; } = true;
 
@@ -57,6 +60,9 @@ internal sealed class FakeSftpServer
 
     /// <summary>False: a server that refuses to continue a file (ProFTPD's FTP without AllowStoreRestart, I47).</summary>
     public bool ContinuesUploads { get; set; } = true;
+
+    /// <summary>What a server that does not continue uploads says (FluentFTP's own sentence ends with a period).</summary>
+    public string ContinueRefusal { get; set; } = "the server does not continue uploads (451 Append/Restart not permitted, try again)";
 
     /// <summary>Called with a file's path as it is opened for reading (outside the server's lock): others' changes meanwhile.</summary>
     public Action<string>? OnRead { get; set; }
@@ -257,7 +263,7 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
         lock (server.Lock)
         {
             var node = server.Lookup(path, followFinal: false) ?? throw new FileNotFoundException("No such file: " + path);
-            if (!server.ContinuesUploads) throw new NotSupportedException("the server does not continue uploads (451 Append/Restart not permitted, try again)");
+            if (!server.ContinuesUploads) throw new NotSupportedException(server.ContinueRefusal);
             server.WritesAt.Add(offset);
             var stream = new CommitStream(this, node);
             stream.Write(node.Data.AsSpan(0, (int)Math.Min(offset, node.Data.Length)));
@@ -408,7 +414,13 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
                 GetBuffer()[at] ^= 0xFF;
                 channel.Server.CorruptAt = null;
             }
-            node.Data = ToArray();
+            node.Data = channel.Server.KeepsOnly is { } kept && kept < Length ? ToArray()[..(int)kept] : ToArray();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) channel.Server.KeepsOnly = null;
+            base.Dispose(disposing);
         }
     }
 }

@@ -65,7 +65,8 @@ public sealed partial class TabViewModel
     {
         if (Location is not { } location) return null;
         var provider = Services.Providers.For(location);
-        var item = provider.GetItemRef(location, entry);
+        // Asked while the list draws its metadata columns: a row the provider can no longer describe stays unread.
+        if (ItemForDrawing(provider, location, entry) is not { } item) return null;
         string? path = HasFilesystemMetadataOrigin(location, entry) ? item.FileSystemPath : null;
         string device = path is null ? "" : Services.Providers.For(item.Parent).GetDeviceKey(item.Parent);
         return new(Listing.Store, storeIndex, entry.Name, entry.Kind, path, device, path is not null && SlowMetadataOrigin(path, device));
@@ -83,8 +84,11 @@ public sealed partial class TabViewModel
         var field = Services.Metadata.Field(fieldId);
         if (field is null || Location is null || !MetadataApplies(entry, fieldId)) return MetadataCellPresentation.Inapplicable;
         if (fieldId == BuiltInFields.Verified.Id && Location.IsFileSystem && !_hasSidecars) return MetadataCellPresentation.Inapplicable;
-        if (fieldId == BuiltInFields.Verified.Id && Location.IsFileSystem && entry.Kind == EntryKind.File && Core.State.WindowsTokenAuthority.IsHighIntegrity)
-            return new(MetadataState.Available, Elevated.Text, string.Join('\n', Elevated.Details.Select(Formatters.SafeName)));
+        if (fieldId == BuiltInFields.Verified.Id && Location.IsFileSystem && entry.Kind == EntryKind.File && Core.State.ProcessAuthority.IsElevatedOrRoot)
+        {
+            var elevated = Elevated;
+            return new(MetadataState.Available, elevated.Text, string.Join('\n', elevated.Details.Select(Formatters.SafeName)));
+        }
         if (context is not null && (!ReferenceEquals(context.Store, Listing.Store) || context.StoreIndex != storeIndex ||
             context.Name != entry.Name || context.Kind != entry.Kind)) context = null;
         if (context is null && demand) context = CaptureMetadataContext(entry, storeIndex);

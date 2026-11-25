@@ -80,7 +80,8 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
         foreach (var item in inventory.Items)
         {
             ct.ThrowIfCancellationRequested();
-            string summary = "Not read — F3 to view";
+            // A row whose value cannot be read says so, rather than offering F3 (I651).
+            string summary = inventory.CanAct ? "Not read — F3 to view" : inventory.ValueRefusalSummary ?? "Not readable here";
             if (item.NativeFlags != 0) summary += $" · native flags 0x{item.NativeFlags:X2}";
             if (HiddenMetadataRoles.DeleteRefusal(item) is { } reason) summary += " · " + reason;
             sink.AddBatch([new EntryData(item.Name, EntryKind.File, item.Size) { Tag = new HiddenEntryTag(item, summary, [], inventory.CanAct ? inventory.Identity : null),
@@ -88,6 +89,13 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
         }
         return Task.CompletedTask;
     }
+
+    /// <summary>
+    /// A value is read only when asked (F3, F5), one named like a picture too, so the picture grid draws these rows as
+    /// plain tiles (I649).
+    /// </summary>
+    public override string? ExplainNoThumbnails(Location location) =>
+        (OperatingSystem.IsWindows() ? "Streams and attributes" : "Attributes") + " are read only when asked (F3), so they show as plain tiles.";
 
     public override ItemRef GetItemRef(Location listing, in EntryData entry) => entry.Tag is HiddenEntryTag tag
         ? new ItemRef(listing, entry.Name, entry.Kind, entry.Size, entry.Modified)
@@ -208,7 +216,7 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
     {
         var kind = HiddenIdentities.Kind(reference.Ordinal) ?? throw new NotSupportedException("The supplementary category is missing or obsolete; refresh required.");
         var inventory = hidden.ReadInventory(file, new HiddenInventoryRequest(IncludeEaValues: kind == HiddenKind.NtfsAttribute), ct);
-        if (!inventory.CanAct) throw new NotSupportedException(inventory.Notice ?? "A bound supplementary-data action is unavailable.");
+        if (!inventory.CanAct) throw new NotSupportedException(inventory.ActionRefusalText);
         var category = inventory.Categories.FirstOrDefault(c => c.Kind == kind);
         if (category?.State != HiddenInventoryState.Complete) throw new IOException("The requested category could not be completely resolved; refresh required. " + category?.Reason);
         return inventory.Items.SingleOrDefault(i => i.Kind == kind && string.Equals(i.Name, reference.Name, StringComparison.Ordinal));

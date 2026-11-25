@@ -3,8 +3,8 @@
 FileCat is MIT-licensed (see `LICENSE`). The table records its dependency license declarations.
 Full license and notice texts retained from pinned packages and their declared source revisions
 are in `licenses/dependencies`, with exact source identities and hashes in `index.json`.
-The snapshot includes the pinned .NET 10.0.14 runtime pack texts, build-only packages and RID
-alternatives; it does not establish which components ship in each artifact or complete native
+The snapshot includes the pinned .NET 10.0.14 runtime pack texts (the apphost packs' texts too), build-only
+packages and RID alternatives; it does not establish which components ship in each artifact or complete native
 license eligibility. AppImage/native obligations remain under review before stable release.
 FileCat builds SharpCompress from source without its UnRAR-derived RAR and PPMd code and ships it as
 `FileCat.SharpCompress.dll`; `licenses/sharpcompress` (its component inventory `COMPONENTS.md`, `NOTICE`
@@ -25,10 +25,11 @@ the runtime and relinks the AppImage with a modified libfuse.
 | Component | Version | License | Notes |
 |---|---|---|---|
 | .NET runtime and libraries | 10.0.14 | MIT | Self-contained builds include the pinned runtime; framework-dependent builds use the separately serviced runtime |
+| .NET application host (`Microsoft.NETCore.App.Host.<rid>`) | 10.0.14 | MIT | The launcher in every package, framework-dependent ones included: `FileCat.exe` and `FileCat.ShellHost.exe` on Windows, `FileCat` on Linux and macOS. Each is the pack's `apphost` template with the app's DLL name written in; on Windows it also carries that DLL's own Win32 resources and, once signed, FileCat's Authenticode signature, and on macOS an ad-hoc signature replaces Microsoft's. Its license and notice texts are the runtime pack's, byte for byte. Each package's SBOM lists it as a component |
 | Avalonia (Avalonia, Desktop, Skia, HarfBuzz, Win32, X11, Native, FreeDesktop, AtSpi, Remote.Protocol, Themes.Fluent) | 12.1.4 | MIT | UI framework |
 | Avalonia.Angle.Windows.Natives | 2.1.27548.20260419 | BSD-3-Clause (ANGLE) | Native OpenGL ES over Direct3D on Windows |
 | SkiaSharp (+ native assets) | 3.119.4 | MIT; native Skia BSD-3-Clause | 2D graphics |
-| SkiaSharp.NativeAssets.Linux.NoDependencies | 3.119.2 | MIT; bundled native notices | Additional Linux native asset resolved by the PDF renderer; exact package license and third-party notice bytes retained |
+| SkiaSharp.NativeAssets.Linux.NoDependencies | 3.119.2 | MIT; bundled native notices | Resolved through the PDF renderer's package (PDFtoImage), but no FileCat package ships its files: the Linux packages ship `libSkiaSharp.so` from SkiaSharp.NativeAssets.Linux 3.119.4 (the SkiaSharp row), and their dependency manifests do not list this package. Exact package license and third-party notice bytes retained |
 | PDFtoImage | 5.2.1 | MIT | PDF page rasterization inside FileCat's restricted viewer worker; no PDF actions, links or forms run |
 | bblanchon.PDFium (Win32, Linux, macOS) | 147.0.7690 | NuGet declares Apache-2.0; PDFium includes BSD-3-Clause and other notices | Native PDF renderer. The NuGet packages omit license/notice files, so FileCat retains the exact `chromium/7690` vendor release archives' MIT root LICENSE and 15 third-party license members per platform. Native binary hashes match the NuGet/publish inputs on Windows x64/ARM64, Linux x64 and macOS ARM64. Final artifact-specific notice/SBOM review remains open |
 | HarfBuzzSharp (+ native assets) | 8.3.1.3 | MIT; native HarfBuzz "Old MIT" | Text shaping |

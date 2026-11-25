@@ -406,7 +406,7 @@ public class PortableFileOperations : IFileSystemOperations
     /// </summary>
     private static void RefuseLinks(string full, int followable, string refusal)
     {
-        bool elevated = OperatingSystem.IsWindows() ? State.WindowsTokenAuthority.IsHighIntegrity : Environment.IsPrivilegedProcess;
+        bool elevated = State.ProcessAuthority.IsElevatedOrRoot;
         string? root = Path.GetPathRoot(full);
         if (string.IsNullOrEmpty(root)) throw new IOException("The path has no root.");
         string current = root;

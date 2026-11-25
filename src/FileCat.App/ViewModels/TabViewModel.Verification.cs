@@ -48,8 +48,16 @@ public sealed partial class TabViewModel
     /// itself: not checked, rather than the empty cell of a file nothing covers, also where its checksum says it differs
     /// (review finding P8 of f134ba37).
     /// </summary>
-    internal static readonly VerificationResult Elevated = new(VerificationState.NotChecked, "not checked (elevated)",
+    internal static VerificationResult Elevated => ElevatedOn(OperatingSystem.IsWindows());
+
+    /// <summary>The same for an administrator window (Windows) or FileCat running as root, which checks none either (I655).</summary>
+    internal static VerificationResult ElevatedOn(bool windows) => windows ? AdministratorUnchecked : RootUnchecked;
+
+    private static readonly VerificationResult AdministratorUnchecked = new(VerificationState.NotChecked, "not checked (elevated)",
         ["FileCat runs as administrator and checks no file by itself.", "File → Verify checks this file now."]);
+
+    private static readonly VerificationResult RootUnchecked = new(VerificationState.NotChecked, "not checked (root)",
+        ["FileCat runs as root and checks no file by itself.", "File → Verify checks this file now."]);
 
     /// <summary>
     /// A row's check, once known (null for rows nothing covers, and while it is worked out): asked of the metadata
@@ -58,7 +66,7 @@ public sealed partial class TabViewModel
     public VerificationResult? Verification(in EntryData e, int storeIndex)
     {
         if (!_hasSidecars || e.Kind != EntryKind.File || Location is not { IsFileSystem: true } location) return null;
-        if (Core.State.WindowsTokenAuthority.IsHighIntegrity) return Elevated;
+        if (Core.State.ProcessAuthority.IsElevatedOrRoot) return Elevated;
         var store = Listing.Store;
         string path = Path.Join(location.Path, e.Name);
         string device = Services.Providers.For(location).GetDeviceKey(location);

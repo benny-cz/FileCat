@@ -208,6 +208,38 @@ public static class RecordText
     }
 
     /// <summary>
+    /// A value the system gave (a mount's path) as one line of a report: control, format and line or paragraph separator
+    /// characters, which could break the line or reorder what it shows, are written as backslash-u and their code (as
+    /// the file list writes them in names). Everything else is kept, so an ordinary path reads as findmnt shows it.
+    /// </summary>
+    public static string Visible(string value)
+    {
+        StringBuilder? shown = null;
+        for (int at = 0; at < value.Length;)
+        {
+            int code;
+            int width;
+            if (Rune.TryGetRuneAt(value, at, out var rune))
+            {
+                (code, width) = (rune.Value, rune.Utf16SequenceLength);
+                if (Rune.GetUnicodeCategory(rune) is not (UnicodeCategory.Control or UnicodeCategory.Format
+                    or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator))
+                {
+                    shown?.Append(value, at, width);
+                    at += width;
+                    continue;
+                }
+            }
+            else (code, width) = (value[at], 1); // half a surrogate pair
+            shown ??= new StringBuilder(value.Length + 8).Append(value, 0, at);
+            shown.Append((char)92).Append(code > 0xFFFF ? 'U' : 'u')
+                .Append(code.ToString(code > 0xFFFF ? "X8" : "X4", CultureInfo.InvariantCulture));
+            at += width;
+        }
+        return shown?.ToString() ?? value;
+    }
+
+    /// <summary>
     /// Text broken at spaces into lines of at most <paramref name="width"/> characters: the first starts with
     /// <paramref name="first"/> ("• "), the others are indented to line up with it.
     /// </summary>

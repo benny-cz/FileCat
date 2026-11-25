@@ -299,8 +299,8 @@ Depends: libc6, libgcc-s1, libstdc++6, libssl3 | libssl1.1, libicu78 | libicu76 
 Recommends: xdg-utils, libsecret-1-0, apparmor, libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37
 Description: Keyboard-first two-panel file manager
  FileCat is a two-panel file manager in the tradition of Altap Salamander, Total
- Commander, and FAR Manager: keyboard-first work with folders, archives, SFTP and
- FTP servers, and phones, with previews and guarded operations.
+ Commander, and FAR Manager: keyboard-first work with folders, archives, and
+ SFTP and FTP servers, with previews and guarded operations.
 EOF
 # The package's Debian version keeps '~' so that a preview sorts before its release. GitHub renames release assets
 # whose names contain '~', so the file is named with FileCat's own version.

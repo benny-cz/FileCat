@@ -21,15 +21,21 @@ public static class DragStaging
     /// <summary>Whether a path is one of the copies made to drag items out of an archive, a server or a device.</summary>
     public static bool IsStaged(string path, string tempRoot) => PathUtil.IsSameOrUnder(path, Path.Combine(tempRoot, Folder));
 
+    /// <summary>Why an administrator window (Windows), or FileCat running as root, drags nothing out of a container.</summary>
+    internal static string ElevatedRefusal(bool windows) => windows
+        ? "Drag export from an elevated FileCat session is refused because its staging folder is accessible at ordinary integrity. Run FileCat ordinarily or copy with F5 to a reviewed destination."
+        : "Drag export is refused while FileCat runs as root: the programs that take a drop run as your usual account and would " +
+          "get copies of what FileCat read as root. Start FileCat as your usual user, or copy with F5 to a reviewed destination.";
+
     /// <summary>The staged files, or null and why the items cannot be dragged.</summary>
     public static (IReadOnlyList<string>? Paths, string? Refusal) Stage(IReadOnlyList<ItemRef> items, ProviderRegistry providers, IFileSystemOperations fs,
         string tempRoot, CancellationToken ct)
     {
         if (items.Count == 0) return (null, null);
         // A medium process of this account can read the ordinary local temp tree after an elevated
-        // process stages a protected archive or recovered image member there.
-        if (WindowsTokenAuthority.IsHighIntegrity)
-            return (null, "Drag export from an elevated FileCat session is refused because its staging folder is accessible at ordinary integrity. Run FileCat ordinarily or copy with F5 to a reviewed destination.");
+        // process stages a protected archive or recovered image member there. Root (I655) would hand the programs of
+        // the ordinary account, which take a drop, copies of what it read as root.
+        if (ProcessAuthority.IsElevatedOrRoot) return (null, ElevatedRefusal(OperatingSystem.IsWindows()));
         if (items.Any(i => i.Parent.Scheme is not (Schemes.Zip or Schemes.Archive or Schemes.Recovery) || Schemes.Recovery == i.Parent.Scheme && i.Parent.Container?.Scheme == Schemes.Device))
             return (null, "Only files on disk, in archives, and in disk images can be dragged to other programs. Copy these with F5 first.");
         if (items.Any(i => i.IsContainer))
@@ -105,20 +111,13 @@ public static class DragStaging
         }
     }
 
-    /// <summary>Removes staged folders older than <paramref name="age"/> (at startup: other programs have long taken them).</summary>
-    public static void Sweep(string tempRoot, TimeSpan age)
-    {
-        string root = Path.Combine(tempRoot, Folder);
-        if (!Directory.Exists(root)) return;
-        foreach (var dir in Directory.EnumerateDirectories(root))
-        {
-            try
-            {
-                if (DateTime.UtcNow - Directory.GetCreationTimeUtc(dir) > age) Remove(dir);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-        }
-    }
+    /// <summary>
+    /// Removes staged folders older than <paramref name="age"/> (at startup: other programs have long taken them), never
+    /// through a link (I645): a link in their place is removed itself, and nothing is swept when the temporary or the
+    /// staging folder is itself a link. Not for an elevated or root FileCat, whose temporary folder is the ordinary
+    /// account's (<c>AppServices.SweepTemporaryFolders</c>).
+    /// </summary>
+    public static void Sweep(string tempRoot, TimeSpan age) => TemporarySweep.RemoveStaleFolders(tempRoot, Folder, age);
 
     /// <summary>Discard one unhanded staged drag. Only a direct child of this private staging root may be removed.</summary>
     public static void Discard(IReadOnlyList<string> paths, string tempRoot)
@@ -146,15 +145,8 @@ public static class DragStaging
         return (null, reason);
     }
 
-    private static void Remove(string folder)
-    {
-        try
-        {
-            foreach (var f in Directory.EnumerateFiles(folder)) File.SetAttributes(f, FileAttributes.Normal);
-            Directory.Delete(folder, recursive: true);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-    }
+    /// <summary>A staging folder and its read-only copies, removed without going through a link or changing an attribute.</summary>
+    private static void Remove(string folder) => TemporarySweep.RemoveTree(folder);
 
     private static string Unique(string folder, string name)
     {

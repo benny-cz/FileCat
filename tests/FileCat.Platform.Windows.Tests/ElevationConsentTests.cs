@@ -74,6 +74,17 @@ public sealed class ElevationConsentTests
     }
 
     [Fact]
+    public void The_consent_says_what_one_approval_covers_in_the_singular_and_the_plural()
+    {
+        // I669: one step read "This approval covers only these 1 step: 1 new folder; the helper exits when they finish."
+        if (!OperatingSystem.IsWindows()) Assert.Skip("The administrator helper is Windows'.");
+        Assert.Equal("This approval covers only this 1 step: 1 permanent deletion; the helper exits when it finishes.",
+            ElevationConsent.Coverage(Plan(Delete(1))));
+        Assert.Equal("This approval covers only these 2 steps: 2 permanent deletions; the helper exits when they finish.",
+            ElevationConsent.Coverage(Plan(Delete(1), Delete(2))));
+    }
+
+    [Fact]
     public void Another_accounts_hive_is_never_called_the_requesting_users_own()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("The administrator helper is Windows'.");

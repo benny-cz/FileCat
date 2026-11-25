@@ -24,3 +24,13 @@ Decide what fits from the final width as well, through the same rule. A place th
 ## Finite check
 
 In a narrow panel with many places, widen and narrow the window slowly: no place button is ever cut off at the bar's right edge, and every place is either on the bar or on the "More places" menu.
+
+## Fix
+
+Branch `fix/i661-place-bar-arrange-fit`: one rule, `Fit`, decides how many places fit in a width, leaving room for the overflow button when not all do. `PlaceBarPanel` now applies it when measured, as before, and again when laid out, with the final width. So a place that no longer fits moves to the overflow menu, and no shown place ends past the bar's edge. A bar laid out in the width it was measured with behaves as before.
+
+Tests, on the Windows workstation at medium integrity (`whoami /groups`: Medium Mandatory Level), headless:
+- New `PlaceBarPanelLayoutTests` (2 tests). With rc.2's panel, `A_bar_laid_out_narrower_than_it_was_measured_moves_what_no_longer_fits_to_the_overflow_menu` fails: "A shown place ends at 300, past the bar's 290." With the fix both pass.
+- `PlaceBarHierarchyTests`, `PlaceBarRetirementTests` and the new class: 23 of 23 pass.
+
+Not verified here: macOS, where the CI failure appeared; hosted CI runs the classes there.

@@ -18,8 +18,25 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
     private readonly List<(string Name, OwnedHandle Handle, UnixStat Identity)> _chain = [];
     private bool _disposed;
     private SafeHandle Root => _chain[^1].Handle.Handle;
-    private int DirectoryFlags => _mac ? 0x100000 | 0x1000000 | 0x100 | 4 : 0x10000 | 0x80000 | 0x20000;
-    private int FileFlags => _mac ? 0x1000000 | 0x100 | 4 : 0x80000 | 0x20000 | 0x800;
+    private int DirectoryFlags => _mac ? 0x100000 | 0x1000000 | 0x100 | 4 : LinuxDirectoryFlags(RuntimeInformation.ProcessArchitecture);
+    private int FileFlags => _mac ? 0x1000000 | 0x100 | 4 : LinuxFileFlags(RuntimeInformation.ProcessArchitecture);
+
+    // O_DIRECTORY's and O_NOFOLLOW's values depend on the architecture. ARM64 reads x64's as O_DIRECT, which a folder
+    // refuses, and as O_LARGEFILE, which leaves a final link to be followed (I656).
+    /// <summary>Linux: a folder, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW.</summary>
+    internal static int LinuxDirectoryFlags(Architecture architecture)
+    {
+        var (directory, noFollow) = LinuxOpenFlags.ForArchitecture(architecture);
+        return directory | LinuxOpenFlags.CloseOnExec | noFollow;
+    }
+
+    /// <summary>Linux: a file, O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK.</summary>
+    internal static int LinuxFileFlags(Architecture architecture) =>
+        LinuxOpenFlags.CloseOnExec | LinuxOpenFlags.ForArchitecture(architecture).NoFollow | 0x800;
+
+    /// <summary>Linux: an unnamed file in a held folder, O_TMPFILE (__O_TMPFILE with O_DIRECTORY) | O_CLOEXEC | O_RDWR.</summary>
+    internal static int LinuxTemporaryFileFlags(Architecture architecture) =>
+        0x400000 | LinuxOpenFlags.ForArchitecture(architecture).Directory | LinuxOpenFlags.CloseOnExec | 2;
 
     /// <param name="parent">An existing, absolute local directory. No symlink component is followed.</param>
     /// <param name="name">One application-owned private directory name, not an inventory-supplied locator.</param>
@@ -141,7 +158,7 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
             // O_TMPFILE: no partial inventory name exists, even on process death.
             // O_EXCL with O_TMPFILE forbids linking a scratch descriptor into the namespace.
             // Inventory staging deliberately omits it because publication must remain possible.
-            owned = OpenOwned(Root, ".", 0x410000 | 0x80000 | 2 | (unpublishable ? 0x80 : 0), 0x180); // 0600
+            owned = OpenOwned(Root, ".", LinuxTemporaryFileFlags(RuntimeInformation.ProcessArchitecture) | (unpublishable ? 0x80 : 0), 0x180); // 0600
         }
         else
         {

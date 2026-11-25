@@ -234,11 +234,35 @@ public sealed partial class SftpProvider : ResourceProvider, IOriginMarkSource
         try
         {
             string path = PathOf(item, lease.Channel);
-            var stat = lease.Channel.Stat(path) ?? throw new FileNotFoundException($"\"{item.Name}\" no longer exists on the server.");
-            if (stat.IsDirectory) throw new IOException($"\"{item.Name}\" is a folder.");
-            // Resolve metadata before opening the stream: a profile lookup can fail, and no content owner exists yet.
-            string displayName = GetDisplayPath(item.Parent.WithPath(path));
-            return new SftpContentSource(lease, lease.Channel.OpenRead(path, stat.Size), displayName, path, stat);
+            string displayName;
+            RemoteRead read;
+            if (lease.Channel.OpensStated)
+            {
+                // Resolve metadata before opening the stream: a profile lookup can fail, and no content owner exists yet.
+                displayName = GetDisplayPath(item.Parent.WithPath(path));
+                // The stat goes with the open (SFTP: one round trip, release issue I42).
+                read = lease.Channel.OpenReadStated(path);
+            }
+            else
+            {
+                var stat = lease.Channel.Stat(path) ?? throw new FileNotFoundException($"\"{item.Name}\" no longer exists on the server.");
+                if (stat.IsDirectory) throw new IOException($"\"{item.Name}\" is a folder.");
+                // Resolve metadata before opening the stream: a profile lookup can fail, and no content owner exists yet.
+                displayName = GetDisplayPath(item.Parent.WithPath(path));
+                read = new RemoteRead(stat, lease.Channel.OpenRead(path, stat.Size), StatIsOpenedRevision: false);
+            }
+            if (read.Content is not { } content)
+                throw read.Stat is { IsDirectory: true } ? new IOException($"\"{item.Name}\" is a folder.")
+                    : new FileNotFoundException($"\"{item.Name}\" no longer exists on the server.");
+            try
+            {
+                return new SftpContentSource(lease, content, displayName, path, read.Stat!.Value, read.StatIsOpenedRevision);
+            }
+            catch
+            {
+                content.Dispose();
+                throw;
+            }
         }
         catch (Exception ex)
         {
@@ -255,12 +279,16 @@ public sealed partial class SftpProvider : ResourceProvider, IOriginMarkSource
 }
 
 /// <summary>Random-access content of a remote file over one leased connection.</summary>
-internal sealed class SftpContentSource(SftpLease lease, Stream stream, string displayName, string path, RemoteStat stat) : IContentSource
+/// <param name="statIsOpenedRevision">The stat describes the content as opened (<see cref="RemoteRead.StatIsOpenedRevision"/>):
+/// until the first read, the revision is that stat's, not another question to the server (release issue I42).</param>
+internal sealed class SftpContentSource(SftpLease lease, Stream stream, string displayName, string path, RemoteStat stat,
+    bool statIsOpenedRevision = false) : IContentSource
 {
     private readonly object _lock = new();
     private SftpLease? _lease = lease;
     private Stream? _stream = stream;
     private bool _disposed;
+    private ContentRevision? _openedRevision = statIsOpenedRevision && !stat.IsDirectory ? new ContentRevision(stat.Size, stat.ModifiedUtc.Ticks) : null;
 
     public string DisplayName => displayName;
 
@@ -276,6 +304,9 @@ internal sealed class SftpContentSource(SftpLease lease, Stream stream, string d
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             ArgumentOutOfRangeException.ThrowIfNegative(offset);
+            // From the first read on, a revision is asked of the server again: the stat taken with the open no longer
+            // speaks for what was read.
+            _openedRevision = null;
             if (offset >= stat.Size || buffer.IsEmpty) return 0;
             try
             {
@@ -304,12 +335,14 @@ internal sealed class SftpContentSource(SftpLease lease, Stream stream, string d
         lock (_lock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            // Before any read, the stat taken with the open describes this content (I42): a copy's first question.
+            if (_openedRevision is { } opened) return opened;
             try
             {
                 // FTP uses the same control connection for metadata and a data transfer's final reply. A viewer or
                 // resumed copy may ask for the revision part way through the file; release that transfer first.
                 if (_stream is Ftp.FtpReadStream ftp) ftp.FinishTransfer();
-                return _lease!.Channel.Stat(path) is { IsDirectory: false } current
+                return _lease!.Channel.StatContent(path) is { IsDirectory: false } current
                     ? new ContentRevision(current.Size, current.ModifiedUtc.Ticks) : null;
             }
             catch (RemoteDisconnectedException) { _lease!.Broken = true; throw; }

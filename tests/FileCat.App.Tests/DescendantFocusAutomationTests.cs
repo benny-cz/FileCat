@@ -574,6 +574,58 @@ public sealed class DescendantFocusAutomationTests
         finally { window.Close(); }
     }
 
+    /// <summary>
+    /// I650: Avalonia.Native 12.1.4 puts a live element's new name into a dictionary when the name changes while the
+    /// element is live, and an empty name ended FileCat with NSInvalidArgumentException. The subscriber below stands in
+    /// for the native bridge: it subscribes after FileCat, as the bridge does when an accessibility client first reaches
+    /// the element, and records what the bridge would read.
+    /// </summary>
+    [AvaloniaFact]
+    public void Under_the_macOS_bridge_an_emptied_live_region_is_never_announced_and_keeps_its_own_setting()
+    {
+        var status = new TextBlock { Text = "Enter a valid modified time or clear the field." };
+        var quiet = new TextBlock { Text = "Not live" };
+        AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
+        var window = new FocusWindow { Width = 400, Height = 200, Content = new StackPanel { Children = { status, quiet } } };
+        window.Show();
+        bool mac = NativeLiveRegionBridges.UseMacBridge;
+        NativeLiveRegionBridges.UseMacBridge = true;
+        try
+        {
+            LiveRegions.Watch(status);
+            Dispatcher.UIThread.RunJobs();
+            var announced = new List<(AutomationLiveSetting Live, string Name)>();
+            var peer = ControlAutomationPeer.CreatePeerForElement(status);
+            peer.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == AutomationElementIdentifiers.NameProperty) announced.Add((peer.GetLiveSetting(), peer.GetName()));
+            };
+
+            status.Text = null; // a valid time clears the message
+            status.Text = "Enter a valid creation time or clear the field.";
+            status.Text = string.Empty;
+            status.Text = "Applying changes. Follow progress in Operations.";
+            quiet.Text = string.Empty;
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.DoesNotContain(announced, change => change.Live != AutomationLiveSetting.Off && change.Name.Length == 0);
+            Assert.Equal(
+                [(AutomationLiveSetting.Off, ""), (AutomationLiveSetting.Polite, "Enter a valid creation time or clear the field."),
+                 (AutomationLiveSetting.Off, ""), (AutomationLiveSetting.Polite, "Applying changes. Follow progress in Operations.")],
+                announced);
+            // Only the emptying change itself was not live: the region keeps its own setting, empty or not.
+            Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(status));
+            status.Text = null;
+            Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(status));
+            Assert.Equal(AutomationLiveSetting.Off, AutomationProperties.GetLiveSetting(quiet));
+        }
+        finally
+        {
+            NativeLiveRegionBridges.UseMacBridge = mac;
+            window.Close();
+        }
+    }
+
     [AvaloniaFact]
     public void A_dialog_live_result_prepared_before_attachment_speaks_when_its_window_is_shown()
     {

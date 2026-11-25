@@ -53,6 +53,14 @@ public static class ElevationConsent
         return shown.ToString();
     }
 
+    /// <summary>
+    /// What one approval covers, in the consent page's words: "This approval covers only these 940 steps: …; the helper exits
+    /// when they finish." One step reads "this 1 step … when it finishes" (I669: "these 1 step … they finish").
+    /// </summary>
+    public static string Coverage(ElevationPlan plan) => plan.Steps.Count == 1
+        ? $"This approval covers only this {Kinds(plan)}; the helper exits when it finishes."
+        : $"This approval covers only these {Kinds(plan)}; the helper exits when they finish.";
+
     /// <summary>How many steps of each kind the plan holds, all kinds named: "940 steps: 900 permanent deletions, 40 Registry changes".</summary>
     public static string Kinds(ElevationPlan plan)
     {

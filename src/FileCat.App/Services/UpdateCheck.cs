@@ -36,13 +36,22 @@ public static class UpdateCheck
         }
     }
 
-    /// <summary>At startup, at most once a day, unless the user disabled it.</summary>
+    /// <summary>Tests stand in for the network check, so no request leaves the test host.</summary>
+    internal static Func<CancellationToken, Task<Result>>? CheckForTests { get; set; }
+
+    /// <summary>
+    /// At startup, unless the user turned it off or the last check finished less than a day ago. Never in an administrator
+    /// window or a root FileCat: such a process starts from default settings and saves none, so it cannot see whether the
+    /// user turned the check off, and it checked at every start (I670). Help → Check for updates still asks when chosen.
+    /// </summary>
     public static async Task<Result?> RunScheduledAsync(AppSettings settings, Action save, CancellationToken ct = default)
     {
+        if (ProcessAuthority.IsElevatedOrRoot) return null;
         if (!settings.CheckForUpdates) return null;
         if (settings.LastUpdateCheckUtc is { } last && DateTime.UtcNow - last < TimeSpan.FromHours(24)) return null;
         // Keep network I/O and bounded JSON parsing off the UI thread at startup.
-        var result = await Task.Run(() => CheckAsync(ct));
+        var check = CheckForTests ?? CheckAsync;
+        var result = await Task.Run(() => check(ct));
         if (ct.IsCancellationRequested || !settings.CheckForUpdates) return null;
         settings.LastUpdateCheckUtc = DateTime.UtcNow;
         save();

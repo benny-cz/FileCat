@@ -74,8 +74,11 @@ internal static unsafe partial class UnixArchiveNative
             if (acl == 0 || AclFlagSet(acl, &flags) != 0 || AclAddFlag(flags, 1 << 17 /* NO_INHERIT */) != 0 || AclSetFlagSet(acl, flags) != 0) throw Unavailable();
             ushort mode = 0x180;
             if (FileSecSet(security, 4 /* MODE */, &mode) != 0 || FileSecSet(security, 5 /* ACL */, &acl) != 0) throw Unavailable();
-            // openx_np on the observed system rejects O_NOFOLLOW_ANY with EINVAL. O_NOFOLLOW still protects the
-            // final component; full ancestor pinning plus post-create relative identity review stays mandatory.
+            // O_NOFOLLOW (in SafeOpen) protects the final component; full ancestor pinning plus post-create relative
+            // identity review protects the folders above it, and stays mandatory. O_NOFOLLOW_ANY is not added: XNU's
+            // vn_open_auth refuses it together with O_NOFOLLOW (EINVAL), which is the refusal once seen here and taken
+            // for openx_np's (I660), and without O_NOFOLLOW it would also refuse the temporary folder's names, which
+            // reach it through the /var link.
             return Handle(OpenX(fullPath, SafeOpen | 2 | 0x200 | 0x800 /* CREAT EXCL */, security));
         }
         finally { if (acl != 0) AclFree(acl); FileSecFree(security); }
