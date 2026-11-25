@@ -5666,3 +5666,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-25 — I677 from PR #61's run
 
 - PR #61's run 45665950729 failed one App test on Windows x64: the viewer's first decode of a 12 x 8 PNG ran out of the decoder's 30 s (normally 0.2 to 2.7 s there, 1.3 s on a host); the next decode took 2.4 s. PR #61 does not touch that path. The cause is not proven; PR #63 makes the timeout say where the time went ([I677](evidence/E-I677-first-picture-decode-timeout-ci.md)). The release session reran the failed jobs.
+
+## 2026-11-25 — I678 from main's run on PR #60's merge
+
+- Main's CI run 45676863831 on `4ffe68ba` failed the real file-system record test on both Windows lanes: it waited 5 s for a read that takes 1.9 to 8.8 s on the hosted runners (0.9 s on a host). Main's code there equals PR #60's tested head but for records. PR #64 waits for that read by the clock ([I678](evidence/E-I678-real-record-wait-budget.md)).

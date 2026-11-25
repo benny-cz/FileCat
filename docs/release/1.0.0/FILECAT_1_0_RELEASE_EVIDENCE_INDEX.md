@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**1044 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
+**1045 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -11,6 +11,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 
 | ID | What | Source | Class | Record | Issues |
 |---|---|---|---|---|---|
+| E-I678 | The real file-system record test gave real I/O the scripted records' 5 seconds | Main's run 45676863831 on `4ffe68ba` (both Windows App remainder lanes); green runs on the runners; three local runs; PR #64 | CI observation and test fix: the real record takes 1.9 to 8.8 s on hosted runners and 0.9 s on a host; the wait now runs by the clock for up to 60 s. | [Record](evidence/E-I678-real-record-wait-budget.md) | I678 |
 | E-I677 | Once on a hosted Windows runner, a picture's first decode ran out of its 30 seconds | PR #61's run 45665950729 (Windows x64 App remainder); runs 45615496168, 45634525115, 45641843032, 45662381953; five local runs; PR #63 | CI observation and diagnostics: the first decode normally takes 0.2 to 2.7 s there; the cause is not proven; the timeout now names the phase that took the time. | [Record](evidence/E-I677-first-picture-decode-timeout-ci.md) | I677/I108 |
 | E-I676 | The picture grid's rendering test gave the first thumbnails less time than the decoder allows | PR #60's run 45662381953 (windows-11-arm); green runs 45615496168, 45641843032, 45634525115; PR #62 | CI observation and test fix: the first decodes wait for a cold worker start (2.2 to 8.7 s there); the test now waits up to the product's bound and reports failed and pending decodes. | [Record](evidence/E-I676-picture-grid-first-thumbnails-budget.md) | I676 |
 | E-I675 | A share whose server did not answer stopped FileCat's window for about 21 s (22 s at a start) | rc.4 (`16f9379a`) in the Windows VM and the host, TEST-NET-1 shares; PR #61 (`74b02d3d`, `599dfe2c`); the VM probes on a local build of both rc.5 fixes (`1.0.0-dev+633ab423`) | Native measurement and fix: three calls on the window's thread opened the path; with the fix the window's longest wait was 1 ms (21,019 ms on rc.4) and a start on such a share showed the window after 2.3 s (22.0 s on rc.4). The new App tests fail with the old unbounded waits. | [Record](evidence/E-I675-unanswering-share-window-stall.md) | I675/I672 |
