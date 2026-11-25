@@ -6,12 +6,12 @@ FileCat puts local disks, removable storage, archives and remote servers in a mu
 multi-tab workspace on Windows, Ubuntu and macOS. See the destination before an operation and
 its result afterward; inspect unfamiliar files or recover deleted data when the work goes deeper.
 
-**Release status:** The [unsigned 1.0.0-preview.11](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.11)
-is available for Windows, Ubuntu and macOS. Stable 1.0.0 is still in validation. Read the
-[preview notes](docs/release/1.0.0/PREVIEW11_RELEASE_NOTES.md) and
-[asset hashes](docs/release/1.0.0/evidence/E-PREVIEW11-TAG-20261116.md) before installing.
+**Release status:** [FileCat 1.0.0](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0) is the
+first stable release, for Windows 11 x64. Its Windows 11 ARM64, Ubuntu and macOS packages are
+labelled previews. Read the release notes and check the asset hashes on the
+[release page](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0) before installing.
 
-**Start here:** [**Download the preview**](docs/DOWNLOAD.md) · [Build from source](#try-a-local-build) · [Recovery](#recover-deleted-files) · [Safety](#work-with-visible-outcomes) · [Screenshots](#make-it-yours) · [Capabilities](docs/CAPABILITIES.md) · [Code signing policy](docs/DOWNLOAD.md#code-signing-policy) · [Privacy](docs/PRIVACY.md)
+**Start here:** [**Download FileCat**](docs/DOWNLOAD.md) · [Build from source](#try-a-local-build) · [Recovery](#recover-deleted-files) · [Safety](#work-with-visible-outcomes) · [Screenshots](#make-it-yours) · [Capabilities](docs/CAPABILITIES.md) · [Code signing policy](docs/DOWNLOAD.md#code-signing-policy) · [Privacy](docs/PRIVACY.md)
 
 [![FileCat on Windows: Architecture.md selected in Projects, Documents marked as target, four panels with three tabs each](docs/screenshots/windows/WorkspaceSelected-20261030.png)](docs/screenshots/windows/WorkspaceSelected-20261030.png)
 
@@ -26,7 +26,7 @@ on Windows, not an installed-package test.*
 | [Keep several places in view](#arrange-the-workspace-around-the-task) | Dockable panels, tabs, bookmarks, named workspaces and an explicit source and destination for each operation. |
 | [Get a large job done without losing track](#work-with-visible-outcomes) | Per-drive queues, progress and results for individual items, a durable job journal, and a review of work interrupted by a crash. |
 | [Rescue deleted files](#recover-deleted-files) | Read-only NTFS, FAT and exFAT scans of disks or images, lost-partition search, evidence-based recovery states and partial-byte reporting. |
-| [Understand a file before acting](#look-inside-files-not-just-at-their-names) | Built-in text, hex, picture, page and structured-info viewers; checksums and signatures; streams, attributes and filesystem-record reports. |
+| [Understand a file before acting](#look-inside-files-not-just-at-their-names) | Built-in text, hex, picture, page and structured-info viewers; checksums and signatures; streams, attributes and file-system details. |
 | [Work outside a local folder](#go-beyond-a-local-directory) | Archives, SMB, SFTP, FTPS, FTP, and Windows phones/cameras, with each location's supported actions explained in the UI. |
 
 ## Inspect a program without running it
@@ -114,8 +114,11 @@ must remain byte-identical. Recovery is not guaranteed, and ext4/APFS undelete i
   The portable and framework-dependent ZIPs have no such helper.
 
 On Windows, **Tools → Open FileCat as administrator** opens a separate administrator
-window after Windows approval. **Tools → Change journal of this drive** offers the same
-approval when needed and opens the selected NTFS or ReFS journal. An access-denied local
+window after Windows approval. Every administrator window starts through `FileCat.AdminLauncher.exe`
+beside `FileCat.exe`, which Windows' prompt names "FileCat administrator window"; it removes the
+.NET runtime's environment settings, such as a profiler, before FileCat starts.
+**Tools → Change journal of this drive** offers the same Windows approval when needed and
+opens the selected NTFS or ReFS journal. An access-denied local
 folder offers **Reopen folder as administrator**. In **Create link**, **Review as administrator**
 brings a local symbolic link, hard link or junction into the new window for a fresh preview.
 The viewer, checksums, Find, Registry and portable recovery also offer administrator review
@@ -134,12 +137,19 @@ copy runs from its own folder, which your ordinary account, and any program runn
 usually change. If you open administrator windows from such a copy, keep it in a folder only
 administrators can change, such as one under Program Files, or use the installer.
 
+An administrator window keeps out of your saved state: it starts with the default settings and
+saves none, keeps no log, and uses none of your history, journals or edit sessions. Settings →
+**Copy appearance and workspace between sessions…** brings your look and panels into it.
+FileCat started as root on Linux or macOS likewise starts with the default settings and saves nothing.
+
 **File → Inspect → Permissions and ownership** shows the selected item's owner, mode and access
 rules in plain language beside their exact values, each section with the review actions available
 there; in an administrator window, or as root, it is read-only. A local mode change requires a verified
-binding to the selected object. **Change attributes and times…** also offers independent
-timestamp and Finder Hidden changes where available. **Tools → Recover deleted files →
-Authorize and scan** requests read-only access to the selected device on Linux and macOS.
+binding to the selected object. On macOS this release changes no permissions: the inspector shows
+them, and mode, access-list, group and Finder-flag changes await macOS qualification. On Linux and
+macOS, **Change attributes and times…** changes timestamps, and on macOS Finder Hidden, independently
+of mode. **Tools → Recover deleted files → Authorize and scan** requests read-only access to the
+selected device on Linux and macOS.
 
 Untrusted content crosses narrower boundaries where implemented: pictures decode in a worker,
 HTML Page preview has scripts and network requests disabled, and Windows Shell extensions run
@@ -159,9 +169,13 @@ make every parser a full sandbox.
 - **Inspectors:** Info view reports PE, ELF, Mach-O, APK/AAB, image, audio, video and HTML
   structure without executing or playing the file. A fixed-length hex editor offers a protected
   baseline, bounded undo, journaled save, Save As and patch export; in-place saves are not atomic.
-- **Data beneath the file:** inspect NTFS streams, Unix extended attributes, macOS resource forks,
-  permissions, sparse ranges and filesystem records. Windows reports include MFT, USN,
-  `$LogFile` and `$Secure` data where access allows it; Linux and macOS show their native fields.
+- **Data beneath the file:** inspect NTFS streams, Unix extended attributes, macOS resource forks
+  and permissions. On macOS, attribute values are read for folders only; a file's are listed by
+  name and size. **File-system details** (Ctrl+Alt+Enter) summarize an item's metadata, and
+  **Read full record** adds NTFS extent records, hard-link names, sparse ranges and WOF backing on
+  Windows, and the supported native fields on Linux and macOS. Both show metadata only: no raw MFT,
+  `$LogFile` or `$Secure` records. On Windows, **Tools → Change journal of this drive** lists a
+  drive's USN journal.
 - **Verify deliberately:** calculate hashes, check checksum manifests and automatic sidecars,
   or verify minisign/OpenPGP signatures. Weak hashes are labelled as integrity checks rather than
   proof of origin.
@@ -233,10 +247,11 @@ connected-glass header. They do not establish installed-package or native-intera
 
 ## Platforms
 
-For 1.0.0, **Windows 11 x64 is the planned stable tier**. Windows 11 ARM64,
-Ubuntu 24.04/26.04 x64 with GNOME, and macOS 26+ on Apple silicon are planned previews.
-The public preview packages are unsigned. These labels describe the validation targets for
-stable 1.0.0. The x64 installer also accepts Windows Server 2016 (build 14393) with Desktop Experience,
+In 1.0.0, **Windows 11 x64 is the stable tier**. Windows 11 ARM64, Ubuntu 24.04/26.04 x64
+with GNOME, and macOS 26+ on Apple silicon get labelled previews built from the same source.
+The Windows packages are code-signed; the macOS app is ad-hoc signed and not notarized, and
+the Linux packages are unsigned ([code signing policy](docs/DOWNLOAD.md#code-signing-policy)).
+The x64 installer also accepts Windows Server 2016 (build 14393) with Desktop Experience,
 which it does not check. It refuses Windows 10 and Windows Server 2019 and 2022; Windows Server 2025
 passes its build check but has not been tried. The ARM64 installer needs Windows 11.
 Windows provides MTP, Registry and native Shell actions. The Unix builds use their own trash,
@@ -265,7 +280,7 @@ covered in the [developer build guide](docs/BUILDING.md).
 
 ## Documentation
 
-- [Downloads and package choices](docs/DOWNLOAD.md) — preview packages, verification and signing status
+- [Downloads and package choices](docs/DOWNLOAD.md) — packages, verification, removal and code signing
 - [What works where](docs/CAPABILITIES.md) — supported platforms, locations and actions
 - [Create a file list](docs/CREATE_FILE_LIST.md) — reusable formats, fields and output choices
 - [Privacy policy](docs/PRIVACY.md)
