@@ -148,13 +148,13 @@ Status: **done** (with the record's section), **partial**, **open**, or **blocke
 
 | # | IDs | What remains | Blocked by |
 |---|---|---|---|
-| d1 | REL-WIN-GA, REL-SIGN-WINDOWS, I02, I04 | A physical GA Windows 11 PC: clean install, launch, use and removal, and Smart App Control enforcing with the candidate's components loaded | ENV-03: the owner provides a GA PC (DEC-14) |
+| d1 | REL-WIN-GA, REL-SIGN-WINDOWS, I02, I04 | A physical GA Windows 11 PC: clean install, launch, use and removal, and Smart App Control enforcing with the candidate's components loaded | ENV-03: the owner provides a GA PC (DEC-14); [GA PC checklist](FILECAT_1_0_RC3_GA_PC_CHECKLIST.md) |
 | d2 | REL-SIGN-WINDOWS, I611, I623, I634 | ARM64: install the ARM64 Setup, signatures, About, PDF, pictures, Smart App Control | ENV-02 (not mandatory under DEC-02); a Windows on Arm VM on the Mac could cover it |
 | d3 | REL-PERFORMANCE (I07, I42) | Fixed workloads on the reference machine | Waived for 1.0.0 (DEC-14) |
 | d4 | REL-I06-AGGREGATE | Whole-process memory accounting against fixed limits | Closes by scope on rc.3's results (DEC-14) |
 | d5 | REL-HUMAN-UX | Unprompted tasks by Commander users, newcomers and platform users | Waived for 1.0.0 (DEC-14) |
 | d6 | REL-HUMAN-AT, I583 | Experienced screen-reader users | Waived for 1.0.0 (DEC-14); the automated NVDA, Orca and VoiceOver runs stand in |
-| d7 | REL-CONSENT-ATTEST | A person attests UAC, polkit, authopen and TCC prompts and device identity | PPL-03: the owner attests on rc.3 (DEC-14) |
+| d7 | REL-CONSENT-ATTEST | A person attests UAC, polkit, authopen and TCC prompts and device identity | PPL-03: the owner attests on rc.3 (DEC-14); [consent walkthrough](FILECAT_1_0_RC3_CONSENT_WALKTHROUGH.md) |
 | d8 | REL-I17-BROKER, I310, I324 | Real consent under default UAC read by a person; remaining helper loading, connection and lifetime work | PPL-03: the owner's attestation (DEC-14); scope |
 | d9 | REL-I106-RECOVERY, I495, I496, I519 | Other media and layouts, installed consent, the physical USB stick repeat, the installed helper end to end, a hostile GPT disk | Physical media; PPL-03; scope |
 | d10 | REL-I08-CONTAINMENT, REL-I16-LAUNCH, I493, I546, I549, I550, I552 | Whole-process memory, remaining parser, Shell and helper-launch routes, installed containment | Closes by scope on rc.3's full CI and installed checks (DEC-14) |

@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**1030 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
+**1031 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -11,6 +11,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 
 | ID | What | Source | Class | Record | Issues |
 |---|---|---|---|---|---|
+| E-I668-I669 | A compare test's rescue timer and Compare after a re-read in its dialog; the consent page's singular | rc.3's integration run 45504400360; an instrumented build on the Mac (40 runs); the qualification VM | CI observation and code review, open, Low; causes shown and fixed in PR #51. | [Record](evidence/E-I668-I669-compare-reread-consent-wording.md) | I668/I669/I665 |
 | E-DEC-2026-11-24-SCOPE | Owner decision DEC-14: hardware, people and scope for 1.0.0 | The owner's answers in the release session, 2026-11-24, at `146315eda` | Owner decision: REL-PERFORMANCE, REL-HUMAN-UX and REL-HUMAN-AT waived as documented limitations and I07 closed; the owner provides the GA PC and attests; d10 and d11 close by scope on rc.3's results | [Decision record](evidence/E-DEC-2026-11-24-release-scope.md) | DEC-14/I07/I11/I06/I08/I13/I16 |
 | E-I665-I667-CI-FLAKES | Three tests that fail intermittently on hosted runners | Hosted CI runs listed in E-REL-SYNC-20261124 and rc.3's integration runs 45445858172 and 45476564759 | CI observations, open, Low; causes proposed, not yet shown. | [Record](evidence/E-I665-I667-ci-flaky-tests.md) | I665/I666/I667/I661 |
 | E-I664-GRID-TILES | The picture grid exposes fewer tiles to screen readers than it draws | rc.2's tarball on the Ubuntu 24.04.5 VM, AT-SPI (harness row a18) | Native observation, open, Low. | [I664 record](evidence/E-I664-picture-grid-accessible-tiles.md) | I664 |
