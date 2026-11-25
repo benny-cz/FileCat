@@ -5698,3 +5698,9 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - At the owner's request ("Now (pause runner)") the Windows runner was paused after batch2, and c9 ran on the installed rc.5: the share said it needs a sign-in, Enter stayed on it and opened Windows' prompt, the owner signed in, and FileCat listed the share and its sub folder; the temporary connection was removed and no credential was stored ([I672](evidence/E-I672-unc-sign-in-enter.md)).
 - I675's probes on the installed rc.5: Go to an unreachable share, longest wait 0 ms (21,019 ms on rc.4); a start on one showed the window after 1.4 and 1.3 s (22.0 s on rc.4) ([I675](evidence/E-I675-unanswering-share-window-stall.md)). The runner then resumed.
+
+## 2026-11-26 — rc.5's Ubuntu and Mac runs
+
+- Ubuntu (rc.5's .deb, AppImage and tarball): all 26 rows pass, 0 FAIL, 0 BLOCKED.
+- Mac (rc.5's `FileCat-1.0.0-osx-arm64.zip`): 33 of 35 pass; b23 (remote drag) and b28 (minimum dialog sizes) keep their known BLOCKED halves, as on rc.3 and rc.4; 0 FAIL.
+- The Windows runner continues after c9 ([rc.5](evidence/E-RC5-TAG-20261125.md)).
