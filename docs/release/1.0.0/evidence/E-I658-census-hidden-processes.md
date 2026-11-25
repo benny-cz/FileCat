@@ -1,6 +1,6 @@
 # I658 — The recovery census calls other accounts' FileCat absent when /proc hides their processes
 
-**Found:** 2026-11-24 by I646's fix ([PR #32](https://github.com/benny-cz/FileCat/pull/32), noted by its author), confirmed in the source of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) (`7269ec61`). **Status:** open; to be fixed for rc.3 (the owner's decision of 2026-11-24: every known issue is fixed for the next candidate).
+**Found:** 2026-11-24 by I646's fix ([PR #32](https://github.com/benny-cz/FileCat/pull/32), noted by its author), confirmed in the source of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) (`7269ec61`). **Status:** remediated preliminarily for rc.3 on 2026-11-25 ([I658](../FILECAT_1_0_RELEASE_ISSUES.md#i658), merged into main as `a2f983e9a`); first recorded as open; to be fixed for rc.3 (the owner's decision of 2026-11-24: every known issue is fixed for the next candidate).
 
 ## Observation
 

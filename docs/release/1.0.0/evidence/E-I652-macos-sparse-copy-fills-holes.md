@@ -1,6 +1,6 @@
 # I652 — macOS: Copy fills a sparse file's holes on APFS
 
-**Found:** 2026-11-24 by the Mac GUI harness rehearsing [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md)'s b-rows (b26, I616). The harness and its results are kept locally in `.tmp/fq-rc2/mac/` (`results/rc2b/b26_sparse_copy.txt`). **Status:** open. A fix is proposed for the next candidate, and the owner decides.
+**Found:** 2026-11-24 by the Mac GUI harness rehearsing [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md)'s b-rows (b26, I616). The harness and its results are kept locally in `.tmp/fq-rc2/mac/` (`results/rc2b/b26_sparse_copy.txt`). **Status:** remediated preliminarily for rc.3 on 2026-11-25 ([I652](../FILECAT_1_0_RELEASE_ISSUES.md#i652), merged into main as `a2f983e9a`); first recorded as open. A fix is proposed for the next candidate, and the owner decides.
 
 ## Candidate and machine
 

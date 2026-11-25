@@ -1,6 +1,6 @@
 # I662 — Linux File-system details no longer show a bind mount's source root (a regression of I612)
 
-**Found:** 2026-11-24 by the Ubuntu GUI harness on rc.2's tarball ([`v1.0.0-rc.2`](E-RC2-TAG-20261124.md), `7269ec61`), row a4, and re-checked in three fresh FileCats (17:26, 18:50 and 20:06). **Status:** open; to be fixed for rc.3 (the owner's decision of 2026-11-24: every known issue is fixed for the next candidate).
+**Found:** 2026-11-24 by the Ubuntu GUI harness on rc.2's tarball ([`v1.0.0-rc.2`](E-RC2-TAG-20261124.md), `7269ec61`), row a4, and re-checked in three fresh FileCats (17:26, 18:50 and 20:06). **Status:** remediated preliminarily for rc.3 on 2026-11-25 ([I662](../FILECAT_1_0_RELEASE_ISSUES.md#i662), merged into main as `a2f983e9a`); first recorded as open; to be fixed for rc.3 (the owner's decision of 2026-11-24: every known issue is fixed for the next candidate).
 
 ## Observation
 

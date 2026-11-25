@@ -1,6 +1,6 @@
 # I645 — An elevated FileCat sweeps the ordinary account's temporary folders and follows links there
 
-**Found:** 2026-11-24 by the B12 review of the modes added since B12 (I641, [PR #28](https://github.com/benny-cz/FileCat/pull/28), finding F1), in the source of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md). `src/` at `main` `f4e42468b` is identical to the tag. **Status:** open. A fix is proposed for the next candidate, and the owner decides.
+**Found:** 2026-11-24 by the B12 review of the modes added since B12 (I641, [PR #28](https://github.com/benny-cz/FileCat/pull/28), finding F1), in the source of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md). `src/` at `main` `f4e42468b` is identical to the tag. **Status:** remediated preliminarily for rc.3 on 2026-11-25 ([I645](../FILECAT_1_0_RELEASE_ISSUES.md#i645), merged into main as `a2f983e9a`); first recorded as open. A fix is proposed for the next candidate, and the owner decides.
 
 ## Observation
 

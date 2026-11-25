@@ -1,6 +1,6 @@
 # I647 — Git badges say "changed" for files Git calls clean, because they ignore Git's line-ending settings
 
-**Found:** 2026-11-24, during final qualification of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) (checklist c23, I608), on the installed candidate in the Windows 11 25H2 qualification VM ([FQ progress](E-FQ-RC2-20261124.md)), with Git for Windows 2.54.0 copied into the VM's Program Files. **Status:** open. A fix is proposed for the next candidate, and the owner decides.
+**Found:** 2026-11-24, during final qualification of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) (checklist c23, I608), on the installed candidate in the Windows 11 25H2 qualification VM ([FQ progress](E-FQ-RC2-20261124.md)), with Git for Windows 2.54.0 copied into the VM's Program Files. **Status:** remediated preliminarily for rc.3 on 2026-11-25 ([I647](../FILECAT_1_0_RELEASE_ISSUES.md#i647), merged into main as `a2f983e9a`); first recorded as open. A fix is proposed for the next candidate, and the owner decides.
 
 ## Observation
 

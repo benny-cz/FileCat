@@ -1,6 +1,6 @@
 # I643 — The diagnostics log keeps raw paths, though Export diagnostics says they are hashed
 
-**Found:** 2026-11-24, by the documentation session that recorded I638 to I640 ([PR #25](https://github.com/benny-cz/FileCat/pull/25)), and confirmed by the release session in the source of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) (`7269ec61`). Every file cited below is identical at rc.2 and at `main` `565f7577`. **Status:** open; a fix is proposed for the next candidate, and the owner decides.
+**Found:** 2026-11-24, by the documentation session that recorded I638 to I640 ([PR #25](https://github.com/benny-cz/FileCat/pull/25)), and confirmed by the release session in the source of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) (`7269ec61`). Every file cited below is identical at rc.2 and at `main` `565f7577`. **Status:** remediated preliminarily for rc.3 on 2026-11-25 ([I643](../FILECAT_1_0_RELEASE_ISSUES.md#i643), merged into main as `a2f983e9a`); first recorded as open; a fix is proposed for the next candidate, and the owner decides.
 
 ## Observation
 

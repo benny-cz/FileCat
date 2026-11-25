@@ -1,6 +1,6 @@
 # I659 — Git badges lose files whose names are not ASCII, because Git's output was read in a legacy code page
 
-**Found:** 2026-11-24 by I657's fix ([PR #38](https://github.com/benny-cz/FileCat/pull/38)), while testing names with spaces and non-ASCII letters. The code is that of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) (`7269ec61`). **Status:** open; fixed on PR #38 by `3df37718d`, which reaches users in rc.3 (the owner's decision of 2026-11-24: every known issue is fixed for the next candidate).
+**Found:** 2026-11-24 by I657's fix ([PR #38](https://github.com/benny-cz/FileCat/pull/38)), while testing names with spaces and non-ASCII letters. The code is that of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) (`7269ec61`). **Status:** remediated preliminarily for rc.3 on 2026-11-25 ([I659](../FILECAT_1_0_RELEASE_ISSUES.md#i659), merged into main as `a2f983e9a`); first recorded as open; fixed on PR #38 by `3df37718d`, which reaches users in rc.3 (the owner's decision of 2026-11-24: every known issue is fixed for the next candidate).
 
 ## Observation
 
