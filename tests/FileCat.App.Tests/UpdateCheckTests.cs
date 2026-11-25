@@ -23,6 +23,26 @@ public sealed class UpdateCheckTests
     }
 
     [Fact]
+    public async Task An_administrator_window_or_root_never_checks_at_startup()
+    {
+        // I670: such a process starts from default settings (the check on) and saves none, so it checked at every start
+        // even where the user had turned the check off. The stand-in counts checks; no request leaves the test host.
+        int checks = 0, saves = 0;
+        UpdateCheck.CheckForTests = _ => { checks++; return Task.FromResult(new UpdateCheck.Result(false, "1.0.0", "1.0.0", null, null)); };
+        try
+        {
+            using (FileCat.Tests.ProcessAuthorityScopes.ElevatedOrRoot(assumed: true))
+                Assert.Null(await UpdateCheck.RunScheduledAsync(new AppSettings(), () => saves++, TestContext.Current.CancellationToken));
+            Assert.Equal(0, checks); Assert.Equal(0, saves);
+            // The control: an ordinary process with the same default settings does check, and records when.
+            using (FileCat.Tests.ProcessAuthorityScopes.Ordinary())
+                Assert.NotNull(await UpdateCheck.RunScheduledAsync(new AppSettings(), () => saves++, TestContext.Current.CancellationToken));
+            Assert.Equal(1, checks); Assert.Equal(1, saves);
+        }
+        finally { UpdateCheck.CheckForTests = null; }
+    }
+
+    [Fact]
     public void Startup_offer_skips_only_the_saved_version_and_preserves_the_opt_out()
     {
         var settings = new AppSettings();
