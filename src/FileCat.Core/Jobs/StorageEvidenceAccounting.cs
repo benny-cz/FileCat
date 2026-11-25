@@ -20,7 +20,7 @@ internal static partial class StorageEvidenceAccounting
     internal static StorageHistoryAccounting Census(string directory, IReadOnlySet<Guid>? live, CancellationToken ct, StorageEvidenceBackend? backend = null)
     {
         if (backend is not null) return QualifiedCensus(directory, live, backend, ct);
-        if (WindowsTokenAuthority.IsHighIntegrity) throw new IOException("Storage history must be accounted in the normal user process.");
+        if (ProcessAuthority.IsElevatedOrRoot) throw new IOException("Storage history must be accounted in the normal user process.");
         long bytes = 0, reserve = 0, journals = 0, pending = 0, artifacts = 0;
         bool complete = true; string? problem = null;
         using var cursor = StorageEvidenceLanes.EnterCursor(ct);

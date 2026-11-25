@@ -203,6 +203,20 @@
     <Setter Property="FontWeight" Value="Bold" />
     <Setter Property="FontSize" Value="10.5" />
   </Style>
+  <!-- A panel's number (also its handle): the accent while it is the active panel, else the header's muted colors. Theme
+       resources, so a theme change recolors every panel's number at once, as it does the TARGET chip (I663). -->
+  <Style Selector="Border.panelNumber">
+    <Setter Property="Background" Value="{DynamicResource FcHeader}" />
+  </Style>
+  <Style Selector="Border.panelNumber > TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource FcTextMuted}" />
+  </Style>
+  <Style Selector="Border.panelNumber.active">
+    <Setter Property="Background" Value="{DynamicResource FcAccentFill}" />
+  </Style>
+  <Style Selector="Border.panelNumber.active > TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource FcOnAccent}" />
+  </Style>
 
   <!-- Status and key bar -->
   <Style Selector="Border.status">
@@ -430,6 +444,14 @@
   </Style>
   <Style Selector="ProgressBar">
     <Setter Property="Foreground" Value="{DynamicResource FcProgress}" />
+  </Style>
+  <!-- Every number box's spin buttons (NumericUpDown's ButtonSpinner): Fluent draws them as icons, and a button named by
+       nothing else is named after its content, so a screen reader read "Avalonia.Controls.PathIcon" (I653). -->
+  <Style Selector="ButtonSpinner /template/ RepeatButton#PART_IncreaseButton">
+    <Setter Property="AutomationProperties.Name" Value="Increase" />
+  </Style>
+  <Style Selector="ButtonSpinner /template/ RepeatButton#PART_DecreaseButton">
+    <Setter Property="AutomationProperties.Name" Value="Decrease" />
   </Style>
 
   <Style Selector="ListBox.choices">

@@ -10,7 +10,7 @@ public static partial class JournalRecovery
     public static void CopyStorageCalls(string path, StorageJournalPrefix prefix, Func<Stream> createOutput, CancellationToken ct = default)
     {
         ValidateCallPageRequest(path, prefix, 0); ArgumentNullException.ThrowIfNull(createOutput);
-        if (WindowsTokenAuthority.IsHighIntegrity) throw new IOException("Storage evidence must be exported in the normal user process.");
+        if (ProcessAuthority.IsElevatedOrRoot) throw new IOException("Storage evidence must be exported in the normal user process.");
         using var envelope = StorageEvidenceLanes.EnterEnvelope(ct);
         using var sourceCharge = envelope.Claim();
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 64 * 1024);

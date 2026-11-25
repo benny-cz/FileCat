@@ -39,8 +39,9 @@ internal sealed class TestSshd : IDisposable
 
     /// <param name="sftpDescriptors">The SFTP server process may hold this many descriptors (the system's sftp-server is
     /// then used, not sshd's own): every folder it has open holds one. Null where no sftp-server is found.</param>
+    /// <param name="deniedRequests">SFTP requests the server refuses (sftp-server's -P, e.g. "fsetstat,setstat").</param>
     public static TestSshd? TryStart(int? sftpDescriptors = null, bool disableLSetStat = false, string? privateReviewRoot = null,
-        bool dropGroupReply = false, bool swapOnLSetStat = false)
+        bool dropGroupReply = false, bool swapOnLSetStat = false, string? deniedRequests = null)
     {
         if (OperatingSystem.IsWindows()) return null;
         string? sshd = Environment.GetEnvironmentVariable("FILECAT_SSHD") is { Length: > 0 } configured ? configured
@@ -55,7 +56,8 @@ internal sealed class TestSshd : IDisposable
                     .FirstOrDefault(File.Exists) is not { } server) return null;
             sftp = $"ulimit -n {descriptors}; exec {server}";
         }
-        if (disableLSetStat) sftp += " -P lsetstat";
+        if (disableLSetStat || deniedRequests is not null)
+            sftp += " -P " + string.Join(',', new[] { disableLSetStat ? "lsetstat" : null, deniedRequests }.OfType<string>());
         string dir = Path.Combine(privateReviewRoot ?? Path.GetTempPath(), "filecat-sshd-" + Guid.NewGuid().ToString("N")[..8]);
         System.IO.Directory.CreateDirectory(dir, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         if (privateReviewRoot is not null)

@@ -9,6 +9,14 @@ signed or release-qualified artifact.
 Install the .NET SDK selected by [`global.json`](../global.json). No paid
 component or account is required for the ordinary source build.
 
+On Windows, also install the Visual Studio C++ build tools with the Windows
+SDK (the free Build Tools are enough). Windows builds compile two small native
+programs with them: the administrator helper's entry point and
+`FileCat.AdminLauncher.exe`, through which FileCat opens its administrator
+window. A development build can skip the launcher with
+`-p:FileCatBuildAdministratorLauncher=false`; its administrator window then
+refuses to open. A Windows publish always includes it.
+
 ```sh
 dotnet build FileCat.slnx
 dotnet test FileCat.slnx
@@ -41,9 +49,10 @@ the SBOMs enumerate the bytes inside each distinct payload and their reviewed
 NuGet/runtime identities.
 
 The portable Windows ZIP includes `FileCat.portable`: state goes in `Data/`
-beside the executable. The framework-dependent ZIP requires the appropriate
-.NET desktop runtime and contains no administrator helper. Installed builds
-have the separately qualified helper route.
+beside the executable. The framework-dependent ZIP requires the .NET 10
+Runtime (`Microsoft.NETCore.App`) for its architecture and contains no
+administrator helper. Installed builds have the separately qualified helper
+route.
 
 ## Update dependencies deliberately
 

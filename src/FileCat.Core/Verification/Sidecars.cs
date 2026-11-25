@@ -127,7 +127,7 @@ public sealed class FolderSidecars
             // One sidecar FileCat cannot make sense of leaves the folder's others standing (and is still fingerprinted: a change is seen).
             catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
             {
-                AppLog.Warn($"A checksum file or signature could not be read: {Path.Combine(folder, name)}", ex);
+                AppLog.Warn($"A checksum file or signature could not be read: {AppLog.P(Path.Combine(folder, name))}", ex);
             }
             // A checksum file's fingerprint is that of the very bytes its claims were read from: a signature over it is
             // checked over bytes with this fingerprint, so a file changed between the two reads cannot pass for the other.

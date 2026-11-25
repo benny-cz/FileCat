@@ -193,7 +193,7 @@ internal sealed class ReviewedPermissionOperation : IDisposable
     private static bool Valid(PermissionRevision revision) => revision.Sections != PermissionSections.None &&
         revision.Digest is { Length: 64 } && revision.Digest.All(char.IsAsciiHexDigitUpper);
 
-    internal static string? ProcessRefusal() => (OperatingSystem.IsWindows() ? WindowsTokenAuthority.IsHighIntegrity : Environment.IsPrivilegedProcess)
+    internal static string? ProcessRefusal() => ProcessAuthority.IsElevatedOrRoot
         ? "Open an ordinary FileCat window to apply reviewed permissions." : null;
 
     internal void TransferToJob()

@@ -14,7 +14,7 @@ namespace FileCat.App.Controls;
 /// </summary>
 public sealed class PageView : NativeControlHost
 {
-    private readonly string _dataFolder;
+    private readonly string? _dataFolder;
     private IPageEngine? _engine;
     private HtmlPage? _page;
     private IDisposable? _noHost;
@@ -26,7 +26,11 @@ public sealed class PageView : NativeControlHost
     private long _keyboardTakenAt = long.MinValue;
     private bool _focusingPage;
 
-    public PageView(string dataFolder)
+    /// <param name="dataFolder">
+    /// Where the engine keeps its own data (WebView2's user data, WebKit's content rules); null in an elevated or root
+    /// FileCat, where Windows and macOS then draw no page (see <see cref="PageEngines.Create"/>).
+    /// </param>
+    public PageView(string? dataFolder)
     {
         _dataFolder = dataFolder;
         if (ManagesKeyboard)
@@ -83,11 +87,41 @@ public sealed class PageView : NativeControlHost
     private IDisposable? _loadTimer;
     private int _loadGeneration;
 
-    /// <summary>Shows a page, now or once the native view exists.</summary>
-    public void Show(HtmlPage page)
+    /// <summary>
+    /// How long after it was asked for a page may load before the viewer says that it has not finished and how to get
+    /// past it (release issue I648: WebView2 sometimes never reported a page's completion, and the page stayed blank with
+    /// nothing said).
+    /// </summary>
+    internal TimeSpan SlowLoadNotice { get; set; } = TimeSpan.FromSeconds(10);
+    private IDisposable? _slowTimer;
+
+    /// <summary>
+    /// When the page now shown was asked for (<see cref="Environment.TickCount64"/>): <see cref="SlowLoadNotice"/> counts
+    /// from then, the reader's wait before this view had the page included (I648: the viewer's own opening, the file's
+    /// first bytes read, the native view made).
+    /// </summary>
+    private long _askedAt;
+
+    /// <summary>Whether the page has not finished loading <see cref="SlowLoadNotice"/> after it was asked for.</summary>
+    public bool LoadIsSlow { get; private set; }
+
+    /// <summary>
+    /// Whether the engine has yet to start because the browser of the pages closed just before is still ending (WebView2,
+    /// I648): the page cannot begin to load until it has, and Refresh would not hurry it.
+    /// </summary>
+    public bool WaitsForPreviousBrowser => _engine?.WaitsForPreviousBrowser ?? false;
+
+    /// <summary>Shows a page asked for now (a Refresh, a mode the reader chose), now or once the native view exists.</summary>
+    public void Show(HtmlPage page) => Show(page, Environment.TickCount64);
+
+    /// <summary>Shows a page that the reader asked for at <paramref name="askedAt"/> (<see cref="Environment.TickCount64"/>;
+    /// F3 or a link, before the viewer opened), now or once the native view exists.</summary>
+    public void Show(HtmlPage page, long askedAt)
     {
         _page = page;
+        _askedAt = Math.Min(askedAt, Environment.TickCount64);
         PageLoaded = false;
+        LoadIsSlow = false;
         if (_engine is { } engine) Load(engine, page);
     }
 
@@ -95,8 +129,18 @@ public sealed class PageView : NativeControlHost
     {
         _loadTimer?.Dispose();
         _loadTimer = null;
+        _slowTimer?.Dispose();
         int generation = ++_loadGeneration;
         engine.Show(page);
+        long askedAt = _askedAt;
+        var notice = SlowLoadNotice - TimeSpan.FromMilliseconds(Environment.TickCount64 - askedAt);
+        _slowTimer = DispatcherTimer.RunOnce(() =>
+        {
+            if (generation != _loadGeneration || PageLoaded || !ReferenceEquals(engine, _engine)) return;
+            LoadIsSlow = true;
+            engine.ReportSlowLoad(TimeSpan.FromMilliseconds(Environment.TickCount64 - askedAt));
+            Changed?.Invoke();
+        }, notice > TimeSpan.FromMilliseconds(1) ? notice : TimeSpan.FromMilliseconds(1));
         if (LoadTimeout is not { } timeout) return;
         _loadTimer = DispatcherTimer.RunOnce(() =>
         {
@@ -277,22 +321,13 @@ public sealed class PageView : NativeControlHost
     private void ConnectEngine(IPageEngine engine)
     {
         engine.Changed += () => Dispatcher.UIThread.Post(() => Changed?.Invoke());
-        engine.Loaded += (ok, why) => Dispatcher.UIThread.Post(() =>
+        engine.Loaded += (ok, why) =>
         {
-            _loadTimer?.Dispose();
-            _loadTimer = null;
-            PageLoaded = ok;
-            LoadCompleted?.Invoke(ok, why);
-            // On Windows a fast initial focus request can precede both the browser controller and the
-            // switch away from the Text surface. If Avalonia still names that hidden surface as focused,
-            // give the newly loaded page the keys. A visible Find or toolbar control keeps its focus.
-            if (ok && OperatingSystem.IsWindows() && IsEffectivelyVisible &&
-                _keyboardOwner is WindowBase { IsActive: true } &&
-                _keyboardOwner.FocusManager?.GetFocusedElement() is Control { IsEffectivelyVisible: false })
-                GiveKeysToPage();
-            if (!ok && why is not null) Failed?.Invoke("The page could not be shown: " + why);
-            Changed?.Invoke();
-        });
+            // A report raised before the page now shown was asked for belongs to the page before it: Refresh can replace
+            // a page that is still loading (I648), and that page's late completion must not count for the new one.
+            int generation = Volatile.Read(ref _loadGeneration);
+            Dispatcher.UIThread.Post(() => OnLoaded(generation, ok, why));
+        };
         engine.KeyRequested = (key, modifiers) => KeyRequested?.Invoke(key, modifiers) == true;
         engine.FocusRequested += () => Dispatcher.UIThread.Post(() =>
         {
@@ -312,6 +347,27 @@ public sealed class PageView : NativeControlHost
         });
     }
 
+    private void OnLoaded(int generation, bool ok, string? why)
+    {
+        if (generation != _loadGeneration) return;
+        _loadTimer?.Dispose();
+        _loadTimer = null;
+        _slowTimer?.Dispose();
+        _slowTimer = null;
+        PageLoaded = ok;
+        LoadIsSlow = false;
+        LoadCompleted?.Invoke(ok, why);
+        // On Windows a fast initial focus request can precede both the browser controller and the
+        // switch away from the Text surface. If Avalonia still names that hidden surface as focused,
+        // give the newly loaded page the keys. A visible Find or toolbar control keeps its focus.
+        if (ok && OperatingSystem.IsWindows() && IsEffectivelyVisible &&
+            _keyboardOwner is WindowBase { IsActive: true } &&
+            _keyboardOwner.FocusManager?.GetFocusedElement() is Control { IsEffectivelyVisible: false })
+            GiveKeysToPage();
+        if (!ok && why is not null) Failed?.Invoke("The page could not be shown: " + why);
+        Changed?.Invoke();
+    }
+
     protected override void DestroyNativeControlCore(IPlatformHandle control)
     {
         if (_engine is { } engine && ReferenceEquals(control, engine.Handle))
@@ -319,6 +375,8 @@ public sealed class PageView : NativeControlHost
             _engine = null;
             _loadTimer?.Dispose();
             _loadTimer = null;
+            _slowTimer?.Dispose();
+            _slowTimer = null;
             engine.Dispose();
             return;
         }
@@ -431,6 +489,12 @@ internal interface IPageEngine : IDisposable
     void SetSize(int width, int height);
     void Focus();
     bool HasKeyboardFocus => false;
+    /// <summary>The engine has yet to start: it waits for the browser of the pages closed just before to end (a change
+    /// raises <see cref="Changed"/>).</summary>
+    bool WaitsForPreviousBrowser => false;
+    /// <summary>The viewer now says that the page has not finished loading, this long after it was asked for: the engine
+    /// may log how far the page got.</summary>
+    void ReportSlowLoad(TimeSpan sinceAsked) { }
     Task<bool> ScrollByPageAsync(int direction) => Task.FromResult(false);
     Task<(double X, double Y)?> CaptureScrollPositionAsync(CancellationToken ct) =>
         Task.FromResult<(double X, double Y)?>(null);
@@ -454,12 +518,26 @@ public readonly record struct PageFindResult(bool Found, int? MatchCount = null,
 
 internal static class PageEngines
 {
-    /// <summary>This platform's engine inside <paramref name="parent"/>, or null with why there is none.</summary>
-    public static IPageEngine? Create(IPlatformHandle parent, string dataFolder, out string? unavailable)
+    internal const string NoDataFolder = "Web pages are not drawn while FileCat runs as administrator or root: the page " +
+        "view would keep its data in the ordinary account's folder, which that account's programs can change. Open the " +
+        "page in an ordinary FileCat window to see it drawn.";
+
+    /// <summary>
+    /// This platform's engine inside <paramref name="parent"/>, or null with why there is none. WebView2 and WebKit keep
+    /// data in <paramref name="dataFolder"/>; without one (an elevated or root FileCat, I645) they are not started, since
+    /// an elevated browser process writing and pruning the ordinary account's folder would follow any link planted there.
+    /// WebKitGTK keeps nothing (an ephemeral context).
+    /// </summary>
+    public static IPageEngine? Create(IPlatformHandle parent, string? dataFolder, out string? unavailable)
     {
         unavailable = null;
         if (OperatingSystem.IsWindows())
         {
+            if (dataFolder is null)
+            {
+                unavailable = NoDataFolder;
+                return null;
+            }
             if (Platform.Windows.Html.WebView2Page.RuntimeVersion is null)
             {
                 unavailable = "Web pages are drawn by Microsoft Edge WebView2, which is not installed (it comes with Windows 11; for Windows 10 it is a free download from Microsoft).";
@@ -476,7 +554,12 @@ internal static class PageEngines
             }
             return LinuxPageEngine.Create(offscreen: false, out unavailable);
         }
-        if (OperatingSystem.IsMacOS()) return MacPageEngine.Create(dataFolder, out unavailable);
+        if (OperatingSystem.IsMacOS())
+        {
+            if (dataFolder is not null) return MacPageEngine.Create(dataFolder, out unavailable);
+            unavailable = NoDataFolder;
+            return null;
+        }
         unavailable = "Web pages are not drawn on this system.";
         return null;
     }
@@ -494,6 +577,7 @@ internal sealed class WindowsPageEngine : IPageEngine
         _view.FocusGained += () => FocusRequested?.Invoke();
         _view.TitleChanged += _ => Changed?.Invoke();
         _view.Blocked += _ => Changed?.Invoke();
+        _view.WaitChanged += () => Changed?.Invoke();
         _view.Loaded += (ok, why) => Loaded?.Invoke(ok, why);
         _view.LinkedMarkdown += (page, target) => LinkedMarkdown?.Invoke(page, target);
         _view.KeyPressed = (virtualKey, ctrl, shift, alt) =>
@@ -508,6 +592,8 @@ internal sealed class WindowsPageEngine : IPageEngine
     public string? Title => _view.Title;
     public int BlockedCount => _view.BlockedCount;
     public bool HasKeyboardFocus => _view.HasNativeFocus;
+    public bool WaitsForPreviousBrowser => _view.WaitsForPreviousBrowser;
+    public void ReportSlowLoad(TimeSpan sinceAsked) => _view.ReportSlowLoad(sinceAsked);
     public event Action? Changed;
     public event Action<bool, string?>? Loaded;
     public event Action? FocusRequested;

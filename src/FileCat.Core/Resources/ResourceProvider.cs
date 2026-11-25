@@ -133,6 +133,12 @@ public abstract class ResourceProvider
     /// <summary>True when every item of a listing has the listing itself as its parent (false for result sets).</summary>
     public virtual bool ItemsShareListingParent => true;
 
+    /// <summary>
+    /// Why the picture grid shows this location's items as plain tiles and reads none of them for a thumbnail, or null when
+    /// it may read the ones named like pictures (the default). A file's streams and attributes are read only when asked.
+    /// </summary>
+    public virtual string? ExplainNoThumbnails(Location location) => null;
+
     /// <summary>Opens item content for random-access reading, or null when unsupported.</summary>
     public virtual IContentSource? OpenContent(ItemRef item) => null;
 

@@ -298,7 +298,7 @@ public static class OpenPgp
 
     public static SignatureResult Verify(string signature, string signed, CancellationToken ct, string? home = null)
     {
-        if (WindowsTokenAuthority.IsHighIntegrity) return ElevatedUnavailable;
+        if (ProcessAuthority.IsElevatedOrRoot) return ElevatedUnavailable;
         if (Tool is null) return NotInstalled;
         ct.ThrowIfCancellationRequested();
         // gpg would wait on a pipe planted under the signed file's name until its minute runs out.
@@ -312,15 +312,17 @@ public static class OpenPgp
     /// </summary>
     internal static SignatureResult Verify(string signature, ReadOnlyMemory<byte> content, CancellationToken ct, string? home = null)
     {
-        if (WindowsTokenAuthority.IsHighIntegrity) return ElevatedUnavailable;
+        if (ProcessAuthority.IsElevatedOrRoot) return ElevatedUnavailable;
         if (Tool is null) return NotInstalled;
         ct.ThrowIfCancellationRequested();
         return Run(signature, "-", content, ct, home);
     }
 
     private static SignatureResult NotInstalled => new(VerificationState.SignatureUnchecked, "OpenPGP signatures are checked with GnuPG, which is not installed here");
+    // gpg reads its configuration and keyrings from GNUPGHOME or HOME, which root may share with the user who ran sudo (I655).
     private static SignatureResult ElevatedUnavailable => new(VerificationState.SignatureUnchecked,
-        "OpenPGP verification is unavailable while FileCat runs as administrator; reopen it without elevation to avoid running user-profile GnuPG configuration");
+        $"OpenPGP verification is unavailable while FileCat runs {ProcessAuthority.RunningAs}; " +
+        $"{ProcessAuthority.LowerFirst(ProcessAuthority.UsualProcessAdvice)} to avoid running user-profile GnuPG configuration");
 
     /// <param name="signed">The signed file, or "-" for <paramref name="content"/> on gpg's standard input.</param>
     private static SignatureResult Run(string signature, string signed, ReadOnlyMemory<byte>? content, CancellationToken ct, string? home)

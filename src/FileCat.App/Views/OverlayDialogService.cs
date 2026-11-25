@@ -1023,7 +1023,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                     (item?.ContextLabel is null ? string.Empty : " · " + item.ContextLabel) + " · " + item?.Id +
                     (item?.Enabled == false ? " · unavailable" : string.Empty), Classes = { "muted", "small" }, TextTrimming = TextTrimming.CharacterEllipsis });
                 row.Children.Add(left);
-                var keys = new TextBlock { Text = string.IsNullOrEmpty(item?.Gestures) ? "Unbound" : item.Gestures, Classes = { "muted" }, Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+                var keys = new TextBlock { Text = item?.GestureText ?? "Unbound", Classes = { "muted" }, Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
                 Grid.SetColumn(keys, 1);
                 row.Children.Add(keys);
                 return row;

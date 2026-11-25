@@ -20,7 +20,7 @@ public static partial class JournalRecovery
         CancellationToken ct = default)
     {
         ValidateCallPageRequest(path, prefix, afterCall);
-        if (WindowsTokenAuthority.IsHighIntegrity) throw new IOException("Storage evidence must be read in the normal user process.");
+        if (ProcessAuthority.IsElevatedOrRoot) throw new IOException("Storage evidence must be read in the normal user process.");
         using var envelope = StorageEvidenceLanes.EnterEnvelope(ct);
         using var charge = envelope.Claim();
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 64 * 1024);

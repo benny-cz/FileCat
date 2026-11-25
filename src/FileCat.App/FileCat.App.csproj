@@ -51,4 +51,6 @@
   </ItemGroup>
   <!-- The macOS archive worker launcher beside the executable (route decision of 12 November 2026). -->
   <Import Project="MacOS\ArchiveWorkerLauncher.targets" />
+  <!-- The Windows administrator window launcher beside the executable (release issue I644). -->
+  <Import Project="Windows\AdministratorLauncher.targets" />
 </Project>

@@ -1,0 +1,49 @@
+<Project>
+  <!--
+    The administrator window launcher, FileCat.AdminLauncher.exe (release issue I644), sits beside FileCat.exe in every
+    Windows build and package. AdministratorWindow starts it with the runas verb instead of FileCat.exe: it removes the
+    .NET runtime's settings from the environment that UAC builds from the account's registry, then starts the FileCat.exe
+    beside it (AdministratorLauncher.cpp). eng/Build-PrivilegedBootstrap.ps1 compiles it with the Visual Studio C++ tools
+    and the Windows SDK, as it compiles the administrator helper's native entry point, so Windows builds need them.
+    Builds for other systems skip it. A Windows development build may skip it with FileCatBuildAdministratorLauncher=false;
+    its administrator window then refuses to open, and never falls back to starting FileCat.exe itself. A Windows publish
+    refuses to skip it. Referencing projects (the App tests) receive it beside FileCat.exe as well.
+  -->
+  <PropertyGroup>
+    <FileCatAdministratorLauncherRuntime Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64'">$(RuntimeIdentifier)</FileCatAdministratorLauncherRuntime>
+    <FileCatAdministratorLauncherRuntime Condition="'$(RuntimeIdentifier)' == '' and '$(OS)' == 'Windows_NT' and '$(NETCoreSdkRuntimeIdentifier)' == 'win-arm64'">win-arm64</FileCatAdministratorLauncherRuntime>
+    <FileCatAdministratorLauncherRuntime Condition="'$(RuntimeIdentifier)' == '' and '$(OS)' == 'Windows_NT' and '$(FileCatAdministratorLauncherRuntime)' == ''">win-x64</FileCatAdministratorLauncherRuntime>
+    <FileCatBuildAdministratorLauncher Condition="'$(FileCatBuildAdministratorLauncher)' == '' and '$(FileCatAdministratorLauncherRuntime)' != ''">true</FileCatBuildAdministratorLauncher>
+    <FileCatAdministratorLauncherFolder>$(MSBuildThisFileDirectory)</FileCatAdministratorLauncherFolder>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(FileCatBuildAdministratorLauncher)' == 'true'">
+    <None Include="$(IntermediateOutputPath)administrator-launcher\FileCat.AdminLauncher.exe" Link="FileCat.AdminLauncher.exe"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+
+  <!-- The version and source revision are in the launcher's version resource: a change rebuilds it. -->
+  <Target Name="FileCatStampAdministratorLauncher" Condition="'$(FileCatBuildAdministratorLauncher)' == 'true'">
+    <MakeDir Directories="$(IntermediateOutputPath)administrator-launcher" />
+    <WriteLinesToFile File="$(IntermediateOutputPath)administrator-launcher\inputs.txt" Overwrite="true" WriteOnlyWhenDifferent="true"
+                      Lines="$(FileCatAdministratorLauncherRuntime);$(Version);$(SourceRevisionId)" />
+  </Target>
+
+  <!-- After the compiler, when the source revision is known, and before anything copies the launcher. -->
+  <Target Name="FileCatCompileAdministratorLauncher" AfterTargets="CoreCompile" DependsOnTargets="FileCatStampAdministratorLauncher"
+          Condition="'$(FileCatBuildAdministratorLauncher)' == 'true' and '$(DesignTimeBuild)' != 'true'"
+          Inputs="$(FileCatAdministratorLauncherFolder)AdministratorLauncher.cpp;$(FileCatAdministratorLauncherFolder)AdministratorLauncher.manifest;$(MSBuildThisFileFullPath);$(FileCatAdministratorLauncherFolder)..\Assets\filecat.ico;$(FileCatAdministratorLauncherFolder)..\..\..\eng\Build-PrivilegedBootstrap.ps1;$(IntermediateOutputPath)administrator-launcher\inputs.txt"
+          Outputs="$(IntermediateOutputPath)administrator-launcher\FileCat.AdminLauncher.exe">
+    <Error Condition="'$(OS)' != 'Windows_NT'"
+           Text="Building FileCat for Windows needs Windows with the Visual Studio C++ tools and the Windows SDK: they compile the administrator window launcher, FileCat.AdminLauncher.exe (I644)." />
+    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(FileCatAdministratorLauncherFolder)..\..\..\eng\Build-PrivilegedBootstrap.ps1&quot; -Component AdministratorLauncher -ProjectDirectory &quot;$(FileCatAdministratorLauncherFolder).&quot; -OutputFile &quot;$([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'administrator-launcher', 'FileCat.AdminLauncher.exe'))&quot; -IntermediateDirectory &quot;$([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'administrator-launcher'))&quot; -Runtime &quot;$(FileCatAdministratorLauncherRuntime)&quot; -Version &quot;$(Version)&quot; -SourceRevisionId &quot;$(SourceRevisionId)&quot;" />
+    <ItemGroup>
+      <FileWrites Include="$(IntermediateOutputPath)administrator-launcher\**" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="FileCatRequireAdministratorLauncher" BeforeTargets="PrepareForPublish"
+          Condition="('$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64') and '$(FileCatBuildAdministratorLauncher)' != 'true'">
+    <Error Text="A Windows publish of FileCat must carry its administrator window launcher, FileCat.AdminLauncher.exe (I644): do not set FileCatBuildAdministratorLauncher=false for it." />
+  </Target>
+</Project>

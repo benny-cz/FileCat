@@ -61,6 +61,8 @@ SignedUninstallerDir={#SignedUninstallerDir}
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked
 
 [Files]
+; The whole checked payload, which includes FileCat.AdminLauncher.exe beside FileCat.exe: FileCat opens its administrator
+; window only through that launcher (release issue I644).
 Source: "{#PayloadDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "licenses\InnoSetup-6.7.1.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
 

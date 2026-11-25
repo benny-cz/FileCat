@@ -44,7 +44,8 @@ public static class JsonFileStore
         where T : class, IVersionedState
     {
         primary = null;
-        if (WindowsTokenAuthority.IsHighIntegrity)
+        // An administrator window, or root (I655), takes nothing from state the ordinary account can change.
+        if (ProcessAuthority.IsElevatedOrRoot)
         {
             status = StateLoadStatus.UnavailableReadOnly;
             return defaults();
@@ -139,8 +140,9 @@ public static class JsonFileStore
 
     private static void SaveCore(string path, Action<FileStream> write, bool createNew, Func<bool>? mayReplace)
     {
-        if (WindowsTokenAuthority.IsHighIntegrity)
-            throw new IOException("FileCat does not save user-profile state while running as administrator. Reopen it without elevation to save changes.");
+        if (ProcessAuthority.IsElevatedOrRoot)
+            throw new IOException($"FileCat does not save user-profile state while running {ProcessAuthority.RunningAs}. " +
+                $"{ProcessAuthority.UsualProcessAdvice} to save changes.");
         var dir = Path.GetDirectoryName(path)!;
         Directory.CreateDirectory(dir);
         if (!OperatingSystem.IsWindows())

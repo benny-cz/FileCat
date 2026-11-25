@@ -106,6 +106,54 @@ public sealed class DirectoryComparisonLifetimeTests(ITestOutputHelper output)
     }
 
     [AvaloniaTheory]
+    [InlineData("left")]
+    [InlineData("right")]
+    public async Task A_folder_read_again_while_the_compare_dialog_is_open_is_compared_as_shown(string side)
+    {
+        // I668: a change notice or Reread while the dialog was open made the chosen Compare silently do nothing.
+        using var f = new Fixture("different"); await f.Load();
+        var changed = side == "left" ? f.Left : f.Right;
+        int generation = changed.Listing.Generation;
+        string? notification = f.Notification;
+        var task = await f.Start(false, async () =>
+        {
+            changed.Refresh();
+            await Wait(() => changed.Listing.Generation != generation && !changed.Listing.IsRefreshing && changed.Listing.State == ListingState.Complete);
+        });
+        var error = await Finish([task]);
+        output.WriteLine("DIRECTORY_LIFETIME " + JsonSerializer.Serialize(new { Case = "reread-in-dialog", side, Error = error?.GetType().Name,
+            GenerationBefore = generation, GenerationAfter = changed.Listing.Generation, Label = f.Left.ComparisonLabel, f.Notification,
+            LeftMarks = f.Left.Listing.MarkedCount, RightMarks = f.Right.Listing.MarkedCount, Calls = f.Provider.Calls.ToArray(), Hashes = f.Hashes() }));
+        Assert.Null(error); Assert.NotEqual(generation, changed.Listing.Generation);
+        Assert.Equal(1, f.Left.Listing.MarkedCount); Assert.Equal(1, f.Right.Listing.MarkedCount);
+        Assert.Contains("1 differ", f.Left.ComparisonLabel); Assert.Equal(f.Left.ComparisonLabel, f.Right.ComparisonLabel);
+        Assert.NotEqual(notification, f.Notification); Assert.Equal(f.Left.ComparisonLabel, f.Notification);
+        Assert.All(f.Provider.Sources, s => Assert.Equal(1, s.Disposals)); f.AssertHashes();
+    }
+
+    [AvaloniaTheory]
+    [InlineData("left", "navigate")]
+    [InlineData("right", "navigate")]
+    public async Task A_compare_chosen_after_a_panel_opened_another_folder_still_does_nothing(string side, string action)
+    {
+        // I668 keeps this: Compare was chosen for folders a panel no longer shows, so nothing is compared or marked.
+        using var f = new Fixture("different"); await f.Load();
+        var changed = side == "left" ? f.Left : f.Right;
+        string? leftLabel = f.Left.ComparisonLabel, rightLabel = f.Right.ComparisonLabel, notification = f.Notification;
+        var task = await f.Start(false, async () =>
+        {
+            changed.Navigate(new Location(f.Provider.Scheme, "replacement"));
+            await Wait(() => changed.Listing.State == ListingState.Complete);
+        });
+        var error = await Finish([task]);
+        output.WriteLine("DIRECTORY_LIFETIME " + JsonSerializer.Serialize(new { Case = "navigate-in-dialog", side, action, Error = error?.GetType().Name,
+            Label = f.Left.ComparisonLabel, LeftMarks = f.Left.Listing.MarkedCount, RightMarks = f.Right.Listing.MarkedCount, Calls = f.Provider.Calls.ToArray() }));
+        Assert.Null(error); Assert.Equal(0, f.Left.Listing.MarkedCount + f.Right.Listing.MarkedCount);
+        Assert.Equal(leftLabel, f.Left.ComparisonLabel); Assert.Equal(rightLabel, f.Right.ComparisonLabel); Assert.Equal(notification, f.Notification);
+        Assert.DoesNotContain(f.Provider.Calls, c => c.Operation == "open");
+    }
+
+    [AvaloniaTheory]
     [InlineData("equal")]
     [InlineData("different")]
     [InlineData("io")]
@@ -206,7 +254,9 @@ public sealed class DirectoryComparisonLifetimeTests(ITestOutputHelper output)
             Left.Navigate(new Location(Provider.Scheme, "left")); Right.Navigate(new Location(Provider.Scheme, "right")); _vm.Workspace.Activate(Left.Panel);
             await Wait(() => Left.Listing.State == ListingState.Complete && Right.Listing.State == ListingState.Complete); Provider.Calls.Clear();
         }
-        public async Task<Task> Start(bool recursive)
+        public string? Notification => _vm.Notification;
+        /// <summary>Opens the Compare dialog, sets its options, runs <paramref name="whileOpen"/> with the dialog still open, then chooses Compare.</summary>
+        public async Task<Task> Start(bool recursive, Func<Task>? whileOpen = null)
         {
             var task = (Task)typeof(MainViewModel).GetMethod("CompareDirectoriesAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(_vm, null)!;
             await Wait(() => _window.GetVisualDescendants().OfType<CheckBox>().Any(c => (c.Content as string)?.StartsWith("Include subfolders", StringComparison.Ordinal) == true));
@@ -215,6 +265,7 @@ public sealed class DirectoryComparisonLifetimeTests(ITestOutputHelper output)
             checks.Single(c => c.Content as string == "Modification time").IsChecked = false;
             checks.Single(c => (c.Content as string)?.StartsWith("Content (", StringComparison.Ordinal) == true).IsChecked = true;
             checks.Single(c => (c.Content as string)?.StartsWith("Include subfolders", StringComparison.Ordinal) == true).IsChecked = recursive;
+            if (whileOpen is not null) await whileOpen();
             _window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Compare").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             return task;
         }

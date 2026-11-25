@@ -55,7 +55,7 @@ public static partial class JournalRecovery
 
     public static StorageHistorySnapshot ReadStorageHistory(string path, StorageJournalPrefix? prefix = null, CancellationToken ct = default)
     {
-        if (WindowsTokenAuthority.IsHighIntegrity) throw new IOException("Storage history must be reviewed in the normal user process.");
+        if (ProcessAuthority.IsElevatedOrRoot) throw new IOException("Storage history must be reviewed in the normal user process.");
         using var envelope = StorageEvidenceLanes.EnterEnvelope(ct);
         using var fileCharge = envelope.Claim();
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 64 * 1024);
@@ -136,7 +136,7 @@ public sealed class StorageHistoryDiscovery : IDisposable
     private StorageHistoryBookmark? _continuation;
     internal StorageHistoryDiscovery(string directory, CancellationToken ct, StorageEvidenceBackend? backend = null, bool retainedReviews = false)
     {
-        if (WindowsTokenAuthority.IsHighIntegrity) throw new IOException("Storage history must be reviewed in the normal user process.");
+        if (ProcessAuthority.IsElevatedOrRoot) throw new IOException("Storage history must be reviewed in the normal user process.");
         _backend = backend; _retainedReviews = retainedReviews;
         _directory = backend is null && retainedReviews ? Path.Join(directory, "reviewed") : directory;
         if (backend is not null)

@@ -35,26 +35,40 @@ public sealed class PlaceBarPanel : Panel
             ShownCount = 0;
             return default;
         }
+        ShownCount = Fit(availableSize.Width, items, out double used);
+        return ShownCount == items
+            ? new Size(used, height)
+            : new Size(Math.Min(availableSize.Width, used + Children[^1].DesiredSize.Width), height);
+    }
+
+    /// <summary>
+    /// How many children, from the first, fit in <paramref name="width"/>, leaving room for the overflow button when not
+    /// all do; <paramref name="used"/> is their width. A gap between groups never ends the row.
+    /// </summary>
+    private int Fit(double width, int items, out double used)
+    {
         double all = 0;
         for (int i = 0; i < items; i++) all += Children[i].DesiredSize.Width;
-        if (all <= availableSize.Width)
+        if (all <= width)
         {
-            ShownCount = items;
-            return new Size(all, height);
+            used = all;
+            return items;
         }
-        double room = availableSize.Width - Children[^1].DesiredSize.Width;
+        double room = width - Children[^1].DesiredSize.Width;
         int shown = 0;
-        double used = 0;
+        used = 0;
         while (shown < items && used + Children[shown].DesiredSize.Width <= room) used += Children[shown++].DesiredSize.Width;
-        // A gap between groups never ends the row.
         while (shown > 0 && Children[shown - 1].Classes.Contains("placeGap")) used -= Children[--shown].DesiredSize.Width;
-        ShownCount = shown;
-        return new Size(Math.Min(availableSize.Width, used + Children[^1].DesiredSize.Width), height);
+        return shown;
     }
 
     protected override Size ArrangeOverride(Size finalSize)
     {
         int items = Children.Count - 1;
+        // The final width decides again (I661): it can be narrower than the width measured with (layout rounding, or a
+        // parent that offers more than it gives), and a button placed past it would be clipped away while not being on
+        // the overflow menu either.
+        if (items >= 0) ShownCount = Fit(finalSize.Width, items, out _);
         double x = 0;
         for (int i = 0; i < items; i++)
         {

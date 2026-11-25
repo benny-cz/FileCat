@@ -1160,6 +1160,12 @@ public partial class PanelView : UserControl
     internal static Func<string, int, int, bool, Task<WindowsContextMenu.Outcome>>? NativeBackgroundMenuForTests { get; set; }
 
     /// <summary>
+    /// Tests: stands in for Windows' own menu of the chosen items (their paths, screen x, screen y, extended), so each of
+    /// its results can be given on purpose without a desktop.
+    /// </summary>
+    internal static Func<IReadOnlyList<string?>, int, int, bool, Task<WindowsContextMenu.Result>>? NativeItemMenuForTests { get; set; }
+
+    /// <summary>
     /// Windows' own menus need a desktop window of FileCat's to stand on: not the headless test platform's stand-in, where
     /// a Shell popup would wait on a desktop no one looks at.
     /// </summary>
@@ -1330,7 +1336,7 @@ public partial class PanelView : UserControl
                 invokedAnalysisRoot = MainViewModel.DiskSpaceRoot(source, source.Listing.FocusedStoreIndex);
             markedAnalysisRoots = MainViewModel.MarkedDiskSpaceRoots(source);
         }
-        if (HasNativeWindow() && Panel?.ActiveTab is { Location.IsFileSystem: true } tab &&
+        if ((NativeItemMenuForTests is not null || HasNativeWindow()) && Panel?.ActiveTab is { Location.IsFileSystem: true } tab &&
             tab.Listing.MarkedCount <= WindowsContextMenu.MaxItems)
         {
             var paths = tab.Listing.GetSelection().Select(item => item.FileSystemPath).ToArray();
@@ -1339,14 +1345,16 @@ public partial class PanelView : UserControl
                 var anchor = point ?? (List.FocusedRowBounds() is { } bounds
                     ? new Avalonia.Point(bounds.Left + 12, bounds.Bottom) : new Avalonia.Point(0, 0));
                 var screen = List.PointToScreen(anchor);
-                var result = await WindowsContextMenu.ShowAsync(paths!, screen.X, screen.Y, extended,
-                    analyze: invokedAnalysisRoot is not null, analyzeSelected: markedAnalysisRoots is { Count: > 0 });
+                var result = NativeItemMenuForTests is { } standIn
+                    ? await standIn(paths, screen.X, screen.Y, extended)
+                    : await WindowsContextMenu.ShowAsync(paths!, screen.X, screen.Y, extended,
+                        analyze: invokedAnalysisRoot is not null, analyzeSelected: markedAnalysisRoots is { Count: > 0 });
                 if (request != _menuRequest) return;
                 if (result == WindowsContextMenu.Result.Handled) return;
                 if (result == WindowsContextMenu.Result.Properties)
                 {
-                    if (paths.Length == 1) vm.ShowPropertiesForPath(paths[0]!);
-                    else vm.Notify("Select one item to show its properties.");
+                    // The menu's items by the Properties command's rule (I635): one shows its properties, several say so.
+                    vm.ShowPropertiesForSelection(paths.Length, paths.Length == 1 ? paths[0] : null);
                     return;
                 }
                 if (result == WindowsContextMenu.Result.CompressedZip)

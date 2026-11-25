@@ -71,12 +71,15 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
         return children;
     }
 
-    /// <summary>The store items exposed as children: the visible window plus an offscreen focused row.</summary>
+    /// <summary>
+    /// The store items exposed as children: every item the view draws (in the picture grid, the tiles of the partly shown
+    /// row too), plus an offscreen focused row.
+    /// </summary>
     private (int Revision, int[] Rows, int Extra) ExposedChildren()
     {
         if (_list.AutomationListing is not { } listing) return (_storeRevision, [], -1);
         int top = _list.TopRow;
-        int end = Math.Min(listing.VisibleCount, top + Math.Min(VisiblePeerLimit, _list.VisibleRowCapacity + 1));
+        int end = Math.Min(listing.VisibleCount, top + Math.Min(VisiblePeerLimit, _list.DrawnItemCapacity));
         var rows = new int[Math.Max(0, end - top)];
         for (int row = top; row < end; row++) rows[row - top] = listing.GetStoreIndex(row);
         int focused = listing.FocusedIndex;
@@ -127,7 +130,7 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
         if (_items.Count >= CachedPeerLimit)
         {
             // Only native clients retaining an old peer keep it alive; the list itself has a fixed cache budget.
-            int end = _list.TopRow + Math.Min(VisiblePeerLimit, _list.VisibleRowCapacity + 1);
+            int end = _list.TopRow + Math.Min(VisiblePeerLimit, _list.DrawnItemCapacity);
             int evict = _items.Keys.FirstOrDefault(i => i != listing.FocusedStoreIndex &&
                 (listing.MarkedCount > DirectSelectionLimit || !listing.IsMarked(i)) &&
                 (listing.GetVisibleIndex(i) < _list.TopRow || listing.GetVisibleIndex(i) >= end), -1);

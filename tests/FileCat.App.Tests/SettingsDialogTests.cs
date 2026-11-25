@@ -374,7 +374,11 @@ public sealed class SettingsDialogTests
                 .Single(c => c.Content as string == "Automatically check for updates");
             Assert.False(updates.IsChecked);
             var note = window.GetVisualDescendants().OfType<TextBlock>()
-                .Single(t => t.Text?.StartsWith("On by default for new profiles. At most once a day at startup", StringComparison.Ordinal) == true);
+                .Single(t => t.Text?.StartsWith("On by default for new profiles. At startup, FileCat checks", StringComparison.Ordinal) == true);
+            // Only a finished check is remembered (UpdateCheck.RunScheduledAsync), so the note does not promise once a day.
+            Assert.Contains("unless its last check finished less than a day ago", note.Text);
+            Assert.Contains("A check cut short by closing FileCat runs again at the next start.", note.Text);
+            Assert.DoesNotContain("At most once a day", note.Text, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("does not download or install update packages", note.Text);
             Assert.Contains("Help → Check for updates", note.Text);
             Assert.Contains("network locations still connect", note.Text);

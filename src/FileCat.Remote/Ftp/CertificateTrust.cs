@@ -29,7 +29,8 @@ public sealed class CertificateTrust(string path)
     public CertificateCheck Check(string host, int port, CertificateInfo certificate)
     {
         if (certificate.Problems.Count == 0) return new CertificateCheck(host, port, certificate, CertificateStatus.Valid, null);
-        if (WindowsTokenAuthority.IsHighIntegrity)
+        // The pins are the ordinary account's: an administrator window, or root (I655), trusts none of them.
+        if (ProcessAuthority.IsElevatedOrRoot)
             return new CertificateCheck(host, port, certificate, CertificateStatus.Unknown, null);
         var pinned = Pins().Entries.Where(p => p.Key == Key(host, port)).Select(p => p.Sha256).ToList();
         if (pinned.Contains(certificate.Sha256, StringComparer.OrdinalIgnoreCase)) return new CertificateCheck(host, port, certificate, CertificateStatus.Pinned, certificate.Sha256);
@@ -39,8 +40,9 @@ public sealed class CertificateTrust(string path)
     /// <summary>Pins the certificate for the server, replacing any earlier pin.</summary>
     public void Remember(string host, int port, string sha256)
     {
-        if (WindowsTokenAuthority.IsHighIntegrity)
-            throw new IOException("FileCat does not save user-profile certificate trust while running as administrator. Reopen it without elevation.");
+        if (ProcessAuthority.IsElevatedOrRoot)
+            throw new IOException($"FileCat does not save user-profile certificate trust while running {ProcessAuthority.RunningAs}. " +
+                $"{ProcessAuthority.UsualProcessAdvice}.");
         lock (_lock)
         {
             var existing = Pins();

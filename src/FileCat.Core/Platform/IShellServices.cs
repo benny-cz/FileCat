@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 
 namespace FileCat.Core.Platform;
 
@@ -81,6 +82,7 @@ public class PortableShellServices : IShellServices
 {
     public virtual void Open(string path)
     {
+        RefuseElevated("System file associations");
         var opener = OperatingSystem.IsMacOS() ? "open" : "xdg-open";
         StartSystem(opener, path);
     }
@@ -88,7 +90,23 @@ public class PortableShellServices : IShellServices
     public virtual void Reveal(string path)
     {
         if (OperatingSystem.IsMacOS()) StartSystem("open", "-R", path);
-        else StartSystem("xdg-open", Directory.Exists(path) ? path : Path.GetDirectoryName(path) ?? path);
+        else
+        {
+            // xdg-open picks the file manager from the user's associations, as it picks any program.
+            RefuseElevated("System file associations");
+            StartSystem("xdg-open", Directory.Exists(path) ? path : Path.GetDirectoryName(path) ?? path);
+        }
+    }
+
+    /// <summary>
+    /// Root starts no program that per-user configuration chooses (I655), as an administrator window does not (Windows'
+    /// shell services): xdg-open's and open's associations, $TERMINAL and the shell's start-up files are found through
+    /// HOME and XDG_CONFIG_HOME, which sudo -E (and sudo where its configuration keeps HOME) leaves as the caller's.
+    /// </summary>
+    private void RefuseElevated(string what)
+    {
+        if (IsElevated)
+            throw new IOException($"{what} are unavailable while FileCat runs {ProcessAuthority.RunningAs}. {ProcessAuthority.UsualProcessAdvice}.");
     }
 
     public virtual bool ShowProperties(string path, nint owner = 0) => false;
@@ -142,6 +160,7 @@ public class PortableShellServices : IShellServices
 
     public virtual void OpenTerminal(string directory, string shell)
     {
+        RefuseElevated("Terminals");
         if (OperatingSystem.IsMacOS()) StartSystem("open", "-a", "Terminal", directory);
         else if (!StartLinuxTerminal(directory, null))
             throw new FileNotFoundException("No terminal was found. Set the TERMINAL environment variable to your terminal program.");
@@ -149,6 +168,7 @@ public class PortableShellServices : IShellServices
 
     public virtual void RunInTerminal(string directory, string command, string shell)
     {
+        RefuseElevated("Terminals");
         // A relative inherited SHELL would be another implicit PATH lookup after the command finishes.
         var script = command + "; case \"${SHELL:-}\" in /*) exec \"$SHELL\";; *) exec /bin/sh;; esac";
         if (OperatingSystem.IsMacOS())
@@ -197,8 +217,11 @@ public class PortableShellServices : IShellServices
 
     public virtual void SetShutdownBlock(nint owner, string? reason) { }
 
-    /// <summary>Root on Linux and macOS: an effective user ID of 0, whatever the account is called (review finding R-M12).</summary>
-    public virtual bool IsElevated => !OperatingSystem.IsWindows() && Environment.IsPrivilegedProcess;
+    /// <summary>
+    /// Root on Linux and macOS: an effective user ID of 0, whatever the account is called (review finding R-M12). The one
+    /// decision Core makes without a shell as well (<see cref="ProcessAuthority.IsElevatedOrRoot"/>, I655).
+    /// </summary>
+    public virtual bool IsElevated => ProcessAuthority.IsElevatedOrRoot;
 
     public virtual ProcessAccount Account => ProcessAccount.FromEnvironment();
 

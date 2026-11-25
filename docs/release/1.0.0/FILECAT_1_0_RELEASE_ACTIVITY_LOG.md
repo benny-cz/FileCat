@@ -5457,3 +5457,153 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - The owner approved starting final qualification. The VMware Windows VM was unavailable, and the development PC was allowed only for work that would not interrupt the owner. There, only checks with no window and no install ran. At the owner's suggestion, a disposable Hyper-V VM was built from the Windows 11 25H2 ISO already on V:, and it is driven only through PowerShell Direct. [FQ progress](evidence/E-FQ-RC2-20261124.md), [checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md).
 - The 24 draft assets match GitHub and the manifests. Signatures, versions and payload-to-SBOM checks pass on all three platforms, and the Windows install, uninstall and reinstall pass in the VM. rc.2's results lose no preview.11 pass. Two high-integrity tests that CI now skips passed in the VM, and the permissions successors passed on Ubuntu with their fixture.
 - Main's run 45386566393 failed one elevated Windows ARM64 test because the test passed Windows an unpinned buffer. PR #23 pins it; no product code is affected.
+
+## 2026-11-24 — First installed-UI checks of rc.2 on Windows
+
+- In the qualification VM, scenarios now drive the installed FileCat in the test account's own session. About shows 1.0.0 (7269ec6). Menus, free space, attributes, both drive Properties routes, command-line history, the hidden-item count and Windows' Properties sheet from Alt+Enter and from the context menu all pass. [FQ progress](evidence/E-FQ-RC2-20261124.md).
+- I635: with several items marked, Alt+Enter opens the cursor item's sheet, where the context menu says "Select one item to show its properties." It is Low, and the owner decides whether a later candidate fixes it. [I635](evidence/E-I635-alt-enter-ignores-marks.md).
+
+## 2026-11-24 — Second round of rc.2's Windows installed-UI checks
+
+- In the qualification VM, these now pass on the installed candidate: Find in Page and Text (c4, c5, c13); shortcut changes from F1 and Search commands (c22); separate-click rename (c24); Ignored folders (c31); Analyze folder's chooser (c32); and the Shell helper's folder modes at high and medium integrity (c36). Find's dismissal passes in the Viewer and the Hex Editor. [FQ progress](evidence/E-FQ-RC2-20261124.md).
+- I636: Analyze folder reads Origin, and an alias's or WSL link's Link target, but keeps no order by them. Two value types added on 2026-11-23 are not on the ordering snapshot's list. [I636](evidence/E-I636-analysis-unretained-record-values.md).
+- I637: Compare gives the keyboard to its rows neither when it opens nor when Find closes, so arrows do nothing until a row is clicked. [I637](evidence/E-I637-compare-find-close-keyboard.md).
+- Both are Low. Like I635, the owner decides whether a later candidate fixes them.
+
+## 2026-11-24 — Fifth sync of the day
+
+- With PR #23 merged and no PR open, `release/1.0` was synced at `9c9825a2` through PR #24, which merged as `9e310e95` after its CI passed all 19 jobs that ran. It brings PR #23's test-only buffer pin and the rc.2 records; no product source changed, so rc.2 (`7269ec61`) is still the branch's product. The branch's tree equals `9c9825a2`'s. [Sync record](evidence/E-REL-SYNC-20261124-release-branch.md).
+
+## 2026-11-24 — Desk reviews of rc.2: the Shell helper's modes and the user-facing text
+
+- I629's dated B12 review is done: every helper mode added since B12, and ShellHost's kind 5, runs with its starter's rights and listens nowhere another account can reach. [B12 addendum](evidence/E-I629-B12-ADDENDUM-20261124.md).
+- I641: the review found later startup, worker and test modes, and environment switches, that B12 does not list.
+- REL-V22-DOCS is not done. Three contract rows no longer match the product, and the owner decides each: I638 (the update check is on by default), I639 (the installer accepts Windows 10 and Server 2016) and I640 (FileCat reopens itself as administrator outside the installed build). SECURITY.md, SERVICING.md and CAPABILITIES.md then need corrections, and the 1.0.0 release text does not exist yet. [Desk review](evidence/E-REL-V22-DOCS-20261124.md).
+
+## 2026-11-24 — Third round of rc.2's Windows installed-UI checks
+
+- In the qualification VM, these pass on the installed candidate: the ZIP paste from Explorer (c3), the reading position across a refresh (c11), Send to ZIP (c18), Share in Explorer (c19), Windows' Copy and Cut with the changed-selection refusal (c20), the Apply command's preview and report (c21), PDFs (c26), the sparse copy (c27), the file list (c35) and the 128-byte program (c40). [FQ progress](evidence/E-FQ-RC2-20261124.md).
+- I642: the folder's Windows menu offers no Paste, so an item cut in Explorer cannot be moved into a FileCat folder. [I642](evidence/E-I642-folder-menu-without-paste.md).
+
+## 2026-11-24 — rc.2's provenance tie and PDFium
+
+- Every rc.2 payload matches its SBOM, and every NuGet component its inventory entry. Each package's PDFium is the upstream `chromium/7690` binary: byte for byte on Linux, and apart from FileCat's signature on Windows and macOS. The four upstream archives, until now only in a scratch folder, are retained with their checksums. [Provenance record](evidence/E-REL-I03-PROVENANCE-RC2-20261124.md).
+- REL-I03-PROVENANCE still needs a disposition for two components that no inventory entry names: the .NET apphost, and WebView2's loader and XML file, which also ship in the Linux and macOS packages.
+
+## 2026-11-24 — I643: the diagnostics log keeps raw paths
+
+- I643 (open, Medium): Tools → Export diagnostics says the log's paths are hashed, but error messages, crash reports and two hand-written log messages keep raw paths. PR #25 corrects SECURITY.md and PRIVACY.md; a product fix is proposed for the next candidate. [I643](evidence/E-I643-diagnostics-log-raw-paths.md).
+
+## 2026-11-24 — I644: an administrator window loads an environment-selected profiler
+
+- I644 (open, High): in the qualification VM, with `CORECLR_ENABLE_PROFILING`, `CORECLR_PROFILER` and `CORECLR_PROFILER_PATH` set only in the ordinary account's `HKCU\Environment`, Tools → Open FileCat as administrator on the installed rc.2 opened an elevated window that loaded the named probe DLL. The administrator helper clears these variables in its native bootstrap (I155); the administrator window, the ordinary `FileCat.exe`, does not. A fix is proposed for the next candidate. [I644](evidence/E-I644-administrator-window-environment-profiler.md).
+
+## 2026-11-24 — I641's B12 review: I645 and I646
+
+- The B12 review of the modes added since B12 is in [PR #28](https://github.com/benny-cz/FileCat/pull/28). B12's Held claim holds for every listed mode except three findings. F3 is I644, which the qualification VM has since observed.
+- I645 (open, High): at every start FileCat sweeps its temporary folders in the profile with no token check, so an administrator window follows a junction planted at medium integrity, resetting attributes or deleting through it. [I645](evidence/E-I645-elevated-temp-sweeps-follow-links.md).
+- I646 (open, Medium): the Linux root process census opens each process's executable name, which another account can replace with a FIFO or a device link once the program is deleted. [I646](evidence/E-I646-linux-root-census-opens-replaceable-path.md).
+
+## 2026-11-24 — I647: Git badges ignore Git's line-ending settings
+
+- c23 in the qualification VM: the case-sensitive repository's badges match Git (`PROOF.txt` clean, `proof.txt` changed). In an ordinary repository, a case-only spelling change left the row "Git changed" while Git said clean.
+- I647 (open, Medium): reproduced with Git alone. The badge run skips Git for Windows' system settings (I150), and with them the default `core.autocrlf=true`; a CRLF file whose time changed reads `M` until Git refreshes its index. [I647](evidence/E-I647-git-badges-without-line-ending-settings.md).
+
+## 2026-11-24 — I648: a Markdown Page sometimes stays blank
+
+- c10 in the qualification VM: every link kind draws, and about 60 Pages drew within 3 s in repeated runs, but two stayed blank with Refresh disabled. PR #27's Windows CI job hit the same fault in `PageViewTests`: no navigation completion within 55 s although both page requests were answered. [I648](evidence/E-I648-markdown-page-navigation-never-completes.md).
+
+## 2026-11-24 — The Mac GUI harness's rehearsal of rc.2: I649 to I654
+
+- A re-runnable Mac GUI harness drives FileCat through the accessibility API on the physical Mac. On rc.2's macOS package it passes 21 b-rows, fails b25 and b26, leaves seven partial or blocked (screenshots need a permission the session does not have; FTPS needs a server) and found six issues. The qualification VM confirmed three of them on Windows.
+- I649 (High): Show pictures on a streams or attributes listing ends FileCat on Windows and macOS. [I649](evidence/E-I649-pictures-on-supplementary-data-crash.md).
+- I650 (High): on macOS, typing a time in Change attributes and times ends FileCat while an accessibility client is active. [I650](evidence/E-I650-macos-times-dialog-live-region-crash.md).
+- I651 (Medium): on macOS an attribute row offers "F3 to view", but F3 does nothing, so a Finder tag's name never shows (I615). [I651](evidence/E-I651-macos-attribute-value-f3-silent.md).
+- I652 (Medium): on macOS, Copy fills a sparse file's holes on APFS (I616's unqualified Mac part). [I652](evidence/E-I652-macos-sparse-copy-fills-holes.md).
+- I653 (Medium): keyboard reference rows and spin buttons announce implementation names, on both platforms (the class of I583). [I653](evidence/E-I653-accessible-names-implementation-text.md).
+- I654 (Low): a doubled period in the PDF error message. [I654](evidence/E-I654-pdf-error-doubled-period.md).
+
+## 2026-11-24 — rc.2's fourth Windows round, the Mac harness's rehearsal, and the owner's decision on rc.3
+
+- **The owner decided that rc.3 waits for all the fixes** found in rc.2's qualification, I635 to I654.
+- **Windows, in the VM, fourth round.** These pass on the installed candidate: c8, c10, c16, c25 (FTPS and SFTP both ways, Registry copy and export, whole-drive copy and Shift-drag), c29, c30, c33 and c39. These pass in part: c7, c23 (I647), c28, c37 (the elevated FileCat; Paste is I642) and c38. [FQ progress](evidence/E-FQ-RC2-20261124.md).
+- **macOS, the GUI harness's rehearsal.** A re-runnable harness drives FileCat on the Mac through the accessibility API. On rc.2's package 24 b-rows pass, b25 and b26 fail (I651, I652) and six are partial, waiting on screenshots, an FTPS server or display scaling.
+- **Integration.** CI's macOS runners are the release's bottleneck, so the reviewed fix PRs are combined: PR #35 carries #25 to #31 in one run.
+
+## 2026-11-24 — Owner decisions on the administrator window, and the first pre-rc3 checks
+
+- The owner accepted both administrator-window changes in rc.3: the UAC prompt names the program "FileCat administrator window" (I644, PR #34), and an elevated or root FileCat shows HTML and Markdown pages as source text instead of drawing them, so their page engines never start on the ordinary account's cache folder (I645, PR #33).
+- A pre-rc3 win-x64 build of integration branch 2 (`919d8e764`, rounds 1 and 2) was run in the qualification VM through the scenarios that found the issues:
+  - I635 is fixed: Alt+Enter with two marks says "Select one item to show its properties." and opens no sheet.
+  - I637 is fixed: Compare's arrows move the rows at open and after Find closes.
+  - I636 is fixed: sorting by Origin "retains all 3 items' results".
+  - I644 is fixed: an administrator window started through `FileCat.AdminLauncher.exe` does not load a profiler named only in `HKCU\Environment`, while the unelevated control still does.
+  - I642 is fixed only in part. The folder's own menu now offers Paste after Explorer's Cut, but choosing it moves nothing on build 26200: the menu helper invokes the Shell's paste, which blocks for about 10 s and returns without moving the file. The fix goes back to its author before rc.3.
+
+## 2026-11-24 — I655 and I656, raised by the rc.3 fixes
+
+- I655 (open, Medium, owner decision): a FileCat started as root with the caller's `HOME` (`sudo -E`, or sudo where its configuration keeps `HOME`) reads and writes the caller's saved state. The guards that keep an administrator window out of that state check only the Windows token. Raised by I645's fix (PR #33), confirmed in rc.2's source; not run, since neither test machine offers sudo without a password. [Record](evidence/E-I655-root-with-caller-home-profile-state.md).
+- I656 (open, Low for 1.0.0): Linux ARM64 builds spell `O_NOFOLLOW` and `O_DIRECTORY` with x64 values in the single-instance file, a page's resources and storage analysis. No 1.0.0 package is Linux ARM64. Raised by I646's fix (PR #32). [Record](evidence/E-I656-linux-arm64-x64-open-flags.md).
+
+## 2026-11-24 — The owner: every known issue is fixed for rc.3; I657 and I658
+
+- The owner, asked about I655 to I657: "everything should be fixed for rc.3, we should not prolong fixes of known issues". I655 and I656 are now to be fixed for rc.3, as are the two below.
+- I657 (open, Medium): Git badges are wrong in every folder below a repository's top, because porcelain status names paths from the top and FileCat files them as if they were relative to the folder. Raised by I647's fix (PR #38) and reproduced with Git alone. [Record](evidence/E-I657-git-badges-below-repository-top.md).
+- I658 (open, Medium): with `/proc` mounted `hidepid=invisible`, the Linux recovery census sees no other account's processes, answers "none" and never asks root. Raised by I646's fix (PR #32), confirmed in the source; not run. [Record](evidence/E-I658-census-hidden-processes.md).
+
+## 2026-11-24 — I659 and I660, found by the rc.3 fixes
+
+- I659 (open, Medium): Git badges lost every name that is not plain ASCII once FileCat had loaded the legacy code pages, because Git's output was read as Windows-1252. Found and fixed by I657's fix on PR #38 (`3df37718d`). [Record](evidence/E-I659-git-output-code-page.md).
+- I660 (open, Low): `UnixArchiveNative.cs:77` blames `openx_np` for an EINVAL that XNU gives for `O_NOFOLLOW` with `O_NOFOLLOW_ANY`. The code is safe; the comment is corrected on `fix/i660-archive-openx-comment`, and the flags stay (`O_NOFOLLOW_ANY` alone would refuse the temporary folder's `/var` names). [Record](evidence/E-I660-archive-openx-comment.md).
+
+## 2026-11-24 — I661, found by integration 3's CI
+
+- Integration 3's CI run 45467009793 failed one job, macOS App tests (remainder), on `PlaceBarHierarchyTests.Compact_panel_header_uses_available_width_and_keeps_overflow_places_reachable`, which had failed once before (PR #19). Its cause is a product fault: `PlaceBarPanel` decides which places fit only when measured, so a narrower final width clips the last shown places while keeping them off the overflow menu. A direct test reproduces it. Registered as I661 (Low), to be fixed for rc.3. [Record](evidence/E-I661-place-bar-arrange-width.md).
+
+## 2026-11-24 — The Ubuntu GUI harness on rc.2: I662 to I664
+
+- The harness for the Ubuntu rows a1–a26 is complete and re-runnable on rc.3 with the candidate's tarball as its only argument. On rc.2: 22 rows pass. a1, a4 and a6 are partly blocked: their .deb, bind-mount and second-account steps need sudo without a password. a4 also fails on I662. The earlier a14, a15 and a18 failures were harness faults: the badges are at least 4.5:1 in all seven themes.
+- I662 (open, Low): Linux File-system details lost I612's source root (a regression since `4364d1b37`). [Record](evidence/E-I662-linux-details-source-root-regression.md).
+- I663 (open, Low): panel numbers keep the startup theme's colors after a theme change. [Record](evidence/E-I663-panel-number-theme-colors.md).
+- I664 (open, Low): the picture grid exposes fewer tiles to screen readers than it draws. [Record](evidence/E-I664-picture-grid-accessible-tiles.md).
+
+## 2026-11-24 — I665 to I667: tests that fail intermittently
+
+- Integration 3's run 45476564759, with I655, failed two jobs on two tests already listed as intermittent in the release-branch sync record: `ColumnHeaderHelpTests` (Windows x64) and `OwnerColumnTests` (ubuntu-24.04). They are registered with the third such test as I665, I666 and I667 (Low), to be fixed for rc.3 rather than rerun. The failed and cancelled jobs were rerun for the run's other platforms.
+  [Record](evidence/E-I665-I667-ci-flaky-tests.md).
+
+## 2026-11-24 — DEC-14: hardware, people and scope for 1.0.0
+
+- The owner answered four questions on the gates that need hardware, people or a scope decision ([record](evidence/E-DEC-2026-11-24-release-scope.md)). REL-PERFORMANCE, REL-HUMAN-UX and REL-HUMAN-AT become Optional, waived as documented limitations of 1.0.0, and I07 closes. REL-WIN-GA and REL-CONSENT-ATTEST stay Blocked until the owner's GA PC and attestation. d10 and d11 close by scope on rc.3's full CI and installed checks.
+- Mac screen capture: the owner pointed out that the FileCatCapture helper (`com.filecat.validation.capture`, ad-hoc signed) has been allowed under Screen & System Audio Recording since 2026-10-20. Started through Launch Services it returned the whole 2880×1800 display with its windows, so b27, b31, b32 and b34's pixel checks move to it; tools started from ssh still cannot capture.
+- The owner signed in to OneDrive for the test account in the Windows qualification VM (c34). The account is the owner's own, so the VM keeps OneDrive closed except during c34, blocks folder backup, and every GUI run compares the OneDrive folder's listing (metadata only, kept in the VM) before and after; c34 works only in its own test folder.
+- The owner's remaining actions: approve the `signing` deployment for the rc.3 tag; type a test share's password once in the VM (c9); attest the consent prompts on rc.3 (REL-CONSENT-ATTEST, including b35's USB disk and authopen on the Mac); provide the GA Windows 11 PC (REL-WIN-GA); connect a phone for the real-phone Move (AC-11); then the final GO, the stable promotion and the v1.0.0 tag (DEC-01, d14, d15).
+
+## 2026-11-25 — I668 and I669 before rc.3
+
+- rc.3's final integration run 45504400360 failed one macOS case; its re-run passed. Instrumented runs on the Mac showed the cause in the test (a rescue timer started before eight compare dialogs), and the compare path showed a silent drop beside it. Both are I668 (Low). The review behind the owner's rc.3 consent walkthrough found I669 (Low), "these 1 step" on the consent page. PR #51 fixes both; it was merged into integration 3 for a new CI run.
+- Considered, not changed: what uninstalling keeps (the helper's replay record, the administrator window's settings and a per-user AppContainer profile; the release text will say so) and c44's requester check across accounts (the owner's walkthrough checks it). [Record](evidence/E-I668-I669-compare-reread-consent-wording.md).
+
+## 2026-11-25 — I670, the documentation review and I648's follow-up
+
+- I648's own rule failed on the pre-rc3 build: the 10 s notice counted from when the page view got the page, so 7 of 20 Pages drew after 10 s with nothing said (batch 34b). PR #52 counts from the request and names the wait for the previous page's browser; it is in integration 3.
+- The 1.0.0 release-notes draft (branch `docs/release-notes-1.0.0`) found user documents no longer true of rc.3. As `v1.0.0` goes on the candidate's own source (plan §13.1), PR #53 corrects README, DOWNLOAD, SECURITY, PRIVACY, SERVICING, BUILDING, CAPABILITIES, IMPLEMENTATION_STATUS, ADR-15 and the Settings note on the update check before rc.3 is tagged.
+- That review found I670 (Medium): an administrator window or a root FileCat checked for updates at every start, even with the check off. PR #54 stops the automatic check there. [Record](evidence/E-I670-elevated-update-check.md).
+- Also found: since `4364d1b37` (2026-11-17) File-system details is metadata only, so the D-56 record fields that DEC-05 required and I05 implemented have no product caller. That is the owner's decision; it is put to the owner.
+
+## 2026-11-25 — DEC-05: the owner keeps the full file-system record for 1.0.0
+
+- Asked whether rc.3 restores the full file-system record that DEC-05 requires (unreachable since `4364d1b37` made File-system details metadata only) or ships metadata only, the owner answered "Yes, restore it". Registered as I671 (Medium). PR #55 restores it as **Read file-system record** in File-system details; [record](evidence/E-DEC05-full-record-restored.md).
+- A full Windows dress rehearsal of rc.3's checks on the integration-3 build (`4512483f8`) found no product regression: every rc.3 fix it exercised passed, and its failures were known harness lines, the administrator-deployed copy's refused archive worker, and three outdated checks (corrected). All 63 guarded runs left the owner's OneDrive unchanged.
+
+## 2026-11-24 — The contract amendments for I638 to I640
+
+- PR #25 merged into main with integration PR #44 as `a2f983e9a`: C25, V22, PSD-W64, PSD-WA, V06 and DEC-04 now record the owner's decisions, and README.md, SECURITY.md, PRIVACY.md, SERVICING.md and CAPABILITIES.md say what the product does. [Amendment record](evidence/E-DEC-2026-11-24-contract-amendments.md).
+- I638, I639 and I640 are closed by those decisions. I638 rests on the owner's own 2026-11-03 request; the owner gave no new answer on it. I639's earlier wording, here and in the dashboard, said the installer accepts Windows 10: it refuses Windows 10 and accepts Server 2016. DEC-02 now points to I639's amendment.
+
+## 2026-11-25 — rc.3's fixes on main
+
+- Integration PR #44 merged as `a2f983e9a` after CI run 45570809782. It carries every rc.3 fix: PRs #25 to #36 (rounds 1 and 2, through integration PRs #35 and #37), #38 to #43, #45 to #47 and #49 to #55 (#53 the user documents), and the CI changes of #48.
+- Remediated preliminarily: I635 to I637, I641 to I671 and I42; I638 to I640 closed by decision (separate entry). I636's row is corrected (the column-header sort was affected too); I615 is narrowed by I651 on macOS; I42 is done for 1.0.0 by the owner's decision (SFTP sped up; FTPS uploads and one file at a time accepted).
+- Pre-rc3 checks: the Windows qualification VM passed each Windows fix's own check (I635, I636, I637, I642, I643, I644, I645, I647, I648, I649, I653, I654, I657, I659); the physical Mac passed x03, b25 and b26 for I650 to I652; the Ubuntu harness passed a4, a14 and a18 on a build of I662 to I664. Hosted runners with sudo ran I655, I656 and I658 as root, on ARM64 and with `/proc` hidden. I671's restored record passed its tests on the Windows host (medium and elevated), the Mac and the Ubuntu VM (also as root), and the qualification VM showed it through the window, medium and elevated (batch43).
+- The owner authorized the release session to tag `v1.0.0-rc.3` once this is merged, synced to `release/1.0` and green ("Yes, tag it").

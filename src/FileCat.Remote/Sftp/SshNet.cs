@@ -223,6 +223,10 @@ internal sealed partial class SshNetChannel(SftpClient client, IDisposable? key,
     /// <summary>The connection's socket receive buffer as the system reports it after widening (-1: not reached).</summary>
     internal int SocketBuffer { get; init; } = -1;
 
+    /// <summary>Reports every SFTP request this connection sends, by its protocol name ("Open", "Write"…), for tests.</summary>
+    internal void ObserveRequests(Action<string>? observer) =>
+        client.ObserveRequests(observer is null ? null : type => observer(type.ToString()));
+
     public bool IsConnected => client.IsConnected;
 
     public string HomeDirectory { get; } = client.WorkingDirectory;
@@ -269,9 +273,7 @@ internal sealed partial class SshNetChannel(SftpClient client, IDisposable? key,
     {
         try
         {
-            var a = client.GetAttributes(path);
-            return new RemoteStat(a.IsDirectory, a.IsSymbolicLink, a.Size, a.LastWriteTimeUtc)
-                { SecurityAttributes = ProjectSecurity(a.WireAttributes, RemoteSecurityObservation.FollowedStat) };
+            return Followed(client.GetAttributes(path));
         }
         catch (SftpPathNotFoundException)
         {
@@ -279,7 +281,33 @@ internal sealed partial class SshNetChannel(SftpClient client, IDisposable? key,
         }
     });
 
+    private static RemoteStat Followed(SftpFileAttributes a) => new(a.IsDirectory, a.IsSymbolicLink, a.Size, a.LastWriteTimeUtc)
+        { SecurityAttributes = ProjectSecurity(a.WireAttributes, RemoteSecurityObservation.FollowedStat) };
+
+    /// <summary>
+    /// The server's own stat of the exact path (it follows links itself): one request, where <see cref="Stat"/> costs two
+    /// (SSH.NET has the server resolve the path first). A dangling link is no content.
+    /// </summary>
+    public RemoteStat? StatContent(string path) => Wrap(() => client.StatExact(path) is { } a ? Followed(a) : (RemoteStat?)null);
+
     public Stream OpenRead(string path) => Wrap<Stream>(() => new ChannelStream(client.Open(path, FileMode.Open, FileAccess.Read)));
+
+    /// <summary>A file just stat'ed: opened without asking its length again (SSH.NET's open sends an fstat after it).</summary>
+    public Stream OpenRead(string path, long length) => Wrap<Stream>(() => new ChannelStream(client.OpenReadExact(path, length)));
+
+    public bool OpensStated => true;
+
+    /// <summary>
+    /// The open and the stat of the exact path go together and are answered in one round trip; the stat, handled right
+    /// after the open, describes the file as opened. The read's close is not waited for: whatever this connection sends
+    /// next is handled after it.
+    /// </summary>
+    public RemoteRead OpenReadStated(string path) => Wrap(() =>
+    {
+        var read = client.OpenReadStatedExact(path);
+        return new RemoteRead(read.Attributes is { } a ? Followed(a) : null, read.Content is { } content ? new ChannelStream(content) : null,
+            StatIsOpenedRevision: true);
+    });
 
     public Stream CreateNew(string path) => Wrap<Stream>(() => new ChannelStream(client.Open(path, FileMode.CreateNew, FileAccess.Write)));
 
@@ -299,6 +327,26 @@ internal sealed partial class SshNetChannel(SftpClient client, IDisposable? key,
         return true;
     });
 
+    /// <summary>
+    /// The same writes in flight on a file opened at the exact path (create-exclusive, as before), and behind the last
+    /// write, on its handle, the time, a stat and the close: the open's round trip, then one for everything else (release
+    /// issue I42), where SSH.NET's upload, setting the time and the stat took ten. A time the server refused
+    /// through the handle, or did not keep, is asked again through the path as before (SETSTAT with the access time the
+    /// file has), which a server may take where it refuses fsetstat; a refusal there is no error either (I43).
+    /// </summary>
+    public RemoteStat? UploadNewStated(Stream input, string path, Func<DateTime?> modified) => Wrap(() =>
+    {
+        var sent = client.UploadNewExact(input, path, modified);
+        var attributes = sent.Attributes;
+        if (attributes is not null && sent.Modified is { } wanted &&
+            (sent.TimeRefused is not null || attributes.LastWriteTimeUtc > DateTime.MinValue && Math.Abs((attributes.LastWriteTimeUtc - wanted).TotalSeconds) >= 2))
+        {
+            var accessed = attributes.LastAccessTimeUtc > DateTime.MinValue ? attributes.LastAccessTimeUtc : DateTime.UtcNow;
+            (attributes, _) = client.SetModifiedExact(path, accessed, wanted);
+        }
+        return attributes is null ? (RemoteStat?)null : Followed(attributes);
+    });
+
     public Stream OpenWriteAt(string path, long offset) => Wrap<Stream>(() =>
     {
         var stream = client.Open(path, FileMode.Open, FileAccess.Write); // never truncates
@@ -306,9 +354,18 @@ internal sealed partial class SshNetChannel(SftpClient client, IDisposable? key,
         return new ChannelStream(stream);
     });
 
-    public void CreateDirectory(string path) => Wrap(() => client.CreateDirectory(path));
+    /// <summary>
+    /// The folder at exactly this path: SSH.NET's CreateDirectory had the server resolve it first, a round trip that also
+    /// followed a link put in the name meanwhile, so the folder went to the link's target. Now the server refuses the name.
+    /// </summary>
+    public void CreateDirectory(string path) => Wrap(() => client.CreateDirectoryExact(path));
 
-    public void Rename(string source, string target) => Wrap(() => client.RenameFile(source, target, isPosix: false));
+    /// <summary>
+    /// Renames exactly <paramref name="source"/> to exactly <paramref name="target"/> (SSH_FXP_RENAME, which never replaces).
+    /// SSH.NET's RenameFile had the server resolve both paths first: two round trips, each following a link in the last
+    /// part, so a link put in either name meanwhile was renamed through to its target (release issue I42).
+    /// </summary>
+    public void Rename(string source, string target) => Wrap(() => client.RenameExact(source, target));
 
     public bool TryReplace(string source, string target) => Wrap(() =>
     {

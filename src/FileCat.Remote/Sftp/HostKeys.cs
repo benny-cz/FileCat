@@ -74,9 +74,11 @@ public sealed class HostKeyTrust
     {
         string type = KeyTypeOf(keyBlob);
         string fingerprint = Fingerprint(keyBlob);
-        if (WindowsTokenAuthority.IsHighIntegrity)
+        // The known hosts are the ordinary account's (FileCat's own and OpenSSH's in HOME): an administrator window, or root
+        // (I655), trusts none of them.
+        if (ProcessAuthority.IsElevatedOrRoot)
             return new HostKeyCheck(HostKeyStatus.Unavailable, host, port, type, fingerprint, null, _ownFile,
-                Problem: "FileCat does not read user-profile host-key trust while running as administrator. Reopen it without elevation.");
+                Problem: $"FileCat does not read user-profile host-key trust while running {ProcessAuthority.RunningAs}. {ProcessAuthority.UsualProcessAdvice}.");
         var sources = new List<(string File, List<KnownHostEntry> Matching)>();
         foreach (var file in new[] { _ownFile }.Concat(_seedFiles))
         {
@@ -107,8 +109,9 @@ public sealed class HostKeyTrust
     /// <summary>Remembers the key in FileCat's own file, replacing any earlier key of the same type for the server.</summary>
     public void Remember(string host, int port, byte[] keyBlob)
     {
-        if (WindowsTokenAuthority.IsHighIntegrity)
-            throw new IOException("FileCat does not read or save user-profile host-key trust while running as administrator. Reopen it without elevation.");
+        if (ProcessAuthority.IsElevatedOrRoot)
+            throw new IOException($"FileCat does not read or save user-profile host-key trust while running {ProcessAuthority.RunningAs}. " +
+                $"{ProcessAuthority.UsualProcessAdvice}.");
         string type = KeyTypeOf(keyBlob);
         string pattern = port == 22 ? host : $"[{host}]:{port}";
         lock (_lock)

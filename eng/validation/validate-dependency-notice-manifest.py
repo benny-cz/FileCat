@@ -53,6 +53,45 @@ def ltrFullTextResolved(index):
 assert ltrFullTextResolved(noticeIndex)
 changedIndex=json.loads(json.dumps(noticeIndex));changedIndex['Packages'][next(i for i,p in enumerate(changedIndex['Packages']) if p['ID']=='LTRData.Extensions')]['LicenseReference']['SHA256']='0'*64
 assert not ltrFullTextResolved(changedIndex)
+# Every package's launcher is the .NET apphost: one reviewed apphost pack per publish RID, of the serviced runtime's
+# release, whose license texts are the runtime pack's retained ones. The artifact SBOM tool checks the archives and each
+# launcher against these pins, and THIRD-PARTY-NOTICES.md names the component.
+runtimeIdentifiers=(repo/'Directory.Build.props').read_text(encoding='utf-8').split('<RuntimeIdentifiers>',1)[1].split('</RuntimeIdentifiers>',1)[0].split(';')
+def isHex(value,length):return isinstance(value,str) and len(value)==length and all(c in '0123456789abcdef' for c in value)
+def appHostPacksMatch(index):
+    files={f['Path'] for f in index['Files']};runtimes={r['RID']:r for r in index['RuntimePacks']};hosts=index.get('AppHostPacks',[])
+    if sorted(h.get('RID') for h in hosts)!=sorted(runtimeIdentifiers):return False
+    return all(host.get('ID')==f"Microsoft.NETCore.App.Host.{host['RID']}" and host.get('Version')==runtimeVersion and
+               host.get('TemplatePath')==f"runtimes/{host['RID']}/native/apphost"+('.exe' if host['RID'].startswith('win-') else '') and
+               isinstance(host.get('TemplateBytes'),int) and host['TemplateBytes']>0 and isHex(host.get('TemplateSHA256'),64) and
+               isHex(host.get('PackageArchiveSHA256'),64) and isinstance(host.get('RawArchiveSHA512'),str) and len(host['RawArchiveSHA512'])==88 and
+               host.get('PackageSignatureAuthenticityQualified') is True and host['RID'] in runtimes and
+               host.get('RetainedNoticePaths')==runtimes[host['RID']]['RetainedNoticePaths'] and all(path in files for path in host['RetainedNoticePaths'])
+               for host in hosts)
+assert appHostPacksMatch(noticeIndex)
+changedIndex=json.loads(json.dumps(noticeIndex));changedIndex['AppHostPacks'][0]['Version']='0.0.0'
+assert not appHostPacksMatch(changedIndex)
+def publicAppHostMatches(text):
+    return text.count(f'| .NET application host (`Microsoft.NETCore.App.Host.<rid>`) | {runtimeVersion} | MIT |')==1
+assert publicAppHostMatches(publicNoticeText)
+assert not publicAppHostMatches(publicNoticeText.replace(runtimeVersion,'0.0.0'))
+# Files a package's build targets copy that no dependency manifest names are declared in the index, each as the package file
+# it is (the SBOM tool refuses any undeclared one): WebView2's Core XML documentation and its x64 and arm64 loaders, which
+# every package carries, Linux and macOS included.
+def unlistedFilesDeclared(index):
+    entries=[(p['ID'],e) for p in index['Packages'] for e in p.get('UnlistedPayloadFiles',[])]
+    paths=[e.get('Path') for _,e in entries]
+    webView2={e.get('Path'):e.get('PackagePath') for i,e in entries if i=='Microsoft.Web.WebView2'}
+    return (len(paths)==len(set(paths)) and
+            all(isinstance(e.get('Path'),str) and e['Path'] and not e['Path'].startswith('/') and '\\' not in e['Path'] and '..' not in e['Path'].split('/') and
+                isinstance(e.get('PackagePath'),str) and e['PackagePath'] and isinstance(e.get('Bytes'),int) and e['Bytes']>0 and
+                isHex(e.get('SHA256'),64) and e.get('CopiedBy') for _,e in entries) and
+            webView2=={'Microsoft.Web.WebView2.Core.xml':'lib_manual/netcoreapp3.0/Microsoft.Web.WebView2.Core.xml',
+                       'runtimes/win-x64/native/WebView2Loader.dll':'runtimes/win-x64/native/WebView2Loader.dll',
+                       'runtimes/win-arm64/native/WebView2Loader.dll':'runtimes/win-arm64/native/WebView2Loader.dll'})
+assert unlistedFilesDeclared(noticeIndex)
+changedIndex=json.loads(json.dumps(noticeIndex));next(p for p in changedIndex['Packages'] if p['ID']=='Microsoft.Web.WebView2')['UnlistedPayloadFiles'].pop()
+assert not unlistedFilesDeclared(changedIndex)
 appImageRoot=repo/'licenses/appimage-runtime'
 appImageIndex=json.loads((appImageRoot/'index.json').read_text())
 def appImageFullTextsResolved(index):
@@ -170,7 +209,7 @@ for fixture in fixtureIndex['Manifests']:
         cases.append(dict(Name=name,Fixture=fixture['Name'],Behavior=behavior,MovedFixturePackages=sorted(moved),DroppedFixturePackages=dropped,ExpectedAllowed=expected,ControlPassed=passed,ExitCode=code,DestinationCreated=output.exists(),ActualOutputPins=outputs,ExpectedOutputPins=snapshot,ManifestSHA256=sha(manifest),OriginalManifestSHA256=fixture['SHA256'],Command=command,StdoutSHA256=sha(folder/'stdout.txt'),StderrSHA256=sha(folder/'stderr.txt')))
 assert len(cases)==63 and all(sha(repo/p['Path'])==p['SHA256'] for p in inputPins)
 payloadPins=[dict(Path=p.relative_to(root).as_posix(),Bytes=p.stat().st_size,SHA256=sha(p)) for p in sorted((root/'artifacts/bin/DependencyNotices/release').rglob('*')) if p.is_file()]
-proof=dict(UTC=datetime.now(timezone.utc).isoformat(),SourceCommit=head,SourceTreeDirty=dirty,FixturePackagesNotInLockDroppedInMemory=sorted({p for c in cases for p in c['DroppedFixturePackages']}),InputPinsBeforeAfterVerified=inputPins,ActualPayloadPins=payloadPins,BuildCommand=buildCommand,BuildExitCode=0,Cases=cases,PublicNoticeRuntimeVersion=runtimeVersion,PublicNoticeRuntimeMatched=True,ChangedPublicNoticeRefused=True,PublicNoticeSbomLayoutMatched=True,ChangedPublicNoticeSbomLayoutRefused=True,LTRDataExtensionsFullTextResolved=True,ChangedLTRDataExtensionsIdentityRefused=True,AppImageProducerVersionsAndFullTextsResolved=True,ChangedAppImageProducerVersionRefused=True,ActualManifestOnlyControls=True,NoOriginalSnapshotOrPublishManifestChanged=True,ActualBinaryCompositionLicenseEligibilityNativeDesktopOrCandidateQualified=False)
+proof=dict(UTC=datetime.now(timezone.utc).isoformat(),SourceCommit=head,SourceTreeDirty=dirty,FixturePackagesNotInLockDroppedInMemory=sorted({p for c in cases for p in c['DroppedFixturePackages']}),InputPinsBeforeAfterVerified=inputPins,ActualPayloadPins=payloadPins,BuildCommand=buildCommand,BuildExitCode=0,Cases=cases,PublicNoticeRuntimeVersion=runtimeVersion,PublicNoticeRuntimeMatched=True,ChangedPublicNoticeRefused=True,PublicNoticeSbomLayoutMatched=True,ChangedPublicNoticeSbomLayoutRefused=True,LTRDataExtensionsFullTextResolved=True,ChangedLTRDataExtensionsIdentityRefused=True,AppHostPacksMatched=True,ChangedAppHostPackRefused=True,PublicNoticeAppHostMatched=True,ChangedPublicNoticeAppHostRefused=True,UnlistedPayloadFilesDeclared=True,ChangedUnlistedPayloadFilesRefused=True,AppImageProducerVersionsAndFullTextsResolved=True,ChangedAppImageProducerVersionRefused=True,ActualManifestOnlyControls=True,NoOriginalSnapshotOrPublishManifestChanged=True,ActualBinaryCompositionLicenseEligibilityNativeDesktopOrCandidateQualified=False)
 with (root/'dependency-notice-manifest-controls.json').open('x',encoding='utf-8',newline='\n') as f:json.dump(proof,f,indent=2)
-print(json.dumps(dict(Controls=71,Allowed=11,Refused=60,Passed=sum(c['ControlPassed'] for c in cases)+8,SourceCommit=head,SourceTreeDirty=dirty)))
+print(json.dumps(dict(Controls=77,Allowed=14,Refused=63,Passed=sum(c['ControlPassed'] for c in cases)+14,SourceCommit=head,SourceTreeDirty=dirty)))
 if not all(c['ControlPassed'] for c in cases):raise SystemExit(1)

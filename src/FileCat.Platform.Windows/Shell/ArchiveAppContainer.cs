@@ -155,7 +155,7 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
         if (!owned) throw new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, RuntimeAccessProblem(full)!);
         ProvisionRuntimeReadAccess(folder, Path.GetFileName(full));
         FileCat.Core.Diagnostics.AppLog.Info("Granted FileCat's archive worker identity read access to this portable copy's runtime files " +
-            "(not its Data folder or anything else beside them): " + folder);
+            "(not its Data folder or anything else beside them): " + FileCat.Core.Diagnostics.AppLog.P(folder));
         if (!RuntimeReadable(full)) throw new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, RuntimeAccessProblem(full)!);
     }
 

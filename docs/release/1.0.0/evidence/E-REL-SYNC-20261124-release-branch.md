@@ -1,4 +1,4 @@
-# E-REL-SYNC-20261124 — `release/1.0` synced with main four times: at `84cca148`, `d0ebd1d3`, `dae7207c` and `f0febaa4`
+# E-REL-SYNC-20261124 — `release/1.0` synced with main five times: at `84cca148`, `d0ebd1d3`, `dae7207c`, `f0febaa4` and `9c9825a2`
 
 2026-11-24 (UTC). **Release-branch maintenance; no candidate, tag or publication.** The owner's standing instruction is to sync `release/1.0` with main once every open PR has merged. After PR #14 ([E-REL-SYNC-20261123](E-REL-SYNC-20261123-release-branch.md)), main merged PRs #13, #12 and #15 and the release records `a7ff2531`. No PR was then open, so the branch was synced through PR #16.
 
@@ -65,6 +65,19 @@ Covering `48d3de08` to `84cca148`:
 - **Merge:** [PR #22](https://github.com/benny-cz/FileCat/pull/22) was merged as `7269ec61` at 2026-11-24T10:41:06Z, pinned to the tested head; the branch was deleted.
 - **Result:** `release/1.0` is at `7269ec61`, with parents `8f122365` and `557d5074`. Its tree equals `f0febaa4`'s, which was main's tip. The `v1.0.0-rc.1` tag stays at `8f122365`.
 
+## Fifth sync: main at `9c9825a2` (PR #24)
+
+- **Source:** `9c9825a2`, main's tip when [PR #23](https://github.com/benny-cz/FileCat/pull/23) merged; no PR was then open.
+- **What came in:**
+  - `9d74ab71` (PR #23): a test-only change. The Windows record tests pin the buffer they hand to `DeviceIoControl` for object IDs.
+  - `facd9b7a`, `28ef58cf` and `fcd069d9`: the records of the fourth sync, of `v1.0.0-rc.2`, and of the start of its final qualification.
+
+  No product source, package reference or workflow changed: the incoming diff touches two test files and nine records. The quick scan found no secrets, email addresses or new skips. So rc.2's product source is still `release/1.0`'s.
+- **Sync branch:** `sync/release-1.0-9c9825a2e` was pushed at `b8b24967`, with parents `9c9825a2` and `7269ec61`.
+- **CI:** [PR run 45394445175](https://github.com/benny-cz/FileCat/actions/runs/45394445175) passed all 19 jobs that ran; the 5 package and draft jobs skip on a PR by design.
+- **Merge:** [PR #24](https://github.com/benny-cz/FileCat/pull/24) was merged as `9e310e95` at 2026-11-24T13:22:32Z, pinned to the tested head; the branch was deleted.
+- **Result:** `release/1.0` is at `9e310e95`, with parents `7269ec61` and `b8b24967`. Its tree equals `9c9825a2`'s. The `v1.0.0-rc.2` tag stays at `7269ec61`.
+
 ## Test failures seen on the way
 
 All were on hosted runners, in jobs that are not required, in tests that the changes being checked did not touch, and each passed in a later run of the same test code.
@@ -89,5 +102,5 @@ All were on hosted runners, in jobs that are not required, in tests that the cha
 
 ## Not shown
 
-- The records of the fourth sync, which stay on main until a later sync.
+- The records of the fifth sync, which stay on main until a later sync.
 - The causes of the tooltip, owner-column and place-bar failures, and of the hosted macOS failures recorded in E-REL-SYNC-20261123.
