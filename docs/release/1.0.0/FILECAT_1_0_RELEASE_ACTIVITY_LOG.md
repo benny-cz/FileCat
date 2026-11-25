@@ -5640,3 +5640,45 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-25 — I673 and I674's fixes on main
 
 - PR #58 merged as `32d4dc2b` after its full-matrix run 45623238985 (attempt 2) passed all jobs that ran. I673 and I674 are remediated preliminarily ([record](evidence/E-I673-I674-ui-state-races.md)). rc.4 now carries I672 to I674.
+
+## 2026-11-25 — `release/1.0` synced with I672 to I674; `v1.0.0-rc.4` tagged
+
+- With PRs #57 and #58 merged and no PR open, `release/1.0` was synced with main at `5137040b` through PR #59: run 45634525115 passed all 19 jobs that ran in its first attempt, the three fixes' first run together ([sync record](evidence/E-REL-SYNC-20261125-release-branch.md)).
+- With the owner's authorization ("Yes, tag rc.4"), annotated tag `v1.0.0-rc.4` (object `6cdaeb55`) was pushed on `16f9379a` at 15:08:40Z; tagged run 45641843032 started at once. Its signing job waits for the owner's approval; stable 1.0.0 remains NO-GO. The owner also approved batch28's UAC change for rc.4's Windows run.
+
+## 2026-11-25 — `v1.0.0-rc.4` built, signed and drafted; its qualification starts
+
+- Tagged run 45641843032: in the first attempt GitHub's macOS capacity left `macos-26 (build, portable tests)` unstarted, so no package job ran; "Re-run failed jobs" passed it and every job after it. The tests match PR #59's run test by test (73,763P/13,694S/0F) but for one Ubuntu environment skip.
+- The owner approved the `signing` deployment in GitHub at 16:26Z and confirmed it here ("Approved"). Signing and verification gave rc.3's counts; private draft 458361481 holds the 24 assets ([rc.4](evidence/E-RC4-TAG-20261125.md)). The release session downloaded all 24 and checked each against GitHub's digest and its manifest.
+- Qualification on rc.4's bytes: the Mac run passes 33 of 35, b23 and b28 keeping their known BLOCKED halves; c1 in the Windows VM passes with nothing unexpected (an upgrade over rc.3, an uninstall and a fresh install; 402 of 402 setup files match the SBOM, 249 installed PE files verify). The Ubuntu run and the Windows runner (with the owner's approval of batch28's UAC change) are under way; c9 follows with the owner.
+
+## 2026-11-25 — c9 on rc.4: I672's share case open again, I675 found; both fixed for rc.5
+
+- The Ubuntu run on rc.4's Linux package passes all 26 rows (a1 to a26).
+- c9 with the owner on rc.4 (the Windows runner was paused cleanly for it after its first batch): the test share still showed Windows' own logon failure, and Enter went up. The release session stopped before the owner signed in; at the owner's request ("let's try again") it followed rc.4's route: at the server, Enter opened Windows' prompt, the owner signed in, and FileCat listed the share and its sub folder with no credential stored ([I672](evidence/E-I672-unc-sign-in-enter.md)). I672 is open again; its record is corrected (its first version quoted the server's notice as the share's). PR #60 makes a share whose server refused the logon ask for the share's sign-in.
+- I675, found while fixing it: Go to an unreachable share froze the window for 21,019 ms on rc.4, and a start on one showed the window after 22.0 s. PR #61 takes the three calls off the window's thread; a local build of both fixes kept the longest wait at 1 ms and showed the window after 2.3 s ([I675](evidence/E-I675-unanswering-share-window-stall.md)).
+- Both PRs are in their full-matrix runs; rc.5 follows once they are merged and `release/1.0` is synced, with the owner's authorization.
+
+## 2026-11-25 — I676 from PR #60's run
+
+- PR #60's run 45662381953 failed one test on windows-11-arm: the picture grid's first two thumbnails were not decoded within the test's 9.5 s, while the next test decoded 65 on the same runner; GitHub's macOS capacity left another job without a runner. The release session reran the failed jobs, and PR #62 gives the test the decoder's own bound ([I676](evidence/E-I676-picture-grid-first-thumbnails-budget.md)).
+
+## 2026-11-25 — I677 from PR #61's run
+
+- PR #61's run 45665950729 failed one App test on Windows x64: the viewer's first decode of a 12 x 8 PNG ran out of the decoder's 30 s (normally 0.2 to 2.7 s there, 1.3 s on a host); the next decode took 2.4 s. PR #61 does not touch that path. The cause is not proven; PR #63 makes the timeout say where the time went ([I677](evidence/E-I677-first-picture-decode-timeout-ci.md)). The release session reran the failed jobs.
+
+## 2026-11-25 — I678 from main's run on PR #60's merge
+
+- Main's CI run 45676863831 on `4ffe68ba` failed the real file-system record test on both Windows lanes: it waited 5 s for a read that takes 1.9 to 8.8 s on the hosted runners (0.9 s on a host). Main's code there equals PR #60's tested head but for records. PR #64 waits for that read by the clock ([I678](evidence/E-I678-real-record-wait-budget.md)).
+
+## 2026-11-25 — I672's share case, I675, I676 and I678 fixed on main; I677's diagnostics merged
+
+- PR #60 merged as `4ffe68ba` after run 45662381953 (attempt 2), PR #61 as `643266b6` after run 45665950729 (attempt 2), PR #62 as `3abcd813` after run 45671024154, PR #63 as `544fa0a2` after run 45674146421 (attempt 4), and PR #64 as `ed0e317c` after run 45686642031. I672, I675, I676 and I678 are remediated preliminarily ([I672](evidence/E-I672-unc-sign-in-enter.md), [I675](evidence/E-I675-unanswering-share-window-stall.md), [I676](evidence/E-I676-picture-grid-first-thumbnails-budget.md), [I678](evidence/E-I678-real-record-wait-budget.md)). I677 stays open with its diagnostics in: the owner decided to tag rc.5 with it open ("Tag with I677 open") ([I677](evidence/E-I677-first-picture-decode-timeout-ci.md)). `release/1.0` is synced next; rc.5 follows under the owner's authorization ("Yes, tag rc.5").
+
+## 2026-11-25 — I679 from main's run on PR #64's merge
+
+- Main's CI run 45696160627 on `ed0e317c` failed one Remote test on Ubuntu: its owned loopback sshd refused the connection 36 ms after the fixture counted it ready. The fixture released a probe port before sshd bound it, and parallel fixtures could take it. PR #66 counts the server ready only once its own sshd has written its pid file; the new test fails with the old logic and passes with the fix ([I679](evidence/E-I679-test-sshd-port-race.md)). The `release/1.0` sync (PR #65) is brought up to date once PR #66 is merged, so rc.5 carries it.
+
+## 2026-11-25 — PR #66 combined with the sync
+
+- The owner asked to combine commits so that fewer full-matrix runs are waited for, and chose to merge PR #66 at once ("Yes, combine now"): it merged as `aa9981a3` before its own run finished, and that run and the earlier sync run (PR #65) were cancelled. I679 is remediated preliminarily ([I679](evidence/E-I679-test-sshd-port-race.md)). A new sync PR from main's tip runs the full matrix once for all six rc.5 changes.

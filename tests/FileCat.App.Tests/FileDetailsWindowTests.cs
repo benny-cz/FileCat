@@ -477,6 +477,18 @@ public sealed class FileDetailsWindowTests
         Assert.True(condition(), what);
     }
 
+    /// <summary>
+    /// The same for a wait on real I/O, by the clock: a hosted runner takes many times a desk machine's time for it
+    /// (I678: the real record took 2 to 9 s there and 0.9 s on a Windows 11 host). <paramref name="shown"/> says what the
+    /// window showed when it gave up.
+    /// </summary>
+    internal static async Task Until(Func<bool> condition, string what, TimeSpan limit, Func<string> shown)
+    {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        while (clock.Elapsed < limit && !condition()) await Task.Delay(10, TestContext.Current.CancellationToken);
+        Assert.True(condition(), $"{what} (after {clock.Elapsed.TotalSeconds:0.0} s the window shows: {shown()})");
+    }
+
     /// <summary>Blocks one numbered summary read until released; every call is counted.</summary>
     private sealed class HeldRecords(int blockedCall) : IFileRecords, IDisposable
     {
