@@ -51,7 +51,8 @@ public sealed class PictureRevisionStatusTests(ITestOutputHelper output)
             {
                 Assert.NotNull(viewer.PictureLoad);
                 await viewer.PictureLoad.WaitAsync(PictureLoadDeadline, TestContext.Current.CancellationToken);
-                Assert.Equal((12, 8), (viewer.Picture!.Width, viewer.Picture.Height));
+                Assert.True(viewer.Picture is not null, "The picture did not load: " + Shown(viewer));
+                Assert.Equal((12, 8), (viewer.Picture.Width, viewer.Picture.Height));
             }
             else Assert.Null(viewer.PictureLoad);
             if (mode == "hidden") typeof(ViewerWindow).GetMethod("SetMode", Fields)!.Invoke(viewer, [true]);
@@ -70,7 +71,8 @@ public sealed class PictureRevisionStatusTests(ITestOutputHelper output)
             if (mode != "visible") viewer.ShowPicture();
             Assert.NotNull(viewer.PictureLoad);
             await viewer.PictureLoad.WaitAsync(PictureLoadDeadline, TestContext.Current.CancellationToken);
-            var picture = viewer.Picture!;
+            Assert.True(viewer.Picture is not null, "The picture did not load: " + Shown(viewer));
+            var picture = viewer.Picture;
             Assert.Equal(changed && mode == "late" ? (16, 10) : (12, 8), (picture.Width, picture.Height));
             string pictureStatus = Field<TextBlock>(viewer, "_status").Text ?? "";
             Field<PictureView>(viewer, "_picture").Fit = false;
@@ -119,6 +121,8 @@ public sealed class PictureRevisionStatusTests(ITestOutputHelper output)
         return png.ToArray();
     }
     private static T Field<T>(object owner, string name) => (T)owner.GetType().GetField(name, Fields)!.GetValue(owner)!;
+    // What the viewer shows instead of a picture ("This picture cannot be shown: …"), for a failure's message (I677).
+    private static string Shown(ViewerWindow viewer) => Field<TextBlock>(Field<PictureView>(viewer, "_picture"), "_message").Text ?? "";
     private static async Task WaitFor(Func<bool> condition)
     {
         var clock = Stopwatch.StartNew();
