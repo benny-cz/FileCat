@@ -1,6 +1,6 @@
 # I657 — Git badges are wrong in every folder below a repository's top
 
-**Found:** 2026-11-24 by I647's fix ([PR #38](https://github.com/benny-cz/FileCat/pull/38), its "Not verified" list), and reproduced the same day with Git alone; the code is that of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) (`7269ec61`). **Status:** open; to be fixed for rc.3 (the owner's decision of 2026-11-24: every known issue is fixed for the next candidate).
+**Found:** 2026-11-24 by I647's fix ([PR #38](https://github.com/benny-cz/FileCat/pull/38), its "Not verified" list), and reproduced the same day with Git alone; the code is that of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) (`7269ec61`). **Status:** remediated preliminarily for rc.3 on 2026-11-25 ([I657](../FILECAT_1_0_RELEASE_ISSUES.md#i657), merged into main as `a2f983e9a`); first recorded as open; to be fixed for rc.3 (the owner's decision of 2026-11-24: every known issue is fixed for the next candidate).
 
 ## Observation
 

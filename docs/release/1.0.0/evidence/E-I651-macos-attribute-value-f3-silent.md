@@ -1,6 +1,6 @@
 # I651 — macOS: an attribute row offers "F3 to view", but F3 does nothing, so a Finder tag's name never shows
 
-**Found:** 2026-11-24 by the Mac GUI harness rehearsing [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md)'s b-rows (b25, I615). The harness and its results are kept locally in `.tmp/fq-rc2/mac/` (`results/rc2b/b25_finder_tag.txt`). **Status:** open. The owner decides between making the value readable and making the interface say it is not.
+**Found:** 2026-11-24 by the Mac GUI harness rehearsing [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md)'s b-rows (b25, I615). The harness and its results are kept locally in `.tmp/fq-rc2/mac/` (`results/rc2b/b25_finder_tag.txt`). **Status:** remediated preliminarily for rc.3 on 2026-11-25 ([I651](../FILECAT_1_0_RELEASE_ISSUES.md#i651), merged into main as `a2f983e9a`); first recorded as open. The owner decides between making the value readable and making the interface say it is not.
 
 ## Observation
 

@@ -1,6 +1,6 @@
 # E-DEC05-RECORD — the full file-system record restored in File-system details (DEC-05)
 
-**Prepared for rc.3 on branch `fix/dec05-full-file-system-record`, cut from `origin/rc3/integration-3` at `4512483f8` on 2026-11-25. Not merged, no pull request and no hosted CI, by instruction: the owner decides whether rc.3 restores the record or ships File-system details as metadata only. Component and native evidence only, not candidate qualification or release GO.**
+**Prepared for rc.3 on branch `fix/dec05-full-file-system-record`, cut from `origin/rc3/integration-3` at `4512483f8` on 2026-11-25. Not merged, no pull request and no hosted CI, by instruction: the owner decides whether rc.3 restores the record or ships File-system details as metadata only. Component and native evidence only, not candidate qualification or release GO.** The owner has since decided, and the fix is merged: see [After the owner's decision](#after-the-owners-decision-2026-11-25).
 
 ## What was missing
 
@@ -151,3 +151,12 @@ The Ubuntu loop volumes, mount points and images were removed after the root run
 
 - The full `FileCat.App.Tests` run at medium integrity, started 04:03 on the build before the last one-line edit, ended at 04:37: 4,179 tests, 0 failed, 332 skipped.
 - After rebuilding with the last two edits (the one line in `ReportWindow.Record.cs` and the renamed locals in `FileRecordReadTests`): `FileRecordReadTests` 8, 0 failed, 2 skipped (Unix or root only); the 26 App classes that use `ReportWindow`, at medium integrity, 429, 0 failed, 81 skipped.
+
+## After the owner's decision (2026-11-25)
+
+- **Decision:** asked whether rc.3 restores the record or ships File-system details as metadata only, the owner answered "Yes, restore it". The register records the gap as [I671](../FILECAT_1_0_RELEASE_ISSUES.md#i671).
+- **Pull request and CI:** [PR #55](https://github.com/benny-cz/FileCat/pull/55) (`d2f98f384`) merged into `rc3/integration-3` as `9956448b8`. Integration run 45570809782 passed all 19 jobs that ran on it, which closes "Hosted CI: not run" above. Integration PR #44 merged it into main as `a2f983e9a`.
+- **Through the real window** (batch43, in the Windows 11 qualification VM on a local build of `9956448b8`; the OneDrive guard saw no change):
+  - at medium integrity: **Read file-system record** was enabled once the details showed; the record (75 lines) said that the raw on-disk records need administrator rights; the title, the view's name and the status line said "File-system record"; the spoken line read 8 section headings and 3 table lines in words, with no box-drawing characters; Copy all published 3,111 characters with the timestamp checks and the named stream; F5 read it again; **Show summary** returned to the details and **Show file-system record** showed the same record without another read.
+  - in an administrator window: the same, with 172 lines, its MFT record and the change-journal history, and no administrator notice (9,465 characters copied). This closes "Real administrator window" above for Windows; a root FileCat through the UI remains unrun.
+- **Still open:** a screen reader's reading of the record view; the installed rc.3 check (batch43 and batch43-high in the Windows qualification run).

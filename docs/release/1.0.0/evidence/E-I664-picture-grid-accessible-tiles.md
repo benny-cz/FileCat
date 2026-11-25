@@ -1,6 +1,6 @@
 # I664 — The picture grid exposes fewer tiles to screen readers than it draws
 
-**Found:** 2026-11-24 by the Ubuntu GUI harness on rc.2's tarball (`7269ec61`), row a18, through AT-SPI. Capture: `E:\FileCat\.tmp\fq-rc2\ubuntu\shots\a18-check\a18-grid-top.png` (local only). **Status:** open; to be fixed for rc.3 (the owner's decision of 2026-11-24: every known issue is fixed for the next candidate).
+**Found:** 2026-11-24 by the Ubuntu GUI harness on rc.2's tarball (`7269ec61`), row a18, through AT-SPI. Capture: `E:\FileCat\.tmp\fq-rc2\ubuntu\shots\a18-check\a18-grid-top.png` (local only). **Status:** remediated preliminarily for rc.3 on 2026-11-25 ([I664](../FILECAT_1_0_RELEASE_ISSUES.md#i664), merged into main as `a2f983e9a`); first recorded as open; to be fixed for rc.3 (the owner's decision of 2026-11-24: every known issue is fixed for the next candidate).
 
 ## Observation
 

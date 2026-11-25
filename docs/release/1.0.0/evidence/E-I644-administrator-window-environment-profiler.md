@@ -1,6 +1,6 @@
 # I644 — An administrator window loads a .NET profiler that the ordinary account names in its environment
 
-**Found:** 2026-11-24, during final qualification of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md), on the installed candidate in the Windows 11 25H2 qualification VM ([FQ progress](E-FQ-RC2-20261124.md)). It answers a question that the [I638 to I640 amendments](E-DEC-2026-11-24-contract-amendments.md#i640) left to V06's loader audit: can a user's environment reach an elevated window? **Status:** open. A fix is proposed for the next candidate, and the owner decides.
+**Found:** 2026-11-24, during final qualification of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md), on the installed candidate in the Windows 11 25H2 qualification VM ([FQ progress](E-FQ-RC2-20261124.md)). It answers a question that the [I638 to I640 amendments](E-DEC-2026-11-24-contract-amendments.md#i640) left to V06's loader audit: can a user's environment reach an elevated window? **Status:** remediated preliminarily for rc.3 on 2026-11-25 ([I644](../FILECAT_1_0_RELEASE_ISSUES.md#i644), merged into main as `a2f983e9a`); first recorded as open. A fix is proposed for the next candidate, and the owner decides.
 
 ## What was run
 

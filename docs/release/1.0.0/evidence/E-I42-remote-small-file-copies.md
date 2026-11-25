@@ -2,7 +2,7 @@
 
 Release issue I42: at a 100 ms round trip each small file cost about 1.4 s up and 0.76 s down over SFTP, and 1.5 s up
 and 0.85–0.95 s down over explicit FTPS (E-I41's trace). The owner decided that every known issue is fixed for rc.3.
-**Status:** fixed on `fix/i42-remote-small-file-copies` (from `rc3/integration-3` at `3a76703d8`) for SFTP, and for FTPS
+**Status:** remediated preliminarily for rc.3 on 2026-11-25 ([I42](../FILECAT_1_0_RELEASE_ISSUES.md#i42), merged into main as `a2f983e9a`; the owner's decision of 2026-11-24 accepts the rest for 1.0.0); first recorded as fixed on `fix/i42-remote-small-file-copies` (from `rc3/integration-3` at `3a76703d8`) for SFTP, and for FTPS
 downloads; several files in flight, the record's second remedy, is not part of the fix (see below). Automated evidence
 on Debug builds; raw outputs are kept locally in `.tmp/i42-remote-small-files/` (SHA-256 at the end).
 

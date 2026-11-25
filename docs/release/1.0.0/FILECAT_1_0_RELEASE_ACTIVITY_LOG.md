@@ -5607,3 +5607,36 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - Remediated preliminarily: I635 to I637, I641 to I671 and I42; I638 to I640 closed by decision (separate entry). I636's row is corrected (the column-header sort was affected too); I615 is narrowed by I651 on macOS; I42 is done for 1.0.0 by the owner's decision (SFTP sped up; FTPS uploads and one file at a time accepted).
 - Pre-rc3 checks: the Windows qualification VM passed each Windows fix's own check (I635, I636, I637, I642, I643, I644, I645, I647, I648, I649, I653, I654, I657, I659); the physical Mac passed x03, b25 and b26 for I650 to I652; the Ubuntu harness passed a4, a14 and a18 on a build of I662 to I664. Hosted runners with sudo ran I655, I656 and I658 as root, on ARM64 and with `/proc` hidden. I671's restored record passed its tests on the Windows host (medium and elevated), the Mac and the Ubuntu VM (also as root), and the qualification VM showed it through the window, medium and elevated (batch43).
 - The owner authorized the release session to tag `v1.0.0-rc.3` once this is merged, synced to `release/1.0` and green ("Yes, tag it").
+
+## 2026-11-25 — `release/1.0` synced with the rc.3 fixes; `v1.0.0-rc.3` tagged
+
+- Every open PR had merged (#25 to #55, through integration PR #44 as `a2f983e9`), so `release/1.0` was synced with main at `d449095f` through PR #56: run 45575294166 passed all 19 jobs that ran, and the merge `60fe1731` has `d449095f`'s tree ([sync record](evidence/E-REL-SYNC-20261125-release-branch.md)).
+- With the owner's authorization of 2026-11-24 ("Yes, tag it"), annotated tag `v1.0.0-rc.3` (object `c551d41b`) was pushed on `60fe1731` at 08:51:18Z; tagged run 45579976088 started at once. Its signing job waits for the owner's approval; stable 1.0.0 remains NO-GO.
+- The owner approved, for rc.3's Windows qualification run, lowering UAC's consent prompt in the test VM for batch28 (I644) and restoring it ("Yes, allow it").
+
+## 2026-11-25 — `v1.0.0-rc.3` built, signed and drafted
+
+- Tagged run 45579976088 passed every job in its first attempt: 19 test jobs at 73,754P/13,695S/0F across 24 TRX, identical test by test to PR #56's run of the same tree but for one Ubuntu environment skip, and all three package jobs with their version checks.
+- The owner approved the `signing` deployment in GitHub at 09:33Z and confirmed it here ("Approved"). It signed both runtimes (56 distinct files per runtime, I644's administrator launcher added), verified 1,475 PE files with 0 failed and all four negative controls rejected, and made private draft 457903004 (24 assets) and the signing-records draft 457902610 ([rc.3](evidence/E-RC3-TAG-20261125.md)).
+- The release session downloaded all 24 draft assets: each matches GitHub's digest and its manifest, and the Linux and macOS assets are byte-identical to the artifacts the Ubuntu and Mac qualification runs had started from.
+- Windows checklist c1 on rc.3 in the qualification VM: an upgrade install over rc.2, an uninstall and a fresh install pass; 402 of 402 setup-payload files match the SBOM, the only additions being the uninstaller's own `unins000.exe`, `.dat` and `.msg` (as on rc.2); 249 installed PE files verify with 0 failed. The framework-dependent ZIP printed `FileCat 1.0.0`: the VM now has a .NET 10.0.14 runtime from rc.2's runtime check.
+
+## 2026-11-25 — rc.3's final qualification; I672; rc.4 authorized
+
+- **Mac** (the draft's macOS ZIP, byte-identical to the package job's): 33 of 35 scenarios pass, x01 after its check was corrected (it expected a Keyboard reference row's bare title, while I653 names rows "title, shortcut" as they show; 3/3); b23 and b28 pass all but their known BLOCKED halves (no FTPS server on the Mac; no per-app text size).
+- **Ubuntu** (the draft's Linux assets): all 26 rows pass. a1 first failed on harness faults (the copied AppImage had lost its mode; the launcher check looked for the process name `FileCat`, while the desktop entry's link starts `filecat`); a25 waited for GitHub's anonymous API limit, shared by the three runs' fresh profiles.
+- **Windows** (the installed rc.3 in the qualification VM): c1 passes as on rc.2. The runner's 66 batches: 40 pass, 25 with FAIL lines and 1 incomplete, every one the rehearsal's known harness line except improvements (c2's version, c18's Send to ZIP) and c19, whose rerun shows FileCat's part passing as on rc.2 (Windows' Share sheet has no accessible name). Every rc.3 fix's re-check passes, batch28 with the owner's UAC approval. The OneDrive guard found the owner's OneDrive unchanged in all 66 runs and after.
+- **I672 (c9):** on the installed rc.3, a share that needs credentials could not be signed in to: Enter on its only row, `..`, went up (I572) instead of opening Windows' prompt ([record](evidence/E-I672-unc-sign-in-enter.md)). The owner was to sign in through Windows' prompt; the session was stopped before anything was typed. PR #57 fixes it; the owner authorized tagging `v1.0.0-rc.4` once it is merged, synced and green ("Yes, tag rc.4"). rc.4's qualification repeats the automated runs on its bytes, c9 with the owner, and c25's Registry copy to a key (batch32 pressed the toolbar's Copy behind the dialog, on rc.2 as well).
+
+## 2026-11-25 — I673 and I674 from PR #57's full run
+
+- PR #57's full-matrix run 45615496168 failed four jobs in its first attempt: two Windows ARM64 jobs whose .NET SDK download failed on the hosted runners (rerun), and two App tests that neither I672 nor rc.3 touched and that had passed in all three of rc.3's runs. Both are real races in the product, registered as I673 (a finished comparison could keep "Comparing… 100%") and I674 (the storage call pages could keep Next enabled on the last page) ([record](evidence/E-I673-I674-ui-state-races.md)). PR #58 fixes both, with the owner's rule that every known issue is fixed for the candidate; rc.4 waits for both PRs.
+
+## 2026-11-25 — I672's fix on main
+
+- PR #57 merged as `3934b843` after its full-matrix run 45615496168 (attempt 2) passed all jobs that ran. I672 is remediated preliminarily ([record](evidence/E-I672-unc-sign-in-enter.md)); rc.4 follows through the release-branch sync, under the owner's authorization.
+- c25's Registry copy to another key passes on rc.3 with a corrected check (batch32d: the dialog's Enter, then the copy's own confirmation, Copy value): the value arrives as REG_SZ with the same data, and the source keeps it.
+
+## 2026-11-25 — I673 and I674's fixes on main
+
+- PR #58 merged as `32d4dc2b` after its full-matrix run 45623238985 (attempt 2) passed all jobs that ran. I673 and I674 are remediated preliminarily ([record](evidence/E-I673-I674-ui-state-races.md)). rc.4 now carries I672 to I674.

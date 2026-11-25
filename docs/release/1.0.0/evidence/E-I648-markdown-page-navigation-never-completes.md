@@ -1,6 +1,6 @@
 # I648 — A Markdown Page sometimes stays blank: WebView2 never reports that the page finished loading
 
-**Found:** 2026-11-24, during final qualification of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) (checklist c10), on the installed candidate in the Windows 11 25H2 qualification VM ([FQ progress](E-FQ-RC2-20261124.md)), and the same day in hosted CI. **Status:** open. The cause is not known yet. The owner decides whether the next candidate waits for a fix.
+**Found:** 2026-11-24, during final qualification of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) (checklist c10), on the installed candidate in the Windows 11 25H2 qualification VM ([FQ progress](E-FQ-RC2-20261124.md)), and the same day in hosted CI. **Status:** remediated preliminarily for rc.3 on 2026-11-25 ([I648](../FILECAT_1_0_RELEASE_ISSUES.md#i648), merged into main as `a2f983e9a`); first recorded as open. The cause is not known yet. The owner decides whether the next candidate waits for a fix.
 
 ## Observations
 

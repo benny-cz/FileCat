@@ -1174,10 +1174,7 @@ public sealed class CompareWindow : Window
             string text = total > 0
                 ? $"Comparing… {Formatters.SizeWithUnit(done)} of {Formatters.SizeWithUnit(total)} ({Math.Min(100, done * 100 / total)}%)"
                 : $"Comparing… {Formatters.SizeWithUnit(done)}";
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (!ct.IsCancellationRequested) _summary.Text = text;
-            });
+            Dispatcher.UIThread.Post(() => ShowCompareProgress(work, text));
         }
         try
         {
@@ -1438,6 +1435,18 @@ public sealed class CompareWindow : Window
         ShowFirstDifference();
         SetSummary(bytes);
         IsComparing = false;
+    }
+
+    /// <summary>
+    /// Byte-comparison progress, posted from the comparing thread. It is shown only while that comparison still runs and
+    /// its own progress is what the summary shows: a post that reaches the window after the result, or after the text
+    /// phase began, would otherwise replace the result with "Comparing… 100%" for good (I673).
+    /// </summary>
+    internal void ShowCompareProgress(CancellationTokenSource work, string text)
+    {
+        if (work.IsCancellationRequested || !IsComparing || !ReferenceEquals(_work, work) ||
+            _summary.Text?.StartsWith("Comparing…", StringComparison.Ordinal) != true) return;
+        _summary.Text = text;
     }
 
     private void SetSummary(BinaryDiffResult bytes)

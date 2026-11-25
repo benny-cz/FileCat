@@ -1,6 +1,6 @@
 # I655 — A root FileCat started with the caller's home folder reads and writes the caller's saved state
 
-**Found:** 2026-11-24 by I645's fix ([PR #33](https://github.com/benny-cz/FileCat/pull/33), its "Not verified" list), confirmed in the source of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) (`7269ec61`). **Status:** open; to be fixed for rc.3 (the owner's decision of 2026-11-24: every known issue is fixed for the next candidate), as proposed below: root keeps out of the caller's saved state as an administrator window does. It is not new in rc.2.
+**Found:** 2026-11-24 by I645's fix ([PR #33](https://github.com/benny-cz/FileCat/pull/33), its "Not verified" list), confirmed in the source of [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md) (`7269ec61`). **Status:** remediated preliminarily for rc.3 on 2026-11-25 ([I655](../FILECAT_1_0_RELEASE_ISSUES.md#i655), merged into main as `a2f983e9a`); first recorded as open; to be fixed for rc.3 (the owner's decision of 2026-11-24: every known issue is fixed for the next candidate), as proposed below: root keeps out of the caller's saved state as an administrator window does. It is not new in rc.2.
 
 ## Observation
 

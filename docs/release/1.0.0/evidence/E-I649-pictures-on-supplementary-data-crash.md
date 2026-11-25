@@ -1,6 +1,6 @@
 # I649 — Show pictures on a streams or attributes listing ends FileCat
 
-**Found:** 2026-11-24, first by the Mac GUI harness rehearsing [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md)'s b-rows (scenario `x02_pictures_on_attributes`), then in the Windows 11 25H2 qualification VM on the installed rc.2 (batch 30). The Mac harness and its results are kept locally in `.tmp/fq-rc2/mac/` (`results/rc2b/`). **Status:** open. A fix is proposed for the next candidate, and the owner decides.
+**Found:** 2026-11-24, first by the Mac GUI harness rehearsing [`v1.0.0-rc.2`](E-RC2-TAG-20261124.md)'s b-rows (scenario `x02_pictures_on_attributes`), then in the Windows 11 25H2 qualification VM on the installed rc.2 (batch 30). The Mac harness and its results are kept locally in `.tmp/fq-rc2/mac/` (`results/rc2b/`). **Status:** remediated preliminarily for rc.3 on 2026-11-25 ([I649](../FILECAT_1_0_RELEASE_ISSUES.md#i649), merged into main as `a2f983e9a`); first recorded as open. A fix is proposed for the next candidate, and the owner decides.
 
 ## Observation
 
