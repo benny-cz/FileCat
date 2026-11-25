@@ -1,4 +1,4 @@
-# E-REL-SYNC-20261125 — `release/1.0` synced with main twice: at `d449095f` (PR #56, the rc.3 fixes) and at `5137040b` (PR #59, I672 to I674)
+# E-REL-SYNC-20261125 — `release/1.0` synced with main three times: at `d449095f` (PR #56, the rc.3 fixes), at `5137040b` (PR #59, I672 to I674) and at `27a54d0f` (PR #67, I672's share case and I675 to I679)
 
 2026-11-25 (UTC). **Release-branch maintenance before `v1.0.0-rc.3`.** The owner's standing instruction is to sync `release/1.0` with main once every open PR has merged. After the fifth sync of [E-REL-SYNC-20261124](E-REL-SYNC-20261124-release-branch.md) (PR #24), main took the rc.3 fixes through integration [PR #44](https://github.com/benny-cz/FileCat/pull/44) and their records. When this sync started, PRs #25 to #55 had all merged and no PR was open.
 
@@ -39,6 +39,24 @@ Covering `9e310e95` to `d449095f`:
 - **Result:** `release/1.0` is at `16f9379a`, with parents `60fe1731` and `1b1c6a11`; its tree equals `5137040b`'s.
 - **Tag:** with the owner's authorization of 2026-11-25 ("Yes, tag rc.4"), annotated tag `v1.0.0-rc.4` (object `6cdaeb55`) was pushed at 2026-11-25T15:08:40Z on `16f9379a`. The `v1.0.0-rc.3` tag stays at `60fe1731`.
 
+## Third sync: main at `27a54d0f` (PR #67)
+
+- **Source:** `27a54d0f`, main's tip.
+  - **After their own full-matrix runs:** PR #60 (I672's share case, merged as `4ffe68ba`), PR #61 (I675, `643266b6`), PR #62 (I676, `3abcd813`), PR #63 (I677's diagnostics, `544fa0a2`) and PR #64 (I678, `ed0e317c`). Hosted runners failed some jobs in those runs: macOS jobs no runner took, one flaky test each (I676 and I677), and a macOS job that waited four attempts. Those runs passed after the failed jobs were rerun.
+  - **Before its own run:** PR #66 (I679, `aa9981a3`). The owner asked to combine commits so that fewer full-matrix runs are waited for, and chose to merge it at once ("Yes, combine now"). Its own run was cancelled, and this sync's run is its full matrix.
+  - No PR was open.
+- **A first sync PR, superseded:** [PR #65](https://github.com/benny-cz/FileCat/pull/65) (`sync/release-1.0-57484b4f4`, from main at `57484b4f`) was closed unmerged once main took PR #66. Its run was cancelled at 13 jobs passed and none failed.
+- **What came in:** 23 commits from `16f9379a`.
+  - The product changes of I672's second fix, I675 and I677, in `WindowsFileSystemProvider.Enumeration.cs`, `WindowsNetwork.cs`, `TabViewModel.cs`, `MainWindow.axaml.cs`, `MainViewModel.cs`, `PictureDecoder.cs` and `FileListControl.Pictures.cs`.
+  - Tests and test fixtures for I672 and I675 to I679.
+  - The records of I672 to I679, c9 on rc.4 and the owner's decisions.
+  - The quick scan found no secrets, tokens or email addresses. The one skip added is a platform condition: the share sign-in test of a file-system share runs on Windows.
+- **Sync branch:** `sync/release-1.0-27a54d0f4` at `2f72b1f1`, with parents `27a54d0f` and `16f9379a` and `27a54d0f`'s tree.
+- **CI:** [PR run 45701846571](https://github.com/benny-cz/FileCat/actions/runs/45701846571) passed all 19 jobs that ran, in its first attempt. It is the first full run of all six rc.5 changes together.
+- **Merge:** [PR #67](https://github.com/benny-cz/FileCat/pull/67) was merged as `19002592` at 2026-11-25T21:47:29Z, pinned to the tested head; the branch was deleted.
+- **Result:** `release/1.0` is at `19002592`, with parents `16f9379a` and `2f72b1f1`. Its tree equals `27a54d0f`'s.
+- **Tag:** with the owner's authorization of 2026-11-25 ("Yes, tag rc.5"), annotated tag `v1.0.0-rc.5` (object `f0deea22`) was pushed at 2026-11-25T21:47:42Z on `19002592`. The `v1.0.0-rc.4` tag stays at `16f9379a`.
+
 ## Not shown
 
-- The records after `5137040b`, which stay on main until a later sync.
+- The records after `27a54d0f`, which stay on main until a later sync.

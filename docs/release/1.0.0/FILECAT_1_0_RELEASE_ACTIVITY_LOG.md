@@ -5682,3 +5682,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-25 — PR #66 combined with the sync
 
 - The owner asked to combine commits so that fewer full-matrix runs are waited for, and chose to merge PR #66 at once ("Yes, combine now"): it merged as `aa9981a3` before its own run finished, and that run and the earlier sync run (PR #65) were cancelled. I679 is remediated preliminarily ([I679](evidence/E-I679-test-sshd-port-race.md)). A new sync PR from main's tip runs the full matrix once for all six rc.5 changes.
+
+## 2026-11-25 — `release/1.0` synced (PR #67) and `v1.0.0-rc.5` tagged
+
+- PR #67 synced `release/1.0` with main at `27a54d0f`; its run 45701846571 passed all 19 jobs that ran in its first attempt, the six rc.5 changes' first run together ([sync](evidence/E-REL-SYNC-20261125-release-branch.md)). It merged as `19002592`.
+- Under the owner's authorization ("Yes, tag rc.5") the release session tagged `v1.0.0-rc.5` (object `f0deea22`) on `19002592` ([rc.5](evidence/E-RC5-TAG-20261125.md)). Tagged run 45707588571 started; it waits for the owner's signing approval after its package jobs. The owner's walkthroughs now name rc.5.
