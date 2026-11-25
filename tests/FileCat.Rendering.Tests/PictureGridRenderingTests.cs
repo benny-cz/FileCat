@@ -84,7 +84,12 @@ public sealed class PictureGridRenderingTests
             var list = new FileListControl { Tab = tab, PictureMode = true, Width = 640, Height = 420 };
             window = new Window { Width = 640, Height = 420, Content = list };
             window.Show();
-            for (int i = 0; i < 300 && (tab.Listing.State != ListingState.Complete || list.CachedPictureThumbnailCount < 2); i++)
+            // The first thumbnails wait for the decoding workers to start. Cold, on a busy windows-11-arm runner, that took
+            // 2.2, 2.9 and 8.7 s in green runs, and more than the old budget of 300 rounds (9.5 s) once (I676): the wait now
+            // allows what the product allows one decode, and a failure says whether decodes failed or were still waiting.
+            var waited = System.Diagnostics.Stopwatch.StartNew();
+            while (waited.Elapsed < PictureDecoder.Timeout + TimeSpan.FromSeconds(10)
+                && (tab.Listing.State != ListingState.Complete || list.CachedPictureThumbnailCount < 2))
             {
                 await Task.Delay(20, TestContext.Current.CancellationToken);
                 Dispatcher.UIThread.RunJobs();
@@ -92,7 +97,10 @@ public sealed class PictureGridRenderingTests
                 using var warm = new RenderTargetBitmap(new PixelSize(640, 420));
                 warm.Render(list);
             }
-            Assert.Equal(2, list.CachedPictureThumbnailCount);
+            Assert.True(list.CachedPictureThumbnailCount == 2,
+                $"{list.CachedPictureThumbnailCount} of 2 thumbnails after {waited.Elapsed.TotalSeconds:0.0} s: " +
+                $"{list.IconPictureThumbnailCount} kept as icons (failed), {list.PendingPictureThumbnailCount} pending, " +
+                $"{list.PictureThumbnailLoadCount} loads started; listing {tab.Listing.State}.");
             Assert.Contains(Enumerable.Range(0, tab.Listing.VisibleCount),
                 row => tab.Listing.GetVisible(row).Name == "notes.txt");
             Assert.Contains(Enumerable.Range(0, tab.Listing.VisibleCount),
