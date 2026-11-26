@@ -5704,3 +5704,10 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - Ubuntu (rc.5's .deb, AppImage and tarball): all 26 rows pass, 0 FAIL, 0 BLOCKED.
 - Mac (rc.5's `FileCat-1.0.0-osx-arm64.zip`): 33 of 35 pass; b23 (remote drag) and b28 (minimum dialog sizes) keep their known BLOCKED halves, as on rc.3 and rc.4; 0 FAIL.
 - The Windows runner continues after c9 ([rc.5](evidence/E-RC5-TAG-20261125.md)).
+
+## 2026-11-26 — rc.5's Windows runner and high-integrity tests; the stable promotion's tool
+
+- The Windows runner's 67 batches on the installed rc.5: 41 pass, 25 have FAIL lines and 1 is incomplete, every failing check one that failed on rc.3 (known harness lines); batch17 lost one, and batch32d, new, passes. The fixes' re-checks pass, batch28 with the owner's UAC approval; the OneDrive guard found OneDrive unchanged in all 67 runs ([rc.5](evidence/E-RC5-TAG-20261125.md)).
+- High integrity in the VM: the framework-dependent ZIP starts with .NET 10.0.14; the two high-integrity tests pass; I671's `WindowsFileRecordsTests` pass 19, skip 13 and fail none, the administrator-only one passing.
+- No stable promotion existed: the producer refuses stable tags, and nothing copied a candidate's bytes. New `eng/Promote-StableRelease.ps1` (branch `release-tools/promote-stable`) makes the private draft "FileCat 1.0.0" from the candidate's exact bytes and never publishes. It refused seven wrong inputs before any write. Its first dry run stopped before uploading: reading the draft back, PowerShell decoded gh's UTF-8 on code page 437 and garbled the notes; fixed, and the second dry run passed: draft 458821313 was made and checked before any upload, its 24 assets were uploaded, downloaded again by ID and matched the candidate's bytes, and the draft was deleted; a second promotion was refused while it existed ([promotion](evidence/E-REL-PIPELINE-PROMOTION-20261126.md)).
+- The owner's walkthrough and GA PC checklist now cite rc.5's source (12 cited ranges had moved; same text).
