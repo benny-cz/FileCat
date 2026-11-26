@@ -99,6 +99,14 @@ Before FileCat reads a drive here, polkit asks for your password for two things.
 
 <details><summary>Source</summary>UnixDevices.cs:186-196; MainViewModel.Recovery.cs:689-694; evidence/E-V09-T2-linux-write-trace.md:19</details>
 
+### U5 · One real Tab in Settings (I618)
+Added on 2026-11-26: I618's last native check needs a key pressed by a person, because the VM's injected keys do not count either way.
+- **Do:** In FileCat, Tools → Settings… (Ctrl+Comma), the Tools tab. Under User commands (F9) click **Add command**, click into its **Program** field, and press Tab on your keyboard once. Then Cancel, and Discard draft if asked.
+- **Expect:** The keyboard moves to **Browse for command program…**: its focus ring shows on that button.
+- **Record:** Pass/Fail. **Closes:** I618's Ubuntu keyboard route; c28.
+
+<details><summary>Source</summary>src/FileCat.App/Views/UserCommandsEditor.cs:49 (the Program field), 88 (Browse for command program…); src/FileCat.Core/Commands/CommandRegistry.cs:510 (Settings…, Ctrl+Comma); evidence/E-I618-settings-layout-and-draft-dismissal.md:60</details>
+
 ## 3. macOS 27.2.1: the M1 Mac (about 25 minutes)
 
 The Mac build is ad-hoc signed and not notarized (DEC-03), so macOS blocks it until you allow it in System Settings. Only that route counts for REL-SIGN-MAC: removing the quarantine attribute or turning Gatekeeper off never counts. FileCat's Info.plist declares no privacy purpose strings, so every macOS dialog is macOS's own wording: **Unverified**, write it down.
@@ -187,6 +195,7 @@ Paste this table into the chat, filled in. Add the wording of every dialog marke
 | U2 Process check refused | | |
 | U3 Drive read refused | | |
 | U4 Drive read approved | | |
+| U5 Settings: a real Tab reaches Browse | | |
 | M1 Download, quarantine, hash | | |
 | M2 Gatekeeper blocks | | |
 | M3 Open Anyway | | |

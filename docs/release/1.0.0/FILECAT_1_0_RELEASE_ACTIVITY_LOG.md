@@ -5723,3 +5723,10 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - b1, the Mac app's placement round trip, passes on rc.5's ZIP: extracted, placed in `/Applications`, removed and placed again, each time with a verified ad-hoc signature, `FileCat 1.0.0` and an identical tree; `/Applications` is as it was ([rc.5](evidence/E-RC5-TAG-20261125.md)).
 - The Release Evidence Package staged earlier (manifest `2d1a04eda383c4d7…`) precedes b1 and the owner's steps. It is rebuilt with their records before GO, and the GO names the rebuilt manifest's digest ([REP](evidence/E-REP-RC5-20261126.md)).
+
+## 2026-11-26 — c7, c28 and c38's open parts pass on rc.5
+
+- c38: `.lnk` and `.url` never reach the icon helper. Audited reads show FileCat.exe reading both and `FileCat.ShellHost --serve` neither.
+- c7: in a 760 x 480 window, Stop review is on screen while an interrupted copy's recovery review runs, and stops it with nothing copied. End reaches the last of 8 issues.
+- c28: the rest of I618's acceptance passes on Windows, at both sizes, and read-only in an administrator window. The walkthrough gains U5, a real Tab on Ubuntu, for I618's last check.
+- Seen on the way, by design: Continue copy… refuses a source beyond the recovery review's 64 MiB budget with a generic message ([rc.5](evidence/E-RC5-TAG-20261125.md)).
