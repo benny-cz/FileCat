@@ -49,7 +49,11 @@ UninstallDisplayIcon={app}\FileCat.exe
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
-CloseApplications=yes
+; Force (I680): FileCat's window has windowless helpers (FileCat.exe --storage-cloud-query, FileCat.ShellHost.exe --serve)
+; that Restart Manager can only shut down by force. With "yes", an upgrade or reinstall with FileCat open could not close
+; them: silently it aborted (exit code 5), interactively it asked the user to close FileCat. Restart Manager still asks
+; the window itself to close first.
+CloseApplications=force
 ; A signed build (eng/Compile-WindowsInstaller.ps1 -Sign) names its sign tool and a fresh folder for the signed uninstaller.
 #ifdef SignToolName
 SignTool={#SignToolName}
