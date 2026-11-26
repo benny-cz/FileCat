@@ -23,3 +23,21 @@ After the approval, FileCat reported what M8 expects: "The selected device chang
 ## What a fix needs
 
 The wait for the user's answer must not count toward the hang threshold, while a drive that stops answering still does. For example, the authorization wait can be marked on the scheduler so that its clock pauses for it and restarts at the answer. That touches the shared scheduler and the three platforms' authorized drive opens. The walkthrough's consent steps run on that path: Linux U2 to U4, Mac M7 to M9, and the GA PC's optional G8.
+
+## The owner's decision and the fix
+
+The owner chose "Fix in rc.9 (Recommended)": rc.9 with the fix, rather than rc.8 with I684 open.
+
+[PR #75](https://github.com/benny-cz/FileCat/pull/75) adds `DeviceIoScheduler.AwaitingUser()`:
+- **The scope:** it marks the device call the code runs for as waiting for a person. The watchdog skips the call while any such scope is open.
+- **The clock:** when the scope ends, the call's clock restarts, so the device's own work after the answer is measured as usual.
+- **Other threads:** the call's clock flows with the async context, so a connection made on a pool thread while the device's worker waits for it counts as the call's.
+- **Analysis:** the devices an analysis observes wait with the call they belong to.
+
+Every wait for a person that FileCat starts inside a device call is marked:
+- reading a drive for recovery: `authopen` (macOS), UDisks2 and polkit (Linux), and UAC with the helper's window (Windows);
+- remote connections: host keys, passwords, keyboard-interactive prompts, FTPS certificates and unencrypted FTP; the keychain or keyring holding a saved password; and waiting for another connection attempt to the same server, which may itself be asking;
+- Linux SMB sign-in for a server's shares;
+- the Windows EFS key backup wizard and a key provider's questions.
+
+While fixing it, the session found [I685](E-I685-system-question-not-responding.md): the system's own questions inside an ordinary file-system call. The same PR fixes it.

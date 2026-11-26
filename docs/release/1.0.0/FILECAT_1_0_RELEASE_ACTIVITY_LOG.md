@@ -5832,3 +5832,9 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - On the M1 Mac, M1 to M9 pass on rc.8, each confirmed in macOS's log: the quarantined download, Gatekeeper's block and Open Anyway, TCC's Documents (allowed) and Desktop (refused), the USB disk's identity, and authopen refused, the disk changed during the dialog, and approved ([rc.8](evidence/E-RC8-TAG-20261126.md)).
 - M8 found I684: while macOS's dialog waited for the owner, FileCat said "/dev/rdisk4 is not responding", because the drive open's wait for the person counts toward the I/O scheduler's 8 s hang threshold. It is Low; the owner decides between rc.9 with a fix and rc.8 with I684 open ([I684](evidence/E-I684-authorization-wait-not-responding.md)).
 - The screen capture taken at the owner's request is not kept: it shows the owner's name in macOS's dialog. Two crops of FileCat's notice and scan tab are kept with the notes.
+
+## 2026-11-26 — I684 and I685 go into rc.9
+
+- The owner chose rc.9 with I684 fixed ("Fix in rc.9 (Recommended)").
+- While fixing it, the session found I685 in macOS's own log of the owner's walkthrough: macOS's privacy question waits inside the file-system call that triggers it. The owner answered for Documents after 8.9 s (M4) and for the removable volume after 10.1 s (M6), so FileCat will briefly have said the drive was not responding. Windows' smart-card PIN for an EFS file waits the same way. The owner first chose to ship it as a known issue, then "deliver it in rc.9" ([I685](evidence/E-I685-system-question-not-responding.md)).
+- [PR #75](https://github.com/benny-cz/FileCat/pull/75) fixes both: a device call's hang clock stands still while it waits for a person, and FileCat keeps which of macOS's privacy questions have been answered.

@@ -89,7 +89,7 @@ After a GO, in this order:
 
 ## Unresolved issues: proposed dispositions
 
-The [register](FILECAT_1_0_RELEASE_ISSUES.md#summary) has 19 unresolved rows. I677's cause is unproven, and [I684](evidence/E-I684-authorization-wait-not-responding.md) is a known defect in rc.8, found in the owner's Mac step M8. None of the other 17 names a known defect in rc.8.
+The [register](FILECAT_1_0_RELEASE_ISSUES.md#summary) has 20 unresolved rows. I677's cause is unproven. [I684](evidence/E-I684-authorization-wait-not-responding.md), found in the owner's Mac step M8, and [I685](evidence/E-I685-system-question-not-responding.md), found from macOS's log of the same walkthrough, are known defects in rc.8: the owner chose rc.9 with both fixed ([PR #75](https://github.com/benny-cz/FileCat/pull/75)). None of the other 17 names a known defect in rc.8.
 - **Remediated preliminarily:**
   - [I680](evidence/E-I680-setup-cannot-close-running-filecat.md), found on rc.5, in rc.6;
   - [I681](evidence/E-I681-linux-census-zombie.md), found on rc.6, in rc.7;
@@ -118,7 +118,8 @@ Each closes on a step above or on the owner's acceptance:
 | [I518](FILECAT_1_0_RELEASE_ISSUES.md#i518) Mac PathLine clipboard (CI) | Fixture revised; all 7 PathLine cases pass on macOS in rc.5's to rc.8's tagged runs | Close; cause unproven | The owner's acceptance |
 | [I529](FILECAT_1_0_RELEASE_ISSUES.md#i529) Mac hard-link timeout (CI) | Instrumented; the hard-link approval cases pass on macOS in rc.5's to rc.8's tagged runs | Close; cause unproven, instrumentation stays | The owner's acceptance |
 | [I677](FILECAT_1_0_RELEASE_ISSUES.md#i677) First picture decode over 30 s (CI, once) | Open by the owner's decision for rc.5, diagnostics in, and unchanged since; the case passes on all four lanes of rc.5's to rc.8's tagged runs | Ship with I677 open as a known issue, or hold 1.0.0 | The owner's decision |
-| [I684](FILECAT_1_0_RELEASE_ISSUES.md#i684) "Not responding" while the user decides (all platforms) | Found in M8 on rc.8: while macOS's authopen dialog waited for the owner, FileCat said after 8 s that the drive was not responding; it clears at the answer, and nothing is read | Fix in rc.9 (the owner's rule), or ship rc.8 with I684 open as a known issue | The owner's decision |
+| [I684](FILECAT_1_0_RELEASE_ISSUES.md#i684) "Not responding" while the user decides (all platforms) | Found in M8 on rc.8: while macOS's authopen dialog waited for the owner, FileCat said after 8 s that the drive was not responding; it clears at the answer, and nothing is read | Fix in rc.9 (the owner's rule), or ship rc.8 with I684 open as a known issue | Decided 2026-11-26: "Fix in rc.9" |
+| [I685](FILECAT_1_0_RELEASE_ISSUES.md#i685) "Not responding" while the system asks inside a file-system call (macOS privacy questions, Windows smart-card PIN) | Inferred from macOS's log of M4 and M6 on rc.8: answers after 8.9 s and 10.1 s | Fix in rc.9, or ship it as a known issue | Decided 2026-11-26: "deliver it in rc.9", after first choosing the known issue |
 
 DEC-14 also closes, by scope on the candidate's results, the older register rows that say only that candidate qualification remains (d11), except AC-11's phone Move (step 3 above).
 
