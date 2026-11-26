@@ -36,33 +36,45 @@ public sealed record FolderContents(long Files, long Folders, long Bytes, ulong 
             {
                 ct.ThrowIfCancellationRequested();
                 PathUtil.RefuseAmbiguousUnixName(folder.Path);
-                var entries = new FileSystemEnumerable<(string Name, bool Folder, bool Link, long Length, long Ticks)>(folder.Path,
-                    (ref FileSystemEntry e) =>
-                    {
-                        string name = e.FileName.ToString();
-                        PathUtil.RefuseAmbiguousUnixName(name);
-                        return (name, e.IsDirectory, (e.Attributes & FileAttributes.ReparsePoint) != 0,
-                            e.IsDirectory ? 0 : e.Length, e.LastWriteTimeUtc.UtcTicks);
-                    }, Options);
-                foreach (var e in entries)
+                // macOS can ask the person whether FileCat may read this folder (I685): answered once its first read returns.
+                using var prompt = SystemPrompts.ReadingFolder(folder.Path);
+                try
                 {
-                    if (++items > limit) return null;
-                    string relative = folder.Relative.Length == 0 ? e.Name : folder.Relative + "/" + e.Name;
-                    // A folder's own time is left out: it changes with what is in it, which is read anyway, and NTFS lists
-                    // it late. A link counts as itself.
-                    byte kind = e.Link ? (byte)2 : e.Folder ? (byte)1 : (byte)0;
-                    sum += Hash(relative, kind, e.Link || e.Folder ? 0 : e.Length, e.Folder && !e.Link ? 0 : e.Ticks);
-                    if (e.Folder)
+                    var entries = new FileSystemEnumerable<(string Name, bool Folder, bool Link, long Length, long Ticks)>(folder.Path,
+                        (ref FileSystemEntry e) =>
+                        {
+                            string name = e.FileName.ToString();
+                            PathUtil.RefuseAmbiguousUnixName(name);
+                            return (name, e.IsDirectory, (e.Attributes & FileAttributes.ReparsePoint) != 0,
+                                e.IsDirectory ? 0 : e.Length, e.LastWriteTimeUtc.UtcTicks);
+                        }, Options);
+                    foreach (var e in entries)
                     {
-                        folders++;
-                        if (!e.Link) stack.Push((Path.Join(folder.Path, e.Name), relative));
-                    }
-                    else
-                    {
-                        files++;
-                        if (!e.Link) bytes += e.Length;
+                        prompt.Answered();
+                        if (++items > limit) return null;
+                        string relative = folder.Relative.Length == 0 ? e.Name : folder.Relative + "/" + e.Name;
+                        // A folder's own time is left out: it changes with what is in it, which is read anyway, and NTFS lists
+                        // it late. A link counts as itself.
+                        byte kind = e.Link ? (byte)2 : e.Folder ? (byte)1 : (byte)0;
+                        sum += Hash(relative, kind, e.Link || e.Folder ? 0 : e.Length, e.Folder && !e.Link ? 0 : e.Ticks);
+                        if (e.Folder)
+                        {
+                            folders++;
+                            if (!e.Link) stack.Push((Path.Join(folder.Path, e.Name), relative));
+                        }
+                        else
+                        {
+                            files++;
+                            if (!e.Link) bytes += e.Length;
+                        }
                     }
                 }
+                catch (UnauthorizedAccessException)
+                {
+                    prompt.Answered();
+                    throw;
+                }
+                prompt.Answered();
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

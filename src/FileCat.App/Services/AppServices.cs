@@ -178,6 +178,8 @@ public sealed class AppServices : IDisposable
         Zip.OtherArchives = Archives;
         Zip.SpoolForeignMember = Archives.Spool;
         if (Providers.Get(Schemes.FileSystem) is LocalFileSystemProvider local) local.ContainerDetector = new ContainerDetectors(Zip, Archives);
+        // macOS asks the person once per kind of protected place; FileCat keeps which kinds it has seen answered (I685).
+        if (OperatingSystem.IsMacOS()) SystemPrompts.KeepAnswersIn(Path.Combine(paths.LocalDirectory, "macos-privacy-answers.txt"));
         Formatters.DateFormat = Settings.DateFormat;
         Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory,
             archiveBackends ?? Core.Archives.ArchiveJobBackends.Empty, storageTransforms ?? ReleaseStorageTransforms(Platform, paths),

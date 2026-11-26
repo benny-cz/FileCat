@@ -134,6 +134,51 @@ public sealed class DeviceIoUserWaitTests
     }
 
     [Fact]
+    public async Task Devices_observed_by_a_call_wait_with_it_and_are_measured_again_after_the_answer()
+    {
+        using var io = ManualScheduler();
+        using var answer = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var waiting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var answered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        static void WatchObserved(DeviceIoScheduler scheduler) =>
+            typeof(DeviceIoScheduler).GetMethod("WatchObserved", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(scheduler, null);
+        Task? call = null;
+        try
+        {
+            // As an analysis does: the call observes the devices it reads, then a folder read waits for macOS's question.
+            call = io.Run("analysis", IoPriority.Background, _ =>
+            {
+                using var observed = io.ObserveActualDevices(["volume"]);
+                using (DeviceIoScheduler.AwaitingUser())
+                {
+                    waiting.TrySetResult();
+                    if (!answer.Wait(Patience)) throw new TimeoutException("The test did not answer.");
+                }
+                answered.TrySetResult();
+                if (!release.Wait(Patience)) throw new TimeoutException("The test did not release the call.");
+            }, TestContext.Current.CancellationToken);
+            await waiting.Task.WaitAsync(Patience, TestContext.Current.CancellationToken);
+            await Task.Delay(30, TestContext.Current.CancellationToken);
+            WatchObserved(io);
+            Assert.Equal(DeviceHealth.Responsive, io.GetHealth("volume"));
+
+            answer.Set();
+            await answered.Task.WaitAsync(Patience, TestContext.Current.CancellationToken);
+            await Task.Delay(30, TestContext.Current.CancellationToken);
+            WatchObserved(io);
+            Assert.Equal(DeviceHealth.NotResponding, io.GetHealth("volume"));
+        }
+        finally
+        {
+            answer.Set();
+            release.Set();
+            if (call is not null) await call.WaitAsync(Patience, TestContext.Current.CancellationToken);
+        }
+        Assert.Equal(DeviceHealth.Responsive, io.GetHealth("volume"));
+    }
+
+    [Fact]
     public async Task The_hang_clock_restarts_when_the_last_wait_for_a_person_ends()
     {
         using var io = ManualScheduler();
