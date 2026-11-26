@@ -198,6 +198,25 @@ jobs:
             src/FileCat.App/obj/**/administrator-launcher/AdministratorLauncher.rc
             src/FileCat.App/obj/**/administrator-launcher/AdministratorLauncher.res
             src/FileCat.App/bin/Release/net10.0/FileCat.AdminLauncher.exe
+      # The package job compiles the x64 installer only on tags; this compiles every change to it. The unsigned 0.0.0
+      # Setup is kept a week, to try an installer change on a test machine before a candidate is tagged.
+      - name: The x64 installer compiles
+        shell: pwsh
+        run: |
+          ./eng/publish.ps1 -Version 0.0.0-x64check
+          $compiler = ./eng/Acquire-InnoSetup.ps1 -ToolRoot (Join-Path $env:RUNNER_TEMP ('FileCat-Inno-' + [guid]::NewGuid().ToString('N'))) -ReceiptDirectory (Join-Path $PWD 'artifacts/toolchains/inno-setup')
+          ./eng/Compile-WindowsInstaller.ps1 -Version 0.0.0 -CompilerRoot $compiler.ToolRoot -ReceiptDirectory $compiler.ReceiptDirectory
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: inno-setup-provenance-windows-x64
+          path: artifacts/toolchains/inno-setup/**
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-x64-test-setup
+          path: artifacts/FileCat-0.0.0-win-x64-setup.exe
+          retention-days: 7
+          if-no-files-found: error
       - name: Require all Windows test projects passed
         if: always()
         shell: pwsh

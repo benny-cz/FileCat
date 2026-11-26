@@ -1,17 +1,17 @@
-# FileCat 1.0.0 rc.4: the owner's consent walkthrough
+# FileCat 1.0.0 rc.5: the owner's consent walkthrough
 
-Prepared 2026-11-25, and updated for rc.4 the same day: rc.4 differs from rc.3 only by I672 to I674 (signing in to a share on Windows, and two status races), none on a consent path, so the steps and their source citations are unchanged. Under [DEC-14](evidence/E-DEC-2026-11-24-release-scope.md) you attest the UAC, polkit, authopen and TCC prompts and device identity on `v1.0.0-rc.4` yourself. This walkthrough covers the person's part of REL-CONSENT-ATTEST (PPL-03, checklist d7), REL-I17-BROKER (d8, c44), REL-I106-RECOVERY (d9, b35) and REL-SIGN-MAC (b2) in the [rc.2 checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md). There are three sections, one per machine, of 20 to 25 minutes each. Do them in any order.
+Prepared 2026-11-25, and updated for rc.5 the same day: rc.5 differs from rc.3 only by I672 to I679 (signing in to a share on Windows, a share whose server does not answer no longer stopping the window, a picture timeout's wording, two status races, and tests), none on a consent path, so the steps and their source citations are unchanged. Under [DEC-14](evidence/E-DEC-2026-11-24-release-scope.md) you attest the UAC, polkit, authopen and TCC prompts and device identity on `v1.0.0-rc.5` yourself. This walkthrough covers the person's part of REL-CONSENT-ATTEST (PPL-03, checklist d7), REL-I17-BROKER (d8, c44), REL-I106-RECOVERY (d9, b35) and REL-SIGN-MAC (b2) in the [rc.2 checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md). There are three sections, one per machine, of 20 to 25 minutes each. Do them in any order.
 
 **Rules**
-- Test rc.4 only. Help → About FileCat must read `Version 1.0.0 (abcdef1)`, where `abcdef1` stands for the first 7 characters of rc.4's source commit. The session gives you the commit.
+- Test rc.5 only. Help → About FileCat must read `Version 1.0.0 (abcdef1)`, where `abcdef1` stands for the first 7 characters of rc.5's source commit. The session gives you the commit.
 - Stop at the first Fail and tell the session. Do not work around it.
 - Windows' prompts show your name as the publisher (DEC-13). Keep your screenshots. In the chat write "publisher: my name", never the name itself.
-- Quoted texts come from rc.4's source or the release records. Where the text is Windows', Ubuntu's or macOS's own and no record has it, the step says **Unverified**: write down what you see.
-- Each step has a folded Source note. Source files are cited at `rc3/integration-3` `94b74365`; records at `main` `7a15ac8b`, or at `rc3/integration-3` where marked "rc3". The session re-checks the lines against the rc.4 tag.
+- Quoted texts come from rc.5's source or the release records. Where the text is Windows', Ubuntu's or macOS's own and no record has it, the step says **Unverified**: write down what you see.
+- Each step has a folded Source note. Source files are cited at the `v1.0.0-rc.5` tag (`19002592`). The session re-checked them on 2026-11-26: every cited line says what it said at `rc3/integration-3` (`94b74365`), where these notes were written, except two. The consent page's coverage sentence now says "this 1 step" (I669), as W4 quotes it, and the update setting's note was reworded, which G6 does not quote. Records are cited at `main` `7a15ac8b`, or at `rc3/integration-3` where marked "rc3".
 
 ## 1. Windows 11 25H2: the Hyper-V VM FileCat-FQ-W11 (about 25 minutes)
 
-**The session prepares:** rc.4 installed with its Setup, UAC at Windows' default, and the VM running with the administrator test account `fcqa` signed in. The records call the VM's computer FCFQ-W11. **You need:** VMConnect in a basic session, and `fcqa`'s password. It exists only in a DPAPI-protected file for your account; ask the session for its path. A VM has no physical disk to identify, so Windows' device identity is step G8 of the [GA PC checklist](FILECAT_1_0_RC3_GA_PC_CHECKLIST.md).
+**The session prepares:** rc.5 installed with its Setup, UAC at Windows' default, and the VM running with the administrator test account `fcqa` signed in. The records call the VM's computer FCFQ-W11. **You need:** VMConnect in a basic session, and `fcqa`'s password. It exists only in a DPAPI-protected file for your account; ask the session for its path. A VM has no physical disk to identify, so Windows' device identity is step G8 of the [GA PC checklist](FILECAT_1_0_RC3_GA_PC_CHECKLIST.md).
 
 ### W1 · Administrator window: Windows' prompt refused
 - **Do:** Start FileCat from the Start menu and check About. Tools → Open FileCat as administrator…. In FileCat's question click **Open as administrator**. In Windows' prompt click **No**.
@@ -25,7 +25,7 @@ Prepared 2026-11-25, and updated for rc.4 the same day: rc.4 differs from rc.3 o
 - **Expect:** The details show `C:\Program Files\FileCat\FileCat.AdminLauncher.exe` and `--new-instance`. The new window's title ends "fcqa (elevated)", and it says "FileCat is running as administrator. Operations have full rights, drag and drop from other programs is blocked, and the normal profile is read-only." There, Tools → Open FileCat as administrator… is unavailable: "This FileCat window is already running as administrator." F3 shows the file's text instead of a drawn page, with the reason "Web pages are not drawn while FileCat runs as administrator or root: …".
 - **Record:** Pass/Fail, a screenshot of the details, and whether the new window came to the front by itself (not yet observed, E-I644). **Closes:** d7; I644's prompt check; I645's elevated-viewer check (the session looks at `cache\webview`).
 
-<details><summary>Source</summary>src/FileCat.App/Services/AdministratorWindow.cs:25-31; src/FileCat.App/App.axaml.cs:108-109, 157-161; src/FileCat.App/ViewModels/MainViewModel.Commands.cs:39-40; src/FileCat.App/Views/ViewerWindow.cs:193, 648-649; src/FileCat.App/Controls/PageView.cs:13, 493-495; eng/publish.ps1:157; rc3 E-I644 lines 130, 133; rc3 evidence/E-I645-elevated-temp-sweeps-follow-links.md:126</details>
+<details><summary>Source</summary>src/FileCat.App/Services/AdministratorWindow.cs:25-31; src/FileCat.App/App.axaml.cs:108-109, 157-161; src/FileCat.App/ViewModels/MainViewModel.Commands.cs:39-40; src/FileCat.App/Views/ViewerWindow.cs:202, 658-659; src/FileCat.App/Controls/PageView.cs:13, 521-523; eng/publish.ps1:157; rc3 E-I644 lines 130, 133; rc3 evidence/E-I645-elevated-temp-sweeps-follow-links.md:126</details>
 
 ### W3 · Administrator helper: Windows' prompt refused
 - **Do:** In the ordinary window: Ctrl+L, `C:\Program Files`, Enter. F7, name `FileCat-consent`, **Create**. In the error click **Review denied items as administrator…**. In Windows' prompt click **No**. Then open Operations (Ctrl+J).
@@ -39,7 +39,7 @@ Prepared 2026-11-25, and updated for rc.4 the same day: rc.4 differs from rc.3 o
 - **Expect:** The window is titled "FileCat — administrator operation", with the heading "Retry folder creation as administrator" and the text "Requested by [computer]\fcqa from FileCat at [time]. This approval covers only this 1 step: 1 new folder; the helper exits when it finishes." (I669 corrected this sentence's singular in rc.3.) The steps are open (the toggle reads "Hide the steps") and list `1. Create folder "FileCat-consent" in C:\Program Files`. The footer says "Completed steps are kept if a later step fails. Links are never followed." The buttons are Run as administrator and Cancel; Cancel is the default. After Cancel, the job says "The plan was declined in the administrator window; nothing was changed." No folder exists.
 - **Record:** Pass/Fail and a screenshot of the whole window. **Closes:** d8 (REL-I17-BROKER, I310, I324), d7.
 
-<details><summary>Source</summary>src/FileCat.Core/Jobs/JobManager.cs:794-795 (the job's title); src/FileCat.App/Views/OperationsView.axaml:57, 241; src/FileCat.App/ViewModels/OperationCenterViewModel.cs:166-168; MainViewModel.Elevation.cs:87-94, 141-145; src/FileCat.PrivilegedHost/Program.cs:116-128, 173-177; src/FileCat.PrivilegedHost/ConsentDialog.cs:104-130; src/FileCat.Platform.Windows/Elevation/ElevationConsent.cs:21-33, 57-79; src/FileCat.Platform.Windows/Elevation/ElevationPlanCodec.cs:261, 309-313; ElevatedJobExecutor.cs:56-62</details>
+<details><summary>Source</summary>src/FileCat.Core/Jobs/JobManager.cs:794-795 (the job's title); src/FileCat.App/Views/OperationsView.axaml:57, 241; src/FileCat.App/ViewModels/OperationCenterViewModel.cs:166-168; MainViewModel.Elevation.cs:87-94, 141-145; src/FileCat.PrivilegedHost/Program.cs:116-128, 173-177; src/FileCat.PrivilegedHost/ConsentDialog.cs:104-130; src/FileCat.Platform.Windows/Elevation/ElevationConsent.cs:21-33, 60-62, 65-87; src/FileCat.Platform.Windows/Elevation/ElevationPlanCodec.cs:261, 309-313; ElevatedJobExecutor.cs:56-62</details>
 
 ### W5 · Administrator helper: approved, exact effect
 - **Do:** As W4, but click **Run as administrator**. Reread the panel with Ctrl+R. Then delete `C:\Program Files\FileCat-consent` in the administrator window from W2 (F8) and close that window.
@@ -67,7 +67,7 @@ You create this account yourself, with one command, so its password never passes
 
 Before FileCat reads a drive here, polkit asks for your password for two things. First `pkexec` runs FileCat's process check as root, because your account cannot see which other processes are FileCat. Then UDisks2 opens the drive read-only. The candidate .deb installs no polkit policy of FileCat's own, so the dialogs' wording is polkit's and UDisks2's: **Unverified**, write it down. Answer a process-check dialog within 90 seconds; after that FileCat treats it as unanswered.
 
-**The session prepares:** rc.4's .deb installed. **You need:** your account's password, and a USB stick with a FAT or exFAT volume that you do not mind being read, connected to the VM through VMware's removable-devices menu. Without a stick, the session can add a small virtual disk instead; that tests polkit but not physical identity. Close every other FileCat window.
+**The session prepares:** rc.5's .deb installed. **You need:** your account's password, and a USB stick with a FAT or exFAT volume that you do not mind being read, connected to the VM through VMware's removable-devices menu. Without a stick, the session can add a small virtual disk instead; that tests polkit but not physical identity. Close every other FileCat window.
 
 <details><summary>Source</summary>src/FileCat.App/RecoveryProcessCensus.cs:9-27, 78-109 (the 90 s limit at 19, 102); src/FileCat.Recovery/Unix/UnixDevices.cs:168-196; eng/package-linux.sh:61-73, 205-209 (FileCat's own polkit policy ships only in local qualification builds); rc3 evidence/E-I658-census-hidden-processes.md:11; rc3 evidence/E-I646-linux-root-census-opens-replaceable-path.md:68 (on this VM the ordinary check cannot read 48 processes)</details>
 
@@ -99,6 +99,14 @@ Before FileCat reads a drive here, polkit asks for your password for two things.
 
 <details><summary>Source</summary>UnixDevices.cs:186-196; MainViewModel.Recovery.cs:689-694; evidence/E-V09-T2-linux-write-trace.md:19</details>
 
+### U5 · One real Tab in Settings (I618)
+Added on 2026-11-26: I618's last native check needs a key pressed by a person, because the VM's injected keys do not count either way.
+- **Do:** In FileCat, Tools → Settings… (Ctrl+Comma), the Tools tab. Under User commands (F9) click **Add command**, click into its **Program** field, and press Tab on your keyboard once. Then Cancel, and Discard draft if asked.
+- **Expect:** The keyboard moves to **Browse for command program…**: its focus ring shows on that button.
+- **Record:** Pass/Fail. **Closes:** I618's Ubuntu keyboard route; c28.
+
+<details><summary>Source</summary>src/FileCat.App/Views/UserCommandsEditor.cs:49 (the Program field), 88 (Browse for command program…); src/FileCat.Core/Commands/CommandRegistry.cs:510 (Settings…, Ctrl+Comma); evidence/E-I618-settings-layout-and-draft-dismissal.md:60</details>
+
 ## 3. macOS 27.2.1: the M1 Mac (about 25 minutes)
 
 The Mac build is ad-hoc signed and not notarized (DEC-03), so macOS blocks it until you allow it in System Settings. Only that route counts for REL-SIGN-MAC: removing the quarantine attribute or turning Gatekeeper off never counts. FileCat's Info.plist declares no privacy purpose strings, so every macOS dialog is macOS's own wording: **Unverified**, write it down.
@@ -108,8 +116,8 @@ The Mac build is ad-hoc signed and not notarized (DEC-03), so macOS blocks it un
 <details><summary>Source</summary>FILECAT_1_0_RELEASE_EXECUTION_REPORT.md:93 (REL-SIGN-MAC); FILECAT_1_0_RELEASE_BLOCKERS.md:28 (DEC-03); eng/package-macos.sh:105-124, 127-136; evidence/E-FQ-RC2-20261124.md:63-64</details>
 
 ### M1 · Download (b2)
-- **Do:** In the browser open the draft "FileCat v1.0.0-rc.4 (signed release candidate)" and download `FileCat-1.0.0-osx-arm64.zip` and `FileCat-1.0.0-macos-assets.json`. In Terminal, in Downloads, run `xattr -p com.apple.quarantine FileCat-1.0.0-osx-arm64.zip` and `shasum -a 256 FileCat-1.0.0-osx-arm64.zip`. If the browser unpacked the ZIP by itself, run xattr on `FileCat.app` instead and say so.
-- **Expect:** xattr prints a value. The SHA-256 equals the ZIP's `SHA256` in the JSON file's `Files` list, and its `CandidateRef` is `refs/tags/v1.0.0-rc.4`.
+- **Do:** In the browser open the draft "FileCat v1.0.0-rc.5 (signed release candidate)" and download `FileCat-1.0.0-osx-arm64.zip` and `FileCat-1.0.0-macos-assets.json`. In Terminal, in Downloads, run `xattr -p com.apple.quarantine FileCat-1.0.0-osx-arm64.zip` and `shasum -a 256 FileCat-1.0.0-osx-arm64.zip`. If the browser unpacked the ZIP by itself, run xattr on `FileCat.app` instead and say so.
+- **Expect:** xattr prints a value. The SHA-256 equals the ZIP's `SHA256` in the JSON file's `Files` list, and its `CandidateRef` is `refs/tags/v1.0.0-rc.5`.
 - **Record:** Pass/Fail and the hash's first 16 characters. **Closes:** b2 (REL-SIGN-MAC).
 
 <details><summary>Source</summary>.github/workflows/ci.yml:1384-1393 (draft name); eng/Select-ReleaseAssets.ps1:56, 58-83; FILECAT_1_0_RC2_FQ_CHECKLIST.md:112 (b2)</details>
@@ -123,7 +131,7 @@ The Mac build is ad-hoc signed and not notarized (DEC-03), so macOS blocks it un
 
 ### M3 · Open Anyway (b2)
 - **Do:** System Settings → Privacy & Security, scroll down, click **Open Anyway**, and authenticate if asked. When the warning comes back, click Open. Then check About.
-- **Expect:** FileCat opens, and About shows rc.4's version.
+- **Expect:** FileCat opens, and About shows rc.5's version.
 - **Record:** Pass/Fail and each dialog's wording (**Unverified**). **Closes:** b2.
 
 <details><summary>Source</summary>Apple Support, Safely open apps on your Mac (support.apple.com/102445, published 2026-05-27); AboutDialog.cs:119-126</details>
@@ -187,6 +195,7 @@ Paste this table into the chat, filled in. Add the wording of every dialog marke
 | U2 Process check refused | | |
 | U3 Drive read refused | | |
 | U4 Drive read approved | | |
+| U5 Settings: a real Tab reaches Browse | | |
 | M1 Download, quarantine, hash | | |
 | M2 Gatekeeper blocks | | |
 | M3 Open Anyway | | |

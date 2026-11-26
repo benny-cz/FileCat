@@ -1,8 +1,8 @@
-# FileCat 1.0.0 rc.4: GA PC checklist (REL-WIN-GA)
+# FileCat 1.0.0 rc.5: GA PC checklist (REL-WIN-GA)
 
-Prepared 2026-11-25, and updated for rc.4 the same day: rc.4 differs from rc.3 only by I672 to I674 (signing in to a share on Windows, and two status races), none on a consent path, so the steps and their source citations are unchanged. Under [DEC-14](evidence/E-DEC-2026-11-24-release-scope.md) you provide a physical PC with a released (GA) Windows 11. On it you install rc.4's x64 Setup, start FileCat, use it and remove it, with Smart App Control enforcing while FileCat's programs load. This closes checklist d1 in the [rc.2 checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md): REL-WIN-GA (ENV-03) and the GA-tier Smart App Control part of REL-SIGN-WINDOWS. It takes about 45 minutes. **[Admin]** marks a step that needs administrator approval.
+Prepared 2026-11-25, and updated for rc.5 the same day: rc.5 differs from rc.3 only by I672 to I679 (signing in to a share on Windows, a share whose server does not answer no longer stopping the window, a picture timeout's wording, two status races, and tests), none on a consent path, so the steps and their source citations are unchanged. Under [DEC-14](evidence/E-DEC-2026-11-24-release-scope.md) you provide a physical PC with a released (GA) Windows 11. On it you install rc.5's x64 Setup, start FileCat, use it and remove it, with Smart App Control enforcing while FileCat's programs load. This closes checklist d1 in the [rc.2 checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md): REL-WIN-GA (ENV-03) and the GA-tier Smart App Control part of REL-SIGN-WINDOWS. It takes about 45 minutes. **[Admin]** marks a step that needs administrator approval.
 
-**Rules:** as in the [consent walkthrough](FILECAT_1_0_RC3_CONSENT_WALKTHROUGH.md). Test rc.4 only; stop at the first Fail; never put your name in the chat; **Unverified** marks text that neither rc.4's source nor a record gives. Source notes cite source files at `rc3/integration-3` `94b74365`, and records at `main` `7a15ac8b` unless marked "rc3".
+**Rules:** as in the [consent walkthrough](FILECAT_1_0_RC3_CONSENT_WALKTHROUGH.md). Test rc.5 only; stop at the first Fail; never put your name in the chat; **Unverified** marks text that neither rc.5's source nor a record gives. Source notes cite source files at the `v1.0.0-rc.5` tag (`19002592`), re-checked on 2026-11-26 as the walkthrough says, and records at `main` `7a15ac8b` unless marked "rc3" (`rc3/integration-3`, `94b74365`).
 
 **You need:** your GitHub sign-in in a browser on this PC (the draft is private), a PDF, a folder with a few JPEG or PNG pictures, a small folder of your own to pack, and optionally a USB stick with a FAT or exFAT volume (G8).
 
@@ -56,7 +56,7 @@ Test-Path 'C:\Program Files\FileCat', "$env:APPDATA\FileCat", "$env:LOCALAPPDATA
 <details><summary>Source</summary>evidence/E-SIGN-DRYRUN-20261120.md:122</details>
 
 ### G3 · Download
-- **Do:** In the browser, signed in to GitHub, open the repository's Releases and the draft "FileCat v1.0.0-rc.4 (signed release candidate)". Download `FileCat-1.0.0-win-x64-setup.exe` and `FileCat-1.0.0-windows-assets.json`. Do not unblock the Setup in its Properties.
+- **Do:** In the browser, signed in to GitHub, open the repository's Releases and the draft "FileCat v1.0.0-rc.5 (signed release candidate)". Download `FileCat-1.0.0-win-x64-setup.exe` and `FileCat-1.0.0-windows-assets.json`. Do not unblock the Setup in its Properties.
 - **Expect:** No record covers a browser warning on this download (**Unverified**). If one appears, write down its wording, then keep the file.
 - **Record:** Pass/Fail and any warning. **Closes:** d1.
 
@@ -75,7 +75,7 @@ $s = Get-AuthenticodeSignature .\FileCat-1.0.0-win-x64-setup.exe
 $s.Status; $s.SignerCertificate.Subject; $s.TimeStamperCertificate.Subject
 Get-Content .\FileCat-1.0.0-win-x64-setup.exe -Stream Zone.Identifier
 ```
-- **Expect:** `refs/tags/v1.0.0-rc.4` and `1.0.0`. The next two hashes are equal. The manifest's own hash equals the Windows manifest hash that the session gives you from the tagged run. `Valid`; the signer's subject names you (do not paste it); a timestamp authority's subject. `ZoneId=3`, the download mark.
+- **Expect:** `refs/tags/v1.0.0-rc.5` and `1.0.0`. The next two hashes are equal. The manifest's own hash equals the Windows manifest hash that the session gives you from the tagged run. `Valid`; the signer's subject names you (do not paste it); a timestamp authority's subject. `ZoneId=3`, the download mark.
 - **Record:** Pass/Fail, the Setup hash's first 16 characters and SourceCommit's first 7. **Closes:** d1; REL-SIGN-WINDOWS on GA hardware.
 
 <details><summary>Source</summary>eng/Select-ReleaseAssets.ps1:35-45, 58-83 (the manifest: names, sizes, SHA-256, candidate reference); ci.yml:1352-1355 (selected after signing), 1394-1403 (GitHub's server digests checked); evidence/E-RC2-TAG-20261124.md:52-55 (manifest hashes recorded per tag); FILECAT_1_0_RELEASE_ACTIVITY_LOG.md:5384 (timestamped Setup); FILECAT_1_0_RELEASE_BLOCKERS.md:37 (DEC-13); evidence/E-FQ-RC2-20261124.md:210 (ZoneId=3)</details>
@@ -92,7 +92,7 @@ Get-Content .\FileCat-1.0.0-win-x64-setup.exe -Stream Zone.Identifier
 - **Expect:** The title ends "[you] (administrator, not elevated)", or "(standard user)": Setup starts FileCat with your ordinary rights. About reads `Version 1.0.0 (abcdef1)`, with SourceCommit's first 7 characters, on "Windows 11 (build …, x64)". Privacy shows "Automatically check for updates" on: a new profile asks GitHub once at its first start (I638). If a dialog offers a newer release, choose Not now and note it.
 - **Record:** Pass/Fail. **Closes:** d1 (launch).
 
-<details><summary>Source</summary>Inno Setup help, [Run] section (postinstall entries run with the original user's rights); src/FileCat.Core/Platform/ProcessAccount.cs:26-44; src/FileCat.App/Views/AboutDialog.cs:119-147; src/FileCat.App/Views/SettingsDialog.cs:347-348, 375; rc3 evidence/E-DEC-2026-11-24-contract-amendments.md:24-34 (I638)</details>
+<details><summary>Source</summary>Inno Setup help, [Run] section (postinstall entries run with the original user's rights); src/FileCat.Core/Platform/ProcessAccount.cs:26-44; src/FileCat.App/Views/AboutDialog.cs:119-147; src/FileCat.App/Views/SettingsDialog.cs:347-349, 376; rc3 evidence/E-DEC-2026-11-24-contract-amendments.md:24-34 (I638)</details>
 
 ### G7 · Use FileCat so that its programs load
 SAC must be On. Work in the ordinary window, in this order. Each line says which of FileCat's programs it loads.
@@ -106,7 +106,7 @@ SAC must be On. Work in the ordinary window, in this order. Each line says which
 - **Expect:** every line works, with no SAC popup. Steps 6 and 7 show the texts that steps W3 to W5 and W2 of the consent walkthrough quote, with your account's name.
 - **Record:** Pass/Fail per line, and any SAC popup. **Closes:** d1 (use, with the candidate's programs loaded under SAC).
 
-<details><summary>Source</summary>eng/publish.ps1:113-125, 157, 189-191 (helper, Shell helper, notices, launcher in the payload); evidence/E-FQ-RC2-20261124.md:245 (icons come from the Shell helper), 217 (PDF pages), 243 (pictures); src/FileCat.App/Services/PictureWorker.cs:10-20; src/FileCat.App/Services/PictureDecoder.cs:243-248; src/FileCat.App/Controls/FileListControl.Pictures.cs:236 (thumbnails); src/FileCat.App/Views/ViewerWindow.cs:648-649, 722-723 (pages drawn, pictures and PDF pages decoded); src/FileCat.App/Controls/PageView.cs:497-500 (WebView2); src/FileCat.App/Views/ArchiveCreationDialog.cs:13-18, 29-35; src/FileCat.Platform.Windows/Shell/ArchiveAppContainer.cs:125-141; src/FileCat.Core/Commands/CommandRegistry.cs:325, 338, 376, 446, 486; src/FileCat.App/ViewModels/MainMenuModel.cs:17-19, 47, 53; evidence/E-SIGN-DRYRUN-20261120.md:152 (only startup was exercised before)</details>
+<details><summary>Source</summary>eng/publish.ps1:113-125, 157, 189-191 (helper, Shell helper, notices, launcher in the payload); evidence/E-FQ-RC2-20261124.md:245 (icons come from the Shell helper), 217 (PDF pages), 243 (pictures); src/FileCat.App/Services/PictureWorker.cs:10-20; src/FileCat.App/Services/PictureDecoder.cs:259-264; src/FileCat.App/Controls/FileListControl.Pictures.cs:238 (thumbnails); src/FileCat.App/Views/ViewerWindow.cs:658-659, 733-734 (pages drawn, pictures and PDF pages decoded); src/FileCat.App/Controls/PageView.cs:525-528 (WebView2); src/FileCat.App/Views/ArchiveCreationDialog.cs:13-18, 29-35; src/FileCat.Platform.Windows/Shell/ArchiveAppContainer.cs:125-141; src/FileCat.Core/Commands/CommandRegistry.cs:325, 338, 376, 446, 486; src/FileCat.App/ViewModels/MainMenuModel.cs:17-19, 47, 53; evidence/E-SIGN-DRYRUN-20261120.md:152 (only startup was exercised before)</details>
 
 ### G8 · Optional [Admin]: a USB stick through the helper
 This adds Windows' physical device identity and the installed recovery route (d7, d9). Close every other FileCat window first.

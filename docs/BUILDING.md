@@ -44,6 +44,10 @@ The Windows per-machine installer is assembled from a verified published
 payload with the pinned Inno Setup compiler through
 [`eng/Compile-WindowsInstaller.ps1`](../eng/Compile-WindowsInstaller.ps1).
 Its recipe is [`eng/installer/FileCat.iss`](../eng/installer/FileCat.iss).
+Every full CI run compiles both architectures' installers. It keeps the x64
+one, unsigned and versioned 0.0.0, for a week as the `windows-x64-test-setup`
+artifact, so an installer change can be tried on a test machine before a
+candidate is tagged.
 Official packaging also records the outer asset hashes in a platform manifest;
 the SBOMs enumerate the bytes inside each distinct payload and their reviewed
 NuGet/runtime identities.

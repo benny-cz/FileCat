@@ -141,3 +141,13 @@ The launcher reuses what fits: the same clearing rules, the same build script, t
 - Variables outside the runtime's prefixes are not audited (see above).
 - The launcher links the Microsoft C++ runtime statically, as the helper's bootstrap does. Both build receipts leave the license and system-library classification open (`LicenseAndSystemLibraryClassificationComplete: false`, I03).
 - Copied beside another program named `FileCat.exe`, the signed launcher would start that program after a prompt naming FileCat. The signed `FileCat.exe` apphost already starts any `FileCat.dll` beside it, so this adds no new kind of exposure.
+
+## On rc.5's installed candidate (2026-11-26)
+
+The checks of [What the next installed candidate must check](#what-the-next-installed-candidate-must-check), in the Windows 11 25H2 qualification VM on the installed `v1.0.0-rc.5` ([rc.5](E-RC5-TAG-20261125.md)):
+- **The profiler probe:** batch28 passes. With the variables only in `HKCU\Environment`, the administrator window leaves no marker, and the ordinary control loads the probe.
+- **Signing:** `FileCat.AdminLauncher.exe` is Authenticode-valid and signed by FileCat.exe's own certificate in all four Windows ZIPs and in the installed build. Its description, "FileCat administrator window", is the name UAC shows.
+- **A review through the launcher:** a denied folder's Reopen folder as administrator opened an administrator window at that folder. The process-creation audit shows the installed launcher starting the installed `FileCat.exe`, with a full token at high integrity. UAC's prompt was lowered for this run, as for batch28, and restored.
+- **The framework-dependent package:** with no `DOTNET_ROOT`, its administrator window started through its own launcher in its own folder, with the .NET 10.0.14 runtime installed in Program Files.
+- **An upgrade while an administrator window is open:** Setup could not close FileCat, and it fails the same way with only an ordinary window open. Registered as [I680](E-I680-setup-cannot-close-running-filecat.md). Its fix, `CloseApplications=force`, is checked on the next candidate.
+- **For the owner:** the prompt under the default UAC setting, and whether the new window comes to the front by itself. These are the consent walkthrough's W1 and W2.

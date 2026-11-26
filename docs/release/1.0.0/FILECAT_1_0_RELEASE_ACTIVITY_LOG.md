@@ -5682,3 +5682,70 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-25 — PR #66 combined with the sync
 
 - The owner asked to combine commits so that fewer full-matrix runs are waited for, and chose to merge PR #66 at once ("Yes, combine now"): it merged as `aa9981a3` before its own run finished, and that run and the earlier sync run (PR #65) were cancelled. I679 is remediated preliminarily ([I679](evidence/E-I679-test-sshd-port-race.md)). A new sync PR from main's tip runs the full matrix once for all six rc.5 changes.
+
+## 2026-11-25 — `release/1.0` synced (PR #67) and `v1.0.0-rc.5` tagged
+
+- PR #67 synced `release/1.0` with main at `27a54d0f`; its run 45701846571 passed all 19 jobs that ran in its first attempt, the six rc.5 changes' first run together ([sync](evidence/E-REL-SYNC-20261125-release-branch.md)). It merged as `19002592`.
+- Under the owner's authorization ("Yes, tag rc.5") the release session tagged `v1.0.0-rc.5` (object `f0deea22`) on `19002592` ([rc.5](evidence/E-RC5-TAG-20261125.md)). Tagged run 45707588571 started; it waits for the owner's signing approval after its package jobs. The owner's walkthroughs now name rc.5.
+
+## 2026-11-25 — `v1.0.0-rc.5` built, signed and drafted; its qualification starts
+
+- Tagged run 45707588571 passed every job in its first attempt; its tests are identical to PR #67's run test by test (73,816P/13,699S/0F).
+- The owner approved the `signing` deployment in GitHub; signing and verification gave rc.4's counts (1,475 PE files, 0 failed, 4/4 controls; 249 files in the install round trip). Private draft 458724408 holds the 24 assets ([rc.5](evidence/E-RC5-TAG-20261125.md)); the release session downloaded all 24 and checked each against GitHub's digest and its manifest.
+- Qualification on rc.5's bytes: c1 in the Windows VM passes (an upgrade over rc.4, an uninstall and a fresh install; 402 of 402 setup files match the SBOM, 249 installed PE files verify). The Ubuntu and Mac runs started from the package jobs' artifacts, and the Windows runner (with the owner's approval of batch28's UAC change) started after c1; c9 follows with the owner.
+
+## 2026-11-25 — c9 on rc.5 passes with the owner
+
+- At the owner's request ("Now (pause runner)") the Windows runner was paused after batch2, and c9 ran on the installed rc.5: the share said it needs a sign-in, Enter stayed on it and opened Windows' prompt, the owner signed in, and FileCat listed the share and its sub folder; the temporary connection was removed and no credential was stored ([I672](evidence/E-I672-unc-sign-in-enter.md)).
+- I675's probes on the installed rc.5: Go to an unreachable share, longest wait 0 ms (21,019 ms on rc.4); a start on one showed the window after 1.4 and 1.3 s (22.0 s on rc.4) ([I675](evidence/E-I675-unanswering-share-window-stall.md)). The runner then resumed.
+
+## 2026-11-26 — rc.5's Ubuntu and Mac runs
+
+- Ubuntu (rc.5's .deb, AppImage and tarball): all 26 rows pass, 0 FAIL, 0 BLOCKED.
+- Mac (rc.5's `FileCat-1.0.0-osx-arm64.zip`): 33 of 35 pass; b23 (remote drag) and b28 (minimum dialog sizes) keep their known BLOCKED halves, as on rc.3 and rc.4; 0 FAIL.
+- The Windows runner continues after c9 ([rc.5](evidence/E-RC5-TAG-20261125.md)).
+
+## 2026-11-26 — rc.5's Windows runner and high-integrity tests; the stable promotion's tool
+
+- The Windows runner's 67 batches on the installed rc.5: 41 pass, 25 have FAIL lines and 1 is incomplete, every failing check one that failed on rc.3 (known harness lines); batch17 lost one, and batch32d, new, passes. The fixes' re-checks pass, batch28 with the owner's UAC approval; the OneDrive guard found OneDrive unchanged in all 67 runs ([rc.5](evidence/E-RC5-TAG-20261125.md)).
+- High integrity in the VM: the framework-dependent ZIP starts with .NET 10.0.14; the two high-integrity tests pass; I671's `WindowsFileRecordsTests` pass 19, skip 13 and fail none, the administrator-only one passing.
+- No stable promotion existed: the producer refuses stable tags, and nothing copied a candidate's bytes. New `eng/Promote-StableRelease.ps1` (branch `release-tools/promote-stable`) makes the private draft "FileCat 1.0.0" from the candidate's exact bytes and never publishes. It refused seven wrong inputs before any write. Its first dry run stopped before uploading: reading the draft back, PowerShell decoded gh's UTF-8 on code page 437 and garbled the notes; fixed, and the second dry run passed: draft 458821313 was made and checked before any upload, its 24 assets were uploaded, downloaded again by ID and matched the candidate's bytes, and the draft was deleted; a second promotion was refused while it existed ([promotion](evidence/E-REL-PIPELINE-PROMOTION-20261126.md)).
+- The owner's walkthrough and GA PC checklist now cite rc.5's source (12 cited ranges had moved; same text).
+
+## 2026-11-26 — c34 on rc.5, the opt-in file-record tests, and the Release Evidence Package
+
+- c34 with the owner's OneDrive: every OneDrive check passes (60 placeholders labelled, none downloaded in the background, F3 downloads one), the guard found nothing changed outside `FileCat-QA-c34`, and the folder was removed. Two decode counts failed because the scenario pages down every 1.8 s and FileCat cancels the decode of a tile that scrolls off: 8 pictures were decoded on the way back instead of on the way down. With 10 s per page every count passes, 81 down and none back ([rc.5](evidence/E-RC5-TAG-20261125.md)).
+- At high integrity with CI's opt-ins, I671's file-record tests pass 24, skip 8 and fail none, the EFS and cloud placeholder tests with their privileged branches; OneDrive unchanged.
+- The Release Evidence Package is staged and verified: 969 files, manifest SHA-256 `2d1a04eda383c4d7c96cdad90ad65a507ec11474d493a380d7ef69d31be6cb87`, committed in `v1.0.0-rc.5/`. The owner seals it at GO (DEC-10) ([REP](evidence/E-REP-RC5-20261126.md)).
+- A [GO cover sheet](FILECAT_1_0_GO_COVER_SHEET.md) sums up the candidate, what passed, the owner's remaining steps and a proposed disposition for each unresolved issue.
+
+## 2026-11-26 — b1 on rc.5; the evidence package is rebuilt before GO
+
+- b1, the Mac app's placement round trip, passes on rc.5's ZIP: extracted, placed in `/Applications`, removed and placed again, each time with a verified ad-hoc signature, `FileCat 1.0.0` and an identical tree; `/Applications` is as it was ([rc.5](evidence/E-RC5-TAG-20261125.md)).
+- The Release Evidence Package staged earlier (manifest `2d1a04eda383c4d7…`) precedes b1 and the owner's steps. It is rebuilt with their records before GO, and the GO names the rebuilt manifest's digest ([REP](evidence/E-REP-RC5-20261126.md)).
+
+## 2026-11-26 — c7, c28 and c38's open parts pass on rc.5
+
+- c38: `.lnk` and `.url` never reach the icon helper. Audited reads show FileCat.exe reading both and `FileCat.ShellHost --serve` neither.
+- c7: in a 760 x 480 window, Stop review is on screen while an interrupted copy's recovery review runs, and stops it with nothing copied. End reaches the last of 8 issues.
+- c28: the rest of I618's acceptance passes on Windows, at both sizes, and read-only in an administrator window. The walkthrough gains U5, a real Tab on Ubuntu, for I618's last check.
+- Seen on the way, by design: Continue copy… refuses a source beyond the recovery review's 64 MiB budget with a generic message ([rc.5](evidence/E-RC5-TAG-20261125.md)).
+
+## 2026-11-26 — I680: Setup cannot close a running FileCat
+
+- On the installed rc.5 in the VM, rc.5's Setup run over it with FileCat open (an ordinary window, with or without its icon helper, or an administrator window) exits with code 5 when silent: Restart Manager cannot shut down FileCat's windowless helpers (`--storage-cloud-query`, `ShellHost --serve`), which it classifies as unknown applications, without force. A forced `RmShutdown` closes all three. The fix, `CloseApplications=force` in the installer, needs a candidate after rc.5 ([I680](evidence/E-I680-setup-cannot-close-running-filecat.md)).
+
+## 2026-11-26 — I644's and I654's candidate checks on rc.5
+
+- I644: the launcher is signed everywhere; a denied folder's review and the framework-dependent package open administrator windows through their own launchers (audited). The upgrade check found I680. The prompt and window focus are the owner's W1 and W2.
+- I654: the associations editor's message for an unknown saved filter ends with one period ([rc.5](evidence/E-RC5-TAG-20261125.md)).
+
+## 2026-11-26 — I680's uninstall half
+
+- rc.5's uninstaller, run silently with FileCat open, exits with code 0 and removes the uninstall entry, but FileCat keeps running and 83 files stay (`batch44u`). Inno Setup's uninstaller does not use Restart Manager ([E-I680](evidence/E-I680-setup-cannot-close-running-filecat.md#uninstalling-with-filecat-open)).
+- PR #68 now also closes FileCat before uninstalling: the processes running from the installation's folder are asked to close, then ended. An interactive uninstall asks first. Every full CI run compiles the x64 installer and keeps its unsigned 0.0.0 Setup for a week, for the VM check before rc.6.
+
+## 2026-11-26 — I680's fix merged and checked before the candidate
+
+- PR #68 merged (`9d3deb47`) after its full run `45746120969` passed. The run's new x64 installer compile passed too, and its unsigned 0.0.0 Setup was used for the VM checks.
+- In the VM, on that Setup: T1 to T5 pass ([E-I680](evidence/E-I680-setup-cannot-close-running-filecat.md#checked-before-the-candidate-on-cis-test-setup-2026-11-26)). FileCat closes when asked, and FileCat's own question about running work comes first. Only an unanswered question leads to a forced end, and every uninstall leaves no file. Harness misses on the way (the test build's update offer, the copy's temporary name, the uninstaller's process name) are recorded there.

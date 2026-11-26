@@ -94,3 +94,9 @@ Every hit was read. Besides the viewer, eleven places doubled the period, and ea
 **The next installed candidate must check** that each of these messages ends the library's sentence with a single period:
 - the viewer's message for a damaged PDF and for an encrypted PDF;
 - Settings → Associations with a mask naming an unknown saved filter (for example `@nothing`).
+
+## On rc.5's installed candidate (2026-11-26)
+
+Both checks pass in the Windows 11 25H2 qualification VM on the installed `v1.0.0-rc.5` ([rc.5](E-RC5-TAG-20261125.md)):
+- **The viewer's damaged and encrypted PDF messages:** batch35, and batch14b's encrypted PDF.
+- **Settings → Associations with the mask `@nothing`:** batch35b. OK keeps Settings open with "Associations: Association 1, mask: There is no saved filter named "nothing".", one period.
