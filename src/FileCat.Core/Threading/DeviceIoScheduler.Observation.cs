@@ -12,7 +12,7 @@ public sealed partial class DeviceIoScheduler
     // exist process-wide. Observation creates no queue, worker, replacement or alternate I/O route.
     internal IDisposable ObserveActualDevices(ImmutableArray<string> keys)
     {
-        var actual = new ActualDevices(this, keys);
+        var actual = new ActualDevices(this, keys, _currentCall.Value);
         lock (_observedGate) _observed.Add(actual);
         return actual;
     }
@@ -28,7 +28,15 @@ public sealed partial class DeviceIoScheduler
             long now = Stopwatch.GetTimestamp();
             foreach (var actual in _observed)
             {
-                if (actual.Hung || Stopwatch.GetElapsedTime(actual.Started, now) <= HangThreshold) continue;
+                if (actual.Hung) continue;
+                long started = actual.Started;
+                if (actual.Call is { } call)
+                {
+                    // The call this observation runs in may wait for a person (I684, I685): that wait is not the devices'.
+                    if (Volatile.Read(ref call.UserWaits) > 0) continue;
+                    started = Math.Max(started, Volatile.Read(ref call.Started));
+                }
+                if (Stopwatch.GetElapsedTime(started, now) <= HangThreshold) continue;
                 actual.Hung = true;
                 changed.UnionWith(actual.Keys);
             }
@@ -46,10 +54,12 @@ public sealed partial class DeviceIoScheduler
         foreach (string key in keys)
             ThreadPool.QueueUserWorkItem(_ => RaiseHealth(key, GetHealth(key)));
     }
-    private sealed class ActualDevices(DeviceIoScheduler owner, ImmutableArray<string> keys) : IDisposable
+    private sealed class ActualDevices(DeviceIoScheduler owner, ImmutableArray<string> keys, CallClock? call) : IDisposable
     {
         internal readonly ImmutableArray<string> Keys = keys;
         internal readonly long Started = Stopwatch.GetTimestamp();
+        /// <summary>The clock of the device call this observation runs in, when it runs in one.</summary>
+        internal readonly CallClock? Call = call;
         internal bool Hung;
         public void Dispose() => owner.ForgetObserved(this);
     }

@@ -8,6 +8,7 @@ using System.Security.Principal;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Network;
+using FileCat.Core.Threading;
 using FileCat.Platform.Windows.Elevation;
 using FileCat.Recovery;
 using Microsoft.Win32.SafeHandles;
@@ -606,45 +607,43 @@ public sealed class BrokeredDeviceSource : PipeDeviceSource
             Steps = [new ElevatedStep(ElevatedVerb.ReadDevice) { Path = device, Name = PipeName(nonce) }],
         };
         var exchange = ElevationExchange.Create(exchangeRoot, plan);
-        ElevatedProcess process;
+        ElevatedProcess? process = null;
+        NamedPipeClientStream? pipe = null;
         try
         {
-            process = ElevationBroker.Launch(broker, exchange.VolumePlanPath, exchange.Hash, WindowsFileOperations.OwnerWindow);
-        }
-        catch
-        {
-            exchange.Dispose();
-            throw;
-        }
-        var pipe = new NamedPipeClientStream(".", PipeName(nonce), PipeDirection.InOut, PipeOptions.None);
-        try
-        {
-            // The helper opens its pipe only after the user approves in its window.
-            while (true)
+            // Windows' consent prompt and then the helper's window wait for the person's answer. That wait is not the
+            // drive's: it does not count toward the I/O scheduler's hang threshold (I684). Reading the drive does.
+            using (DeviceIoScheduler.AwaitingUser())
             {
-                ct.ThrowIfCancellationRequested();
-                if (process.WaitForExit(0))
+                process = ElevationBroker.Launch(broker, exchange.VolumePlanPath, exchange.Hash, WindowsFileOperations.OwnerWindow);
+                pipe = new NamedPipeClientStream(".", PipeName(nonce), PipeDirection.InOut, PipeOptions.None);
+                // The helper opens its pipe only after the user approves in its window.
+                while (true)
                 {
-                    var result = exchange.ReadResult();
-                    if (result is { Consented: false, Refused: ElevationMessages.Declined } || result is null) throw new OperationCanceledException("Reading the drive was declined; nothing was read.");
-                    throw new IOException("The administrator helper refused to read the drive: " + (result.Refused ?? "it ended early."));
+                    ct.ThrowIfCancellationRequested();
+                    if (process.WaitForExit(0))
+                    {
+                        var result = exchange.ReadResult();
+                        if (result is { Consented: false, Refused: ElevationMessages.Declined } || result is null) throw new OperationCanceledException("Reading the drive was declined; nothing was read.");
+                        throw new IOException("The administrator helper refused to read the drive: " + (result.Refused ?? "it ended early."));
+                    }
+                    try
+                    {
+                        pipe.Connect(250);
+                        // A same-user process can read the plan's nonce and bind this name before the helper.
+                        // Verify the kernel peer against the held runas process before PipeDeviceSource sends Info.
+                        process.VerifyReadServer(pipe.SafePipeHandle);
+                        break;
+                    }
+                    catch (TimeoutException) { }
                 }
-                try
-                {
-                    pipe.Connect(250);
-                    // A same-user process can read the plan's nonce and bind this name before the helper.
-                    // Verify the kernel peer against the held runas process before PipeDeviceSource sends Info.
-                    process.VerifyReadServer(pipe.SafePipeHandle);
-                    break;
-                }
-                catch (TimeoutException) { }
             }
             return new BrokeredDeviceSource(pipe, description, process, exchange);
         }
         catch
         {
-            pipe.Dispose();
-            process.Dispose();
+            pipe?.Dispose();
+            process?.Dispose();
             exchange.Dispose();
             throw;
         }

@@ -63,8 +63,10 @@ public sealed class FileContentSource : IContentSource
     public FileContentSource(string path)
     {
         _path = path;
-        _handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read,
-            FileShare.ReadWrite | FileShare.Delete, FileOptions.RandomAccess);
+        // Windows asks for a smart card's PIN inside this open when the file is EFS-encrypted with a key on the card (I685).
+        using (FileSystem.SystemPrompts.OpeningContent(path))
+            _handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete, FileOptions.RandomAccess);
     }
 
     public string DisplayName => _path;

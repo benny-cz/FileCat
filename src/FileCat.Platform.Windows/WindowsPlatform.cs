@@ -22,6 +22,8 @@ public sealed class WindowsPlatform : PortablePlatform
             (job, _, _, journal) => new Elevation.ElevatedJobExecutor(job, journal);
         Core.Jobs.JobExecutors.ExtraExecutors[Core.Jobs.JobKind.Registry] =
             (job, _, _, journal) => new RegistryExecutor(job, journal);
+        // Opening an EFS file whose key is on a smart card can wait for the person's PIN (I685).
+        SystemPrompts.ContentMayAsk = WindowsEfsPrompts.MayAsk;
     }
 
     /// <summary>Owner window for Shell warnings (e.g. the permanent-deletion warning during recycle).</summary>

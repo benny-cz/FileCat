@@ -111,6 +111,9 @@ public class LocalFileSystemProvider : ResourceProvider
         FileSystemEnumerable<EntryData> enumerable;
         // Linux: each item's birth time, asked by name in the folder opened once (ToEntry leaves Created unknown there).
         using var births = OperatingSystem.IsLinux() && sink.IncludeBirthTimes ? LinuxBirthTime.OpenFolder(location.Path) : null;
+        // macOS can ask the person whether FileCat may read this folder, inside the open or the first read (I685).
+        using var prompt = SystemPrompts.ReadingFolder(location.Path);
+        bool asking = prompt.Kind is not null;
         try
         {
             // The folder is opened here, so a refusal to list it comes before any entry.
@@ -125,6 +128,7 @@ public class LocalFileSystemProvider : ResourceProvider
         }
         catch (UnauthorizedAccessException ex)
         {
+            prompt.Answered();
             if (ListableTargetOfRefusedLink(location.Path) is not { } target) throw;
             throw new LinkListingRefusedException(location.Path, target, ex);
         }
@@ -137,10 +141,21 @@ public class LocalFileSystemProvider : ResourceProvider
             {
                 moved = e.MoveNext();
             }
+            catch (UnauthorizedAccessException) when (asking)
+            {
+                prompt.Answered();
+                throw;
+            }
             catch (IOException ex) when (n > 0 && ex is not AmbiguousUnixNameException)
             {
                 sink.AddBatch(batch.AsSpan(0, n));
                 throw;
+            }
+            if (asking)
+            {
+                // The first read returned, so any question has been answered: the rest of the listing is measured.
+                asking = false;
+                prompt.Answered();
             }
             if (!moved) break;
             var entry = e.Current;

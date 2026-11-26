@@ -55,6 +55,7 @@ public sealed unsafe partial class UnixAnalysisBackend
         _identitySupported = parent._identitySupported;
         _apfs = parent._apfs;
         _modifiedPrecisionTicks = parent._modifiedPrecisionTicks;
+        _macVolumeFlags = parent._macVolumeFlags;
         _nativeClose = parent._nativeClose;
         string canonical = parent.Root.CanonicalLocator.TrimEnd('/') + "/" + relative;
         Root = new("1", "file", canonical, canonical, $"{facts.Device:X}:{facts.Inode:X}:{facts.Mount:X}", IdentityAssurance.Verified, name)

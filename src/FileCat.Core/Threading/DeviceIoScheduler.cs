@@ -40,9 +40,34 @@ public sealed partial class DeviceIoScheduler : IDisposable
 {
     [ThreadStatic] private static bool _isDeviceWorker;
     [ThreadStatic] private static bool _retireCurrentWorker;
+    // The clock of the device call this code runs for: set on the worker around each call, and carried into the work it
+    // awaits or starts (a provider's listing can connect on a pool thread while the worker waits for it). Only the clock
+    // is carried, so a context that outlives its call keeps nothing of the call's work or result.
+    private static readonly AsyncLocal<CallClock?> _currentCall = new();
     internal static bool IsDeviceWorker => _isDeviceWorker;
     /// <summary>A native thread-policy restoration failed; this thread must execute no further job.</summary>
     internal static void RetireCurrentWorker() => _retireCurrentWorker = true;
+
+    /// <summary>
+    /// Marks the device call this code runs for as waiting for a person: the system's dialog asking whether FileCat may
+    /// read a drive, or FileCat's own question for a server's password or key. Until the returned scope is disposed the
+    /// call's hang clock stands still, so a slow answer does not report the device as not responding; at the end the clock
+    /// restarts, and the device's own work after the answer is measured as usual (I684). The system's own steps inside
+    /// such a dialog's call, such as opening the drive after the approval, are not measured either. Outside a device call
+    /// it does nothing.
+    /// </summary>
+    public static IDisposable AwaitingUser()
+    {
+        if (_currentCall.Value is not { } clock) return UserWait.None;
+        Interlocked.Increment(ref clock.UserWaits);
+        return new UserWait(clock);
+    }
+
+    /// <summary>For tests: whether the device call this code runs for is waiting for a person.</summary>
+    internal static bool IsAwaitingUser => _currentCall.Value is { } clock && Volatile.Read(ref clock.UserWaits) > 0;
+    /// <summary>For tests: when the hang clock of the device call this code runs for last started.</summary>
+    internal static long? CurrentCallClock => _currentCall.Value is { } clock ? Volatile.Read(ref clock.Started) : null;
+
     private readonly ConcurrentDictionary<string, DeviceQueue> _devices = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _watchdog;
     private readonly CancellationTokenSource _stopping = new();
@@ -138,9 +163,17 @@ public sealed partial class DeviceIoScheduler : IDisposable
         }
     }
 
+    /// <summary>When a running call's hang clock started, and whether it is waiting for a person.</summary>
+    private sealed class CallClock
+    {
+        public long Started;
+        /// <summary>Open <see cref="AwaitingUser"/> scopes; the watchdog does not measure the call while any is open.</summary>
+        public int UserWaits;
+    }
+
     private abstract class WorkItem
     {
-        public long StartedTimestamp;
+        public readonly CallClock Clock = new();
         public abstract CancellationToken Token { get; }
         public abstract bool IsCompleted { get; }
         public abstract void Execute();
@@ -204,6 +237,22 @@ public sealed partial class DeviceIoScheduler : IDisposable
             // Nonblocking: cancellation can be executing this very registration. Do not keep a retired
             // work item rooted in an otherwise live CancellationTokenSource after shutdown/queue drain.
             _reg.Unregister();
+        }
+    }
+
+    private sealed class UserWait : IDisposable
+    {
+        internal static readonly UserWait None = new(null);
+        private CallClock? _clock;
+
+        internal UserWait(CallClock? clock) => _clock = clock;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _clock, null) is not { } clock) return;
+            // Restart the clock before the wait ends: a watchdog tick that sees the wait over then also sees the new start.
+            Volatile.Write(ref clock.Started, Stopwatch.GetTimestamp());
+            Interlocked.Decrement(ref clock.UserWaits);
         }
     }
 
@@ -323,9 +372,17 @@ public sealed partial class DeviceIoScheduler : IDisposable
                         }
                     }
                     self.Current = item;
-                    item.StartedTimestamp = Stopwatch.GetTimestamp();
+                    Volatile.Write(ref item.Clock.Started, Stopwatch.GetTimestamp());
                 }
-                item.Execute();
+                _currentCall.Value = item.Clock;
+                try
+                {
+                    item.Execute();
+                }
+                finally
+                {
+                    _currentCall.Value = null;
+                }
                 lock (_lock)
                 {
                     self.Current = null;
@@ -362,8 +419,11 @@ public sealed partial class DeviceIoScheduler : IDisposable
                 for (int i = 0; i < count; i++)
                 {
                     var w = _workers[i];
-                    if (w.Quarantined || w.Current is null) continue;
-                    if (Stopwatch.GetElapsedTime(w.Current.StartedTimestamp, now) > owner.HangThreshold)
+                    if (w.Quarantined || w.Current is not { } call) continue;
+                    // A call waiting for a person's answer is not hung (I684). Read the wait before the clock:
+                    // a wait that just ended restarted the clock before it ended.
+                    if (Volatile.Read(ref call.Clock.UserWaits) > 0) continue;
+                    if (Stopwatch.GetElapsedTime(Volatile.Read(ref call.Clock.Started), now) > owner.HangThreshold)
                     {
                         w.Quarantined = true;
                         if (_queue.Count > 0 && _workers.Count < owner.MaxThreadsPerDevice) StartWorker();

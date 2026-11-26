@@ -87,7 +87,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
     }
     // Windows' own software and TPM providers answer a silent check without waiting for hardware. A missing key there fails
     // at once; a TPM key that needs a PIN already reports interaction.
-    private static readonly HashSet<string> LocalKeyProviders = new(StringComparer.OrdinalIgnoreCase)
+    internal static readonly HashSet<string> LocalKeyProviders = new(StringComparer.OrdinalIgnoreCase)
     {
         "Microsoft Base Cryptographic Provider v1.0", "Microsoft Enhanced Cryptographic Provider v1.0", "Microsoft Strong Cryptographic Provider",
         "Microsoft Enhanced RSA and AES Cryptographic Provider", "Microsoft Software Key Storage Provider", "Microsoft Platform Crypto Provider",
