@@ -95,6 +95,11 @@ The release also holds one manifest per platform (`FileCat-1.0.0-windows-assets.
 - Linux: File-system details show a bind mount's source root again (I662).
 - Linux: one zombie process anywhere on the system, a program that has ended but whose parent never collected it, made deleted-file recovery refuse every mounted disk. The process check now passes over a process whose threads have all ended, as on macOS (I681).
 - Linux: started where it cannot open a window (no display is set, as over SSH or in a text console, or the X server refuses the connection), FileCat says why and exits, where it crashed with a core dump (I682).
+- A drive or server is no longer reported as not responding while FileCat waits for your answer to a question about it (I684, I685). Before, after 8 seconds the notice blamed the drive. This covers:
+  - reading a drive to recover deleted files, through macOS's, Linux's or Windows' approval;
+  - a server's key or password, a saved password that the keychain or keyring has to release, and Linux's sign-in to a server's shares;
+  - the EFS key backup;
+  - macOS's first question whether FileCat may read a protected folder or volume (Desktop, Documents, Downloads, iCloud Drive, a removable or network volume), and Windows' smart-card PIN for an EFS file. While such a first question is unanswered, a drive that really stops responding is not reported either.
 - Git badges take Git's own comparison settings into account, such as Git for Windows' `core.autocrlf`, are right in a repository's subfolders, and keep names that are not ASCII (I647, I657, I659). A file that only a clean filter such as Git LFS's could call changed reads "Git state unknown".
 - Screen readers hear readable names for keyboard reference rows, spin buttons, theme choices, Disk usage rows and Registry search results (I653), and every drawn picture tile (I664). VoiceOver no longer moves the keyboard on every layout change.
 - The Places bar moves a place that no longer fits to its overflow menu (I661); panel numbers follow a theme change (I663); the interrupted-operation list acts on the row that has the keyboard (I633); a one-step consent page says "this 1 step" (I669); a PDF error no longer doubles its period (I654).
