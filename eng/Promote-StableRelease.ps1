@@ -67,8 +67,12 @@ function Invoke-GitHub([string]$Endpoint, [string]$Method = 'GET', [string]$Inpu
     if ($InputPath) { $arguments += @('--input', $InputPath) }
     $arguments += $Endpoint
     $errorPath = [IO.Path]::GetTempFileName()
+    # gh writes UTF-8. PowerShell decodes a program's output with the console's code page, which turned the notes' "→"
+    # into other characters when the dry run of 2026-11-26 read its draft back on code page 437.
+    $consoleEncoding = [Console]::OutputEncoding
     try {
-        $out = & gh @arguments 2>$errorPath
+        [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+        try { $out = & gh @arguments 2>$errorPath } finally { [Console]::OutputEncoding = $consoleEncoding }
         if ($LASTEXITCODE -ne 0) {
             $message = (Get-Content -LiteralPath $errorPath -Raw)
             if ($AllowNotFound -and $message -match 'HTTP 404') { return $null }
