@@ -5851,3 +5851,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - The owner asked to clean all machines of leftovers and prepare them for rc.9's work. On the Ubuntu VM the session removed finished run folders, scripts, tarballs and temporary entries (107 GB used before, 36 GB after).
 - It had not first checked the records for citations there, as it did on the host and the Mac: 47 removed entries are named in `docs/`, and 15 file-system-details records cite raw files among them that exist nowhere else. No snapshot holds them. Each of those records now ends with a custody note; no candidate's evidence is affected ([custody](evidence/E-CUSTODY-20261126-ubuntu-cleanup.md)).
 - From now on the session checks `docs/` for a folder's name before removing it from any machine.
+
+## 2026-11-26 — rc.9's tagged run: I687 found; the owner keeps rc.9
+
+- rc.9's tagged run 45897912070 passed 18 of 19 test jobs in attempt 1. The macOS App tests (focus) failed one test of 1,624, I687: after F4 on a freshly replaced archive, no edit session opened. That is most likely hosted macOS stamping the archive as used, which the test allowed only at an earlier step. The packages and signing were skipped.
+- Asked to keep rc.9 or make rc.10, the owner chose "Keep rc.9 (Recommended)". [PR #78](https://github.com/benny-cz/FileCat/pull/78) fixes the test on main (merged as `7618b498` after run 45900683071). The session ran the failed job again (attempt 2) ([I687](evidence/E-I687-archive-f4-macos-stamp.md)).
