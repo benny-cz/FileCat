@@ -5758,3 +5758,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-26 — The owner's walkthrough and GA PC checklist move to rc.6
 
 - The consent walkthrough and the GA PC checklist now name rc.6: its tag and source, its signed draft's title, and the installer's cited lines at rc.6. rc.6 changes no consent path, so the steps are the same.
+
+## 2026-11-26 — rc.6's tagged run, Linux and macOS
+
+- Tagged run 45755406125: all 19 test jobs passed (73,817P/13,698S/0F), the same as PR #69's run test by test but for one Ubuntu test that runs or skips by the runner's disk. The three package jobs passed. The signing job has waited for the owner since 05:08Z ([rc.6](evidence/E-RC6-TAG-20261126.md)).
+- From the package jobs' artifacts: the Linux and macOS files match their manifests. Ubuntu passes all 26 rows, the Mac 33 of 35 with b23's and b28's known BLOCKED halves, and b1's placement round trip passes.
