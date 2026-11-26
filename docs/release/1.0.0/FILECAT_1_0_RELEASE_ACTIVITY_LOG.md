@@ -5739,3 +5739,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - I644: the launcher is signed everywhere; a denied folder's review and the framework-dependent package open administrator windows through their own launchers (audited). The upgrade check found I680. The prompt and window focus are the owner's W1 and W2.
 - I654: the associations editor's message for an unknown saved filter ends with one period ([rc.5](evidence/E-RC5-TAG-20261125.md)).
+
+## 2026-11-26 — I680's uninstall half
+
+- rc.5's uninstaller, run silently with FileCat open, exits with code 0 and removes the uninstall entry, but FileCat keeps running and 83 files stay (`batch44u`). Inno Setup's uninstaller does not use Restart Manager ([E-I680](evidence/E-I680-setup-cannot-close-running-filecat.md#uninstalling-with-filecat-open)).
+- PR #68 now also closes FileCat before uninstalling: the processes running from the installation's folder are asked to close, then ended. An interactive uninstall asks first. Every full CI run compiles the x64 installer and keeps its unsigned 0.0.0 Setup for a week, for the VM check before rc.6.
