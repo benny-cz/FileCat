@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**1049 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
+**1050 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -11,6 +11,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 
 | ID | What | Source | Class | Record | Issues |
 |---|---|---|---|---|---|
+| E-I680 | Setup cannot close a running FileCat: an upgrade with FileCat open aborts when silent and stalls when interactive | The installed rc.5 in the Windows VM; Restart Manager queried in the test account's session | Product finding: Restart Manager classifies FileCat's windowless helpers as unknown applications and cannot close them without force; the silent Setup exits with code 5. Fix: `CloseApplications=force`. | [Record](evidence/E-I680-setup-cannot-close-running-filecat.md) | I680 |
 | E-REP-RC5-20261126 | The Release Evidence Package of `v1.0.0-rc.5`: staged and verified for the owner's sealing | `build_rep.py` and `verify_rep.py`; `E:\FileCat\.tmp\rep-1.0.0-rc.5` | 969 files, 1,419,741,412 bytes; manifest SHA-256 `2d1a04eda383c4d7c96cdad90ad65a507ec11474d493a380d7ef69d31be6cb87`, committed in `v1.0.0-rc.5/`; 969 of 969 verified. Not yet sealed (DEC-10). | [Record](evidence/E-REP-RC5-20261126.md) | — |
 | E-REL-PIPELINE-PROMOTION-20261126 | Manifest-only promotion to the stable release: the tool, its refusals and a dry run on rc.5 | `eng/Promote-StableRelease.ps1` on branch `release-tools/promote-stable`; rc.5's private draft 458724408 | Seven wrong inputs refused before any write; a second promotion refused while a draft exists; the dry run copied, checked and deleted a private draft of all 24 assets. Nothing was published. | [Record](evidence/E-REL-PIPELINE-PROMOTION-20261126.md) | I18 |
 | E-RC5-TAG-20261125 | `v1.0.0-rc.5`: the owner's authorization and decisions, the exact source, the immutable tag and the tagged run | Tag object `f0deea22` at `19002592`; run 45707588571; drafts 458724408 and 458724105 | Candidate pipeline and c1: tagged run 45707588571 passed every job, its tests identical to PR #67's run (73,816P/13,699S/0F); the owner approved the signing; 1,475 PE files verified with 0 failed; drafts 458724408 (24 assets, all matching GitHub's digests and the manifests) and 458724105; c1 in the VM passed. | [Record](evidence/E-RC5-TAG-20261125.md) | I02/I18/I634/I672/I675/I677/REL-FQ-CANDIDATE |

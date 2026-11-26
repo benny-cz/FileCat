@@ -5730,3 +5730,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - c7: in a 760 x 480 window, Stop review is on screen while an interrupted copy's recovery review runs, and stops it with nothing copied. End reaches the last of 8 issues.
 - c28: the rest of I618's acceptance passes on Windows, at both sizes, and read-only in an administrator window. The walkthrough gains U5, a real Tab on Ubuntu, for I618's last check.
 - Seen on the way, by design: Continue copy… refuses a source beyond the recovery review's 64 MiB budget with a generic message ([rc.5](evidence/E-RC5-TAG-20261125.md)).
+
+## 2026-11-26 — I680: Setup cannot close a running FileCat
+
+- On the installed rc.5 in the VM, rc.5's Setup run over it with FileCat open (an ordinary window, with or without its icon helper, or an administrator window) exits with code 5 when silent: Restart Manager cannot shut down FileCat's windowless helpers (`--storage-cloud-query`, `ShellHost --serve`), which it classifies as unknown applications, without force. A forced `RmShutdown` closes all three. The fix, `CloseApplications=force` in the installer, needs a candidate after rc.5 ([I680](evidence/E-I680-setup-cannot-close-running-filecat.md)).
