@@ -4,7 +4,7 @@ FileCat 1.0.0 is the first stable release of FileCat, a keyboard-first, multi-pa
 
 **Windows 11 x64 is the stable tier.** Windows 11 ARM64, Ubuntu 24.04/26.04 x64 with GNOME, and macOS 26 or later on Apple silicon ship as **previews**. Their packages come from the same source and also call themselves 1.0.0; the release-blocking tier is Windows 11 x64 alone, and the [preview limits](#known-limitations) below apply to the others.
 
-These notes compare 1.0.0 with the last published preview, [1.0.0-preview.11](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.11) (source `7eb4766f`). Tag `v1.0.0` points at `[[candidate commit]]`, the source of release candidate `[[candidate tag, e.g. v1.0.0-rc.3]]`. This release publishes that candidate's packages unchanged.
+These notes compare 1.0.0 with the last published preview, [1.0.0-preview.11](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.11) (source `7eb4766f`). Tag `v1.0.0` points at `190025926133a827fdd2afc3e77a8a4e021303b6`, the source of release candidate `v1.0.0-rc.5`. This release publishes that candidate's packages unchanged.
 
 ## Downloads
 
@@ -26,13 +26,13 @@ The release also holds one manifest per platform (`FileCat-1.0.0-windows-assets.
 ## Verifying downloads
 
 - **Hashes.** Each platform manifest lists the name, size in bytes and SHA-256 of every other file for its platform, the source commit, and the candidate tag that built those bytes. GitHub shows the same SHA-256 beside each asset. Compute yours with `Get-FileHash -Algorithm SHA256 FILE` (PowerShell), `sha256sum FILE` (Linux) or `shasum -a 256 FILE` (macOS).
-- **Manifest SHA-256:** windows `[[windows manifest SHA-256]]`, linux `[[linux manifest SHA-256]]`, macos `[[macos manifest SHA-256]]`. The manifests were written when the packages were built: their `CandidateRef` names `[[candidate tag]]`, and their `CandidateQualified` and `SigningVerified` fields always read `false`, because a manifest pins bytes and records no decision.
+- **Manifest SHA-256:** windows `1f995eb15842886e6fa9658dcd769da64cb39145cad79d3ef0a6d010a7aa3881`, linux `98c69458f36af9d04d271408ac25604907b439e5a8963b124bca42ad33622fb3`, macos `8e94dee1c67c4fd2105dd4e2c3553c12fc8cef3db6d9f713898784704abfdffc`. The manifests were written when the packages were built: their `CandidateRef` names `refs/tags/v1.0.0-rc.5`, and their `CandidateQualified` and `SigningVerified` fields always read `false`, because a manifest pins bytes and records no decision.
 - **GitHub's attestation.** The release is immutable: its assets cannot be replaced after publication, and GitHub signs a release attestation over their digests. With the GitHub CLI, run `gh release verify v1.0.0 --repo benny-cz/FileCat`, and for a downloaded file `gh release verify-asset v1.0.0 FILE --repo benny-cz/FileCat`.
 - **Windows signatures (new in 1.0.0; the previews were unsigned).** Both Setups, their uninstallers, and every program and library in the Windows packages carry an Authenticode signature. Files their vendors signed, such as Microsoft's, keep the vendor's signature. Every other one, FileCat's own included, is signed by the project's maintainer with an individual-validated SSL.com certificate and an RFC 3161 timestamp. The certificate's subject is the maintainer's name and city, and Windows' prompts show it as the publisher. Check a file with `Get-AuthenticodeSignature FILE` (status `Valid`) or in Properties → Digital Signatures. A ZIP file itself carries no signature; the files inside it do.
 - **macOS.** `codesign --verify --deep --strict FileCat.app` checks that the bundle is intact. An ad-hoc signature names no publisher, so the hash and the attestation are what tie the app to this release.
 - **Ubuntu.** The `.deb`, AppImage and tarball carry no signature of their own; check them by hash and attestation. Inside the runtime-source bundle, `sha256sum -c --strict SHA256SUMS` checks its sources.
 - **SBOMs** list each payload's files, reviewed dependencies, runtime pack and source commit. They describe composition; they are not signatures.
-- **Candidate record:** tagged run `[[run ID]]` passed `[[N]]` test jobs (`[[passed]]` passed, `[[skipped]]` skipped, `[[failed]]` failed). The stable tier's installed check ran on a physical PC with a released Windows 11 `[[edition, version and build; Smart App Control state]]`.
+- **Candidate record:** tagged run `45707588571` passed 19 test jobs (73,816 tests passed, 13,699 skipped, 0 failed). The stable tier's installed check ran on a physical PC with a released Windows 11 `[[edition, version and build; Smart App Control state]]`.
 
 ## Installing, upgrading from a preview, and removing
 
@@ -87,7 +87,8 @@ The release also holds one manifest per platform (`FileCat-1.0.0-windows-assets.
 
 **Fixes**
 - Alt+Enter and Properties act on the marked items and ask you to select one when several are marked (I635). Analyze folder and column sorts keep Origin marks and alias or WSL link targets in order (I636).
-- Compare gives the keyboard to its rows when it opens and when Find closes (I637). Choosing Compare after a panel was read again with its dialog open now compares what the panels show; before, it did nothing (I668).
+- Compare gives the keyboard to its rows when it opens and when Find closes (I637). Choosing Compare after a panel was read again with its dialog open now compares what the panels show; before, it did nothing (I668). A finished comparison keeps its result, where a late progress report could put "Comparing… 100%" back (I673).
+- Windows network shares: a share or server that needs a sign-in now says so ("… requires credentials … Press Enter to sign in"), and Enter opens Windows' sign-in prompt, then lists it; before, Enter went up a level, and a share opened directly showed only Windows' "The user name or password is incorrect." (I672). Going to a share whose server does not answer, or starting FileCat on one, no longer stops FileCat's window until the connection times out, about 20 s; the panel shows "Loading…" and can be left (I675).
 - Windows: the folder's own menu (right-click empty space) offers the Shell's Paste, so a file cut in Explorer moves into the folder (I642). A Markdown page no longer stays blank when WebView2 never reports that it finished; Refresh works while a page loads, and after 10 s the status line says it has not finished (I648). A tool or Apply command whose program Windows cannot run, such as a 16-bit one, fails at once instead of waiting behind Windows' message box (I632).
 - Show pictures on a file's streams and attributes no longer ends FileCat; those rows show as plain tiles (I649).
 - macOS: typing a time in Change attributes and times no longer ends FileCat while an accessibility client is active (I650). Copies on APFS keep sparse files' holes (I652). An attribute value of a file now says why it cannot be read, where F3 did nothing (I651).
@@ -102,6 +103,7 @@ The release also holds one manifest per platform (`FileCat-1.0.0-windows-assets.
 - Dialogs keep the active theme's colors, and turning on high contrast while FileCat runs takes over from any theme.
 - A folder that keeps changing is read again at most every 2 s, quietly, and the status line says "changing often".
 - The recovery list says why a folder that was not deleted appears in it.
+- A picture that does not decode within its 30 s says whether its decoder was slow to start, was still being sent the picture, or did not answer (I677). In a report's recorded storage calls, **Next recorded call page** is off on the last page (I674).
 - The x64 installer also installs on Windows Server 2016 (see Downloads).
 
 ## Known limitations
@@ -162,7 +164,7 @@ See the [privacy policy](https://github.com/benny-cz/FileCat/blob/v1.0.0/docs/PR
 
 ## Sources
 
-For review: the files each section rests on. "main" is `origin/main` at `e9bddbca7`; "rc.3" is `origin/rc3/integration-3` at `fb4941a4b`, where a file differs or exists only there; the I670 and I671 lines rest on `9956448b8` (PRs #54 and #55).
+For review: the files each section rests on. "main" is `origin/main` at `e9bddbca7`; "rc.3" is `origin/rc3/integration-3` at `fb4941a4b`, where a file differs or exists only there; the I670 and I671 lines rest on `9956448b8` (PRs #54 and #55); the I672 to I675 and I677 lines, and the candidate's values, rest on main at `81fe1dece`: PRs #57, #58, #60, #61 and #63, the records `E-I672-unc-sign-in-enter.md`, `E-I673-I674-ui-state-races.md`, `E-I675-unanswering-share-window-stall.md` and `E-I677-first-picture-decode-timeout-ci.md`, and `E-RC5-TAG-20261125.md` (tag, run, drafts, manifests).
 
 - **Introduction and downloads:** `docs/release/1.0.0/FILECAT_1_0_RELEASE_BLOCKERS.md` (DEC-02, DEC-03 and DEC-14 on main; DEC-04 as amended on rc.3); `docs/release/1.0.0/evidence/E-DEC-2026-11-24-contract-amendments.md` (rc.3; I638 to I640); `docs/CAPABILITIES.md`, `README.md`, `docs/DOWNLOAD.md`, `docs/SERVICING.md` (rc.3); `eng/Select-ReleaseAssets.ps1`, `eng/installer/FileCat.iss`, `eng/package-linux.sh`, `eng/install-linux-desktop-entry.sh` (rc.3); `docs/release/1.0.0/evidence/E-I634-candidate-version-identity.md` and `E-RC2-TAG-20261124.md` (rc.3); `docs/design/FILECAT_1_0_RELEASE_READINESS_AND_VALIDATION_PLAN.md` sections 12.6, 13.1 and 13.2 (rc.3); `docs/release/1.0.0/PREVIEW11_RELEASE_NOTES.md` and `evidence/E-PREVIEW11-TAG-20261116.md` (preview.11 source and names).
 - **Verifying downloads:** `eng/Select-ReleaseAssets.ps1` (manifest fields); `.github/workflows/ci.yml` (rc.3: `package`, `package-linux`, `package-macos`, `sign-candidate`; `codesign --verify`, `sha256sum -c --strict SHA256SUMS`); `evidence/E-SIGN-DRYRUN-20261120.md`, `evidence/E-DEC-2026-11-20-signing-decisions.md`, `evidence/E-RC2-TAG-20261124.md` (signing scope, timestamps, `Get-AuthenticodeSignature`, signer disclosure); `evidence/E-PREVIEW11-TAG-20261116.md` (immutable release, `gh release verify` and `verify-asset`); `docs/SERVICING.md` (SBOMs, runtime-source bundle).
