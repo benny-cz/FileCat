@@ -45,6 +45,17 @@ public static partial class SingleInstance
         return Encoding.UTF8.GetString(bytes, 0, length);
     }
 
+    /// <summary>Linux: the process's status text, read through its directory and bounded (I681's thread count).</summary>
+    internal static string ReadLinuxProcessStatus(SafeFileHandle process)
+    {
+        using var status = OpenLinuxProcessEntry(process, "status", 0);
+        using var input = new FileStream(status, FileAccess.Read, 1);
+        var bytes = new byte[16384];
+        int length = 0, count;
+        while (length < bytes.Length && (count = input.Read(bytes, length, bytes.Length - length)) > 0) length += count;
+        return Encoding.UTF8.GetString(bytes, 0, length);
+    }
+
     /// <summary>
     /// Linux: whether the image the process runs is a FileCat apphost; null when that cannot be told. The exe entry is the
     /// kernel's own link to the running image and reaches it even after it was deleted. The name Process.MainModule gives
@@ -57,7 +68,8 @@ public static partial class SingleInstance
         try { image = OpenLinuxProcessEntry(process, "exe", LinuxNonBlock | LinuxNoControllingTerminal); }
         catch (IOException ex)
         {
-            // The process has exited, is a kernel thread or zombie without an image, or is not ours to inspect.
+            // The process has exited, is a kernel thread, a thread-group leader that exited before its other threads, or
+            // not ours to inspect. (Zombies whose threads have all exited are skipped before this, I681.)
             unknownReason = ex.Message;
             return null;
         }

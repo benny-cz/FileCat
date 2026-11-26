@@ -84,7 +84,12 @@ public static partial class SingleInstance
                         // Read this process's facts through one /proc directory descriptor: if it exits meanwhile they
                         // become unknown, never another process's that has taken over its ID.
                         linux = OpenLinuxProcess(process.Id);
-                        bool? kernel = KernelThreadFromStat(ReadLinuxProcessStat(linux));
+                        string stat = ReadLinuxProcessStat(linux);
+                        // I681: a zombie has exited and keeps only its exit status for its parent. No image, memory or
+                        // open file remains that could write to a disk, so it counts as gone, as macOS's SZOMB does.
+                        // Without this, one unreaped zombie of any program made every census unknown.
+                        if (StateFromStat(stat) is 'Z' or 'X' && ExitedFromStatus(ReadLinuxProcessStatus(linux)) == true) continue;
+                        bool? kernel = KernelThreadFromStat(stat);
                         if (kernel == true) continue; // A kernel thread cannot host the managed application.
                         unknown |= kernel is null;
                     }
@@ -170,6 +175,40 @@ public static partial class SingleInstance
     // Electron and native tooling apphosts commonly exceed 64 MiB. Keep a finite
     // limit, but inspect mainstream executable sizes before declaring identity unknown.
     internal const int RecoveryProcessImageReadLimit = 512 * 1024 * 1024;
+
+    /// <summary>Linux: the state letter of a stat line (proc(5) field 3); null when the line cannot be read.</summary>
+    internal static char? StateFromStat(string stat)
+    {
+        // The command may contain ')' and spaces: the state is the first field after the last ')'.
+        int end = stat.LastIndexOf(')');
+        if (stat.Length > 4096 || end < 0) return null;
+        var fields = stat[(end + 1)..].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return fields.Length > 0 && fields[0].Length == 1 ? fields[0][0] : null;
+    }
+
+    /// <summary>
+    /// Linux (I681): whether a process's status says it has exited altogether: a zombie (Z) or dead (X) task that is its
+    /// process's only thread. A thread-group leader that exited while its other threads run also reads Z, with more than
+    /// one thread, and is still running. Null when the status lacks either line.
+    /// </summary>
+    internal static bool? ExitedFromStatus(string status)
+    {
+        char? state = null;
+        int? threads = null;
+        foreach (string line in status.Split('\n'))
+        {
+            if (line.StartsWith("State:", StringComparison.Ordinal))
+            {
+                string value = line["State:".Length..].Trim();
+                if (value.Length > 0) state = value[0];
+            }
+            else if (line.StartsWith("Threads:", StringComparison.Ordinal) &&
+                     int.TryParse(line["Threads:".Length..].Trim(), System.Globalization.NumberStyles.None,
+                         System.Globalization.CultureInfo.InvariantCulture, out int count)) threads = count;
+        }
+        if (state is null || threads is null) return null;
+        return state is 'Z' or 'X' && threads <= 1;
+    }
 
     internal static bool? KernelThreadFromStat(string stat)
     {
