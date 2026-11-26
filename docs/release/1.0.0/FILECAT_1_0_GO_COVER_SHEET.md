@@ -94,8 +94,8 @@ After a GO, in this order:
 
 ## Unresolved issues: proposed dispositions
 
-The [register](FILECAT_1_0_RELEASE_ISSUES.md#summary) has 20 unresolved rows.
-- **Known defects:** I677's cause is unproven, [I682](evidence/E-I682-no-display-abort.md) is a known defect in rc.7, and [I683](evidence/E-I683-page-test-late-favicon.md) is a test defect that rc.8's tagged run found. None of the other 17 names a known defect in rc.7.
+The [register](FILECAT_1_0_RELEASE_ISSUES.md#summary) has 19 unresolved rows.
+- **Known defects:** I677's cause is unproven, and [I682](evidence/E-I682-no-display-abort.md) is a known defect in rc.7, fixed in rc.8. None of the other 17 names a known defect in rc.7. [I683](evidence/E-I683-page-test-late-favicon.md), a test defect that rc.8's tagged run found, is remediated on main; no shipped file changes, and the owner kept rc.8.
 - **Remediated preliminarily:** [I680](evidence/E-I680-setup-cannot-close-running-filecat.md), found on rc.5, in rc.6; [I681](evidence/E-I681-linux-census-zombie.md), found on rc.6, in rc.7.
 
 Each closes on a step above or on the owner's acceptance:
@@ -121,7 +121,6 @@ Each closes on a step above or on the owner's acceptance:
 | [I529](FILECAT_1_0_RELEASE_ISSUES.md#i529) Mac hard-link timeout (CI) | Instrumented; the hard-link approval cases pass on macOS in rc.5's, rc.6's and rc.7's tagged runs | Close; cause unproven, instrumentation stays | The owner's acceptance |
 | [I677](FILECAT_1_0_RELEASE_ISSUES.md#i677) First picture decode over 30 s (CI, once) | Open by the owner's decision for rc.5, diagnostics in, and unchanged since; the case passes on all four lanes of rc.5's, rc.6's and rc.7's tagged runs | Ship with I677 open as a known issue, or hold 1.0.0 | The owner's decision |
 | [I682](FILECAT_1_0_RELEASE_ISSUES.md#i682) No display: core dump (Linux) | Found on rc.7; PR #72 merged (`6b1c3419`), not in rc.7 | Fixed in rc.8, the owner's choice | rc.8 |
-| [I683](FILECAT_1_0_RELEASE_ISSUES.md#i683) Page test took a late favicon request (CI) | Found by rc.8's tagged run on Windows ARM64; the product reported once, as it should; PR #74 fixes the test | Fix the test on main; no shipped file changes, so rc.8's packages stay the same. The owner chose to keep rc.8 ("keep rc.8") | PR #74 |
 
 DEC-14 also closes, by scope on the candidate's results, the older register rows that say only that candidate qualification remains (d11), except AC-11's phone Move (step 3 above).
 

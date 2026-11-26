@@ -5808,3 +5808,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-26 — The owner keeps rc.8 with I683's test fix on main
 
 - Asked whether to keep rc.8 with I683's test-only fix on main or cut rc.9 with it, the owner answered "keep rc.8" ([I683](evidence/E-I683-page-test-late-favicon.md)). The tagged run's failed job is run again so that rc.8's packages and signing can follow.
+
+## 2026-11-26 — I683's test fix merged; rc.8's tagged run run again
+
+- PR #74 merged (`ce85f6ac`) after its full run 45839173625 passed. I683 moves to "Remediated preliminarily" ([I683](evidence/E-I683-page-test-late-favicon.md)).
+- rc.8's tagged run 45835859037 ended its first attempt with two failed jobs: the ARM64 lane's I683 test, and macOS's App tests ("The hosted runner lost communication with the server", GitHub's capacity notice for macOS arm64). The session ran both again as attempt 2, which runs the package and signing jobs after them.

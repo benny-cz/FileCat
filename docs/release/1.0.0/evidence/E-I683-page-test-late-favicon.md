@@ -36,3 +36,9 @@ Against the failing timeline, the measure is 10.83 − 4.07 = 6.76 s, within the
 - **No shipped file changes:** rc.8's packages are the same with or without the fix.
 - **Getting rc.8's packages:** the tagged run's failed ARM64 job is run again, so the package and signing jobs, which need it, can run.
 - **The owner's decision:** asked whether to keep rc.8 with the fix on main or cut rc.9 with it, the owner answered "keep rc.8". rc.8's source keeps the old test; main and every later release carry the fix.
+
+## Merged (2026-11-26)
+
+PR #74 merged into main as `ce85f6ac` after its full-matrix run 45839173625 passed all 19 jobs. The test passed on both Windows lanes, x64 and ARM64. I683 is remediated preliminarily on main.
+
+rc.8's tagged run was run again for its failed jobs (attempt 2). Its source keeps the old test, whose late-favicon case is rare: it passed in PR #73's run and in rc.3's to rc.7's tagged runs.
