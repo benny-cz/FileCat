@@ -5734,3 +5734,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-26 — I680: Setup cannot close a running FileCat
 
 - On the installed rc.5 in the VM, rc.5's Setup run over it with FileCat open (an ordinary window, with or without its icon helper, or an administrator window) exits with code 5 when silent: Restart Manager cannot shut down FileCat's windowless helpers (`--storage-cloud-query`, `ShellHost --serve`), which it classifies as unknown applications, without force. A forced `RmShutdown` closes all three. The fix, `CloseApplications=force` in the installer, needs a candidate after rc.5 ([I680](evidence/E-I680-setup-cannot-close-running-filecat.md)).
+
+## 2026-11-26 — I644's and I654's candidate checks on rc.5
+
+- I644: the launcher is signed everywhere; a denied folder's review and the framework-dependent package open administrator windows through their own launchers (audited). The upgrade check found I680. The prompt and window focus are the owner's W1 and W2.
+- I654: the associations editor's message for an unknown saved filter ends with one period ([rc.5](evidence/E-RC5-TAG-20261125.md)).
