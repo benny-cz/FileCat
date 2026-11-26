@@ -53,6 +53,26 @@ The changes are in the installer only (PR #68). They reach users in a candidate 
 - the same with an administrator window open;
 - an uninstall with FileCat open, silent and interactive, leaving no FileCat process running and none of its files.
 
+## Checked before the candidate, on CI's test Setup (2026-11-26)
+
+PR #68's full CI run (`45746120969`, all 19 jobs passed) built the unsigned 0.0.0 Setup from the PR merged with main (`ea451d52`; SHA-256 `9923dbb703f9dcf3867bf2a9a293132b81c483c934ea30b6750bf68628d36786`). In the Windows 11 25H2 qualification VM, over the installed rc.5, an elevated scenario ran Setup and the uninstaller, as UAC's prompt would. The ordinary windows were started through Explorer, so they ran without elevation, as a user's do:
+
+| Case | Result |
+|---|---|
+| T1 a silent upgrade with an ordinary window open | Setup exit 0, the test build installed. Restart Manager: "Shutting down applications using our files. (forced)". FileCat itself ended normally (exit code 0), and no FileCat process was left. |
+| T2 the same with an administrator window open | Setup exit 0, FileCat exit code 0, no FileCat process left. |
+| T3 a silent uninstall with an idle ordinary window | Uninstall exit 0. The log says "FileCat is running from this folder (three processes); asking it to close.", then "FileCat is closed." FileCat ended normally (exit code 0), with no file and no uninstall entry left. |
+| T4 a silent uninstall while FileCat copies 8 GB | FileCat answered the close request with its "Operations are still running" question. Unanswered, it was ended after 10 s ("Ending FileCat", exit code 1). Uninstall exit 0, no file and no uninstall entry left. |
+| T5 an interactive uninstall while FileCat copies | After the uninstaller's confirmation, FileCat asked its question. The uninstaller's box "FileCat is still running" offered Check again and End FileCat. Answering FileCat's question (Stop them and exit) ended FileCat normally (exit code 0). Check again then let the uninstall finish: "FileCat was successfully removed from your computer." Nothing was ended by force, and no file was left. |
+
+Notes on the runs:
+- T1 to T3 ran in `batch44v`. Its T4 and T5 failed in the harness, not in Setup: the 0.0.0 build's start-up update offer took the keyboard. In `batch44v2` the copy's start went unseen, because FileCat copies under a temporary name.
+- `batch44v3` passed T4 but saw no question 5 s in. Its T5 looked for the uninstaller's boxes under the wrong process name: Inno 6.7's working copy is `_unins.tmp`. The diagnostics `diag44v`, `diag44v2` and `diag44v3` showed FileCat asking within 2 s of the close request in every combination: rc.5 or the test build, the offer answered through UI Automation or the keyboard, one process ID or all three, and the 64-bit or the 32-bit `taskkill` (the uninstaller is a 32-bit process).
+- `batch44v4` ran T4 and T5 again and passed both. T4 looked at FileCat 3, 6 and 9 s in. The uninstaller's log did not exist yet at 6 s, and the question was there at 9 s. The uninstaller simply takes several seconds to start its working copy.
+- Each run installed rc.5 again at the end. After `batch44v4` its uninstaller is `unins000.exe`. An earlier reinstall had named it `unins001.exe`, because `batch44v3`'s stopped T5 uninstaller still held `unins000.dat`.
+
+On rc.6's own Setup the same cases run again.
+
 ## Records
 
-The scenarios are in the Release Evidence Package's harness (`batch44x`, `batch44y`, `batch44w`, `batch44u`, `Invoke-FqI644Rest.ps1`). They lower UAC's consent prompt in the VM for their run, as batch28 does, and restored it each time (`ConsentPromptBehaviorAdmin` back to 5).
+The scenarios are in the Release Evidence Package's harness (`batch44x`, `batch44y`, `batch44w`, `batch44u`, `Invoke-FqI644Rest.ps1`; for the fix, `batch44v` to `batch44v4`, `diag44v` to `diag44v3` and `Invoke-FqI680Fix.ps1`). They lower UAC's consent prompt in the VM for their run, as batch28 does, and restored it each time (`ConsentPromptBehaviorAdmin` back to 5). The fix's runs left it at 5: an elevated scenario starts Setup and the uninstaller without a prompt.

@@ -5744,3 +5744,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - rc.5's uninstaller, run silently with FileCat open, exits with code 0 and removes the uninstall entry, but FileCat keeps running and 83 files stay (`batch44u`). Inno Setup's uninstaller does not use Restart Manager ([E-I680](evidence/E-I680-setup-cannot-close-running-filecat.md#uninstalling-with-filecat-open)).
 - PR #68 now also closes FileCat before uninstalling: the processes running from the installation's folder are asked to close, then ended. An interactive uninstall asks first. Every full CI run compiles the x64 installer and keeps its unsigned 0.0.0 Setup for a week, for the VM check before rc.6.
+
+## 2026-11-26 — I680's fix merged and checked before the candidate
+
+- PR #68 merged (`9d3deb47`) after its full run `45746120969` passed. The run's new x64 installer compile passed too, and its unsigned 0.0.0 Setup was used for the VM checks.
+- In the VM, on that Setup: T1 to T5 pass ([E-I680](evidence/E-I680-setup-cannot-close-running-filecat.md#checked-before-the-candidate-on-cis-test-setup-2026-11-26)). FileCat closes when asked, and FileCat's own question about running work comes first. Only an unanswered question leads to a forced end, and every uninstall leaves no file. Harness misses on the way (the test build's update offer, the copy's temporary name, the uninstaller's process name) are recorded there.
