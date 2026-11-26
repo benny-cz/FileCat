@@ -2,6 +2,8 @@
 
 Prepared 2026-11-26 by the release session for the owner, the human GO approver (DEC-01), and moved to `v1.0.0-rc.6` the same day. The plan's section 12.6 sets what GO needs; this sheet says where each part stands for the candidate `v1.0.0-rc.6`. **Recommendation today: NO-GO**, until the owner's steps below are done. rc.6 is rc.5 plus the fix of [I680](evidence/E-I680-setup-cannot-close-running-filecat.md), which rc.5's qualification found: Setup could not close a running FileCat, and its uninstaller left FileCat running and its files in place. Apart from the version, rc.6's shipped files differ from rc.5's only in the installer. rc.6's own checks cover what changed (the plan's section 11.2), and the rest of rc.5's qualification carries over. If the owner's steps pass and the owner accepts the proposed dispositions, the recommendation becomes GO.
 
+**Update, 2026-11-26 (I681, rc.7):** the owner's walkthrough on rc.6 found [I681](evidence/E-I681-linux-census-zombie.md). On Linux, one unreaped zombie process made the recovery census unknown, so FileCat refused to scan a mounted disk. The owner chose to fix it in rc.7 ("Yes, fix and rc.7"); PR #70 has the fix. The Windows section of the walkthrough (W1 to W7) passed on rc.6. U1 and U2 passed; U3 to U5 and the Mac section follow on rc.7. This sheet moves to rc.7 when rc.7 is signed and checked.
+
 ## The candidate
 
 | | |

@@ -5777,3 +5777,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-26 — rc.6's Release Evidence Package staged
 
 - Staged at `E:\FileCat\.tmp\rep-1.0.0-rc.6` and verified: 1,472 files, 2,897,195,971 bytes, manifest SHA-256 `c319f22f4949b3365e2d1846dc4985aea4e37b6d910104631627b19a6a1b7ae2`, committed in `v1.0.0-rc.6/` ([REP](evidence/E-REP-RC6-20261126.md)). It holds rc.6's assets and evidence, with rc.5's package carried whole under `carried/rc5/`, including the evidence added after rc.5's staging. `Seal-Rep.ps1` now defaults to rc.6. The package is rebuilt before GO with the owner's steps.
+
+## 2026-11-26 — The owner's walkthrough on rc.6: Windows passes; I681 found on Ubuntu
+
+- Windows, W1 to W7: all pass, each step confirmed in Windows' process records (4688) and, for W5 and W7, NTFS's change journal. W2 and W5 counted only once done through FileCat's own menu and helper; earlier attempts were recorded and not counted. The launcher-opened administrator window comes to the front by itself (E-I644's open question).
+- Ubuntu: U1 and U2 pass. U3 found [I681](evidence/E-I681-linux-census-zombie.md): an unreaped zombie made the root census unknown, so recovery refused the owner's stick although the owner's password was accepted. PR #70 fixes it; the owner chose rc.7.
