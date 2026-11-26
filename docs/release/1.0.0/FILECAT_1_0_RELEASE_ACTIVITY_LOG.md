@@ -5845,3 +5845,9 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - PR #76 synced `release/1.0` with main at `a08e4d70`; its run 45890542893 passed all 19 jobs. Merged as `d169f491`, whose tree is main's.
 - Tagged `v1.0.0-rc.9` (tag object `b61fb227`) at `d169f491`, as the owner chose rc.9 for I684 and I685. The tagged run 45897912070 started at 21:24:20Z; it stops for the owner's approval of the `signing` deployment ([rc.9](evidence/E-RC9-TAG-20261126.md)).
+
+## 2026-11-26 — Test machines cleaned; a custody loss on the Ubuntu VM
+
+- The owner asked to clean all machines of leftovers and prepare them for rc.9's work. On the Ubuntu VM the session removed finished run folders, scripts, tarballs and temporary entries (107 GB used before, 36 GB after).
+- It had not first checked the records for citations there, as it did on the host and the Mac: 47 removed entries are named in `docs/`, and 15 file-system-details records cite raw files among them that exist nowhere else. No snapshot holds them. Each of those records now ends with a custody note; no candidate's evidence is affected ([custody](evidence/E-CUSTODY-20261126-ubuntu-cleanup.md)).
+- From now on the session checks `docs/` for a folder's name before removing it from any machine.
