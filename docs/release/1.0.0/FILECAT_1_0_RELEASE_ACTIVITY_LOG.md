@@ -5782,3 +5782,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - Windows, W1 to W7: all pass, each step confirmed in Windows' process records (4688) and, for W5 and W7, NTFS's change journal. W2 and W5 counted only once done through FileCat's own menu and helper; earlier attempts were recorded and not counted. The launcher-opened administrator window comes to the front by itself (E-I644's open question).
 - Ubuntu: U1 and U2 pass. U3 found [I681](evidence/E-I681-linux-census-zombie.md): an unreaped zombie made the root census unknown, so recovery refused the owner's stick although the owner's password was accepted. PR #70 fixes it; the owner chose rc.7.
+
+## 2026-11-26 — I681's fix merged
+
+- PR #70 merged (`0c1049b7`) after its full run 45794347786 passed; the new zombie test ran and passed on Ubuntu ([I681](evidence/E-I681-linux-census-zombie.md)). The sync to `release/1.0` and rc.7 follow.

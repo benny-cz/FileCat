@@ -50,4 +50,4 @@ PR #70 (`src/FileCat.App/SingleInstance.cs`, `SingleInstance.ProcessImages.cs`).
 - With the skip line removed, the zombie test fails: "Assert.False() Failure, Expected: False, Actual: null".
 - Beside the VM's real zombie, rc.6's root census exits 3. The fixed build replies `FileCatRecoveryProcessCensusV1:<nonce>:clear` with exit 0.
 
-The fix reaches users in rc.7. On rc.7 the owner repeats U2 to U4 of the walkthrough, which run exactly this path.
+PR #70 is merged into main as `0c1049b7` after its full-matrix run 45794347786 passed all 19 jobs; in its Ubuntu App tests the zombie test ran and passed. The fix reaches users in rc.7. On rc.7 the owner repeats U2 to U4 of the walkthrough, which run exactly this path.
