@@ -45,3 +45,9 @@ Any other exception still propagates.
 - **Without the fix:** rc.7's package, started the same way, ends with exit 134 and "Unhandled exception". That fails both of the test's assertions.
 
 The unfixed build was not run through the test again, since every abort would open another crash dialog on the VM.
+
+## The owner's decision and the merge (2026-11-26)
+
+- **The owner chose rc.8:** asked to cut rc.8 with the fix or take rc.7 to GO with I682 open, the owner answered "Yes, make rc.8".
+- **PR #72 merged** into main as `6b1c3419` after its full-matrix run 45823749293 passed all 19 jobs. In that run's Ubuntu App tests, both Linux cases ran and passed: no display, and `:987`.
+- **What follows:** the fix reaches users in rc.8. On rc.8's installed package, the session repeats the start without a usable display, three ways.

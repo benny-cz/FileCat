@@ -5795,3 +5795,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - Ubuntu passes 26 of 26 rows, and the Mac 33 of 35 with its known BLOCKED halves; b1 passes. Beside the Ubuntu VM's zombie, rc.7's root census replies clear where rc.6's answered unknown. I681 moves to "Remediated preliminarily" ([I681](evidence/E-I681-linux-census-zombie.md)).
 - The census control's first start, from SSH without the desktop's X authority, found I682: on Linux, FileCat without a usable X display crashed with a core dump. PR #72 fixes it, and the session proposes rc.8 ([I682](evidence/E-I682-no-display-abort.md)). The session removed its crash reports and crash dialogs from the VM.
 - The owner's walkthrough and GA PC checklist point at rc.7. Their `ci.yml` citations, stale since rc.6, are corrected.
+
+## 2026-11-26 — The owner chose rc.8; I682's fix merged
+
+- Asked to cut rc.8 with I682's fix or take rc.7 to GO with I682 open, the owner answered "Yes, make rc.8". PR #72 merged (`6b1c3419`) after its full run 45823749293 passed; both of its Linux cases ran on Ubuntu ([I682](evidence/E-I682-no-display-abort.md)). The sync to `release/1.0` and rc.8 follow.

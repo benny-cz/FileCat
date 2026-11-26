@@ -6,7 +6,7 @@ Prepared 2026-11-26 by the release session for the owner, the human GO approver 
 - **Coverage:** rc.7's own checks cover what changed (the plan's section 11.2), and the rest of rc.6's and rc.5's qualification carries over.
 - **Then:** if the owner's steps pass and the owner accepts the proposed dispositions, the recommendation becomes GO.
 
-**Update, 2026-11-26 (I682): the owner chooses the candidate.** rc.7's qualification found [I682](evidence/E-I682-no-display-abort.md): on Linux, FileCat started without a usable X display crashed with a core dump instead of saying why. Starts over SSH, in a text console, or after `su -` or `pkexec` meet it. It is Low, and nothing is read or written.
+**Update, 2026-11-26 (I682): the owner chose rc.8 ("Yes, make rc.8").** PR #72 is merged (`6b1c3419`); rc.8 follows, and this sheet moves to it when rc.8 is signed and checked. The rest of this paragraph is what the owner chose from. rc.7's qualification found [I682](evidence/E-I682-no-display-abort.md): on Linux, FileCat started without a usable X display crashed with a core dump instead of saying why. Starts over SSH, in a text console, or after `su -` or `pkexec` meet it. It is Low, and nothing is read or written.
 - **The fix:** [PR #72](https://github.com/benny-cz/FileCat/pull/72) makes FileCat print why and exit with 1.
 - **The proposal:** under the owner's rule that every known issue is fixed for the next candidate, the session proposes **rc.8**: rc.7 plus that fix. rc.8's own checks would repeat rc.7's.
 - **The other choice** is to take rc.7 to GO with I682 open as a known issue.
@@ -68,7 +68,7 @@ Prepared 2026-11-26 by the release session for the owner, the human GO approver 
 
 ## The owner's steps before GO
 
-0. **The candidate:** rc.8 with I682's fix (proposed), or rc.7 with I682 open. The steps below then run on that candidate.
+0. **The candidate:** rc.8 with I682's fix, the owner's choice ("Yes, make rc.8"). The steps below run on rc.8 once it is signed and checked.
 1. **The consent walkthrough** ([walkthrough](FILECAT_1_0_RC3_CONSENT_WALKTHROUGH.md)):
    - **Ubuntu:** the section in full, U1 to U5: polkit, a USB stick's identity, and one real Tab in Settings (I618's last check).
    - **Mac:** M1 to M9: Gatekeeper, TCC and authopen.
@@ -120,7 +120,7 @@ Each closes on a step above or on the owner's acceptance:
 | [I518](FILECAT_1_0_RELEASE_ISSUES.md#i518) Mac PathLine clipboard (CI) | Fixture revised; all 7 PathLine cases pass on macOS in rc.5's, rc.6's and rc.7's tagged runs | Close; cause unproven | The owner's acceptance |
 | [I529](FILECAT_1_0_RELEASE_ISSUES.md#i529) Mac hard-link timeout (CI) | Instrumented; the hard-link approval cases pass on macOS in rc.5's, rc.6's and rc.7's tagged runs | Close; cause unproven, instrumentation stays | The owner's acceptance |
 | [I677](FILECAT_1_0_RELEASE_ISSUES.md#i677) First picture decode over 30 s (CI, once) | Open by the owner's decision for rc.5, diagnostics in, and unchanged since; the case passes on all four lanes of rc.5's, rc.6's and rc.7's tagged runs | Ship with I677 open as a known issue, or hold 1.0.0 | The owner's decision |
-| [I682](FILECAT_1_0_RELEASE_ISSUES.md#i682) No display: core dump (Linux) | Found on rc.7; fixed in PR #72, not in rc.7 | Fix in rc.8 (proposed), or ship rc.7 with I682 open as a known issue | The owner's decision |
+| [I682](FILECAT_1_0_RELEASE_ISSUES.md#i682) No display: core dump (Linux) | Found on rc.7; PR #72 merged (`6b1c3419`), not in rc.7 | Fixed in rc.8, the owner's choice | rc.8 |
 
 DEC-14 also closes, by scope on the candidate's results, the older register rows that say only that candidate qualification remains (d11), except AC-11's phone Move (step 3 above).
 
