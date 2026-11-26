@@ -5769,3 +5769,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - The owner approved rc.6's `signing` deployment in GitHub and confirmed it here ("Approved"). Signing and verification gave rc.4's and rc.5's counts. Private draft 459101740 holds the 24 assets; all 24 match GitHub's digests and the manifests ([rc.6](evidence/E-RC6-TAG-20261126.md)).
 - Against rc.5, the packages hold the same entries with the same sizes. Before signing, only FileCat's own 28 version-stamped x64 programs and libraries differ; every vendor file is byte-identical.
 - In the VM: c1 passes from a clean state. The first run kept an empty program folder that an earlier install had not created, a leftover of the I680 baseline (`batch44u`). I680's five cases pass on rc.6's signed Setup, folder checks included ([I680](evidence/E-I680-setup-cannot-close-running-filecat.md)). I680 moves to "Remediated preliminarily". The VM ends with rc.6 installed afresh for the owner's walkthrough.
+
+## 2026-11-26 — The cover sheet and release notes move to rc.6
+
+- The GO cover sheet now describes rc.6: its tag, run, drafts and manifests; what passed on rc.6 and what carries over from rc.5; and the 18 unresolved rows, now that I680 is remediated. The release notes (`d54e7096`) carry rc.6's values; two GO lines stay open. The REP is rebuilt for rc.6 next.
