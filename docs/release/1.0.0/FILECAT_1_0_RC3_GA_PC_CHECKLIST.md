@@ -1,8 +1,8 @@
-# FileCat 1.0.0 rc.6: GA PC checklist (REL-WIN-GA)
+# FileCat 1.0.0 rc.7: GA PC checklist (REL-WIN-GA)
 
-Prepared 2026-11-25, updated for rc.5 the same day and for rc.6 on 2026-11-26. rc.5 differs from rc.3 only by I672 to I679 (signing in to a share on Windows, a share whose server does not answer no longer stopping the window, a picture timeout's wording, two status races, and tests). rc.6 differs from rc.5 only by I680: Setup and the uninstaller close a running FileCat. None of these is on a consent path, so the steps are unchanged. Under [DEC-14](evidence/E-DEC-2026-11-24-release-scope.md) you provide a physical PC with a released (GA) Windows 11. On it you install rc.6's x64 Setup, start FileCat, use it and remove it, with Smart App Control enforcing while FileCat's programs load. This closes checklist d1 in the [rc.2 checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md): REL-WIN-GA (ENV-03) and the GA-tier Smart App Control part of REL-SIGN-WINDOWS. It takes about 45 minutes. **[Admin]** marks a step that needs administrator approval.
+Prepared 2026-11-25, updated for rc.5 the same day, and for rc.6 and rc.7 on 2026-11-26. rc.5 differs from rc.3 only by I672 to I679 (signing in to a share on Windows, a share whose server does not answer no longer stopping the window, a picture timeout's wording, two status races, and tests). rc.6 differs from rc.5 only by I680: Setup and the uninstaller close a running FileCat. rc.7 differs from rc.6 only by I681, in Linux's process check. The steps are unchanged. Under [DEC-14](evidence/E-DEC-2026-11-24-release-scope.md) you provide a physical PC with a released (GA) Windows 11. On it you install rc.7's x64 Setup, start FileCat, use it and remove it, with Smart App Control enforcing while FileCat's programs load. This closes checklist d1 in the [rc.2 checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md): REL-WIN-GA (ENV-03) and the GA-tier Smart App Control part of REL-SIGN-WINDOWS. It takes about 45 minutes. **[Admin]** marks a step that needs administrator approval.
 
-**Rules:** as in the [consent walkthrough](FILECAT_1_0_RC3_CONSENT_WALKTHROUGH.md). Test rc.6 only; stop at the first Fail; never put your name in the chat; **Unverified** marks text that neither rc.6's source nor a record gives. Source notes cite source files at the `v1.0.0-rc.6` tag (`6d814134`), re-checked on 2026-11-26 as the walkthrough says, and records at `main` `7a15ac8b` unless marked "rc3" (`rc3/integration-3`, `94b74365`).
+**Rules:** as in the [consent walkthrough](FILECAT_1_0_RC3_CONSENT_WALKTHROUGH.md). Test rc.7 only; stop at the first Fail; never put your name in the chat; **Unverified** marks text that neither rc.7's source nor a record gives. Source notes cite source files at the `v1.0.0-rc.7` tag (`d8810842`), re-checked on 2026-11-26 as the walkthrough says, and records at `main` `7a15ac8b` unless marked "rc3" (`rc3/integration-3`, `94b74365`).
 
 **You need:** your GitHub sign-in in a browser on this PC (the draft is private), a PDF, a folder with a few JPEG or PNG pictures, a small folder of your own to pack, and optionally a USB stick with a FAT or exFAT volume (G8).
 
@@ -56,11 +56,11 @@ Test-Path 'C:\Program Files\FileCat', "$env:APPDATA\FileCat", "$env:LOCALAPPDATA
 <details><summary>Source</summary>evidence/E-SIGN-DRYRUN-20261120.md:122</details>
 
 ### G3 · Download
-- **Do:** In the browser, signed in to GitHub, open the repository's Releases and the draft "FileCat v1.0.0-rc.6 (signed release candidate)". Download `FileCat-1.0.0-win-x64-setup.exe` and `FileCat-1.0.0-windows-assets.json`. Do not unblock the Setup in its Properties.
+- **Do:** In the browser, signed in to GitHub, open the repository's Releases and the draft "FileCat v1.0.0-rc.7 (signed release candidate)". Download `FileCat-1.0.0-win-x64-setup.exe` and `FileCat-1.0.0-windows-assets.json`. Do not unblock the Setup in its Properties.
 - **Expect:** No record covers a browser warning on this download (**Unverified**). If one appears, write down its wording, then keep the file.
 - **Record:** Pass/Fail and any warning. **Closes:** d1.
 
-<details><summary>Source</summary>.github/workflows/ci.yml:1384-1393 (the draft's name and assets); evidence/E-FQ-RC2-20261124.md:148 (SmartScreen on a browser download not covered)</details>
+<details><summary>Source</summary>.github/workflows/ci.yml:1403-1412 (the draft's name and assets); evidence/E-FQ-RC2-20261124.md:148 (SmartScreen on a browser download not covered)</details>
 
 ### G4 · Check the bytes and the signature
 - **Do:** In PowerShell, in the folder the browser saved to:
@@ -75,10 +75,10 @@ $s = Get-AuthenticodeSignature .\FileCat-1.0.0-win-x64-setup.exe
 $s.Status; $s.SignerCertificate.Subject; $s.TimeStamperCertificate.Subject
 Get-Content .\FileCat-1.0.0-win-x64-setup.exe -Stream Zone.Identifier
 ```
-- **Expect:** `refs/tags/v1.0.0-rc.6` and `1.0.0`. The next two hashes are equal. The manifest's own hash equals the Windows manifest hash that the session gives you from the tagged run. `Valid`; the signer's subject names you (do not paste it); a timestamp authority's subject. `ZoneId=3`, the download mark.
+- **Expect:** `refs/tags/v1.0.0-rc.7` and `1.0.0`. The next two hashes are equal. The manifest's own hash equals the Windows manifest hash that the session gives you from the tagged run. `Valid`; the signer's subject names you (do not paste it); a timestamp authority's subject. `ZoneId=3`, the download mark.
 - **Record:** Pass/Fail, the Setup hash's first 16 characters and SourceCommit's first 7. **Closes:** d1; REL-SIGN-WINDOWS on GA hardware.
 
-<details><summary>Source</summary>eng/Select-ReleaseAssets.ps1:35-45, 58-83 (the manifest: names, sizes, SHA-256, candidate reference); ci.yml:1352-1355 (selected after signing), 1394-1403 (GitHub's server digests checked); evidence/E-RC2-TAG-20261124.md:52-55 (manifest hashes recorded per tag); FILECAT_1_0_RELEASE_ACTIVITY_LOG.md:5384 (timestamped Setup); FILECAT_1_0_RELEASE_BLOCKERS.md:37 (DEC-13); evidence/E-FQ-RC2-20261124.md:210 (ZoneId=3)</details>
+<details><summary>Source</summary>eng/Select-ReleaseAssets.ps1:35-45, 58-83 (the manifest: names, sizes, SHA-256, candidate reference); ci.yml:1371-1374 (selected after signing), 1413-1422 (GitHub's server digests checked); evidence/E-RC2-TAG-20261124.md:52-55 (manifest hashes recorded per tag); FILECAT_1_0_RELEASE_ACTIVITY_LOG.md:5384 (timestamped Setup); FILECAT_1_0_RELEASE_BLOCKERS.md:37 (DEC-13); evidence/E-FQ-RC2-20261124.md:210 (ZoneId=3)</details>
 
 ### G5 · Install [Admin]
 - **Do:** Double-click the Setup in the download folder. If SmartScreen appears (no record covers it: **Unverified**), write down its wording and the publisher it shows, then let Setup run if that publisher is you. Approve Windows' prompt. Keep the defaults: accept the license, `C:\Program Files\FileCat`, "Create a desktop shortcut" unchecked, Install, then Finish with "Start FileCat" checked.

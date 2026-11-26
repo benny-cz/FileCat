@@ -1,17 +1,22 @@
-# FileCat 1.0.0 rc.6: the owner's consent walkthrough
+# FileCat 1.0.0 rc.7: the owner's consent walkthrough
 
-Prepared 2026-11-25, updated for rc.5 the same day and for rc.6 on 2026-11-26. rc.5 differs from rc.3 only by I672 to I679 (signing in to a share on Windows, a share whose server does not answer no longer stopping the window, a picture timeout's wording, two status races, and tests). rc.6 differs from rc.5 only by I680: Setup and the uninstaller close a running FileCat. None of these is on a consent path, so the steps are unchanged. Under [DEC-14](evidence/E-DEC-2026-11-24-release-scope.md) you attest the UAC, polkit, authopen and TCC prompts and device identity on `v1.0.0-rc.6` yourself. This walkthrough covers the person's part of REL-CONSENT-ATTEST (PPL-03, checklist d7), REL-I17-BROKER (d8, c44), REL-I106-RECOVERY (d9, b35) and REL-SIGN-MAC (b2) in the [rc.2 checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md). There are three sections, one per machine, of 20 to 25 minutes each. Do them in any order.
+Prepared 2026-11-25, updated for rc.5 the same day, and for rc.6 and rc.7 on 2026-11-26. rc.5 differs from rc.3 only by I672 to I679 (signing in to a share on Windows, a share whose server does not answer no longer stopping the window, a picture timeout's wording, two status races, and tests). rc.6 differs from rc.5 only by I680: Setup and the uninstaller close a running FileCat. None of these is on a consent path. rc.7 differs from rc.6 only by [I681](evidence/E-I681-linux-census-zombie.md), which your U3 on rc.6 found: on Linux, the process check behind U2 to U4 now passes over zombie processes. The steps and what they expect are unchanged; on rc.6, U3 did not get what it expects. Under [DEC-14](evidence/E-DEC-2026-11-24-release-scope.md) you attest the UAC, polkit, authopen and TCC prompts and device identity on `v1.0.0-rc.7` yourself. This walkthrough covers the person's part of REL-CONSENT-ATTEST (PPL-03, checklist d7), REL-I17-BROKER (d8, c44), REL-I106-RECOVERY (d9, b35) and REL-SIGN-MAC (b2) in the [rc.2 checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md). There are three sections, one per machine, of 20 to 25 minutes each. Do them in any order.
+
+**Where it stands:** on rc.6 you passed the Windows section, W1 to W7; Windows' process records confirm each step ([record](evidence/E-RC6-TAG-20261126.md)). In the Ubuntu section, U1 and U2 passed and U3 failed (I681). **On rc.7, do the Ubuntu section in full (U1 to U5) and the Mac section.** The Windows code is the same in rc.7, and the session repeats W2 and W5 by tool on rc.7's own Setup. Carrying W1 to W7 over from rc.6 is your acceptance at GO; you may repeat the section on rc.7 instead. **First, though:** rc.7's qualification found I682, and the owner chose rc.8 with its fix ("Yes, make rc.8"). Wait for rc.8: these steps run on it, and this walkthrough moves to it.
 
 **Rules**
-- Test rc.6 only. Help → About FileCat must read `Version 1.0.0 (abcdef1)`, where `abcdef1` stands for the first 7 characters of rc.6's source commit. The session gives you the commit.
+- Test rc.7 only. Help → About FileCat must read `Version 1.0.0 (abcdef1)`, where `abcdef1` stands for the first 7 characters of rc.7's source commit. The session gives you the commit.
 - Stop at the first Fail and tell the session. Do not work around it.
 - Windows' prompts show your name as the publisher (DEC-13). Keep your screenshots. In the chat write "publisher: my name", never the name itself.
-- Quoted texts come from rc.6's source or the release records. Where the text is Windows', Ubuntu's or macOS's own and no record has it, the step says **Unverified**: write down what you see.
-- Each step has a folded Source note. Source files are cited at the `v1.0.0-rc.6` tag (`6d814134`); apart from the installer, its source files are rc.5's (`19002592`). The session re-checked them on 2026-11-26: every cited line says what it said at `rc3/integration-3` (`94b74365`), where these notes were written, except two. The consent page's coverage sentence now says "this 1 step" (I669), as W4 quotes it, and the update setting's note was reworded, which G6 does not quote. Records are cited at `main` `7a15ac8b`, or at `rc3/integration-3` where marked "rc3".
+- Quoted texts come from rc.7's source or the release records. Where the text is Windows', Ubuntu's or macOS's own and no record has it, the step says **Unverified**: write down what you see.
+- Each step has a folded Source note. Source files are cited at the `v1.0.0-rc.7` tag (`d8810842`). Apart from the installer (as in rc.6) and the Linux process check's `SingleInstance.cs` and `SingleInstance.ProcessImages.cs` (rc.7, cited by no step), its source files are rc.5's (`19002592`).
+  - **Re-checked for rc.7 on 2026-11-26, by script:** each cited range of a code or build file at rc.7 was compared with the range the note first cited at `rc3/integration-3` (`94b74365`), where these notes were written; U5's note, added later, was checked by hand.
+  - **Unchanged, with three exceptions.** The consent page's coverage sentence now says "this 1 step" (I669), as W4 quotes it. The update setting's note was reworded, which G6 does not quote. And rc.6's compile of the x64 installer in CI (I680) moved `ci.yml`'s signing and draft steps down by 19 lines, which the rc.6 update missed: M1 and the [GA PC checklist](FILECAT_1_0_RC3_GA_PC_CHECKLIST.md)'s G3 and G4 now cite the moved lines.
+  - Records are cited at `main` `7a15ac8b`, or at `rc3/integration-3` where marked "rc3".
 
 ## 1. Windows 11 25H2: the Hyper-V VM FileCat-FQ-W11 (about 25 minutes)
 
-**The session prepares:** rc.6 installed with its Setup, UAC at Windows' default, and the VM running with the administrator test account `fcqa` signed in. The records call the VM's computer FCFQ-W11. **You need:** VMConnect in a basic session, and `fcqa`'s password. It exists only in a DPAPI-protected file for your account; ask the session for its path. A VM has no physical disk to identify, so Windows' device identity is step G8 of the [GA PC checklist](FILECAT_1_0_RC3_GA_PC_CHECKLIST.md).
+**The session prepares:** rc.7 installed with its Setup, UAC at Windows' default, and the VM running with the administrator test account `fcqa` signed in. The records call the VM's computer FCFQ-W11. **You need:** VMConnect in a basic session, and `fcqa`'s password. It exists only in a DPAPI-protected file for your account; ask the session for its path. A VM has no physical disk to identify, so Windows' device identity is step G8 of the [GA PC checklist](FILECAT_1_0_RC3_GA_PC_CHECKLIST.md).
 
 ### W1 · Administrator window: Windows' prompt refused
 - **Do:** Start FileCat from the Start menu and check About. Tools → Open FileCat as administrator…. In FileCat's question click **Open as administrator**. In Windows' prompt click **No**.
@@ -67,7 +72,7 @@ You create this account yourself, with one command, so its password never passes
 
 Before FileCat reads a drive here, polkit asks for your password for two things. First `pkexec` runs FileCat's process check as root, because your account cannot see which other processes are FileCat. Then UDisks2 opens the drive read-only. The candidate .deb installs no polkit policy of FileCat's own, so the dialogs' wording is polkit's and UDisks2's: **Unverified**, write it down. Answer a process-check dialog within 90 seconds; after that FileCat treats it as unanswered.
 
-**The session prepares:** rc.6's .deb installed. **You need:** your account's password, and a USB stick with a FAT or exFAT volume that you do not mind being read, connected to the VM through VMware's removable-devices menu. Without a stick, the session can add a small virtual disk instead; that tests polkit but not physical identity. Close every other FileCat window.
+**The session prepares:** rc.7's .deb installed. **You need:** your account's password, and a USB stick with a FAT or exFAT volume that you do not mind being read, connected to the VM through VMware's removable-devices menu. Without a stick, the session can add a small virtual disk instead; that tests polkit but not physical identity. Close every other FileCat window.
 
 <details><summary>Source</summary>src/FileCat.App/RecoveryProcessCensus.cs:9-27, 78-109 (the 90 s limit at 19, 102); src/FileCat.Recovery/Unix/UnixDevices.cs:168-196; eng/package-linux.sh:61-73, 205-209 (FileCat's own polkit policy ships only in local qualification builds); rc3 evidence/E-I658-census-hidden-processes.md:11; rc3 evidence/E-I646-linux-root-census-opens-replaceable-path.md:68 (on this VM the ordinary check cannot read 48 processes)</details>
 
@@ -116,11 +121,11 @@ The Mac build is ad-hoc signed and not notarized (DEC-03), so macOS blocks it un
 <details><summary>Source</summary>FILECAT_1_0_RELEASE_EXECUTION_REPORT.md:93 (REL-SIGN-MAC); FILECAT_1_0_RELEASE_BLOCKERS.md:28 (DEC-03); eng/package-macos.sh:105-124, 127-136; evidence/E-FQ-RC2-20261124.md:63-64</details>
 
 ### M1 · Download (b2)
-- **Do:** In the browser open the draft "FileCat v1.0.0-rc.6 (signed release candidate)" and download `FileCat-1.0.0-osx-arm64.zip` and `FileCat-1.0.0-macos-assets.json`. In Terminal, in Downloads, run `xattr -p com.apple.quarantine FileCat-1.0.0-osx-arm64.zip` and `shasum -a 256 FileCat-1.0.0-osx-arm64.zip`. If the browser unpacked the ZIP by itself, run xattr on `FileCat.app` instead and say so.
-- **Expect:** xattr prints a value. The SHA-256 equals the ZIP's `SHA256` in the JSON file's `Files` list, and its `CandidateRef` is `refs/tags/v1.0.0-rc.6`.
+- **Do:** In the browser open the draft "FileCat v1.0.0-rc.7 (signed release candidate)" and download `FileCat-1.0.0-osx-arm64.zip` and `FileCat-1.0.0-macos-assets.json`. In Terminal, in Downloads, run `xattr -p com.apple.quarantine FileCat-1.0.0-osx-arm64.zip` and `shasum -a 256 FileCat-1.0.0-osx-arm64.zip`. If the browser unpacked the ZIP by itself, run xattr on `FileCat.app` instead and say so.
+- **Expect:** xattr prints a value. The SHA-256 equals the ZIP's `SHA256` in the JSON file's `Files` list, and its `CandidateRef` is `refs/tags/v1.0.0-rc.7`.
 - **Record:** Pass/Fail and the hash's first 16 characters. **Closes:** b2 (REL-SIGN-MAC).
 
-<details><summary>Source</summary>.github/workflows/ci.yml:1384-1393 (draft name); eng/Select-ReleaseAssets.ps1:56, 58-83; FILECAT_1_0_RC2_FQ_CHECKLIST.md:112 (b2)</details>
+<details><summary>Source</summary>.github/workflows/ci.yml:1403-1412 (draft name); eng/Select-ReleaseAssets.ps1:56, 58-83; FILECAT_1_0_RC2_FQ_CHECKLIST.md:112 (b2)</details>
 
 ### M2 · Gatekeeper blocks the first open (b2)
 - **Do:** Unpack the ZIP in Finder if needed, drag `FileCat.app` to Applications, and double-click it there.
@@ -131,7 +136,7 @@ The Mac build is ad-hoc signed and not notarized (DEC-03), so macOS blocks it un
 
 ### M3 · Open Anyway (b2)
 - **Do:** System Settings → Privacy & Security, scroll down, click **Open Anyway**, and authenticate if asked. When the warning comes back, click Open. Then check About.
-- **Expect:** FileCat opens, and About shows rc.6's version.
+- **Expect:** FileCat opens, and About shows rc.7's version.
 - **Record:** Pass/Fail and each dialog's wording (**Unverified**). **Closes:** b2.
 
 <details><summary>Source</summary>Apple Support, Safely open apps on your Mac (support.apple.com/102445, published 2026-05-27); AboutDialog.cs:119-126</details>

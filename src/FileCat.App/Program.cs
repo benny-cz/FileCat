@@ -64,6 +64,11 @@ internal static class Program
         {
             return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
+        catch (Exception ex) when (NoDisplayMessage(ex, Environment.GetEnvironmentVariable("DISPLAY")) is { } noDisplay)
+        {
+            Console.Error.WriteLine(noDisplay);
+            return 1;
+        }
         catch (Exception ex) when (menuTrace)
         {
             Core.Diagnostics.AppLog.Error("MenuTrace startup failed", ex);
@@ -74,6 +79,20 @@ internal static class Program
         {
             SingleInstance.Release();
         }
+    }
+
+    /// <summary>
+    /// I682: where FileCat cannot open an X display, Avalonia's X11 platform throws "XOpenDisplay failed". That happens
+    /// when no display is set (over SSH, in a text console, or after `su -` or `pkexec`), or when the X server refuses
+    /// the connection (another account without the session's X authority). Unhandled, it made .NET print a stack trace
+    /// and abort, and Ubuntu filed a crash report. This message says why instead. It is null for any other exception.
+    /// </summary>
+    internal static string? NoDisplayMessage(Exception ex, string? display)
+    {
+        if (ex.GetType() != typeof(Exception) || ex.Message != "XOpenDisplay failed") return null;
+        return string.IsNullOrEmpty(display)
+            ? "FileCat could not open a window: no X display is set (DISPLAY). Start FileCat in a desktop session; on Wayland it uses XWayland."
+            : $"FileCat could not open a window on the X display \"{display}\": the X server did not accept the connection. Start FileCat in your desktop session. Another account, such as root, also needs that session's X authority (XAUTHORITY).";
     }
 
     internal static int? TryRunStorageCloudQueryWorker(string[] args) =>

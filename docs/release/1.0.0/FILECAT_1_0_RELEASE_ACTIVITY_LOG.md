@@ -5786,3 +5786,16 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-26 — I681's fix merged
 
 - PR #70 merged (`0c1049b7`) after its full run 45794347786 passed; the new zombie test ran and passed on Ubuntu ([I681](evidence/E-I681-linux-census-zombie.md)). The sync to `release/1.0` and rc.7 follow.
+
+## 2026-11-26 — rc.7 tagged, signed and checked; I681 remediated preliminarily; I682 found
+
+- The owner chose to fix I681 in rc.7 ("Yes, fix and rc.7"). PR #71 synced `release/1.0` with main at `536da620`, and its full run passed. The session tagged `v1.0.0-rc.7` at `d8810842`. Tagged run 45807693051 passed its 19 test jobs at 73,821P/13,702S/0F, test by test the same as PR #71's run ([rc.7](evidence/E-RC7-TAG-20261126.md)).
+- The owner approved rc.7's `signing` deployment in GitHub. Signing and verification gave rc.4's to rc.6's counts. Private draft 459353635 holds the 24 assets; all 24 match GitHub's digests and the manifests. Against rc.6, only `FileCat.dll` changed size.
+- In the VM: c1 passes over rc.6. The framework-dependent copy refuses to start without .NET, as on rc.2: c1 had run it on the VM's own runtime since rc.3, and rc.6's record is corrected. I680's five cases pass; T5 passed on its third run, after an early sample and a copy that finished first. W2 and W5 pass by tool, which carries the owner's Windows walkthrough on rc.6 over.
+- Ubuntu passes 26 of 26 rows, and the Mac 33 of 35 with its known BLOCKED halves; b1 passes. Beside the Ubuntu VM's zombie, rc.7's root census replies clear where rc.6's answered unknown. I681 moves to "Remediated preliminarily" ([I681](evidence/E-I681-linux-census-zombie.md)).
+- The census control's first start, from SSH without the desktop's X authority, found I682: on Linux, FileCat without a usable X display crashed with a core dump. PR #72 fixes it, and the session proposes rc.8 ([I682](evidence/E-I682-no-display-abort.md)). The session removed its crash reports and crash dialogs from the VM.
+- The owner's walkthrough and GA PC checklist point at rc.7. Their `ci.yml` citations, stale since rc.6, are corrected.
+
+## 2026-11-26 — The owner chose rc.8; I682's fix merged
+
+- Asked to cut rc.8 with I682's fix or take rc.7 to GO with I682 open, the owner answered "Yes, make rc.8". PR #72 merged (`6b1c3419`) after its full run 45823749293 passed; both of its Linux cases ran on Ubuntu ([I682](evidence/E-I682-no-display-abort.md)). The sync to `release/1.0` and rc.8 follow.
