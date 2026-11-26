@@ -42,7 +42,7 @@ After a GO, in this order:
 2. The owner creates the annotated tag `v1.0.0` at the source. Its push starts CI, whose first job must refuse to build a stable tag.
 3. The session runs `eng/Promote-StableRelease.ps1` with the values the GO names. It copies the 24 assets into the private draft "FileCat 1.0.0" and checks them.
 4. The owner reviews the draft and presses **Publish release**.
-5. The session runs the public download checks of section 13.3.
+5. The session runs the public download checks of section 13.3. `eng/Check-PublicRelease.ps1` (branch `release-tools/promote-stable`, `2bce7cbb`) checks, anonymously: the release, its tag and text, all 24 assets against the manifests, every Windows signature, GitHub's attestation and the links. Tried against the public preview.11 release, it passed all it could, and its signature checks pass on rc.5's files. A clean install from the public Setup (c1's script) and a preview's update notice follow.
 
 ## Unresolved issues: proposed dispositions
 
