@@ -73,6 +73,22 @@ Notes on the runs:
 
 On rc.6's own Setup the same cases run again.
 
+## On rc.6's signed Setup (2026-11-26)
+
+`batch44v-rc6` ran the five cases again on `v1.0.0-rc.6`'s signed x64 Setup (SHA-256 `6c65bf94…`, signature valid), in the same VM, the same way ([rc.6](E-RC6-TAG-20261126.md)). Each uninstall's verdict now also requires the program folder to be gone. All pass:
+
+| Case | Result |
+|---|---|
+| T1 a silent upgrade from rc.5 to rc.6 with an ordinary rc.5 window open | Setup exit 0, rc.6 installed. Restart Manager: "Shutting down applications using our files. (forced)". FileCat ended normally (exit code 0), and no FileCat process was left. |
+| T2 rc.6's Setup with an rc.6 administrator window open | Setup exit 0, FileCat exit code 0, no FileCat process left. |
+| T3 a silent uninstall with an idle ordinary window | Uninstall exit 0. FileCat was asked to close and closed (exit code 0). No file, folder or entry was left. |
+| T4 a silent uninstall while FileCat copies 8 GB | FileCat asked "Operations are still running" (seen 6 s in). Unanswered, it was ended (exit code 1). Uninstall exit 0. No file, folder or entry was left. |
+| T5 an interactive uninstall while FileCat copies | The confirmation came, then FileCat's question, then the uninstaller's "FileCat is still running" box with Check again and End FileCat. Stop them and exit ended FileCat normally (exit code 0), and Check again let the uninstall finish: "FileCat was successfully removed from your computer." Nothing was ended by force, and no file, folder or entry was left. |
+
+The run ended with rc.6 installed afresh, its uninstaller `unins000.exe`.
+
+**A folder an earlier install did not create:** rc.6's first c1 run failed one check, an empty `C:\Program Files\FileCat` left after the uninstall. Its uninstall log never deletes the folder. Inno Setup removes only folders that its own install created. In the VM, `batch44u` had run rc.5's uninstaller with FileCat open earlier that day. As I680 describes, it left the folder with 83 files. Every install after that reused the folder, so none recorded creating it, and no uninstall removed it. With the folder removed and rc.5 installed afresh, c1 passed. A user whose uninstall once left files behind, which I680 caused before its fix, may likewise keep an empty program folder after a later uninstall. It holds nothing, and can be deleted.
+
 ## Records
 
-The scenarios are in the Release Evidence Package's harness (`batch44x`, `batch44y`, `batch44w`, `batch44u`, `Invoke-FqI644Rest.ps1`; for the fix, `batch44v` to `batch44v4`, `diag44v` to `diag44v3` and `Invoke-FqI680Fix.ps1`). They lower UAC's consent prompt in the VM for their run, as batch28 does, and restored it each time (`ConsentPromptBehaviorAdmin` back to 5). The fix's runs left it at 5: an elevated scenario starts Setup and the uninstaller without a prompt.
+The scenarios are in the Release Evidence Package's harness (`batch44x`, `batch44y`, `batch44w`, `batch44u`, `Invoke-FqI644Rest.ps1`; for the fix, `batch44v` to `batch44v4`, `diag44v` to `diag44v3` and `Invoke-FqI680Fix.ps1`; on rc.6, `batch44v-rc6` and `Invoke-FqI680Rc6.ps1`). They lower UAC's consent prompt in the VM for their run, as batch28 does, and restored it each time (`ConsentPromptBehaviorAdmin` back to 5). The fix's runs left it at 5: an elevated scenario starts Setup and the uninstaller without a prompt.

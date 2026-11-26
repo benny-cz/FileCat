@@ -5763,3 +5763,9 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - Tagged run 45755406125: all 19 test jobs passed (73,817P/13,698S/0F), the same as PR #69's run test by test but for one Ubuntu test that runs or skips by the runner's disk. The three package jobs passed. The signing job has waited for the owner since 05:08Z ([rc.6](evidence/E-RC6-TAG-20261126.md)).
 - From the package jobs' artifacts: the Linux and macOS files match their manifests. Ubuntu passes all 26 rows, the Mac 33 of 35 with b23's and b28's known BLOCKED halves, and b1's placement round trip passes.
+
+## 2026-11-26 — rc.6 signed, drafted and checked; I680 remediated preliminarily
+
+- The owner approved rc.6's `signing` deployment in GitHub and confirmed it here ("Approved"). Signing and verification gave rc.4's and rc.5's counts. Private draft 459101740 holds the 24 assets; all 24 match GitHub's digests and the manifests ([rc.6](evidence/E-RC6-TAG-20261126.md)).
+- Against rc.5, the packages hold the same entries with the same sizes. Before signing, only FileCat's own 28 version-stamped x64 programs and libraries differ; every vendor file is byte-identical.
+- In the VM: c1 passes from a clean state. The first run kept an empty program folder that an earlier install had not created, a leftover of the I680 baseline (`batch44u`). I680's five cases pass on rc.6's signed Setup, folder checks included ([I680](evidence/E-I680-setup-cannot-close-running-filecat.md)). I680 moves to "Remediated preliminarily". The VM ends with rc.6 installed afresh for the owner's walkthrough.
