@@ -51,3 +51,15 @@ PR #70 (`src/FileCat.App/SingleInstance.cs`, `SingleInstance.ProcessImages.cs`).
 - Beside the VM's real zombie, rc.6's root census exits 3. The fixed build replies `FileCatRecoveryProcessCensusV1:<nonce>:clear` with exit 0.
 
 PR #70 is merged into main as `0c1049b7` after its full-matrix run 45794347786 passed all 19 jobs; in its Ubuntu App tests the zombie test ran and passed. The fix reaches users in rc.7. On rc.7 the owner repeats U2 to U4 of the walkthrough, which run exactly this path.
+
+## On rc.7 (2026-11-26)
+
+`v1.0.0-rc.7` ships the fix ([rc.7](E-RC7-TAG-20261126.md#i681-on-rc7)).
+- **CI:** in its tagged run 45807693051, the parsers' test passes on the four App lanes, and the zombie test passes on Ubuntu.
+- **On the Ubuntu VM,** beside the same zombie (pid 10210, state `Z`, one thread), each root census ran as `pkexec` runs it: as root with an empty environment.
+  - **rc.6's installed package** exits 3 (unknown) on every try, with the owner's leftover rc.6 window as the requester or a `sleep` process standing in for it.
+  - **rc.7's installed package** replies `clear` with exit 0 on all three tries.
+- **Control:** with an rc.7 FileCat window open, rc.7's census replies `running`.
+- **Status:** I681 is remediated preliminarily in rc.7. The owner's U2 to U4 attest polkit's consent around this check on the candidate that goes to GO.
+
+The control's first try found [I682](E-I682-no-display-abort.md).
