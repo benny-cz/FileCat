@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Xml.Linq;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Threading;
 using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Recovery.Unix;
@@ -95,17 +96,24 @@ public sealed class UnixDeviceSource : IBlockSource, IDevicePathGuard, IDeviceSe
         }
     }
 
-    private static SafeFileHandle OpenHandle(string device, CancellationToken ct)
+    private static SafeFileHandle OpenHandle(string device, CancellationToken ct) =>
+        OpenHandle(device, ct, static (path, _) => File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite),
+            static (path, token) => OperatingSystem.IsMacOS() ? AuthOpen.Open(path, token) : UDisks.Open(path, token));
+
+    internal static SafeFileHandle OpenHandle(string device, CancellationToken ct,
+        Func<string, CancellationToken, SafeFileHandle> openDirectly, Func<string, CancellationToken, SafeFileHandle> askSystem)
     {
-        SafeFileHandle? handle = null;
         try
         {
-            handle = File.OpenHandle(device, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            return openDirectly(device, ct);
         }
         catch (UnauthorizedAccessException)
         {
         }
-        return handle ?? (OperatingSystem.IsMacOS() ? AuthOpen.Open(device, ct) : UDisks.Open(device, ct));
+        // authopen and UDisks2 return when the person has answered the system's dialog. That wait is the person's,
+        // not the drive's: it does not count toward the I/O scheduler's hang threshold (I684).
+        using (DeviceIoScheduler.AwaitingUser())
+            return askSystem(device, ct);
     }
 
     /// <summary>
