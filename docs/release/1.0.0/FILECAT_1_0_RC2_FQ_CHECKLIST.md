@@ -108,7 +108,7 @@ Status: **done** (with the record's section), **partial**, **open**, or **blocke
 
 | # | IDs | Check and stop condition | Needs | Status |
 |---|---|---|---|---|
-| b1 | REL-FQ-CANDIDATE, plan 12.3 | Extract, `codesign --verify --deep --strict`, `--version`; place, remove, reinstall | command line | partial: extraction, signature and version done (L4); placement round trip open |
+| b1 | REL-FQ-CANDIDATE, plan 12.3 | Extract, `codesign --verify --deep --strict`, `--version`; place, remove, reinstall | command line | done on rc.5 (2026-11-26): extraction, signature and version, then placement in `/Applications`, removal and reinstall, each verified ([rc.5](evidence/E-RC5-TAG-20261125.md)) |
 | b2 | REL-SIGN-MAC (DEC-03) | Download the ZIP in a browser (quarantined): Gatekeeper blocks it; Privacy & Security → Open Anyway; TCC grant and deny recorded | GUI; the owner's GitHub sign-in for the private draft; admin and TCC prompts | blocked (owner) |
 | b3 | I634, I606 | About shows 1.0.0 | GUI | done (Mac harness rehearsal) |
 | b4 | I582 | A decomposed-accent name found by typing the composed accent with real input; reversed once; an ASCII control | GUI | done (Mac harness rehearsal) |

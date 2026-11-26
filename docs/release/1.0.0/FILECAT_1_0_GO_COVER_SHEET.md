@@ -11,7 +11,7 @@ Prepared 2026-11-26 by the release session for the owner, the human GO approver 
 | Tagged run | [45707588571](https://github.com/benny-cz/FileCat/actions/runs/45707588571): 23 of 24 jobs passed in the first attempt (the preview-draft job skips for RC tags); 19 test jobs, 73,816 passed, 13,699 skipped, 0 failed, test by test the same as PR #67's run 45701846571 |
 | Private drafts | Candidate release 458724408 (24 assets); signing records release 458724105 (11 files, they name the signer, kept private) |
 | Producer manifests (SHA-256) | Windows `1f995eb15842886e6fa9658dcd769da64cb39145cad79d3ef0a6d010a7aa3881`; Linux `98c69458f36af9d04d271408ac25604907b439e5a8963b124bca42ad33622fb3`; macOS `8e94dee1c67c4fd2105dd4e2c3553c12fc8cef3db6d9f713898784704abfdffc` |
-| Release Evidence Package | 969 files, 1,419,741,412 bytes, staged and verified; manifest SHA-256 `2d1a04eda383c4d7c96cdad90ad65a507ec11474d493a380d7ef69d31be6cb87`, committed in [`v1.0.0-rc.5/`](v1.0.0-rc.5/README.md) ([record](evidence/E-REP-RC5-20261126.md)). The owner seals it at GO |
+| Release Evidence Package | 969 files, 1,419,741,412 bytes, staged and verified; manifest SHA-256 `2d1a04eda383c4d7c96cdad90ad65a507ec11474d493a380d7ef69d31be6cb87`, committed in [`v1.0.0-rc.5/`](v1.0.0-rc.5/README.md) ([record](evidence/E-REP-RC5-20261126.md)). It is rebuilt before GO with b1 and the records of the owner's steps; the GO names the rebuilt manifest's digest, and the owner seals that package |
 | Release notes | `RELEASE_NOTES_1.0.0.md` on branch `docs/release-notes-1.0.0` (`efb12f1b`): exactly the release's text. Its review-only sources are in `RELEASE_NOTES_1.0.0_SOURCES.md`. At GO two lines are filled in: the GA PC, and the unresolved issues the owner accepts |
 
 ## What passed on rc.5
@@ -26,7 +26,7 @@ Prepared 2026-11-26 by the release session for the owner, the human GO approver 
   - At high integrity: the framework-dependent ZIP starts on .NET 10.0.14, the two tests CI cannot run pass, and I671's file-record tests fail none: 19 pass, and 24 with CI's Cloud Files and EFS opt-ins, which add their privileged branches. The administrator-only test passes.
   - c34 with the owner's OneDrive: the 60 online-only placeholders stay labelled, none downloads in the background, F3 downloads the one opened, and the guard found nothing changed outside `FileCat-QA-c34`, which was removed. Its decode counts pass when each page settles (81 down, none back); the first run's faster paging left 8 pictures to decode on the way back, which FileCat does by design.
 - **Ubuntu 24.04.5 VM:** all 26 rows pass (rc.5's .deb, AppImage and tarball).
-- **macOS 27 (M1):** 33 of 35 rows pass; b23 (remote drag) and b28 (minimum dialog sizes) keep their known BLOCKED halves, as on rc.3 and rc.4.
+- **macOS 27 (M1):** 33 of 35 rows pass; b23 (remote drag) and b28 (minimum dialog sizes) keep their known BLOCKED halves, as on rc.3 and rc.4. b1's placement round trip passes: the app verifies and starts when extracted, placed in `/Applications`, removed and placed again.
 - **Promotion to stable:** the new `eng/Promote-StableRelease.ps1` refuses seven wrong inputs, and a second promotion, before writing anything. Its dry run on rc.5 copied the 24 assets into a private draft, checked them by re-downloading each, and deleted the draft ([record](evidence/E-REL-PIPELINE-PROMOTION-20261126.md)). Nothing was published.
 
 ## The owner's steps before GO
@@ -38,7 +38,7 @@ Prepared 2026-11-26 by the release session for the owner, the human GO approver 
 5. **GO or NO-GO,** naming the candidate, the source, the three manifest digests, the REP manifest digest and the release notes' digest.
 
 After a GO, in this order:
-1. The owner seals the REP (DEC-10): `pwsh -File E:\FileCat\.tmp\release-scripts\Seal-Rep.ps1 -ManifestSHA256` followed by the manifest digest above. It copies, checks and makes the copy read-only for everyone but the owner.
+1. The owner seals the REP (DEC-10): `pwsh -File E:\FileCat\.tmp\release-scripts\Seal-Rep.ps1 -ManifestSHA256` followed by the rebuilt manifest's digest that the GO names. It copies, checks and makes the copy read-only for everyone but the owner.
 2. The owner creates the annotated tag `v1.0.0` at the source. Its push starts CI, whose first job must refuse to build a stable tag.
 3. The session runs `eng/Promote-StableRelease.ps1` with the values the GO names. It copies the 24 assets into the private draft "FileCat 1.0.0" and checks them.
 4. The owner reviews the draft and presses **Publish release**.

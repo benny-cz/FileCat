@@ -5718,3 +5718,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - At high integrity with CI's opt-ins, I671's file-record tests pass 24, skip 8 and fail none, the EFS and cloud placeholder tests with their privileged branches; OneDrive unchanged.
 - The Release Evidence Package is staged and verified: 969 files, manifest SHA-256 `2d1a04eda383c4d7c96cdad90ad65a507ec11474d493a380d7ef69d31be6cb87`, committed in `v1.0.0-rc.5/`. The owner seals it at GO (DEC-10) ([REP](evidence/E-REP-RC5-20261126.md)).
 - A [GO cover sheet](FILECAT_1_0_GO_COVER_SHEET.md) sums up the candidate, what passed, the owner's remaining steps and a proposed disposition for each unresolved issue.
+
+## 2026-11-26 — b1 on rc.5; the evidence package is rebuilt before GO
+
+- b1, the Mac app's placement round trip, passes on rc.5's ZIP: extracted, placed in `/Applications`, removed and placed again, each time with a verified ad-hoc signature, `FileCat 1.0.0` and an identical tree; `/Applications` is as it was ([rc.5](evidence/E-RC5-TAG-20261125.md)).
+- The Release Evidence Package staged earlier (manifest `2d1a04eda383c4d7…`) precedes b1 and the owner's steps. It is rebuilt with their records before GO, and the GO names the rebuilt manifest's digest ([REP](evidence/E-REP-RC5-20261126.md)).
