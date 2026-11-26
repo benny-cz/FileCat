@@ -5754,3 +5754,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - Sync PR #69 merged into `release/1.0` (`6d814134`; its tree is main's at `0655f48c`) after its full run 45750882745 passed. The session tagged `v1.0.0-rc.6` (annotated, `06ee1411`), under the owner's rule that every known issue is fixed for the next candidate and the owner's approval of the work toward 1.0.0. As for every candidate tag, the account's admin role passed the rule that only admins create release tags.
 - Tagged run 45755406125 builds, tests and packages it. Its signing job waits for the owner's approval of the `signing` deployment. rc.6 differs from rc.5 only in the installer (I680) and the version. The checks the plan's section 11.2 asks for follow: hashes and signatures, a clean install and launch, and what the installer does.
+
+## 2026-11-26 — The owner's walkthrough and GA PC checklist move to rc.6
+
+- The consent walkthrough and the GA PC checklist now name rc.6: its tag and source, its signed draft's title, and the installer's cited lines at rc.6. rc.6 changes no consent path, so the steps are the same.
