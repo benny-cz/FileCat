@@ -65,7 +65,7 @@ Prepared 2026-11-26 by the release session for the owner, the human GO approver 
 ## The owner's steps before GO
 
 1. **The consent walkthrough** ([walkthrough](FILECAT_1_0_RC3_CONSENT_WALKTHROUGH.md)):
-   - **Ubuntu:** the section in full, U1 to U5: polkit, a USB stick's identity, and one real Tab in Settings (I618's last check).
+   - **Ubuntu: done.** U1 to U5 passed on rc.8 on 2026-11-26: polkit, the USB stick's identity, refusals of the process check and of the drive read, and one real Tab in Settings (I618's last check). Each answer was confirmed in the system journal ([rc.8](evidence/E-RC8-TAG-20261126.md#the-owners-walkthrough-on-rc8-the-ubuntu-section-2026-11-26)).
    - **Mac:** M1 to M9: Gatekeeper, TCC and authopen.
    - **Windows:** accept carrying W1 to W7 over from rc.6, or repeat them on rc.8.
    
@@ -112,7 +112,7 @@ Each closes on a step above or on the owner's acceptance:
 | [I17](FILECAT_1_0_RELEASE_ISSUES.md#i17) Broker consent | Virtual, VM and standard-account subsets pass; the installed consent matrix W1–W7 passed on rc.6, W2 and W5 again by tool on rc.7 and rc.8 | Close when the owner accepts W1–W7's carry-over, or repeats them | Walkthrough (Windows) |
 | [I18](FILECAT_1_0_RELEASE_ISSUES.md#i18) Release control | Protected RC tags, the `release/1.0` ruleset, the owner-gated `signing` environment, immutable releases; the stable promotion's controls pass | Close after the promotion and the public download checks | GO |
 | [I25](FILECAT_1_0_RELEASE_ISSUES.md#i25) Markdown rendering | Ships; rc.5's c10 rows pass in the VM (a link opens a viewer, the Page stays, refusals) and the WebView2 controls pass in CI | Close on those; the engine-hardening items left in the row (fonts, CSS, pop-ups, identity races) go to servicing | The owner's acceptance |
-| [I106](FILECAT_1_0_RELEASE_ISSUES.md#i106) Recovery discovery | Ground truth and read-only runs pass on the real USB stick (I495, I507); I681's census fix is in rc.7 and rc.8; consent and device identity are U1–U4, M6–M9 and G8 | Close when those pass; other media and layouts by scope | Walkthrough, GA PC (G8) |
+| [I106](FILECAT_1_0_RELEASE_ISSUES.md#i106) Recovery discovery | Ground truth and read-only runs pass on the real USB stick (I495, I507); I681's census fix is in rc.7 and rc.8; consent and device identity: U1–U4 passed on rc.8, M6–M9 and G8 remain | Close when those pass; other media and layouts by scope | Walkthrough, GA PC (G8) |
 | [I108](FILECAT_1_0_RELEASE_ISSUES.md#i108) CI reliability | rc.5's to rc.7's tagged runs and PR #73's run passed all 19 test jobs at their first attempt. rc.8's tagged run needed a second: its first found I683, a test defect now fixed on main, and lost a macOS runner to GitHub, under GitHub's capacity notice | Close; the historical causes stay recorded as unproven | The owner's acceptance |
 | [I110](FILECAT_1_0_RELEASE_ISSUES.md#i110) Equal short reads | Corrected; the strict physical rerun caught the case (I495) and the comparison now reads the whole request | Close with the physical repeat | GA PC (G8) |
 | [I518](FILECAT_1_0_RELEASE_ISSUES.md#i518) Mac PathLine clipboard (CI) | Fixture revised; all 7 PathLine cases pass on macOS in rc.5's to rc.8's tagged runs | Close; cause unproven | The owner's acceptance |

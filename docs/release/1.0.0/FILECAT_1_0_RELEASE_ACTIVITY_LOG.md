@@ -5821,3 +5821,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - In the VM: c1 passes over rc.7, and the framework-dependent copy refuses to start without .NET. I680's five cases pass; T4 and T5 passed on their second run, with T5's copy now paused so that the operation still runs whatever the uninstaller's delay. W2 and W5 pass by tool.
 - Ubuntu passes 26 of 26 rows, and the Mac 33 of 35 with its known BLOCKED halves; b1 passes. On rc.8's installed package, three starts without a usable display each say why and exit with 1, with no crash report: I682 moves to "Remediated preliminarily" ([I682](evidence/E-I682-no-display-abort.md)). I681's census replies clear beside the zombie, and running with a window open.
 - rc.8's Release Evidence Package is staged and verified: 2,312 files, manifest SHA-256 `d39fc0dc39f7c473784b9897a8729fd70e668cffa80943b89fed0e1c091f6b00`, committed in `v1.0.0-rc.8/` ([REP](evidence/E-REP-RC8-20261126.md)). The cover sheet, the walkthrough, the GA PC checklist and the release notes (`10472895`) are on rc.8.
+
+## 2026-11-26 — The owner's walkthrough on rc.8: Ubuntu passes
+
+- On the Ubuntu VM with rc.8's .deb and the owner's USB stick, U1 to U5 pass, each answer confirmed in the system journal ([rc.8](evidence/E-RC8-TAG-20261126.md)). The VM's zombie was present throughout, so I681's fix is checked in the owner's own path.
+- U3 took three tries. The first refused the second process check instead of the drive read. The second, after U4, got no drive-read dialog, because polkit kept U4's approval for the same FileCat window. The third, in a fresh window, refused the drive read. The walkthrough's U3 now names the dialogs and says to use a fresh window after U4.
