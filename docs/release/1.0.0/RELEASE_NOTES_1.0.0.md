@@ -43,13 +43,13 @@ The release also holds one manifest per platform (`FileCat-1.0.0-windows-assets.
 - **macOS:** extract with `ditto -x -k FileCat-1.0.0-osx-arm64.zip DESTINATION`; a plain `unzip` lost the bundle's signing metadata in a preview check. macOS blocks the first start: choose **Open Anyway** in System Settings → Privacy & Security, then confirm.
 
 **Upgrading from a preview**
-- **Installer:** run the 1.0.0 Setup over the preview. It replaces the program files and keeps your settings, workspaces and journals. Installed apps already listed a preview install as version 1.0.0; Help → About shows which one you have.
+- **Installer:** run the 1.0.0 Setup over the preview. It closes FileCat first if it is running. A window that cannot close at once, such as one still copying, is ended, and its interrupted operations come back at the next start. Setup replaces the program files and keeps your settings, workspaces and journals. Installed apps already listed a preview install as version 1.0.0; Help → About shows which one you have.
 - **Portable ZIP:** replace everything except `Data\`. **Framework-dependent ZIP:** replace the folder. **`.deb`:** install the new package; a preview's package version, `1.0.0~preview.N`, sorts before `1.0.0`. **AppImage, tarball, macOS app:** replace them.
 - A preview's update check, automatic or Help → Check for updates, finds 1.0.0 newer and offers it. From 1.0.0 on, the check asks GitHub only for the latest stable release.
 - Before going back to an older build, finish or review open edits (File → Edit sessions) and interrupted operations. An older build opens state written by a newer one read-only and says so.
 
 **Removing**
-- **Windows installer:** Settings → Apps → Installed apps → FileCat → Uninstall. It removes the files it installed, its shortcuts and its uninstall entry, then the program folder once it is empty, so other files in a folder you chose stay. It keeps, on purpose:
+- **Windows installer:** Settings → Apps → Installed apps → FileCat → Uninstall. It first closes FileCat if it runs from that folder. If FileCat asks about running operations or unsaved changes, answer it there and choose **Check again**, or choose **End FileCat**. It then removes the files it installed, its shortcuts and its uninstall entry, and last the program folder once it is empty, so other files in a folder you chose stay. It keeps, on purpose:
   - your settings, history and journals in `%APPDATA%\FileCat` and `%LOCALAPPDATA%\FileCat`;
   - `HKLM\SOFTWARE\FileCat.AdministratorTransfers`, the administrator window's remembered settings, if you saved any;
   - `HKLM\SOFTWARE\FileCat\PrivilegedHost\UsedPlans`, the helper's record of plans it has run. A plan runs at most once; entries expire after two days and the record prunes itself. Removing it at uninstall would let a just-used plan run again after a reinstall;
@@ -105,6 +105,7 @@ The release also holds one manifest per platform (`FileCat-1.0.0-windows-assets.
 - The recovery list says why a folder that was not deleted appears in it.
 - A picture that does not decode within its 30 s says whether its decoder was slow to start, was still being sent the picture, or did not answer (I677). In a report's recorded storage calls, **Next recorded call page** is off on the last page (I674).
 - The x64 installer also installs on Windows Server 2016 (see Downloads).
+- Setup and the uninstaller close a running FileCat before they replace or remove its files (I680).
 
 ## Known limitations
 
