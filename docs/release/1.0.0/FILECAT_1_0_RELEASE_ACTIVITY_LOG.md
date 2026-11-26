@@ -5813,3 +5813,11 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - PR #74 merged (`ce85f6ac`) after its full run 45839173625 passed. I683 moves to "Remediated preliminarily" ([I683](evidence/E-I683-page-test-late-favicon.md)).
 - rc.8's tagged run 45835859037 ended its first attempt with two failed jobs: the ARM64 lane's I683 test, and macOS's App tests ("The hosted runner lost communication with the server", GitHub's capacity notice for macOS arm64). The session ran both again as attempt 2, which runs the package and signing jobs after them.
+
+## 2026-11-26 — rc.8 signed, drafted and checked; I682 remediated preliminarily; rc.8's REP staged
+
+- rc.8's tagged run 45835859037 passed in attempt 2: its failed jobs were I683 (a test defect, fixed on main; the owner kept rc.8) and a macOS runner that lost contact with GitHub. 73,827P/13,708S/0F, the same as PR #73's run but for one environment-dependent Ubuntu skip ([rc.8](evidence/E-RC8-TAG-20261126.md)).
+- The owner approved rc.8's `signing` deployment ("approved"). Signing and verification gave rc.4's to rc.7's counts. Private draft 459616279 holds the 24 assets; all 24 match GitHub's digests and the manifests. Against rc.7, only `FileCat.dll` changed size, and not on x64.
+- In the VM: c1 passes over rc.7, and the framework-dependent copy refuses to start without .NET. I680's five cases pass; T4 and T5 passed on their second run, with T5's copy now paused so that the operation still runs whatever the uninstaller's delay. W2 and W5 pass by tool.
+- Ubuntu passes 26 of 26 rows, and the Mac 33 of 35 with its known BLOCKED halves; b1 passes. On rc.8's installed package, three starts without a usable display each say why and exit with 1, with no crash report: I682 moves to "Remediated preliminarily" ([I682](evidence/E-I682-no-display-abort.md)). I681's census replies clear beside the zombie, and running with a window open.
+- rc.8's Release Evidence Package is staged and verified: 2,312 files, manifest SHA-256 `d39fc0dc39f7c473784b9897a8729fd70e668cffa80943b89fed0e1c091f6b00`, committed in `v1.0.0-rc.8/` ([REP](evidence/E-REP-RC8-20261126.md)). The cover sheet, the walkthrough, the GA PC checklist and the release notes (`10472895`) are on rc.8.

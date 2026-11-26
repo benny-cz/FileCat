@@ -63,3 +63,7 @@ PR #70 is merged into main as `0c1049b7` after its full-matrix run 45794347786 p
 - **Status:** I681 is remediated preliminarily in rc.7. The owner's U2 to U4 attest polkit's consent around this check on the candidate that goes to GO.
 
 The control's first try found [I682](E-I682-no-display-abort.md).
+
+## On rc.8 (2026-11-26)
+
+rc.8 carries the fix unchanged ([rc.8](E-RC8-TAG-20261126.md#i681-and-i682-on-rc8-on-the-ubuntu-vm)). Beside the same zombie, rc.8's installed root census replies `clear` on all three tries, and with an rc.8 window open it replies `running`.
