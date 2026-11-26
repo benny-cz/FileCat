@@ -603,6 +603,82 @@ public sealed class RecoverySafetyTests
     }
 
     [Fact]
+    public void Only_a_Linux_process_whose_threads_have_all_exited_counts_as_gone()
+    {
+        Assert.Equal('Z', SingleInstance.StateFromStat("10210 (sd_espeak-ng-mb) Z 10198 10198 10198 0 -1 4227084 0"));
+        Assert.Equal('S', SingleInstance.StateFromStat("42 (a name ) with spaces) S 1 2 3 4 5 4194304 0 0"));
+        Assert.Null(SingleInstance.StateFromStat("42 (no state)"));
+        Assert.Null(SingleInstance.StateFromStat("no command"));
+        // A zombie is its process's only thread; a thread-group leader that exited while another thread runs is not gone.
+        Assert.True(SingleInstance.ExitedFromStatus("Name:\tsd_espeak-ng-mb\nUmask:\t0002\nState:\tZ (zombie)\nTgid:\t10210\nThreads:\t1\n"));
+        Assert.True(SingleInstance.ExitedFromStatus("State:\tX (dead)\nThreads:\t1\n"));
+        Assert.False(SingleInstance.ExitedFromStatus("State:\tZ (zombie)\nThreads:\t2\n"));
+        Assert.False(SingleInstance.ExitedFromStatus("State:\tS (sleeping)\nThreads:\t1\n"));
+        Assert.Null(SingleInstance.ExitedFromStatus("State:\tZ (zombie)\n"));
+        Assert.Null(SingleInstance.ExitedFromStatus("Threads:\t1\n"));
+    }
+
+    // I681: a zombie of any program, unreaped by its parent, has no image to identify, and made every Linux census unknown,
+    // so recovery of a mounted disk was refused for as long as it stayed. The census now passes over it, but still not
+    // over a thread-group leader that exited while another of its threads runs: that process can write.
+    [Fact]
+    public void A_Linux_census_passes_over_a_zombie_but_not_over_a_running_process_whose_leader_exited()
+    {
+        if (!OperatingSystem.IsLinux()) { Assert.Skip("Linux zombies and /proc."); return; }
+        // The shell starts a child that exits at once, then becomes sleep, which never reaps it: the child stays a zombie.
+        using var holder = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("/bin/sh")
+        {
+            UseShellExecute = false, RedirectStandardOutput = true,
+            ArgumentList = { "-c", "sleep 0 & echo $!; exec sleep 30" },
+        })!;
+        try
+        {
+            int zombie = int.Parse(holder.StandardOutput.ReadLine()!, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.True(WaitForLinuxState(zombie, 'Z'), $"Process {zombie} did not become a zombie.");
+            System.Diagnostics.Process[] Zombie() => [System.Diagnostics.Process.GetProcessById(zombie)];
+            Assert.False(SingleInstance.OtherFileCatRunning(Zombie, inspectInventory: true, listingLimit: () => null));
+        }
+        finally
+        {
+            if (!holder.HasExited) holder.Kill();
+            holder.WaitForExit();
+        }
+
+        string? python = new[] { "/usr/bin/python3", "/bin/python3" }.FirstOrDefault(File.Exists);
+        if (python is null) { Assert.Skip("python3, to end a process's main thread while another runs."); return; }
+        using var leader = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(python)
+        {
+            UseShellExecute = false, RedirectStandardOutput = true,
+            ArgumentList = { "-c", "import ctypes, threading, time; threading.Thread(target=time.sleep, args=(30,)).start(); print('ready', flush=True); ctypes.CDLL(None).pthread_exit(None)" },
+        })!;
+        try
+        {
+            Assert.Equal("ready", leader.StandardOutput.ReadLine());
+            Assert.True(WaitForLinuxState(leader.Id, 'Z'), $"Process {leader.Id}'s main thread did not exit.");
+            System.Diagnostics.Process[] Running() => [System.Diagnostics.Process.GetProcessById(leader.Id)];
+            Assert.NotEqual(false, SingleInstance.OtherFileCatRunning(Running, inspectInventory: true, listingLimit: () => null));
+        }
+        finally
+        {
+            if (!leader.HasExited) leader.Kill();
+            leader.WaitForExit();
+        }
+    }
+
+    private static bool WaitForLinuxState(int pid, char state)
+    {
+        for (int attempt = 0; attempt < 100; attempt++)
+        {
+            string? stat = null;
+            try { stat = File.ReadAllText($"/proc/{pid.ToString(System.Globalization.CultureInfo.InvariantCulture)}/stat"); }
+            catch (IOException) { }
+            if (stat is not null && SingleInstance.StateFromStat(stat) == state) return true;
+            Thread.Sleep(50);
+        }
+        return false;
+    }
+
+    [Fact]
     public void An_unreadable_process_identity_is_unknown_but_a_known_FileCat_still_takes_precedence()
     {
         using var child = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo

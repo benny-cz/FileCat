@@ -5749,3 +5749,40 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - PR #68 merged (`9d3deb47`) after its full run `45746120969` passed. The run's new x64 installer compile passed too, and its unsigned 0.0.0 Setup was used for the VM checks.
 - In the VM, on that Setup: T1 to T5 pass ([E-I680](evidence/E-I680-setup-cannot-close-running-filecat.md#checked-before-the-candidate-on-cis-test-setup-2026-11-26)). FileCat closes when asked, and FileCat's own question about running work comes first. Only an unanswered question leads to a forced end, and every uninstall leaves no file. Harness misses on the way (the test build's update offer, the copy's temporary name, the uninstaller's process name) are recorded there.
+
+## 2026-11-26 — `v1.0.0-rc.6` tagged; its signing awaits the owner
+
+- Sync PR #69 merged into `release/1.0` (`6d814134`; its tree is main's at `0655f48c`) after its full run 45750882745 passed. The session tagged `v1.0.0-rc.6` (annotated, `06ee1411`), under the owner's rule that every known issue is fixed for the next candidate and the owner's approval of the work toward 1.0.0. As for every candidate tag, the account's admin role passed the rule that only admins create release tags.
+- Tagged run 45755406125 builds, tests and packages it. Its signing job waits for the owner's approval of the `signing` deployment. rc.6 differs from rc.5 only in the installer (I680) and the version. The checks the plan's section 11.2 asks for follow: hashes and signatures, a clean install and launch, and what the installer does.
+
+## 2026-11-26 — The owner's walkthrough and GA PC checklist move to rc.6
+
+- The consent walkthrough and the GA PC checklist now name rc.6: its tag and source, its signed draft's title, and the installer's cited lines at rc.6. rc.6 changes no consent path, so the steps are the same.
+
+## 2026-11-26 — rc.6's tagged run, Linux and macOS
+
+- Tagged run 45755406125: all 19 test jobs passed (73,817P/13,698S/0F), the same as PR #69's run test by test but for one Ubuntu test that runs or skips by the runner's disk. The three package jobs passed. The signing job has waited for the owner since 05:08Z ([rc.6](evidence/E-RC6-TAG-20261126.md)).
+- From the package jobs' artifacts: the Linux and macOS files match their manifests. Ubuntu passes all 26 rows, the Mac 33 of 35 with b23's and b28's known BLOCKED halves, and b1's placement round trip passes.
+
+## 2026-11-26 — rc.6 signed, drafted and checked; I680 remediated preliminarily
+
+- The owner approved rc.6's `signing` deployment in GitHub and confirmed it here ("Approved"). Signing and verification gave rc.4's and rc.5's counts. Private draft 459101740 holds the 24 assets; all 24 match GitHub's digests and the manifests ([rc.6](evidence/E-RC6-TAG-20261126.md)).
+- Against rc.5, the packages hold the same entries with the same sizes. Before signing, only FileCat's own 28 version-stamped x64 programs and libraries differ; every vendor file is byte-identical.
+- In the VM: c1 passes from a clean state. The first run kept an empty program folder that an earlier install had not created, a leftover of the I680 baseline (`batch44u`). I680's five cases pass on rc.6's signed Setup, folder checks included ([I680](evidence/E-I680-setup-cannot-close-running-filecat.md)). I680 moves to "Remediated preliminarily". The VM ends with rc.6 installed afresh for the owner's walkthrough.
+
+## 2026-11-26 — The cover sheet and release notes move to rc.6
+
+- The GO cover sheet now describes rc.6: its tag, run, drafts and manifests; what passed on rc.6 and what carries over from rc.5; and the 18 unresolved rows, now that I680 is remediated. The release notes (`d54e7096`) carry rc.6's values; two GO lines stay open. The REP is rebuilt for rc.6 next.
+
+## 2026-11-26 — rc.6's Release Evidence Package staged
+
+- Staged at `E:\FileCat\.tmp\rep-1.0.0-rc.6` and verified: 1,472 files, 2,897,195,971 bytes, manifest SHA-256 `c319f22f4949b3365e2d1846dc4985aea4e37b6d910104631627b19a6a1b7ae2`, committed in `v1.0.0-rc.6/` ([REP](evidence/E-REP-RC6-20261126.md)). It holds rc.6's assets and evidence, with rc.5's package carried whole under `carried/rc5/`, including the evidence added after rc.5's staging. `Seal-Rep.ps1` now defaults to rc.6. The package is rebuilt before GO with the owner's steps.
+
+## 2026-11-26 — The owner's walkthrough on rc.6: Windows passes; I681 found on Ubuntu
+
+- Windows, W1 to W7: all pass, each step confirmed in Windows' process records (4688) and, for W5 and W7, NTFS's change journal. W2 and W5 counted only once done through FileCat's own menu and helper; earlier attempts were recorded and not counted. The launcher-opened administrator window comes to the front by itself (E-I644's open question).
+- Ubuntu: U1 and U2 pass. U3 found [I681](evidence/E-I681-linux-census-zombie.md): an unreaped zombie made the root census unknown, so recovery refused the owner's stick although the owner's password was accepted. PR #70 fixes it; the owner chose rc.7.
+
+## 2026-11-26 — I681's fix merged
+
+- PR #70 merged (`0c1049b7`) after its full run 45794347786 passed; the new zombie test ran and passed on Ubuntu ([I681](evidence/E-I681-linux-census-zombie.md)). The sync to `release/1.0` and rc.7 follow.

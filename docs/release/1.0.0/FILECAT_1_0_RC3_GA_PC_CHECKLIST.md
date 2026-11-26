@@ -1,8 +1,8 @@
-# FileCat 1.0.0 rc.5: GA PC checklist (REL-WIN-GA)
+# FileCat 1.0.0 rc.6: GA PC checklist (REL-WIN-GA)
 
-Prepared 2026-11-25, and updated for rc.5 the same day: rc.5 differs from rc.3 only by I672 to I679 (signing in to a share on Windows, a share whose server does not answer no longer stopping the window, a picture timeout's wording, two status races, and tests), none on a consent path, so the steps and their source citations are unchanged. Under [DEC-14](evidence/E-DEC-2026-11-24-release-scope.md) you provide a physical PC with a released (GA) Windows 11. On it you install rc.5's x64 Setup, start FileCat, use it and remove it, with Smart App Control enforcing while FileCat's programs load. This closes checklist d1 in the [rc.2 checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md): REL-WIN-GA (ENV-03) and the GA-tier Smart App Control part of REL-SIGN-WINDOWS. It takes about 45 minutes. **[Admin]** marks a step that needs administrator approval.
+Prepared 2026-11-25, updated for rc.5 the same day and for rc.6 on 2026-11-26. rc.5 differs from rc.3 only by I672 to I679 (signing in to a share on Windows, a share whose server does not answer no longer stopping the window, a picture timeout's wording, two status races, and tests). rc.6 differs from rc.5 only by I680: Setup and the uninstaller close a running FileCat. None of these is on a consent path, so the steps are unchanged. Under [DEC-14](evidence/E-DEC-2026-11-24-release-scope.md) you provide a physical PC with a released (GA) Windows 11. On it you install rc.6's x64 Setup, start FileCat, use it and remove it, with Smart App Control enforcing while FileCat's programs load. This closes checklist d1 in the [rc.2 checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md): REL-WIN-GA (ENV-03) and the GA-tier Smart App Control part of REL-SIGN-WINDOWS. It takes about 45 minutes. **[Admin]** marks a step that needs administrator approval.
 
-**Rules:** as in the [consent walkthrough](FILECAT_1_0_RC3_CONSENT_WALKTHROUGH.md). Test rc.5 only; stop at the first Fail; never put your name in the chat; **Unverified** marks text that neither rc.5's source nor a record gives. Source notes cite source files at the `v1.0.0-rc.5` tag (`19002592`), re-checked on 2026-11-26 as the walkthrough says, and records at `main` `7a15ac8b` unless marked "rc3" (`rc3/integration-3`, `94b74365`).
+**Rules:** as in the [consent walkthrough](FILECAT_1_0_RC3_CONSENT_WALKTHROUGH.md). Test rc.6 only; stop at the first Fail; never put your name in the chat; **Unverified** marks text that neither rc.6's source nor a record gives. Source notes cite source files at the `v1.0.0-rc.6` tag (`6d814134`), re-checked on 2026-11-26 as the walkthrough says, and records at `main` `7a15ac8b` unless marked "rc3" (`rc3/integration-3`, `94b74365`).
 
 **You need:** your GitHub sign-in in a browser on this PC (the draft is private), a PDF, a folder with a few JPEG or PNG pictures, a small folder of your own to pack, and optionally a USB stick with a FAT or exFAT volume (G8).
 
@@ -46,7 +46,7 @@ Test-Path 'C:\Program Files\FileCat', "$env:APPDATA\FileCat", "$env:LOCALAPPDATA
 - **Expect:** `AMD64`. `5`, Windows' default UAC setting. The SAC value as in Read first. Three times `False`: no earlier FileCat. If FileCat was here before, uninstall it, rename its two profile folders, and say so. On an ARM64 PC, stop: REL-WIN-GA needs x64.
 - **Record:** the edition, DisplayVersion, CurrentBuild.UBR and the SAC state. The session checks that the build is a serviced GA build.
 
-<details><summary>Source</summary>FILECAT_1_0_RELEASE_BLOCKERS.md:27, 59 (DEC-02, ENV-03: a GA Windows x64 PC); rc3 evidence/E-I644-administrator-window-environment-profiler.md:12 (5 is the default); eng/installer/FileCat.iss:76-79 (profile folders)</details>
+<details><summary>Source</summary>FILECAT_1_0_RELEASE_BLOCKERS.md:27, 59 (DEC-02, ENV-03: a GA Windows x64 PC); rc3 evidence/E-I644-administrator-window-environment-profiler.md:12 (5 is the default); eng/installer/FileCat.iss:80-83 (profile folders)</details>
 
 ### G2 · Smart App Control On
 - **Do:** Open Smart App Control settings. If it shows Evaluation or Off, decide as in Read first, and choose On if it is offered. Then rerun the `VerifiedAndReputablePolicyState` line.
@@ -56,7 +56,7 @@ Test-Path 'C:\Program Files\FileCat', "$env:APPDATA\FileCat", "$env:LOCALAPPDATA
 <details><summary>Source</summary>evidence/E-SIGN-DRYRUN-20261120.md:122</details>
 
 ### G3 · Download
-- **Do:** In the browser, signed in to GitHub, open the repository's Releases and the draft "FileCat v1.0.0-rc.5 (signed release candidate)". Download `FileCat-1.0.0-win-x64-setup.exe` and `FileCat-1.0.0-windows-assets.json`. Do not unblock the Setup in its Properties.
+- **Do:** In the browser, signed in to GitHub, open the repository's Releases and the draft "FileCat v1.0.0-rc.6 (signed release candidate)". Download `FileCat-1.0.0-win-x64-setup.exe` and `FileCat-1.0.0-windows-assets.json`. Do not unblock the Setup in its Properties.
 - **Expect:** No record covers a browser warning on this download (**Unverified**). If one appears, write down its wording, then keep the file.
 - **Record:** Pass/Fail and any warning. **Closes:** d1.
 
@@ -75,7 +75,7 @@ $s = Get-AuthenticodeSignature .\FileCat-1.0.0-win-x64-setup.exe
 $s.Status; $s.SignerCertificate.Subject; $s.TimeStamperCertificate.Subject
 Get-Content .\FileCat-1.0.0-win-x64-setup.exe -Stream Zone.Identifier
 ```
-- **Expect:** `refs/tags/v1.0.0-rc.5` and `1.0.0`. The next two hashes are equal. The manifest's own hash equals the Windows manifest hash that the session gives you from the tagged run. `Valid`; the signer's subject names you (do not paste it); a timestamp authority's subject. `ZoneId=3`, the download mark.
+- **Expect:** `refs/tags/v1.0.0-rc.6` and `1.0.0`. The next two hashes are equal. The manifest's own hash equals the Windows manifest hash that the session gives you from the tagged run. `Valid`; the signer's subject names you (do not paste it); a timestamp authority's subject. `ZoneId=3`, the download mark.
 - **Record:** Pass/Fail, the Setup hash's first 16 characters and SourceCommit's first 7. **Closes:** d1; REL-SIGN-WINDOWS on GA hardware.
 
 <details><summary>Source</summary>eng/Select-ReleaseAssets.ps1:35-45, 58-83 (the manifest: names, sizes, SHA-256, candidate reference); ci.yml:1352-1355 (selected after signing), 1394-1403 (GitHub's server digests checked); evidence/E-RC2-TAG-20261124.md:52-55 (manifest hashes recorded per tag); FILECAT_1_0_RELEASE_ACTIVITY_LOG.md:5384 (timestamped Setup); FILECAT_1_0_RELEASE_BLOCKERS.md:37 (DEC-13); evidence/E-FQ-RC2-20261124.md:210 (ZoneId=3)</details>
@@ -85,7 +85,7 @@ Get-Content .\FileCat-1.0.0-win-x64-setup.exe -Stream Zone.Identifier
 - **Expect:** Windows' prompt shows you as publisher. Its program name should be "FileCat Setup", which is Inno Setup's default description; FileCat.iss sets no other (**Unverified**: not yet observed). The wizard's pages are Inno Setup's standard ones. FileCat starts.
 - **Record:** Pass/Fail, a screenshot of the prompt, and SmartScreen's wording if any. **Closes:** d1 (clean install; Setup's engine loads under SAC).
 
-<details><summary>Source</summary>eng/installer/FileCat.iss:21-32, 44, 60-61, 66, 69-74; Inno Setup help, VersionInfoDescription (default: the AppName followed by Setup); evidence/E-SIGN-DRYRUN-20261120.md:128 (SAC let Inno Setup's extracted engine run)</details>
+<details><summary>Source</summary>eng/installer/FileCat.iss:21-32, 44, 64-65, 70, 73-78; Inno Setup help, VersionInfoDescription (default: the AppName followed by Setup); evidence/E-SIGN-DRYRUN-20261120.md:128 (SAC let Inno Setup's extracted engine run)</details>
 
 ### G6 · First start
 - **Do:** Read the title. Help → About FileCat. Tools → Settings… → Privacy.
@@ -151,7 +151,7 @@ Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter '*filecat*' -ErrorAction Sile
 - **May stay, from the source, not yet observed:** `HKLM\SOFTWARE\FileCat\PrivilegedHost\UsedPlans`, because G7's helper ran and the uninstaller has no rule for it; `HKLM\SOFTWARE\FileCat.AdministratorTransfers`, only if you saved remembered administrator preferences; and an AppContainer profile named `FileCat.ArchiveWriter.v1` from G7's archive step, whose folder is not in the records. `C:\Program Files\FileCat-sac` is gone if you deleted it in G7.
 - **Record:** the output. The session decides whether what stays is acceptable. **Closes:** d1 (removal).
 
-<details><summary>Source</summary>eng/installer/FileCat.iss:69-71, 76-79; evidence/E-FQ-RC2-20261124.md:137, 143; src/FileCat.Platform.Windows/Elevation/ElevationBroker.cs:21; src/FileCat.Platform.Windows/Elevation/ElevationBroker.Nonce.cs:12-18; src/FileCat.Platform.Windows/AdministratorTransferRegistry.cs:16; src/FileCat.Platform.Windows/Shell/ArchiveAppContainer.cs:417; Microsoft Learn, CreateAppContainerProfile (a per-user profile with folders and registry storage)</details>
+<details><summary>Source</summary>eng/installer/FileCat.iss:73-75, 80-83; evidence/E-FQ-RC2-20261124.md:137, 143; src/FileCat.Platform.Windows/Elevation/ElevationBroker.cs:21; src/FileCat.Platform.Windows/Elevation/ElevationBroker.Nonce.cs:12-18; src/FileCat.Platform.Windows/AdministratorTransferRegistry.cs:16; src/FileCat.Platform.Windows/Shell/ArchiveAppContainer.cs:417; Microsoft Learn, CreateAppContainerProfile (a per-user profile with folders and registry storage)</details>
 
 ## Report back
 
