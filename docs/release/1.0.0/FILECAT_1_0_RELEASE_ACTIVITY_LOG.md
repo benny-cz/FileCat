@@ -5773,3 +5773,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-26 — The cover sheet and release notes move to rc.6
 
 - The GO cover sheet now describes rc.6: its tag, run, drafts and manifests; what passed on rc.6 and what carries over from rc.5; and the 18 unresolved rows, now that I680 is remediated. The release notes (`d54e7096`) carry rc.6's values; two GO lines stay open. The REP is rebuilt for rc.6 next.
+
+## 2026-11-26 — rc.6's Release Evidence Package staged
+
+- Staged at `E:\FileCat\.tmp\rep-1.0.0-rc.6` and verified: 1,472 files, 2,897,195,971 bytes, manifest SHA-256 `c319f22f4949b3365e2d1846dc4985aea4e37b6d910104631627b19a6a1b7ae2`, committed in `v1.0.0-rc.6/` ([REP](evidence/E-REP-RC6-20261126.md)). It holds rc.6's assets and evidence, with rc.5's package carried whole under `carried/rc5/`, including the evidence added after rc.5's staging. `Seal-Rep.ps1` now defaults to rc.6. The package is rebuilt before GO with the owner's steps.
