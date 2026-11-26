@@ -12,7 +12,8 @@
    - each of its assets matches GitHub's digest; the three producer manifests have the SHA-256 values the GO names,
      name version 1.0.0, the candidate tag and the source commit, and pin every other asset by size and SHA-256; the
      assets are exactly the manifests and the files they list;
-   - the release notes, with line feeds as line ends, have the SHA-256 the GO names and no open [[...]] placeholder.
+   - the release notes, with line feeds as line ends and no line break at the end, have the SHA-256 the GO names and
+     no open [[...]] placeholder.
    It then creates the draft, uploads each file once, and checks the draft: its tag, commit, title, notes and kind, and
    every asset by name, size and GitHub's digest; it downloads each uploaded asset again by its ID and compares it with
    the candidate's bytes. -DryRun makes the same draft under a dry-run title and deletes it at the end, or when it
@@ -52,6 +53,12 @@ $AssetName = '^[0-9A-Za-z][0-9A-Za-z._-]*$'
 function Write-Step([string]$Text) { Write-Host "$(Get-Date -Format 'HH:mm:ss') $Text" }
 
 function Get-Sha256([string]$Path) { (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant() }
+
+# The notes as the release keeps them, and as the GO names their SHA-256: line feeds as line ends, no line break at the end.
+function ConvertTo-NotesText([string]$Text) { $Text.Replace("`r`n", "`n").TrimEnd("`n") }
+function Get-TextSha256([string]$Text) {
+    [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.UTF8Encoding]::new($false).GetBytes($Text))).ToLowerInvariant()
+}
 
 # One GitHub API call through gh; JSON comes back as objects. A 404 returns $null only where the caller allows it.
 function Invoke-GitHub([string]$Endpoint, [string]$Method = 'GET', [string]$InputPath, [string]$ContentType, [switch]$AllowNotFound) {
@@ -129,9 +136,9 @@ function Save-Report { [IO.File]::WriteAllText($ReportPath, ($report | ConvertTo
 try {
     # --- the release notes, as LF text ---------------------------------------------------------------------------
     $notesFull = [IO.Path]::GetFullPath($NotesPath)
-    $notesText = [IO.File]::ReadAllText($notesFull, [Text.UTF8Encoding]::new($false, $true)).Replace("`r`n", "`n")
+    $notesText = ConvertTo-NotesText ([IO.File]::ReadAllText($notesFull, [Text.UTF8Encoding]::new($false, $true)))
     $notesBytes = [Text.UTF8Encoding]::new($false).GetBytes($notesText)
-    $notesSha = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($notesBytes)).ToLowerInvariant()
+    $notesSha = Get-TextSha256 $notesText
     if ($notesSha -cne $NotesSHA256) { throw "The release notes' SHA-256 is $notesSha, not the $NotesSHA256 the GO names" }
     if ($notesText.Contains('[[')) { throw 'The release notes still hold an open [[...]] placeholder' }
     if ($notesText.Length -gt 125000) { throw 'The release notes are longer than GitHub keeps (125,000 characters)' }
@@ -212,22 +219,26 @@ try {
     $report.StableReleaseId = $draftId; $report.StableReleaseUrl = $draft.html_url
     Remove-Item -LiteralPath $payloadPath
     Write-Step "draft: release $draftId created ($Title)"
+    # The draft as GitHub keeps it: kind, tag, title and notes, and the commit where v1.0.0 does not exist yet (where it
+    # exists, the tag fixes the commit, checked above). Checked before the uploads and again after them.
+    function Assert-Draft {
+        $kept = Invoke-GitHub "repos/$Repository/releases/$draftId"
+        if (-not $kept.draft -or $kept.prerelease -or $kept.tag_name -cne $StableTag -or $kept.name -cne $Title -or
+            (-not $report.StableTagExisted -and $kept.target_commitish -cne $SourceCommit)) {
+            throw 'The draft is not the private, stable-kind draft of v1.0.0 at the source commit with the expected title'
+        }
+        $keptSha = Get-TextSha256 (ConvertTo-NotesText ([string]$kept.body))
+        if ($keptSha -cne $NotesSHA256) { throw "The draft's notes have SHA-256 $keptSha, not the notes' $NotesSHA256" }
+    }
+    Assert-Draft
+    Write-Step "draft: private, stable kind, v1.0.0, the title and the notes as named"
     foreach ($name in ($names.Keys | Sort-Object)) {
         $uploaded = Invoke-GitHub "https://uploads.github.com/repos/$Repository/releases/$draftId/assets?name=$name" -Method POST `
             -InputPath (Join-Path $CandidateDir $name) -ContentType 'application/octet-stream'
         if ($uploaded.name -cne $name) { throw "GitHub stored $name as $($uploaded.name)" }
         Write-Step "uploaded $name ($($names[$name].Bytes) bytes) as asset $($uploaded.id)"
     }
-    # The draft as GitHub keeps it: kind, tag, commit, title, notes and assets.
-    # Where v1.0.0 exists, it fixes the commit (checked above); before that, the draft's target commit does.
-    $kept = Invoke-GitHub "repos/$Repository/releases/$draftId"
-    if (-not $kept.draft -or $kept.prerelease -or $kept.tag_name -cne $StableTag -or $kept.name -cne $Title -or
-        (-not $report.StableTagExisted -and $kept.target_commitish -cne $SourceCommit)) {
-        throw 'The draft is not the private, stable-kind draft of v1.0.0 at the source commit with the expected title'
-    }
-    $keptBody = ([string]$kept.body).Replace("`r`n", "`n")
-    $keptSha = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.UTF8Encoding]::new($false).GetBytes($keptBody))).ToLowerInvariant()
-    if ($keptSha -cne $NotesSHA256) { throw "The draft's notes have SHA-256 $keptSha, not the notes' $NotesSHA256" }
+    Assert-Draft
     $keptAssets = Get-ReleaseAssets $draftId
     if ($keptAssets.Count -ne $names.Count) { throw "The draft has $($keptAssets.Count) assets, not $($names.Count)" }
     $seen = @{}
