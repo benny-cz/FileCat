@@ -177,14 +177,21 @@ public sealed class ChangeMonitorCadenceTests
         // (Changes closer together than a quarter second are already read every two seconds.) For six seconds at least,
         // and on until the folder counts as busy and two rereads have been taken apart while it did: a runner that holds up
         // the writes or their notices for longer than the quiet spell rightly makes the folder calm in between.
+        // Busy is judged once, where the writing stops: a quiet spell that ends just then (the runner held the writes or
+        // their notices up) turns the folder calm a moment later, and a second look would miss what the first saw (I686).
         double started = clock.Elapsed.TotalSeconds;
+        bool busyWhenWritingStopped = false;
         for (int i = 0; clock.Elapsed.TotalSeconds - started < 25; i++)
         {
-            if (clock.Elapsed.TotalSeconds - started >= 6 && monitor.IsChurning && BusyGaps().Length >= 2) break;
+            if (clock.Elapsed.TotalSeconds - started >= 6 && monitor.IsChurning && BusyGaps().Length >= 2)
+            {
+                busyWhenWritingStopped = true;
+                break;
+            }
             File.WriteAllText(Path.Combine(folder, $"f{i:0000}.txt"), "x");
             await Task.Delay(400, ct);
         }
-        Assert.True(monitor.IsChurning && BusyGaps().Length >= 2, Record());
+        Assert.True(busyWhenWritingStopped, Record());
 
         // Quiet for longer than CalmAfter: no longer busy, which it says once more.
         await Until(() => !monitor.IsChurning, TimeSpan.FromSeconds(10));
