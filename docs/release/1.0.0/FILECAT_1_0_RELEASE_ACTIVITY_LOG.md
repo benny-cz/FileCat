@@ -5826,3 +5826,9 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - On the Ubuntu VM with rc.8's .deb and the owner's USB stick, U1 to U5 pass, each answer confirmed in the system journal ([rc.8](evidence/E-RC8-TAG-20261126.md)). The VM's zombie was present throughout, so I681's fix is checked in the owner's own path.
 - U3 took three tries. The first refused the second process check instead of the drive read. The second, after U4, got no drive-read dialog, because polkit kept U4's approval for the same FileCat window. The third, in a fresh window, refused the drive read. The walkthrough's U3 now names the dialogs and says to use a fresh window after U4.
+
+## 2026-11-26 — The owner's walkthrough on rc.8: the Mac passes; I684 found
+
+- On the M1 Mac, M1 to M9 pass on rc.8, each confirmed in macOS's log: the quarantined download, Gatekeeper's block and Open Anyway, TCC's Documents (allowed) and Desktop (refused), the USB disk's identity, and authopen refused, the disk changed during the dialog, and approved ([rc.8](evidence/E-RC8-TAG-20261126.md)).
+- M8 found I684: while macOS's dialog waited for the owner, FileCat said "/dev/rdisk4 is not responding", because the drive open's wait for the person counts toward the I/O scheduler's 8 s hang threshold. It is Low; the owner decides between rc.9 with a fix and rc.8 with I684 open ([I684](evidence/E-I684-authorization-wait-not-responding.md)).
+- The screen capture taken at the owner's request is not kept: it shows the owner's name in macOS's dialog. Two crops of FileCat's notice and scan tab are kept with the notes.
