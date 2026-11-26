@@ -5799,3 +5799,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-26 — The owner chose rc.8; I682's fix merged
 
 - Asked to cut rc.8 with I682's fix or take rc.7 to GO with I682 open, the owner answered "Yes, make rc.8". PR #72 merged (`6b1c3419`) after its full run 45823749293 passed; both of its Linux cases ran on Ubuntu ([I682](evidence/E-I682-no-display-abort.md)). The sync to `release/1.0` and rc.8 follow.
+
+## 2026-11-26 — rc.8 tagged; its tagged run found I683
+
+- PR #73 synced `release/1.0` with main at `5f51c5c1`, and its full run passed. The session tagged `v1.0.0-rc.8` at `814a42f2`, under the owner's "Yes, make rc.8". Tagged run 45835859037 failed one test on its Windows ARM64 lane, so the package and signing jobs, which need that lane, did not run.
+- The failure is I683, a test defect: WebView2 asked for the page's favicon after the page had counted as drawn, and the test took that request as the page's last one. The product reported once, as it should. PR #74 fixes the test; no shipped file changes ([I683](evidence/E-I683-page-test-late-favicon.md)). The tagged run's failed job is run again so that rc.8's packages can be built.
