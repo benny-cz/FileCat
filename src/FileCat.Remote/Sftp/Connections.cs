@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
 using FileCat.Core.Diagnostics;
 using FileCat.Core.State;
+using FileCat.Core.Threading;
 
 namespace FileCat.Remote.Sftp;
 
@@ -186,8 +187,11 @@ public sealed class SftpConnections : IDisposable
             }
             if (channel is null)
             {
-                // One connection attempt at a time per server, so prompts never stack up.
-                pool.Connecting.Wait(ct);
+                // One connection attempt at a time per server, so prompts never stack up. While another attempt runs,
+                // this call waits for it, and it may be waiting for the person's answer: that attempt's own call
+                // reports a server that does not answer, so this wait does not count toward the hang threshold (I684).
+                using (DeviceIoScheduler.AwaitingUser())
+                    pool.Connecting.Wait(ct);
                 try
                 {
                     ObjectDisposedException.ThrowIf(_disposed, this);
@@ -270,14 +274,19 @@ public sealed class SftpConnections : IDisposable
         // Unencrypted FTP is only ever a knowing choice: in the connection dialog, or asked once per session.
         if (profile.Protocol == RemoteProtocols.Ftp && !profile.PlainTextAccepted && !_plainAllowed.ContainsKey(profile.Id))
         {
-            if (!Interaction.AllowUnencrypted(profile)) throw new ConnectCanceledException();
+            if (!Asking(() => Interaction.AllowUnencrypted(profile))) throw new ConnectCanceledException();
             _plainAllowed[profile.Id] = true;
         }
         string? known = _sessionSecrets.GetValueOrDefault(profile.Id);
         if (known is null && profile.SaveSecret)
         {
-            try { known = _secrets.Read(profile.SecretKey); }
-            catch (IOException ex) { AppLog.Warn("Could not read a saved secret", ex); }
+            // The system's store may ask the person first (to unlock the keychain or keyring, or to let this FileCat
+            // read the item), and it is not the server's work either way: not counted as the server's hang (I684).
+            using (DeviceIoScheduler.AwaitingUser())
+            {
+                try { known = _secrets.Read(profile.SecretKey); }
+                catch (IOException ex) { AppLog.Warn("Could not read a saved secret", ex); }
+            }
         }
         bool rejectedHostKey = false;
         for (int attempt = 1; ; attempt++)
@@ -298,7 +307,7 @@ public sealed class SftpConnections : IDisposable
                 GetSecret = passphrase =>
                 {
                     if (!retry && known is not null) return known;
-                    var answer = Interaction.AskSecret(profile, new SecretRequest(passphrase, retry, _secrets.IsPersistent));
+                    var answer = Asking(() => Interaction.AskSecret(profile, new SecretRequest(passphrase, retry, _secrets.IsPersistent)));
                     if (answer is null) throw new ConnectCanceledException();
                     known = answer.Secret;
                     _sessionSecrets[profile.Id] = answer.Secret;
@@ -309,7 +318,7 @@ public sealed class SftpConnections : IDisposable
                 {
                     // A lone hidden prompt (PAM's "Password:") takes the known password without asking again.
                     if (!retry && known is not null && prompts.Count == 1 && !prompts[0].Echo) return [known];
-                    return Interaction.AnswerPrompts(profile, instruction, prompts) ?? throw new ConnectCanceledException();
+                    return Asking(() => Interaction.AnswerPrompts(profile, instruction, prompts)) ?? throw new ConnectCanceledException();
                 },
             };
             ISftpChannel channel;
@@ -350,7 +359,8 @@ public sealed class SftpConnections : IDisposable
         if (!_secrets.IsPersistent) return;
         try
         {
-            _secrets.Write(profile.SecretKey, secret, $"FileCat: {profile.Name} ({RemoteProtocols.Describe(profile.Protocol)}, {profile.Display})");
+            using (DeviceIoScheduler.AwaitingUser())
+                _secrets.Write(profile.SecretKey, secret, $"FileCat: {profile.Name} ({RemoteProtocols.Describe(profile.Protocol)}, {profile.Display})");
             if (!profile.SaveSecret)
             {
                 profile.SaveSecret = true;
@@ -364,13 +374,22 @@ public sealed class SftpConnections : IDisposable
         }
     }
 
+    /// <summary>
+    /// Asks the person a connection question. The device call that connects waits for the answer, not for the server, so
+    /// the wait does not count toward its hang threshold (I684); the server's own work before and after it does.
+    /// </summary>
+    private static T Asking<T>(Func<T> question)
+    {
+        using (DeviceIoScheduler.AwaitingUser()) return question();
+    }
+
     private bool ApproveCertificate(RemoteProfile profile, Ftp.CertificateInfo certificate)
     {
         var trust = _certificates;
         if (trust is null) return certificate.Problems.Count == 0;
         var check = trust.Check(profile.Host, profile.Port, certificate);
         if (check.Status is Ftp.CertificateStatus.Valid or Ftp.CertificateStatus.Pinned) return true;
-        var decision = Interaction.DecideCertificate(profile, check);
+        var decision = Asking(() => Interaction.DecideCertificate(profile, check));
         if (decision == HostKeyDecision.AcceptAndRemember) trust.Remember(profile.Host, profile.Port, certificate.Sha256);
         return decision != HostKeyDecision.Reject;
     }
@@ -390,7 +409,7 @@ public sealed class SftpConnections : IDisposable
                     : $"FileCat did not connect to {profile.Host}: its key could not be checked. {check.Problem}");
                 return false;
         }
-        var decision = Interaction.DecideHostKey(profile, check);
+        var decision = Asking(() => Interaction.DecideHostKey(profile, check));
         if (decision == HostKeyDecision.AcceptAndRemember) _trust.Remember(profile.Host, profile.Port, key);
         return decision != HostKeyDecision.Reject;
     }

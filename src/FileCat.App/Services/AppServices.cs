@@ -178,6 +178,8 @@ public sealed class AppServices : IDisposable
         Zip.OtherArchives = Archives;
         Zip.SpoolForeignMember = Archives.Spool;
         if (Providers.Get(Schemes.FileSystem) is LocalFileSystemProvider local) local.ContainerDetector = new ContainerDetectors(Zip, Archives);
+        // macOS asks the person once per kind of protected place; FileCat keeps which kinds it has seen answered (I685).
+        if (OperatingSystem.IsMacOS()) SystemPrompts.KeepAnswersIn(Path.Combine(paths.LocalDirectory, "macos-privacy-answers.txt"));
         Formatters.DateFormat = Settings.DateFormat;
         Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory,
             archiveBackends ?? Core.Archives.ArchiveJobBackends.Empty, storageTransforms ?? ReleaseStorageTransforms(Platform, paths),
@@ -463,9 +465,20 @@ public sealed class AppServices : IDisposable
     private static IStorageTransforms ReleaseStorageTransforms(IPlatform platform, AppPaths paths) =>
         OperatingSystem.IsWindows() && platform is FileCat.Platform.Windows.WindowsPlatform
             ? FileCat.Platform.Windows.WindowsStorageTransforms.CreateReleaseWithEfs(() => paths.LocalDirectory,
-                static show => Avalonia.Threading.Dispatcher.UIThread.Invoke(show),
-                static compare => Avalonia.Threading.Dispatcher.UIThread.Invoke(compare))
+                static show => AskOnUi(show), static compare => AskOnUi(compare))
             : platform.StorageTransforms;
+
+    // The key backup wizard and a key provider's questions (a smart card's PIN) wait for a person on the UI thread. A device
+    // call that asks them waits for that person, not for its drive (I684).
+    private static T AskOnUi<T>(Func<T> ask)
+    {
+        using (DeviceIoScheduler.AwaitingUser()) return Avalonia.Threading.Dispatcher.UIThread.Invoke(ask);
+    }
+
+    private static void AskOnUi(Action ask)
+    {
+        using (DeviceIoScheduler.AwaitingUser()) Avalonia.Threading.Dispatcher.UIThread.Invoke(ask);
+    }
 
     internal static bool CanQualifyNtfsStorage(bool nativeArm64) => (nativeArm64
         ? FileCat.Platform.Windows.WindowsStorageTransforms.IsNativeArm64QualificationHost
@@ -481,8 +494,7 @@ public sealed class AppServices : IDisposable
         var storage = qualifyNtfsStorage ? new FileCat.Platform.Windows.WindowsStorageTransforms(
             efsSetupBaseDirectory: () => paths.LocalDirectory, qualifyNativeArm64: nativeArm64Storage,
             compressionSetReturnedForQualification: compressionSetReturned)
-            .CreateEfsJobCandidate(static show => Avalonia.Threading.Dispatcher.UIThread.Invoke(show),
-                invokeProviderOwner: static compare => Avalonia.Threading.Dispatcher.UIThread.Invoke(compare)) : null;
+            .CreateEfsJobCandidate(static show => AskOnUi(show), invokeProviderOwner: static compare => AskOnUi(compare)) : null;
         Current = new AppServices(paths, archiveBackends: archiveBackends, storageTransforms: storage, qualifyNativeArm64Storage: nativeArm64Storage);
         return Current;
     }

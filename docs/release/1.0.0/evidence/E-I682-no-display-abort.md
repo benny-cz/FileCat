@@ -51,3 +51,11 @@ The unfixed build was not run through the test again, since every abort would op
 - **The owner chose rc.8:** asked to cut rc.8 with the fix or take rc.7 to GO with I682 open, the owner answered "Yes, make rc.8".
 - **PR #72 merged** into main as `6b1c3419` after its full-matrix run 45823749293 passed all 19 jobs. In that run's Ubuntu App tests, both Linux cases ran and passed: no display, and `:987`.
 - **What follows:** the fix reaches users in rc.8. On rc.8's installed package, the session repeats the start without a usable display, three ways.
+
+## On rc.8 (2026-11-26)
+
+`v1.0.0-rc.8` ships the fix ([rc.8](E-RC8-TAG-20261126.md#i681-and-i682-on-rc8-on-the-ubuntu-vm)).
+- **CI:** in its tagged run 45835859037, the message helper's test passes on the four App lanes, and both Linux starts pass on Ubuntu.
+- **On the Ubuntu VM,** rc.8's installed package was started from an SSH shell three ways: with no display set, with `DISPLAY=:987`, and with the session's `:0` but no X authority. Each ended with exit 1 and FileCat's message naming the display, with no "Unhandled exception". `/var/crash` gained no FileCat report.
+
+I682 is remediated preliminarily in rc.8.

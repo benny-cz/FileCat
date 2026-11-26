@@ -1,4 +1,5 @@
 using FileCat.Core.Resources;
+using FileCat.Core.Threading;
 
 namespace FileCat.Core.Network;
 
@@ -113,8 +114,11 @@ public sealed class UnixNetworkProvider : ResourceProvider
         }
         catch (SmbSignInRequiredException) when (!OperatingSystem.IsMacOS() && SignIn is not null)
         {
-            var credentials = await SignIn(server, null, "The server lists its shares only after you sign in.").ConfigureAwait(false)
-                              ?? throw new OperationCanceledException("Signing in was canceled.");
+            NetworkCredentials? answer;
+            // The listing now waits for the person's answer, not for the server (I684).
+            using (DeviceIoScheduler.AwaitingUser())
+                answer = await SignIn(server, null, "The server lists its shares only after you sign in.").ConfigureAwait(false);
+            var credentials = answer ?? throw new OperationCanceledException("Signing in was canceled.");
             shares = await SmbTools.ListSharesAsync(server, credentials, ct).ConfigureAwait(false);
             lock (_given) _given[server] = credentials;
         }
@@ -184,7 +188,10 @@ public sealed class UnixNetworkProvider : ResourceProvider
         }
         catch (SmbSignInRequiredException ex) when (SignIn is not null)
         {
-            var credentials = await SignIn(server, share, ex.Message).ConfigureAwait(false) ?? throw new OperationCanceledException("Signing in was canceled.");
+            NetworkCredentials? answer;
+            using (DeviceIoScheduler.AwaitingUser())
+                answer = await SignIn(server, share, ex.Message).ConfigureAwait(false);
+            var credentials = answer ?? throw new OperationCanceledException("Signing in was canceled.");
             string folder = await SmbTools.MountWithGvfsAsync(server, share, credentials, ct).ConfigureAwait(false);
             lock (_given) _given[server] = credentials;
             return folder;

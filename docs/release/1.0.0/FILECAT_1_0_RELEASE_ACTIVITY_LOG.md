@@ -5799,3 +5799,44 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-26 — The owner chose rc.8; I682's fix merged
 
 - Asked to cut rc.8 with I682's fix or take rc.7 to GO with I682 open, the owner answered "Yes, make rc.8". PR #72 merged (`6b1c3419`) after its full run 45823749293 passed; both of its Linux cases ran on Ubuntu ([I682](evidence/E-I682-no-display-abort.md)). The sync to `release/1.0` and rc.8 follow.
+
+## 2026-11-26 — rc.8 tagged; its tagged run found I683
+
+- PR #73 synced `release/1.0` with main at `5f51c5c1`, and its full run passed. The session tagged `v1.0.0-rc.8` at `814a42f2`, under the owner's "Yes, make rc.8". Tagged run 45835859037 failed one test on its Windows ARM64 lane, so the package and signing jobs, which need that lane, did not run.
+- The failure is I683, a test defect: WebView2 asked for the page's favicon after the page had counted as drawn, and the test took that request as the page's last one. The product reported once, as it should. PR #74 fixes the test; no shipped file changes ([I683](evidence/E-I683-page-test-late-favicon.md)). The tagged run's failed job is run again so that rc.8's packages can be built.
+
+## 2026-11-26 — The owner keeps rc.8 with I683's test fix on main
+
+- Asked whether to keep rc.8 with I683's test-only fix on main or cut rc.9 with it, the owner answered "keep rc.8" ([I683](evidence/E-I683-page-test-late-favicon.md)). The tagged run's failed job is run again so that rc.8's packages and signing can follow.
+
+## 2026-11-26 — I683's test fix merged; rc.8's tagged run run again
+
+- PR #74 merged (`ce85f6ac`) after its full run 45839173625 passed. I683 moves to "Remediated preliminarily" ([I683](evidence/E-I683-page-test-late-favicon.md)).
+- rc.8's tagged run 45835859037 ended its first attempt with two failed jobs: the ARM64 lane's I683 test, and macOS's App tests ("The hosted runner lost communication with the server", GitHub's capacity notice for macOS arm64). The session ran both again as attempt 2, which runs the package and signing jobs after them.
+
+## 2026-11-26 — rc.8 signed, drafted and checked; I682 remediated preliminarily; rc.8's REP staged
+
+- rc.8's tagged run 45835859037 passed in attempt 2: its failed jobs were I683 (a test defect, fixed on main; the owner kept rc.8) and a macOS runner that lost contact with GitHub. 73,827P/13,708S/0F, the same as PR #73's run but for one environment-dependent Ubuntu skip ([rc.8](evidence/E-RC8-TAG-20261126.md)).
+- The owner approved rc.8's `signing` deployment ("approved"). Signing and verification gave rc.4's to rc.7's counts. Private draft 459616279 holds the 24 assets; all 24 match GitHub's digests and the manifests. Against rc.7, only `FileCat.dll` changed size, and not on x64.
+- In the VM: c1 passes over rc.7, and the framework-dependent copy refuses to start without .NET. I680's five cases pass; T4 and T5 passed on their second run, with T5's copy now paused so that the operation still runs whatever the uninstaller's delay. W2 and W5 pass by tool.
+- Ubuntu passes 26 of 26 rows, and the Mac 33 of 35 with its known BLOCKED halves; b1 passes. On rc.8's installed package, three starts without a usable display each say why and exit with 1, with no crash report: I682 moves to "Remediated preliminarily" ([I682](evidence/E-I682-no-display-abort.md)). I681's census replies clear beside the zombie, and running with a window open.
+- rc.8's Release Evidence Package is staged and verified: 2,312 files, manifest SHA-256 `d39fc0dc39f7c473784b9897a8729fd70e668cffa80943b89fed0e1c091f6b00`, committed in `v1.0.0-rc.8/` ([REP](evidence/E-REP-RC8-20261126.md)). The cover sheet, the walkthrough, the GA PC checklist and the release notes (`10472895`) are on rc.8.
+
+## 2026-11-26 — The owner's walkthrough on rc.8: Ubuntu passes
+
+- On the Ubuntu VM with rc.8's .deb and the owner's USB stick, U1 to U5 pass, each answer confirmed in the system journal ([rc.8](evidence/E-RC8-TAG-20261126.md)). The VM's zombie was present throughout, so I681's fix is checked in the owner's own path.
+- U3 took three tries. The first refused the second process check instead of the drive read. The second, after U4, got no drive-read dialog, because polkit kept U4's approval for the same FileCat window. The third, in a fresh window, refused the drive read. The walkthrough's U3 now names the dialogs and says to use a fresh window after U4.
+
+## 2026-11-26 — The owner's walkthrough on rc.8: the Mac passes; I684 found
+
+- On the M1 Mac, M1 to M9 pass on rc.8, each confirmed in macOS's log: the quarantined download, Gatekeeper's block and Open Anyway, TCC's Documents (allowed) and Desktop (refused), the USB disk's identity, and authopen refused, the disk changed during the dialog, and approved ([rc.8](evidence/E-RC8-TAG-20261126.md)).
+- M8 found I684: while macOS's dialog waited for the owner, FileCat said "/dev/rdisk4 is not responding", because the drive open's wait for the person counts toward the I/O scheduler's 8 s hang threshold. It is Low; the owner decides between rc.9 with a fix and rc.8 with I684 open ([I684](evidence/E-I684-authorization-wait-not-responding.md)).
+- The screen capture taken at the owner's request is not kept: it shows the owner's name in macOS's dialog. Two crops of FileCat's notice and scan tab are kept with the notes.
+
+## 2026-11-26 — I684 and I685 go into rc.9
+
+- The owner chose rc.9 with I684 fixed ("Fix in rc.9 (Recommended)").
+- While fixing it, the session found I685 in macOS's own log of the owner's walkthrough: macOS's privacy question waits inside the file-system call that triggers it. The owner answered for Documents after 8.9 s (M4) and for the removable volume after 10.1 s (M6), so FileCat will briefly have said the drive was not responding. Windows' smart-card PIN for an EFS file waits the same way. The owner first chose to ship it as a known issue, then "deliver it in rc.9" ([I685](evidence/E-I685-system-question-not-responding.md)).
+- [PR #75](https://github.com/benny-cz/FileCat/pull/75) fixes both: a device call's hang clock stands still while it waits for a person, and FileCat keeps which of macOS's privacy questions have been answered.
+- PR #75 merged into main as `941177ef` after its full-matrix run 45873958869. Attempt 1's macOS portable job failed before any test: the hosted runner could not resolve GitHub's artifact service (`ENOTFOUND`). Attempt 2 passed, so all 19 test jobs passed. Next: `release/1.0` is synced for rc.9.
+- The rc.9 sync's run 45881038374 (PR #76) found I686 on the macOS Core tests: a change-monitor test read the busy state twice, and the runner's stall turned the folder calm between the reads. It is a test defect, and `ChangeMonitor` is unchanged since rc.8. [PR #77](https://github.com/benny-cz/FileCat/pull/77) takes the busy state once; it was merged into main as `1d861029` after its full-matrix run 45885512784 ([I686](evidence/E-I686-cadence-test-busy-read-twice.md)). The sync's run was cancelled, and the sync takes main again.

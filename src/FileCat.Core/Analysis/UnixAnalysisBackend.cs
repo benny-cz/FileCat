@@ -21,6 +21,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend, IAnal
     private readonly bool _apfs;
     private readonly bool _wholeVolume;
     private readonly ulong _modifiedPrecisionTicks = 1;
+    private readonly uint? _macVolumeFlags;
     private readonly Dictionary<int, AnalysisNativeHandle> _handleLeases = [];
     private readonly Guid _bindingId = Guid.NewGuid();
     public RootBinding Root { get; }
@@ -54,6 +55,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend, IAnal
             if (_mac)
             {
                 var filesystem = MacFileSystem(_root, readMountRoot: true);
+                _macVolumeFlags = filesystem.Flags;
                 string type = filesystem.Type;
                 _apfs = type == "apfs";
                 _identitySupported = type is "apfs" or "hfs";
@@ -87,6 +89,8 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend, IAnal
         Guard();
         if (!_identitySupported && directory.RelativeName.Length > 0)
             throw new IOException("Recursive identity binding is unavailable on this filesystem. Only shallow observations are supported.");
+        // macOS can ask the person whether FileCat may read this folder, inside the open or the first read (I685).
+        using var prompt = _mac ? SystemPrompts.ReadingFolder(FolderPath(directory.RelativeName.AsSpan()), _macVolumeFlags) : SystemPrompts.FolderRead.None;
         int fd = OpenRelative(directory.RelativeName.AsSpan(), directory: true);
         int streamFd = fd;
         AnalysisNativeHandle? stream = null;
@@ -107,9 +111,12 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend, IAnal
                 nint record = _mac && RuntimeInformation.ProcessArchitecture != Architecture.Arm64 ? ReadDirMac(stream) : ReadDir(stream);
                 if (record == 0)
                 {
-                    if (Marshal.GetLastPInvokeError() != 0) throw new IOException("Directory enumeration did not finish.");
+                    int error = Marshal.GetLastPInvokeError();
+                    if (error is 0 or 1 or 13) prompt.Answered(); // the end, or refused (EPERM, EACCES)
+                    if (error != 0) throw new IOException("Directory enumeration did not finish.");
                     break;
                 }
+                prompt.Answered(); // the first read returned: any question has been answered
                 byte[] raw = ReadName(record, _mac);
                 byte type = Marshal.ReadByte(record, _mac ? 20 : 18);
                 if (raw.AsSpan().SequenceEqual("."u8) || raw.AsSpan().SequenceEqual(".."u8)) continue;
@@ -361,7 +368,10 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend, IAnal
             known.Total, known.Used, known.Free, known.Available, _wholeVolume, known.MayShareCapacity) : null;
     }
 
-    private static (ulong Id, string Type, string? MountRoot) MacFileSystem(int fd, bool readMountRoot = false)
+    private string FolderPath(ReadOnlySpan<byte> relative) =>
+        relative.Length == 0 ? Root.CanonicalLocator : Root.CanonicalLocator.TrimEnd('/') + "/" + Encoding.UTF8.GetString(relative);
+
+    private static (ulong Id, string Type, string? MountRoot, uint Flags) MacFileSystem(int fd, bool readMountRoot = false)
     {
         // Darwin statfs64: fsid at 48, filesystem name at 72; 2168 bytes including bounded mount-name fields.
         byte* fs = stackalloc byte[4096]; new Span<byte>(fs, 4096).Clear();
@@ -377,7 +387,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend, IAnal
             int mountEnd = mount.IndexOf((byte)0);
             if (mountEnd > 0) mountRoot = Encoding.UTF8.GetString(mount[..mountEnd]);
         }
-        return (*(ulong*)(fs + 48), Encoding.ASCII.GetString(type[..end]), mountRoot);
+        return (*(ulong*)(fs + 48), Encoding.ASCII.GetString(type[..end]), mountRoot, *(uint*)(fs + 64));
     }
     internal static byte[] ReadName(nint record, bool mac)
     {
