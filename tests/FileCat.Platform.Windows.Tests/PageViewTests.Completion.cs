@@ -23,9 +23,8 @@ public sealed partial class PageViewTests
         File.WriteAllText(readme, "# Withheld\n\nA page whose completion WebView2 does not report.\n\n![local](pic.png)\n");
         File.WriteAllBytes(Path.Combine(site, "pic.png"), Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="));
 
-        var served = new ConcurrentQueue<(string Path, bool Found)>();
+        var served = new ConcurrentQueue<(string Path, bool Found, double Seconds)>();
         var completions = new List<(bool Ok, string? Why, double Seconds)>();
-        double lastServed = 0;
         string? title = null, diagnostics = null;
         StaPump.Run(async () =>
         {
@@ -37,11 +36,7 @@ public sealed partial class PageViewTests
                 var clock = Stopwatch.StartNew();
                 var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 view.WithholdNavigationCompletedForTests = true;
-                view.Served += (path, found) =>
-                {
-                    served.Enqueue((path, found));
-                    lastServed = clock.Elapsed.TotalSeconds;
-                };
+                view.Served += (path, found) => served.Enqueue((path, found, clock.Elapsed.TotalSeconds));
                 view.Loaded += (ok, why) =>
                 {
                     completions.Add((ok, why, clock.Elapsed.TotalSeconds));
@@ -68,8 +63,13 @@ public sealed partial class PageViewTests
         var (ok, why, seconds) = Assert.Single(completions);
         Assert.True(ok, why);
         // Not before the page went quiet (its last request was answered just after it was served), and not long after.
+        // The quiet runs from the last request made before the page counted as drawn. WebView2 asks for the favicon once
+        // its own completion is in, which on a busy runner came after the report (I683: 5.3 s after the withheld
+        // completion, 0.8 s after the report); that request neither delays the report nor repeats it.
+        double lastServed = served.Where(s => s.Seconds <= seconds).Max(s => s.Seconds);
         double quiet = WebView2Page.CompletionQuiet.TotalSeconds;
         Assert.InRange(seconds - lastServed, quiet - 0.05, quiet + 10);
+        Assert.All(served.Where(s => s.Seconds > seconds), s => Assert.Equal("/favicon.ico", s.Path));
         Assert.Equal("README.md", title);
         Assert.Contains(served, s => s.Path == "/README.md" && s.Found);
         Assert.Contains(served, s => s.Path == "/pic.png" && s.Found);
