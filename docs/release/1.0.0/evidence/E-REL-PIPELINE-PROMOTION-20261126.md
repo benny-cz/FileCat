@@ -51,7 +51,7 @@ Nothing was published, and no tag was made.
 
 ## What the real promotion adds after the owner's GO
 
-1. The owner makes the annotated tag `v1.0.0` at `19002592`. Its push starts CI from that commit's workflow, whose first job must refuse: "Stable references cannot invoke a producer". That red run, building nothing, is the stable tag's negative control.
+1. The owner makes the annotated tag `v1.0.0` at `19002592`. Its push starts CI from that commit's workflow, whose first job must refuse: "Stable references cannot invoke a producer". That red run, building nothing, is the stable tag's negative control. Checked from that commit's `ci.yml` on 2026-11-26: all 18 jobs need `producer-policy`, directly or through others, and none has a job condition with `always()`, `failure()` or `cancelled()`. So when its last step, "Refuse stable tag production", fails, every package, draft and signing job is skipped.
 2. The tool runs without `-DryRun`, with the values the GO names, and leaves the private draft "FileCat 1.0.0" with the 24 assets.
 3. The owner reviews the draft and presses **Publish release**. Then section 13.3's public download checks run.
 
