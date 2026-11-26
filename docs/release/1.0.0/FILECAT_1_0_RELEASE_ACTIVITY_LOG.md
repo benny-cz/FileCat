@@ -5840,3 +5840,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - [PR #75](https://github.com/benny-cz/FileCat/pull/75) fixes both: a device call's hang clock stands still while it waits for a person, and FileCat keeps which of macOS's privacy questions have been answered.
 - PR #75 merged into main as `941177ef` after its full-matrix run 45873958869. Attempt 1's macOS portable job failed before any test: the hosted runner could not resolve GitHub's artifact service (`ENOTFOUND`). Attempt 2 passed, so all 19 test jobs passed. Next: `release/1.0` is synced for rc.9.
 - The rc.9 sync's run 45881038374 (PR #76) found I686 on the macOS Core tests: a change-monitor test read the busy state twice, and the runner's stall turned the folder calm between the reads. It is a test defect, and `ChangeMonitor` is unchanged since rc.8. [PR #77](https://github.com/benny-cz/FileCat/pull/77) takes the busy state once; it was merged into main as `1d861029` after its full-matrix run 45885512784 ([I686](evidence/E-I686-cadence-test-busy-read-twice.md)). The sync's run was cancelled, and the sync takes main again.
+
+## 2026-11-26 — `v1.0.0-rc.9` tagged
+
+- PR #76 synced `release/1.0` with main at `a08e4d70`; its run 45890542893 passed all 19 jobs. Merged as `d169f491`, whose tree is main's.
+- Tagged `v1.0.0-rc.9` (tag object `b61fb227`) at `d169f491`, as the owner chose rc.9 for I684 and I685. The tagged run 45897912070 started at 21:24:20Z; it stops for the owner's approval of the `signing` deployment ([rc.9](evidence/E-RC9-TAG-20261126.md)).

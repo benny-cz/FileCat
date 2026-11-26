@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**1061 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
+**1062 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -11,6 +11,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 
 | ID | What | Source | Class | Record | Issues |
 |---|---|---|---|---|---|
+| E-RC9-TAG-20261126 | `v1.0.0-rc.9`: the authorization, the exact source, the immutable tag and the tagged run | Tag object `b61fb227` at `d169f491` (`release/1.0`, PR #76); run 45897912070 | Candidate pipeline: rc.8 plus I684's and I685's fixes and I683's and I686's test fixes; the owner chose rc.9 ("Fix in rc.9", "deliver it in rc.9"). The run's outcome, signing and drafts follow. | [Record](evidence/E-RC9-TAG-20261126.md) | I684/I685/I686/I683/REL-FQ-CANDIDATE |
 | E-I686-cadence-test-busy-read-twice | I686: a change-monitor test read the busy state twice, and a runner's stall turned the folder calm between the reads | The rc.9 sync's run 45881038374 (macOS Core tests, the monitor's own record); PR #77 | Found and remediated preliminarily; CI qualification only, no product defect. | [Record](evidence/E-I686-cadence-test-busy-read-twice.md) | I686/I667 |
 | E-I685-system-question-not-responding | I685: while the system asked the person inside a file-system call (macOS's privacy question, Windows' smart-card PIN), FileCat could say the drive was not responding | macOS's `tccd` log of the owner's M4 to M6 on rc.8 (answers after 8.9 s, 5.9 s and 10.1 s); `DeviceIoScheduler`'s 8 s threshold | Found; Low; inferred from the log and the code, not seen. The owner chose rc.9 with the fix. | [Record](evidence/E-I685-system-question-not-responding.md) | I685/I684 |
 | E-I684-authorization-wait-not-responding | I684: while the system waited for the user to approve reading a drive, FileCat said the drive was not responding | The owner's Mac step M8 on rc.8; macOS's authd log; a screen capture (the notice and the scan tab kept as crops); `DeviceIoScheduler`'s 8 s hang threshold | Found; Low. The drive open's wait for the person counts toward the scheduler's hang threshold. Seen on macOS; Linux and Windows open drives the same way (inferred). | [Record](evidence/E-I684-authorization-wait-not-responding.md) | I684/REL-I106-RECOVERY |
