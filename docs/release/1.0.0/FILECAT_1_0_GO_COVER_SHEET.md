@@ -2,6 +2,8 @@
 
 Prepared 2026-11-26 by the release session for the owner, the human GO approver (DEC-01). The plan's section 12.6 sets what GO needs; this sheet says where each part stands for the candidate `v1.0.0-rc.5`. **Recommendation today: NO-GO**, until the owner's steps below are done. On rc.5 the session also found [I680](evidence/E-I680-setup-cannot-close-running-filecat.md): Setup cannot close a running FileCat, so an upgrade with FileCat open aborts when silent and stalls when interactive. Its uninstaller, with FileCat open, leaves FileCat running and its files in place. Under the owner's rule that every known issue is fixed, it needs rc.6. The fixes are in the installer only, and rc.6's shipped files would differ from rc.5's only there. If the owner's steps pass, and the owner accepts the proposed dispositions and either rc.6 or I680 as a known issue of rc.5, the recommendation becomes GO.
 
+**Update, 2026-11-26 (rc.6):** under the owner's rule that every known issue is fixed for the next candidate, the session tagged `v1.0.0-rc.6`. It is annotated tag `06ee1411` at `release/1.0` `6d814134`: rc.5's source plus [I680](evidence/E-I680-setup-cannot-close-running-filecat.md)'s fix, checked beforehand on CI's test Setup in the VM (PR #68, then sync PR #69, each after a full CI run). Tagged run [45755406125](https://github.com/benny-cz/FileCat/actions/runs/45755406125) builds it. **Its signing waits for the owner's approval of the `signing` deployment in GitHub.** Apart from the version, rc.6's shipped files differ from rc.5's only in the installer. The plan's section 11.2 therefore asks for new artifact hashes and signatures, a clean install and launch, and the checks of what the installer does; rc.5's other results below carry over. The owner's steps run on rc.6 once it is signed. This sheet moves to rc.6 when that is done.
+
 ## The candidate
 
 | | |
@@ -43,7 +45,7 @@ After a GO, in this order:
 2. The owner creates the annotated tag `v1.0.0` at the source. Its push starts CI, whose first job must refuse to build a stable tag.
 3. The session runs `eng/Promote-StableRelease.ps1` with the values the GO names. It copies the 24 assets into the private draft "FileCat 1.0.0" and checks them.
 4. The owner reviews the draft and presses **Publish release**.
-5. The session runs the public download checks of section 13.3. `eng/Check-PublicRelease.ps1` (branch `release-tools/promote-stable`, `2bce7cbb`) checks, anonymously: the release, its tag and text, all 24 assets against the manifests, every Windows signature, GitHub's attestation and the links. Tried against the public preview.11 release, it passed all it could, and its signature checks pass on rc.5's files. A clean install from the public Setup (c1's script) and a preview's update notice follow.
+5. The session runs the public download checks of section 13.3. `eng/Check-PublicRelease.ps1` (on main since PR #68) checks, anonymously: the release, its tag and text, all 24 assets against the manifests, every Windows signature, GitHub's attestation and the links. Tried against the public preview.11 release, it passed all it could, and its signature checks pass on rc.5's files. A clean install from the public Setup (c1's script) and a preview's update notice follow.
 
 ## Unresolved issues: proposed dispositions
 

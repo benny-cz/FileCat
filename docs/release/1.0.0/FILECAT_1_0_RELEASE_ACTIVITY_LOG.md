@@ -5749,3 +5749,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - PR #68 merged (`9d3deb47`) after its full run `45746120969` passed. The run's new x64 installer compile passed too, and its unsigned 0.0.0 Setup was used for the VM checks.
 - In the VM, on that Setup: T1 to T5 pass ([E-I680](evidence/E-I680-setup-cannot-close-running-filecat.md#checked-before-the-candidate-on-cis-test-setup-2026-11-26)). FileCat closes when asked, and FileCat's own question about running work comes first. Only an unanswered question leads to a forced end, and every uninstall leaves no file. Harness misses on the way (the test build's update offer, the copy's temporary name, the uninstaller's process name) are recorded there.
+
+## 2026-11-26 — `v1.0.0-rc.6` tagged; its signing awaits the owner
+
+- Sync PR #69 merged into `release/1.0` (`6d814134`; its tree is main's at `0655f48c`) after its full run 45750882745 passed. The session tagged `v1.0.0-rc.6` (annotated, `06ee1411`), under the owner's rule that every known issue is fixed for the next candidate and the owner's approval of the work toward 1.0.0. As for every candidate tag, the account's admin role passed the rule that only admins create release tags.
+- Tagged run 45755406125 builds, tests and packages it. Its signing job waits for the owner's approval of the `signing` deployment. rc.6 differs from rc.5 only in the installer (I680) and the version. The checks the plan's section 11.2 asks for follow: hashes and signatures, a clean install and launch, and what the installer does.
