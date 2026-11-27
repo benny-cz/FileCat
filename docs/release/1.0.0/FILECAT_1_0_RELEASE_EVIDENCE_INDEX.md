@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**1068 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
+**1069 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -11,6 +11,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 
 | ID | What | Source | Class | Record | Issues |
 |---|---|---|---|---|---|
+| E-RC10-TAG-20261127 | `v1.0.0-rc.10`: the authorization, the exact source, the immutable tag and the tagged run | Tag object `ce3cdaa5` at `fa6678c5` (`release/1.0`, PR #80); run 46032581012 | Candidate pipeline: rc.9 plus I688's, I689's and I529's fixes and I687's and I690's test fixes; the owner chose rc.10 ("Fix in rc.10"). Signing and the drafts follow. | [Record](evidence/E-RC10-TAG-20261127.md) | I688/I689/I529/I687/I690/REL-SIGN-WINDOWS |
 | E-I690-undo-bulk-test-deadline | I690: a 70-step undo test ran out of its 60 s while a contended runner ran the undo tests 20 to 100 times slower | The rc.10 sync's run 46016568801 (Windows x64 Core tests) and its test results, compared with rc.9's and PR #79's runs; PR #81 | Found and remediated preliminarily; CI qualification only, no product defect. | [Record](evidence/E-I690-undo-bulk-test-deadline.md) | I690 |
 | E-I689-ordinary-window-scan-refused | I689: from an ordinary window on Windows, FileCat refused every disk scan, saying other FileCat processes might write | The owner's G8 on rc.9; a census probe at standard rights (139 of 462 processes unidentified); the Windows VM's process records; rc.9 and the fixed build by tool in the VM | Found; Medium. Fixed on the branch at `23f39bbe` and `13f203c7` for rc.10. In the VM rc.9 refuses and the fixed build scans through the helper. | [Record](evidence/E-I689-ordinary-window-scan-refused.md) | I689/I106 |
 | E-I688-download-mark-trailing-nul | I688: FileCat refused to pack browser downloads; it could not read the download mark browsers end with a NUL | The owner's G7 line 5 on rc.9; 41 of 41 marked downloads on the release session's host; Windows' own mark reader | Found; Medium. Fixed on the branch at `911fe5f5` for rc.10; the owner's own build packs downloads. | [Record](evidence/E-I688-download-mark-trailing-nul.md) | I688 |

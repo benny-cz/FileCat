@@ -5929,3 +5929,8 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - The test takes 0.6 s in rc.9's and PR #79's runs. On that runner the whole undo class ran 20 to 100 times slower ([I690](evidence/E-I690-undo-bulk-test-deadline.md)).
 - [PR #81](https://github.com/benny-cz/FileCat/pull/81) gives the test five minutes. It is a test-only change, merged into main as `3f645f6e` after its producer check. The sync merged main again (`98572b78`), and its new full-matrix run 46022417308 covers the change.
 - The superseded sync run was cancelled.
+
+## 2026-11-27 — `v1.0.0-rc.10` tagged
+
+- PR #80 synced `release/1.0` with main at `3f645f6e`. Its run 46022417308 passed all 19 jobs; the Ubuntu App job was rerun after a package-download timeout before any test. Merged as `fa6678c5`, whose tree is main's.
+- Tagged `v1.0.0-rc.10` (tag object `ce3cdaa5`) at `fa6678c5`, as the owner chose rc.10 for I688; I689 and I529 come with it. The tagged run 46032581012 started at 16:19:08Z. It stops for the owner's approval of the `signing` deployment ([rc.10](evidence/E-RC10-TAG-20261127.md)).
