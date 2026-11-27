@@ -5946,3 +5946,9 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - **Records:** the register has I688, I689 and I529 remediated preliminarily (667, 6, 17). The release notes on `docs/release-notes-1.0.0` carry rc.10's values and the three fixes (`865b3886`); they had left rc.8's candidate ref in the manifest line since the rc.9 update, now corrected. REL-WIN-GA is Open on the owner's GA PC.
 - **REP:** rc.10's package is staged and verified: 3,260 files, manifest SHA-256 `0825d2bd6cd365c3…` ([REP](evidence/E-REP-RC10-20261127.md)). `Seal-Rep.ps1` now defaults to rc.10.
 - Next: the owner's GA PC checklist on rc.10 from G3; then the dispositions and the GO ([rc.10](evidence/E-RC10-TAG-20261127.md)).
+
+## 2026-11-27 — The owner's GA PC checklist on rc.10 passes
+
+- The session gave the owner step-by-step instructions: preparation first, then G3 to G11. The preparation removed the FileCat left by the run on rc.9 and the retest, renamed its profile folders, moved the earlier downloads aside, and checked UAC's default and Smart App Control On.
+- The owner reported: "everything passed". That includes I688's pack of browser downloads (G7) and I689's scan of the USB stick from the ordinary window (G8), the two steps that failed on rc.9. The outputs and dialog wording were not given ([rc.10](evidence/E-RC10-TAG-20261127.md#the-ga-pc-checklist-on-rc10-2026-11-27)).
+- What remains is the owner's: accepting W1 to W7's carry-over and the proposed dispositions (I677's included), then GO. Before the GO statement, the session rebuilds the REP with the notes of this run and fills the release notes' two GO lines.
