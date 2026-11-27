@@ -4,7 +4,8 @@ The raw evidence and the exact packages of FileCat 1.0.0's candidate, kept under
 V:\FileCat\artifacts, with REP-MANIFEST.txt's SHA-256 committed in git. REP-MANIFEST.txt lists every other file
 here as "SHA-256  size  path", sorted by path; it does not list itself. verify_rep.py (in harness/release) checks a
 copy against it. The committed records in docs/release/1.0.0 explain the results; start at
-FILECAT_1_0_GO_COVER_SHEET.md and evidence/E-RC10-TAG-20261127.md.
+FILECAT_1_0_GO_COVER_SHEET.md and evidence/E-RC10-TAG-20261127.md. This build, for the GO, adds the owner's GA
+PC run on rc.10 (ga-pc/) to the first staging of the same day, and the scripts that recorded it (harness/release).
 
 rc.10 is rc.9 plus the fixes of I688 and I689, which the owner's GA PC checklist on rc.9 found: downloaded files could
 not be packed (browsers end the download mark with a NUL, which FileCat refused), and an ordinary Windows window could
@@ -59,6 +60,8 @@ Layout (folder: what it holds)
   fix-checks/                        before the tag: I688's, I689's, I529's and I690's tests at medium integrity on the
                                      Windows host, the census probe at medium and high integrity, and I689 in the
                                      Windows VM by tool on rc.9 (the control) and on the fixed build
+  ga-pc/                             the owner's GA PC checklist on rc.10 (2026-11-27): the session's notes with the
+                                     owner's report ("everything passed") and answers, and the instructions as sent
   harness/                           the host, scenario, Unix and release scripts that produced the results above
   carried/rc9/                       rc.9's package and evidence, as its own package held them, with walkthrough/: the
                                      session's notes of the owner's walkthrough on rc.9 (U2-U4 with the system journal,

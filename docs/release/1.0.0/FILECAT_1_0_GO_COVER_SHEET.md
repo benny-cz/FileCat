@@ -1,11 +1,11 @@
 # FileCat 1.0.0 — GO/NO-GO cover sheet
 
-Prepared 2026-11-26 by the release session for the owner, the human GO approver (DEC-01). Moved the same day to `v1.0.0-rc.6`, `v1.0.0-rc.7` and `v1.0.0-rc.8`, and on 2026-11-27 to `v1.0.0-rc.9` and `v1.0.0-rc.10`. The plan's section 12.6 sets what GO needs; this sheet says where each part stands for the candidate `v1.0.0-rc.10`. **Recommendation: GO**, once the owner accepts W1 to W7's carry-over and the proposed dispositions below, I677's included; until then NO-GO.
+Prepared 2026-11-26 by the release session for the owner, the human GO approver (DEC-01). Moved the same day to `v1.0.0-rc.6`, `v1.0.0-rc.7` and `v1.0.0-rc.8`, and on 2026-11-27 to `v1.0.0-rc.9` and `v1.0.0-rc.10`. The plan's section 12.6 sets what GO needs; this sheet says where each part stands for the candidate `v1.0.0-rc.10`. **Recommendation: GO.** On 2026-11-27 the owner accepted W1 to W7's carry-over and every proposed disposition below, with I677 shipping open and named in the release notes. Step 5 lists what the GO names.
 - **rc.10** is rc.9 plus the fixes of [I688](evidence/E-I688-download-mark-trailing-nul.md) and [I689](evidence/E-I689-ordinary-window-scan-refused.md), which the owner's GA PC checklist on rc.9 found: on Windows, files downloaded with a browser could not be packed, and an ordinary window could not scan a disk. The owner chose rc.10 ("Fix in rc.10"). It also fixes [I529](evidence/E-I529-mac-hardlink-timeout-triage.md), a Create click in the link dialog that could be lost, and its source carries the test fixes of I687 and I690 and two release-script fixes.
 - **rc.9** was rc.8 plus the fixes of [I684](evidence/E-I684-authorization-wait-not-responding.md) and [I685](evidence/E-I685-system-question-not-responding.md): a drive or server was reported as not responding while FileCat waited for a person's answer. **rc.8** was rc.7 plus the fix of [I682](evidence/E-I682-no-display-abort.md): on Linux, FileCat started without a usable X display crashed instead of saying why. **rc.7** was rc.6 plus the fix of [I681](evidence/E-I681-linux-census-zombie.md): on Linux, one unreaped zombie process made deleted-file recovery refuse every mounted disk.
 - **What differs from rc.9:** the code of I688, I689 and I529, in four of FileCat's own libraries (`FileCat.Core.dll`, `FileCat.Platform.Windows.dll`, the helper's `FileCat.PrivilegedHost.dll` and `FileCat.dll`). Every vendor file is byte-identical.
 - **Coverage:** rc.10's own checks cover what changed (the plan's section 11.2). The rest of rc.9's, rc.8's, rc.7's, rc.6's and rc.5's qualification carries over, the owner's walkthrough on rc.9 with it: rc.10's census changes act on Windows only, and its other changes are I688's mark reader and I529's link dialog.
-- **Where it stands:** every step on the owner's machines has passed, the GA PC checklist on rc.10 last (2026-11-27). What remains is the owner's: accepting W1 to W7's carry-over and the proposed dispositions, then GO.
+- **Where it stands:** every step on the owner's machines has passed, the GA PC checklist on rc.10 last (2026-11-27), and the owner accepted W1 to W7's carry-over and the proposed dispositions the same day. What remains is the owner's GO (step 5).
 
 ## The candidate
 
@@ -16,8 +16,8 @@ Prepared 2026-11-26 by the release session for the owner, the human GO approver 
 | Tagged run | [46032581012](https://github.com/benny-cz/FileCat/actions/runs/46032581012). All 19 test jobs passed at the first attempt, then the package and signing jobs: 74,156 passed, 13,719 skipped, 0 failed. Test by test, the results match PR #80's run 46022417308, but for two tests that run or skip by runner |
 | Private drafts | Candidate release 460882817 (24 assets); signing records release 460882461 (11 files, they name the signer, kept private) |
 | Producer manifests (SHA-256) | Windows `96a6881c82dd87bb6d127f3f381b21da6bfce14e736a7ae46b5abdffecc71ab0`; Linux `9cfeb52cc425f68837e42b1ef79d13ffa45af7d320c11e0c0bc6aa4c996f6f93`; macOS `a6efa45088606bdc49fea5b98f2cf0184e8185f3db121dd628eaf880285433ca` |
-| Release Evidence Package | 3,260 files, 8,485,050,535 bytes, staged and verified; manifest SHA-256 `0825d2bd6cd365c39fed3fd4e1dece0c3276568a404d65436e72965c95ac2555`, committed in [`v1.0.0-rc.10/`](v1.0.0-rc.10/README.md) ([record](evidence/E-REP-RC10-20261127.md)). It holds rc.10's assets and evidence, with rc.9's, rc.8's, rc.7's, rc.6's and rc.5's carried whole under `carried/`. It is rebuilt before GO with the records of the owner's steps. The GO names the rebuilt manifest's digest, and the owner seals that package (`Seal-Rep.ps1` now defaults to rc.10) |
-| Release notes | `RELEASE_NOTES_1.0.0.md` on branch `docs/release-notes-1.0.0` (`865b3886`): exactly the release's text, with rc.10's values and the lines of I680 to I682, I684, I685, I688, I689 and I529. Its review-only sources are in `RELEASE_NOTES_1.0.0_SOURCES.md`. At GO two lines are filled in: the GA PC, and the unresolved issues the owner accepts |
+| Release Evidence Package | Rebuilt for the GO on 2026-11-27 with the owner's GA PC run: 3,266 files, 8,485,104,203 bytes, staged and verified; manifest SHA-256 `e7b806452aab509cc0106b9fb372baaba7a309f09b799d09d45b2c72a1c7c06f`, committed in [`v1.0.0-rc.10/`](v1.0.0-rc.10/README.md) ([record](evidence/E-REP-RC10-20261127.md)). It holds rc.10's assets and evidence, with rc.9's, rc.8's, rc.7's, rc.6's and rc.5's carried whole under `carried/`. The GO names this digest, and the owner seals this package (`Seal-Rep.ps1` defaults to rc.10) |
+| Release notes | `RELEASE_NOTES_1.0.0.md` on branch `docs/release-notes-1.0.0` (`3d38c787`): exactly the release's text, with rc.10's values and the lines of I680 to I682, I684, I685, I688, I689 and I529. Its two GO lines are filled in: the GA PC run on rc.10, and I677 as the one unresolved issue users could meet. SHA-256 as the promotion checks it (line feeds, no line break at the end): `79cd59a2c4b8ee2d352fd1ddc6f234edd3db7817e44e3b891e19d3da1ffcd3dc`. Its review-only sources are in `RELEASE_NOTES_1.0.0_SOURCES.md` |
 
 ## What passed
 
@@ -69,10 +69,10 @@ Prepared 2026-11-26 by the release session for the owner, the human GO approver 
 
 ## The owner's steps before GO
 
-1. **The consent walkthrough** ([walkthrough](FILECAT_1_0_RC3_CONSENT_WALKTHROUGH.md)), done on rc.9 and carried to rc.10:
+1. **The consent walkthrough: done** ([walkthrough](FILECAT_1_0_RC3_CONSENT_WALKTHROUGH.md)), on rc.9 and carried to rc.10:
    - **Ubuntu: done.** U2 to U4 passed on rc.9 on 2026-11-27, each answer confirmed in the system journal. In U3 UDisks2's dialog stayed open 19.1 s, and FileCat showed and logged no notice ([rc.9](evidence/E-RC9-TAG-20261126.md#the-owners-walkthrough-on-rc9-the-ubuntu-section-2026-11-27)). U1 and U5 passed on rc.8.
    - **Mac: done.** M1 to M9 passed on rc.9 on 2026-11-27, M5 on its second try, each confirmed in macOS's log. macOS's questions stayed open up to 16.1 s and authopen's dialog up to 36.8 s, and FileCat showed and logged no notice ([rc.9](evidence/E-RC9-TAG-20261126.md#the-owners-walkthrough-on-rc9-the-mac-section-2026-11-27)).
-   - **Windows:** accept carrying W1 to W7 over from rc.6, or repeat them on rc.10.
+   - **Windows: accepted.** On 2026-11-27 you accepted carrying W1 to W7 over from rc.6 to rc.10.
 
    Closes d7, d8, d9's consent part and REL-SIGN-MAC.
 2. **The GA PC checklist: done** ([checklist](FILECAT_1_0_RC3_GA_PC_CHECKLIST.md)): a physical PC with a released Windows 11 and Smart App Control on, from download to removal. Step G8 (a USB stick through the helper) is marked optional; it is also the physical USB repeat of d9 on the candidate. On rc.10 it starts from your ordinary window (I689), and it waits at Windows' prompt and the helper's window, checking I684 on Windows. G7 line 5 packs files you downloaded with a browser (I688). Closes d1, REL-WIN-GA and the GA-tier half of REL-SIGN-WINDOWS.
@@ -81,8 +81,13 @@ Prepared 2026-11-26 by the release session for the owner, the human GO approver 
 3. **The MTP phone (AC-11): done.** On 2026-11-27 AC-11's one physical Move positive passed on your Motorola edge 60 pro, from rc.9's own build of the platform tests ([rc.9](evidence/E-RC9-TAG-20261126.md#ac-11-the-phone-move-on-rc9s-build-2026-11-27)).
    - FileCat's Move job put a 131,071-byte file into a new `FileCat-test-*` folder on the phone, retired the PC's copy, and the phone's copy read back byte for byte.
    - The test removed its folder. A Redmi A5, tried first, showed Windows no storage, so the test skipped there.
-4. **The unresolved issues:** accept or reject each proposed disposition in the table below.
-5. **GO or NO-GO,** naming the candidate, the source, the three manifest digests, the REP manifest digest and the release notes' digest.
+4. **The unresolved issues: done.** On 2026-11-27 you accepted every proposed disposition in the table below, and decided to ship with I677 open and named in the release notes ("Ship, name it"). 13 rows are closed; I03 and I10 close at GO, I18 after the promotion and the public download checks, and I677 stays open as a known issue.
+5. **GO or NO-GO: yours.** The GO names:
+   - **Candidate:** `v1.0.0-rc.10`, annotated tag object `ce3cdaa572b1b465db50744a01c50e0e283e1c3e`, at the source `fa6678c58aa639f62c4bcf793e6e84e6f1027200`;
+   - **Producer manifests (SHA-256):** Windows `96a6881c82dd87bb6d127f3f381b21da6bfce14e736a7ae46b5abdffecc71ab0`, Linux `9cfeb52cc425f68837e42b1ef79d13ffa45af7d320c11e0c0bc6aa4c996f6f93`, macOS `a6efa45088606bdc49fea5b98f2cf0184e8185f3db121dd628eaf880285433ca`;
+   - **REP manifest (SHA-256):** `e7b806452aab509cc0106b9fb372baaba7a309f09b799d09d45b2c72a1c7c06f`;
+   - **Release notes (SHA-256):** `79cd59a2c4b8ee2d352fd1ddc6f234edd3db7817e44e3b891e19d3da1ffcd3dc`;
+   - **Support decisions:** DEC-02's tiers: Windows 11 x64 stable; Windows 11 ARM64, Ubuntu 24.04 and 26.04 x64 with GNOME, and macOS 26 or later on Apple silicon as previews.
 
 After a GO, in this order:
 1. The owner seals the REP (DEC-10): `pwsh -File E:\FileCat\.tmp\release-scripts\Seal-Rep.ps1 -ManifestSHA256` followed by the built manifest's digest that the GO names. It copies, checks and makes the copy read-only for everyone but the owner.
@@ -95,7 +100,7 @@ After a GO, in this order:
 
 ## Unresolved issues: proposed dispositions
 
-The [register](FILECAT_1_0_RELEASE_ISSUES.md#summary) has 17 unresolved rows. I677's cause is unproven. None of the other 16 names a known defect in rc.10.
+**Accepted by the owner on 2026-11-27,** all as proposed, with I677 shipping open and named in the release notes. The [register](FILECAT_1_0_RELEASE_ISSUES.md#summary) now has 4 unresolved rows: I03 and I10 close at GO, I18 after the promotion and the public download checks, and I677 is the known issue. Before the acceptance it had 17, and none but I677, whose cause is unproven, named a known defect in rc.10.
 - **Remediated preliminarily:**
   - [I680](evidence/E-I680-setup-cannot-close-running-filecat.md), found on rc.5, in rc.6;
   - [I681](evidence/E-I681-linux-census-zombie.md), found on rc.6, in rc.7;

@@ -45,3 +45,19 @@ The worker is `FileCat.exe` itself, started at low integrity for each picture. I
 
 - **The cause:** the change localizes the next occurrence; it does not prevent one.
 - **A real start of the picture worker on the installed candidate:** rc.5's Windows qualification views pictures in the VM.
+
+## Known issue in 1.0.0 (2026-11-27)
+
+On 2026-11-27 the owner decided to ship 1.0.0 with I677 open and named in the release notes ("Ship, name it"). The fields of the plan's section 12.4:
+- **Severity:** Medium if it is a product hang, a picture that cannot be shown for 30 s; Low if the runner held the new process.
+- **Affected users and platforms:** seen once, in CI only, on a hosted Windows x64 runner. The worker runs on every platform, so a user on any platform could meet it if the cause is in the product.
+- **Reproduction:** none. It happened once, in PR #61's run 45665950729.
+- **Impact:** the picture does not show, and the viewer says that it did not decode within 30 s and which step took the time. FileCat keeps working, and nothing is lost or written.
+- **Workaround:** open the picture again. In the one case seen, the next decode in the same job took 2.4 s.
+- **Why it is accepted:**
+  - The cause is unproven, and the case passes on all four lanes of rc.5's to rc.10's tagged runs.
+  - The owner's GA PC showed pictures and a PDF with rc.10's installed worker (G7).
+  - The diagnostics name the step if it happens again.
+- **Owner and follow-up:** the owner. Any recurrence, in CI or from a user, is triaged by the step the message names.
+- **Revisit:** on any recurrence, and at the first servicing release.
+- **Release-note wording:** "One unresolved issue is not described above. Once, on a hosted Windows test machine, a picture's first decode took longer than its 30 s; the next decode in the same test run took 2.4 s. The cause is not known, and it has not happened again in the release candidates' test runs (I677). If a picture does not decode within its 30 s, FileCat says which step took the time, and you can open the picture again."

@@ -1,4 +1,4 @@
-5ad6b99f2869e136639dbb3b6701435db789756e810b28792c72ea91a1f9a616  6808  REP-README.txt
+e2d642496c09c258eb80efffc8641cf487655f41d7d240cf72f5ee1cc0c39903  7200  REP-README.txt
 9cfeb52cc425f68837e42b1ef79d13ffa45af7d320c11e0c0bc6aa4c996f6f93  1570  assets/FileCat-1.0.0-linux-assets.json
 be7816ce0e129b0417758f942378bed89350e04fb1700c7bd5caa1005d72e587  4704832  assets/FileCat-1.0.0-linux-x64-appimage-runtime-source.tar.gz
 6a44158aac0897d8d4badcce5786ac72763146db7b24a2a438558cf8d978ef18  84033357  assets/FileCat-1.0.0-linux-x64.tar.gz
@@ -2968,6 +2968,8 @@ e1df67b0e7b70466b3157d799f235014c23322c174f9a369961273a500feb73b  769  fix-check
 51f56e5084e0bee991bd3fd5430da43776221c2b12a78d349214db7594212357  1209  fix-checks/medium-integrity/run-i689.cmd
 14f0dba45f6d875e1efabb6069a69dbe89ac73be10df9ef21814e906f2cae9fb  554  fix-checks/medium-integrity/run-i690.cmd
 0c7eeeeac51dc2d39f0dc5413c5158dc0e60ad5e041acd241c926218b00a4c83  805  fix-checks/medium-integrity/run-ownworker.cmd
+c6deaf6963bcae9386df9251f568d8d6a3b1a859d610aa85169a34ad288a2c92  2662  ga-pc/GA-PC-rc10-notes.md
+fe652ca5217fae2312fad10af40663aece5cc05624228ba2a8e2631a8a3e3577  10703  ga-pc/instructions-as-sent.md
 de49f3bf5b544a6edcbe296d51be830c584d0dd35338035a6464fd55ca4a1e24  17969  harness/gui/batch-c34-local.ps1
 1a0a6e37ec4391216844b10f446fa05590c2f105381213450815e1da088ced13  18669  harness/gui/batch-c34-slow.ps1
 de49f3bf5b544a6edcbe296d51be830c584d0dd35338035a6464fd55ca4a1e24  17969  harness/gui/batch-c34.ps1
@@ -3149,8 +3151,9 @@ efe85e517d0bec3b3e8eb3136071fda81b36ea3a2aa324e844bea071ecba7ee5  10661  harness
 00b1e8f2f17dd78596acae02aae47328ac087d0f96a6ecdc7d0d7f6866103331  1817  harness/release/Run-Ac11.ps1
 387cb553654aed10c46a3437522bdf1fc75faa960940dc1f6ddac93b0bb76d49  2019  harness/release/Seal-Rep.ps1
 450e123f5a9323404dca6fafe6a655ca704f6d430685e4c1618050001d9f7356  3636  harness/release/apply_ga_pc_rc10.py
+7275c0137ac153a4c575ada2f7d0c53278421c72a744d6697b04631dad7cfaf0  6450  harness/release/apply_walkthrough_rc10.py
 680ff1b4e0b2c7b2842c969ad92a416c770f1f0b41c502c89e7af25f907ede8d  6015  harness/release/build_rep.py
-6557531e82f012a8140ba0b4f387b842e78ef6e89f5913e6d10337fa325eb9b2  20405  harness/release/build_rep_rc10.py
+223021dafc03b6bf6605ff7d9f2c18ade4ceae6e71b76581625f78c1b8cac703  20437  harness/release/build_rep_rc10.py
 521df2bcf36da40f463ca1f6fb0217d391274bd2885df6ecfa63dfeb4b5e3fbb  8825  harness/release/build_rep_rc6.py
 13108e27c2858f89bcd7505a2b54f7e1e9193bb1bf3401b0084c2b956f8ce50e  11467  harness/release/build_rep_rc7.py
 f9c17b817ad9071c02b7b5aabdfb5bc19fc99a6c7b5dc5d73dcd4814f86da683  14390  harness/release/build_rep_rc8.py
@@ -3159,12 +3162,15 @@ f9c17b817ad9071c02b7b5aabdfb5bc19fc99a6c7b5dc5d73dcd4814f86da683  14390  harness
 f3cb328eeb18075819b3be779d58ee9dd4f9d678af4136528788cb243b916ae8  1330  harness/release/check_rep_lists_rc10.py
 5acf4ae6be2a51151d4583d7578a1dc40a4d873582efa59d881ab85d021fae13  1311  harness/release/check_rep_lists_rc9.py
 14a6844dc2073c41649ba9876e7493dc4ea06998e9df92fc8e362438a9bc61fb  15797  harness/release/cover_rc10.py
+5616f8fec08c8e3b29e45691c8eca4cc150d324c14aa0cfa2c447d4e8c82124b  8116  harness/release/dispositions_rc10.py
 c11334a9ab5cd3ec2a92c2aaf1d3efcae997539175d178abf068381a9e2f8e24  4152  harness/release/download-verify.ps1
 60bb3d579c773e9789591896c3b30fb683c009a8d4dcb0f49c507bc689f7c018  2601  harness/release/fetch-unix.sh
+e579c7cf73085bc648dbd51e1fc081ab2d66b7a2c992c3f91c1d47cebdf9d150  11360  harness/release/ledger_go_rc10.py
 a15f029dfb17ee5d295187ba5a5ca38b1fc2211b0180509cd64790cef5c7103b  6532  harness/release/ledger_rc10.py
 6b86bb5e83646d13498127641fed19fdea24958a908255472bd3a5b7709ac0f9  2198  harness/release/make_i680_rc10.py
 eb50eea7240a634695eedeb5eafb4878293a0a8b5985d5e5822b9c7b4ad37186  2301  harness/release/payload_compare.py
 91c328e71086cf9479f99525049ece44896ea32deeb5b7780b02c9417e32c6bf  4725  harness/release/recheck_citations2.py
+436388eef9c1dab3e726c9399aec57473af1075575a8b9b05b54c69c5d0859ac  13953  harness/release/record_gapc_rc10.py
 8a2971c1feb5b40a2cc861a11797bb1e1ef7bf001ef15849fd2c2e513c19975e  3618  harness/release/remap_citations_rc10.py
 5fb2d6880632fd06e7a47539d8e828b9bf38c614c736cb8e40b5d40e3c2e6ca2  3724  harness/release/remap_citations_rc9.py
 139df81ade1769dce6979fce7df296c73880338deb25235e8f1ff1c7216cd6c4  8198  harness/release/report_rc10.py
