@@ -5934,3 +5934,15 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - PR #80 synced `release/1.0` with main at `3f645f6e`. Its run 46022417308 passed all 19 jobs; the Ubuntu App job was rerun after a package-download timeout before any test. Merged as `fa6678c5`, whose tree is main's.
 - Tagged `v1.0.0-rc.10` (tag object `ce3cdaa5`) at `fa6678c5`, as the owner chose rc.10 for I688; I689 and I529 come with it. The tagged run 46032581012 started at 16:19:08Z. It stops for the owner's approval of the `signing` deployment ([rc.10](evidence/E-RC10-TAG-20261127.md)).
+
+## 2026-11-27 — rc.10 signed, drafted and qualified; I688, I689 and I529 remediated preliminarily; rc.10's REP staged
+
+- The tagged run 46032581012 passed all 19 test jobs at its first attempt (74,156 passed, 13,719 skipped, 0 failed), then the three package jobs. The owner approved the `signing` deployment. The job verified 1,475 PE files (0 failed) and put the candidate into private draft 460882817 and its signing records into private draft 460882461.
+- The session's full comparison with rc.9's tagged run corrected its own first reading: of the 180 differing results, 174 are rc.10's new tests and rows, 4 are a refusal row that I688's fix removed on purpose, and 2 are tests that run or skip by the runner.
+- The 24 assets, downloaded by asset ID, match GitHub's digests and the three manifests, which name `refs/tags/v1.0.0-rc.10` and `fa6678c5`.
+- **Windows VM, on rc.10's installed bytes:** c1, the framework-dependent copy without .NET, I680's five cases, W2 and W5, the unanswering share, G7 line 5 (I688) and G8 (I689) by tool: all pass.
+- **Ubuntu:** 26 of 26 rows pass. The owner's FileCat window from the walkthrough on rc.9 was still open on the VM, on rc.9's replaced files, so the census refused to run. The session kept FileCat's log, then closed the window, which added no line. Then I681's census replied clear beside the zombie (running with a window open), and I682's three starts without a display each said why.
+- **Mac:** 33 of 35 rows pass, b23's and b28's known BLOCKED halves as before, and b1 passes.
+- **Records:** the register has I688, I689 and I529 remediated preliminarily (667, 6, 17). The release notes on `docs/release-notes-1.0.0` carry rc.10's values and the three fixes (`865b3886`); they had left rc.8's candidate ref in the manifest line since the rc.9 update, now corrected. REL-WIN-GA is Open on the owner's GA PC.
+- **REP:** rc.10's package is staged and verified: 3,260 files, manifest SHA-256 `0825d2bd6cd365c3…` ([REP](evidence/E-REP-RC10-20261127.md)). `Seal-Rep.ps1` now defaults to rc.10.
+- Next: the owner's GA PC checklist on rc.10 from G3; then the dispositions and the GO ([rc.10](evidence/E-RC10-TAG-20261127.md)).
