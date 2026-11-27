@@ -188,7 +188,8 @@ public sealed partial class ArchiveCreationWorkflowTests
             .Select(value=>WindowsArchiveJobBackend.Create(value.Format,executable)));
         using var f=await Fixture.Open(customBackends:backends);
         string source=Path.Combine(f.Files,"a.txt");File.SetLastWriteTimeUtc(source,DateTime.UnixEpoch.AddSeconds(1700000000));
-        File.WriteAllText(source+":Zone.Identifier","[ZoneTransfer]\r\nZoneId=3\r\n");
+        // The mark a browser writes, ending in a NUL: FileCat refused it before I688, so no download could be packed.
+        File.WriteAllText(source+":Zone.Identifier","[ZoneTransfer]\r\nZoneId=3\r\nReferrerUrl=https://example.test/r\r\nHostUrl=https://example.test/h\0");
         var operation=f.Vm.ExecuteAsync(CommandIds.Pack);await f.Ready();f.SelectFormat(format);
         if(mode!=0){f.Combo("Password protection").SelectedIndex=mode;f.Input("Archive password").Text=f.Input("Confirm archive password").Text=Secret;}
         await Wait(()=>f.Button("Pack")?.IsEffectivelyEnabled==true);f.Click("Pack");await f.Complete(operation);

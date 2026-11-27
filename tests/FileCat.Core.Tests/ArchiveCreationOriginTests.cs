@@ -57,6 +57,17 @@ public sealed class ArchiveCreationOriginTests
         Assert.Throws<ArchiveWriteException>(() => Review(evidence, captured));
     }
 
+    // I688: downloads marked the way browsers mark them (a NUL after the last value) made every archive of them fail.
+    [Fact]
+    public void Browser_marked_downloads_give_the_new_archive_their_zone()
+    {
+        static ArchiveOriginSnapshot Browser(int n) => ArchiveOriginSnapshot.Present(ArchiveOriginFormat.WindowsZoneIdentifier,
+            ArchiveWritePolicy.Utf8.GetBytes($"[ZoneTransfer]\r\nZoneId=3\r\nReferrerUrl=https://example.test/r{n}\r\nHostUrl=https://example.test/h{n}\0"));
+        var inputs = new[] { Input("setup", Browser(1)), Input("manifest", Browser(2)), Input("notes", Browser(3)) };
+        var required = Review(Evidence(inputs), inputs);
+        Assert.Equal(ArchiveWindowsOriginZone.ZoneOnly(3).Digest, required.Digest);
+    }
+
     [Fact]
     public void An_unsupported_later_declaration_is_not_ignored_after_maximum_classification()
     {
