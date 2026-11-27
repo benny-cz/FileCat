@@ -65,6 +65,9 @@ public sealed partial class ProcessIdentityTests(ITestOutputHelper output)
     [InlineData(3376, "Memory Compression", 0, 31)]
     [InlineData(336, "Secure System", 0, 31)]
     [InlineData(12332, "vmmemCmZygote", 0, 31)]
+    [InlineData(79584, "vmmem", 0, 31)]
+    [InlineData(18772, "vmmemWSL", 0, 31)]
+    [InlineData(18773, "VmmemWSL", 0, 31)]
     public void Only_kernel_bookkeeping_entries_with_the_expected_no_image_failure_are_exempt(
         int pid, string name, int session, int error)
     {

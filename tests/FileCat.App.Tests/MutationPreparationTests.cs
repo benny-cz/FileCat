@@ -136,6 +136,8 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
         using var f = new Fixture(); await f.Load(false); var task = f.Vm.ExecuteAsync(CommandIds.CreateLink); await Wait(() => f.Button("Create")?.IsEnabled == true);
         string link = f.PathBox("Link path").Text!;
         if (navigate) { f.Right.Navigate(Location.FileSystem(f.Root)); f.Left.Navigate(Location.FileSystem(f.Root)); }
+        // I529: Create is enabled exactly while a click on it acts (the dialog checks it at once when the preview changes).
+        await Wait(() => f.Button("Create")?.IsEnabled == true);
         f.Click("Create");
         var elapsed = Stopwatch.StartNew();
         try { await task.WaitAsync(TimeSpan.FromSeconds(15)); }
@@ -158,6 +160,31 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
         Assert.Equal(JobState.Completed, job.State); Assert.Equal(f.Target, job.Request.Destination!.Path); Assert.Equal(Path.Join(f.Folder, "source.txt"), Assert.Single(job.Request.Sources).FileSystemPath);
         File.WriteAllText(Path.Join(f.Folder, "source.txt"), "changed through the actual hard link"); Assert.Equal("changed through the actual hard link", File.ReadAllText(link));
         Emit("actual-hard-link", f, new { navigate, link, state = job.State.ToString() });
+    }
+
+    [AvaloniaFact]
+    public async Task A_stale_link_preview_turns_Create_off_at_once_so_no_click_is_lost()
+    {
+        // I529: the dialog checked its buttons every 200 ms, so for up to that long after the preview went stale Create still
+        // looked ready while a click on it did nothing. On a loaded runner the hard-link test's click landed there, and the
+        // dialog stayed open with Create enabled and no job.
+        using var f = new Fixture(); await f.Load(false); var task = f.Vm.ExecuteAsync(CommandIds.CreateLink);
+        await Wait(() => f.Button("Create")?.IsEnabled == true);
+        var box = f.PathBox("Link path"); string link = box.Text!;
+        box.Text = link + "-changed";
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs(); // Avalonia reports the change on a later dispatcher turn, as when typing
+        Assert.False(f.Button("Create")!.IsEnabled); // at once, not at the dialog's next check
+        f.Click("Create"); // a click now does nothing, as the button shows
+        Assert.False(task.IsCompleted); Assert.NotNull(f.Button("Cancel"));
+        box.Text = link;
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        await Wait(() => f.Button("Create")?.IsEnabled == true);
+        f.Click("Create");
+        await task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
+        var job = Assert.Single(f.Services.Jobs.Jobs);
+        await Wait(() => job.State.IsFinished());
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal(Path.GetFileName(link), Assert.Single(job.Request.NewNames!));
     }
 
     [AvaloniaTheory]

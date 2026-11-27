@@ -59,15 +59,49 @@ public sealed class ArchiveWindowsOriginZoneTests
     [InlineData("[ZoneTransfer]\nZoneId=\"3\"")][InlineData("[ZoneTransfer]\nZoneId=3;comment")]
     [InlineData("[ZoneTransfer]\nZoneId=3\nZoneId=3")][InlineData("[ZoneTransfer]\nZoneId=3\nZONEID=0")]
     [InlineData("[ZoneTransfer]\nZoneId=3\n[ZoneTransfer]\nZoneId=4")]
-    [InlineData("[ZoneTransfer]\nZoneId=3\0")][InlineData("[ZoneTransfer]\nZoneId=3\u0085")]
+    [InlineData("[ZoneTransfer]\nZoneId=3\0\nHostUrl=x")][InlineData("[ZoneTransfer]\n\0ZoneId=3")]
+    [InlineData("[ZoneTransfer]\nZoneId=3\n\0ZoneId=0")][InlineData("\0[ZoneTransfer]\nZoneId=3")][InlineData("\0")]
+    [InlineData("[ZoneTransfer]\nZoneId=3\0\n")][InlineData("[ZoneTransfer]\nZoneId=3\u0085")]
     [InlineData("[ZoneTransfer]\nZoneId=\u00a03")][InlineData("[ ZoneTransfer ]\nZoneId=3")]
     [InlineData("[[ZoneTransfer]]\nZoneId=3")][InlineData("[ZoneTransfer]\nZoneId=3\nstray")]
     [InlineData("[ZoneTransfer]\nZoneId=3\n[ ZoneTransfer ]\nZoneId=0")]
     [InlineData("[ZoneTransfer]\nZoneId=3\n[Other]\nZoneId=0")]
     [InlineData("[ZoneTransfer]\nZoneId=3\nZoneId\u00a0=0")]
-    public void Ambiguous_unknown_or_noncanonical_declarations_are_controlled_refusals(string text) =>
-        Assert.Equal(ArchiveWriteReason.UnsupportedFeature, Assert.Throws<ArchiveWriteException>(() =>
-            ArchiveWindowsOriginZone.Parse(Present(Encoding.UTF8.GetBytes(text)))).Reason);
+    public void Ambiguous_unknown_or_noncanonical_declarations_are_controlled_refusals(string text)
+    {
+        var refusal = Assert.Throws<ArchiveWriteException>(() => ArchiveWindowsOriginZone.Parse(Present(Encoding.UTF8.GetBytes(text))));
+        Assert.Equal(ArchiveWriteReason.UnsupportedFeature, refusal.Reason);
+        // The user is told the cause, not that an archive (which may not exist yet) holds unpreservable metadata (I688).
+        Assert.Equal(ArchiveWindowsOriginZone.UnreadableMarkText, refusal.Data[ArchiveWriteMessages.UserMessageKey]);
+    }
+
+    /// <summary>
+    /// Browsers end the mark with a NUL: every Chromium download on the release session's host did ("…HostUrl=…\0"), and
+    /// Windows' own PersistentZoneIdentifier reads each of these shapes as zone 3 (the native oracle, I688). Trailing NULs
+    /// are a terminator; the raise still changes only the zone digit and keeps every other byte, the NULs included.
+    /// </summary>
+    public static IEnumerable<object[]> TerminatedMarks()
+    {
+        var utf8 = new UTF8Encoding(false, true); var utf16 = new UnicodeEncoding(false, true, true);
+        yield return [utf8.GetBytes("[ZoneTransfer]\r\nZoneId=3\r\nReferrerUrl=https://example.test/r\r\nHostUrl=https://example.test/h\0")];
+        yield return [utf8.GetBytes("[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.test/h\r\n\0")];
+        yield return [utf8.GetBytes("[ZoneTransfer]\r\nZoneId=3\r\n\0\0")];
+        yield return [utf8.GetBytes("[ZoneTransfer]\nZoneId=3\0")];
+        yield return [utf16.GetPreamble().Concat(utf16.GetBytes("[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.test/h\r\n\0")).ToArray()];
+    }
+
+    [Theory]
+    [MemberData(nameof(TerminatedMarks))]
+    public void Marks_that_browsers_end_with_a_NUL_keep_their_declared_zone_and_every_byte(byte[] original)
+    {
+        var snapshot = Present(original); var parsed = ArchiveWindowsOriginZone.Parse(snapshot);
+        Assert.False(parsed.IsAbsent); Assert.Equal(3, parsed.DeclaredZone); Assert.Same(snapshot, parsed.RaiseTo(3));
+        byte[] raised = parsed.RaiseTo(4).Bytes.ToArray();
+        Assert.Equal(original.Length, raised.Length);
+        Assert.Single(Enumerable.Range(0, original.Length), i => original[i] != raised[i]);
+        Assert.Equal(original[^1], raised[^1]);
+        Assert.Equal(4, ArchiveWindowsOriginZone.Parse(Present(raised)).DeclaredZone);
+    }
 
     [Fact]
     public void Invalid_encodings_are_not_repaired_and_out_of_range_requested_zones_cannot_be_emitted()

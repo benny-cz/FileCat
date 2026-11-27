@@ -34,6 +34,12 @@ public sealed class ArchiveWindowsOriginZone
         string text;
         try { text = encoding.GetString(bytes[preamble..]); }
         catch (DecoderFallbackException) { throw Unsupported(); }
+        // Browsers end their mark with a NUL (Chromium writes "…HostUrl=…\0"), and Windows' own PersistentZoneIdentifier
+        // reads such a mark as its declared zone (I688). Only NULs at the very end are a terminator: one anywhere else is
+        // still a refusal, because Windows reads on past it and a later ZoneId then overrides the first. The bytes are kept.
+        int unterminated = text.Length;
+        while (unterminated > 0 && text[unterminated - 1] == '\0') unterminated--;
+        text = text[..unterminated];
         foreach (char c in text)
             if (char.IsControl(c) && c is not ('\r' or '\n' or '\t')) throw Unsupported();
         bool seenSection = false, inSection = false; int zone = -1, digitIndex = -1;
@@ -105,6 +111,18 @@ public sealed class ArchiveWindowsOriginZone
     private static bool Space(char c) => c is ' ' or '\t';
     private static void ValidateZone(int zone)
     { if (zone is < 0 or > 4) throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "Only declared Windows zones zero through four are supported."); }
-    private static ArchiveWriteException Unsupported() => new(ArchiveWriteReason.UnsupportedFeature,
-        "The Windows origin mark is ambiguous or uses unsupported text/zone features; keep it for review instead of treating it as unmarked.");
+    /// <summary>
+    /// A refused mark names its cause for the user. The archive may not exist yet, so the generic "this archive contains
+    /// metadata FileCat cannot preserve" would mislead (I688). Once saving may have begun, the job's phase wording wins.
+    /// </summary>
+    private static ArchiveWriteException Unsupported()
+    {
+        var error = new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature,
+            "The Windows origin mark is ambiguous or uses unsupported text/zone features; keep it for review instead of treating it as unmarked.");
+        error.Data[ArchiveWriteMessages.UserMessageKey] = UnreadableMarkText;
+        return error;
+    }
+
+    internal const string UnreadableMarkText = "FileCat cannot read the download mark (Zone.Identifier) on a selected file or on this archive. " +
+        "It keeps such marks on the archives it writes, so it stopped.";
 }

@@ -224,6 +224,43 @@ public sealed class WindowsArchiveOriginTests
         Assert.Equal(4u, ReadNative()); // Fresh COM object; never reuse a cached original declaration.
     }
 
+    // I688: browsers end the mark with a NUL. Every Chromium download on the release session's host had the first shape,
+    // and FileCat refused it, so no archive could be made of downloaded files. Windows' own reader takes all three as zone 3.
+    [Theory]
+    [InlineData("browser")][InlineData("crlf-nul")][InlineData("utf16-le-nul")]
+    public void Windows_reads_marks_that_browsers_end_with_a_NUL_and_FileCat_raises_them_exactly(string shape)
+    {
+        RequireWindows(); using var fixture = new Fixture();
+        string path = fixture.PathOf("download.bin"); File.WriteAllBytes(path, [1]);
+        var utf16 = new UnicodeEncoding(false, true, true);
+        byte[] bytes = shape switch
+        {
+            "browser" => Encoding.UTF8.GetBytes("[ZoneTransfer]\r\nZoneId=3\r\nReferrerUrl=https://example.test/r\r\nHostUrl=https://example.test/h\0"),
+            "crlf-nul" => Encoding.UTF8.GetBytes("[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.test/h\r\n\0"),
+            _ => utf16.GetPreamble().Concat(utf16.GetBytes("[ZoneTransfer]\r\nZoneId=3\r\n\0")).ToArray(),
+        };
+        PutMark(path, bytes);
+        Assert.Equal(3u, ReadNativeZone(path));
+        var parsed = ArchiveWindowsOriginZone.Parse(ArchiveOriginSnapshot.Present(ArchiveOriginFormat.WindowsZoneIdentifier, bytes));
+        Assert.Equal(3, parsed.DeclaredZone);
+        PutMark(path, parsed.RaiseTo(4).Bytes);
+        Assert.Equal(4u, ReadNativeZone(path)); // A fresh COM object reads the raised mark, NUL and URLs kept.
+        Assert.Equal(bytes.Length, ReadMark(path).Length);
+    }
+
+    /// <summary>Test-only oracle: the installed Windows PersistentZoneIdentifier, as in the encoding oracle above.</summary>
+    private static uint ReadNativeZone(string path)
+    {
+        object identifier = Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("0968e258-16c7-4dba-aa86-462dd61e31a3"), throwOnError: true)!)!;
+        try
+        {
+            ((IPersistFile)identifier).Load(path, 0 /* STGM_READ */);
+            int result = ((IZoneIdentifier)identifier).GetId(out uint zone);
+            Assert.True(result >= 0, $"GetId HRESULT 0x{result:X8}"); return zone;
+        }
+        finally { Marshal.FinalReleaseComObject(identifier); }
+    }
+
     [ComImport, Guid("cd45f185-1b21-48e2-967b-ead743a8914e"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IZoneIdentifier
     {
