@@ -13,7 +13,7 @@ BLOCKERS = ROOT / "docs/release/1.0.0/FILECAT_1_0_RELEASE_BLOCKERS.md"
 ISSUE = re.compile(r"^\| I(\d+) \|")
 SUMMARY = re.compile(
     r"\*\*(\d+) Remediated preliminarily, (two|\d+) Closed for preliminary scope, "
-    r"(\d+) unresolved statuses; (\d+) total\.\*\*"
+    r"(\d+) unresolved status(?:es)?; (\d+) total\.\*\*"
 )
 
 
@@ -65,7 +65,7 @@ def main() -> None:
     dashboard = DASHBOARD.read_text(encoding="utf-8-sig")
     dashboard_issues = re.search(
         r"^\| Issue register \| (\d+) IDs: (\d+) Remediated preliminarily, "
-        r"(two|\d+) Closed for preliminary scope, (\d+) unresolved statuses\.",
+        r"(two|\d+) Closed for preliminary scope, (\d+) unresolved status(?:es)?\.",
         dashboard,
         re.MULTILINE,
     )

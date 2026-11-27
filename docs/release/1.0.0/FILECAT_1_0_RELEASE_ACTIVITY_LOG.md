@@ -5975,3 +5975,13 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - **Tag:** the owner created and pushed the annotated tag `v1.0.0` (`42dec55b`, 19:03:55Z) at `fa6678c5`, with the tag ruleset's admin bypass. Its run 46054331772 refused at "Refuse stable tag production"; all 17 other jobs were skipped.
 - **Promotion:** `Promote-StableRelease.ps1` copied rc.10's 24 assets into the private draft "FileCat 1.0.0" (release 460975687), from 19:07:30Z to 19:16:15Z. It checked them, and the session checked again through GitHub's API. REL-FQ-CANDIDATE is Accepted ([promotion record](evidence/E-PROMOTION-1.0.0-20261127.md)).
 - **Next:** the owner reviews the draft and presses Publish release; then the session's public download checks (section 13.3).
+
+## 2026-11-27 — FileCat 1.0.0 released
+
+- The owner published the draft "FileCat 1.0.0" at 19:25:12 UTC: release `v1.0.0`, immutable and the latest release.
+- **Section 13.3's public download checks all passed:**
+  - the anonymous release check: release, notes, manifests, 24 assets, signatures, attestation of 24 of 24 and 19 links;
+  - a clean install from the public Setup in the Windows VM, inside the OneDrive guard;
+  - preview.11's public build offers 1.0.0, and 1.0.0 says it is the latest release (a25 on Ubuntu, 8 of 8).
+- **Closed:** I18 closed (register 667, 22, 1: I677 is the known issue). I581-PREVIEW-UPDATE, REL-PIPELINE and REL-GO-PUBLISH are Accepted, so every ledger row is Accepted or Optional.
+- **Release notes:** the published text is merged into `main` (`ef06d12e`) ([publication record](evidence/E-PUBLIC-1.0.0-20261127.md)).
