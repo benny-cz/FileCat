@@ -90,7 +90,7 @@ After a GO, in this order:
 
 ## Unresolved issues: proposed dispositions
 
-The [register](FILECAT_1_0_RELEASE_ISSUES.md#summary) has 20 unresolved rows. I677's cause is unproven. I688 and I689 are defects in rc.9, fixed for rc.10. None of the other 17 names a known defect in rc.9.
+The [register](FILECAT_1_0_RELEASE_ISSUES.md#summary) has 20 unresolved rows. I677's cause is unproven. I688 and I689 are defects in rc.9, fixed for rc.10, and I529's cause is found and fixed for rc.10 too. None of the other 16 names a known defect in rc.9.
 - **Remediated preliminarily:**
   - [I680](evidence/E-I680-setup-cannot-close-running-filecat.md), found on rc.5, in rc.6;
   - [I681](evidence/E-I681-linux-census-zombie.md), found on rc.6, in rc.7;
@@ -118,7 +118,7 @@ Each closes on a step above or on the owner's acceptance:
 | [I108](FILECAT_1_0_RELEASE_ISSUES.md#i108) CI reliability | rc.5's to rc.7's tagged runs and PR #73's run passed all 19 test jobs at their first attempt. rc.8's tagged run needed a second: its first found I683, a test defect, and lost a macOS runner to GitHub, under GitHub's capacity notice. rc.9's needed a second for one job: its first found I687, a test defect now fixed on main | Close; the historical causes stay recorded as unproven | The owner's acceptance |
 | [I110](FILECAT_1_0_RELEASE_ISSUES.md#i110) Equal short reads | Corrected; the strict physical rerun caught the case (I495) and the comparison now reads the whole request | Close with the physical repeat | GA PC (G8) |
 | [I518](FILECAT_1_0_RELEASE_ISSUES.md#i518) Mac PathLine clipboard (CI) | Fixture revised; all 7 PathLine cases pass on macOS in rc.5's to rc.9's tagged runs | Close; cause unproven | The owner's acceptance |
-| [I529](FILECAT_1_0_RELEASE_ISSUES.md#i529) Mac hard-link timeout (CI) | Instrumented; the hard-link approval cases pass on macOS in rc.5's to rc.9's tagged runs | Close; cause unproven, instrumentation stays | The owner's acceptance |
+| [I529](FILECAT_1_0_RELEASE_ISSUES.md#i529) Hard-link timeout (CI) | Recurred on Windows ARM64 in PR #79's run. Its cause is now found: a Create click was lost while Create still looked ready for a stale preview. Fixed for rc.10 | Close when rc.10's tagged run passes | rc.10 |
 | [I677](FILECAT_1_0_RELEASE_ISSUES.md#i677) First picture decode over 30 s (CI, once) | Open by the owner's decision for rc.5, diagnostics in, and unchanged since; the case passes on all four lanes of rc.5's to rc.9's tagged runs | Ship with I677 open as a known issue, or hold 1.0.0 | The owner's decision |
 | [I688](FILECAT_1_0_RELEASE_ISSUES.md#i688) Packing browser downloads | Found by G7 on rc.9; fixed for rc.10, and the owner's own build packs downloads | Close when G7 line 5 passes on rc.10 | rc.10, GA PC |
 | [I689](FILECAT_1_0_RELEASE_ISSUES.md#i689) Disk scan from an ordinary window | Found by G8 on rc.9; fixed for rc.10. The fixed build scans through the helper in the Windows VM by tool, and in your retest of the branch's build G7 and G8 passed | Close when G8 passes on rc.10 | rc.10, GA PC (G8) |

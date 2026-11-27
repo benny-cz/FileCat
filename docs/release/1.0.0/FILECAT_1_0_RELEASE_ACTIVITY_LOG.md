@@ -5907,3 +5907,12 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - The session built an unsigned test Setup built from the branch at `4c43d63b` on the release session's host (SHA-256 `6f2d2da3a31252d28d7e33311f63cf06b31c66b0227343d936cccd54935c6ee7`), from the cached and checked Inno Setup installer; the compiler was removed again afterwards.
 - With it, the owner's G7 pack of downloaded files and G8 scan of the USB stick from the ordinary window both passed ("Both passed").
 - Next: PR #79's full CI, merge, the `release/1.0` sync, and rc.10.
+
+## 2026-11-27 — I529's cause found, fixed for rc.10
+
+- [PR #79](https://github.com/benny-cz/FileCat/pull/79)'s full-matrix [run 46005481301](https://github.com/benny-cz/FileCat/actions/runs/46005481301) passed 18 of 19 jobs. Windows ARM64's App remainder failed I529's hard-link test, the first recurrence off macOS.
+- Its phase receipt (dialog open, Create enabled, no job, two complete previews) and the dialog's code give the cause:
+  - the late report of the initial path's text change threw away a finished preview;
+  - for up to 200 ms Create still looked ready while a click on it did nothing.
+- `e8adba4a` turns Create off at once whenever the preview goes stale. A new test fails without it and passes with it.
+- The fix joins PR #79, whose full CI runs again; rc.10 carries it ([I529](evidence/E-I529-mac-hardlink-timeout-triage.md)).

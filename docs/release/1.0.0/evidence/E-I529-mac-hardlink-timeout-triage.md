@@ -11,3 +11,25 @@ Private archive `V:\FileCat\artifacts\release-evidence\i528-mac-hardlink-stress-
 [Run 41372059002](https://github.com/benny-cz/FileCat/actions/runs/41372059002) at I614 product commit `6a9fc6de23b42241041138981ccdf28c213d2832` failed only the macOS App test `An_approved_real_hard_link_keeps_the_captured_source_and_destination(navigate: False)` with `System.TimeoutException` after its 15-second `ExecuteAsync(CreateLink)` completion guard at `MutationPreparationTests.cs:139`. The `navigate: True` row, all other macOS tests, producer, Windows x64, Windows ARM64 and Ubuntu passed. The four package/draft jobs skipped by design on main. The subsequent [run 41372562401](https://github.com/benny-cz/FileCat/actions/runs/41372562401) at docs-only `e429beca` passed all five required jobs, including the same hard-link test; `git diff --name-only 6a9fc6de e429beca` contains only release/validation records. These outcomes show recurrence under hosted load and a green unchanged-product descendant, not its precise cause or a product fix.
 
 The same 15-second guard now emits a phase receipt before rethrowing on timeout: elapsed time, whether the command task completed, whether the dialog and Create button remain, any submitted job state, the reviewed link path and the existing injected file-operation call log. This is test-only instrumentation. A Windows x64 Release test-project compile passed with 0 warnings/errors using the existing references; local VSTest aborted before executing a row because its testhost did not connect within 90 seconds on the physical workstation, so it supplies no behavioral result. The next hosted recurrence should distinguish a dialog/preview wait from a submitted-job wait before any product correction or timeout-policy change. Keep I529 Open; retain the 15-second bound and do not call the later green run an explanation.
+
+## Recurrence on Windows ARM64, the cause and the fix (2026-11-27)
+
+[PR #79](https://github.com/benny-cz/FileCat/pull/79)'s full-matrix [run 46005481301](https://github.com/benny-cz/FileCat/actions/runs/46005481301) failed one test, on Windows ARM64 (App tests, remainder): `An_approved_real_hard_link_keeps_the_captured_source_and_destination(navigate: True)`, after its 15 s guard. The other 18 jobs passed. Its phase receipt shows the dialog open, Create enabled, no job, and ten preparation calls: the symbolic-link check, the free-name check, and two complete previews (folder, two volumes, the occupied-name check, twice). A passing run makes seven, with one complete preview.
+
+**Why.** The dialog sets its initial link path before it listens for text changes, and Avalonia reports a text change on a later dispatcher turn. Usually the report comes while the first preview is still running, cancels it, and a second preview follows. On the loaded runner it came after the first preview had finished:
+- It set the preview stale.
+- The dialog checks its buttons only every 200 ms, so Create kept looking ready.
+- The test's wait saw Create enabled, and its click went to the dialog, which checks the preview again on a click and ignored it.
+- The second preview then finished, and Create stayed enabled with no click left to act on.
+
+A person who clicked Create within 200 ms of changing the link path lost the click in the same way.
+
+**The fix, `e8adba4a` on `fix/i688-download-mark-nul`, for rc.10:**
+- A dialog's content can have its buttons checked at once (`DialogCloser.Requery`).
+- The link dialog does so whenever its preview goes stale or becomes current, and when its administrator review starts or ends.
+- The hard-link test also checks Create again right before its click.
+
+**Checks, at standard rights on the release session's host:**
+- **The new test:** `A_stale_link_preview_turns_Create_off_at_once_so_no_click_is_lost` turns the preview stale and finds Create off in the same dispatcher turn. Without the fix it failed, with Create still enabled; with the fix it passes.
+- **The surrounding tests:** the link, mutation-preparation, dialog and archive-creation classes pass, 168 run, 0 failed, 42 skipped (other platforms and opt-in lanes).
+- **A stress loop:** 60 runs of the two hard-link rows under CPU load, before the fix, all passed. The race did not occur locally, as before.
