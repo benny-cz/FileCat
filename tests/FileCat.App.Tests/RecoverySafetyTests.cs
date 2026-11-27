@@ -528,6 +528,27 @@ public sealed class RecoverySafetyTests
         Assert.Null(RecoveryProcessCensus.ParseReply($"FileCatRecoveryProcessCensusV1:{nonce}:unknown\n", nonce, 0));
     }
 
+    /// <summary>
+    /// I689: on Windows without administrator rights the census cannot complete (other accounts' processes cannot be
+    /// queried), so an unknown goes on to the administrator helper, which takes the census with full rights. A FileCat
+    /// this census does see still refuses here; Linux still asks polkit's root census; elsewhere unknown still refuses.
+    /// </summary>
+    [Theory]
+    [InlineData(null, false, true, false)]
+    [InlineData(true, false, true, true)]
+    [InlineData(false, false, true, false)]
+    [InlineData(null, false, false, null)]
+    [InlineData(null, true, false, false)]
+    [InlineData(true, true, false, true)]
+    public void An_unknown_census_without_administrator_rights_on_Windows_defers_to_the_helper(bool? ordinary, bool linux,
+        bool helperTakesCensus, bool? expected)
+    {
+        int asked = 0;
+        bool? decided = RecoveryProcessCensus.Decide(() => ordinary, linux ? () => { asked++; return false; } : null, helperTakesCensus);
+        Assert.Equal(expected, decided);
+        Assert.Equal(linux && ordinary is null ? 1 : 0, asked);
+    }
+
     [Fact]
     public void Privileged_recovery_census_retries_a_transient_unknown_but_never_assumes_a_persistent_one_is_clear()
     {

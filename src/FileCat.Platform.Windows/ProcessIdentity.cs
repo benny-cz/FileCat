@@ -66,12 +66,16 @@ public static partial class ProcessIdentity
     /// These Windows kernel bookkeeping processes have no user-mode executable and cannot host FileCat.
     /// A same-named executable with an unreadable image remains unknown unless the kernel reports the
     /// characteristic no-image failure in session zero; all other identities stay fail-closed.
+    /// vmmem and vmmemWSL hold the memory of a Hyper-V or WSL 2 virtual machine (I689: on a PC that ran one, even an
+    /// administrator's census could not finish).
     /// </summary>
     public static bool IsKernelOnlyProcess(int processId, string processName, int sessionId, ImagePathResult image) =>
         image.Path is null && (processId == 0 && processName == "Idle" && image.Error == 87 ||
                                processId == 4 && processName == "System" && image.Error == 31 ||
                                processId > 4 && sessionId == 0 && image.Error == 31 &&
-                               processName is ("Registry" or "Memory Compression" or "Secure System" or "vmmemCmZygote"));
+                               (processName is ("Registry" or "Memory Compression" or "Secure System" or "vmmemCmZygote") ||
+                                processName.Equals("vmmem", StringComparison.OrdinalIgnoreCase) ||
+                                processName.Equals("vmmemWSL", StringComparison.OrdinalIgnoreCase)));
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     private static partial SafeProcessHandle OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, uint processId);
