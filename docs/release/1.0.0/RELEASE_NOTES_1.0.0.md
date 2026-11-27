@@ -4,7 +4,7 @@ FileCat 1.0.0 is the first stable release of FileCat, a keyboard-first, multi-pa
 
 **Windows 11 x64 is the stable tier.** Windows 11 ARM64, Ubuntu 24.04/26.04 x64 with GNOME, and macOS 26 or later on Apple silicon ship as **previews**. Their packages come from the same source and also call themselves 1.0.0; the release-blocking tier is Windows 11 x64 alone, and the [preview limits](#known-limitations) below apply to the others.
 
-These notes compare 1.0.0 with the last published preview, [1.0.0-preview.11](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.11) (source `7eb4766f`). Tag `v1.0.0` points at `814a42f28618d04538ae9b3e19f21e2bcfa6803d`, the source of release candidate `v1.0.0-rc.8`. This release publishes that candidate's packages unchanged.
+These notes compare 1.0.0 with the last published preview, [1.0.0-preview.11](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.11) (source `7eb4766f`). Tag `v1.0.0` points at `d169f4917996ac9db637a496eccffe3531154c88`, the source of release candidate `v1.0.0-rc.9`. This release publishes that candidate's packages unchanged.
 
 ## Downloads
 
@@ -26,13 +26,13 @@ The release also holds one manifest per platform (`FileCat-1.0.0-windows-assets.
 ## Verifying downloads
 
 - **Hashes.** Each platform manifest lists the name, size in bytes and SHA-256 of every other file for its platform, the source commit, and the candidate tag that built those bytes. GitHub shows the same SHA-256 beside each asset. Compute yours with `Get-FileHash -Algorithm SHA256 FILE` (PowerShell), `sha256sum FILE` (Linux) or `shasum -a 256 FILE` (macOS).
-- **Manifest SHA-256:** windows `60c4a599148e78cc063c2337c6bad65a0b4945070f1e32c39135c72c9410c75b`, linux `49c22b08bbc02ce73c89747018c4b859c4376004de3ce04c991bcc32418bb447`, macos `2059158317eef5b8e9ffc916ef6d0e6a22493cb398a66210a4b630ab78dcc511`. The manifests were written when the packages were built: their `CandidateRef` names `refs/tags/v1.0.0-rc.8`, and their `CandidateQualified` and `SigningVerified` fields always read `false`, because a manifest pins bytes and records no decision.
+- **Manifest SHA-256:** windows `ebbbd781aeef187155497c364c7ec306b8ed6a45afc51d8c11c350d4de9d2fe8`, linux `6c2b471efac04281bc63cfd0ebb2fdbc6ed6fbf74cf3e56bb76a4f6d170f6915`, macos `f68a632c7c43a0c6ac228b806c649512baecdbd96226d6e00e2390a00c915157`. The manifests were written when the packages were built: their `CandidateRef` names `refs/tags/v1.0.0-rc.8`, and their `CandidateQualified` and `SigningVerified` fields always read `false`, because a manifest pins bytes and records no decision.
 - **GitHub's attestation.** The release is immutable: its assets cannot be replaced after publication, and GitHub signs a release attestation over their digests. With the GitHub CLI, run `gh release verify v1.0.0 --repo benny-cz/FileCat`, and for a downloaded file `gh release verify-asset v1.0.0 FILE --repo benny-cz/FileCat`.
 - **Windows signatures (new in 1.0.0; the previews were unsigned).** Both Setups, their uninstallers, and every program and library in the Windows packages carry an Authenticode signature. Files their vendors signed, such as Microsoft's, keep the vendor's signature. Every other one, FileCat's own included, is signed by the project's maintainer with an individual-validated SSL.com certificate and an RFC 3161 timestamp. The certificate's subject is the maintainer's name and city, and Windows' prompts show it as the publisher. Check a file with `Get-AuthenticodeSignature FILE` (status `Valid`) or in Properties → Digital Signatures. A ZIP file itself carries no signature; the files inside it do.
 - **macOS.** `codesign --verify --deep --strict FileCat.app` checks that the bundle is intact. An ad-hoc signature names no publisher, so the hash and the attestation are what tie the app to this release.
 - **Ubuntu.** The `.deb`, AppImage and tarball carry no signature of their own; check them by hash and attestation. Inside the runtime-source bundle, `sha256sum -c --strict SHA256SUMS` checks its sources.
 - **SBOMs** list each payload's files, reviewed dependencies, runtime pack and source commit. They describe composition; they are not signatures.
-- **Candidate record:** tagged run `45835859037` passed 19 test jobs, two of them in a second attempt (73,827 tests passed, 13,708 skipped, 0 failed). The stable tier's installed check ran on a physical PC with a released Windows 11 `[[edition, version and build; Smart App Control state]]`.
+- **Candidate record:** tagged run `45897912070` passed 19 test jobs, one of them in a second attempt (73,980 tests passed, 13,713 skipped, 0 failed). The stable tier's installed check ran on a physical PC with a released Windows 11 `[[edition, version and build; Smart App Control state]]`.
 
 ## Installing, upgrading from a preview, and removing
 
