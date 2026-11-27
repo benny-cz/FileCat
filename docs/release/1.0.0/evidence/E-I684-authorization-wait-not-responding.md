@@ -41,3 +41,9 @@ Every wait for a person that FileCat starts inside a device call is marked:
 - the Windows EFS key backup wizard and a key provider's questions.
 
 While fixing it, the session found [I685](E-I685-system-question-not-responding.md): the system's own questions inside an ordinary file-system call. The same PR fixes it.
+
+## On rc.9, and on Linux before the fix (2026-11-27)
+
+- **Linux on rc.9:** in the owner's U3, UDisks2's dialog stayed open 19.1 s before the refusal. FileCat showed no notice and logged none ([rc.9](E-RC9-TAG-20261126.md#the-owners-walkthrough-on-rc9-the-ubuntu-section-2026-11-27)).
+- **Linux on rc.8, found afterwards:** FileCat's own log on the Ubuntu VM has "… is not responding …" at 17:43:03 on 2026-11-26, about 8.5 s into UDisks2's dialog in the owner's U3, which the owner refused at 17:43:09. So I684 did strike on Linux, as inferred above. The owner did not notice it then.
+- **Still to come on rc.9:** the Mac's M7 to M9, and the GA PC's optional G8 on Windows.

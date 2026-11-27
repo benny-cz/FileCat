@@ -5869,3 +5869,10 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - The owner's walkthrough and GA PC checklist now describe rc.9: U2 to U4 and M1 to M9 again, waiting at least 10 s at each system dialog, and G8 the same at Windows' prompt and the helper's window. The Mac's reset also removes FileCat's remembered privacy answers. The citations of `UnixDevices.cs` and `DeviceAccess.cs` give rc.9's lines.
 - rc.9's Release Evidence Package is staged and verified: 2,739 files, manifest SHA-256 `6cba3151dcf34e6e…`, carrying rc.8's evidence whole with the notes of the owner's walkthrough on rc.8 ([REP](evidence/E-REP-RC9-20261127.md)).
 - AC-11's phone test is built from rc.9's source, since rc.9 changed the Windows platform library.
+
+## 2026-11-27 — The owner's walkthrough on rc.9: Ubuntu U2 to U4 pass
+
+- On the Ubuntu VM, with rc.9's .deb and the owner's USB stick, the owner did U2 to U4 in one FileCat window. Each answer matches the system journal ([rc.9](evidence/E-RC9-TAG-20261126.md#the-owners-walkthrough-on-rc9-the-ubuntu-section-2026-11-27)).
+- In U3, UDisks2's dialog stayed open 19.1 s, past the 8 s hang threshold, and FileCat showed no notice and logged none: I684's fix holds on Linux.
+- FileCat's log on the VM also shows that I684 struck in the owner's U3 on rc.8, 8.5 s into the same dialog, unnoticed then ([I684](evidence/E-I684-authorization-wait-not-responding.md)).
+- Next: the Mac's M1 to M9 on rc.9, the GA PC checklist and the MTP phone.

@@ -5,8 +5,9 @@ Prepared 2026-11-25, updated for rc.5 the same day, for rc.6, rc.7 and rc.8 on 2
 **Where it stands:**
 - **Windows:** you passed W1 to W7 on rc.6; Windows' process records confirm each step ([record](evidence/E-RC6-TAG-20261126.md)).
 - **Ubuntu and Mac:** you passed U1 to U5 and M1 to M9 on rc.8, and M8 found I684 ([record](evidence/E-RC8-TAG-20261126.md)).
+- **Ubuntu on rc.9:** you passed U2 to U4 on 2026-11-27. In U3 UDisks2's dialog stayed open 19.1 s, and FileCat said nothing about the drive ([record](evidence/E-RC9-TAG-20261126.md#the-owners-walkthrough-on-rc9-the-ubuntu-section-2026-11-27)).
 
-**On rc.9, do U2 to U4 on Ubuntu and the Mac section in full (M1 to M9).** In each of those steps, before you answer a system dialog (polkit's, authopen's or macOS's privacy question), wait at least 10 seconds. Meanwhile FileCat must not say that a drive or folder is not responding; if it does, that step fails (I684, I685).
+**On rc.9, do the Mac section in full (M1 to M9).** In each step, before you answer a system dialog (authopen's or macOS's privacy question), wait at least 10 seconds. Meanwhile FileCat must not say that a drive or folder is not responding; if it does, that step fails (I684, I685).
 
 None of the files that W1 to W7's notes cite changed in rc.9. Two of its changes do run in those steps: the I/O scheduler's clock, which FileCat's file access uses, and a check before a file's content opens (W2's F3) for an encrypted file whose key is off the computer. The session repeated W2 and W5 by tool on rc.9's own Setup. Carrying W1 to W7 over from rc.6 is your acceptance at GO; you may repeat the section on rc.9 instead.
 
