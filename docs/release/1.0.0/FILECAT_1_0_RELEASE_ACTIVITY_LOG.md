@@ -5883,3 +5883,11 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - macOS's questions stayed open up to 16.1 s and authopen's dialog 36.8 s in M8. FileCat showed and logged no "not responding" notice. Its log on the Mac holds rc.8's notices from the day before: in M4 (I685), M7 and M8 (I684).
 - M5 needed a second try. FileCat's saved window had kept a panel at Desktop from rc.8's M5, so macOS asked about Desktop as FileCat started, and it was allowed then. The session reset Desktop alone. The walkthrough's preparation now checks the saved window.
 - The walkthrough's Ubuntu and Mac sections are done on rc.9. Next: the GA PC checklist, the MTP phone, the owner's acceptance of W1 to W7's carry-over, the dispositions and the GO.
+
+## 2026-11-27 — AC-11's phone Move passes on rc.9's build
+
+- From a build of the Windows platform tests at rc.9's source, `MtpTests.Move_to_writable_device_retires_only_the_verified_local_source` passed on the owner's Motorola edge 60 pro ([rc.9](evidence/E-RC9-TAG-20261126.md#ac-11-the-phone-move-on-rc9s-build-2026-11-27)).
+  - FileCat's Move job put a 131,071-byte file into a new `FileCat-test-*` folder on the phone and retired the PC's copy.
+  - The phone's copy read back byte for byte, and the test removed its folder.
+- A Redmi A5, tried first, showed Windows no storage, so the test skipped there.
+- Left before GO: the GA PC checklist, the owner's acceptance of W1 to W7's carry-over, the dispositions and the GO.

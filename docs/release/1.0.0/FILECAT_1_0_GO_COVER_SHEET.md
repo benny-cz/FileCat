@@ -71,10 +71,9 @@ Prepared 2026-11-26 by the release session for the owner, the human GO approver 
 
    Closes d7, d8, d9's consent part and REL-SIGN-MAC.
 2. **The GA PC checklist** ([checklist](FILECAT_1_0_RC3_GA_PC_CHECKLIST.md)): a physical PC with a released Windows 11 and Smart App Control on, from download to removal. Step G8 (a USB stick through the helper) is marked optional; it is also the physical USB repeat of d9 on the candidate, and on rc.9 it waits at Windows' prompt and the helper's window, checking I684 on Windows. Closes d1, REL-WIN-GA and the GA-tier half of REL-SIGN-WINDOWS.
-3. **The MTP phone (AC-11):** connect an Android phone to this PC in File transfer mode and unlock it.
-   - The session then runs AC-11's one physical Move positive (`MtpTests.Move_to_writable_device_retires_only_the_verified_local_source`, with `FILECAT_MTP_TEST=1`).
-   - It uses rc.9's own build of the platform tests (`E:\FileCat\.tmp\fq-rc9\Run-Ac11.ps1`), since rc.9 changed the Windows platform library they test.
-   - It writes only into a new `FileCat-test-*` folder on the phone.
+3. **The MTP phone (AC-11): done.** On 2026-11-27 AC-11's one physical Move positive passed on your Motorola edge 60 pro, from rc.9's own build of the platform tests ([rc.9](evidence/E-RC9-TAG-20261126.md#ac-11-the-phone-move-on-rc9s-build-2026-11-27)).
+   - FileCat's Move job put a 131,071-byte file into a new `FileCat-test-*` folder on the phone, retired the PC's copy, and the phone's copy read back byte for byte.
+   - The test removed its folder. A Redmi A5, tried first, showed Windows no storage, so the test skipped there.
 4. **The unresolved issues:** accept or reject each proposed disposition in the table below.
 5. **GO or NO-GO,** naming the candidate, the source, the three manifest digests, the REP manifest digest and the release notes' digest.
 
@@ -120,7 +119,7 @@ Each closes on a step above or on the owner's acceptance:
 | [I529](FILECAT_1_0_RELEASE_ISSUES.md#i529) Mac hard-link timeout (CI) | Instrumented; the hard-link approval cases pass on macOS in rc.5's to rc.9's tagged runs | Close; cause unproven, instrumentation stays | The owner's acceptance |
 | [I677](FILECAT_1_0_RELEASE_ISSUES.md#i677) First picture decode over 30 s (CI, once) | Open by the owner's decision for rc.5, diagnostics in, and unchanged since; the case passes on all four lanes of rc.5's to rc.9's tagged runs | Ship with I677 open as a known issue, or hold 1.0.0 | The owner's decision |
 
-DEC-14 also closes, by scope on the candidate's results, the older register rows that say only that candidate qualification remains (d11), except AC-11's phone Move (step 3 above).
+DEC-14 also closes, by scope on the candidate's results, the older register rows that say only that candidate qualification remains (d11). AC-11's phone Move passed on rc.9 (step 3 above).
 
 ## Waived and stated as limitations (DEC-14)
 
