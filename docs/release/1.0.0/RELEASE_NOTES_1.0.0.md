@@ -32,7 +32,7 @@ The release also holds one manifest per platform (`FileCat-1.0.0-windows-assets.
 - **macOS.** `codesign --verify --deep --strict FileCat.app` checks that the bundle is intact. An ad-hoc signature names no publisher, so the hash and the attestation are what tie the app to this release.
 - **Ubuntu.** The `.deb`, AppImage and tarball carry no signature of their own; check them by hash and attestation. Inside the runtime-source bundle, `sha256sum -c --strict SHA256SUMS` checks its sources.
 - **SBOMs** list each payload's files, reviewed dependencies, runtime pack and source commit. They describe composition; they are not signatures.
-- **Candidate record:** tagged run `46032581012` passed all 19 test jobs at the first attempt (74,156 tests passed, 13,719 skipped, 0 failed). The stable tier's installed check ran on a physical PC with a released Windows 11 `[[edition, version and build; Smart App Control state]]`.
+- **Candidate record:** tagged run `46032581012` passed all 19 test jobs at the first attempt (74,156 tests passed, 13,719 skipped, 0 failed). The stable tier's installed check ran on a physical PC with a released Windows 11 Pro, version 26H2 (build 26300.9818), with Smart App Control on.
 
 ## Installing, upgrading from a preview, and removing
 
@@ -153,7 +153,7 @@ The release also holds one manifest per platform (`FileCat-1.0.0-windows-assets.
 - FileCat shows pictures and reads media metadata; it does not play audio or video. Its interface is in English.
 - Disk usage needs an ordinary FileCat, not one running as administrator or root.
 
-The [issue register](https://github.com/benny-cz/FileCat/blob/main/docs/release/1.0.0/FILECAT_1_0_RELEASE_ISSUES.md) lists every known issue and its current status. `[[At GO: name any unresolved register row that users can meet beyond those above, or state that there is none.]]`
+The [issue register](https://github.com/benny-cz/FileCat/blob/main/docs/release/1.0.0/FILECAT_1_0_RELEASE_ISSUES.md) lists every known issue and its current status. One unresolved issue is not described above. Once, on a hosted Windows test machine, a picture's first decode took longer than its 30 s; the next decode in the same test run took 2.4 s. The cause is not known, and it has not happened again in the release candidates' test runs (I677). If a picture does not decode within its 30 s, FileCat says which step took the time, and you can open the picture again.
 
 ## Privacy and the update check
 
