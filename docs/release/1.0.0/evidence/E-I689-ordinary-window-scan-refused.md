@@ -42,4 +42,5 @@ On `fix/i688-download-mark-nul`, for rc.10:
   - **rc.9:** refused the scan with G8's text, before any prompt.
   - **The fixed build (`13f203c7`):** asked to scan T:. The window started the helper, elevated, which started the installed `FileCat.exe --filecat-recovery-process-census` for that window, and only then showed its own window. Approved, the scan listed T:'s two deleted files as recoverable.
   - **With a second FileCat window open:** both builds refused, as they must.
+- **The owner's retest:** with an unsigned test Setup built from the branch at `4c43d63b` on the release session's host (SHA-256 `6f2d2da3a31252d28d7e33311f63cf06b31c66b0227343d936cccd54935c6ee7`), G7's pack and then G8's scan of the USB stick from the ordinary window passed ("Both passed", 2026-11-27).
 - **Still to come:** rc.10's tagged run, and the owner's G8 on rc.10.

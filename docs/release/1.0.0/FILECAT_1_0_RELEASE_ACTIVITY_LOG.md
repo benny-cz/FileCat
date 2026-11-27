@@ -5901,3 +5901,9 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - The owner's own build of the branch at `23f39bbe` packed downloads but still refused the scan. That led to I689's second cause: an ordinary window's own Cloud Files query worker, which the census counted as another FileCat.
 - In the Windows VM by tool ([rc.9](evidence/E-RC9-TAG-20261126.md#i689-in-the-windows-vm-by-tool-2026-11-27)): rc.9 refuses an ordinary window's scan of a test drive as in G8. The fixed build scans it through the helper, whose census the installed FileCat takes. With a second FileCat window open, both refuse.
 - Next: the fixes' PR with full CI, rc.10 and its qualification, and G3 to G11 on rc.10.
+
+## 2026-11-27 — The owner's retest of I688's and I689's fixes passes
+
+- The session built an unsigned test Setup built from the branch at `4c43d63b` on the release session's host (SHA-256 `6f2d2da3a31252d28d7e33311f63cf06b31c66b0227343d936cccd54935c6ee7`), from the cached and checked Inno Setup installer; the compiler was removed again afterwards.
+- With it, the owner's G7 pack of downloaded files and G8 scan of the USB stick from the ordinary window both passed ("Both passed").
+- Next: PR #79's full CI, merge, the `release/1.0` sync, and rc.10.

@@ -29,4 +29,5 @@ The operation report (captured 11:38:15 UTC) names `C:\test\test.7z`, the reques
   - Windows 81 passed: Windows' own reader is the oracle for three browser shapes, and FileCat raises each exactly.
   - App 107 passed, 59 skipped (other platforms and opt-in lanes). The standard-user native creation lane, whose mark is now a browser's, is opt-in and did not run.
 - **The owner's build:** on the owner's own build of the branch at `23f39bbe`, packing downloaded files works ("I688 fixed", 2026-11-27).
+- **The owner's retest:** with an unsigned test Setup built from the branch at `4c43d63b` on the release session's host (SHA-256 `6f2d2da3a31252d28d7e33311f63cf06b31c66b0227343d936cccd54935c6ee7`), G7 line 5's pack of downloaded files passed ("Both passed", 2026-11-27).
 - **Still to come:** rc.10's tagged run, and G7 line 5 again on rc.10.

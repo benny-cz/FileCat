@@ -121,7 +121,7 @@ Each closes on a step above or on the owner's acceptance:
 | [I529](FILECAT_1_0_RELEASE_ISSUES.md#i529) Mac hard-link timeout (CI) | Instrumented; the hard-link approval cases pass on macOS in rc.5's to rc.9's tagged runs | Close; cause unproven, instrumentation stays | The owner's acceptance |
 | [I677](FILECAT_1_0_RELEASE_ISSUES.md#i677) First picture decode over 30 s (CI, once) | Open by the owner's decision for rc.5, diagnostics in, and unchanged since; the case passes on all four lanes of rc.5's to rc.9's tagged runs | Ship with I677 open as a known issue, or hold 1.0.0 | The owner's decision |
 | [I688](FILECAT_1_0_RELEASE_ISSUES.md#i688) Packing browser downloads | Found by G7 on rc.9; fixed for rc.10, and the owner's own build packs downloads | Close when G7 line 5 passes on rc.10 | rc.10, GA PC |
-| [I689](FILECAT_1_0_RELEASE_ISSUES.md#i689) Disk scan from an ordinary window | Found by G8 on rc.9; fixed for rc.10, and in the Windows VM by tool the fixed build scans through the helper | Close when G8 passes on rc.10 | rc.10, GA PC (G8) |
+| [I689](FILECAT_1_0_RELEASE_ISSUES.md#i689) Disk scan from an ordinary window | Found by G8 on rc.9; fixed for rc.10. The fixed build scans through the helper in the Windows VM by tool, and in your retest of the branch's build G7 and G8 passed | Close when G8 passes on rc.10 | rc.10, GA PC (G8) |
 
 DEC-14 also closes, by scope on the candidate's results, the older register rows that say only that candidate qualification remains (d11). AC-11's phone Move passed on rc.9 (step 3 above).
 
