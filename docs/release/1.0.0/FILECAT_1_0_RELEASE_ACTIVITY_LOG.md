@@ -5922,3 +5922,10 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - PR #79's second full-matrix run, 46011321977 at `e8adba4a`, passed all 19 jobs, Windows ARM64's App remainder included. PR #79 was merged into main as `d3b849c2`.
 - The sync for rc.10 is [PR #80](https://github.com/benny-cz/FileCat/pull/80): `8eb0879f`, with parents `d3b849c2` and rc.9's tip `d169f491`, and a tree equal to `d3b849c2`'s. Its full-matrix run is 46016568801.
 - Next: merge PR #80 when green and tag `v1.0.0-rc.10` at `release/1.0`'s new tip (the owner's "Fix in rc.10"). The tag run's signing waits for the owner's approval.
+
+## 2026-11-27 — The rc.10 sync's run finds I690, a test deadline; fixed before the sync
+
+- The rc.10 sync's [run 46016568801](https://github.com/benny-cz/FileCat/actions/runs/46016568801) failed one Windows x64 Core test: a 70-step undo had moved 37 items back after its 60 s bound, still progressing.
+- The test takes 0.6 s in rc.9's and PR #79's runs. On that runner the whole undo class ran 20 to 100 times slower ([I690](evidence/E-I690-undo-bulk-test-deadline.md)).
+- [PR #81](https://github.com/benny-cz/FileCat/pull/81) gives the test five minutes. It is a test-only change, merged into main as `3f645f6e` after its producer check. The sync merged main again (`98572b78`), and its new full-matrix run 46022417308 covers the change.
+- The superseded sync run was cancelled.

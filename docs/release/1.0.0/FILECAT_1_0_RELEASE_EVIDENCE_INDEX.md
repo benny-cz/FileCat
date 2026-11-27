@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**1067 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
+**1068 evidence entries; final qualification of the rc.2 candidate is in progress.** The candidate `v1.0.0-rc.2` is signed and drafted privately, and final qualification of its installed bytes has not run. `v1.0.0-rc.1`'s bytes are not the ones to promote (I634).
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -11,6 +11,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 
 | ID | What | Source | Class | Record | Issues |
 |---|---|---|---|---|---|
+| E-I690-undo-bulk-test-deadline | I690: a 70-step undo test ran out of its 60 s while a contended runner ran the undo tests 20 to 100 times slower | The rc.10 sync's run 46016568801 (Windows x64 Core tests) and its test results, compared with rc.9's and PR #79's runs; PR #81 | Found and remediated preliminarily; CI qualification only, no product defect. | [Record](evidence/E-I690-undo-bulk-test-deadline.md) | I690 |
 | E-I689-ordinary-window-scan-refused | I689: from an ordinary window on Windows, FileCat refused every disk scan, saying other FileCat processes might write | The owner's G8 on rc.9; a census probe at standard rights (139 of 462 processes unidentified); the Windows VM's process records; rc.9 and the fixed build by tool in the VM | Found; Medium. Fixed on the branch at `23f39bbe` and `13f203c7` for rc.10. In the VM rc.9 refuses and the fixed build scans through the helper. | [Record](evidence/E-I689-ordinary-window-scan-refused.md) | I689/I106 |
 | E-I688-download-mark-trailing-nul | I688: FileCat refused to pack browser downloads; it could not read the download mark browsers end with a NUL | The owner's G7 line 5 on rc.9; 41 of 41 marked downloads on the release session's host; Windows' own mark reader | Found; Medium. Fixed on the branch at `911fe5f5` for rc.10; the owner's own build packs downloads. | [Record](evidence/E-I688-download-mark-trailing-nul.md) | I688 |
 | E-REP-RC9-20261127 | The Release Evidence Package of `v1.0.0-rc.9`, staged and verified for the owner to seal | 2,739 files, 7,089,104,029 bytes; manifest SHA-256 `6cba3151dcf34e6e…`, committed in `v1.0.0-rc.9/` | Staging, before the owner's steps on rc.9: rc.9's assets and evidence, with rc.8's (and the notes of the owner's walkthrough on rc.8), rc.7's, rc.6's and rc.5's carried whole under `carried/`; verified 2,739 of 2,739 against the manifest. Rebuilt before GO with the owner's steps' records. | [Record](evidence/E-REP-RC9-20261127.md) | REL-REP-CUSTODY/d13 |

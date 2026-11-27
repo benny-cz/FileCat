@@ -96,7 +96,7 @@ The [register](FILECAT_1_0_RELEASE_ISSUES.md#summary) has 20 unresolved rows. I6
   - [I681](evidence/E-I681-linux-census-zombie.md), found on rc.6, in rc.7;
   - [I682](evidence/E-I682-no-display-abort.md), found on rc.7, in rc.8;
   - [I684](evidence/E-I684-authorization-wait-not-responding.md) and [I685](evidence/E-I685-system-question-not-responding.md), found on rc.8, in rc.9. Your slow answers in step 1 confirmed them on Linux and macOS, where FileCat's own logs show rc.8's notices; G8 checks Windows.
-- **Test defects:** [I683](evidence/E-I683-page-test-late-favicon.md) and [I686](evidence/E-I686-cadence-test-busy-read-twice.md), fixed in rc.9's tests, and [I687](evidence/E-I687-archive-f4-macos-stamp.md), which rc.9's tagged run found, fixed on main. None changes a shipped file; for I687 the owner kept rc.9.
+- **Test defects:** [I683](evidence/E-I683-page-test-late-favicon.md) and [I686](evidence/E-I686-cadence-test-busy-read-twice.md), fixed in rc.9's tests, and [I687](evidence/E-I687-archive-f4-macos-stamp.md), which rc.9's tagged run found, fixed on main. [I690](evidence/E-I690-undo-bulk-test-deadline.md), which the rc.10 sync's run found, is fixed in rc.10's tests. None changes a shipped file; for I687 the owner kept rc.9.
 
 Each closes on a step above or on the owner's acceptance:
 
