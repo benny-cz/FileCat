@@ -1,4 +1,4 @@
-# FileCat 1.0.0 rc.8: GA PC checklist (REL-WIN-GA)
+# FileCat 1.0.0 rc.9: GA PC checklist (REL-WIN-GA)
 
 Prepared 2026-11-25, updated for rc.5 the same day, for rc.6, rc.7 and rc.8 on 2026-11-26, and for rc.9 on 2026-11-27. rc.5 differs from rc.3 only by I672 to I679 (signing in to a share on Windows, a share whose server does not answer no longer stopping the window, a picture timeout's wording, two status races, and tests). rc.6 differs from rc.5 only by I680: Setup and the uninstaller close a running FileCat. rc.7 differs from rc.6 only by I681, in Linux's process check, rc.8 from rc.7 only by I682, in Linux's start without a display, and rc.9 from rc.8 by I684 and I685: a drive is no longer reported as not responding while you answer a question about it. G8 now checks that. The other steps are unchanged. Under [DEC-14](evidence/E-DEC-2026-11-24-release-scope.md) you provide a physical PC with a released (GA) Windows 11. On it you install rc.9's x64 Setup, start FileCat, use it and remove it, with Smart App Control enforcing while FileCat's programs load. This closes checklist d1 in the [rc.2 checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md): REL-WIN-GA (ENV-03) and the GA-tier Smart App Control part of REL-SIGN-WINDOWS. It takes about 45 minutes. **[Admin]** marks a step that needs administrator approval.
 
@@ -75,7 +75,7 @@ $s = Get-AuthenticodeSignature .\FileCat-1.0.0-win-x64-setup.exe
 $s.Status; $s.SignerCertificate.Subject; $s.TimeStamperCertificate.Subject
 Get-Content .\FileCat-1.0.0-win-x64-setup.exe -Stream Zone.Identifier
 ```
-- **Expect:** `refs/tags/v1.0.0-rc.8` and `1.0.0`. The next two hashes are equal. The manifest's own hash equals the Windows manifest hash that the session gives you from the tagged run. `Valid`; the signer's subject names you (do not paste it); a timestamp authority's subject. `ZoneId=3`, the download mark.
+- **Expect:** `refs/tags/v1.0.0-rc.9` and `1.0.0`. The next two hashes are equal. The manifest's own hash equals the Windows manifest hash that the session gives you from the tagged run. `Valid`; the signer's subject names you (do not paste it); a timestamp authority's subject. `ZoneId=3`, the download mark.
 - **Record:** Pass/Fail, the Setup hash's first 16 characters and SourceCommit's first 7. **Closes:** d1; REL-SIGN-WINDOWS on GA hardware.
 
 <details><summary>Source</summary>eng/Select-ReleaseAssets.ps1:35-45, 58-83 (the manifest: names, sizes, SHA-256, candidate reference); ci.yml:1371-1374 (selected after signing), 1413-1422 (GitHub's server digests checked); evidence/E-RC2-TAG-20261124.md:52-55 (manifest hashes recorded per tag); FILECAT_1_0_RELEASE_ACTIVITY_LOG.md:5384 (timestamped Setup); FILECAT_1_0_RELEASE_BLOCKERS.md:37 (DEC-13); evidence/E-FQ-RC2-20261124.md:210 (ZoneId=3)</details>
