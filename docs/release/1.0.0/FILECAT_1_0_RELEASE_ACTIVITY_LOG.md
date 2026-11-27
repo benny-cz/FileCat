@@ -5961,3 +5961,10 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - **Release notes:** the two GO lines are filled in (`3d38c787`). SHA-256 as the promotion checks it: `79cd59a2c4b8ee2d352fd1ddc6f234edd3db7817e44e3b891e19d3da1ffcd3dc`.
 - **REP:** rebuilt for the GO with `ga-pc/`. It is staged and verified: 3,266 files, manifest SHA-256 `e7b806452aab509cc0106b9fb372baaba7a309f09b799d09d45b2c72a1c7c06f` ([REP](evidence/E-REP-RC10-20261127.md)).
 - **Next:** the owner's GO or NO-GO on rc.10, naming the values in the GO cover sheet's step 5.
+
+## 2026-11-27 — GO for FileCat 1.0.0 on `v1.0.0-rc.10`
+
+- At 18:52:33 UTC the owner answered "GO (Recommended)" to the session's GO question, which named the candidate, the source `fa6678c5`, the three producer manifests, the REP manifest `e7b806452aab509c…`, the release notes `79cd59a2c4b8ee2d…` and DEC-02's tiers ([GO record](evidence/E-GO-1.0.0-20261127.md)).
+- I03 and I10 closed at the GO, as the owner accepted (register 667, 21, 2); REL-I03-PROVENANCE is Accepted.
+- The session checked that pushing `v1.0.0` cannot build: `eng/Assert-ProducerReference.ps1` at the source refuses `refs/tags/v1.0.0`.
+- Next: the owner seals the REP and creates `v1.0.0`; the session promotes to a private draft; the owner publishes.
