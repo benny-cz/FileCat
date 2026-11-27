@@ -5856,3 +5856,16 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 
 - rc.9's tagged run 45897912070 passed 18 of 19 test jobs in attempt 1. The macOS App tests (focus) failed one test of 1,624, I687: after F4 on a freshly replaced archive, no edit session opened. That is most likely hosted macOS stamping the archive as used, which the test allowed only at an earlier step. The packages and signing were skipped.
 - Asked to keep rc.9 or make rc.10, the owner chose "Keep rc.9 (Recommended)". [PR #78](https://github.com/benny-cz/FileCat/pull/78) fixes the test on main (merged as `7618b498` after run 45900683071). The session ran the failed job again (attempt 2) ([I687](evidence/E-I687-archive-f4-macos-stamp.md)).
+
+## 2026-11-27 — rc.9 signed, drafted and qualified; I684 and I685 remediated preliminarily
+
+- rc.9's tagged run 45897912070 passed in attempt 2: the failed macOS job passed, then the packages. The owner approved the `signing` deployment. 1,475 PE files verify (495 FileCat-signed, 980 vendor-signed, 0 failed), the four negative controls are rejected, and the 24 assets are in private draft 459997465. Test by test, the results equal PR #76's run; against rc.8's, only I684's and I685's 158 new results differ ([rc.9](evidence/E-RC9-TAG-20261126.md)).
+- The session downloaded the draft's 24 assets; each matches GitHub's digest and the three manifests. Before signing, only FileCat's own 28 version-stamped files per architecture differ from rc.8's; every vendor file is byte-identical.
+- On rc.9's bytes:
+  - **Windows VM:** c1 passes, the framework-dependent copy refuses to start without .NET, I680's five cases pass in one run, and W2 and W5 pass by tool. A share whose server does not answer keeps the window answering (I675) and is still reported as not responding, by 8.6 s, then as responding again.
+  - **Ubuntu VM:** all 26 rows pass; I681's census replies clear beside the zombie; I682's three starts without a display say why.
+  - **Mac:** 33 of 35 rows pass, as before, and b1 passes.
+- I684 and I685 are remediated preliminarily in rc.9. The owner's slow answers on rc.9 confirm them live.
+- The owner's walkthrough and GA PC checklist now describe rc.9: U2 to U4 and M1 to M9 again, waiting at least 10 s at each system dialog, and G8 the same at Windows' prompt and the helper's window. The Mac's reset also removes FileCat's remembered privacy answers. The citations of `UnixDevices.cs` and `DeviceAccess.cs` give rc.9's lines.
+- rc.9's Release Evidence Package is staged and verified: 2,739 files, manifest SHA-256 `6cba3151dcf34e6e…`, carrying rc.8's evidence whole with the notes of the owner's walkthrough on rc.8 ([REP](evidence/E-REP-RC9-20261127.md)).
+- AC-11's phone test is built from rc.9's source, since rc.9 changed the Windows platform library.
