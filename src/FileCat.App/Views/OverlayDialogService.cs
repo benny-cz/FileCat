@@ -820,11 +820,13 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         Action? requeryButtons = null;
         Action? refreshClose = null;
         Action<object?>? closerActivation = null;
+        Action? closerRequery = null;
         void RetirePresentation()
         {
             presentationClosed = true;
             requery?.Stop();
             if (closerActivation is not null) closer?.Detach(closerActivation);
+            if (closerRequery is not null) closer?.DetachRequery(closerRequery);
             foreach (var (source, changed) in presentationSubscriptions) source.Changed -= changed;
             presentationSubscriptions.Clear();
         }
@@ -996,6 +998,13 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 else Finish(result);
             } : Finish;
             closer?.Attach(closerActivation);
+            // The content can have the buttons checked at once when what they depend on changes (I529).
+            closerRequery = () =>
+            {
+                if (Dispatcher.UIThread.CheckAccess()) { if (!presentationClosed) requeryButtons?.Invoke(); }
+                else Dispatcher.UIThread.Post(() => { if (!presentationClosed) requeryButtons?.Invoke(); });
+            };
+            closer?.AttachRequery(closerRequery);
             return tcs.Task;
         }
         catch { RetirePresentation(); throw; }

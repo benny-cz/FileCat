@@ -1,8 +1,8 @@
-# FileCat 1.0.0 rc.8: GA PC checklist (REL-WIN-GA)
+# FileCat 1.0.0 rc.9: GA PC checklist (REL-WIN-GA)
 
-Prepared 2026-11-25, updated for rc.5 the same day, and for rc.6, rc.7 and rc.8 on 2026-11-26. rc.5 differs from rc.3 only by I672 to I679 (signing in to a share on Windows, a share whose server does not answer no longer stopping the window, a picture timeout's wording, two status races, and tests). rc.6 differs from rc.5 only by I680: Setup and the uninstaller close a running FileCat. rc.7 differs from rc.6 only by I681, in Linux's process check, and rc.8 from rc.7 only by I682, in Linux's start without a display. The steps are unchanged. Under [DEC-14](evidence/E-DEC-2026-11-24-release-scope.md) you provide a physical PC with a released (GA) Windows 11. On it you install rc.8's x64 Setup, start FileCat, use it and remove it, with Smart App Control enforcing while FileCat's programs load. This closes checklist d1 in the [rc.2 checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md): REL-WIN-GA (ENV-03) and the GA-tier Smart App Control part of REL-SIGN-WINDOWS. It takes about 45 minutes. **[Admin]** marks a step that needs administrator approval.
+Prepared 2026-11-25, updated for rc.5 the same day, for rc.6, rc.7 and rc.8 on 2026-11-26, and for rc.9 on 2026-11-27. rc.5 differs from rc.3 only by I672 to I679 (signing in to a share on Windows, a share whose server does not answer no longer stopping the window, a picture timeout's wording, two status races, and tests). rc.6 differs from rc.5 only by I680: Setup and the uninstaller close a running FileCat. rc.7 differs from rc.6 only by I681, in Linux's process check, rc.8 from rc.7 only by I682, in Linux's start without a display, and rc.9 from rc.8 by I684 and I685: a drive is no longer reported as not responding while you answer a question about it. G8 now checks that. The other steps are unchanged. Under [DEC-14](evidence/E-DEC-2026-11-24-release-scope.md) you provide a physical PC with a released (GA) Windows 11. On it you install rc.9's x64 Setup, start FileCat, use it and remove it, with Smart App Control enforcing while FileCat's programs load. This closes checklist d1 in the [rc.2 checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md): REL-WIN-GA (ENV-03) and the GA-tier Smart App Control part of REL-SIGN-WINDOWS. It takes about 45 minutes. **[Admin]** marks a step that needs administrator approval.
 
-**Rules:** as in the [consent walkthrough](FILECAT_1_0_RC3_CONSENT_WALKTHROUGH.md). Test rc.8 only; stop at the first Fail; never put your name in the chat; **Unverified** marks text that neither rc.8's source nor a record gives. Source notes cite source files at the `v1.0.0-rc.8` tag (`814a42f2`), re-checked on 2026-11-26 as the walkthrough says, and records at `main` `7a15ac8b` unless marked "rc3" (`rc3/integration-3`, `94b74365`).
+**Rules:** as in the [consent walkthrough](FILECAT_1_0_RC3_CONSENT_WALKTHROUGH.md). Test rc.9 only; stop at the first Fail; never put your name in the chat; **Unverified** marks text that neither rc.9's source nor a record gives. Source notes cite source files at the `v1.0.0-rc.9` tag (`d169f491`), re-checked on 2026-11-27 as the walkthrough says, and records at `main` `7a15ac8b` unless marked "rc3" (`rc3/integration-3`, `94b74365`).
 
 **You need:** your GitHub sign-in in a browser on this PC (the draft is private), a PDF, a folder with a few JPEG or PNG pictures, a small folder of your own to pack, and optionally a USB stick with a FAT or exFAT volume (G8).
 
@@ -56,7 +56,7 @@ Test-Path 'C:\Program Files\FileCat', "$env:APPDATA\FileCat", "$env:LOCALAPPDATA
 <details><summary>Source</summary>evidence/E-SIGN-DRYRUN-20261120.md:122</details>
 
 ### G3 · Download
-- **Do:** In the browser, signed in to GitHub, open the repository's Releases and the draft "FileCat v1.0.0-rc.8 (signed release candidate)". Download `FileCat-1.0.0-win-x64-setup.exe` and `FileCat-1.0.0-windows-assets.json`. Do not unblock the Setup in its Properties.
+- **Do:** In the browser, signed in to GitHub, open the repository's Releases and the draft "FileCat v1.0.0-rc.9 (signed release candidate)". Download `FileCat-1.0.0-win-x64-setup.exe` and `FileCat-1.0.0-windows-assets.json`. Do not unblock the Setup in its Properties.
 - **Expect:** No record covers a browser warning on this download (**Unverified**). If one appears, write down its wording, then keep the file.
 - **Record:** Pass/Fail and any warning. **Closes:** d1.
 
@@ -75,7 +75,7 @@ $s = Get-AuthenticodeSignature .\FileCat-1.0.0-win-x64-setup.exe
 $s.Status; $s.SignerCertificate.Subject; $s.TimeStamperCertificate.Subject
 Get-Content .\FileCat-1.0.0-win-x64-setup.exe -Stream Zone.Identifier
 ```
-- **Expect:** `refs/tags/v1.0.0-rc.8` and `1.0.0`. The next two hashes are equal. The manifest's own hash equals the Windows manifest hash that the session gives you from the tagged run. `Valid`; the signer's subject names you (do not paste it); a timestamp authority's subject. `ZoneId=3`, the download mark.
+- **Expect:** `refs/tags/v1.0.0-rc.9` and `1.0.0`. The next two hashes are equal. The manifest's own hash equals the Windows manifest hash that the session gives you from the tagged run. `Valid`; the signer's subject names you (do not paste it); a timestamp authority's subject. `ZoneId=3`, the download mark.
 - **Record:** Pass/Fail, the Setup hash's first 16 characters and SourceCommit's first 7. **Closes:** d1; REL-SIGN-WINDOWS on GA hardware.
 
 <details><summary>Source</summary>eng/Select-ReleaseAssets.ps1:35-45, 58-83 (the manifest: names, sizes, SHA-256, candidate reference); ci.yml:1371-1374 (selected after signing), 1413-1422 (GitHub's server digests checked); evidence/E-RC2-TAG-20261124.md:52-55 (manifest hashes recorded per tag); FILECAT_1_0_RELEASE_ACTIVITY_LOG.md:5384 (timestamped Setup); FILECAT_1_0_RELEASE_BLOCKERS.md:37 (DEC-13); evidence/E-FQ-RC2-20261124.md:210 (ZoneId=3)</details>
@@ -110,11 +110,12 @@ SAC must be On. Work in the ordinary window, in this order. Each line says which
 
 ### G8 · Optional [Admin]: a USB stick through the helper
 This adds Windows' physical device identity and the installed recovery route (d7, d9). Close every other FileCat window first.
-- **Do:** Insert the stick. Tools → Recover deleted files…: note the stick's entry "Disk N: [model]" and its size. Choose the stick's drive, click Scan, approve Windows' prompt, read the helper window, and click Run as administrator. Compare the model and size with Disk Management **[Admin]**.
+- **Do:** Insert the stick. Tools → Recover deleted files…: note the stick's entry "Disk N: [model]" and its size. Choose the stick's drive and click Scan. Wait at least 10 seconds before you approve Windows' prompt, read the helper window, and wait at least 10 seconds again before you click Run as administrator. Compare the model and size with Disk Management **[Admin]**.
 - **Expect:** FileCat's question "Recover deleted files" says that Windows asks for approval and that the helper only reads the drive; its button is Scan. The helper window's heading starts "Read" and ends "to find deleted files". Its step reads `1. Read drive E: (\\?\Volume{…}) to find deleted files. The helper can only read it: nothing on it, or anywhere else, is written. It stops when FileCat ends the session.` (with your drive letter). The footer says "FileCat reads what it finds itself; this helper only hands it the drive's bytes, and has no way to write." The scan opens in a new tab. If FileCat refuses because other FileCat processes may write, wait a minute and ask again.
+- **Also expect (I684):** while you wait at Windows' prompt and at the helper window, FileCat does not say that the drive is not responding.
 - **Record:** Pass/Fail, and whether model and size agree. **Closes:** d7 (device identity), d9.
 
-<details><summary>Source</summary>src/FileCat.App/ViewModels/MainViewModel.Recovery.cs:68-89, 133-160, 357-394, 518-521; src/FileCat.Platform.Windows/Recovery/DeviceAccess.cs:605, 629; src/FileCat.Platform.Windows/Elevation/ElevationPlanCodec.cs:263, 270-277; src/FileCat.PrivilegedHost/Program.cs:120-122</details>
+<details><summary>Source</summary>src/FileCat.App/ViewModels/MainViewModel.Recovery.cs:68-89, 133-160, 357-394, 518-521; src/FileCat.Platform.Windows/Recovery/DeviceAccess.cs:606, 627; src/FileCat.Platform.Windows/Elevation/ElevationPlanCodec.cs:263, 270-277; src/FileCat.PrivilegedHost/Program.cs:120-122</details>
 
 ### G9 · Smart App Control's record [Admin]
 - **Do:** Windows Security → Virus & threat protection → Protection history. Then, in an administrator PowerShell, with the hours set to reach back before G3:

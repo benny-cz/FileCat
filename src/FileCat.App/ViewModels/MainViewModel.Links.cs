@@ -141,6 +141,8 @@ public sealed partial class MainViewModel
         {
             if (!open) return;
             ++generation; plannedFor = null; requested = true;
+            // I529: Create must not look ready for a stale preview, or a click on it is lost.
+            closer.Requery();
             UpdateAdministratorReview();
             // One owned preview per dialog. Edits replace the pending request instead of growing the device queue.
             if (previewWork is null || previewWork.IsCompleted) previewWork = RefreshPendingAsync();
@@ -212,12 +214,17 @@ public sealed partial class MainViewModel
                 : $"{Formatters.Plural(rows.Count, LinkPlanner.KindName(kind), LinkPlanner.KindName(kind) + "s")} will be created.");
             summary.Classes.Set("error", problem is not null || problems > 0);
             UpdateAdministratorReview();
+            closer.Requery();
         }
         var debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         debounce.Tick += (_, _) => { debounce.Stop(); Refresh(); };
         pathBox.TextChanged += (_, _) =>
         {
+            // Avalonia reports a text change on a later dispatcher turn, the initial path's too (I529). Reported after the
+            // first preview had finished, it threw that preview away while Create still looked ready, and a click was lost:
+            // Create now turns off at once.
             ++generation; plannedFor = null;
+            closer.Requery();
             UpdateAdministratorReview();
             debounce.Stop(); if (open) debounce.Start();
         };
@@ -229,6 +236,7 @@ public sealed partial class MainViewModel
         {
             if (!open || !CanElevate()) return;
             launching = true;
+            closer.Requery();
             UpdateAdministratorReview();
             try
             {
@@ -252,6 +260,7 @@ public sealed partial class MainViewModel
             finally
             {
                 launching = false;
+                closer.Requery();
                 if (open) UpdateAdministratorReview();
             }
         };

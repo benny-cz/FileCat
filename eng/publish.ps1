@@ -14,6 +14,8 @@
   later byte pin names signed files; signing/<rid>/ then holds the unsigned-input and signed-output manifests.
   No Windows candidate is qualified until a trusted signing provider and final-byte pipeline pass.
 #>
+# PowerShell 7 (pwsh): Windows PowerShell 5.1's .NET Framework lacks Path.GetRelativePath, which the notice checks use.
+#Requires -Version 7
 param(
     [string]$Version = "1.0.0-dev",
     [string]$ProductVersion,

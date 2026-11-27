@@ -35,3 +35,9 @@ The owner first chose the known issue, then wrote "sorry, I changed my mind. del
 - **While that kind is unanswered,** the read waits for the person until its first read returns, allowed or refused. FileCat keeps the answered kinds in `macos-privacy-answers.txt` in its local folder, so a later read of an answered kind is measured as usual. Panel listings, the analysis's folder reads and folder contents (tree compare) are covered.
 - **Windows:** opening a file's content waits for the person when the file is EFS-encrypted and this user has an EFS certificate whose key is outside the computer's own software providers. This is read from the certificate store without opening any key.
 - **The cost, accepted by the owner:** a drive that hangs during such a first, still unanswered access shows no "not responding" notice. Resetting macOS's answers (`tccutil reset`) brings a question FileCat no longer expects, and the notice can show again.
+
+## Seen in FileCat's log on rc.8, and gone on rc.9 (2026-11-27)
+
+- **rc.8, no longer inferred:** FileCat's own log on the Mac, which records each notice it shows, has "/ is not responding" at 17:57:51 on 2026-11-26. That was 8.5 s into M4's Documents question, which the owner answered a moment later. For M6's removable-volume question, open 10.1 s, the log has no notice.
+- **rc.9:** in the owner's walkthrough macOS asked about Desktop at FileCat's start (open 9.5 s), Documents in M4 (13.3 s), Desktop in M5 (12.1 s) and the removable volume in M6 (16.1 s). FileCat showed no notice and logged none ([rc.9](E-RC9-TAG-20261126.md#the-owners-walkthrough-on-rc9-the-mac-section-2026-11-27)).
+- **Windows' smart-card PIN:** no owner step uses a smart card. The tests cover it.

@@ -130,6 +130,12 @@ public static partial class SingleInstance
                     // Linux reads the image the process runs, never a name; macOS can only open the name Darwin gives.
                     else if (OperatingSystem.IsLinux()) match = LinuxImageIsFileCat(linux ??= OpenLinuxProcess(process.Id), out unknownReason);
                     else match = ImageAtPathIsFileCat(process.MainModule?.FileName, out unknownReason);
+                    // I689: this FileCat's own workers that write nothing, and those of the FileCat that asked, are part of it.
+                    if (match == true && identify is null && inspect && IsOwnReadOnlyWorker(process, additionallyExcludedProcessId))
+                    {
+                        diagnostic?.Invoke(process.Id, process.ProcessName, OwnWorker);
+                        continue;
+                    }
                     if (match == true)
                     {
                         diagnostic?.Invoke(process.Id, process.ProcessName, "match");

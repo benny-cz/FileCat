@@ -5840,3 +5840,85 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - [PR #75](https://github.com/benny-cz/FileCat/pull/75) fixes both: a device call's hang clock stands still while it waits for a person, and FileCat keeps which of macOS's privacy questions have been answered.
 - PR #75 merged into main as `941177ef` after its full-matrix run 45873958869. Attempt 1's macOS portable job failed before any test: the hosted runner could not resolve GitHub's artifact service (`ENOTFOUND`). Attempt 2 passed, so all 19 test jobs passed. Next: `release/1.0` is synced for rc.9.
 - The rc.9 sync's run 45881038374 (PR #76) found I686 on the macOS Core tests: a change-monitor test read the busy state twice, and the runner's stall turned the folder calm between the reads. It is a test defect, and `ChangeMonitor` is unchanged since rc.8. [PR #77](https://github.com/benny-cz/FileCat/pull/77) takes the busy state once; it was merged into main as `1d861029` after its full-matrix run 45885512784 ([I686](evidence/E-I686-cadence-test-busy-read-twice.md)). The sync's run was cancelled, and the sync takes main again.
+
+## 2026-11-26 — `v1.0.0-rc.9` tagged
+
+- PR #76 synced `release/1.0` with main at `a08e4d70`; its run 45890542893 passed all 19 jobs. Merged as `d169f491`, whose tree is main's.
+- Tagged `v1.0.0-rc.9` (tag object `b61fb227`) at `d169f491`, as the owner chose rc.9 for I684 and I685. The tagged run 45897912070 started at 21:24:20Z; it stops for the owner's approval of the `signing` deployment ([rc.9](evidence/E-RC9-TAG-20261126.md)).
+
+## 2026-11-26 — Test machines cleaned; a custody loss on the Ubuntu VM
+
+- The owner asked to clean all machines of leftovers and prepare them for rc.9's work. On the Ubuntu VM the session removed finished run folders, scripts, tarballs and temporary entries (107 GB used before, 36 GB after).
+- It had not first checked the records for citations there, as it did on the host and the Mac: 47 removed entries are named in `docs/`, and 15 file-system-details records cite raw files among them that exist nowhere else. No snapshot holds them. Each of those records now ends with a custody note; no candidate's evidence is affected ([custody](evidence/E-CUSTODY-20261126-ubuntu-cleanup.md)).
+- From now on the session checks `docs/` for a folder's name before removing it from any machine.
+
+## 2026-11-26 — rc.9's tagged run: I687 found; the owner keeps rc.9
+
+- rc.9's tagged run 45897912070 passed 18 of 19 test jobs in attempt 1. The macOS App tests (focus) failed one test of 1,624, I687: after F4 on a freshly replaced archive, no edit session opened. That is most likely hosted macOS stamping the archive as used, which the test allowed only at an earlier step. The packages and signing were skipped.
+- Asked to keep rc.9 or make rc.10, the owner chose "Keep rc.9 (Recommended)". [PR #78](https://github.com/benny-cz/FileCat/pull/78) fixes the test on main (merged as `7618b498` after run 45900683071). The session ran the failed job again (attempt 2) ([I687](evidence/E-I687-archive-f4-macos-stamp.md)).
+
+## 2026-11-27 — rc.9 signed, drafted and qualified; I684 and I685 remediated preliminarily
+
+- rc.9's tagged run 45897912070 passed in attempt 2: the failed macOS job passed, then the packages. The owner approved the `signing` deployment. 1,475 PE files verify (495 FileCat-signed, 980 vendor-signed, 0 failed), the four negative controls are rejected, and the 24 assets are in private draft 459997465. Test by test, the results equal PR #76's run; against rc.8's, only I684's and I685's 158 new results differ ([rc.9](evidence/E-RC9-TAG-20261126.md)).
+- The session downloaded the draft's 24 assets; each matches GitHub's digest and the three manifests. Before signing, only FileCat's own 28 version-stamped files per architecture differ from rc.8's; every vendor file is byte-identical.
+- On rc.9's bytes:
+  - **Windows VM:** c1 passes, the framework-dependent copy refuses to start without .NET, I680's five cases pass in one run, and W2 and W5 pass by tool. A share whose server does not answer keeps the window answering (I675) and is still reported as not responding, by 8.6 s, then as responding again.
+  - **Ubuntu VM:** all 26 rows pass; I681's census replies clear beside the zombie; I682's three starts without a display say why.
+  - **Mac:** 33 of 35 rows pass, as before, and b1 passes.
+- I684 and I685 are remediated preliminarily in rc.9. The owner's slow answers on rc.9 confirm them live.
+- The owner's walkthrough and GA PC checklist now describe rc.9: U2 to U4 and M1 to M9 again, waiting at least 10 s at each system dialog, and G8 the same at Windows' prompt and the helper's window. The Mac's reset also removes FileCat's remembered privacy answers. The citations of `UnixDevices.cs` and `DeviceAccess.cs` give rc.9's lines.
+- rc.9's Release Evidence Package is staged and verified: 2,739 files, manifest SHA-256 `6cba3151dcf34e6e…`, carrying rc.8's evidence whole with the notes of the owner's walkthrough on rc.8 ([REP](evidence/E-REP-RC9-20261127.md)).
+- AC-11's phone test is built from rc.9's source, since rc.9 changed the Windows platform library.
+
+## 2026-11-27 — The owner's walkthrough on rc.9: Ubuntu U2 to U4 pass
+
+- On the Ubuntu VM, with rc.9's .deb and the owner's USB stick, the owner did U2 to U4 in one FileCat window. Each answer matches the system journal ([rc.9](evidence/E-RC9-TAG-20261126.md#the-owners-walkthrough-on-rc9-the-ubuntu-section-2026-11-27)).
+- In U3, UDisks2's dialog stayed open 19.1 s, past the 8 s hang threshold, and FileCat showed no notice and logged none: I684's fix holds on Linux.
+- FileCat's log on the VM also shows that I684 struck in the owner's U3 on rc.8, 8.5 s into the same dialog, unnoticed then ([I684](evidence/E-I684-authorization-wait-not-responding.md)).
+- Next: the Mac's M1 to M9 on rc.9, the GA PC checklist and the MTP phone.
+
+## 2026-11-27 — The owner's walkthrough on rc.9: the Mac passes
+
+- On the M1 Mac, M1 to M9 pass on rc.9, each confirmed in macOS's log: the quarantined download, Gatekeeper's block and Open Anyway, TCC's Documents (allowed), Desktop (refused) and removable volume (allowed), the USB disk's identity, and authopen refused, the disk changed during the dialog, and approved ([rc.9](evidence/E-RC9-TAG-20261126.md#the-owners-walkthrough-on-rc9-the-mac-section-2026-11-27)).
+- macOS's questions stayed open up to 16.1 s and authopen's dialog 36.8 s in M8. FileCat showed and logged no "not responding" notice. Its log on the Mac holds rc.8's notices from the day before: in M4 (I685), M7 and M8 (I684).
+- M5 needed a second try. FileCat's saved window had kept a panel at Desktop from rc.8's M5, so macOS asked about Desktop as FileCat started, and it was allowed then. The session reset Desktop alone. The walkthrough's preparation now checks the saved window.
+- The walkthrough's Ubuntu and Mac sections are done on rc.9. Next: the GA PC checklist, the MTP phone, the owner's acceptance of W1 to W7's carry-over, the dispositions and the GO.
+
+## 2026-11-27 — AC-11's phone Move passes on rc.9's build
+
+- From a build of the Windows platform tests at rc.9's source, `MtpTests.Move_to_writable_device_retires_only_the_verified_local_source` passed on the owner's Motorola edge 60 pro ([rc.9](evidence/E-RC9-TAG-20261126.md#ac-11-the-phone-move-on-rc9s-build-2026-11-27)).
+  - FileCat's Move job put a 131,071-byte file into a new `FileCat-test-*` folder on the phone and retired the PC's copy.
+  - The phone's copy read back byte for byte, and the test removed its folder.
+- A Redmi A5, tried first, showed Windows no storage, so the test skipped there.
+- Left before GO: the GA PC checklist, the owner's acceptance of W1 to W7's carry-over, the dispositions and the GO.
+
+## 2026-11-27 — The GA PC checklist on rc.9 finds I688 and I689
+
+- The owner ran the GA PC checklist on rc.9 on a physical PC with Windows 11 Pro 26H2 (26300.9818, x64). G1 to G6 passed ([rc.9](evidence/E-RC9-TAG-20261126.md#the-ga-pc-checklist-on-rc9-2026-11-27)).
+- G7 line 5 found [I688](evidence/E-I688-download-mark-trailing-nul.md): FileCat refused to pack downloaded files, because browsers end the download mark with a NUL and FileCat's reader refused it.
+- G8 found [I689](evidence/E-I689-ordinary-window-scan-refused.md): from the ordinary window FileCat refused the USB stick's scan at once. As administrator it scanned.
+- The owner chose rc.10 with I688's fix ("Fix in rc.10"), and I689 joins it. The fixes are on `fix/i688-download-mark-nul`: `911fe5f5` (I688), `23f39bbe` and `13f203c7` (I689).
+- The owner's own build of the branch at `23f39bbe` packed downloads but still refused the scan. That led to I689's second cause: an ordinary window's own Cloud Files query worker, which the census counted as another FileCat.
+- In the Windows VM by tool ([rc.9](evidence/E-RC9-TAG-20261126.md#i689-in-the-windows-vm-by-tool-2026-11-27)): rc.9 refuses an ordinary window's scan of a test drive as in G8. The fixed build scans it through the helper, whose census the installed FileCat takes. With a second FileCat window open, both refuse.
+- Next: the fixes' PR with full CI, rc.10 and its qualification, and G3 to G11 on rc.10.
+
+## 2026-11-27 — The owner's retest of I688's and I689's fixes passes
+
+- The session built an unsigned test Setup built from the branch at `4c43d63b` on the release session's host (SHA-256 `6f2d2da3a31252d28d7e33311f63cf06b31c66b0227343d936cccd54935c6ee7`), from the cached and checked Inno Setup installer; the compiler was removed again afterwards.
+- With it, the owner's G7 pack of downloaded files and G8 scan of the USB stick from the ordinary window both passed ("Both passed").
+- Next: PR #79's full CI, merge, the `release/1.0` sync, and rc.10.
+
+## 2026-11-27 — I529's cause found, fixed for rc.10
+
+- [PR #79](https://github.com/benny-cz/FileCat/pull/79)'s full-matrix [run 46005481301](https://github.com/benny-cz/FileCat/actions/runs/46005481301) passed 18 of 19 jobs. Windows ARM64's App remainder failed I529's hard-link test, the first recurrence off macOS.
+- Its phase receipt (dialog open, Create enabled, no job, two complete previews) and the dialog's code give the cause:
+  - the late report of the initial path's text change threw away a finished preview;
+  - for up to 200 ms Create still looked ready while a click on it did nothing.
+- `e8adba4a` turns Create off at once whenever the preview goes stale. A new test fails without it and passes with it.
+- The fix joins PR #79, whose full CI runs again; rc.10 carries it ([I529](evidence/E-I529-mac-hardlink-timeout-triage.md)).
+
+## 2026-11-27 — PR #79 merged; the rc.10 sync opened
+
+- PR #79's second full-matrix run, 46011321977 at `e8adba4a`, passed all 19 jobs, Windows ARM64's App remainder included. PR #79 was merged into main as `d3b849c2`.
+- The sync for rc.10 is [PR #80](https://github.com/benny-cz/FileCat/pull/80): `8eb0879f`, with parents `d3b849c2` and rc.9's tip `d169f491`, and a tree equal to `d3b849c2`'s. Its full-matrix run is 46016568801.
+- Next: merge PR #80 when green and tag `v1.0.0-rc.10` at `release/1.0`'s new tip (the owner's "Fix in rc.10"). The tag run's signing waits for the owner's approval.

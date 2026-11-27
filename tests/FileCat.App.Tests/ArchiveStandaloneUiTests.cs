@@ -171,7 +171,19 @@ public sealed class ArchiveStandaloneUiTests
         f.Vm.Workspace.Activate(target.Panel); Dispatcher.UIThread.RunJobs(); target.Listing.Refresh();
         await Wait(() => target.Listing.State == ListingState.Complete && !target.Listing.IsRefreshing && target.Listing.FocusName("a.txt"));
         var edit = f.Vm.ExecuteAsync(CommandIds.Edit); await f.Complete(edit);
-        var session = Assert.Single(f.Services.EditSessions.LoadAll());
+        // As at the replacement: hosted macOS can stamp the replaced archive as used just after the listing above read it,
+        // and F4 then refuses the changed archive, as it must (I687, rc.9's tagged run). A user presses F4 again; so does
+        // this test, once, for that stamp alone, and it keeps the first refusal's notice in its output.
+        if (!f.Services.EditSessions.LoadAll().Any() && OperatingSystem.IsMacOS() && SystemStamped(f.Files))
+        {
+            TestContext.Current.TestOutputHelper?.WriteLine("macOS stamped a file before F4; F4 again. Notice: " + f.Vm.Notification);
+            target.Listing.Refresh();
+            await Wait(() => target.Listing.State == ListingState.Complete && !target.Listing.IsRefreshing && target.Listing.FocusName("a.txt"));
+            edit = f.Vm.ExecuteAsync(CommandIds.Edit); await f.Complete(edit);
+        }
+        var sessions = f.Services.EditSessions.LoadAll().ToList();
+        Assert.True(sessions.Count == 1, $"F4 opened {sessions.Count} edit sessions, not one. Notice: {f.Vm.Notification} | UI: {f.Text()}");
+        var session = sessions[0];
         Assert.True(session.IsNativeArchive); Assert.Equal(ArchiveStandalone.MemberName, session.MemberPath);
         Assert.Equal("a.txt", session.MemberDisplay); Assert.Equal("a.txt", session.DisplayName); Assert.Equal("beta", File.ReadAllText(session.WorkingPath));
         File.WriteAllText(session.WorkingPath, "edited through F4");

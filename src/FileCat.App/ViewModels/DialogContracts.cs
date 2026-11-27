@@ -118,12 +118,22 @@ public sealed class DialogButtonPresentation(DialogButtonSnapshot initial)
 public sealed class DialogCloser
 {
     private Action<object?>? _close;
+    private Action? _requery;
 
     internal void Attach(Action<object?> close) => _close = close;
     internal void Detach(Action<object?> close) { if (ReferenceEquals(_close, close)) _close = null; }
+    internal void AttachRequery(Action requery) => _requery = requery;
+    internal void DetachRequery(Action requery) { if (ReferenceEquals(_requery, requery)) _requery = null; }
 
     /// <summary>Ends the dialog with <paramref name="result"/>; nothing happens once it has ended.</summary>
     public void Close(object? result) => _close?.Invoke(result);
+
+    /// <summary>
+    /// Has the dialog check its buttons at once, because what decides whether they may act has just changed (I529).
+    /// Between the dialog's own checks every 200 ms a button could otherwise still look ready while a click on it did
+    /// nothing, so the click was lost.
+    /// </summary>
+    public void Requery() => _requery?.Invoke();
 }
 
 /// <summary>Optional presentation and implicit-dismiss behavior for a custom modal.</summary>

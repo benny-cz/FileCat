@@ -164,9 +164,11 @@ public sealed class UndoLifecycleTests : IDisposable
         var jobs = Manager(new FailingMoveFiles(fail));
         var original = Original(steps);
         using var claim = Assert.IsType<UndoReservation>(original.TryReserveUndo());
-        // Seventy real filesystem inverses can exceed the small-job deadline
-        // on a contended Windows runner; keep a bounded bulk-work deadline.
-        var inverse = jobs.SubmitUndo(claim); await Wait(inverse, TimeSpan.FromSeconds(60));
+        // Seventy real filesystem inverses, each with a journal intent and its outcome, can exceed the small-job deadline
+        // on a contended Windows runner. I690: in the rc.10 sync's run 46016568801 the runner ran this whole class 20 to 100
+        // times slower than usual, and this inverse had moved 37 of its 70 items after 60 s, still progressing; it takes
+        // 0.6 s on an idle runner. The bound only guards against a hang, so it allows five minutes.
+        var inverse = jobs.SubmitUndo(claim); await Wait(inverse, TimeSpan.FromMinutes(5));
         Assert.Equal(JobState.CompletedWithIssues, inverse.State);
         var report = Assert.IsType<UndoReport>(inverse.UndoReport);
         Assert.Equal(70, report.Outcomes.Count); Assert.Equal(68, report.Count(UndoOutcomeKind.Restored));

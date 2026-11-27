@@ -28,7 +28,15 @@ function AssertInstaller([string]$Path) {
 if ($InstallerFile) { AssertInstaller $InstallerFile }
 $existingCompiler = @(Get-ChildItem -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue |
     Get-ItemProperty | Where-Object { $_.DisplayName -like 'Inno Setup*' })
-if ($existingCompiler.Count) { throw 'An existing per-user Inno Setup installation would share its registry entry; use an isolated build account.' }
+if ($existingCompiler.Count) {
+    # Name each entry: one whose folder is gone is left over from a tool folder deleted without its uninstaller.
+    $found = @($existingCompiler | ForEach-Object {
+        $where = [string]$_.InstallLocation
+        "HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\$($_.PSChildName) (" +
+            $(if (-not $where) { 'no folder recorded' } elseif (Test-Path -LiteralPath $where) { $where } else { "$where, which no longer exists" }) + ')'
+    }) -join '; '
+    throw "An existing per-user Inno Setup installation would share its registry entry: $found. Use an isolated build account, or uninstall it; delete an entry whose folder no longer exists."
+}
 [void][IO.Directory]::CreateDirectory($ToolRoot)
 [void][IO.Directory]::CreateDirectory($ReceiptDirectory)
 $installer = Join-Path $ToolRoot "innosetup-$($pin.Version).exe"

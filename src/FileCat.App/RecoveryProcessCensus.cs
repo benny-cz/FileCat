@@ -10,6 +10,8 @@ namespace FileCat.App;
 /// A Linux desktop user cannot inspect many root-owned executable images. A negative ordinary-user
 /// census therefore needs a narrowly scoped administrator check before device recovery can proceed.
 /// Failure, cancellation, an unexpected reply, or an incomplete root census all remain unknown.
+/// On Windows (I689) a FileCat without administrator rights cannot query other accounts' processes at all, and it reads
+/// drives only through the administrator helper; the helper takes the same census with full rights before consent.
 /// </summary>
 internal static class RecoveryProcessCensus
 {
@@ -18,18 +20,36 @@ internal static class RecoveryProcessCensus
     private const int ReplyLimit = 4096;
     private static readonly TimeSpan AuthorizationLimit = TimeSpan.FromSeconds(90);
 
-    internal static bool? OtherFileCatRunning()
+    // A process may exit between enumeration and identity lookup. Retry the whole
+    // snapshot before treating a transient unknown as a reason to refuse recovery.
+    internal static bool? OtherFileCatRunning() => Decide(() => RepeatUncertain(SingleInstance.OtherFileCatRunning),
+        OperatingSystem.IsLinux() ? AskAdministrator : null,
+        helperTakesCensus: OperatingSystem.IsWindows() && !Core.State.WindowsTokenAuthority.IsHighIntegrity);
+
+    /// <summary>
+    /// Whether another FileCat may write to the disk: the census this FileCat can take, then, when that cannot tell,
+    /// Linux's root census through polkit. On Windows without administrator rights, services' and the system's own
+    /// processes cannot be queried (I689: 139 of 462 on the release session's host), so that census never completes.
+    /// There the read itself goes through the administrator helper, which takes the census again with full rights and
+    /// refuses the read unless it is clear; this FileCat goes on (false) and leaves the decision to it. A FileCat it
+    /// can see still refuses here.
+    /// </summary>
+    internal static bool? Decide(Func<bool?> ordinary, Func<bool?>? administrator, bool helperTakesCensus)
     {
-        // A process may exit between enumeration and identity lookup. Retry the whole
-        // snapshot before treating a transient unknown as a reason to refuse recovery.
-        bool? ordinary = RepeatUncertain(SingleInstance.OtherFileCatRunning);
-        if (ordinary is not null || !OperatingSystem.IsLinux()) return ordinary;
-        return AskAdministrator();
+        bool? result = ordinary();
+        if (result is not null) return result;
+        if (administrator is not null) return administrator();
+        return helperTakesCensus ? false : null;
     }
+
+    /// <summary>Linux as root, through pkexec; Windows elevated, started by the administrator helper (I689).</summary>
+    private static bool PrivilegedCensus() => OperatingSystem.IsLinux()
+        ? Core.FileSystem.UnixPermissions.CurrentUserId == 0
+        : OperatingSystem.IsWindows() && Core.State.WindowsTokenAuthority.IsHighIntegrity;
 
     internal static int RunHelper(string[] args)
     {
-        if (!OperatingSystem.IsLinux() || Core.FileSystem.UnixPermissions.CurrentUserId != 0 ||
+        if (!PrivilegedCensus() ||
             args is not [Argument, var pidText, var nonce] ||
             !int.TryParse(pidText, NumberStyles.None, CultureInfo.InvariantCulture, out int parentPid) ||
             parentPid <= 1 || parentPid == Environment.ProcessId || !ValidNonce(nonce)) return 2;

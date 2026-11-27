@@ -47,17 +47,20 @@ internal static partial class Program
         Run(exchange, hash, brokerDirectory, new RunServices(() => DateTime.UtcNow,
             ElevationBroker.CheckRequester, ElevationBroker.TryClaimNonce, ConsentDialog.Ask,
             ConsentDialog.Refuse, FileCat.Platform.Windows.Recovery.DeviceReadHost.Run,
-            ElevationBroker.AdmitNtfsMetadata, ConsentDialog.AskMetadata, ConsentDialog.AskFileSecurity));
+            ElevationBroker.AdmitNtfsMetadata, ConsentDialog.AskMetadata, ConsentDialog.AskFileSecurity, RecoveryCensus.Refusal));
 
     // Keep the one-plan orchestration testable without displaying consent or opening a source device.
     // The installed entry point always supplies the real native implementations above.
+    // ProcessCensus (I689): for a drive read, the census of other FileCat processes taken with this helper's rights; it
+    // returns the refusal when the read must wait, or null when no other FileCat runs.
     internal sealed record RunServices(Func<DateTime> UtcNow,
         Func<ElevationPlan, string, string?> CheckRequester, Func<string, DateTime, bool> ClaimNonce,
         Func<string, string, IReadOnlyList<string>, string, bool> Ask, Action<string> Refuse,
         Func<string, string, string, int, string> ReadDevice,
         Func<ElevationPlan, string, INtfsMetadataAdmission>? PrepareMetadata = null,
         AskMetadataConsent? AskMetadata = null,
-        Func<string, string, IReadOnlyList<string>, string, Func<bool>, bool>? AskFileSecurity = null);
+        Func<string, string, IReadOnlyList<string>, string, Func<bool>, bool>? AskFileSecurity = null,
+        Func<int, string, string?>? ProcessCensus = null);
 
     internal delegate bool AskMetadataConsent(string instruction, string content, IReadOnlyList<string> pages,
         string footer, Func<bool> isCurrent, Func<bool> stopRequested);
@@ -105,6 +108,11 @@ internal static partial class Program
         if (refusal is null && plan is not null && !metadata) refusal = services.CheckRequester(plan, brokerDirectory);
         if (refusal is null && plan is not null && !services.ClaimNonce(plan.Nonce, services.UtcNow()))
             refusal = "This plan was already used once. Ask FileCat again.";
+        // I689: a FileCat without administrator rights cannot see other accounts' processes on Windows, so it leaves a
+        // drive read's process census to this helper. Taken here with full rights, before consent: a read that must wait
+        // asks the person nothing.
+        if (refusal is null && plan is not null && plan.Steps is [{ Verb: ElevatedVerb.ReadDevice }] && services.ProcessCensus is { } census)
+            refusal = census(plan.RequesterProcessId, brokerDirectory);
         if (refusal is not null || plan is null)
         {
             refusal ??= "The plan is empty.";
