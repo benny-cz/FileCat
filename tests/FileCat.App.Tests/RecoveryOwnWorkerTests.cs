@@ -5,11 +5,11 @@ using FileCat.Platform.Windows;
 namespace FileCat.App.Tests;
 
 /// <summary>
-/// I689: once a storage check has used it, a Windows FileCat window keeps its Cloud Files query worker
-/// (<c>FileCat.exe --storage-cloud-query</c>) for as long as the window runs, and the recovery census counted that worker
-/// as another FileCat: a window that had packed, copied or moved files refused every disk scan, and asked the person to
-/// close FileCat windows that did not exist. Workers that write nothing belong to the FileCat that started them. The same
-/// worker started by any other process, and every other FileCat, still count.
+/// I689: a Windows FileCat starts its Cloud Files query worker (<c>FileCat.exe --storage-cloud-query</c>) with its first
+/// storage check, which an ordinary window makes within a second of opening, and keeps it for as long as it runs. The
+/// recovery census counted that worker as another FileCat: every disk scan from an ordinary window was refused, and the
+/// person was asked to close FileCat windows that did not exist. Workers that write nothing belong to the FileCat that
+/// started them. The same worker started by any other process, and every other FileCat, still count.
 /// </summary>
 public sealed class RecoveryOwnWorkerTests
 {

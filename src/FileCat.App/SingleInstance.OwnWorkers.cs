@@ -4,11 +4,11 @@ using System.Diagnostics;
 namespace FileCat.App;
 
 /// <summary>
-/// I689: FileCat's own workers that write nothing belong to the FileCat that started them, not to another FileCat. Once a
-/// storage check has used it (a copy, a move, a pack, a file record), a Windows FileCat keeps its Cloud Files query worker
-/// (<c>FileCat --storage-cloud-query</c>) for as long as it runs, and it starts a picture worker for each picture it
-/// decodes. The recovery census counted them as other FileCat processes, so a window that had packed or copied files
-/// refused every disk scan and asked the person to close FileCat windows that did not exist.
+/// I689: FileCat's own workers that write nothing belong to the FileCat that started them, not to another FileCat. A
+/// Windows FileCat starts its Cloud Files query worker (<c>FileCat --storage-cloud-query</c>) with its first storage
+/// check, which an ordinary window makes within a second of opening, and keeps it for as long as it runs; it starts a
+/// picture worker for each picture it decodes. The recovery census counted them as other FileCat processes, so every
+/// disk scan from an ordinary window was refused, and the person was asked to close FileCat windows that did not exist.
 /// </summary>
 public static partial class SingleInstance
 {
