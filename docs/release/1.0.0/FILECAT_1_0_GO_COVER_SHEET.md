@@ -90,9 +90,9 @@ Prepared 2026-11-26 by the release session for the owner, the human GO approver 
    - **Support decisions:** DEC-02's tiers: Windows 11 x64 stable; Windows 11 ARM64, Ubuntu 24.04 and 26.04 x64 with GNOME, and macOS 26 or later on Apple silicon as previews.
 
 After a GO, in this order:
-1. The owner seals the REP (DEC-10): `pwsh -File E:\FileCat\.tmp\release-scripts\Seal-Rep.ps1 -ManifestSHA256 e7b806452aab509cc0106b9fb372baaba7a309f09b799d09d45b2c72a1c7c06f`, the digest the GO names. It copies, checks and makes the copy read-only for everyone but the owner.
-2. The owner creates the annotated tag `v1.0.0` at the source. Its push starts CI, whose first job must refuse to build a stable tag.
-3. The session runs `eng/Promote-StableRelease.ps1` with the values the GO names. It copies the 24 assets into the private draft "FileCat 1.0.0" and checks them.
+1. The owner seals the REP (DEC-10): `pwsh -File E:\FileCat\.tmp\release-scripts\Seal-Rep.ps1 -ManifestSHA256 e7b806452aab509cc0106b9fb372baaba7a309f09b799d09d45b2c72a1c7c06f`, the digest the GO names. It copies, checks and makes the copy read-only for everyone but the owner. **Done** on 2026-11-27, with the session's independent check of the sealed copy ([promotion record](evidence/E-PROMOTION-1.0.0-20261127.md)).
+2. The owner creates the annotated tag `v1.0.0` at the source. Its push starts CI, whose first job must refuse to build a stable tag. **Done:** tag object `42dec55b`; run 46054331772 refused, and nothing was built.
+3. The session runs `eng/Promote-StableRelease.ps1` with the values the GO names. It copies the 24 assets into the private draft "FileCat 1.0.0" and checks them. **Done:** private draft 460975687, checked by the tool and again by the session.
 4. The owner reviews the draft and presses **Publish release**.
 5. The session runs the public download checks of section 13.3:
    - `eng/Check-PublicRelease.ps1` (on main since PR #68) checks, anonymously, the release, its tag and text, all 24 assets against the manifests, every Windows signature, GitHub's attestation and the links. Tried against the public preview.11 release, it passed all it could, and its signature checks pass on rc.5's files.

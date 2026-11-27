@@ -5968,3 +5968,10 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - I03 and I10 closed at the GO, as the owner accepted (register 667, 21, 2); REL-I03-PROVENANCE is Accepted.
 - The session checked that pushing `v1.0.0` cannot build: `eng/Assert-ProducerReference.ps1` at the source refuses `refs/tags/v1.0.0`.
 - Next: the owner seals the REP and creates `v1.0.0`; the session promotes to a private draft; the owner publishes.
+
+## 2026-11-27 — The REP sealed, `v1.0.0` created, the stable draft ready
+
+- **REP:** the owner sealed it (`Seal-Rep.ps1`: three checks of 3,266 of 3,266 files, then "Sealed"). The session checked the sealed copy independently (3,266 of 3,266) and its access rules: read-only for all but the owner. REL-REP-CUSTODY is Accepted.
+- **Tag:** the owner created and pushed the annotated tag `v1.0.0` (`42dec55b`, 19:03:55Z) at `fa6678c5`, with the tag ruleset's admin bypass. Its run 46054331772 refused at "Refuse stable tag production"; all 17 other jobs were skipped.
+- **Promotion:** `Promote-StableRelease.ps1` copied rc.10's 24 assets into the private draft "FileCat 1.0.0" (release 460975687), from 19:07:30Z to 19:16:15Z. It checked them, and the session checked again through GitHub's API. REL-FQ-CANDIDATE is Accepted ([promotion record](evidence/E-PROMOTION-1.0.0-20261127.md)).
+- **Next:** the owner reviews the draft and presses Publish release; then the session's public download checks (section 13.3).
