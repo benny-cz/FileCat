@@ -5985,3 +5985,14 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
   - preview.11's public build offers 1.0.0, and 1.0.0 says it is the latest release (a25 on Ubuntu, 8 of 8).
 - **Closed:** I18 closed (register 667, 22, 1: I677 is the known issue). I581-PREVIEW-UPDATE, REL-PIPELINE and REL-GO-PUBLISH are Accepted, so every ledger row is Accepted or Optional.
 - **Release notes:** the published text is merged into `main` (`ef06d12e`) ([publication record](evidence/E-PUBLIC-1.0.0-20261127.md)).
+
+## 2026-11-27 — Cleanup after the release
+
+- At the owner's request, the session removed:
+  - 47 remote and 83 local temp branches (`main` and `release/1.0` stay);
+  - nine worktrees;
+  - the staged REPs, each file hash-checked in the sealed REP first;
+  - uncited working folders and temp files on the host;
+  - uncited entries on the Ubuntu VM and the Mac, as the owner approved;
+  - the Windows VM's copies, test profiles and I689 test disk, inside the OneDrive guard.
+- Everything a record names stays ([custody record](evidence/E-CUSTODY-20261127-post-release-cleanup.md)). E: has 186 GB free.
