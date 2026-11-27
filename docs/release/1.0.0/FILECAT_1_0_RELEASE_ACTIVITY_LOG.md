@@ -5916,3 +5916,9 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
   - for up to 200 ms Create still looked ready while a click on it did nothing.
 - `e8adba4a` turns Create off at once whenever the preview goes stale. A new test fails without it and passes with it.
 - The fix joins PR #79, whose full CI runs again; rc.10 carries it ([I529](evidence/E-I529-mac-hardlink-timeout-triage.md)).
+
+## 2026-11-27 — PR #79 merged; the rc.10 sync opened
+
+- PR #79's second full-matrix run, 46011321977 at `e8adba4a`, passed all 19 jobs, Windows ARM64's App remainder included. PR #79 was merged into main as `d3b849c2`.
+- The sync for rc.10 is [PR #80](https://github.com/benny-cz/FileCat/pull/80): `8eb0879f`, with parents `d3b849c2` and rc.9's tip `d169f491`, and a tree equal to `d3b849c2`'s. Its full-matrix run is 46016568801.
+- Next: merge PR #80 when green and tag `v1.0.0-rc.10` at `release/1.0`'s new tip (the owner's "Fix in rc.10"). The tag run's signing waits for the owner's approval.
