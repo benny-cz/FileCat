@@ -6,6 +6,7 @@ Prepared 2026-11-26 by the release session for the owner, the human GO approver 
 - **What differs from rc.8:** the code of I684 and I685, in five of FileCat's own libraries (`FileCat.Core.dll`, `FileCat.Platform.Windows.dll`, `FileCat.Recovery.dll`, `FileCat.Remote.dll` and `FileCat.dll`). Every vendor file is byte-identical.
 - **Coverage:** rc.9's own checks cover what changed (the plan's section 11.2). The rest of rc.8's, rc.7's, rc.6's and rc.5's qualification carries over, except the owner's consent steps whose system dialogs I684 and I685 concern: the owner repeats those on rc.9.
 - **Then:** if the owner's steps pass and the owner accepts the proposed dispositions, the recommendation becomes GO.
+- **Next: rc.10.** The owner's GA PC checklist on rc.9 found [I688](evidence/E-I688-download-mark-trailing-nul.md) (G7) and [I689](evidence/E-I689-ordinary-window-scan-refused.md) (G8). The owner chose rc.10 with the fixes; the steps below then move to rc.10.
 
 ## The candidate
 
@@ -71,6 +72,7 @@ Prepared 2026-11-26 by the release session for the owner, the human GO approver 
 
    Closes d7, d8, d9's consent part and REL-SIGN-MAC.
 2. **The GA PC checklist** ([checklist](FILECAT_1_0_RC3_GA_PC_CHECKLIST.md)): a physical PC with a released Windows 11 and Smart App Control on, from download to removal. Step G8 (a USB stick through the helper) is marked optional; it is also the physical USB repeat of d9 on the candidate, and on rc.9 it waits at Windows' prompt and the helper's window, checking I684 on Windows. Closes d1, REL-WIN-GA and the GA-tier half of REL-SIGN-WINDOWS.
+   - **On rc.9 (2026-11-27):** G1 to G6 passed. G7 line 5 found I688 and G8 found I689 ([rc.9](evidence/E-RC9-TAG-20261126.md#the-ga-pc-checklist-on-rc9-2026-11-27)). On rc.10 you repeat G3 to G11; G1 and G2 describe the PC and stand.
 3. **The MTP phone (AC-11): done.** On 2026-11-27 AC-11's one physical Move positive passed on your Motorola edge 60 pro, from rc.9's own build of the platform tests ([rc.9](evidence/E-RC9-TAG-20261126.md#ac-11-the-phone-move-on-rc9s-build-2026-11-27)).
    - FileCat's Move job put a 131,071-byte file into a new `FileCat-test-*` folder on the phone, retired the PC's copy, and the phone's copy read back byte for byte.
    - The test removed its folder. A Redmi A5, tried first, showed Windows no storage, so the test skipped there.
@@ -88,7 +90,7 @@ After a GO, in this order:
 
 ## Unresolved issues: proposed dispositions
 
-The [register](FILECAT_1_0_RELEASE_ISSUES.md#summary) has 18 unresolved rows. I677's cause is unproven. None of the other 17 names a known defect in rc.9.
+The [register](FILECAT_1_0_RELEASE_ISSUES.md#summary) has 20 unresolved rows. I677's cause is unproven. I688 and I689 are defects in rc.9, fixed for rc.10. None of the other 17 names a known defect in rc.9.
 - **Remediated preliminarily:**
   - [I680](evidence/E-I680-setup-cannot-close-running-filecat.md), found on rc.5, in rc.6;
   - [I681](evidence/E-I681-linux-census-zombie.md), found on rc.6, in rc.7;
@@ -118,6 +120,8 @@ Each closes on a step above or on the owner's acceptance:
 | [I518](FILECAT_1_0_RELEASE_ISSUES.md#i518) Mac PathLine clipboard (CI) | Fixture revised; all 7 PathLine cases pass on macOS in rc.5's to rc.9's tagged runs | Close; cause unproven | The owner's acceptance |
 | [I529](FILECAT_1_0_RELEASE_ISSUES.md#i529) Mac hard-link timeout (CI) | Instrumented; the hard-link approval cases pass on macOS in rc.5's to rc.9's tagged runs | Close; cause unproven, instrumentation stays | The owner's acceptance |
 | [I677](FILECAT_1_0_RELEASE_ISSUES.md#i677) First picture decode over 30 s (CI, once) | Open by the owner's decision for rc.5, diagnostics in, and unchanged since; the case passes on all four lanes of rc.5's to rc.9's tagged runs | Ship with I677 open as a known issue, or hold 1.0.0 | The owner's decision |
+| [I688](FILECAT_1_0_RELEASE_ISSUES.md#i688) Packing browser downloads | Found by G7 on rc.9; fixed for rc.10, and the owner's own build packs downloads | Close when G7 line 5 passes on rc.10 | rc.10, GA PC |
+| [I689](FILECAT_1_0_RELEASE_ISSUES.md#i689) Disk scan from an ordinary window | Found by G8 on rc.9; fixed for rc.10, and in the Windows VM by tool the fixed build scans through the helper | Close when G8 passes on rc.10 | rc.10, GA PC (G8) |
 
 DEC-14 also closes, by scope on the candidate's results, the older register rows that say only that candidate qualification remains (d11). AC-11's phone Move passed on rc.9 (step 3 above).
 

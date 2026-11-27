@@ -5891,3 +5891,13 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
   - The phone's copy read back byte for byte, and the test removed its folder.
 - A Redmi A5, tried first, showed Windows no storage, so the test skipped there.
 - Left before GO: the GA PC checklist, the owner's acceptance of W1 to W7's carry-over, the dispositions and the GO.
+
+## 2026-11-27 — The GA PC checklist on rc.9 finds I688 and I689
+
+- The owner ran the GA PC checklist on rc.9 on a physical PC with Windows 11 Pro 26H2 (26300.9818, x64). G1 to G6 passed ([rc.9](evidence/E-RC9-TAG-20261126.md#the-ga-pc-checklist-on-rc9-2026-11-27)).
+- G7 line 5 found [I688](evidence/E-I688-download-mark-trailing-nul.md): FileCat refused to pack downloaded files, because browsers end the download mark with a NUL and FileCat's reader refused it.
+- G8 found [I689](evidence/E-I689-ordinary-window-scan-refused.md): from the ordinary window FileCat refused the USB stick's scan at once. As administrator it scanned.
+- The owner chose rc.10 with I688's fix ("Fix in rc.10"), and I689 joins it. The fixes are on `fix/i688-download-mark-nul`: `911fe5f5` (I688), `23f39bbe` and `13f203c7` (I689).
+- The owner's own build of the branch at `23f39bbe` packed downloads but still refused the scan. That led to I689's second cause: an ordinary window's own Cloud Files query worker, which the census counted as another FileCat.
+- In the Windows VM by tool ([rc.9](evidence/E-RC9-TAG-20261126.md#i689-in-the-windows-vm-by-tool-2026-11-27)): rc.9 refuses an ordinary window's scan of a test drive as in G8. The fixed build scans it through the helper, whose census the installed FileCat takes. With a second FileCat window open, both refuse.
+- Next: the fixes' PR with full CI, rc.10 and its qualification, and G3 to G11 on rc.10.
