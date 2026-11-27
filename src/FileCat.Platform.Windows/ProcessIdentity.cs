@@ -31,6 +31,44 @@ public static partial class ProcessIdentity
         return null;
     }
 
+    /// <summary>
+    /// The parent's process ID and the launch command, read together; nulls where Windows does not say. The parent is the
+    /// ID Windows recorded when the process started: that process may have ended since, and its ID been reused.
+    /// </summary>
+    public static (int? Parent, string? CommandLine) Launch(int processId)
+    {
+        if (!OperatingSystem.IsWindows() || processId <= 0) return (null, null);
+        try
+        {
+            using var search = new ManagementObjectSearcher(
+                $"SELECT ParentProcessId, CommandLine FROM Win32_Process WHERE ProcessId = {processId}");
+            using var results = search.Get();
+            foreach (ManagementBaseObject item in results)
+                return (item["ParentProcessId"] is uint parent ? (int)parent : (int?)null, item["CommandLine"] as string);
+        }
+        catch (Exception ex) when (ex is ManagementException or UnauthorizedAccessException or COMException)
+        {
+            // Unreadable process metadata is never proof of whose process it is.
+        }
+        return (null, null);
+    }
+
+    /// <summary>A command line split as Windows programs split theirs (CommandLineToArgvW); null when it cannot be.</summary>
+    public static unsafe string[]? Arguments(string? commandLine)
+    {
+        // CommandLineToArgvW answers an empty line with this program's own path.
+        if (!OperatingSystem.IsWindows() || string.IsNullOrWhiteSpace(commandLine)) return null;
+        nint list = CommandLineToArgv(commandLine, out int count);
+        if (list == 0) return null;
+        try
+        {
+            var arguments = new string[count];
+            for (int i = 0; i < count; i++) arguments[i] = new string(((char**)list)[i]);
+            return arguments;
+        }
+        finally { LocalFree(list); }
+    }
+
     public static bool? IsFileCatManagedHostCommand(string? commandLine)
     {
         if (string.IsNullOrWhiteSpace(commandLine)) return null;
@@ -83,4 +121,12 @@ public static partial class ProcessIdentity
     [LibraryImport("kernel32.dll", EntryPoint = "QueryFullProcessImageNameW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static unsafe partial bool QueryFullProcessImageName(SafeProcessHandle process, uint flags, char* image, ref uint length);
+
+    [LibraryImport("shell32.dll", EntryPoint = "CommandLineToArgvW", StringMarshalling = StringMarshalling.Utf16)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static partial nint CommandLineToArgv(string commandLine, out int count);
+
+    [LibraryImport("kernel32.dll")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static partial nint LocalFree(nint memory);
 }
