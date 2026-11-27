@@ -1,22 +1,34 @@
-# FileCat 1.0.0 rc.8: the owner's consent walkthrough
+# FileCat 1.0.0 rc.9: the owner's consent walkthrough
 
-Prepared 2026-11-25, updated for rc.5 the same day, and for rc.6, rc.7 and rc.8 on 2026-11-26. rc.5 differs from rc.3 only by I672 to I679 (signing in to a share on Windows, a share whose server does not answer no longer stopping the window, a picture timeout's wording, two status races, and tests). rc.6 differs from rc.5 only by I680: Setup and the uninstaller close a running FileCat. None of these is on a consent path. rc.7 differs from rc.6 only by [I681](evidence/E-I681-linux-census-zombie.md), which your U3 on rc.6 found: on Linux, the process check behind U2 to U4 now passes over zombie processes. The steps and what they expect are unchanged; on rc.6, U3 did not get what it expects. rc.8 differs from rc.7 only by [I682](evidence/E-I682-no-display-abort.md): on Linux, FileCat started without a usable display says why and exits instead of crashing. No step starts FileCat that way. Under [DEC-14](evidence/E-DEC-2026-11-24-release-scope.md) you attest the UAC, polkit, authopen and TCC prompts and device identity on `v1.0.0-rc.8` yourself. This walkthrough covers the person's part of REL-CONSENT-ATTEST (PPL-03, checklist d7), REL-I17-BROKER (d8, c44), REL-I106-RECOVERY (d9, b35) and REL-SIGN-MAC (b2) in the [rc.2 checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md). There are three sections, one per machine, of 20 to 25 minutes each. Do them in any order.
+Prepared 2026-11-25, updated for rc.5 the same day, for rc.6, rc.7 and rc.8 on 2026-11-26, and for rc.9 on 2026-11-27. rc.5 differs from rc.3 only by I672 to I679 (signing in to a share on Windows, a share whose server does not answer no longer stopping the window, a picture timeout's wording, two status races, and tests). rc.6 differs from rc.5 only by I680: Setup and the uninstaller close a running FileCat. None of these is on a consent path. rc.7 differs from rc.6 only by [I681](evidence/E-I681-linux-census-zombie.md), which your U3 on rc.6 found: on Linux, the process check behind U2 to U4 now passes over zombie processes. The steps and what they expect are unchanged; on rc.6, U3 did not get what it expects. rc.8 differs from rc.7 only by [I682](evidence/E-I682-no-display-abort.md): on Linux, FileCat started without a usable display says why and exits instead of crashing. No step starts FileCat that way. rc.9 differs from rc.8 by [I684](evidence/E-I684-authorization-wait-not-responding.md), which your M8 on rc.8 found, and [I685](evidence/E-I685-system-question-not-responding.md): a drive or server is no longer reported as not responding while you answer a question about it, polkit's, authopen's and macOS's privacy question among them. Its other changes, I683's and I686's, are in tests only. Under [DEC-14](evidence/E-DEC-2026-11-24-release-scope.md) you attest the UAC, polkit, authopen and TCC prompts and device identity on `v1.0.0-rc.9` yourself. This walkthrough covers the person's part of REL-CONSENT-ATTEST (PPL-03, checklist d7), REL-I17-BROKER (d8, c44), REL-I106-RECOVERY (d9, b35) and REL-SIGN-MAC (b2) in the [rc.2 checklist](FILECAT_1_0_RC2_FQ_CHECKLIST.md). There are three sections, one per machine, of 20 to 25 minutes each. Do them in any order.
 
-**Where it stands:** on rc.6 you passed the Windows section, W1 to W7; Windows' process records confirm each step ([record](evidence/E-RC6-TAG-20261126.md)). In the Ubuntu section, U1 and U2 passed and U3 failed (I681). **On rc.8, do the Ubuntu section in full (U1 to U5) and the Mac section.** The Windows code is the same in rc.8, and the session repeated W2 and W5 by tool on rc.7's and rc.8's own Setups. Carrying W1 to W7 over from rc.6 is your acceptance at GO; you may repeat the section on rc.8 instead.
+**Where it stands:**
+- **Windows:** you passed W1 to W7 on rc.6; Windows' process records confirm each step ([record](evidence/E-RC6-TAG-20261126.md)).
+- **Ubuntu and Mac:** you passed U1 to U5 and M1 to M9 on rc.8, and M8 found I684 ([record](evidence/E-RC8-TAG-20261126.md)).
+
+**On rc.9, do U2 to U4 on Ubuntu and the Mac section in full (M1 to M9).** In each of those steps, before you answer a system dialog (polkit's, authopen's or macOS's privacy question), wait at least 10 seconds. Meanwhile FileCat must not say that a drive or folder is not responding; if it does, that step fails (I684, I685).
+
+None of the files that W1 to W7's notes cite changed in rc.9. Two of its changes do run in those steps: the I/O scheduler's clock, which FileCat's file access uses, and a check before a file's content opens (W2's F3) for an encrypted file whose key is off the computer. The session repeated W2 and W5 by tool on rc.9's own Setup. Carrying W1 to W7 over from rc.6 is your acceptance at GO; you may repeat the section on rc.9 instead.
 
 **Rules**
-- Test rc.8 only. Help → About FileCat must read `Version 1.0.0 (abcdef1)`, where `abcdef1` stands for the first 7 characters of rc.8's source commit. The session gives you the commit.
+- Test rc.9 only. Help → About FileCat must read `Version 1.0.0 (abcdef1)`, where `abcdef1` stands for the first 7 characters of rc.9's source commit. The session gives you the commit.
 - Stop at the first Fail and tell the session. Do not work around it.
 - Windows' prompts show your name as the publisher (DEC-13). Keep your screenshots. In the chat write "publisher: my name", never the name itself.
-- Quoted texts come from rc.8's source or the release records. Where the text is Windows', Ubuntu's or macOS's own and no record has it, the step says **Unverified**: write down what you see.
-- Each step has a folded Source note. Source files are cited at the `v1.0.0-rc.8` tag (`814a42f2`). Apart from the installer (as in rc.6), the Linux process check's `SingleInstance.cs` and `SingleInstance.ProcessImages.cs` (rc.7) and `Program.cs` (rc.8), none of them cited by a step, its source files are rc.5's (`19002592`).
-  - **Re-checked for rc.7 and for rc.8 on 2026-11-26, by script:** each cited range of a code or build file at each tag was compared with the range the note first cited at `rc3/integration-3` (`94b74365`), where these notes were written; U5's note, added later, was checked by hand.
+- Quoted texts come from rc.9's source or the release records. Where the text is Windows', Ubuntu's or macOS's own and no record has it, the step says **Unverified**: write down what you see.
+- Each step has a folded Source note. Source files are cited at the `v1.0.0-rc.9` tag (`d169f491`). Its source files are rc.5's (`19002592`), apart from these:
+  - the installer (as in rc.6);
+  - the Linux process check's `SingleInstance.cs` and `SingleInstance.ProcessImages.cs` (rc.7), and `Program.cs` (rc.8), none of them cited by a step;
+  - I684's and I685's files (rc.9). Of these the steps cite `UnixDevices.cs`, and the GA PC checklist's G8 cites `DeviceAccess.cs`.
+  - **Re-checked for rc.7 and rc.8 on 2026-11-26, and for rc.9 on 2026-11-27, by script:** each cited range of a code or build file at each tag was compared with the range the note first cited at `rc3/integration-3` (`94b74365`), where these notes were written; U5's note, added later, was checked by hand.
   - **Unchanged, with three exceptions.** The consent page's coverage sentence now says "this 1 step" (I669), as W4 quotes it. The update setting's note was reworded, which G6 does not quote. And rc.6's compile of the x64 installer in CI (I680) moved `ci.yml`'s signing and draft steps down by 19 lines, which the rc.6 update missed: M1 and the [GA PC checklist](FILECAT_1_0_RC3_GA_PC_CHECKLIST.md)'s G3 and G4 now cite the moved lines.
+  - **On rc.9 the cited lines of `UnixDevices.cs` and `DeviceAccess.cs` moved, and the notes now cite rc.9's lines.** Two of them also changed:
+    - U3's and M9's citation of `OpenHandle` covers that method as I684 reshaped it: the system's dialog is a wait for you.
+    - G8's second line of `DeviceAccess.cs` is the same statement, indented into I684's wait.
   - Records are cited at `main` `7a15ac8b`, or at `rc3/integration-3` where marked "rc3".
 
 ## 1. Windows 11 25H2: the Hyper-V VM FileCat-FQ-W11 (about 25 minutes)
 
-**The session prepares:** rc.8 installed with its Setup, UAC at Windows' default, and the VM running with the administrator test account `fcqa` signed in. The records call the VM's computer FCFQ-W11. **You need:** VMConnect in a basic session, and `fcqa`'s password. It exists only in a DPAPI-protected file for your account; ask the session for its path. A VM has no physical disk to identify, so Windows' device identity is step G8 of the [GA PC checklist](FILECAT_1_0_RC3_GA_PC_CHECKLIST.md).
+**The session prepares:** rc.9 installed with its Setup, UAC at Windows' default, and the VM running with the administrator test account `fcqa` signed in. The records call the VM's computer FCFQ-W11. **You need:** VMConnect in a basic session, and `fcqa`'s password. It exists only in a DPAPI-protected file for your account; ask the session for its path. A VM has no physical disk to identify, so Windows' device identity is step G8 of the [GA PC checklist](FILECAT_1_0_RC3_GA_PC_CHECKLIST.md).
 
 ### W1 · Administrator window: Windows' prompt refused
 - **Do:** Start FileCat from the Start menu and check About. Tools → Open FileCat as administrator…. In FileCat's question click **Open as administrator**. In Windows' prompt click **No**.
@@ -72,16 +84,16 @@ You create this account yourself, with one command, so its password never passes
 
 Before FileCat reads a drive here, polkit asks for your password for two things. First `pkexec` runs FileCat's process check as root, because your account cannot see which other processes are FileCat. Then UDisks2 opens the drive read-only. The candidate .deb installs no polkit policy of FileCat's own, so the dialogs' wording is polkit's and UDisks2's: **Unverified**, write it down. Answer a process-check dialog within 90 seconds; after that FileCat treats it as unanswered.
 
-**The session prepares:** rc.8's .deb installed. **You need:** your account's password, and a USB stick with a FAT or exFAT volume that you do not mind being read, connected to the VM through VMware's removable-devices menu. Without a stick, the session can add a small virtual disk instead; that tests polkit but not physical identity. Close every other FileCat window.
+**The session prepares:** rc.9's .deb installed. **You need:** your account's password, and a USB stick with a FAT or exFAT volume that you do not mind being read, connected to the VM through VMware's removable-devices menu. Without a stick, the session can add a small virtual disk instead; that tests polkit but not physical identity. Close every other FileCat window.
 
-<details><summary>Source</summary>src/FileCat.App/RecoveryProcessCensus.cs:9-27, 78-109 (the 90 s limit at 19, 102); src/FileCat.Recovery/Unix/UnixDevices.cs:168-196; eng/package-linux.sh:61-73, 205-209 (FileCat's own polkit policy ships only in local qualification builds); rc3 evidence/E-I658-census-hidden-processes.md:11; rc3 evidence/E-I646-linux-root-census-opens-replaceable-path.md:68 (on this VM the ordinary check cannot read 48 processes)</details>
+<details><summary>Source</summary>src/FileCat.App/RecoveryProcessCensus.cs:9-27, 78-109 (the 90 s limit at 19, 102); src/FileCat.Recovery/Unix/UnixDevices.cs:176-204; eng/package-linux.sh:61-73, 205-209 (FileCat's own polkit policy ships only in local qualification builds); rc3 evidence/E-I658-census-hidden-processes.md:11; rc3 evidence/E-I646-linux-root-census-opens-replaceable-path.md:68 (on this VM the ordinary check cannot read 48 processes)</details>
 
 ### U1 · The stick's identity
 - **Do:** In a terminal run `lsblk -o NAME,VENDOR,MODEL,SIZE,TRAN,MOUNTPOINTS`. In FileCat check About, then open Tools → Recover deleted files….
 - **Expect:** The list shows the stick's volume by its mount point, with a detail such as "vfat · [size] USB · sdb1", and the whole stick as "Disk sdb: [vendor model]", with "Whole disk, [size] USB · mounted at … · also finds deleted partitions". Vendor, model, size and USB agree with lsblk.
 - **Record:** Pass/Fail and the lsblk line. **Closes:** d7 (device identity), d9.
 
-<details><summary>Source</summary>src/FileCat.App/ViewModels/MainViewModel.Recovery.cs:91-127; UnixDevices.cs:400-421; CommandRegistry.cs:484</details>
+<details><summary>Source</summary>src/FileCat.App/ViewModels/MainViewModel.Recovery.cs:91-127; UnixDevices.cs:408-429; CommandRegistry.cs:484</details>
 
 ### U2 · Process check refused
 - **Do:** Choose "Disk sdb: …" and press Enter. When Ubuntu asks for your password, click **Cancel**.
@@ -95,14 +107,14 @@ Before FileCat reads a drive here, polkit asks for your password for two things.
 - **Expect:** FileCat's question, "Recover deleted files", begins "Scan disk sdb ([model]) for deleted files? The scan lists this source's partitions, …" and includes "Linux may ask you to approve read-only access to this device." and that the disk is mounted. Its key points are "Source: disk sdb ([model])", "Linux may ask you to approve read-only access to this device." and "Recover files to another disk. Mounted programs may still write to this one." A second process-check dialog may follow, since FileCat checks again after your answer. The scan opens in a new tab; after Cancel it shows "The request to read the drive was dismissed." and "Ctrl+R retries · Backspace goes up". Nothing is read.
 - **Record:** Pass/Fail, how many dialogs you saw, and their wording. **Closes:** d7, d9.
 
-<details><summary>Source</summary>MainViewModel.Recovery.cs:559-574, 662-695; UnixDevices.cs:98-109, 186-201; FileListControl.cs:1431-1434; src/FileCat.Core/Listing/ListingModel.cs:960-964, 1001-1012; evidence/E-V09-T2-linux-write-trace.md:20 (a polkit refusal showed in the scan tab)</details>
+<details><summary>Source</summary>MainViewModel.Recovery.cs:559-574, 662-695; UnixDevices.cs:99-117, 194-209; FileListControl.cs:1431-1434; src/FileCat.Core/Listing/ListingModel.cs:960-964, 1001-1012; evidence/E-V09-T2-linux-write-trace.md:20 (a polkit refusal showed in the scan tab)</details>
 
 ### U4 · Drive read approved
 - **Do:** As U3, but approve every dialog. Then close the scan tab and disconnect the stick in VMware.
 - **Expect:** The scan tab lists the stick's partitions, and inside them any deleted files.
 - **Record:** Pass/Fail. **Closes:** d7, d9.
 
-<details><summary>Source</summary>UnixDevices.cs:186-196; MainViewModel.Recovery.cs:689-694; evidence/E-V09-T2-linux-write-trace.md:19</details>
+<details><summary>Source</summary>UnixDevices.cs:194-204; MainViewModel.Recovery.cs:689-694; evidence/E-V09-T2-linux-write-trace.md:19</details>
 
 ### U5 · One real Tab in Settings (I618)
 Added on 2026-11-26: I618's last native check needs a key pressed by a person, because the VM's injected keys do not count either way.
@@ -116,13 +128,13 @@ Added on 2026-11-26: I618's last native check needs a key pressed by a person, b
 
 The Mac build is ad-hoc signed and not notarized (DEC-03), so macOS blocks it until you allow it in System Settings. Only that route counts for REL-SIGN-MAC: removing the quarantine attribute or turning Gatekeeper off never counts. FileCat's Info.plist declares no privacy purpose strings, so every macOS dialog is macOS's own wording: **Unverified**, write it down.
 
-**You need:** your GitHub sign-in in the Mac's browser (the draft is private), your administrator password, and a disposable USB disk with a FAT or exFAT volume, not yet plugged in. Quit any running FileCat. If FileCat ran on this Mac before, first run `tccutil reset All io.github.benny-cz.filecat` in Terminal so that macOS asks again (**Unverified**: Apple's tool, not in the records).
+**You need:** your GitHub sign-in in the Mac's browser (the draft is private), your administrator password, and a disposable USB disk with a FAT or exFAT volume, not yet plugged in. Quit any running FileCat. If FileCat ran on this Mac before, first run `tccutil reset All io.github.benny-cz.filecat` in Terminal so that macOS asks again (**Unverified**: Apple's tool, not in the records). Then run `rm -f ~/Library/"Application Support"/FileCat/macos-privacy-answers.txt`, so that FileCat also expects the questions again (I685). On 2026-11-27 that file did not exist on the test Mac.
 
 <details><summary>Source</summary>FILECAT_1_0_RELEASE_EXECUTION_REPORT.md:93 (REL-SIGN-MAC); FILECAT_1_0_RELEASE_BLOCKERS.md:28 (DEC-03); eng/package-macos.sh:105-124, 127-136; evidence/E-FQ-RC2-20261124.md:63-64</details>
 
 ### M1 · Download (b2)
-- **Do:** In the browser open the draft "FileCat v1.0.0-rc.8 (signed release candidate)" and download `FileCat-1.0.0-osx-arm64.zip` and `FileCat-1.0.0-macos-assets.json`. In Terminal, in Downloads, run `xattr -p com.apple.quarantine FileCat-1.0.0-osx-arm64.zip` and `shasum -a 256 FileCat-1.0.0-osx-arm64.zip`. If the browser unpacked the ZIP by itself, run xattr on `FileCat.app` instead and say so.
-- **Expect:** xattr prints a value. The SHA-256 equals the ZIP's `SHA256` in the JSON file's `Files` list, and its `CandidateRef` is `refs/tags/v1.0.0-rc.8`.
+- **Do:** In the browser open the draft "FileCat v1.0.0-rc.9 (signed release candidate)" and download `FileCat-1.0.0-osx-arm64.zip` and `FileCat-1.0.0-macos-assets.json`. In Terminal, in Downloads, run `xattr -p com.apple.quarantine FileCat-1.0.0-osx-arm64.zip` and `shasum -a 256 FileCat-1.0.0-osx-arm64.zip`. If the browser unpacked the ZIP by itself, run xattr on `FileCat.app` instead and say so.
+- **Expect:** xattr prints a value. The SHA-256 equals the ZIP's `SHA256` in the JSON file's `Files` list, and its `CandidateRef` is `refs/tags/v1.0.0-rc.9`.
 - **Record:** Pass/Fail and the hash's first 16 characters. **Closes:** b2 (REL-SIGN-MAC).
 
 <details><summary>Source</summary>.github/workflows/ci.yml:1403-1412 (draft name); eng/Select-ReleaseAssets.ps1:56, 58-83; FILECAT_1_0_RC2_FQ_CHECKLIST.md:112 (b2)</details>
@@ -136,7 +148,7 @@ The Mac build is ad-hoc signed and not notarized (DEC-03), so macOS blocks it un
 
 ### M3 · Open Anyway (b2)
 - **Do:** System Settings → Privacy & Security, scroll down, click **Open Anyway**, and authenticate if asked. When the warning comes back, click Open. Then check About.
-- **Expect:** FileCat opens, and About shows rc.8's version.
+- **Expect:** FileCat opens, and About shows rc.9's version.
 - **Record:** Pass/Fail and each dialog's wording (**Unverified**). **Closes:** b2.
 
 <details><summary>Source</summary>Apple Support, Safely open apps on your Mac (support.apple.com/102445, published 2026-05-27); AboutDialog.cs:119-126</details>
@@ -160,28 +172,28 @@ The Mac build is ad-hoc signed and not notarized (DEC-03), so macOS blocks it un
 - **Expect:** The list shows "Disk rdiskN: [media name]" with "Whole disk, [size] USB · mounted at /Volumes/… · also finds deleted partitions", and the volume by its mount point. The media name, size and protocol agree with diskutil.
 - **Record:** Pass/Fail and diskutil's media name and protocol lines. **Closes:** b35, d7 (device identity), d9.
 
-<details><summary>Source</summary>UnixDevices.cs:799-823 (diskutil's MediaName and BusProtocol); MainViewModel.Recovery.cs:91-119; FILECAT_1_0_RC2_FQ_CHECKLIST.md:145 (b35)</details>
+<details><summary>Source</summary>UnixDevices.cs:807-831 (diskutil's MediaName and BusProtocol); MainViewModel.Recovery.cs:91-119; FILECAT_1_0_RC2_FQ_CHECKLIST.md:145 (b35)</details>
 
 ### M7 · authopen: Cancel (b35)
 - **Do:** Choose "Disk rdiskN: …", Enter, **Authorize and scan**. In macOS's authorization dialog click **Cancel**.
 - **Expect:** FileCat's question includes "macOS may ask you to approve read-only access to this device." and offers Authorize and scan. The scan tab then shows "Reading /dev/rdiskN was not approved." Nothing is read.
 - **Record:** Pass/Fail and the dialog's wording (**Unverified**). **Closes:** b35, d7, d9.
 
-<details><summary>Source</summary>MainViewModel.Recovery.cs:662-683; UnixDevices.cs:226-267; evidence/E-V09-M6-macos-authopen-preparation.md:76</details>
+<details><summary>Source</summary>MainViewModel.Recovery.cs:662-683; UnixDevices.cs:234-275; evidence/E-V09-M6-macos-authopen-preparation.md:76</details>
 
 ### M8 · authopen: the disk changes while you decide (b35)
 - **Do:** Ask again as in M7. While macOS's dialog is open, eject the disk in Finder and wait until it disappears. Then approve the dialog. Plug the disk back in.
 - **Expect:** Nothing is read, and the scan tab says "The selected device changed or was removed while opening. Select it again."
 - **Record:** Pass/Fail. **Closes:** b35, d9.
 
-<details><summary>Source</summary>UnixDevices.cs:49-79; src/FileCat.Recovery/RecoveryProvider.cs:671-676 (a disk that took the old one's place is refused too); evidence/E-V09-M10-macos-guard-device-removal.md:1-6</details>
+<details><summary>Source</summary>UnixDevices.cs:50-80; src/FileCat.Recovery/RecoveryProvider.cs:671-676 (a disk that took the old one's place is refused too); evidence/E-V09-M10-macos-guard-device-removal.md:1-6</details>
 
 ### M9 · authopen: approved (b35)
 - **Do:** Tools → Recover deleted files…, the disk again, **Authorize and scan**, and approve.
 - **Expect:** The scan tab lists the disk's partitions, and inside them any deleted files. If no dialog appears this time, note that.
 - **Record:** Pass/Fail. **Closes:** b35, d7, d9.
 
-<details><summary>Source</summary>UnixDevices.cs:98-109, 226-266; MainViewModel.Recovery.cs:689-694</details>
+<details><summary>Source</summary>UnixDevices.cs:99-117, 234-274; MainViewModel.Recovery.cs:689-694</details>
 
 ## Report back
 
