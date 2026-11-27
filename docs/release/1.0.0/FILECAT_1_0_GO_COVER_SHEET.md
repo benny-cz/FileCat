@@ -66,8 +66,7 @@ Prepared 2026-11-26 by the release session for the owner, the human GO approver 
 
 1. **The consent walkthrough** ([walkthrough](FILECAT_1_0_RC3_CONSENT_WALKTHROUGH.md)), on rc.9:
    - **Ubuntu: done.** U2 to U4 passed on rc.9 on 2026-11-27, each answer confirmed in the system journal. In U3 UDisks2's dialog stayed open 19.1 s, and FileCat showed and logged no notice ([rc.9](evidence/E-RC9-TAG-20261126.md#the-owners-walkthrough-on-rc9-the-ubuntu-section-2026-11-27)). U1 and U5 passed on rc.8.
-   - **Mac: M1 to M9.** They passed on rc.8, each confirmed in macOS's log, and M8 found [I684](evidence/E-I684-authorization-wait-not-responding.md). Repeat them on rc.9's own download, after resetting macOS's answers and FileCat's remembered ones, as the walkthrough says.
-   - **In each Mac step,** wait at least 10 seconds before you answer a system dialog (authopen's or macOS's privacy question). Meanwhile FileCat must not say that a drive or folder is not responding (I684, I685).
+   - **Mac: done.** M1 to M9 passed on rc.9 on 2026-11-27, M5 on its second try, each confirmed in macOS's log. macOS's questions stayed open up to 16.1 s and authopen's dialog up to 36.8 s, and FileCat showed and logged no notice ([rc.9](evidence/E-RC9-TAG-20261126.md#the-owners-walkthrough-on-rc9-the-mac-section-2026-11-27)).
    - **Windows:** accept carrying W1 to W7 over from rc.6, or repeat them on rc.9.
 
    Closes d7, d8, d9's consent part and REL-SIGN-MAC.
@@ -95,7 +94,7 @@ The [register](FILECAT_1_0_RELEASE_ISSUES.md#summary) has 18 unresolved rows. I6
   - [I680](evidence/E-I680-setup-cannot-close-running-filecat.md), found on rc.5, in rc.6;
   - [I681](evidence/E-I681-linux-census-zombie.md), found on rc.6, in rc.7;
   - [I682](evidence/E-I682-no-display-abort.md), found on rc.7, in rc.8;
-  - [I684](evidence/E-I684-authorization-wait-not-responding.md) and [I685](evidence/E-I685-system-question-not-responding.md), found on rc.8, in rc.9. The owner's slow answers in step 1 and in G8 confirm them live.
+  - [I684](evidence/E-I684-authorization-wait-not-responding.md) and [I685](evidence/E-I685-system-question-not-responding.md), found on rc.8, in rc.9. Your slow answers in step 1 confirmed them on Linux and macOS, where FileCat's own logs show rc.8's notices; G8 checks Windows.
 - **Test defects:** [I683](evidence/E-I683-page-test-late-favicon.md) and [I686](evidence/E-I686-cadence-test-busy-read-twice.md), fixed in rc.9's tests, and [I687](evidence/E-I687-archive-f4-macos-stamp.md), which rc.9's tagged run found, fixed on main. None changes a shipped file; for I687 the owner kept rc.9.
 
 Each closes on a step above or on the owner's acceptance:
@@ -114,7 +113,7 @@ Each closes on a step above or on the owner's acceptance:
 | [I17](FILECAT_1_0_RELEASE_ISSUES.md#i17) Broker consent | Virtual, VM and standard-account subsets pass; the installed consent matrix W1–W7 passed on rc.6, W2 and W5 again by tool on rc.7, rc.8 and rc.9 | Close when the owner accepts W1–W7's carry-over, or repeats them | Walkthrough (Windows) |
 | [I18](FILECAT_1_0_RELEASE_ISSUES.md#i18) Release control | Protected RC tags, the `release/1.0` ruleset, the owner-gated `signing` environment, immutable releases; the stable promotion's controls pass | Close after the promotion and the public download checks | GO |
 | [I25](FILECAT_1_0_RELEASE_ISSUES.md#i25) Markdown rendering | Ships; rc.5's c10 rows pass in the VM (a link opens a viewer, the Page stays, refusals) and the WebView2 controls pass in CI | Close on those; the engine-hardening items left in the row (fonts, CSS, pop-ups, identity races) go to servicing | The owner's acceptance |
-| [I106](FILECAT_1_0_RELEASE_ISSUES.md#i106) Recovery discovery | Ground truth and read-only runs pass on the real USB stick (I495, I507); I681's census fix is in rc.7 to rc.9; consent and device identity: U1–U4 and M6–M9 passed on rc.8; on rc.9, U2–U4 passed with a 19.1 s drive-read dialog and no notice; M6–M9 and G8 remain | Close when those pass; other media and layouts by scope | Walkthrough, GA PC (G8) |
+| [I106](FILECAT_1_0_RELEASE_ISSUES.md#i106) Recovery discovery | Ground truth and read-only runs pass on the real USB stick (I495, I507); I681's census fix is in rc.7 to rc.9; consent and device identity: U1–U4 and M6–M9 passed on rc.8; on rc.9, U2–U4 and M6–M9 passed with slow answers and no notice (UDisks2's dialog 19.1 s, authopen's 36.8 s); G8 remains | Close when those pass; other media and layouts by scope | Walkthrough, GA PC (G8) |
 | [I108](FILECAT_1_0_RELEASE_ISSUES.md#i108) CI reliability | rc.5's to rc.7's tagged runs and PR #73's run passed all 19 test jobs at their first attempt. rc.8's tagged run needed a second: its first found I683, a test defect, and lost a macOS runner to GitHub, under GitHub's capacity notice. rc.9's needed a second for one job: its first found I687, a test defect now fixed on main | Close; the historical causes stay recorded as unproven | The owner's acceptance |
 | [I110](FILECAT_1_0_RELEASE_ISSUES.md#i110) Equal short reads | Corrected; the strict physical rerun caught the case (I495) and the comparison now reads the whole request | Close with the physical repeat | GA PC (G8) |
 | [I518](FILECAT_1_0_RELEASE_ISSUES.md#i518) Mac PathLine clipboard (CI) | Fixture revised; all 7 PathLine cases pass on macOS in rc.5's to rc.9's tagged runs | Close; cause unproven | The owner's acceptance |

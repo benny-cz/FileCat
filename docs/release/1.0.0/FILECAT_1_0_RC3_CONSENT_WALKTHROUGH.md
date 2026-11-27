@@ -7,7 +7,9 @@ Prepared 2026-11-25, updated for rc.5 the same day, for rc.6, rc.7 and rc.8 on 2
 - **Ubuntu and Mac:** you passed U1 to U5 and M1 to M9 on rc.8, and M8 found I684 ([record](evidence/E-RC8-TAG-20261126.md)).
 - **Ubuntu on rc.9:** you passed U2 to U4 on 2026-11-27. In U3 UDisks2's dialog stayed open 19.1 s, and FileCat said nothing about the drive ([record](evidence/E-RC9-TAG-20261126.md#the-owners-walkthrough-on-rc9-the-ubuntu-section-2026-11-27)).
 
-**On rc.9, do the Mac section in full (M1 to M9).** In each step, before you answer a system dialog (authopen's or macOS's privacy question), wait at least 10 seconds. Meanwhile FileCat must not say that a drive or folder is not responding; if it does, that step fails (I684, I685).
+- **Mac on rc.9:** you passed M1 to M9 on 2026-11-27, M5 on its second try. macOS's questions stayed open up to 16.1 s and authopen's dialog up to 36.8 s, and FileCat said nothing about a drive ([record](evidence/E-RC9-TAG-20261126.md#the-owners-walkthrough-on-rc9-the-mac-section-2026-11-27)).
+
+**What remains:** your acceptance at GO of W1 to W7's carry-over, or W1 to W7 again on rc.9. In any repeat, wait at least 10 seconds before you answer a system dialog; FileCat must not say meanwhile that a drive or folder is not responding (I684, I685).
 
 None of the files that W1 to W7's notes cite changed in rc.9. Two of its changes do run in those steps: the I/O scheduler's clock, which FileCat's file access uses, and a check before a file's content opens (W2's F3) for an encrypted file whose key is off the computer. The session repeated W2 and W5 by tool on rc.9's own Setup. Carrying W1 to W7 over from rc.6 is your acceptance at GO; you may repeat the section on rc.9 instead.
 
@@ -129,7 +131,7 @@ Added on 2026-11-26: I618's last native check needs a key pressed by a person, b
 
 The Mac build is ad-hoc signed and not notarized (DEC-03), so macOS blocks it until you allow it in System Settings. Only that route counts for REL-SIGN-MAC: removing the quarantine attribute or turning Gatekeeper off never counts. FileCat's Info.plist declares no privacy purpose strings, so every macOS dialog is macOS's own wording: **Unverified**, write it down.
 
-**You need:** your GitHub sign-in in the Mac's browser (the draft is private), your administrator password, and a disposable USB disk with a FAT or exFAT volume, not yet plugged in. Quit any running FileCat. If FileCat ran on this Mac before, first run `tccutil reset All io.github.benny-cz.filecat` in Terminal so that macOS asks again (**Unverified**: Apple's tool, not in the records). Then run `rm -f ~/Library/"Application Support"/FileCat/macos-privacy-answers.txt`, so that FileCat also expects the questions again (I685). On 2026-11-27 that file did not exist on the test Mac.
+**You need:** your GitHub sign-in in the Mac's browser (the draft is private), your administrator password, and a disposable USB disk with a FAT or exFAT volume, not yet plugged in. Quit any running FileCat. If FileCat ran on this Mac before, first run `tccutil reset All io.github.benny-cz.filecat` in Terminal so that macOS asks again (**Unverified**: Apple's tool, not in the records). Then run `rm -f ~/Library/"Application Support"/FileCat/macos-privacy-answers.txt`, so that FileCat also expects the questions again (I685). On 2026-11-27 that file did not exist on the test Mac. The session also checks that FileCat's saved window opens at your home folder: on 2026-11-27 a panel kept from rc.8's M5 reopened Desktop, so macOS asked about Desktop as FileCat started, before M4.
 
 <details><summary>Source</summary>FILECAT_1_0_RELEASE_EXECUTION_REPORT.md:93 (REL-SIGN-MAC); FILECAT_1_0_RELEASE_BLOCKERS.md:28 (DEC-03); eng/package-macos.sh:105-124, 127-136; evidence/E-FQ-RC2-20261124.md:63-64</details>
 

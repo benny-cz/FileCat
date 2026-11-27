@@ -46,4 +46,6 @@ While fixing it, the session found [I685](E-I685-system-question-not-responding.
 
 - **Linux on rc.9:** in the owner's U3, UDisks2's dialog stayed open 19.1 s before the refusal. FileCat showed no notice and logged none ([rc.9](E-RC9-TAG-20261126.md#the-owners-walkthrough-on-rc9-the-ubuntu-section-2026-11-27)).
 - **Linux on rc.8, found afterwards:** FileCat's own log on the Ubuntu VM has "… is not responding …" at 17:43:03 on 2026-11-26, about 8.5 s into UDisks2's dialog in the owner's U3, which the owner refused at 17:43:09. So I684 did strike on Linux, as inferred above. The owner did not notice it then.
-- **Still to come on rc.9:** the Mac's M7 to M9, and the GA PC's optional G8 on Windows.
+- **macOS on rc.9:** in the owner's M8, `authopen`'s dialog stayed open 36.8 s while the disk was ejected, and in M9 17.0 s. FileCat showed no notice and logged none ([rc.9](E-RC9-TAG-20261126.md#the-owners-walkthrough-on-rc9-the-mac-section-2026-11-27)).
+- **macOS on rc.8, in FileCat's own log:** the notice came 8.5 s into M8's dialog (18:09:27), as the owner saw, and also in M7's third dialog (18:07:40), which no one had noticed.
+- **Still to come on rc.9:** the GA PC's optional G8 on Windows.

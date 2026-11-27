@@ -5876,3 +5876,10 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - In U3, UDisks2's dialog stayed open 19.1 s, past the 8 s hang threshold, and FileCat showed no notice and logged none: I684's fix holds on Linux.
 - FileCat's log on the VM also shows that I684 struck in the owner's U3 on rc.8, 8.5 s into the same dialog, unnoticed then ([I684](evidence/E-I684-authorization-wait-not-responding.md)).
 - Next: the Mac's M1 to M9 on rc.9, the GA PC checklist and the MTP phone.
+
+## 2026-11-27 — The owner's walkthrough on rc.9: the Mac passes
+
+- On the M1 Mac, M1 to M9 pass on rc.9, each confirmed in macOS's log: the quarantined download, Gatekeeper's block and Open Anyway, TCC's Documents (allowed), Desktop (refused) and removable volume (allowed), the USB disk's identity, and authopen refused, the disk changed during the dialog, and approved ([rc.9](evidence/E-RC9-TAG-20261126.md#the-owners-walkthrough-on-rc9-the-mac-section-2026-11-27)).
+- macOS's questions stayed open up to 16.1 s and authopen's dialog 36.8 s in M8. FileCat showed and logged no "not responding" notice. Its log on the Mac holds rc.8's notices from the day before: in M4 (I685), M7 and M8 (I684).
+- M5 needed a second try. FileCat's saved window had kept a panel at Desktop from rc.8's M5, so macOS asked about Desktop as FileCat started, and it was allowed then. The session reset Desktop alone. The walkthrough's preparation now checks the saved window.
+- The walkthrough's Ubuntu and Mac sections are done on rc.9. Next: the GA PC checklist, the MTP phone, the owner's acceptance of W1 to W7's carry-over, the dispositions and the GO.
