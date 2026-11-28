@@ -15,6 +15,24 @@ Choose your operating system and processor architecture. The links below point t
 
 Read the release notes on the [release page](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0) before installing, and check each download's SHA-256. GitHub shows it beside each asset, and each platform's manifest (`FileCat-1.0.0-windows-assets.json`, `FileCat-1.0.0-linux-assets.json`, `FileCat-1.0.0-macos-assets.json`) lists the name, size and SHA-256 of every package with the source commit that built it.
 
+### Install with Scoop (Windows x64)
+
+If you already use [Scoop](https://scoop.sh/), add [FileCat's maintainer-owned bucket](https://github.com/benny-cz/scoop-bucket) and install it from an ordinary PowerShell session:
+
+```powershell
+scoop bucket add filecat https://github.com/benny-cz/scoop-bucket
+scoop install filecat/filecat
+```
+
+This installs the self-contained portable build for Windows 11 x64. Scoop preserves its `Data` directory across updates and normal uninstalls. It has the same capabilities as the portable ZIP, including no installed administrator helper. To update:
+
+```powershell
+scoop update
+scoop update filecat
+```
+
+The [bucket documentation](https://github.com/benny-cz/scoop-bucket#readme) covers settings, removal and package validation.
+
 ### Which package fits your workflow?
 
 - **Windows installer:** installs for all users, under Program Files by default, after administrator approval. It includes the administrator-helper route for supported operations. The x64 installer accepts Windows 11 and Windows Server 2016 and refuses Windows 10 (see [Platforms](../README.md#platforms)); the ARM64 installer needs Windows 11. Run over an earlier version, it replaces the program files and keeps your settings ([upgrading](SERVICING.md#how-users-upgrade)).
