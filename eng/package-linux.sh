@@ -72,6 +72,13 @@ case "$QUALIFY_PERMISSIONS" in
   *) echo "FILECAT_LINUX_PERMISSIONS_QUALIFICATION must be 0 or 1." >&2; exit 2 ;;
 esac
 
+METAINFO="$ROOT/eng/linux/io.github.benny_cz.FileCat.metainfo.xml"
+if ! command -v appstreamcli >/dev/null 2>&1; then
+  echo "Linux packaging requires appstreamcli (Ubuntu/Debian package: appstream)." >&2
+  exit 2
+fi
+appstreamcli validate --no-net "$METAINFO"
+
 publish_linux_client() {
   local destination="$1"
   shift
@@ -161,7 +168,7 @@ desktop_entry() { # $1: Exec, $2: Icon
 Type=Application
 Name=FileCat
 GenericName=File Manager
-Comment=Keyboard-first two-panel file manager
+Comment=Multi-panel file manager with built-in viewers and recovery
 Exec=$1 %F
 Icon=$2
 Terminal=false
@@ -195,6 +202,7 @@ fi
 rm -f "$DEB/opt/filecat/install-desktop-entry.sh"
 ln -s /opt/filecat/FileCat "$DEB/usr/bin/filecat"
 desktop_entry filecat filecat > "$DEB/usr/share/applications/filecat.desktop"
+install -Dm 644 "$METAINFO" "$DEB/usr/share/metainfo/$(basename "$METAINFO")"
 for s in $ICON_SIZES; do
   install -Dm 644 "$ICONS/filecat-$s.png" "$DEB/usr/share/icons/hicolor/${s}x${s}/apps/filecat.png"
 done
@@ -297,10 +305,13 @@ Maintainer: FileCat contributors <filecat@users.noreply.github.com>
 Homepage: https://github.com/benny-cz/FileCat
 Depends: libc6, libgcc-s1, libstdc++6, libssl3 | libssl1.1, libicu78 | libicu76 | libicu74 | libicu72 | libicu71 | libicu70 | libicu67, libfontconfig1, libx11-6, libice6, libsm6$BROKER_DEPENDS
 Recommends: xdg-utils, libsecret-1-0, apparmor, libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37
-Description: Keyboard-first two-panel file manager
- FileCat is a two-panel file manager in the tradition of Altap Salamander, Total
- Commander, and FAR Manager: keyboard-first work with folders, archives, and
- SFTP and FTP servers, with previews and guarded operations.
+Description: Multi-panel file manager with built-in viewers and recovery
+ FileCat brings local folders, archives and remote servers into a workspace
+ with dockable panels and tabs. Built-in viewers open text, hex, images, PDF,
+ HTML and Markdown; structured inspectors show executable and media metadata.
+ It also offers file and folder comparison, checksums, duplicate search,
+ batch renaming and read-only NTFS, FAT and exFAT recovery scans of disks
+ and images.
 EOF
 # The package's Debian version keeps '~' so that a preview sorts before its release. GitHub renames release assets
 # whose names contain '~', so the file is named with FileCat's own version.
@@ -320,6 +331,7 @@ mkdir -p "$APPDIR/usr/lib/filecat"
 cp -a "$PUB/." "$APPDIR/usr/lib/filecat/"
 rm -f "$APPDIR/usr/lib/filecat/install-desktop-entry.sh"
 desktop_entry FileCat filecat > "$APPDIR/filecat.desktop"
+install -Dm 644 "$METAINFO" "$APPDIR/usr/share/metainfo/$(basename "$METAINFO")"
 install -m 644 "$PUB/filecat.png" "$APPDIR/filecat.png"
 for s in $ICON_SIZES; do
   install -Dm 644 "$ICONS/filecat-$s.png" "$APPDIR/usr/share/icons/hicolor/${s}x${s}/apps/filecat.png"
@@ -367,6 +379,8 @@ rm -f "$APPIMAGE" "$APPIMAGE.rejected"
 rm -f "$SBOM_APPIMAGE"
 # Runs without FUSE (CI containers).
 if writable_by_others "$APPDIR"; then echo "The AppImage payload is group- or other-writable." >&2; exit 2; fi
+# appimagetool 1.9.1 only looks for filecat.appdata.xml and may validate online.
+# The canonical metainfo file is validated explicitly, offline, above.
 APPIMAGE_EXTRACT_AND_RUN=1 ARCH="$APPIMAGE_ARCH" "$TOOL" --no-appstream --runtime-file "$RUNTIME" "$APPDIR" "$APPIMAGE"
 rm -rf "$APPDIR" "$DEB"
 # The AppImage must start with the reviewed runtime, which its source bundle describes: apart from the digest section,

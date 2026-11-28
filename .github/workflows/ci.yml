@@ -1100,6 +1100,10 @@ jobs:
           name: dependency-restore-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/filecat-dependency-restore/**
           if-no-files-found: error
+      - name: Install the AppStream metadata validator
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends appstream
       - name: Build the tarball, .deb, and AppImage
         run: |
           v="${GITHUB_REF_NAME#v}"
