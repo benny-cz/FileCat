@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.VisualTree;
 using FileCat.App.Services;
 using FileCat.App.Views;
@@ -15,6 +16,45 @@ namespace FileCat.App.Tests;
 /// <summary>FCUX-030: panel admission, warning and compact address geometry use the actual workspace host.</summary>
 public sealed class PanelViewportLayoutTests
 {
+    [AvaloniaTheory]
+    [InlineData(640)]
+    [InlineData(1200)]
+    public void Switching_active_panels_keeps_the_content_in_place(int width)
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: width);
+        try
+        {
+            window.Styles.Add(ThemeAudit.ProductStyles());
+            var panels = vm.Workspace.Panels;
+            vm.Workspace.Activate(panels[0]);
+            window.FocusActivePanel();
+            window.CaptureRenderedFrame()?.Dispose();
+            var views = window.GetVisualDescendants().OfType<PanelView>().ToArray();
+            Assert.Equal(2, views.Length);
+            var regions = views.SelectMany(view => new Control[]
+            {
+                view.FindControl<Grid>("TabHeader")!,
+                view.FindControl<Border>("DriveBar")!,
+                view.FindControl<Grid>("AddressRow")!,
+                view.List,
+                view.FindControl<Border>("StatusBar")!,
+            }).ToArray();
+            var initialBounds = regions.Select(WindowBounds).ToArray();
+
+            foreach (var (modifiers, expected) in new[] { (RawInputModifiers.None, panels[1]), (RawInputModifiers.Shift, panels[0]) })
+            {
+                window.KeyPress(Key.Tab, modifiers, PhysicalKey.Tab, null);
+                window.KeyRelease(Key.Tab, modifiers, PhysicalKey.Tab, null);
+                Assert.Same(expected, vm.Workspace.ActivePanel);
+                window.CaptureRenderedFrame()?.Dispose();
+                Assert.Equal(initialBounds, regions.Select(WindowBounds).ToArray());
+            }
+
+            Rect WindowBounds(Control control) => new(control.TranslatePoint(default, window)!.Value, control.Bounds.Size);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaFact]
     public async Task Panel_admission_uses_the_measured_host_as_chrome_appears_or_disappears()
     {

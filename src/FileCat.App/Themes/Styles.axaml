@@ -21,6 +21,7 @@
   </Style>
   <Style Selector="Border.panel.active">
     <Setter Property="BorderBrush" Value="{DynamicResource FcActiveAccent}" />
+    <Setter Property="BorderThickness" Value="2" />
   </Style>
 
   <Style Selector="TextBlock.muted">

@@ -4,8 +4,10 @@
              xmlns:ctl="using:FileCat.App.Controls"
              x:Class="FileCat.App.Views.PanelView"
              x:DataType="vm:PanelViewModel">
-  <Border Classes="panel" Classes.active="{Binding IsActive}" Classes.target="{Binding IsTarget}" CornerRadius="4" BorderThickness="{Binding IsActive, Converter={x:Static vm:Converters.ActiveBorder}}">
-    <DockPanel>
+  <Panel>
+    <Border Classes="panel" Classes.active="{Binding IsActive}" Classes.target="{Binding IsTarget}" CornerRadius="4" />
+    <!-- Reserve space for the thickest frame so switching panels never moves the content. -->
+    <DockPanel Margin="2">
       <!-- Tabs -->
       <Grid x:Name="TabHeader" DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto,Auto" Background="{DynamicResource FcHeader}">
         <ScrollViewer x:Name="TabScroller" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
@@ -180,5 +182,5 @@
         <Canvas x:Name="RenameOverlay" ZIndex="2" IsVisible="False" />
       </Panel>
     </DockPanel>
-  </Border>
+  </Panel>
 </UserControl>
