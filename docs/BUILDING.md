@@ -40,6 +40,13 @@ official preview or a future candidate.
 | Ubuntu x64 | `./eng/package-linux.sh 1.0.0-local.1 linux-x64` | `.tar.gz`, `.deb`, AppImage, AppImage runtime source bundle, and SBOMs |
 | Apple silicon Mac | `./eng/package-macos.sh 1.0.0-local.1` | Ad-hoc-signed `.app` ZIP and SBOM |
 
+Linux packaging also needs `appstreamcli` (`sudo apt install appstream` on
+Ubuntu/Debian). The script validates the shared
+[AppStream metadata](../eng/linux/io.github.benny_cz.FileCat.metainfo.xml)
+offline before packaging it in the `.deb` and AppImage. Its Ubuntu screenshot
+is a development-source render, as recorded in the
+[capture notes](screenshots/CAPTURE-2026-10-29.md), not an installed-package check.
+
 The Windows per-machine installer is assembled from a verified published
 payload with the pinned Inno Setup compiler through
 [`eng/Compile-WindowsInstaller.ps1`](../eng/Compile-WindowsInstaller.ps1).

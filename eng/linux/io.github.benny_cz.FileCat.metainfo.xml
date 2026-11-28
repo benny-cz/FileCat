@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.benny_cz.FileCat</id>
+  <name>FileCat</name>
+  <summary>Multi-panel file manager with built-in viewers and recovery</summary>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.benny_cz">
+    <name>FileCat contributors</name>
+  </developer>
+  <description>
+    <p>
+      FileCat is a keyboard-first file manager for local folders, removable
+      storage, archives and remote servers. Arrange dockable panels and tabs
+      around the task, save named workspaces and keep the source and destination
+      visible when moving or copying files.
+    </p>
+    <p>
+      Built-in viewers open text, hex, images, PDF, HTML and Markdown. Structured
+      inspectors show PE, ELF, Mach-O and APK/AAB files, plus image, audio and
+      video metadata, without executing or playing the files. Search file names
+      and contents, find duplicates, compare folders and batch-rename files.
+    </p>
+    <p>
+      Scan NTFS, FAT and exFAT disks or disk images for deleted files, preview
+      recovery candidates and copy them to another drive. Recovery results show
+      when file contents are incomplete or unavailable.
+    </p>
+  </description>
+  <launchable type="desktop-id">filecat.desktop</launchable>
+  <url type="homepage">https://github.com/benny-cz/FileCat</url>
+  <url type="bugtracker">https://github.com/benny-cz/FileCat/issues</url>
+  <url type="help">https://github.com/benny-cz/FileCat/blob/main/docs/DOWNLOAD.md</url>
+  <url type="vcs-browser">https://github.com/benny-cz/FileCat</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Four panels in Classic Dark on Ubuntu (development-source render)</caption>
+      <image type="source" width="1600" height="960">https://raw.githubusercontent.com/benny-cz/FileCat/v1.0.0/docs/screenshots/ubuntu/ClassicDark.png</image>
+    </screenshot>
+  </screenshots>
+</component>
