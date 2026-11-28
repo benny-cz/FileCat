@@ -1,7 +1,8 @@
 <# Downloads an immutable stable release and tests its WinGet manifest on an isolated GitHub Actions Windows runner. #>
 param(
     [Parameter(Mandatory)][ValidatePattern('^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$')][string]$Tag,
-    [Parameter(Mandatory)][string]$OutputDirectory
+    [Parameter(Mandatory)][string]$OutputDirectory,
+    [ValidateSet('DirectInstaller', 'WinGetLocal')][string]$InstallMethod = 'DirectInstaller'
 )
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false # Every native exit code is checked explicitly below.
@@ -19,6 +20,7 @@ $installDirectory = Join-Path $env:ProgramFiles 'FileCat'
 $uninstaller = Join-Path $installDirectory 'unins000.exe'
 $report = [ordered]@{
     Tag = $Tag; Result = 'Failed'; RunnerOS = [Environment]::OSVersion.VersionString
+    InstallMethod = $InstallMethod; WinGetLocalInstall = 'NotRun'
     RunUrl = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
     Commands = [Collections.Generic.List[object]]::new()
 }
@@ -252,11 +254,44 @@ Add-AppxPackage @installParameters
     $generate = @{ Version = $version; InstallerSha256 = $hash; OutputDirectory = $OutputDirectory }
     $manifestDirectory = & "$PSScriptRoot/New-FileCatManifest.ps1" @generate
     Invoke-WinGet -Arguments @('validate', '--manifest', $manifestDirectory)
-    Invoke-WinGet -Arguments @('settings', '--enable', 'LocalManifestFiles')
-    $installationAttempted = $true
-    # --source cannot be combined with --manifest. The local-manifest route does not search a catalog;
-    # do not accept Store/source agreements to work around unrelated first-run source prompts.
-    Invoke-WinGet -TimeoutSeconds 180 -Arguments @('install', '--manifest', $manifestDirectory, '--silent', '--disable-interactivity', '--verbose-logs', '--log', (Join-Path $evidenceDirectory 'install.log'))
+    if ($InstallMethod -eq 'WinGetLocal') {
+        Invoke-WinGet -Arguments @('settings', '--enable', 'LocalManifestFiles')
+        $installationAttempted = $true
+        $report.WinGetLocalInstall = 'Failed'
+        # --source cannot be combined with --manifest. Keep this diagnostic independent: no fallback or security changes.
+        Invoke-WinGet -TimeoutSeconds 180 -Arguments @('install', '--manifest', $manifestDirectory, '--silent', '--disable-interactivity', '--verbose-logs', '--log', (Join-Path $evidenceDirectory 'install.log'))
+        $report.WinGetLocalInstall = 'Passed'
+    }
+    else {
+        # Independently test the official download whose release digest and Authenticode signature passed above.
+        # Use ordinary Start-Process and Inno's standard switches; leave Windows security and file-origin marks intact.
+        $installLog = Join-Path $evidenceDirectory 'install.log'
+        $installArguments = @('/SP-', '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$installLog`"")
+        $report.DirectInstallerCommand = @{ Executable = $installer; Arguments = $installArguments; TimeoutSeconds = 180; TimedOut = $false; ExitCode = $null }
+        $installationAttempted = $true
+        $directProcess = Start-Process -FilePath $installer -ArgumentList $installArguments -PassThru
+        # Retain the handle so a short-lived process's exit code remains available.
+        [void]$directProcess.Handle
+        $report.DirectInstallerCommand.ProcessId = $directProcess.Id
+        try {
+            Write-Host 'Testing the verified installer directly (180-second limit); WinGet local installation is not run.'
+            if (-not $directProcess.WaitForExit(180000)) {
+                $report.DirectInstallerCommand.TimedOut = $true
+                Save-InstallDiagnostics
+                throw 'Direct installer exceeded 180 seconds; diagnostics captured before termination.'
+            }
+            $report.DirectInstallerCommand.ExitCode = $directProcess.ExitCode
+            if ($directProcess.ExitCode -ne 0) { throw "Direct installer exited with $($directProcess.ExitCode)." }
+        }
+        finally {
+            if (-not $directProcess.HasExited) {
+                $directProcess.Kill($true)
+                if (-not $directProcess.WaitForExit(10000)) { $report.DirectInstallerCommand.StopError = 'Process did not exit after termination.' }
+            }
+            if ($directProcess.HasExited) { $report.DirectInstallerCommand.ExitCode = $directProcess.ExitCode }
+            $directProcess.Dispose()
+        }
+    }
 
     $arp = Get-ItemProperty -LiteralPath $registryPath
     $report.ARP = @{ DisplayName = $arp.DisplayName; DisplayVersion = $arp.DisplayVersion; Publisher = $arp.Publisher; InstallLocation = $arp.InstallLocation; ProductCode = $arp.PSChildName }
@@ -286,6 +321,7 @@ finally {
                 $report.UninstallerSignature = Get-TrustedSignature $uninstaller $installerSigner
                 $uninstallLog = Join-Path $evidenceDirectory 'uninstall.log'
                 $process = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$uninstallLog`"") -PassThru
+                [void]$process.Handle
                 if (-not $process.WaitForExit(60000)) { $process.Kill($true); throw 'Uninstaller exceeded 60 seconds.' }
                 $report.UninstallExitCode = $process.ExitCode
                 if ($process.ExitCode -ne 0) { throw "Uninstaller exited with $($process.ExitCode)." }
@@ -305,4 +341,4 @@ finally {
     $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $evidenceDirectory 'verification.json') -Encoding utf8
 }
 if ($testFailure) { throw $testFailure }
-Write-Host "Validated ${Tag}: manifest, release hash, trusted signatures, silent install, ARP metadata and uninstall."
+Write-Host "Validated ${Tag}: manifest, release hash, trusted signatures, $InstallMethod round trip and ARP metadata. WinGet local install: $($report.WinGetLocalInstall)."

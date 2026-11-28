@@ -6,9 +6,17 @@ files test that baseline, and published non-prerelease releases test their own t
 The release must be immutable and include `FileCat-VERSION-win-x64-setup.exe` with a
 GitHub SHA-256 digest. Preview and ARM64 packages are not included.
 
+Choose an explicit installation method; there is no automatic fallback:
+
+- **DirectInstaller** (default for PRs, releases and manual runs) invokes the downloaded,
+  hash- and signature-verified official installer directly with standard Inno silent
+  switches. It independently verifies the installer while WinGet validates the manifests.
+- **WinGetLocal** explicitly runs `winget install --manifest` and preserves its diagnostic
+  evidence. A failure in this mode fails the run and never switches to DirectInstaller.
+
 The isolated `windows-2025` runner checks the download's size, digest and trusted
 Authenticode signature, generates three schema-1.28.0 manifests, runs `winget validate`,
-installs silently, records the actual Apps & Features metadata, and checks the installed
+installs with the selected method, records the actual Apps & Features metadata, and checks the installed
 `FileCat.exe` and uninstaller against the installer's signing certificate. It then
 regenerates the manifest with the observed display name, validates it and uninstalls,
 requiring both the registry entry and installation directory to disappear. It does not
@@ -23,16 +31,36 @@ digests are checked against the same GitHub release; the release and hashes are 
 Successful runs upload `winget-manifests`; copy its version folder into
 `manifests/b/benny-cz/FileCat/VERSION/` in `microsoft/winget-pkgs`. The separate
 `winget-verification` artifact contains command logs, installation logs and
-`verification.json`, including failures. Neither artifact contains the installer.
+`verification.json`, including failures and the explicit `InstallMethod`.
+In DirectInstaller mode, `WinGetLocalInstall` is `NotRun`; a successful run establishes
+manifest validation and the direct installer round trip, without claiming a successful
+WinGet local-manifest installation. Neither artifact contains the installer.
 Submission, Microsoft's CLA if requested, and upstream review remain separate steps.
 No publication token is required and no upstream pull request is created automatically.
 
-The WinGet install command has a 180-second limit and verbose diagnostics. Before stopping
+Both installation methods have a 180-second limit; WinGetLocal enables verbose logs. Before stopping
 a timed-out process tree, the test captures relevant processes (arguments, CPU, session and
 window titles), ARP and directory state, and the download's `Zone.Identifier`. It also keeps
 WinGet's default diagnostic logs. No download-origin mark is changed or removed. Cleanup
 uses the signed uninstaller if installation started, with a 60-second wait limit; a timeout
 remains a failure even if cleanup succeeds.
+
+### Known headless local-install limitation
+
+[Run 46089308004](https://github.com/benny-cz/FileCat/actions/runs/46089308004) verified
+the release hash and signature and passed `winget validate` with WinGet 1.29.380.
+Its local-manifest install timed out before Inno started: the diagnostic snapshot recorded
+a WinGet window titled `Window Dialog`, a newly launched `CHXSmartScreen.exe`, and
+`ZoneId=3` on WinGet's downloaded copy; no FileCat installation directory or ARP entry
+was created. This is consistent with the unattended local-manifest warning described in
+[microsoft/winget-cli#6362](https://github.com/microsoft/winget-cli/issues/6362).
+The two test methods preserve this distinction without changing MOTW, SmartScreen,
+trust settings or downgrading WinGet.
+
+When submitting a manifest supported by a successful DirectInstaller run, describe the
+exact validation and direct silent install/uninstall evidence, link the local-install
+limitation, and leave the upstream **tested with `winget install --manifest`** checkbox
+unchecked. The upstream repository's installation validation and review remain required.
 
 GitHub does not start another workflow for a release event created using a repository's
 `GITHUB_TOKEN`. If the release pipeline uses that token, run this workflow manually for
