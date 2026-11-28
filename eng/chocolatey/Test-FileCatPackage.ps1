@@ -45,10 +45,13 @@ $report = [ordered]@{
 
 function Invoke-ChocoStep([string]$Step, [string[]]$Arguments) {
     $log = Join-Path $EvidenceDirectory "$Step.log"
-    $command = [ordered]@{ Arguments = $Arguments; ExitCode = $null; Log = "$Step.log" }
+    $command = [ordered]@{ Arguments = $Arguments; ExitCode = $null; Log = "$Step.log"; InstallerLog = $null }
     $report.Commands.Add($command)
     $Arguments = $Arguments + "--log-file=$log"
-    & $choco @Arguments | Out-Host
+    & $choco @Arguments | ForEach-Object {
+        if ($_ -match '^FileCat (?:Setup|uninstall) log: (?<path>.+\.log)$') { $command.InstallerLog = $Matches['path'] }
+        Write-Host $_
+    }
     $command.ExitCode = $LASTEXITCODE
     if ($LASTEXITCODE -ne 0) { throw "Chocolatey $Step exited with code $LASTEXITCODE. See $log." }
 }
@@ -163,12 +166,8 @@ catch {
 finally {
     $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $EvidenceDirectory 'validation.json') -Encoding UTF8
     foreach ($command in $report.Commands) {
-        $log = Join-Path $EvidenceDirectory $command.Log
-        if (Test-Path -LiteralPath $log) {
-            Select-String -LiteralPath $log -Pattern 'FileCat (?:Setup|uninstall) log: (?<path>.+)$' | ForEach-Object {
-                $installerLog = $_.Matches[0].Groups['path'].Value.Trim()
-                if (Test-Path -LiteralPath $installerLog) { Copy-Item -LiteralPath $installerLog -Destination $EvidenceDirectory }
-            }
+        if ($command.InstallerLog -and (Test-Path -LiteralPath $command.InstallerLog -PathType Leaf)) {
+            Copy-Item -LiteralPath $command.InstallerLog -Destination $EvidenceDirectory
         }
     }
 }
