@@ -38,8 +38,9 @@ WinGet local-manifest installation. Neither artifact contains the installer.
 Submission, Microsoft's CLA if requested, and upstream review remain separate steps.
 No publication token is required and no upstream pull request is created automatically.
 
-Both installation methods have a 180-second limit; WinGetLocal enables verbose logs. Before stopping
-a timed-out process tree, the test captures relevant processes (arguments, CPU, session and
+After the installer process starts, each method has a 180-second completion timeout;
+the job's 20-minute outer timeout also bounds process launch. WinGetLocal enables verbose logs.
+Before stopping a timed-out process tree, the test captures relevant processes (arguments, CPU, session and
 window titles), ARP and directory state, and the download's `Zone.Identifier`. It also keeps
 WinGet's default diagnostic logs. No download-origin mark is changed or removed. Cleanup
 uses the signed uninstaller if installation started, with a 60-second wait limit; a timeout
