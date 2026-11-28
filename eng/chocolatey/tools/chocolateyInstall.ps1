@@ -1,7 +1,8 @@
 $ErrorActionPreference = 'Stop'
 
-$architecture = $env:PROCESSOR_ARCHITEW6432
-if (-not $architecture) { $architecture = $env:PROCESSOR_ARCHITECTURE }
+# Read the machine architecture, since an emulated process can report its own architecture.
+$architecture = Get-ItemPropertyValue -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment' `
+    -Name 'PROCESSOR_ARCHITECTURE'
 if ($architecture -ne 'AMD64' -or $env:ChocolateyForceX86 -eq 'true') {
     throw 'The FileCat Chocolatey package requires native x64 Windows.'
 }
