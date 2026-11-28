@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>filecat</id>
+    <version>__VERSION__</version>
+    <title>FileCat</title>
+    <authors>Marek Střihavka</authors>
+    <projectUrl>https://github.com/benny-cz/FileCat</projectUrl>
+    <projectSourceUrl>https://github.com/benny-cz/FileCat/tree/v__VERSION__</projectSourceUrl>
+    <packageSourceUrl>https://github.com/benny-cz/FileCat/tree/main/eng/chocolatey</packageSourceUrl>
+    <bugTrackerUrl>https://github.com/benny-cz/FileCat/issues</bugTrackerUrl>
+    <iconUrl>https://raw.githubusercontent.com/benny-cz/FileCat/v__VERSION__/src/FileCat.App/Assets/filecat.png</iconUrl>
+    <licenseUrl>https://github.com/benny-cz/FileCat/blob/v__VERSION__/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <tags>filecat file-manager multi-panel tabs archives sftp viewer admin</tags>
+    <summary>Keyboard-first, multi-panel file manager with tabs and built-in viewers</summary>
+    <description>FileCat brings local disks, archives and remote file access, including SFTP, into a multi-panel workspace with tabs. Built-in viewers open text, hex, pictures and PDF pages.
+
+This package installs FileCat for all users and requires administrator privileges. Windows 11 x64 is the supported desktop platform. The x64 installer also accepts Windows Server 2016 and server builds at or above 22000, with a graphical desktop needed to use FileCat. Uninstall keeps user settings, history and journals.</description>
+    <releaseNotes>https://github.com/benny-cz/FileCat/releases/tag/v__VERSION__</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\*.ps1" target="tools" />
+    <file src="tools\.skipAutoUninstall" target="tools" />
+  </files>
+</package>

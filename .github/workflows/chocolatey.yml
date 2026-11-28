@@ -1,0 +1,46 @@
+name: Chocolatey package
+
+on:
+  pull_request:
+    paths:
+      - 'eng/chocolatey/**'
+      - 'eng/installer/FileCat.iss'
+      - '.github/workflows/chocolatey.yml'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Exact immutable stable release tag'
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Pack and test with Chocolatey on Windows Server 2025
+    runs-on: windows-2025
+    timeout-minutes: 20
+    env:
+      RELEASE_TAG: ${{ inputs.tag || 'v1.0.0' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Verify the release asset and create the package
+        shell: powershell
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./eng/chocolatey/New-FileCatPackage.ps1 -Tag $env:RELEASE_TAG -OutputDirectory (Join-Path $env:RUNNER_TEMP 'filecat-chocolatey/package')
+      - name: Test install, repeat install and uninstall with Chocolatey
+        shell: powershell
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'filecat-chocolatey'
+          ./eng/chocolatey/Test-FileCatPackage.ps1 -Version ($env:RELEASE_TAG.Substring(1)) -PackageDirectory (Join-Path $root 'package') -EvidenceDirectory (Join-Path $root 'evidence') -IsolatedMachine
+      - name: Keep the package and validation evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: filecat-chocolatey
+          path: ${{ runner.temp }}/filecat-chocolatey/
+          if-no-files-found: warn
