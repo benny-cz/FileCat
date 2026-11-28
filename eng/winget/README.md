@@ -27,6 +27,13 @@ Successful runs upload `winget-manifests`; copy its version folder into
 Submission, Microsoft's CLA if requested, and upstream review remain separate steps.
 No publication token is required and no upstream pull request is created automatically.
 
+The WinGet install command has a 180-second limit and verbose diagnostics. Before stopping
+a timed-out process tree, the test captures relevant processes (arguments, CPU, session and
+window titles), ARP and directory state, and the download's `Zone.Identifier`. It also keeps
+WinGet's default diagnostic logs. No download-origin mark is changed or removed. Cleanup
+uses the signed uninstaller if installation started, with a 60-second wait limit; a timeout
+remains a failure even if cleanup succeeds.
+
 GitHub does not start another workflow for a release event created using a repository's
 `GITHUB_TOKEN`. If the release pipeline uses that token, run this workflow manually for
 the exact published tag. The release pipeline is unchanged.

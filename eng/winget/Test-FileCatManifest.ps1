@@ -23,15 +23,108 @@ $report = [ordered]@{
     Commands = [Collections.Generic.List[object]]::new()
 }
 $installationAttempted = $false
+$validationCompleted = $false
 $installerSigner = $null
 $testFailure = $null
 
-function Invoke-WinGet([string[]]$Arguments) {
+function Copy-WinGetDiagnostics {
+    $source = Join-Path $env:LOCALAPPDATA 'Packages/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe/LocalState/DiagOutputDir'
+    if (Test-Path -LiteralPath $source) {
+        $destination = Join-Path $evidenceDirectory 'winget-diagnostics'
+        New-Item -ItemType Directory -Path $destination -Force | Out-Null
+        Get-ChildItem -LiteralPath $source -File | Copy-Item -Destination $destination -Force
+    }
+}
+
+function Save-InstallDiagnostics {
+    $snapshot = [ordered]@{ CapturedUtc = [DateTime]::UtcNow.ToString('o') }
+    try {
+        $snapshot.Processes = @(Get-CimInstance Win32_Process | Where-Object {
+            $_.Name -match 'winget|filecat|setup|^is-|smartscreen|consent|rundll32|dllhost|appinstaller|^explorer\.exe$'
+        } | ForEach-Object {
+            $running = Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
+            [pscustomobject]@{
+                Name = $_.Name; ProcessId = $_.ProcessId; ParentProcessId = $_.ParentProcessId
+                SessionId = $_.SessionId; CommandLine = $_.CommandLine; Created = $_.CreationDate
+                CpuSeconds = if ($running) { $running.CPU }; WindowTitle = if ($running) { $running.MainWindowTitle }
+                ReadBytes = $_.ReadTransferCount; WriteBytes = $_.WriteTransferCount
+            }
+        })
+        $snapshot.InstallDirectoryExists = Test-Path -LiteralPath $installDirectory
+        $snapshot.InstalledFiles = @(Get-ChildItem -LiteralPath $installDirectory -File -ErrorAction SilentlyContinue | Select-Object Name, Length, LastWriteTimeUtc)
+        $snapshot.ARP = if (Test-Path -LiteralPath $registryPath) {
+            Get-ItemProperty -LiteralPath $registryPath | Select-Object DisplayName, DisplayVersion, Publisher, InstallLocation
+        }
+        # Capture the copy WinGet actually launches, including MOTW; never remove or change its Zone.Identifier.
+        $downloadRoots = @((Join-Path ([IO.Path]::GetTempPath()) "WinGet/benny-cz.FileCat.$version"),
+            (Join-Path $env:LOCALAPPDATA "Temp/WinGet/benny-cz.FileCat.$version")) | Select-Object -Unique
+        $snapshot.WinGetDownloads = @(foreach ($downloadRoot in $downloadRoots) {
+            Get-ChildItem -LiteralPath $downloadRoot -File -Recurse -Filter '*.exe' -ErrorAction SilentlyContinue | ForEach-Object {
+                $zoneErrors = @()
+                $zone = Get-Content -LiteralPath $_.FullName -Stream Zone.Identifier -Raw -ErrorAction SilentlyContinue -ErrorVariable zoneErrors
+                [pscustomobject]@{ Path = $_.FullName; Bytes = $_.Length; ZoneIdentifier = $zone; ZoneReadError = ($zoneErrors | Out-String).Trim() }
+            }
+        })
+        Copy-WinGetDiagnostics
+    }
+    catch { $snapshot.CaptureError = $_.Exception.Message }
+    $snapshot | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $evidenceDirectory 'install-diagnostics.json') -Encoding utf8
+    $report.InstallDiagnostics = 'install-diagnostics.json'
+}
+
+function Invoke-WinGet([string[]]$Arguments, [int]$TimeoutSeconds = 0) {
     $log = Join-Path $evidenceDirectory "winget-$($report.Commands.Count + 1).log"
-    & $script:wingetPath @Arguments 2>&1 | Tee-Object -FilePath $log | Out-Host
-    $exitCode = $LASTEXITCODE
-    $report.Commands.Add(@{ Arguments = $Arguments; ExitCode = $exitCode; Log = [IO.Path]::GetFileName($log) })
-    if ($exitCode -ne 0) { throw "winget $($Arguments[0]) failed with exit code $exitCode; see $log." }
+    $command = @{ Arguments = $Arguments; ExitCode = $null; Log = [IO.Path]::GetFileName($log) }
+    $report.Commands.Add($command)
+    if ($TimeoutSeconds -eq 0) {
+        & $script:wingetPath @Arguments 2>&1 | Tee-Object -FilePath $log | Out-Host
+        $command.ExitCode = $LASTEXITCODE
+    }
+    else {
+        $command.TimeoutSeconds = $TimeoutSeconds
+        $command.TimedOut = $false
+        $errorLog = [IO.Path]::ChangeExtension($log, 'stderr.log')
+        $process = [Diagnostics.Process]::new()
+        $process.StartInfo.FileName = $script:wingetPath
+        $process.StartInfo.UseShellExecute = $false
+        $process.StartInfo.RedirectStandardOutput = $true
+        $process.StartInfo.RedirectStandardError = $true
+        foreach ($argument in $Arguments) { $process.StartInfo.ArgumentList.Add($argument) }
+        $stdout = [IO.FileStream]::new($log, [IO.FileMode]::Create, [IO.FileAccess]::Write, [IO.FileShare]::Read, 1)
+        $stderr = [IO.FileStream]::new($errorLog, [IO.FileMode]::Create, [IO.FileAccess]::Write, [IO.FileShare]::Read, 1)
+        $started = $false
+        $copyTasks = @()
+        try {
+            if (-not $process.Start()) { throw 'Could not start winget.' }
+            $started = $true
+            $command.ProcessId = $process.Id
+            # Drain both pipes concurrently, directly to evidence files, so neither a full pipe nor buffered output hides a stall.
+            $copyTasks = @($process.StandardOutput.BaseStream.CopyToAsync($stdout), $process.StandardError.BaseStream.CopyToAsync($stderr))
+            Write-Host "Waiting up to $TimeoutSeconds seconds for winget $($Arguments[0]) (PID $($process.Id))."
+            if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+                $command.TimedOut = $true
+                Save-InstallDiagnostics # Capture live processes and logs before stopping the process tree.
+            }
+        }
+        finally {
+            if ($started) {
+                if (-not $process.HasExited) {
+                    $process.Kill($true)
+                    if (-not $process.WaitForExit(10000)) { $command.StopError = 'Process did not exit after termination.' }
+                }
+                if ($process.HasExited) { $command.ExitCode = $process.ExitCode }
+                foreach ($copyTask in $copyTasks) {
+                    if (-not $copyTask.Wait(5000)) { $command.LogDrainTimedOut = $true }
+                }
+            }
+            $stdout.Dispose()
+            $stderr.Dispose()
+            $process.Dispose()
+            Get-Content -LiteralPath $log, $errorLog -ErrorAction SilentlyContinue | Out-Host
+        }
+        if ($command.TimedOut) { throw "winget install exceeded $TimeoutSeconds seconds; diagnostics captured before termination." }
+    }
+    if ($command.ExitCode -ne 0) { throw "winget $($Arguments[0]) failed with exit code $($command.ExitCode); see $log." }
 }
 
 function Get-TrustedSignature([string]$File, [string]$ExpectedSigner) {
@@ -163,7 +256,7 @@ Add-AppxPackage @installParameters
     $installationAttempted = $true
     # --source cannot be combined with --manifest. The local-manifest route does not search a catalog;
     # do not accept Store/source agreements to work around unrelated first-run source prompts.
-    Invoke-WinGet -Arguments @('install', '--manifest', $manifestDirectory, '--silent', '--disable-interactivity', '--log', (Join-Path $evidenceDirectory 'install.log'))
+    Invoke-WinGet -TimeoutSeconds 180 -Arguments @('install', '--manifest', $manifestDirectory, '--silent', '--disable-interactivity', '--verbose-logs', '--log', (Join-Path $evidenceDirectory 'install.log'))
 
     $arp = Get-ItemProperty -LiteralPath $registryPath
     $report.ARP = @{ DisplayName = $arp.DisplayName; DisplayVersion = $arp.DisplayVersion; Publisher = $arp.Publisher; InstallLocation = $arp.InstallLocation; ProductCode = $arp.PSChildName }
@@ -179,19 +272,24 @@ Add-AppxPackage @installParameters
     $manifestDirectory = & "$PSScriptRoot/New-FileCatManifest.ps1" @generate
     Invoke-WinGet -Arguments @('validate', '--manifest', $manifestDirectory)
     $report.ManifestDirectory = "manifests/b/benny-cz/FileCat/$version"
+    $validationCompleted = $true
 }
 catch {
     $testFailure = $_
     $report.Error = $_.Exception.Message
+    if ($installationAttempted -and -not $report.Contains('InstallDiagnostics')) { Save-InstallDiagnostics }
 }
 finally {
     if ($installationAttempted) {
         try {
-            $report.UninstallerSignature = Get-TrustedSignature $uninstaller $installerSigner
-            $uninstallLog = Join-Path $evidenceDirectory 'uninstall.log'
-            $process = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$uninstallLog`"") -Wait -PassThru
-            $report.UninstallExitCode = $process.ExitCode
-            if ($process.ExitCode -ne 0) { throw "Uninstaller exited with $($process.ExitCode)." }
+            if ((Test-Path -LiteralPath $registryPath) -or (Test-Path -LiteralPath $installDirectory)) {
+                $report.UninstallerSignature = Get-TrustedSignature $uninstaller $installerSigner
+                $uninstallLog = Join-Path $evidenceDirectory 'uninstall.log'
+                $process = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$uninstallLog`"") -PassThru
+                if (-not $process.WaitForExit(60000)) { $process.Kill($true); throw 'Uninstaller exceeded 60 seconds.' }
+                $report.UninstallExitCode = $process.ExitCode
+                if ($process.ExitCode -ne 0) { throw "Uninstaller exited with $($process.ExitCode)." }
+            }
             # Inno's temporary child can take a moment to remove the original uninstaller and directory.
             for ($attempt = 0; $attempt -lt 20 -and ((Test-Path -LiteralPath $registryPath) -or (Test-Path -LiteralPath $installDirectory)); $attempt++) { Start-Sleep -Milliseconds 500 }
             if ((Test-Path -LiteralPath $registryPath) -or (Test-Path -LiteralPath $installDirectory)) { throw 'Uninstall left the ARP entry or installation directory behind.' }
@@ -201,8 +299,9 @@ finally {
             $report.CleanupError = $_.Exception.Message
             if (-not $testFailure) { $testFailure = $_ }
         }
+        try { Copy-WinGetDiagnostics } catch { $report.DiagnosticLogCopyError = $_.Exception.Message }
     }
-    if (-not $testFailure) { $report.Result = 'Passed' }
+    if ($validationCompleted -and -not $testFailure) { $report.Result = 'Passed' }
     $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $evidenceDirectory 'verification.json') -Encoding utf8
 }
 if ($testFailure) { throw $testFailure }
