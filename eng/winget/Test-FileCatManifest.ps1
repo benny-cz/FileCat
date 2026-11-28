@@ -45,11 +45,15 @@ function Get-TrustedSignature([string]$File, [string]$ExpectedSigner) {
 }
 
 function Find-WinGet {
+    # Prefer the registered current-user main package over a possibly stale execution alias or bundle entry.
+    $package = Get-AppxPackage -Name Microsoft.DesktopAppInstaller -PackageTypeFilter Main |
+        Where-Object { $_.Architecture -eq 'X64' } | Sort-Object Version -Descending | Select-Object -First 1
+    if ($package) {
+        $executable = Join-Path $package.InstallLocation 'winget.exe'
+        if (Test-Path -LiteralPath $executable -PathType Leaf) { return $executable }
+    }
     $command = Get-Command winget.exe -ErrorAction SilentlyContinue
     if ($command) { return $command.Source }
-    # A freshly registered App Installer may not yet have a command alias on PATH.
-    $package = Get-AppxPackage -Name Microsoft.DesktopAppInstaller | Sort-Object Version -Descending | Select-Object -First 1
-    if ($package) { return Join-Path $package.InstallLocation 'winget.exe' }
 }
 
 function Test-WinGetVersion([string]$Executable) {
@@ -90,11 +94,64 @@ try {
 
     $script:wingetPath = Find-WinGet
     if (-not (Test-WinGetVersion $script:wingetPath)) {
-        # PowerShell 7.4+ bundles PSResourceGet; it needs no legacy PackageManagement NuGet-provider bootstrap.
-        # Install the stable module, then use Microsoft's WinGet repair; no preview or source-agreement switches.
-        Install-PSResource -Name Microsoft.WinGet.Client -Repository PSGallery -Scope CurrentUser -TrustRepository -Reinstall
-        Import-Module Microsoft.WinGet.Client
-        Repair-WinGetPackageManager -AllUsers -Latest | Out-Host
+        # Install Microsoft's exact stable bundle directly. Repair -AllUsers can re-register a stale system bundle.
+        $bootstrapDirectory = Join-Path $OutputDirectory 'winget-bootstrap'
+        New-Item -ItemType Directory -Path $bootstrapDirectory -Force | Out-Null
+        $wingetRelease = Invoke-RestMethod -Uri 'https://api.github.com/repos/microsoft/winget-cli/releases/latest' -Headers $headers
+        if ($wingetRelease.draft -or $wingetRelease.prerelease -or $wingetRelease.tag_name -notmatch '^v\d+\.\d+\.\d+$') {
+            throw 'The WinGet bootstrap must use a published stable release.'
+        }
+        $report.WinGetBootstrap = @{
+            ReleaseUrl = $wingetRelease.html_url; Tag = $wingetRelease.tag_name
+            Assets = [Collections.Generic.List[object]]::new()
+        }
+        foreach ($bootstrapName in @('Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle', 'DesktopAppInstaller_Dependencies.zip', 'DesktopAppInstaller_Dependencies.json')) {
+            $bootstrapAssets = @($wingetRelease.assets | Where-Object name -CEQ $bootstrapName)
+            if ($bootstrapAssets.Count -ne 1) { throw "Expected exactly one WinGet asset $bootstrapName." }
+            $bootstrapAsset = $bootstrapAssets[0]
+            $bootstrapUrl = "https://github.com/microsoft/winget-cli/releases/download/$($wingetRelease.tag_name)/$bootstrapName"
+            if ($bootstrapAsset.browser_download_url -cne $bootstrapUrl -or $bootstrapAsset.digest -notmatch '^sha256:[a-fA-F0-9]{64}$') {
+                throw "Unexpected URL or missing digest for WinGet asset $bootstrapName."
+            }
+            $bootstrapFile = Join-Path $bootstrapDirectory $bootstrapName
+            Invoke-WebRequest -Uri $bootstrapUrl -OutFile $bootstrapFile
+            $bootstrapHash = (Get-FileHash -LiteralPath $bootstrapFile -Algorithm SHA256).Hash
+            if ($bootstrapHash -ine $bootstrapAsset.digest.Substring(7) -or (Get-Item -LiteralPath $bootstrapFile).Length -ne $bootstrapAsset.size) {
+                throw "WinGet asset $bootstrapName differs from its release digest or size."
+            }
+            $report.WinGetBootstrap.Assets.Add(@{ Name = $bootstrapName; Sha256 = $bootstrapHash; Bytes = $bootstrapAsset.size })
+        }
+        $dependencyDirectory = Join-Path $bootstrapDirectory 'dependencies'
+        Expand-Archive -LiteralPath (Join-Path $bootstrapDirectory 'DesktopAppInstaller_Dependencies.zip') -DestinationPath $dependencyDirectory -Force
+        $bootstrapScript = Join-Path $bootstrapDirectory 'Install-WinGet.ps1'
+        # Appx's PowerShell Core compatibility remoting can collapse DependencyPath string[] to a single string.
+        # Build and consume the array entirely inside Windows PowerShell, as the upstream Appx helper recommends.
+        @'
+param([string]$BundlePath, [string]$DependencyJson, [string]$DependencyDirectory)
+$ErrorActionPreference = 'Stop'
+$metadata = Get-Content -LiteralPath $DependencyJson -Raw -Encoding UTF8 | ConvertFrom-Json
+$dependencyPaths = @(
+    foreach ($dependency in $metadata.Dependencies) {
+        $installed = Get-AppxPackage -Name $dependency.Name -PackageTypeFilter Framework |
+            Where-Object { $_.Architecture -eq 'X64' -and [version]$_.Version -ge [version]$dependency.Version }
+        if (-not $installed) {
+            $path = Join-Path $DependencyDirectory ('x64\{0}_{1}_x64.appx' -f $dependency.Name, $dependency.Version)
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Missing x64 dependency: $path" }
+            $path
+        }
+    }
+)
+$installParameters = @{ Path = $BundlePath; ForceApplicationShutdown = $true }
+if ($dependencyPaths.Count -gt 0) { $installParameters.DependencyPath = $dependencyPaths }
+Add-AppxPackage @installParameters
+'@ | Set-Content -LiteralPath $bootstrapScript -Encoding utf8
+        & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -File $bootstrapScript `
+            -BundlePath (Join-Path $bootstrapDirectory 'Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle') `
+            -DependencyJson (Join-Path $bootstrapDirectory 'DesktopAppInstaller_Dependencies.json') `
+            -DependencyDirectory $dependencyDirectory 2>&1 | Tee-Object -FilePath (Join-Path $evidenceDirectory 'winget-bootstrap.log') | Out-Host
+        $bootstrapExitCode = $LASTEXITCODE
+        $report.WinGetBootstrap.ExitCode = $bootstrapExitCode
+        if ($bootstrapExitCode -ne 0) { throw "WinGet bootstrap failed with exit code $bootstrapExitCode." }
         $script:wingetPath = Find-WinGet
         if (-not (Test-WinGetVersion $script:wingetPath)) { throw 'A stable WinGet >= 1.28.0 is required.' }
     }

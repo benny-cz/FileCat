@@ -16,6 +16,10 @@ launch FileCat or use speculative GUI command-line options. Existing installatio
 are refused. This is an installer test on **Windows Server 2025**, not Windows 11 GUI
 qualification or a test of upgrades from earlier versions.
 
+If the runner's WinGet is missing or too old, the workflow installs the official stable
+App Installer bundle and its x64 dependencies directly for the runner user. Their
+digests are checked against the same GitHub release; the release and hashes are recorded.
+
 Successful runs upload `winget-manifests`; copy its version folder into
 `manifests/b/benny-cz/FileCat/VERSION/` in `microsoft/winget-pkgs`. The separate
 `winget-verification` artifact contains command logs, installation logs and
@@ -33,5 +37,5 @@ an explicit version and known SHA-256; these files are not installation-verified
 
 References: [first contribution](https://github.com/microsoft/winget-pkgs/blob/master/doc/FirstContribution.md),
 [manifest schema](https://github.com/microsoft/winget-pkgs/blob/master/doc/manifest/schema/1.28.0/README.md),
-[WinGet bootstrap](https://learn.microsoft.com/en-us/windows/package-manager/winget/#install-winget-on-windows-sandbox),
+[WinGet installation](https://learn.microsoft.com/en-us/troubleshoot/windows-client/shell-experience/troubleshoot-apps-start-failure-use-windows-package-manager),
 [workflow triggering](https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow).
