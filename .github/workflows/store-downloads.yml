@@ -1,0 +1,48 @@
+name: Publish FileCat Store downloads
+
+on:
+  push:
+    branches: [store-downloads]
+    paths: [.github/workflows/store-downloads.yml]
+
+concurrency:
+  group: filecat-store-downloads
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'benny-cz/FileCat' && github.ref == 'refs/heads/store-downloads'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Stage the immutable Windows installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public/downloads
+          printf '%s\n' '<!doctype html><meta charset="utf-8"><title>FileCat downloads</title><h1>FileCat downloads</h1><p><a href="https://github.com/benny-cz/FileCat/releases">Release notes and downloads</a></p>' > public/index.html
+          while read -r version size sha256; do
+            name="FileCat-${version}-win-x64-setup.exe"
+            folder="public/downloads/v${version}"
+            mkdir -p "$folder"
+            curl --disable --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+              --max-time 300 --output "$folder/$name" \
+              "https://github.com/benny-cz/FileCat/releases/download/v${version}/${name}"
+            test "$(wc -c < "$folder/$name")" -eq "$size"
+            printf '%s  %s\n' "$sha256" "$folder/$name" | sha256sum --check --strict
+          done <<'RELEASES'
+          1.0.0 83669880 8a0dcd5f45ea0ab0094354789f2aec82310da3e06f7095a3ac16a0a271d43858
+          RELEASES
+      - name: Upload the download site
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: public
+      - name: Publish the download site
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
