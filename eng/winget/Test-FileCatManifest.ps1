@@ -90,9 +90,9 @@ try {
 
     $script:wingetPath = Find-WinGet
     if (-not (Test-WinGetVersion $script:wingetPath)) {
-        # Microsoft's documented bootstrap; no preview builds, Store agreements or publication credentials.
-        Install-PackageProvider -Name NuGet -Force | Out-Null
-        Install-Module -Name Microsoft.WinGet.Client -Force -Repository PSGallery -Scope CurrentUser
+        # PowerShell 7.4+ bundles PSResourceGet; it needs no legacy PackageManagement NuGet-provider bootstrap.
+        # Install the stable module, then use Microsoft's WinGet repair; no preview or source-agreement switches.
+        Install-PSResource -Name Microsoft.WinGet.Client -Repository PSGallery -Scope CurrentUser -TrustRepository -Reinstall
         Import-Module Microsoft.WinGet.Client
         Repair-WinGetPackageManager -AllUsers -Latest | Out-Host
         $script:wingetPath = Find-WinGet
