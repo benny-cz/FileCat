@@ -1,0 +1,58 @@
+name: WinGet manifests
+
+on:
+  pull_request:
+    paths:
+      - 'eng/winget/**'
+      - '.github/workflows/winget.yml'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Exact immutable stable release tag'
+        type: string
+        required: true
+        default: v1.0.0
+      install_method:
+        description: 'Independent installer verification or explicit WinGet local-manifest diagnostic'
+        type: choice
+        required: true
+        options:
+          - DirectInstaller
+          - WinGetLocal
+        default: DirectInstaller
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: github.event_name != 'release' || !github.event.release.prerelease
+    name: Validate manifests and ${{ inputs.install_method || 'DirectInstaller' }} round trip
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Verify release, validate manifests and test ${{ inputs.install_method || 'DirectInstaller' }}
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag || 'v1.0.0' }}
+          INSTALL_METHOD: ${{ inputs.install_method || 'DirectInstaller' }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./eng/winget/Test-FileCatManifest.ps1 -Tag $env:RELEASE_TAG -InstallMethod $env:INSTALL_METHOD -OutputDirectory (Join-Path $env:RUNNER_TEMP 'filecat-winget')
+      - name: Keep the verified manifest set
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: winget-manifests
+          path: ${{ runner.temp }}/filecat-winget/manifests/
+          if-no-files-found: error
+      - name: Keep validation evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: winget-verification
+          path: ${{ runner.temp }}/filecat-winget/evidence/
+          if-no-files-found: warn
